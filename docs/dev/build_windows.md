@@ -11,7 +11,7 @@ Supported configurations:
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - Microsoft Visual Studio 2019 or higher, version 16.3 or later
   > **NOTE**: Native Microsoft Visual Studio for WoA is available since 2022. 
-- Python 3.7 - 3.11 for OpenVINO Runtime Python API
+- Python 3.8 - 3.11 for OpenVINO Runtime Python API
   > **NOTE**: Python for ARM64 is available since [3.11](https://www.python.org/downloads/windows/) version. 
 - [Git for Windows*]
 - (Windows on ARM only) [LLVM for Windows on ARM (WoA)](https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.6/LLVM-15.0.6-woa64.exe)
@@ -55,11 +55,9 @@ Supported configurations:
       ```sh
       pip install -r <openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
       ```
-  2. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #4) option above. To specify an exact Python version, use the following options:
+  2. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #4) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```sh
-     -DPYTHON_EXECUTABLE="C:\Program Files\Python11\python.exe" ^
-     -DPYTHON_LIBRARY="C:\Program Files\Python11\libs\python11.lib" ^
-     -DPYTHON_INCLUDE_DIR="C:\Program Files\Python11\include"
+     -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
      ```
   3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
      ```sh
