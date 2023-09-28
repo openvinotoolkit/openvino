@@ -11,7 +11,6 @@ namespace paddle {
 namespace op {
 NamedOutputs partial_sum(const NodeContext& node) {
     auto x = node.get_ng_inputs("X");
-    // const auto input_dtype = x.get_element_type();
     const auto start_index = node.get_attribute<int>("start_index");
     const auto length = node.get_attribute<int>("length");
     // PADDLE_OP_CHECK(node, x[0].get_shape.size() == 2, "partial op only supports 2-D Tensor");
@@ -19,7 +18,7 @@ NamedOutputs partial_sum(const NodeContext& node) {
     int end_index;
     if (length < 0) {
         // Negative values for all elements after start_index on second dim.
-        end_index = x[0].get_shape()[1];
+        end_index = static_cast<int>(x[0].get_shape()[1]);
     } else {
         end_index = start_index + length;
     }

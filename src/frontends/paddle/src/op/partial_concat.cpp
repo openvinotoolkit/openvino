@@ -18,7 +18,7 @@ NamedOutputs partial_concat(const NodeContext& node) {
     int end_index;
     if (length < 0) {
         // Negative values for all elements after start_index on second dim.
-        end_index = x[0].get_shape()[1];
+        end_index = static_cast<int>(x[0].get_shape()[1]);
     } else {
         end_index = start_index + length;
     }
