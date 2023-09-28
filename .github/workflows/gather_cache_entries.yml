@@ -43,7 +43,6 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const XLSX = require('xlsx');
             
             const restorePath = ['${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv']
             
