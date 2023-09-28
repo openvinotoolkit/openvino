@@ -243,8 +243,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     def test_conversion_failure_fallback_use_new_frontend(self):
         with self.assertRaisesRegex(Exception,
                                     "\[TensorFlow Frontend\] Internal error, no translator found for operation\(s\)\: "
-                                    "Enter\, Exit\, LoopCond\, Merge\, NextIteration\, Switch\, TensorArrayGatherV3\, "
-                                    "TensorArraySizeV3\, TensorArrayV3"):
+                                    "TensorArrayGatherV3\, TensorArraySizeV3\, TensorArrayV3"):
             self.basic("ctc_model_based.pbtxt", None, None, None, None,
                        None, None, True, True, True, False)
 
