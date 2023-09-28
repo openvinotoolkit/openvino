@@ -4,25 +4,25 @@ on:
     # at 00:00 on Wednesday and Saturday
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#  push:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#    branches:
-#      - master
-#      - 'releases/**'
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -432,9 +432,6 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
 
-#      - name: Install 'actions/setup-python@v4' dependencies
-#        run: apt-get update && apt-get install -y libssl1.1
-
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
@@ -465,6 +462,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ env.TEST_DEVICE }}-
 
+      - name: Download Test Results Table
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/hash_table_${{ env.TEST_DEVICE }}.csv
+          key: ${{ runner.os }}-conformance-hash-table-${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-conformance-hash-table-${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}-
+
       - name: Run Conformance Tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -491,6 +496,22 @@ jobs:
         with:
           path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
           key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ env.TEST_DEVICE }}-${{ github.sha }}
+
+      # Required due to: https://github.com/actions/cache/tree/main/restore#ensuring-proper-restores-and-save-happen-across-the-actions
+      - name: Rename Test Results Table
+        # if: github.ref_name == 'master'
+        if: ${{ always() }}
+        run: |
+          rm -rf ${CONFORMANCE_TOOLS_DIR}/hash_table_${TEST_DEVICE}.csv
+          cp ${CONFORMANCE_ARTIFACTS_DIR}/${TEST_DEVICE}_logs/logs/hash_table.csv ${CONFORMANCE_TOOLS_DIR}/hash_table_${TEST_DEVICE}.csv
+
+      - name: Upload Test Results Table
+        # if: github.ref_name == 'master'
+        if: ${{ always() }}
+        uses: actions/cache/save@v3
+        with:
+          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/hash_table_${{ env.TEST_DEVICE }}.csv
+          key: ${{ runner.os }}-conformance-hash-table-${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}-${{ github.sha }}
 
       - name: Pack Conformance Artifacts
         if: ${{ always() }}

@@ -1,10 +1,10 @@
 name: Gathering Cache Entries
 on:
   workflow_dispatch:
-  pull_request:
-  push:
-    branches:
-      - main
+#  pull_request:
+#  push:
+#    branches:
+#      - main
 
 jobs:
   Gather_Cache_Entries:
@@ -71,13 +71,15 @@ jobs:
             
               console.log(`Restoring cache: ${cacheKey}`)
             
-              fs.mkdir(`${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}`, { recursive: true }, (err) => {
-                if (err) throw err;
-              });
-            
               const restoredCacheKey = await cache.restoreCache([restorePath], cacheKey, [])
               
               if (restoredCacheKey) {
+            
+                // Create dir for the entry
+                fs.mkdir(`${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}`, { recursive: true }, (err) => {
+                  if (err) throw err;
+                });
+            
                 // Move downloaded cache to its final directory
                 fs.rename(restorePath, finalPath, function (err) {
                   if (err) throw err
@@ -86,7 +88,7 @@ jobs:
               } else {
                 console.log(`Cache was not restored: ${cacheKey}.\n`)
               }
-              await sleep(2000);
+              await sleep(4000);
             }
 
       - name: Check Restoration
