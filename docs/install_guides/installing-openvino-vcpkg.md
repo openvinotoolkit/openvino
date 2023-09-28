@@ -55,7 +55,7 @@ Installing OpenVINO Runtime
 
       vcpkg install 'openvino[core,cpu,ir]'
 
-   vcpkg also provides a way to install OpenVINO for any specific configuration you want via `triplets <https://learn.microsoft.com/en-us/vcpkg/users/triplets>`, for example to install OpenVINO statically on Windows, use:
+   vcpkg also provides a way to install OpenVINO for any specific configuration you want via `triplets <https://learn.microsoft.com/en-us/vcpkg/users/triplets>`__, for example to install OpenVINO statically on Windows, use:
 
    .. code-block:: sh
 
