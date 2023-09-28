@@ -31,6 +31,7 @@ concurrency:
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
+  PYTHON_VERSION: '3.11'
 
 jobs:
   Build:
@@ -96,7 +97,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -329,7 +330,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -615,7 +616,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -849,7 +850,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/requirements.txt
@@ -913,7 +914,12 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup pip cache dir
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -988,14 +994,6 @@ jobs:
           # install 'g++' to build 'detectron2' and 'natten' wheels
           sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
 
-      - name: Maximize build space
-        run:  |
-          sudo rm -rf /usr/local/lib/android # will release about 10 GB if you don't need Android
-          sudo rm -rf /usr/share/dotnet # will release about 20GB if you don't need .NET
-          sudo rm -rf /opt/ghc
-          echo "Available storage:"
-          df -h
-
       - name: Create Directories
         run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
@@ -1022,7 +1020,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -1038,9 +1036,8 @@ jobs:
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
           echo "Available storage:"
           df -h
-          du -h -d0 ${PIP_CACHE_DIR} ${HOME}
         env:
-          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python3.11
+          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
       - name: PyTorch Models Tests
         run: |
@@ -1054,7 +1051,6 @@ jobs:
         run: |
           echo "Available storage:"
           df -h
-          du -h -d0 ${PIP_CACHE_DIR} ${HOME}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
