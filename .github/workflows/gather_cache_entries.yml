@@ -1,0 +1,79 @@
+name: Gathering Cache Entries
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  Gather_Cache_Entries:
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+      CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
+      TEST_DEVICE: 'CPU'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Artifacts Directory
+        run: mkdir -p ${{ env.ARTIFACTS_DIR }} ${{ env.CONFORMANCE_TOOLS_DIR }}
+
+      - name: Show Context
+        uses: actions/github-script@v6
+        with:
+          script: |
+            console.log(context)
+            console.log(context.runId)
+            console.log(context.payload.repository.full_name)
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - run: npm install @actions/cache
+      
+      - name: Gather Workflows Data
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const XLSX = require('xlsx');
+            
+            const restorePath = [${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv]
+            
+            const cache = require('@actions/cache');
+            const key = 'Linux-conformance-OP-expected-failures-CPU-ac137727fe5bdd9de265f9c982d9aed9e62b6128'
+            const restoreKeys = [
+                'Linux-conformance-'
+            ]
+            const cacheKey = await cache.restoreCache(restorePath, key, restoreKeys)
+            console.log(cacheKey)
+            
+            
+            // TODO: use context.payload.repository.organization
+            const org = 'openvinotoolkit'
+            
+            // TODO: use context.payload.repository.name
+            const repositoryName = 'openvino'
+            const cacheEntries = await github.rest.actions.getActionsCacheList({
+              'owner': org,
+              'repo': repositoryName,
+            })
+            console.log(cacheEntries)
+            
+            const cacheEntriesFiltered = await github.rest.actions.getActionsCacheList({
+              'owner': org,
+              'repo': repositoryName,
+              'key': 'Linux-conformance'
+            })
+            console.log(cacheEntriesFiltered)
+
+      - name: Check Restoration
+        run: ls -laR ${{ env.CONFORMANCE_TOOLS_DIR }}
+
