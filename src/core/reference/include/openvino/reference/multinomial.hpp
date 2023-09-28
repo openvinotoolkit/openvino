@@ -65,7 +65,7 @@ void multinomial(const T* probs,
     // Create a cdf of probabilties on the last axis, per batch. Note cumsum exclusive  == false
     std::vector<T> cdf(total_inputs_elements_count);
     auto last_axis = probs_shape.size() - 1;
-    cumsum<T, size_t>(input_vals.data(), &last_axis, cdf.data(), probs_shape, false, false);
+    cumsum<T, size_t>(input_vals.data(), last_axis, cdf.data(), probs_shape, false, false);
 
     // Obtain max value from cdf, per batch (from cumsum it is the last element)
     std::vector<T> max_value_per_batch(total_inputs_elements_count / probs_shape[last_axis]);

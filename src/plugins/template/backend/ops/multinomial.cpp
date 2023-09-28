@@ -8,7 +8,7 @@
 
 template <ov::element::Type_t INPUT_T, ov::element::Type_t SAMPLES_T, ov::element::Type_t OUTPUT_T>
 inline void evaluate_output_t(const std::shared_ptr<ov::op::v13::Multinomial>& op,
-                              const ov::TensorVector& outputs,
+                              ov::TensorVector& outputs,
                               const ov::TensorVector& inputs) {
     using T1 = typename ov::element_type_traits<INPUT_T>::value_type;
     using T2 = typename ov::element_type_traits<SAMPLES_T>::value_type;
@@ -31,7 +31,7 @@ inline void evaluate_output_t(const std::shared_ptr<ov::op::v13::Multinomial>& o
 
 template <ov::element::Type_t INPUT_T, ov::element::Type_t SAMPLES_T>
 inline void evaluate_samples_t(const std::shared_ptr<ov::op::v13::Multinomial>& op,
-                     const ov::TensorVector& outputs,
+                     ov::TensorVector& outputs,
                      const ov::TensorVector& inputs) {
     switch (op->get_convert_type()) {
     case ov::element::Type_t::i32:
@@ -48,7 +48,7 @@ inline void evaluate_samples_t(const std::shared_ptr<ov::op::v13::Multinomial>& 
 
 template <ov::element::Type_t INPUT_T>
 bool evaluate_input_t(const std::shared_ptr<ov::op::v13::Multinomial>& op,
-              const ov::TensorVector& outputs,
+              ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     switch (inputs[1].get_element_type()) {
     case ov::element::Type_t::i64:
