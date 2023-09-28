@@ -398,7 +398,8 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
-      CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts_dir
+      CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts
+      CONFORMANCE_CACHE_DIR: ${{ github.workspace }}/install/conformance_cache
       TEST_DEVICE: 'CPU'
 
     steps:
