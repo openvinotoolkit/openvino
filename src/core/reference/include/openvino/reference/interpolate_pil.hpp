@@ -40,6 +40,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "openvino/core/shape.hpp"
 
