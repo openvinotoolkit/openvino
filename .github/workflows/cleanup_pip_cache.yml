@@ -22,8 +22,8 @@ jobs:
 
       - name: Cleanup cache
         run: |
-          echo "Removing pip caches"
-          [ ! -z "${PIP_CACHE_PATH}" ] && rm -rv ${PIP_CACHE_PATH}/*
+          echo "Delete cache files if they have not been used in over 30 days"
+          [ ! -z "${PIP_CACHE_PATH}" ] && find ${PIP_CACHE_PATH} ! -type d -mtime +30 -delete
 
       - name: Post-Collecting Cache Info
         run: |
