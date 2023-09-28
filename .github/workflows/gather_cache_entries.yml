@@ -48,19 +48,12 @@ jobs:
             const restorePath = ['${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv']
             
             const cache = require('@actions/cache');
-            const key = 'Linux-conformance-OP-expected-failures-CPU'
-            const restoreKeys = [
-                'Linux-conformance-'
-            ]
-            const cacheKey = await cache.restoreCache(restorePath, key, restoreKeys)
-            console.log(cacheKey)
+            // const key = 'Linux-conformance-OP-expected-failures-CPU'
+            // const cacheKey = await cache.restoreCache(restorePath, key, restoreKeys)
+            // console.log(cacheKey)
             
-            
-            // TODO: use context.payload.repository.organization
-            const org = 'openvinotoolkit'
-            
-            // TODO: use context.payload.repository.name
-            const repositoryName = 'openvino'
+            const org = context.payload.organization.login
+            const repositoryName = context.payload.repository.name
             
             const conformanceCacheEntries = await github.rest.actions.getActionsCacheList({
               'owner': org,
@@ -68,6 +61,22 @@ jobs:
               'key': 'Linux-conformance'
             })
             console.log(JSON.stringify(conformanceCacheEntries))
+            
+            // Download all cache entries
+            for (const cacheEntryInfo of conformanceCacheEntries.data.actions_caches) {
+              const cacheKey = cacheEntryInfo.key
+              const restorePath = `${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}`
+            
+              fs.mkdir(`${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}`, { recursive: true }, (err) => {
+                if (err) throw err;
+              });
+            
+              const restoredCacheKey = await cache.restoreCache(restorePath, cacheKey, [])
+              
+              if (restoredCacheKey) {
+                console.log(`${cacheKey} was restored to ${restorePath}.`)
+              }
+            }
 
       - name: Check Restoration
         run: ls -laR ${{ env.CONFORMANCE_TOOLS_DIR }}
