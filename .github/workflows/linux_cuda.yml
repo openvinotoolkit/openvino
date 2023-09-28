@@ -1,27 +1,24 @@
 name: Linux CUDA Plugin (Ubuntu 20.04, Python 3.11)
 on:
   workflow_dispatch:
-  schedule:
-    # run daily at 00:00
-    - cron: '0 0 * * *'
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#  push:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#    branches:
-#      - master
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -30,27 +27,26 @@ concurrency:
 
 jobs:
   Build:
-    # TODO: remove. Temporary measure to prevent the workflow from scheduling on forks.
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-8-cores
+    runs-on: aks-linux-16-cores
     container:
       image: nvidia/cuda:11.8.0-runtime-ubuntu20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      CMAKE_CXX_LINKER_LAUNCHER: ccache
-      CMAKE_C_LINKER_LAUNCHER: ccache
-      BUILD_TYPE: 'Release'
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
-      OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
-      BUILD_DIR: ${{ github.workspace }}/build
-      INSTALL_DIR: ${{ github.workspace }}/install_pkg
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
+      BUILD_DIR: /__w/openvino/openvino/openvino_build
       DEBIAN_FRONTEND: 'noninteractive'
+      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
+      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
+      CCACHE_MAXSIZE: 50G
     steps:
 
       - name: Install Prerequisites
@@ -61,25 +57,15 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
-          path: 'openvino'
+          path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v3
         with:
           repository: 'openvinotoolkit/openvino_contrib'
-          path: 'openvino_contrib'
+          path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-
-      - name: Create Directories
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/build
-          mkdir -p $GITHUB_WORKSPACE/install_pkg
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
 
       #
       # Dependencies
@@ -87,8 +73,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt update
-          $GITHUB_WORKSPACE/openvino/install_build_dependencies.sh
+          ${OPENVINO_REPO}/openvino/install_build_dependencies.sh
           
           apt -y --no-install-recommends install unzip wget software-properties-common
 
@@ -110,25 +95,9 @@ jobs:
             libcutensor-dev=1.6.1.5-1 \
             cuda-drivers=520.61.05-1
 
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          max-size: "2000M"
-          # Should save cache only if run in the master branch of the base repo
-          # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
-          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
-          verbose: 2
-          key: linux-cuda
-          restore-keys: |
-            linux-cuda
-
       #
       # Build
       #
-
-      - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
-        id: cpu-cores
 
       - name: CMake configure
         run: |
@@ -136,8 +105,8 @@ jobs:
             -GNinja \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DENABLE_CPPLINT=OFF \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DOPENVINO_EXTRA_MODULES=$GITHUB_WORKSPACE/openvino_contrib/modules/nvidia_plugin \
+            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO} \
             -DENABLE_INTEL_CPU=OFF \
             -DENABLE_INTEL_GPU=OFF \
             -DENABLE_INTEL_GNA=OFF \
@@ -148,15 +117,12 @@ jobs:
             -DENABLE_OV_ONNX_FRONTEND=OFF \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=ON \
-            -S $GITHUB_WORKSPACE/openvino \
-            -B $GITHUB_WORKSPACE/build
-
-      - name: Clean ccache stats
-        run: ccache --zero-stats --show-config
+            -S ${OPENVINO_REPO} \
+            -B ${BUILD_DIR}
 
       - name: Build
         run: |
-          cmake --build $GITHUB_WORKSPACE/build --parallel ${{ steps.cpu-cores.outputs.count }} --config ${{ env.BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
+          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
 
       - name: Show ccache stats
         run: ccache --show-stats
