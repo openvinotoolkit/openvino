@@ -20,8 +20,7 @@ def unstack(name: str, x, axis):
         exe = paddle.static.Executor(place)
         exe.run(paddle.static.default_startup_program())
         outs = exe.run(feed={"x": x}, fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs],
-                  target_dir=sys.argv[1])
+        saveModel(name, exe, feedkeys=['x'], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
 
     return outs
 
@@ -30,6 +29,14 @@ def main():
     dtype = np.float32
     x = np.random.randn(2, 3, 4).astype(dtype)
     unstack(name='unstack_1', x=x, axis=0)
+
+    dtype = np.int32
+    x = np.random.randn(2, 3, 4).astype(dtype)
+    unstack(name='unstack_2', x=x, axis=1)
+
+    dtype = np.int64
+    x = np.random.randn(3, 4).astype(dtype)
+    unstack(name='unstack_3', x=x, axis=-1)
 
 if __name__ == "__main__":
     main()
