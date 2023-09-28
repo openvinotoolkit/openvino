@@ -18,6 +18,12 @@ public:
     PrimTupleUnpackReplacer();
 };
 
+class TupleUnpackInBodyReplacer : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer");
+    bool run_on_model(const std::shared_ptr<Model>& model) override;
+};
+
 }  // namespace pass
 }  // namespace pytorch
 }  // namespace frontend
