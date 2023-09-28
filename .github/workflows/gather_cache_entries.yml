@@ -29,9 +29,10 @@ jobs:
         with:
           script: |
             console.log(context)
-            console.log(context.runId)
             console.log(context.payload.repository.full_name)
-      
+            console.log(context.payload.repository.organization)
+            console.log(context.payload.repository.name)
+
       - uses: actions/setup-node@v3
         with:
           node-version: 16
@@ -47,7 +48,7 @@ jobs:
             const restorePath = ['${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv']
             
             const cache = require('@actions/cache');
-            const key = 'Linux-conformance-OP-expected-failures-CPU-ac137727fe5bdd9de265f9c982d9aed9e62b6128'
+            const key = 'Linux-conformance-OP-expected-failures-CPU'
             const restoreKeys = [
                 'Linux-conformance-'
             ]
@@ -60,18 +61,13 @@ jobs:
             
             // TODO: use context.payload.repository.name
             const repositoryName = 'openvino'
-            const cacheEntries = await github.rest.actions.getActionsCacheList({
-              'owner': org,
-              'repo': repositoryName,
-            })
-            console.log(cacheEntries)
             
-            const cacheEntriesFiltered = await github.rest.actions.getActionsCacheList({
+            const conformanceCacheEntries = await github.rest.actions.getActionsCacheList({
               'owner': org,
               'repo': repositoryName,
               'key': 'Linux-conformance'
             })
-            console.log(cacheEntriesFiltered)
+            console.log(JSON.stringify(conformanceCacheEntries))
 
       - name: Check Restoration
         run: ls -laR ${{ env.CONFORMANCE_TOOLS_DIR }}
