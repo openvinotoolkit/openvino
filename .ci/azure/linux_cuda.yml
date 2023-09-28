@@ -138,6 +138,7 @@ jobs:
       -DENABLE_PYTHON=OFF
       -DENABLE_NVIDIA=ON
       -DENABLE_TESTS=ON
+      -DENABLE_DATA=OFF
       /root/repos/openvino &&
       /root/w/ninja -v CudaFuncTests CudaUnitTests"
     workingDirectory: $(WORK_DIR)
