@@ -502,7 +502,6 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     executor_config._cpu_reservation = get_cpu_pinning(config.enableCpuPinning,
                                                        config.changedCpuPinning,
                                                        streams,
-                                                       executor_config._threadBindingType,
                                                        config.latencyThreadingMode,
                                                        proc_type_table);
     if (-1 == preferred_nthreads_per_stream) {
