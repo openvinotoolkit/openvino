@@ -50,7 +50,7 @@ void prior_box(const T* data,
     }
 
     std::vector<float> variance = attrs.variance;
-    NGRAPH_CHECK(variance.size() == 1 || variance.size() == 4 || variance.empty());
+    OPENVINO_ASSERT(variance.size() == 1 || variance.size() == 4 || variance.empty());
     if (variance.empty())
         variance.push_back(0.1f);
 

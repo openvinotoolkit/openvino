@@ -22,7 +22,7 @@ void prior_box_clustered(const T* data,
     size_t num_priors_ = attrs.widths.size();
 
     auto variances = attrs.variances;
-    NGRAPH_CHECK(variances.size() == 1 || variances.size() == 4 || variances.empty());
+    OPENVINO_ASSERT(variances.size() == 1 || variances.size() == 4 || variances.empty());
     if (variances.empty())
         variances.push_back(0.1f);
 

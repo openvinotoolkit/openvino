@@ -17,7 +17,7 @@ namespace {
 std::vector<size_t> reorder(const std::vector<size_t>& origin, const AxisVector& order) {
     std::vector<size_t> reordered = origin;
     auto out = begin(reordered);
-    NGRAPH_CHECK(origin.size() <= order.size());
+    OPENVINO_ASSERT(origin.size() <= order.size());
     for (size_t i = 0; i < origin.size(); ++i) {
         *out = origin.at(order[i]);
         ++out;
