@@ -210,9 +210,6 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond, OpMap& ov_tensors_map)
             auto exit_node = (*switch_node->get_output_target_inputs(0).begin()).get_node();
             ov_outputs[ind] = exit_node->output(0);
             output_tensor_names[ind] = exit_node->get_friendly_name() + ":0";
-        } else {
-            // no Exit node, use Output with no consumers
-            // ov_outputs[ind] = ov::Output<ov::Node>();
         }
 
         auto merge_node = ov::as_type_ptr<Merge>(switch_node->input_value(0).get_node_shared_ptr());
@@ -262,7 +259,6 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond, OpMap& ov_tensors_map)
     auto loop_node = create_loop_for_tf_while(node_name, body_model, cond_model, ov_inputs);
 
     auto loop_model = std::make_shared<ov::Model>(loop_node->outputs());
-
 
     size_t loop_node_output_size = loop_node->get_output_size();
     FRONT_END_GENERAL_CHECK(loop_node_output_size == num_inputs,
