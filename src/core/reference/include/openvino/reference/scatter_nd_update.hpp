@@ -7,7 +7,6 @@
 #include <cstring>
 #include <numeric>
 
-#include "ngraph/coordinate.hpp"
 #include "openvino/core/shape.hpp"
 #include "utils/span.hpp"
 

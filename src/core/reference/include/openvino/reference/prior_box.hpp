@@ -6,8 +6,8 @@
 
 #include <cmath>
 
-#include "ngraph/op/prior_box.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/prior_box.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {

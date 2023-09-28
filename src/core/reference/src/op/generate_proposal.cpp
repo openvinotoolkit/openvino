@@ -10,8 +10,8 @@
 #include <cstring>
 #include <utility>
 
-#include "ngraph/op/generate_proposals.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/generate_proposals.hpp"
 
 struct sProposalBox {
     float x0;

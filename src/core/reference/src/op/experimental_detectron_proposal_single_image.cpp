@@ -10,8 +10,8 @@
 #include <cstring>
 #include <utility>
 
-#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/experimental_detectron_generate_proposals.hpp"
 #include "openvino/reference/proposal.hpp"
 
 namespace {

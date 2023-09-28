@@ -296,7 +296,7 @@ void deformable_convolution(const T* in,
                             const int64_t deformable_groups,
                             const bool bilinear_interpolation_pad = false) {
     Shape m_shape = {o_shape[0], o_shape[1] / 2, o_shape[2], o_shape[3]};
-    std::vector<T> mask(ngraph::shape_size(m_shape), 1);
+    std::vector<T> mask(shape_size(m_shape), 1);
     deformable_convolution(in,
                            offsets,
                            filters,

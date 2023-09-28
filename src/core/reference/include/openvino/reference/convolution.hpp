@@ -6,7 +6,9 @@
 
 #include <future>
 
-#include "ngraph/util.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
 
 namespace ov {
 namespace reference {

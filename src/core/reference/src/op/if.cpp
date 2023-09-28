@@ -4,7 +4,7 @@
 
 #include "openvino/reference/if.hpp"
 
-#include "ngraph/op/if.hpp"
+#include "openvino/op/if.hpp"
 #include "openvino/reference/function.hpp"
 
 namespace ov {

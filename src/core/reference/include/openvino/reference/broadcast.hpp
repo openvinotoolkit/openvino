@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/axis_set.hpp"
+#include "openvino/core/axis_set.hpp"
 #include "openvino/core/shape.hpp"
 
 namespace ov {

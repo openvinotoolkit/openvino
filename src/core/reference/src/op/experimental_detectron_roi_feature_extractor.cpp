@@ -10,8 +10,8 @@
 #include <cstring>
 #include <numeric>
 
-#include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 #if defined(__GNUC__) && !defined(__clang__)
 #    if defined(__linux__) && defined(OPENVINO_ARCH_X86) && \

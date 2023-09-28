@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/multiclass_nms.hpp"
+#include "openvino/op/multiclass_nms.hpp"
 
 #include <algorithm>
 #include <cmath>

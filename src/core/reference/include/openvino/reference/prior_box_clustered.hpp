@@ -6,8 +6,8 @@
 
 #include <cmath>
 
-#include "ngraph/op/prior_box_clustered.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
@@ -17,7 +17,7 @@ void prior_box_clustered(const T* data,
                          const T* img,
                          float* dst_data,
                          const Shape& out_shape,
-                         const ngraph::op::PriorBoxClusteredAttrs& attrs) {
+                         const op::v0::PriorBoxClustered::Attributes& attrs) {
     size_t num_priors_ = attrs.widths.size();
 
     auto variances = attrs.variances;
