@@ -474,7 +474,7 @@ jobs:
               'key': cachePrefix
             })
 
-            // The path from which the cache entry is uploaded
+            // The path from which the cache entry was uploaded
             const restorePath = '${{ env.CONFORMANCE_TOOLS_DIR }}/hash_table_${{ env.TEST_DEVICE }}.csv'
 
             // Download the cache entries
@@ -482,7 +482,7 @@ jobs:
               const cacheKey = cacheEntryInfo.key
             
               // The unique path to which the current cache entry will be saved
-              const finalPath = `${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}/expected_failures_${{ env.TEST_DEVICE }}.csv`
+              const finalPath = `${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}/hash_table_${{ env.TEST_DEVICE }}.csv`
 
               console.log(`Restoring cache: ${cacheKey}`)
 
@@ -493,6 +493,12 @@ jobs:
                 fs.mkdir(`${{ env.CONFORMANCE_TOOLS_DIR }}/${cacheKey}`, { recursive: true }, (err) => {
                   if (err) throw err;
                 });
+            
+                fs.readdirSync(`${{ env.CONFORMANCE_TOOLS_DIR }}`).forEach(file => {
+                  console.log(file);
+                });
+            
+                await sleep(2000);
 
                 // Move downloaded cache to its final directory
                 fs.rename(restorePath, finalPath, function (err) {
@@ -504,7 +510,7 @@ jobs:
               }
               
               // Sleep so that downloading/moving is complete w/o interfering with the next one 
-              await sleep(3000);
+              await sleep(3000)
             }
 
       - name: Check Cache Restoration
