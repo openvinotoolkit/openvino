@@ -2,24 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/type/nf4.hpp"
+
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/runtime/core.hpp"
 
 using namespace std;
-
-template <typename T>
-inline std::shared_ptr<ov::Model> get_model(const std::vector<T>& const_data, ov::element::Type_t ov_type) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(ov_type, ov::Shape{const_data.size()});
-    auto constant = ov::op::v0::Constant::create(ov::element::nf4, ov::Shape{const_data.size()}, const_data);
-    auto convert = std::make_shared<ov::op::v0::Convert>(constant, ov_type);
-
-    auto add = std::make_shared<ov::op::v1::Add>(data, convert);
-    return std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{data});
-}
 
 TEST(nf4, convert_nf4_to_string) {
     vector<uint8_t> values{186, 17};
@@ -41,58 +30,67 @@ TEST(nf4, tensor_or_constant_size) {
 }
 
 template <typename T>
-void test_nf4_inference(ov::element::Type_t ov_type) {
-    ov::Core core;
-    vector<T> const_data{-1.5,   -1.425, -1.35,  -1.275, -1.2,   -1.125, -1.05,  -0.975, -0.9,   -0.825, -0.75,
-                         -0.675, -0.6,   -0.525, -0.45,  -0.375, -0.3,   -0.225, -0.15,  -0.075, 0.0,    0.075,
-                         0.15,   0.225,  0.3,    0.375,  0.45,   0.525,  0.6,    0.675,  0.75,   0.825,  0.9,
-                         0.975,  1.05,   1.125,  1.2,    1.275,  1.35,   1.425,  1.5};
+void test_nf4_convert() {
+    vector<float> const_data_f{-1.5f,   -1.425f, -1.35f,  -1.275f, -1.2f,   -1.125f, -1.05f,  -0.975f, -0.9f,
+                               -0.825f, -0.75f,  -0.675f, -0.6f,   -0.525f, -0.45f,  -0.375f, -0.3f,   -0.225f,
+                               -0.15f,  -0.075f, 0.0f,    0.075f,  0.15f,   0.225f,  0.3f,    0.375f,  0.45f,
+                               0.525f,  0.6f,    0.675f,  0.75f,   0.825f,  0.9f,    0.975f,  1.05f,   1.125f,
+                               1.2f,    1.275f,  1.35f,   1.425f,  1.5};
 
-    vector<T> target{-1.0,
-                     -0.6961928009986877,
-                     -0.5250730514526367,
-                     -0.39491748809814453,
-                     -0.28444138169288635,
-                     -0.18477343022823334,
-                     -0.09105003625154495,
-                     0.0,
-                     0.07958029955625534,
-                     0.16093020141124725,
-                     0.24611230194568634,
-                     0.33791524171829224,
-                     0.44070982933044434,
-                     0.5626170039176941,
-                     0.7229568362236023,
-                     1.0};
+    vector<float> target_f{-1.0f,
+                           -0.6961928009986877f,
+                           -0.5250730514526367f,
+                           -0.39491748809814453f,
+                           -0.28444138169288635f,
+                           -0.18477343022823334f,
+                           -0.09105003625154495f,
+                           0.0f,
+                           0.07958029955625534f,
+                           0.16093020141124725f,
+                           0.24611230194568634f,
+                           0.33791524171829224f,
+                           0.44070982933044434f,
+                           0.5626170039176941f,
+                           0.7229568362236023f,
+                           1.0f};
 
-    auto model = get_model<T>(const_data, ov_type);
-    ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
+    vector<T> const_data;
+    const_data.reserve(const_data_f.size());
+    for (auto& val : const_data_f) {
+        const_data.push_back(static_cast<T>(val));
+    }
+    vector<T> target;
+    target.reserve(target_f.size());
+    for (auto& val : target_f) {
+        target.push_back(static_cast<T>(val));
+    }
 
-    std::vector<T> model_input(const_data.size(), 0.0);
-    ov::Tensor model_input_ov{ov_type, ov::Shape({model_input.size()}), &model_input[0]};
+    auto constant = ov::op::v0::Constant::create(ov::element::nf4, ov::Shape{const_data.size()}, const_data);
 
-    ov::InferRequest infer_request = compiled_model.create_infer_request();
-    infer_request.set_input_tensor(0, model_input_ov);
-    infer_request.infer();
-    auto out = infer_request.get_output_tensor(0);
-    T* out_p = static_cast<T*>(out.data(ov_type));
-    auto out_val = std::vector<T>(out_p, out_p + out.get_size());
+    const uint8_t* p = static_cast<const uint8_t*>(constant->get_data_ptr());
+    EXPECT_NE(p, nullptr);
+    std::vector<uint8_t> packed_data(p, p + const_data.size() / 2 + const_data.size() % 2);
 
-    auto it = std::unique(out_val.begin(), out_val.end());
-    out_val.resize(std::distance(out_val.begin(), it));
+    std::vector<T> decompressed_data(const_data.size(), 0);
+    for (size_t i = 0; i < const_data.size(); i++) {
+        ov::ConvertNF4::unpack(&decompressed_data[0], &packed_data[0], i);
+    }
 
-    EXPECT_EQ(16, out_val.size());
+    auto it = std::unique(decompressed_data.begin(), decompressed_data.end());
+    decompressed_data.resize(std::distance(decompressed_data.begin(), it));
+
+    EXPECT_EQ(16, decompressed_data.size());
 
     float max_diff = 0.0;
     for (size_t i = 0; i < 16; i++) {
-        float diff = fabs(static_cast<float>(out_val[i] - target[i]));
+        float diff = fabs(static_cast<float>(decompressed_data[i] - target[i]));
         max_diff = std::max(max_diff, diff);
     }
     EXPECT_LE(max_diff, 0.001);
 }
 
-TEST(nf4, inference_float) {
-    test_nf4_inference<float>(ov::element::f32);
-    test_nf4_inference<ov::float16>(ov::element::f16);
-    test_nf4_inference<ov::bfloat16>(ov::element::bf16);
+TEST(nf4, convert_float) {
+    test_nf4_convert<float>();
+    test_nf4_convert<ov::float16>();
+    test_nf4_convert<ov::bfloat16>();
 }
