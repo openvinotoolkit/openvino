@@ -255,11 +255,9 @@ def main():
     elementwise_mod('floor_mod2', data_x, data_y, in_dtype, True)
 
     data_y = (0.1 + np.random.rand(4).astype(np.float32)) / 1.1
-    axis = 1
     elementwise_ops("3", data_x, data_y, in_dtype)
 
     data_y = (0.1 + np.random.rand(5, 3, 4).astype(np.float32)) / 1.1
-    axis = 0
     elementwise_ops("4", data_x, data_y, in_dtype)
 
     # test for elementwise_floordiv, support int and int64
@@ -269,7 +267,6 @@ def main():
     data_x = np.array([-4, 0, -8])
     
     data_y = np.array([3, 5, 3])
-    axis = -1
     for dtype in floordiv_support_dtype:
         elementwise_floordiv("elementwise_floordiv_" + dtype + "_1", 
                         data_x.astype(dtype), data_y.astype(dtype), dtype)

@@ -109,7 +109,7 @@ def exportModel(name, dyn_func, input_data:list, target_dir:str, dyn_shapes:list
     if isinstance(result, (tuple, list)):
         for idx, out in enumerate(result):
             np.save(os.path.join(model_dir, "output{}".format(idx)), out.numpy())
-    else:       
+    else:
         np.save(os.path.join(model_dir, "output{}".format(0)), result.numpy())
     
     paddle.fluid.core.clear_executor_cache()

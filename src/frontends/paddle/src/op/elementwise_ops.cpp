@@ -30,6 +30,14 @@ NamedOutputs elementwise_div(const NodeContext& node_context) {
     return elementwise_ops<default_opset::Divide>(node_context);
 }
 
+NamedOutputs elementwise_min(const NodeContext& node_context) {
+    return elementwise_ops<default_opset::Minimum>(node_context);
+}
+
+NamedOutputs elementwise_max(const NodeContext& node_context) {
+    return elementwise_ops<default_opset::Maximum>(node_context);
+}
+
 NamedOutputs elementwise_pow(const NodeContext& node_context) {
     return elementwise_ops<default_opset::Power>(node_context);
 }
@@ -56,7 +64,7 @@ NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
     return node_context.default_single_output_mapping(
         {std::make_shared<default_opset::Divide>(x,
                                                  y,
-                                                 false,
+                                                 true,
                                                  ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, axis))},
         {"Out"});
 }

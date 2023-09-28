@@ -40,6 +40,9 @@ NamedOutputs reduce_ops(const NodeContext& node) {
         auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i64, {}, {0});
         result = std::make_shared<default_opset::Unsqueeze>(reduceNode, unsqueeze_scalar);
     }
+    if (reduce_all) {
+        result = std::make_shared<default_opset::Squeeze>(reduceNode);
+    }
     return node.default_single_output_mapping({result}, {"Out"});
 }
 

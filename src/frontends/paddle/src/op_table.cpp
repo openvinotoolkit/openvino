@@ -31,9 +31,12 @@ OP_CONVERTER(dropout);
 OP_CONVERTER(elementwise_add);
 OP_CONVERTER(elementwise_div);
 OP_CONVERTER(elementwise_floordiv);
+OP_CONVERTER(elementwise_max);
+OP_CONVERTER(elementwise_min);
 OP_CONVERTER(elementwise_mod);
 OP_CONVERTER(elementwise_mul);
 OP_CONVERTER(elementwise_pow);
+OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(equal);
 OP_CONVERTER(greater_equal);
 OP_CONVERTER(not_equal);
@@ -43,8 +46,9 @@ OP_CONVERTER(expand_v2);
 OP_CONVERTER(flip);
 OP_CONVERTER(flatten_contiguous_range);
 OP_CONVERTER(floor);
-OP_CONVERTER(full);
-OP_CONVERTER(full_like);
+OP_CONVERTER(fill_any_like);
+OP_CONVERTER(fill_constant);
+OP_CONVERTER(fill_constant_batch_size_like);
 OP_CONVERTER(gather);
 OP_CONVERTER(gather_nd);
 OP_CONVERTER(gelu);
@@ -152,13 +156,17 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"elementwise_floordiv", op::elementwise_floordiv},
             {"elementwise_mod", op::elementwise_mod},
             {"elementwise_mul", op::elementwise_mul},
+            {"elementwise_max", op::elementwise_max},
+            {"elementwise_min", op::elementwise_min},
+            {"elementwise_sub", op::elementwise_sub},
             {"dropout", op::dropout},
             {"elementwise_pow", op::elementwise_pow},
             {"equal", op::equal},
             {"exp", op::exp},
             {"expand_v2", op::expand_v2},
-            {"full", op::full},
-            {"full_like", op::full_like},
+            {"fill_any_like", op::fill_any_like},
+            {"fill_constant", op::fill_constant},
+            {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
             {"flatten_contiguous_range", op::flatten_contiguous_range},
             {"flip", op::flip},
             {"floor", op::floor},
@@ -244,8 +252,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"while", op::while_},
             {"write_to_array", op::write_to_array},
             {"where_index", op::where_index},
-            {"yolo_box", op::yolo_box},
-            {"generate_proposals_v2", op::generate_proposals_v2}};
+            {"yolo_box", op::yolo_box}};
 };
 
 }  // namespace paddle
