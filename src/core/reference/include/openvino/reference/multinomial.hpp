@@ -20,6 +20,13 @@ namespace ov {
 namespace reference {
 namespace multinomial {
 
+template <typename T>
+void test(const T* data, const Shape& shape, int* test_nr) {
+    std::cout << test_nr[0] << "\n"; test_nr[0]++;
+    for(size_t i = 0; i < shape_size<Shape>(shape); ++i) {
+        std::cout << data[i] << " ";
+    } std::cout << " \n";
+}
 /**
  * @brief Multinomial operation creates a sequence of indices of classes sampled from the multinomial distribution.
  *
@@ -53,6 +60,7 @@ void multinomial(const T* probs,
                  const uint64_t op_seed) {
     auto total_inputs_elements_count = shape_size<Shape>(probs_shape);
     auto total_output_elements_count = shape_size<Shape>(output_shape);
+    int test_nr = 1;
 
     // If probabilities are log probabilities, exponentiate to get normal probabilities
     std::vector<T> input_vals(total_inputs_elements_count);
@@ -100,13 +108,13 @@ void multinomial(const T* probs,
 
     // Generate random probability samples
     std::vector<double> uniform_samples(total_output_elements_count);
-    const char zero = 0;
-    const char one = 1;
+    const double zero = 0;
+    const double one = 1;
     ov::Shape output_shape_shape{output_shape.size()};
     std::pair<uint64_t, uint64_t> initial_state(0, 0);
     random_uniform(output_shape.data(),
-                   &zero,
-                   &one,
+                   reinterpret_cast<const char*>(&zero),
+                   reinterpret_cast<const char*>(&one),
                    reinterpret_cast<char*>(uniform_samples.data()),
                    output_shape_shape,
                    ov::element::f64,
@@ -114,38 +122,44 @@ void multinomial(const T* probs,
                    op_seed,
                    initial_state);
 
-    auto first_dim_size = probs_shape.size() == 2 ? probs_shape[0] : (size_t)1;
-    auto second_input_dim_size = probs_shape.size() == 2 ? probs_shape[1] : probs_shape[0];
-    auto second_output_dim_size = probs_shape.size() == 2 ? (size_t)num_samples[0] : probs_shape[0];
+    auto first_dim_size         = probs_shape.size() == 2 ? probs_shape[0]          : (size_t)1;
+    auto second_input_dim_size  = probs_shape.size() == 2 ? probs_shape[1]          : probs_shape[0];
+    auto second_output_dim_size = probs_shape.size() == 2 ? (size_t)num_samples[0]  : probs_shape[0];
 
     // Iterate over each channel in uniform samples
+    test<T>(cdf.data(), probs_shape, &test_nr);
     std::vector<U> output_samples(total_output_elements_count);
-    for (size_t i = 0; i < first_dim_size * second_output_dim_size; i += first_dim_size) {
+    for (size_t i = 0; i < first_dim_size * second_output_dim_size; i += second_output_dim_size) {
         for (size_t j = 0; j < second_output_dim_size; ++j) {
             // Iterate over cdf to find the index for a given sample
             // If no class found (all have 0 probability), selects last - undefined behavior
+            auto i_translated = i / second_output_dim_size * second_input_dim_size;
             auto selected_class_idx = second_input_dim_size;
             auto sample_value = uniform_samples[i + j];
             for (size_t l = 0; l < second_input_dim_size; ++l) {
-                if (sample_value <= cdf[i + l]) {
-                    output_samples[i / first_dim_size * second_output_dim_size + j] = l;  // warn
+                if (sample_value <= cdf[i_translated + l]) {
+                    output_samples[i + j] = l;  // warn
                     selected_class_idx = l;
                     break;
                 }
             }
             // Additional step with replacement - change probability of a given class to 0, and update the cdf
             if (with_replacement) {
-                auto class_probability = input_vals[i + selected_class_idx];
-                auto divisor = cdf[i + second_input_dim_size - 1] - class_probability;
-                for (size_t k = 0; k < second_input_dim_size - 1; ++k) {
+                T class_probability = input_vals[i_translated + selected_class_idx];
+                T divisor = 1 - class_probability;
+                for (size_t k = 0; k < second_input_dim_size; ++k) {
                     if (k >= selected_class_idx) {
-                        cdf[i + k] -= class_probability;
+                        cdf[i_translated + k] -= class_probability;
                     }
-                    cdf[i + k] /= divisor;
+                    cdf[i_translated + k] /= divisor;
                 }
+                test<T>(cdf.data(), probs_shape, &test_nr);
             }
         }
     }
+    test<T>(cdf.data(), probs_shape, &test_nr);
+    test<double>(uniform_samples.data(), output_shape, &test_nr);
+    test<U>(output_samples.data(), output_shape, &test_nr);
     // Finally convert the samples to the requested data type
     convert<U, V>(output_samples.data(), output, total_output_elements_count);
 }

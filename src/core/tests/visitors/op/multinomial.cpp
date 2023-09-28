@@ -26,8 +26,7 @@ TEST(attributes, multinomial) {
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     EXPECT_EQ(op->get_with_replacement(), g_unique->get_with_replacement());
     EXPECT_EQ(op->get_global_seed(), g_unique->get_global_seed());
-    EXPECT_EQ(op->get_output_type(), g_unique->get_output_type());
+    EXPECT_EQ(op->get_convert_type(), g_unique->get_convert_type());
     EXPECT_EQ(op->get_log_probs(), g_unique->get_log_probs());
     EXPECT_EQ(op->get_op_seed(), g_unique->get_op_seed());
-    
 }

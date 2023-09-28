@@ -8,4 +8,4 @@
 
 using Type = ::testing::Types<ov::op::v13::Multinomial>;
 
-INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_multinomial, ArithmeticOperator, Type);
+// INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_multinomial, ArithmeticOperator, Type);

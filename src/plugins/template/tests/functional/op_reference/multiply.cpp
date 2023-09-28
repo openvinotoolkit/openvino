@@ -38,7 +38,8 @@ struct MultiplyParams {
     ov::Tensor refData;
 };
 
-class ReferenceMultiplyLayerTest : public testing::TestWithParam<MultiplyParams>, public reference_tests::CommonReferenceTest {
+class ReferenceMultiplyLayerTest : public testing::TestWithParam<MultiplyParams>,
+                                   public reference_tests::CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
