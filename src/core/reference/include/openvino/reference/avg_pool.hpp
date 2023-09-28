@@ -17,6 +17,7 @@
 namespace ov {
 namespace reference {
 template <typename T>
+OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2024.0 release.")
 void avg_pool_backprop(const T* delta,
                        T* out,
                        const Shape& delta_shape,
