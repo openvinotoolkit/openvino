@@ -48,9 +48,9 @@ public:
         const AttributeParameters& params);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 private:
-    const std::vector<PrecisionsRestriction>& precisionRestrictions;
-    const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions;
-    const AttributeParameters& params;
+    const std::vector<PrecisionsRestriction> precisionRestrictions;
+    const std::vector<QuantizationGranularityRestriction> quantizationRestrictions;
+    const AttributeParameters params;
 };
 
 class ov::pass::low_precision::TypeRelaxedReplacer : public ov::pass::GraphRewrite {
