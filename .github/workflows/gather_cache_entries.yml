@@ -71,7 +71,7 @@ jobs:
                 if (err) throw err;
               });
             
-              const restoredCacheKey = await cache.restoreCache([restorePath], cacheKey, [])
+              const restoredCacheKey = await cache.restoreCache(['${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv'], cacheKey, [])
               
               if (restoredCacheKey) {
                 console.log(`${cacheKey} was restored to ${restorePath}.`)
