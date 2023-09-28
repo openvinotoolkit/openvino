@@ -83,10 +83,10 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          # openjdk-11-jdk - Java API
+          # default-jdk - Java API
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
           # unzip - to download ninja
-          apt install --assume-yes --no-install-recommends openjdk-11-jdk libssl1.1 unzip
+          apt install --assume-yes --no-install-recommends default-jdk libssl1.1 unzip
 
           wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip
           unzip ninja-linux.zip
@@ -591,12 +591,12 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
 
-      # Disabled in Azure: https://github.com/openvinotoolkit/openvino/blob/master/.ci/azure/linux.yml#L403
-      # - name: PaddlePaddle frontend tests
-      #   run: |
-      #     source ${INSTALL_DIR}/setupvars.sh
-      #     ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 --gtest_filter=*smoke* \
-      #           --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
+      - name: PaddlePaddle frontend tests
+        if: ${{ 'false' }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
         run: |
@@ -1008,7 +1008,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores'}}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -1016,7 +1020,10 @@ jobs:
 
     steps:
       - name: Create Directories
-        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
+
+      - name: Install 'actions/setup-python@v4' dependencies
+        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
 
       - uses: actions/setup-python@v4
         with:
@@ -1036,26 +1043,25 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
           popd
 
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
 
       - name: Install OpenVINO Python wheels
-        run: |
-          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
       - name: Install TF Hub tests requirements
         run: |
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
 
       - name: TensorFlow Hub Tests - TF FE
         run: |
-          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.html --self-contained-html
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU

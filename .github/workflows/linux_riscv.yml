@@ -36,7 +36,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores
     container:
-      image: ubuntu:22.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -119,18 +119,20 @@ jobs:
           # patch settings.yml to contain riscv64 architecture
           sed -i 's/sparcv9/riscv64/g' ~/.conan2/settings.yml
           # generate host profile for linux_riscv64
-          echo "include(default)" > ${OPENVINO_BUILD_DIR}/linux_riscv64
-          echo "[buildenv]" >> ${OPENVINO_BUILD_DIR}/linux_riscv64
-          echo "CC=riscv64-linux-gnu-gcc" >> ${OPENVINO_BUILD_DIR}/linux_riscv64
-          echo "CXX=riscv64-linux-gnu-g++" >> ${OPENVINO_BUILD_DIR}/linux_riscv64
+          echo "include(default)" > ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "[buildenv]" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "CC=riscv64-linux-gnu-gcc" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "CXX=riscv64-linux-gnu-g++" >> ${CONAN_LINUX_RISCV64_PROFILE}
           # install OpenVINO dependencies
           conan install ${OPENVINO_REPO}/conanfile.txt \
-            -pr:h ${OPENVINO_BUILD_DIR}/linux_riscv64 \
+            -pr:h ${CONAN_LINUX_RISCV64_PROFILE} \
             -s:h arch=riscv64 \
             -s:h build_type=${CMAKE_BUILD_TYPE} \
             -o:h onetbb/*:tbbbind=False \
             -of ${OPENVINO_BUILD_DIR}/dependencies \
             -b missing
+        env:
+          CONAN_LINUX_RISCV64_PROFILE: ${{ env.OPENVINO_BUILD_DIR }}/linux_riscv64
 
       #
       # Build
@@ -147,7 +149,6 @@ jobs:
             -DENABLE_PYTHON=ON \
             -DENABLE_WHEEL=ON \
             -DPYTHON_MODULE_EXTENSION=$(riscv64-linux-gnu-python3-config --extension-suffix) \
-            -DPython3_INCLUDE_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_path('include'))") \
             -DPYBIND11_PYTHON_EXECUTABLE_LAST=${OPENVINO_BUILD_DIR}/env/bin/python3.10 \
             -DENABLE_TESTS=ON \
             -DTHREADING=SEQ \
