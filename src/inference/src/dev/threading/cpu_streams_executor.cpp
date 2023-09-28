@@ -12,6 +12,9 @@
 #include <set>
 #include <thread>
 #include <vector>
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <immintrin.h>
+#endif
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
@@ -139,6 +142,7 @@ struct CPUStreamsExecutor::Impl {
             _numaNodeId = std::max(0, numa_node_id);
             _socketId = get_socket_by_numa_node(_numaNodeId);
 
+#    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
             unsigned int mxcsrOld = _mm_getcsr();
             if (_impl->_config.optDenormalsForTBB) {
                 // Refer: src/plugins/intel_cpu/src/utils/denormals.cpp
@@ -149,6 +153,7 @@ struct CPUStreamsExecutor::Impl {
                 mxcsr |= FTZ_FLAG;
                 _mm_setcsr(mxcsr);
             }
+#    endif
 
             if (stream_type == STREAM_WITHOUT_PARAM) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
@@ -190,10 +195,12 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
             }
+#    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
             if (_impl->_config.optDenormalsForTBB) {
                 // Recover the default setting to avoid impacting the custumer's application.
                 _mm_setcsr(mxcsrOld);
             }
+#    endif
         }
         void init_stream() {
             int concurrency;
