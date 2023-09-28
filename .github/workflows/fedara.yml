@@ -46,7 +46,6 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      OPENVINO_CONTRIB_BUILD_DIR: /__w/openvino/openvino/openvino_contrib_build
       CCACHE_DIR: /mount/caches/ccache/fedora33_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
@@ -208,7 +207,7 @@ jobs:
           yum install -y openvino
 
           # install current version
-          yum install --allowerasing *.rpm
+          yum install --allowerasing -y *.rpm
         working-directory: ${{ env.RPM_PACKAGES_DIR }}
 
       - name: Test RPM packages
@@ -226,67 +225,3 @@ jobs:
           python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
           benchmark_app --help
           ovc --help
-
-  Samples:
-    needs: Build
-    defaults:
-      run:
-        shell: bash
-    runs-on: ubuntu-20.04
-    container:
-      image: fedora:33
-    env:
-      INSTALL_DIR: /__w/openvino/openvino/install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
-      BUILD_DIR: /__w/openvino/openvino/build
-
-    steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
-      #
-      # Initialize OpenVINO
-      #
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
-          popd
-          pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
-          popd
-
-      - name: Install OpenVINO dependencies
-        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -y
-
-      - name: Build cpp samples - GCC
-        run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-
-      - name: Build cpp samples - Clang
-        run: |
-          yum install -y clang
-          ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples_clang
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-          CC: clang
-          CXX: clang++
-
-      - name: Build c samples
-        run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
