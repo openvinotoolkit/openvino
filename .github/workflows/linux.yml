@@ -1,8 +1,5 @@
 name: Tests on Linux (Ubuntu 20.04, Python 3.11)
 on:
-  schedule:
-    # at 00:00 on Wednesday and Saturday
-    - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
     paths-ignore:
@@ -83,12 +80,7 @@ jobs:
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # openjdk-11-jdk - Java API
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          # unzip - to download ninja
-          apt install --assume-yes --no-install-recommends openjdk-11-jdk libssl1.1 unzip
-
-          wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip
-          unzip ninja-linux.zip
-          cp -v ninja /usr/local/bin/
+          apt install --assume-yes --no-install-recommends openjdk-11-jdk libssl1.1
 
       - uses: actions/setup-python@v4
         with:
@@ -115,10 +107,6 @@ jobs:
       #
       # Build
       #
-
-      - name: Setup ccache
-        run: |
-          mkdir -p $CCACHE_DIR
 
       - name: CMake configure - OpenVINO
         run: |
