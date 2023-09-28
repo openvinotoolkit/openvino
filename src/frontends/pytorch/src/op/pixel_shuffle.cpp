@@ -38,7 +38,7 @@ OutputVector translate_pixel_shuffle(const NodeContext& context) {
     Output<Node> shape;
     Output<Node> rank;
     std::tie(shape, rank) = get_shape_rank(context, x, true);
-    // 1. Reshape input to [*, -1, r, r, H, W], where r is upscale factor    
+    // 1. Reshape input to [*, -1, r, r, H, W], where r is upscale factor
     auto indices = context.mark_node(v0::Constant::create(element::i32, Shape{3}, {-3, -2, -1}));
     auto dims = context.mark_node(std::make_shared<v8::Gather>(shape, indices, zero_s));
     auto dims_splitted = context.mark_node(std::make_shared<v1::Split>(dims, zero_s, 3));
