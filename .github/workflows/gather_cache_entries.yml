@@ -45,7 +45,7 @@ jobs:
           script: |
             const fs = require('fs');
             
-            const restorePath = ['${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv']
+            // const restorePath = ['${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv']
             
             const cache = require('@actions/cache');
             // const key = 'Linux-conformance-OP-expected-failures-CPU'
@@ -71,7 +71,7 @@ jobs:
                 if (err) throw err;
               });
             
-              const restoredCacheKey = await cache.restoreCache(restorePath, cacheKey, [])
+              const restoredCacheKey = await cache.restoreCache([restorePath], cacheKey, [])
               
               if (restoredCacheKey) {
                 console.log(`${cacheKey} was restored to ${restorePath}.`)
