@@ -11,7 +11,7 @@ sacremoses
 sentencepiece
 datasets
 pyctcdecode
-pytorch-quantization --extra-index-url https://pypi.ngc.nvidia.com
+pytorch-quantization<=2.1.3 --extra-index-url https://pypi.ngc.nvidia.com
 protobuf
 soundfile
 pandas
