@@ -90,7 +90,7 @@ template <ov::element::Type_t et>
 std::vector<MultinomialParams> generateMultinomialParams() {
     using vt = typename element_type_traits<et>::value_type;
 
-    const ov::ov::Shape prob_2d_shape{2, 4};
+    const ov::Shape prob_2d_shape{2, 4};
     const ov::Shape prob_1d_shape{4};
     const ov::Shape num_samples_shape{1};
 

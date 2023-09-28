@@ -7,14 +7,14 @@
 #include <cmath>
 #include <cstddef>
 
-#include "openvino/reference/exp.hpp"
-#include "openvino/reference/copy.hpp"
-#include "openvino/reference/slice.hpp"
-#include "openvino/reference/divide.hpp"
-#include "openvino/reference/convert.hpp"
-#include "openvino/reference/cum_sum.hpp"
 #include "openvino/reference/broadcast.hpp"
+#include "openvino/reference/convert.hpp"
+#include "openvino/reference/copy.hpp"
+#include "openvino/reference/cum_sum.hpp"
+#include "openvino/reference/divide.hpp"
+#include "openvino/reference/exp.hpp"
 #include "openvino/reference/random_uniform.hpp"
+#include "openvino/reference/slice.hpp"
 
 namespace ov {
 namespace reference {
@@ -22,34 +22,35 @@ namespace multinomial {
 
 /**
  * @brief Multinomial operation creates a sequence of indices of classes sampled from the multinomial distribution.
- * 
+ *
  * @tparam T Data type of the probs' values.
  * @tparam U Data type of num_samples' values.
  * @tparam V Data type of output's values.
  * @param probs Input tensor containing at each index poisition probability/log probability of sampling a given class.
  * @param probs_shape Shape of the 'probs' tensor.
- * @param num_samples Scalar or 1D tensor with a single value that determines the number of samples to generate per batch.
+ * @param num_samples Scalar or 1D tensor with a single value that determines the number of samples to generate per
+ * batch.
  * @param num_samples_shape Shape of the 'num_samples' tensor.
- * @param output Output tensor for the generated class indices. 
+ * @param output Output tensor for the generated class indices.
  * @param output_shape Shape of the 'output' tensor.
  * @param with_replacement Boolean that determines whether a sampled class can appear more than once in the output.
  * @param log_probs Boolean that determines whether to treat input probabilities as log probabilities.
- * @param global_seed First seed value (key) of Phillox random number generation algorithm. (See RandomUniform for details)
- * @param op_seed Second seed value (counter) of Phillox random number generation algorithm. (See RandomUniform for details)
+ * @param global_seed First seed value (key) of Phillox random number generation algorithm. (See RandomUniform for
+ * details)
+ * @param op_seed Second seed value (counter) of Phillox random number generation algorithm. (See RandomUniform for
+ * details)
  */
 template <typename T, typename U, typename V>
 void multinomial(const T* probs,
                  const Shape& probs_shape,
                  const U* num_samples,
-                 const Shape& num_samples_shape, 
+                 const Shape& num_samples_shape,
                  V* output,
                  const Shape& output_shape,
                  const bool with_replacement,
                  const bool log_probs,
                  const uint64_t global_seed,
-                 const uint64_t op_seed
-) {
-    
+                 const uint64_t op_seed) {
     auto total_inputs_elements_count = shape_size<Shape>(probs_shape);
     auto total_output_elements_count = shape_size<Shape>(output_shape);
 
@@ -73,9 +74,9 @@ void multinomial(const T* probs,
     std::vector<int64_t> start{static_cast<int64_t>(probs_shape[last_axis] - 1)};
     std::vector<int64_t> step{1};
     std::vector<int64_t> target_axis_vec{static_cast<int64_t>(last_axis)};
-    slice(static_cast<const char*>(cdf.data()),
-          probs_shape, // == cdf shape
-          static_cast<char*>(max_value_per_batch.data()),
+    slice(reinterpret_cast<const char*>(cdf.data()),
+          probs_shape,  // == cdf shape
+          reinterpret_cast<char*>(max_value_per_batch.data()),
           max_value_per_batch_shape,
           sizeof(T),
           start,
@@ -85,37 +86,37 @@ void multinomial(const T* probs,
     // Normalize the cdf by dividing all elements by the max value in each batch
     std::vector<T> max_value_per_batch_divisor(total_inputs_elements_count);
     ov::AxisSet target_axis_set = ov::AxisSet({last_axis});
-    broadcast(static_cast<const char*>(max_value_per_batch.data()),
-              static_cast<char*>(max_value_per_batch_divisor.data()),
+    broadcast(reinterpret_cast<const char*>(max_value_per_batch.data()),
+              reinterpret_cast<char*>(max_value_per_batch_divisor.data()),
               max_value_per_batch_shape,
-              probs_shape, // expand to original shape (expands last dim)
+              probs_shape,  // expand to original shape (expands last dim)
               target_axis_set,
               sizeof(T));
-    divide(static_cast<const T*>(cdf.data()),
-            static_cast<const T*>(max_value_per_batch_divisor.data()),
-            static_cast<T*>(cdf.data()),
-            total_inputs_elements_count,
-            false);
+    divide(reinterpret_cast<const T*>(cdf.data()),
+           reinterpret_cast<const T*>(max_value_per_batch_divisor.data()),
+           reinterpret_cast<T*>(cdf.data()),
+           total_inputs_elements_count,
+           false);
 
     // Generate random probability samples
     std::vector<double> uniform_samples(total_output_elements_count);
-    const double zero = 0;
-    const double one = 1;
+    const char zero = 0;
+    const char one = 1;
     ov::Shape output_shape_shape{output_shape.size()};
     std::pair<uint64_t, uint64_t> initial_state(0, 0);
     random_uniform(output_shape.data(),
-                   static_cast<const char*>(&zero),
-                   static_cast<const char*>(&one),
-                   static_cast<char*>(uniform_samples.data()),
+                   &zero,
+                   &one,
+                   reinterpret_cast<char*>(uniform_samples.data()),
                    output_shape_shape,
                    ov::element::f64,
                    global_seed,
                    op_seed,
                    initial_state);
 
-    auto first_dim_size = probs_shape.size() == 2 ? probs_shape[0] : (size_t) 1;
+    auto first_dim_size = probs_shape.size() == 2 ? probs_shape[0] : (size_t)1;
     auto second_input_dim_size = probs_shape.size() == 2 ? probs_shape[1] : probs_shape[0];
-    auto second_output_dim_size = probs_shape.size() == 2 ?  (size_t) num_samples[0] : probs_shape[0];
+    auto second_output_dim_size = probs_shape.size() == 2 ? (size_t)num_samples[0] : probs_shape[0];
 
     // Iterate over each channel in uniform samples
     std::vector<U> output_samples(total_output_elements_count);
@@ -123,11 +124,11 @@ void multinomial(const T* probs,
         for (size_t j = 0; j < second_output_dim_size; ++j) {
             // Iterate over cdf to find the index for a given sample
             // If no class found (all have 0 probability), selects last - undefined behavior
-            auto selected_class_idx = second_input_dim_size; 
+            auto selected_class_idx = second_input_dim_size;
             auto sample_value = uniform_samples[i + j];
             for (size_t l = 0; l < second_input_dim_size; ++l) {
                 if (sample_value <= cdf[i + l]) {
-                    output_samples[i / first_dim_size * second_output_dim_size + j] = l; //warn
+                    output_samples[i / first_dim_size * second_output_dim_size + j] = l;  // warn
                     selected_class_idx = l;
                     break;
                 }
@@ -150,4 +151,12 @@ void multinomial(const T* probs,
 }
 }  // namespace multinomial
 }  // namespace reference
+
+namespace op {
+namespace multinomial {
+namespace validate {
+void input_types(const Node* op);
+}  // namespace validate
+}  // namespace multinomial
+}  // namespace op
 }  // namespace ov

@@ -25,7 +25,7 @@ op::v13::Multinomial::Multinomial(const Output<Node>& probs,
                                   const bool log_probs,
                                   const uint64_t global_seed,
                                   const uint64_t op_seed)
-    : Op({input, num_samples}),
+    : Op({probs, num_samples}),
       m_convert_type(convert_type),
       m_with_replacement(with_replacement),
       m_log_probs(log_probs),
@@ -114,7 +114,6 @@ void op::v13::Multinomial::set_op_seed(const uint64_t op_seed) {
 namespace op {
 namespace multinomial {
 namespace validate {
-namespace {
 void input_types(const Node* op) {
     NODE_VALIDATION_CHECK(op,
                           op->get_input_element_type(0).is_real(),
@@ -124,7 +123,6 @@ void input_types(const Node* op) {
                           op->get_input_element_type(1).is_integral_number(),
                           "Expected integer type as element type for the 'num_samples' input.");
 }
-}  // namespace
 }  // namespace validate
 }  // namespace multinomial
 }  // namespace op
