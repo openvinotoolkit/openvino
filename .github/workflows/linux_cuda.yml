@@ -99,10 +99,6 @@ jobs:
       # Build
       #
 
-      - name: Setup ccache
-        run: |
-          mkdir -p $CCACHE_DIR
-
       - name: CMake configure
         run: |
           cmake \
@@ -121,6 +117,8 @@ jobs:
             -DENABLE_OV_ONNX_FRONTEND=OFF \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=ON \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+            -DCMAKE_MINIMUM_REQUIRED_VERSION=3.20 \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
