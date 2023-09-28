@@ -26,7 +26,7 @@ void mvn(const T* arg,
          const bool normalize_variance,
          const AxisSet& reduction_axes,
          const double eps) {
-    auto reduced_shape = ngraph::reduce(in_shape, reduction_axes, true);
+    auto reduced_shape = util::reduce_keep_dims(in_shape, reduction_axes);
     std::vector<T> tmp_buffer(shape_size(in_shape));
     reduce_mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
     subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY);
@@ -56,7 +56,7 @@ void mvn_6(const T* arg,
            bool normalize_variance,
            double eps,
            op::MVNEpsMode eps_mode) {
-    auto reduced_shape = ngraph::reduce(in_shape, reduction_axes, true);
+    auto reduced_shape = util::reduce_keep_dims(in_shape, reduction_axes);
     std::vector<T> tmp_buffer(shape_size(in_shape));
     reduce_mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
     subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY);
