@@ -161,7 +161,7 @@ size_t get_flat_index_by_name_and_id(const ov::frontend::NamedOutputVector& outp
 }
 
 // create Parameter node that will produce given tensor
-std::shared_ptr<ov::opset8::Parameter> create_parameter_node_for_tensor(ov::Output<ov::Node>& output_tensor) {
+std::shared_ptr<ov::opset8::Parameter> create_parameter_node_for_tensor(ov::Output<ov::Node> output_tensor) {
     auto param =
         std::make_shared<ov::opset8::Parameter>(output_tensor.get_element_type(), output_tensor.get_partial_shape());
     param->output(0).set_names(output_tensor.get_names());
@@ -247,8 +247,6 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond, OpMap& ov_tensors_map)
             producer_output_port_idx < producer_outputs.size(),
             "[TensorFlow Frontend] internal error: NextIteration producer has insufficient number of outputs");
         ov_body_outputs[ind] = producer_outputs[producer_output_port_idx].port;
-
-        std::make_shared<ov::Model>(ov::OutputVector{ov_body_outputs[ind]}, ov::ParameterVector{body_params[ind]});
     }
     auto ov_cond_output = loop_cond->input_values();
 
