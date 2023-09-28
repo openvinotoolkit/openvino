@@ -1,7 +1,7 @@
 Text Prediction with OpenVINO™
 ==============================
 
-.. _top:
+
 
 This notebook shows text prediction with OpenVINO. This notebook can
 work in two different modes, Text Generation and Conversation, which the
@@ -72,6 +72,8 @@ above. The Generated response is added to the history with the
 ``eos_token`` at the end. Additional user input is added to the history,
 and the sequence is passed back into the model.
 
+
+.. _top:
 
 **Table of contents**:
 
@@ -494,7 +496,8 @@ The ``text`` variable below is the input used to generate a predicted sequence.
     Selected Model is PersonaGPT. Please select GPT-Neo or GPT-2 in the first cell to generate text sequences
 
 
-# Conversation with PersonaGPT using OpenVINO™ `⇑ <#top>`__
+Conversation with PersonaGPT using OpenVINO™ `⇑ <#top>`__
+###############################################################################################################################
 
 User Input is tokenized with ``eos_token`` concatenated in the end.
 Model input is tokenized text, which serves as initial condition for

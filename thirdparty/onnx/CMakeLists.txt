@@ -64,7 +64,7 @@ ov_install_static_lib(onnx_proto ${OV_CPACK_COMP_CORE})
 
 # WA for ONNX: protobuf must be in the same export set of ONNX targets
 # in case of protobuf::libprotobuf-lite / protobuf::libprotobuf are imported targets
-if(NOT ENABLE_SYSTEM_PROTOBUF)
+if(NOT ENABLE_SYSTEM_PROTOBUF AND NOT BUILD_SHARED_LIBS)
     if(ONNX_USE_LITE_PROTO)
         set(protobuf_target_name libprotobuf-lite)
     else()

@@ -1,7 +1,7 @@
 Binding multimodal data using ImageBind and OpenVINO
 ====================================================
 
-.. _top:
+
 
 Exploring the surrounding world, people get information using multiple
 senses, for example, seeing a busy street and hearing the sounds of car
@@ -68,6 +68,8 @@ represented on the image below:
 
 In this tutorial, we consider how to use ImageBind for multimodal
 zero-shot classification.
+
+.. _top:
 
 **Table of contents**:
 
@@ -148,6 +150,8 @@ model weights and creates a PyTorch model object for ImageBind.
 Currently, there is only one ImageBind model available for downloading,
 ``imagebind_huge``, more details about it can be found in `model
 card <https://github.com/facebookresearch/ImageBind/blob/main/model_card.md>`__.
+
+.. note::
 
    Please note, depending on internet connection speed, the model
    downloading process can take some time. It also requires at least 5

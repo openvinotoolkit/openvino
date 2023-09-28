@@ -1,7 +1,7 @@
 Optical Character Recognition (OCR) with OpenVINO™
 ==================================================
 
-.. _top:
+
 
 This tutorial demonstrates how to perform optical character recognition
 (OCR) with OpenVINO models. It is a continuation of the
@@ -21,6 +21,8 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. For more
 information, refer to the
 `104-model-tools <104-model-tools-with-output.html>`__ tutorial.
 
+.. _top:
+
 **Table of contents**:
 
 - `Imports <#imports>`__
@@ -38,7 +40,7 @@ information, refer to the
 - `Text Recognition <#text-recognition>`__
 
   - `Load Text Recognition Model <#load-text-recognition-model>`__
-  - `Do Inference <#do-inference>`__
+  - `Do Inference <#do-the-inference>`__
 
 - `Show Results <#show-results>`__
 
@@ -535,6 +537,9 @@ Load Text Recognition Model `⇑ <#top>`__
     
     # Get the height and width of the input layer.
     _, _, H, W = recognition_input_layer.shape
+
+
+.. _do-the-inference:
 
 Do Inference `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

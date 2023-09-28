@@ -1,7 +1,7 @@
 Optimize Preprocessing
 ======================
 
-.. _top:
+
 
 When input data does not fit the model input tensor perfectly,
 additional operations/steps are needed to transform the data to the
@@ -26,6 +26,8 @@ This tutorial include following steps:
    image.
 -  Comparing results on one picture.
 -  Comparing performance.
+
+.. _top:
 
 **Table of contents**:
 

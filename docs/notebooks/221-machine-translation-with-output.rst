@@ -1,7 +1,7 @@
 Machine translation demo
 ========================
 
-.. _top:
+
 
 This demo utilizes Intel’s pre-trained model that translates from
 English to German. More information about the model can be found
@@ -17,6 +17,8 @@ following structure: ``<s>`` + *tokenized sentence* + ``<s>`` +
 
 **Output** After the inference, we have a sequence of up to 200 tokens.
 The structure is the same as the one for the input. 
+
+.. _top:
 
 **Table of contents**:
 

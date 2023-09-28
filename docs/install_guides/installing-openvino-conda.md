@@ -61,7 +61,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2023.0.1
+      conda install -c conda-forge openvino=2023.0.2
 
    Congratulations! You have finished installing OpenVINO Runtime.
 
@@ -94,7 +94,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
    
-   conda remove openvino=2023.0.1
+   conda remove openvino=2023.0.2
 
 
 What's Next?

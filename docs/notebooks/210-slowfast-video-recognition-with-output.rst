@@ -1,7 +1,7 @@
 Video Recognition using SlowFast and OpenVINO™
 ==============================================
 
-.. _top:
+
 
 Teaching machines to detect, understand and analyze the contents of
 images has been one of the more well-known and well-studied problems in
@@ -39,6 +39,8 @@ This tutorial consists of the following steps
 -  Verify inference with the converted model
 
 .. |image0| image:: https://user-images.githubusercontent.com/34324155/143044111-94676f64-7ba8-4081-9011-f8054bed7030.png
+
+.. _top:
 
 **Table of contents**:
 

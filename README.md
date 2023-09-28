@@ -105,7 +105,7 @@ OpenVINO™ Toolkit also contains several plugins which simplify loading models 
     </thead>
     <tbody>
         <tr>
-            <td><a href="https://docs.openvino.ai/2023.0/openvino_docs_IE_DG_supported_plugins_AUTO.html#doxid-openvino-docs-i-e-d-g-supported-plugins-a-u-t-o">Auto</a></td>
+            <td><a href="https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html">Auto</a></td>
             <td><b><i><a href="./src/plugins/auto">openvino_auto_plugin</a></i></b></td>
             <td>Auto plugin enables selecting Intel device for inference automatically</td>
         </tr>

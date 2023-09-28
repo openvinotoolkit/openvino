@@ -1,7 +1,7 @@
 Part Segmentation of 3D Point Clouds with OpenVINO™
 ===================================================
 
-.. _top:
+
 
 This notebook demonstrates how to process `point
 cloud <https://en.wikipedia.org/wiki/Point_cloud>`__ data and run 3D
@@ -23,6 +23,8 @@ architecture for applications ranging from object classification, part
 segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
+
+.. _top:
 
 **Table of contents**:
 

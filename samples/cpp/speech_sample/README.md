@@ -1,11 +1,20 @@
 # Automatic Speech Recognition C++ Sample {#openvino_inference_engine_samples_speech_sample_README}
 
+
 @sphinxdirective
 
 .. meta::
    :description: Learn how to infer an acoustic model based on Kaldi 
                  neural networks and speech feature vectors using Asynchronous 
                  Inference Request (C++) API.
+
+
+.. note::
+
+   This sample is being deprecated and will no longer be maintained after 
+   OpenVINO 2023.2 (LTS). The main reason for it is the outdated state of 
+   the sample and its extensive usage of GNA, which is not going to be 
+   supported by OpenVINO beyond 2023.2. 
 
 
 This sample demonstrates how to execute an Asynchronous Inference of acoustic model based on Kaldi\* neural networks and speech feature vectors.  
@@ -21,7 +30,7 @@ The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not
       +=============================================================+===============================================================================================================================================================+
       | Validated Models                                            | Acoustic model based on Kaldi\* neural networks (see :ref:`Model Preparation <model-preparation-speech>` section)                                             |
       +-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
-      | Model Format                                                | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin)                                                                                               |
+      | Model Format                                                | OpenVINO™ toolkit Intermediate Representation (*.xml + *.bin)                                                                                                 |
       +-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
       | Supported devices                                           | See :ref:`Execution Modes <execution-modes-speech>` section below and :doc:`List Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>` |
       +-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+

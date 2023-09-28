@@ -18,7 +18,7 @@
    Use YUM <openvino_docs_install_guides_installing_openvino_yum>
    Use Conda Forge <openvino_docs_install_guides_installing_openvino_conda>
    Use Homebrew <openvino_docs_install_guides_installing_openvino_brew>
-   Use Docker <openvino_docs_install_guides_installing_openvino_docker_linux>
+   Use Docker <openvino_docs_install_guides_installing_openvino_docker>
 
 
 If you want to install OpenVINO™ Runtime on your Linux machine, these are your options: 
@@ -29,7 +29,7 @@ If you want to install OpenVINO™ Runtime on your Linux machine, these are your
 * :doc:`Install OpenVINO Runtime using YUM <openvino_docs_install_guides_installing_openvino_yum>`
 * :doc:`Install OpenVINO Runtime using Conda Forge <openvino_docs_install_guides_installing_openvino_conda>`
 * :doc:`Install OpenVINO Runtime using Homebrew <openvino_docs_install_guides_installing_openvino_brew>`
-* :doc:`Install OpenVINO using Docker <openvino_docs_install_guides_installing_openvino_docker_linux>`
+* :doc:`Install OpenVINO using Docker <openvino_docs_install_guides_installing_openvino_docker>`
 
 
 

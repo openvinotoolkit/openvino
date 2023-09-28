@@ -1,7 +1,7 @@
 Speech to Text with OpenVINO™
 =============================
 
-.. _top:
+
 
 This tutorial demonstrates speech-to-text recognition with OpenVINO.
 
@@ -12,6 +12,8 @@ based on the Jasper architecture, which is a convolutional model trained
 with Connectionist Temporal Classification (CTC) loss. The model is
 available from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
+
+.. _top:
 
 **Table of contents**:
 

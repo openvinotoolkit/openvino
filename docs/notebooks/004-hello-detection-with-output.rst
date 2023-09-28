@@ -1,7 +1,7 @@
 Hello Object Detection
 ======================
 
-.. _top:
+
 
 A very basic introduction to using object detection models with
 OpenVINO™.
@@ -17,6 +17,10 @@ shape of ``[100, 5]``. Each detected text box is stored in the
 corner, ``(x_max, y_max)`` are the coordinates of the bottom right
 bounding box corner and ``conf`` is the confidence for the predicted
 class. 
+
+
+
+.. _top:
 
 **Table of contents**: 
 

@@ -22,9 +22,9 @@ The following examples are the situations when model cutting is useful or even r
 Model conversion API parameters
 ###############################
 
-Model conversion API provides command line options ``input`` and ``output`` to specify new entry and exit nodes, while ignoring the rest of the model:
+Model conversion API provides ``input`` and ``output`` command-line options to specify new entry and exit nodes, while ignoring the rest of the model:
 
-* ``input`` option accepts a list of layer names of the input model that should be treated as new entry points to the model. See the full list of accepted types for input on :doc:`Model Conversion Python API <openvino_docs_MO_DG_Python_API>` page.
+* ``input`` option accepts a list of layer names of the input model that should be treated as new entry points to the model. See the full list of accepted types for input on :doc:`Supported Model Formats <Supported_Model_Formats>` page.
 * ``output`` option accepts a list of layer names of the input model that should be treated as new exit points from the model.
 
 The ``input`` option is required for cases unrelated to model cutting. For example, when the model contains several inputs and ``input_shape`` or ``mean_values`` options are used, the ``input`` option specifies the order of input nodes for correct mapping between multiple items provided in ``input_shape`` and ``mean_values`` and the inputs in the model.
@@ -147,6 +147,27 @@ Now, consider how to cut some parts of the model off. This chapter describes the
 
 .. image:: _static/images/inception_v1_first_block.svg
    :alt: Inception V1 first convolution block
+
+
+To cut a model, you can specify the ``input`` parameter in a form of a tuple:
+
+.. code-block:: py
+   :force:
+
+   ov_model = convert_model(model, input=("input_name", [3], np.float32))
+
+For complex cases, when a value needs to be set in the ``input`` parameter, the ``InputCutInfo`` class can be used. ``InputCutInfo`` supports four types of parameters:
+
+* name: ``string``.
+* shape: ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.runtime.Dimension``), ``openvino.runtime.PartialShape``, ``openvino.runtime.Shape``.
+* type: ``numpy type``, ``openvino.runtime.Type``.
+* value: ``numpy.ndarray``, ``list`` of numeric values, ``bool``.
+
+``InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4])`` is equivalent of ``InputCutInfo(name="input_name", shape=[3], type=np.float32, value=[0.5, 2.1, 3.4])``.
+
+
+You can cut a model at either the end or the beginning. The examples below present how to perform such cutting in several ways.
+
 
 Cutting at the End
 ++++++++++++++++++++

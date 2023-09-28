@@ -1,7 +1,7 @@
 Speaker diarization
 ===================
 
-.. _top:
+
 
 Speaker diarization is the process of partitioning an audio stream
 containing human speech into homogeneous segments according to the
@@ -38,6 +38,8 @@ pyannote pre-trained models in `model
 card <https://huggingface.co/pyannote/speaker-diarization>`__,
 `repo <https://github.com/pyannote/pyannote-audio>`__ and
 `paper <https://arxiv.org/abs/1911.01255>`__.
+
+.. _top:
 
 **Table of contents**:
 
@@ -114,7 +116,9 @@ method by providing a path to the directory with pipeline configuration
 or identification from `HuggingFace
 hub <https://huggingface.co/pyannote/speaker-diarization>`__.
 
-   **Note**: This tutorial uses a non-official version of model
+.. note::
+
+   This tutorial uses a non-official version of model
    ``philschmid/pyannote-speaker-diarization-endpoint``, provided only
    for demo purposes. The original model
    (``pyannote/speaker-diarization``) requires you to accept the model
@@ -127,6 +131,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
    You can log in on HuggingFace Hub in the notebook environment using
    the following code:
+
 
 .. code:: python
 

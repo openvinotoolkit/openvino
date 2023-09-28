@@ -1,6 +1,8 @@
 Object masks from prompts with SAM and OpenVINO
 ===============================================
 
+
+
 .. _top:
 
 **Table of contents**:
@@ -1425,7 +1427,9 @@ result, we will use a ``mixed`` quantization preset. It provides
 symmetric quantization of weights and asymmetric quantization of
 activations.
 
-   **Note**: Model post-training quantization is time-consuming process.
+.. note::
+
+   Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
 
 .. code:: ipython3

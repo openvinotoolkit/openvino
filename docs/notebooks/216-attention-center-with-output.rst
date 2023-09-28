@@ -1,7 +1,7 @@
 The attention center model with OpenVINO™
 =========================================
 
-.. _top:
+
 
 This notebook demonstrates how to use the `attention center
 model <https://github.com/google/attention-center/tree/main>`__ with
@@ -50,6 +50,8 @@ post <https://opensource.googleblog.com/2022/12/open-sourcing-attention-center-m
 The attention center model has been trained with images from the `COCO
 dataset <https://cocodataset.org/#home>`__ annotated with saliency from
 the `SALICON dataset <http://salicon.net/>`__.
+
+.. _top:
 
 **Table of contents**:
 

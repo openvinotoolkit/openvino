@@ -11,6 +11,8 @@ A custom dataloader and metric will be defined, and accuracy and
 performance will be computed for the original IR model and the quantized
 model.
 
+.. _top:
+
 **Table of contents**:
 
 - `Preparation <#preparation>`__
@@ -331,8 +333,10 @@ OpenVINO with minimal accuracy drop.
 
 Create a quantized model from the pre-trained FP32 model and the
 calibration dataset. The optimization process contains the following
-steps: 1. Create a Dataset for quantization. 2. Run nncf.quantize for
-getting an optimized model.
+steps:
+
+1. Create a Dataset for quantization.
+2. Run ``nncf.quantize`` for getting an optimized model.
 
 The validation dataset already defined in the training notebook.
 
@@ -395,7 +399,7 @@ Download Intermediate Representation (IR) model.
     ir_model = ie.read_model(model_xml)
 
 Use `Basic Quantization
-Flow <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#doxid-basic-qauntization-flow>`__.
+Flow <https://docs.openvino.ai/2023.0/basic_quantization_flow.html#doxid-basic-quantization-flow>`__.
 To use the most advanced quantization flow that allows to apply 8-bit
 quantization to the model with accuracy control see `Quantizing with
 accuracy
@@ -601,9 +605,12 @@ In the next cells, inference speed will be measured for the original and
 quantized model on CPU. If an iGPU is available, inference speed will be
 measured for CPU+GPU as well. The number of seconds is set to 15.
 
-   **NOTE**: For the most accurate performance estimation, it is
+.. note::
+
+   For the most accurate performance estimation, it is
    recommended to run ``benchmark_app`` in a terminal/command prompt
    after closing other applications.
+
 
 .. code:: ipython3
 

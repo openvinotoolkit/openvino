@@ -1,7 +1,7 @@
 Cross-lingual Books Alignment with Transformers and OpenVINO™
 =============================================================
 
-.. _top:
+
 
 Cross-lingual text alignment is the task of matching sentences in a pair
 of texts that are translations of each other. In this notebook, you’ll
@@ -39,6 +39,8 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
+.. _top:
+
 **Table of contents**:
 
 - `Get Books <#get-books>`__
@@ -53,7 +55,7 @@ Prerequisites
 - `Visualize Sentence Alignment <#visualize-sentence-alignment>`__
 - `Speed up Embeddings Computation <#speed-up-embeddings-computation>`__
 
-.. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png%22
+.. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
 
 .. code:: ipython3
 
@@ -356,9 +358,12 @@ code <https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes>`__, as the
 rules for splitting text into sentences may vary for different
 languages.
 
-   **Hint**: The ``book_metadata`` obtained from the Gutendex contains
+.. hint::
+
+   The ``book_metadata`` obtained from the Gutendex contains
    the language code as well, enabling automation of this part of the
    pipeline.
+
 
 .. code:: ipython3
 
@@ -410,7 +415,7 @@ translation pairs.
 This makes LaBSE a great choice for our task and it can be reused for
 different language pairs still producing good results.
 
-.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png%22
+.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png
 
 .. code:: ipython3
 
@@ -952,8 +957,11 @@ advance and fill it in as the inference requests are executed.
 
 Let’s compare the models and plot the results.
 
-   **Note**: To get a more accurate benchmark, use the `Benchmark Python
+.. note::
+
+   To get a more accurate benchmark, use the `Benchmark Python
    Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+
 
 .. code:: ipython3
 

@@ -1,7 +1,7 @@
 Interactive question answering with OpenVINO™
 =============================================
 
-.. _top:
+
 
 This demo shows interactive question answering with OpenVINO, using
 `small BERT-large-like
@@ -10,6 +10,8 @@ distilled and quantized to ``INT8`` on SQuAD v1.1 training set from
 larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
 of this notebook provides live inference results from your inputs. 
+
+.. _top:
 
 **Table of contents**:
 

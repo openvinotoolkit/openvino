@@ -1,7 +1,7 @@
 Infinite Zoom Stable Diffusion v2 and OpenVINO™
 ===============================================
 
-.. _top:
+
 
 Stable Diffusion v2 is the next generation of Stable Diffusion model a
 Text-to-Image latent diffusion model created by the researchers and
@@ -73,6 +73,8 @@ Notebook contains the following steps:
    API.
 3. Run Stable Diffusion v2 inpainting pipeline for generation infinity
    zoom video
+
+.. _top:
 
 **Table of contents**:
 
@@ -1265,9 +1267,11 @@ Configure Inference Pipeline `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-Configuration steps: 1. Load models on device 2. Configure tokenizer and
-scheduler 3. Create instance of ``OVStableDiffusionInpaintingPipeline``
-class
+Configuration steps:
+
+1. Load models on device.
+2. Configure tokenizer and scheduler.
+3. Create instance of ``OVStableDiffusionInpaintingPipeline`` class.
 
 .. code:: ipython3
 

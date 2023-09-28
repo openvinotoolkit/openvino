@@ -164,7 +164,7 @@ Install OpenVINO Runtime
    
          .. code-block:: sh
    
-            sudo apt install openvino-2023.0.0
+            sudo apt install openvino-2023.0.2
    
 .. note::
 
@@ -249,7 +249,7 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
    
       .. code-block:: sh
    
-         sudo apt autoremove openvino-2023.0.0
+         sudo apt autoremove openvino-2023.0.2
 
 
 What's Next?

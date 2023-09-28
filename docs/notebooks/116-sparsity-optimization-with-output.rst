@@ -1,7 +1,7 @@
 Accelerate Inference of Sparse Transformer Models with OpenVINO™ and 4th Gen Intel® Xeon® Scalable Processors
 =============================================================================================================
 
-.. _top:
+
 
 This tutorial demonstrates how to improve performance of sparse
 Transformer models with `OpenVINO <https://docs.openvino.ai/>`__ on 4th
@@ -20,6 +20,8 @@ consists of the following steps:
 -  Download and quantize sparse public BERT model, using the OpenVINO
    integration with Hugging Face Optimum.
 -  Compare sparse 8-bit vs. dense 8-bit inference performance.
+
+.. _top:
 
 **Table of contents**:
 

@@ -1,7 +1,7 @@
 Text-to-Music generation using Riffusion and OpenVINO
 =====================================================
 
-.. _top:
+
 
 `Riffusion <https://huggingface.co/riffusion/riffusion-model-v1>`__ is a
 latent text-to-image diffusion model capable of generating spectrogram
@@ -75,6 +75,8 @@ amplitudes and phases.
 The STFT is invertible, so the original audio can be reconstructed from
 a spectrogram. This idea is a behind approach to using Riffusion for
 audio generation.
+
+.. _top:
 
 **Table of contents**:
 

@@ -1,7 +1,7 @@
 Image Editing with InstructPix2Pix and OpenVINO
 ===============================================
 
-.. _top:
+
 
 The InstructPix2Pix is a conditional diffusion model that edits images
 based on written instructions provided by the user. Generative image
@@ -30,6 +30,8 @@ Notebook contains the following steps:
    API.
 3. Run InstructPix2Pix pipeline with OpenVINO.
 
+
+.. _top:
 
 **Table of contents**:
 
@@ -117,7 +119,9 @@ just a few lines of code provided as part
 
 First, we load the pre-trained weights of all components of the model.
 
-   **NOTE**: Initially, model loading can take some time due to
+.. note::
+
+   Initially, model loading can take some time due to
    downloading the weights. Also, the download speed depends on your
    internet connection.
 
@@ -961,8 +965,11 @@ by the model on this
 need inspiration. Optionally, you can also change the random generator
 seed for latent state initialization and number of steps.
 
-   **Note**: Consider increasing ``steps`` to get more precise results.
+.. note::
+
+   Consider increasing ``steps`` to get more precise results.
    A suggested value is ``100``, but it will take more time to process.
+
 
 .. code:: ipython3
 
@@ -986,9 +993,10 @@ seed for latent state initialization and number of steps.
     VBox(children=(Text(value=' Make it in galaxy', description='your text'), IntSlider(value=42, description='see…
 
 
+.. note::
 
-   **Note**: Diffusion process can take some time, depending on what
-   hardware you select.
+   Diffusion process can take some time, depending on what hardware you select.
+
 
 .. code:: ipython3
 

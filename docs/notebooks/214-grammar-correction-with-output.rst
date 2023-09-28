@@ -1,7 +1,7 @@
 Grammatical Error Correction with OpenVINO
 ==========================================
 
-.. _top:
+
 
 AI-based auto-correction products are becoming increasingly popular due
 to their ease of use, editing speed, and affordability. These products
@@ -42,6 +42,8 @@ It consists of the following steps:
    integration with Hugging Face
    Optimum <https://huggingface.co/blog/openvino>`__.
 -  Create an inference pipeline for grammatical error checking 
+
+.. _top:
 
 **Table of contents**:
 

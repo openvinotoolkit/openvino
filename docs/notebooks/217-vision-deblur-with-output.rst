@@ -1,6 +1,8 @@
 Deblur Photos with DeblurGAN-v2 and OpenVINO™
 =============================================
 
+
+
 .. _top:
 
 **Table of contents**:
