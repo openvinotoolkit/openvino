@@ -6,6 +6,26 @@
    :description: Learn about markup transformations, which are used to create 
                  attributes for input and output ports and operations during runtime.
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Low Precision Transformations
+   :hidden:
+
+   MarkupBias <openvino_docs_OV_UG_lpt_MarkupBias>
+   MarkupCanBeQuantized <openvino_docs_OV_UG_lpt_MarkupCanBeQuantized>
+   MarkupPrecisions <openvino_docs_OV_UG_lpt_MarkupPrecisions>
+   MarkupPerTensorQuantization <openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization>
+   MarkupAvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved>
+   PropagatePrecisions <openvino_docs_OV_UG_lpt_PropagatePrecisions>
+   AlignQuantizationIntervals <openvino_docs_OV_UG_lpt_AlignQuantizationIntervals>
+   AlignQuantizationParameters <openvino_docs_OV_UG_lpt_AlignQuantizationParameters>
+   
+   CreateAttribute <openvino_docs_OV_UG_lpt_CreateAttribute>
+   CreatePrecisionsDependentAttribute <openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute>
+   PropagateThroughPrecisionPreserved <openvino_docs_OV_UG_lpt_PropagateThroughPrecisionPreserved>
+   PropagateToInput <openvino_docs_OV_UG_lpt_PropagateToInput>
+   UpdateSharedPrecisionPreserved <openvino_docs_OV_UG_lpt_UpdateSharedPrecisionPreserved>
+
 This step defines the optimal ``FakeQuantize`` decomposition precisions for the best inference performance via operations markup with runtime attribute instances. Attributes are created for input and output ports and operations. Transformations do not change the operation output port precisions. A model markup low precision logic is decomposed and implemented into the following common markup transformations. The order of transformations is important:
 
 1. :doc:`MarkupBias <openvino_docs_OV_UG_lpt_MarkupBias>`
