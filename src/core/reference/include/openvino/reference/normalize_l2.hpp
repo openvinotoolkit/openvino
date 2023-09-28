@@ -7,7 +7,7 @@
 #include <ngraph/op/normalize_l2.hpp>
 
 #include "openvino/reference/autobroadcast_binop.hpp"
-#include "openvino/reference/sum.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 
 namespace ov {
 namespace reference {
@@ -38,7 +38,7 @@ void normalize_l2(const T* data,
     }
 
     std::vector<T> sum_data(shape_size(reduce_shape));
-    sum(sqr_data.data(), sum_data.data(), data_shape, reduction_axes);
+    reduce_sum(sqr_data.data(), sum_data.data(), data_shape, reduction_axes);
     autobroadcast_binop(data,
                         sum_data.data(),
                         out,
