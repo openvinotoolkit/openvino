@@ -331,7 +331,10 @@ jobs:
         with:
           python-version: '3.11'
       - name: Setup pip cache dir
-        run: echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/$(python3 -m pip --version | grep -o 'pip [0-9]*[.][0-9]*[.][0-9]*' | grep -o '[0-9].*')" >> $GITHUB_ENV
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install OpenVINO dependencies
         run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
@@ -614,7 +617,10 @@ jobs:
         with:
           python-version: '3.11'
       - name: Setup pip cache dir
-        run: echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/$(python3 -m pip --version | grep -o 'pip [0-9]*[.][0-9]*[.][0-9]*' | grep -o '[0-9].*')" >> $GITHUB_ENV
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install Python API tests dependencies
         run: |
@@ -1011,7 +1017,10 @@ jobs:
         with:
           python-version: '3.11'
       - name: Setup pip cache dir
-        run: echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/$(python3 -m pip --version | grep -o 'pip [0-9]*[.][0-9]*[.][0-9]*' | grep -o '[0-9].*')" >> $GITHUB_ENV
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
