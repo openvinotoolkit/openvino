@@ -461,7 +461,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() && !cancelled()}}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-python
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -632,7 +632,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() && !cancelled()}}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -712,7 +712,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() && !cancelled()}}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu
           path: |
