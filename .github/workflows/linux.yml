@@ -29,6 +29,8 @@ env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
   OPENVINO_REPO: /__w/openvino/openvino/openvino
+  INSTALL_DIR: /__w/openvino/openvino/install
+  INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
 
 jobs:
   Build:
@@ -1203,14 +1205,8 @@ jobs:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
         - /mount/caches:/mount/caches
-    env:
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
