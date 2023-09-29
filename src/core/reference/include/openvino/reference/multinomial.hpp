@@ -19,14 +19,6 @@
 namespace ov {
 namespace reference {
 namespace multinomial {
-
-template <typename T>
-void test(const T* data, const Shape& shape, int* test_nr) {
-    std::cout << test_nr[0] << "\n"; test_nr[0]++;
-    for(size_t i = 0; i < shape_size<Shape>(shape); ++i) {
-        std::cout << data[i] << " ";
-    } std::cout << " \n";
-}
 /**
  * @brief Multinomial operation creates a sequence of indices of classes sampled from the multinomial distribution.
  *
@@ -65,15 +57,15 @@ void multinomial(const T* probs,
     // If probabilities are log probabilities, exponentiate to get normal probabilities
     std::vector<T> input_vals(total_inputs_elements_count);
     if (log_probs) {
-        exp<T>(probs, input_vals.data(), total_inputs_elements_count);
+        exp(probs, input_vals.data(), total_inputs_elements_count);
     } else {
-        copy<T>(probs, input_vals.data(), total_inputs_elements_count);
+        copy(probs, input_vals.data(), total_inputs_elements_count);
     }
 
     // Create a cdf of probabilties on the last axis, per batch. Note cumsum exclusive  == false
     std::vector<T> cdf(total_inputs_elements_count);
     auto last_axis = probs_shape.size() - 1;
-    cumsum<T, size_t>(input_vals.data(), last_axis, cdf.data(), probs_shape, false, false);
+    cumsum(input_vals.data(), last_axis, cdf.data(), probs_shape, false, false);
 
     // Obtain max value from cdf, per batch (from cumsum it is the last element)
     std::vector<T> max_value_per_batch(total_inputs_elements_count / probs_shape[last_axis]);
@@ -100,11 +92,7 @@ void multinomial(const T* probs,
               probs_shape,  // expand to original shape (expands last dim)
               target_axis_set,
               sizeof(T));
-    divide(reinterpret_cast<const T*>(cdf.data()),
-           reinterpret_cast<const T*>(max_value_per_batch_divisor.data()),
-           reinterpret_cast<T*>(cdf.data()),
-           total_inputs_elements_count,
-           false);
+    divide(cdf.data(), max_value_per_batch_divisor.data(), cdf.data(), total_inputs_elements_count, false);
 
     // Generate random probability samples
     std::vector<double> uniform_samples(total_output_elements_count);
@@ -122,12 +110,11 @@ void multinomial(const T* probs,
                    op_seed,
                    initial_state);
 
-    auto first_dim_size         = probs_shape.size() == 2 ? probs_shape[0]          : (size_t)1;
-    auto second_input_dim_size  = probs_shape.size() == 2 ? probs_shape[1]          : probs_shape[0];
-    auto second_output_dim_size = probs_shape.size() == 2 ? (size_t)num_samples[0]  : probs_shape[0];
+    auto first_dim_size = probs_shape.size() == 2 ? probs_shape[0] : (size_t)1;
+    auto second_input_dim_size = probs_shape.size() == 2 ? probs_shape[1] : probs_shape[0];
+    auto second_output_dim_size = probs_shape.size() == 2 ? (size_t)num_samples[0] : probs_shape[0];
 
     // Iterate over each channel in uniform samples
-    // test<T>(cdf.data(), probs_shape, &test_nr);
     std::vector<U> output_samples(total_output_elements_count);
     for (size_t i = 0; i < first_dim_size * second_output_dim_size; i += second_output_dim_size) {
         for (size_t j = 0; j < second_output_dim_size; ++j) {
@@ -145,22 +132,19 @@ void multinomial(const T* probs,
             }
             // Additional step with replacement - change probability of a given class to 0, and update the cdf
             if (with_replacement) {
-                T class_probability = selected_class_idx ? cdf[i_translated + selected_class_idx] - cdf[i_translated + selected_class_idx - 1] : cdf[i_translated + selected_class_idx];
+                T class_probability = selected_class_idx ? cdf[i_translated + selected_class_idx] -
+                                                               cdf[i_translated + selected_class_idx - 1]
+                                                         : cdf[i_translated + selected_class_idx];
                 T divisor = 1 - class_probability;
                 for (size_t k = 0; k < second_input_dim_size; ++k) {
                     if (k >= selected_class_idx) {
                         cdf[i_translated + k] -= class_probability;
                     }
                     cdf[i_translated + k] /= divisor;
-                    // test<T>(cdf.data(), probs_shape, &test_nr);
                 }
-                // test<T>(cdf.data(), probs_shape, &test_nr);
             }
         }
     }
-    // test<T>(cdf.data(), probs_shape, &test_nr);
-    // test<double>(uniform_samples.data(), output_shape, &test_nr);
-    // test<U>(output_samples.data(), output_shape, &test_nr);
     // Finally convert the samples to the requested data type
     convert<U, V>(output_samples.data(), output, total_output_elements_count);
 }

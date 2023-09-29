@@ -45,8 +45,9 @@ struct Builder : reference_tests::ParamsBuilder<MultinomialParams> {
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, test_case_name);
 };
 
-class ReferenceMultinomial : public testing::TestWithParam<MultinomialParams>, public
-reference_tests::CommonReferenceTest { public:
+class ReferenceMultinomial : public testing::TestWithParam<MultinomialParams>,
+                             public reference_tests::CommonReferenceTest {
+public:
     void SetUp() override {
         const auto& params = GetParam();
         function = CreateFunction(params);
@@ -74,17 +75,17 @@ private:
     static std::shared_ptr<ov::Model> CreateFunction(const MultinomialParams& params) {
         const auto in_probabilities =
             std::make_shared<ov::op::v0::Parameter>(params.probabilities.type, params.probabilities.shape);
-        const auto in_num_samples = std::make_shared<ov::op::v0::Parameter>(params.num_samples.type,
-        params.num_samples.shape); const auto multinomial =
-        std::make_shared<ov::op::v13::Multinomial>(in_probabilities,
-                                                                   in_num_samples,
-                                                                   params.convert_type,
-                                                                   params.with_replacement,
-                                                                   params.log_probs,
-                                                                   1,
-                                                                   1);
-        return std::make_shared<ov::Model>(ov::NodeVector{multinomial}, ov::ParameterVector{in_probabilities,
-        in_num_samples});
+        const auto in_num_samples =
+            std::make_shared<ov::op::v0::Parameter>(params.num_samples.type, params.num_samples.shape);
+        const auto multinomial = std::make_shared<ov::op::v13::Multinomial>(in_probabilities,
+                                                                            in_num_samples,
+                                                                            params.convert_type,
+                                                                            params.with_replacement,
+                                                                            params.log_probs,
+                                                                            1,
+                                                                            1);
+        return std::make_shared<ov::Model>(ov::NodeVector{multinomial},
+                                           ov::ParameterVector{in_probabilities, in_num_samples});
     }
 };
 
@@ -98,17 +99,32 @@ std::vector<MultinomialParams> generateMultinomialParams() {
 
     reference_tests::Tensor num_samples(num_samples_shape, ov::element::Type_t::i32, std::vector<int>{4});
 
-    reference_tests::Tensor probabilities_2d_no_log(prob_2d_shape,
+    reference_tests::Tensor probabilities_2d_no_log(
+        prob_2d_shape,
+        ov::element::Type_t::f32,
+        std::vector<float>{0.001, 0.01, 0.1, 0.899, 0.899, 0.1, 0.01, 0.001});
+    reference_tests::Tensor probabilities_2d_log(prob_2d_shape,
+                                                 ov::element::Type_t::f32,
+                                                 std::vector<float>{1, 2, 3, 4, 2, 4, 6, 8});
+    reference_tests::Tensor probabilities_1d_no_log(prob_1d_shape,
                                                     ov::element::Type_t::f32,
-                                                    std::vector<float>{0.001, 0.01, 0.1, 0.899, 0.899, 0.1, 0.01, 0.001});
-    reference_tests::Tensor probabilities_2d_log(prob_2d_shape, ov::element::Type_t::f32, std::vector<float>{1, 2, 3, 4, 2, 4, 6, 8});
-    reference_tests::Tensor probabilities_1d_no_log(prob_1d_shape, ov::element::Type_t::f32, std::vector<float>{0.001, 0.01, 0.1, 0.899});
-    reference_tests::Tensor probabilities_1d_log(prob_1d_shape, ov::element::Type_t::f32, std::vector<float>{1, 10, 7, 3});
+                                                    std::vector<float>{0.001, 0.01, 0.1, 0.899});
+    reference_tests::Tensor probabilities_1d_log(prob_1d_shape,
+                                                 ov::element::Type_t::f32,
+                                                 std::vector<float>{1, 10, 7, 3});
 
-    reference_tests::Tensor output_2d_no_log_no_replacement(prob_2d_shape, ov::element::Type_t::i32, std::vector<int>{3, 3, 3, 3, 0, 0, 0, 0});
-    reference_tests::Tensor output_2d_log_no_replacement(prob_2d_shape, ov::element::Type_t::i32, std::vector<int>{3, 3, 2, 3, 3, 3, 3, 3});
-    reference_tests::Tensor output_1d_no_log_replacement(prob_1d_shape, ov::element::Type_t::i32, std::vector<int>{3, 2, 1, 0});
-    reference_tests::Tensor output_1d_log_replacement(prob_1d_shape, ov::element::Type_t::i32, std::vector<int>{1, 2, 3, 0});
+    reference_tests::Tensor output_2d_no_log_no_replacement(prob_2d_shape,
+                                                            ov::element::Type_t::i32,
+                                                            std::vector<int>{3, 3, 3, 3, 0, 0, 0, 0});
+    reference_tests::Tensor output_2d_log_no_replacement(prob_2d_shape,
+                                                         ov::element::Type_t::i32,
+                                                         std::vector<int>{3, 3, 2, 3, 3, 3, 3, 3});
+    reference_tests::Tensor output_1d_no_log_replacement(prob_1d_shape,
+                                                         ov::element::Type_t::i32,
+                                                         std::vector<int>{3, 2, 1, 0});
+    reference_tests::Tensor output_1d_log_replacement(prob_1d_shape,
+                                                      ov::element::Type_t::i32,
+                                                      std::vector<int>{1, 2, 3, 0});
 
     std::vector<MultinomialParams> params;
     // probabilities, num_samples, output, convert_type, log_probs, with_replacement, name
@@ -119,11 +135,27 @@ std::vector<MultinomialParams> generateMultinomialParams() {
                         false,
                         false,
                         "input_2d");
-    params.emplace_back(probabilities_2d_log, num_samples, output_2d_log_no_replacement, ov::element::Type_t::i32, true, false,
-    "input_2d"); 
-    params.emplace_back(probabilities_1d_no_log, num_samples, output_1d_no_log_replacement, ov::element::Type_t::i32, false, true,
-        "input_1d");
-    params.emplace_back(probabilities_1d_log, num_samples, output_1d_log_replacement, ov::element::Type_t::i32, true, true, "input_1d");
+    params.emplace_back(probabilities_2d_log,
+                        num_samples,
+                        output_2d_log_no_replacement,
+                        ov::element::Type_t::i32,
+                        true,
+                        false,
+                        "input_2d");
+    params.emplace_back(probabilities_1d_no_log,
+                        num_samples,
+                        output_1d_no_log_replacement,
+                        ov::element::Type_t::i32,
+                        false,
+                        true,
+                        "input_1d");
+    params.emplace_back(probabilities_1d_log,
+                        num_samples,
+                        output_1d_log_replacement,
+                        ov::element::Type_t::i32,
+                        true,
+                        true,
+                        "input_1d");
     return params;
 }
 

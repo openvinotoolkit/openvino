@@ -88,8 +88,8 @@ bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
                                                           inputs);
     case ov::element::Type_t::bf16:
         return evaluate_input_t<ov::element::Type_t::bf16>(ov::as_type_ptr<ov::op::v13::Multinomial>(node),
-                                                          outputs,
-                                                          inputs);
+                                                           outputs,
+                                                           inputs);
     default:
         OPENVINO_THROW(std::string("Unhandled input data type ") + element_type.get_type_name() +
                        std::string(" in evaluate_node()"));
