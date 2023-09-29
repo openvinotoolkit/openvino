@@ -684,7 +684,7 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
                   return graph
           
           # Load TF model
-          graph = load_graph("HugeCTR.pb")
+          graph = load_graph("/path_to_model/HugeCTR.pb")
          
           # Cut the model
           input_name = "concat"
@@ -750,7 +750,7 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
           import openvino as ov
           import openvino.tools.mo as mo
                
-          input_path = "yolov8x.onnx"
+          input_path = "/path_to_model/yolov8x.onnx"
                
           # Convert model and perform input and output cut
           input_name = "/model.2/Concat_output_0"
@@ -766,7 +766,7 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
           import onnx
           import openvino as ov
                
-          input_path = "yolov8x.onnx"
+          input_path = "/path_to_model/yolov8x.onnx"
                
           # Cut the model
           input_name = "/model.2/Concat_output_0"
