@@ -657,3 +657,12 @@ def test_model_add_remove_result_parameter_sink():
     assert ["Assign"] == [sink.get_type_name() for sink in assign_nodes]
     model.remove_sink(assign)
     assert len(model.sinks) == 0
+
+
+def test_model_get_raw_address():
+    model = generate_add_model()
+    model_with_same_addr = model
+    model_different = generate_add_model()
+
+    assert model._get_raw_address() == model_with_same_addr._get_raw_address()
+    assert model._get_raw_address() != model_different._get_raw_address()
