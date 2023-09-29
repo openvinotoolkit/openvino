@@ -1,4 +1,4 @@
-name: Linux ONNX Runtime (Ubuntu 20.04, Python 3.11)
+name: Linux ONNX Runtime (Ubuntu 20.04)
 on:
   workflow_dispatch:
   pull_request:
