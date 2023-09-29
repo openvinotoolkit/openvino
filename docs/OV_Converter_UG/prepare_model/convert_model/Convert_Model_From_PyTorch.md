@@ -18,7 +18,7 @@ Here is the simplest example of PyTorch model conversion using a model from ``to
    import torch
    import openvino as ov
 
-   model = torchvision.models.resnet50(pretrained=True)
+   model = torchvision.models.resnet50(weights='DEFAULT')
    ov_model = ov.convert_model(model)
 
 ``openvino.convert_model`` function supports the following PyTorch model object types:
@@ -142,7 +142,7 @@ Here is an illustration of using these two steps together:
    import torch
    import openvino as ov
 
-   model = torchvision.models.resnet50(pretrained=True)
+   model = torchvision.models.resnet50(weights='DEFAULT')
    # 1. Export to ONNX
    torch.onnx.export(model, (torch.rand(1, 3, 224, 224), ), 'model.onnx')
    # 2. Convert to OpenVINO
