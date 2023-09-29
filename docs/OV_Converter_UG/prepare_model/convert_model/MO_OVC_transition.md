@@ -756,7 +756,7 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
          - New API
        * - .. code-block:: py
               :force:
-              import onnx
+
               import openvino as ov
               import openvino.tools.mo as mo
                
