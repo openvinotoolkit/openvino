@@ -99,7 +99,7 @@ inline bool operator==(const __itt_id& left, const __itt_id& right) {
 
 namespace sea {
 
-uint64_t g_nRingBuffer = 1000000000ll * atoi(get_environ_value("INTEL_SEA_RING").c_str());     // in nanoseconds
+uint64_t g_nRingBuffer = 1000000000ll * atoi(get_environ_value("INTEL_SEA_RING").c_str());    // in nanoseconds
 uint64_t g_nAutoCut = 1024ull * 1024 * atoi(get_environ_value("INTEL_SEA_AUTOCUT").c_str());  // in MB
 uint64_t g_features = sea::GetFeatureSet();
 
