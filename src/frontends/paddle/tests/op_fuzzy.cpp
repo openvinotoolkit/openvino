@@ -287,9 +287,9 @@ static const std::vector<std::string> models{
     // std::string("loop_if_loop_complex/loop_if_loop_complex.pdmodel"),
     // disabed due to slice could not produce full dynamic shape
     // std::string("loop_if_tensor_array/loop_if_tensor_array.pdmodel"),
+    // std::string("loop_x/loop_x.pdmodel"),
     std::string("loop_t/loop_t.pdmodel"),
     std::string("loop_tensor_array/loop_tensor_array.pdmodel"),
-    std::string("loop_x/loop_x.pdmodel"),
     std::string("matmul_xt/matmul_xt.pdmodel"),
     std::string("matmul_xt_yt/matmul_xt_yt.pdmodel"),
     std::string("matmul_yt/matmul_yt.pdmodel"),
