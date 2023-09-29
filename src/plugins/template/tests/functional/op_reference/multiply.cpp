@@ -29,17 +29,16 @@ struct MultiplyParams {
           inputData2(CreateTensor(iType, iValues2)),
           refData(CreateTensor(iType, oValues)) {}
 
-    ov::PartialShape pshape1;
-    ov::PartialShape pshape2;
-    ov::element::Type inType;
-    ov::element::Type outType;
+    PartialShape pshape1;
+    PartialShape pshape2;
+    element::Type inType;
+    element::Type outType;
     ov::Tensor inputData1;
     ov::Tensor inputData2;
     ov::Tensor refData;
 };
 
-class ReferenceMultiplyLayerTest : public testing::TestWithParam<MultiplyParams>,
-                                   public reference_tests::CommonReferenceTest {
+class ReferenceMultiplyLayerTest : public testing::TestWithParam<MultiplyParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -75,7 +74,7 @@ TEST_P(ReferenceMultiplyLayerTest, MultiplyWithHardcodedRefs) {
     Exec();
 }
 
-template <ov::element::Type_t IN_ET>
+template <element::Type_t IN_ET>
 std::vector<MultiplyParams> generateParamsForMultiply() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
@@ -103,7 +102,7 @@ std::vector<MultiplyParams> generateParamsForMultiply() {
     return params;
 }
 
-template <ov::element::Type_t IN_ET>
+template <element::Type_t IN_ET>
 std::vector<MultiplyParams> generateParamsForMultiplyFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
 

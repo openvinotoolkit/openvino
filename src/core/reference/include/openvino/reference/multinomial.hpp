@@ -127,7 +127,7 @@ void multinomial(const T* probs,
     auto second_output_dim_size = probs_shape.size() == 2 ? (size_t)num_samples[0]  : probs_shape[0];
 
     // Iterate over each channel in uniform samples
-    test<T>(cdf.data(), probs_shape, &test_nr);
+    // test<T>(cdf.data(), probs_shape, &test_nr);
     std::vector<U> output_samples(total_output_elements_count);
     for (size_t i = 0; i < first_dim_size * second_output_dim_size; i += second_output_dim_size) {
         for (size_t j = 0; j < second_output_dim_size; ++j) {
@@ -145,21 +145,22 @@ void multinomial(const T* probs,
             }
             // Additional step with replacement - change probability of a given class to 0, and update the cdf
             if (with_replacement) {
-                T class_probability = input_vals[i_translated + selected_class_idx];
+                T class_probability = selected_class_idx ? cdf[i_translated + selected_class_idx] - cdf[i_translated + selected_class_idx - 1] : cdf[i_translated + selected_class_idx];
                 T divisor = 1 - class_probability;
                 for (size_t k = 0; k < second_input_dim_size; ++k) {
                     if (k >= selected_class_idx) {
                         cdf[i_translated + k] -= class_probability;
                     }
                     cdf[i_translated + k] /= divisor;
+                    // test<T>(cdf.data(), probs_shape, &test_nr);
                 }
-                test<T>(cdf.data(), probs_shape, &test_nr);
+                // test<T>(cdf.data(), probs_shape, &test_nr);
             }
         }
     }
-    test<T>(cdf.data(), probs_shape, &test_nr);
-    test<double>(uniform_samples.data(), output_shape, &test_nr);
-    test<U>(output_samples.data(), output_shape, &test_nr);
+    // test<T>(cdf.data(), probs_shape, &test_nr);
+    // test<double>(uniform_samples.data(), output_shape, &test_nr);
+    // test<U>(output_samples.data(), output_shape, &test_nr);
     // Finally convert the samples to the requested data type
     convert<U, V>(output_samples.data(), output, total_output_elements_count);
 }
