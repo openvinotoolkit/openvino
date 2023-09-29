@@ -624,14 +624,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
             - Not available in OVC tool. Please check Python API.
 
-Input and output cut
+Cutting Off Parts of a Model
 ##########################
 
-In new conversion API input and output model cut are no longer available. It is recommended to perform cut in original framework instead.
-Below are examples of input and output cut for TF1, TF saved model and ONNX formats in legacy conversion API with example of how to perform identical cut in original framework.
-For PyTorch, TF Keras and PaddlePaddle it is recommended to change original model code to perform model cut. 
+In new conversion API input and output model cutting is no longer available. It is recommended to perform cutting in original framework instead.
+Below are examples of input and output cutting for TensorFlow protobuf, TensorFlow SavedModel and ONNX formats in legacy conversion API with example of how to perform identical cut in original framework.
+For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change original model code to perform model cut. 
 
-``TF frozen .pb format / frozen ft.Graph / tf.GraphDef``
+``TensorFlow protobuf format / tf.Graph / tf.GraphDef``
 ########################################################
 
 .. tab-set::
@@ -688,7 +688,7 @@ For PyTorch, TF Keras and PaddlePaddle it is recommended to change original mode
                       return graph
                
               # Load TF model
-              graph = load_graph("/home/panas/HugeCTR.pb")
+              graph = load_graph("HugeCTR.pb")
               
               # Cut the model
               input = "concat"
@@ -701,7 +701,7 @@ For PyTorch, TF Keras and PaddlePaddle it is recommended to change original mode
               cmp_model = ov.compile_model(ov_model)
 
 
-``TF Saved Model format / non-frozen ft.Graph``
+``TensorFlow SavedModel format``
 ###############################################
 
 .. tab-set::
@@ -760,7 +760,7 @@ For PyTorch, TF Keras and PaddlePaddle it is recommended to change original mode
               import openvino as ov
               import openvino.tools.mo as mo
                
-              input_path = "/path_to_model/yolov8x.onnx"
+              input_path = "yolov8x.onnx"
                
               # Convert model and perform input and output cut
               input = "/model.2/Concat_output_0"
@@ -778,7 +778,7 @@ For PyTorch, TF Keras and PaddlePaddle it is recommended to change original mode
               import onnx
               import openvino as ov
                
-              input_path = "/path_to_model/yolov8x.onnx"
+              input_path = "yolov8x.onnx"
                
               # Cut the model
               input = "/model.2/Concat_output_0"
