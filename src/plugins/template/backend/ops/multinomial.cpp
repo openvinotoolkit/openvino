@@ -69,11 +69,7 @@ template <>
 bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
                                              ov::TensorVector& outputs,
                                              const ov::TensorVector& inputs) {
-    auto element_type = node->get_input_element_type(0);
-    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
-        element_type = node->get_input_element_type(1);
-
-    switch (element_type) {
+    switch (node->get_input_element_type(0)) {
     case ov::element::Type_t::f16:
         return evaluate_input_t<ov::element::Type_t::f16>(ov::as_type_ptr<ov::op::v13::Multinomial>(node),
                                                           outputs,
@@ -91,7 +87,7 @@ bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
                                                            outputs,
                                                            inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled input data type ") + element_type.get_type_name() +
+        OPENVINO_THROW(std::string("Unhandled input data type ") + node->get_input_element_type(0).get_type_name() +
                        std::string(" in evaluate_node()"));
     }
 }

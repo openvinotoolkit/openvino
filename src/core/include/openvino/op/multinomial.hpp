@@ -20,10 +20,10 @@ public:
      * @brief Multinomial operation creates a sequence of indices of classes sampled from the multinomial distribution.
      *
      * @param probs Input tensor containing at each index poisition probability/log probability of sampling a given
-     * class.
+     * class. Any floating-point precision values are allowed.
      * @param num_samples Scalar or 1D tensor with a single value that determines the number of samples to generate per
-     * batch.
-     * @param convert_type Data type to which to convert the output class indices.
+     * batch. Values should be of an integer type.
+     * @param convert_type Data type to which to convert the output class indices. Allowed values: i32/i64
      * @param with_replacement Boolean that determines whether a sampled class can appear more than once in the output.
      * @param log_probs Boolean that determines whether to treat input probabilities as log probabilities.
      * @param global_seed First seed value (key) of Phillox random number generation algorithm. (See RandomUniform for

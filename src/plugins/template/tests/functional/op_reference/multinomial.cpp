@@ -99,19 +99,12 @@ std::vector<MultinomialParams> generateMultinomialParams() {
 
     reference_tests::Tensor num_samples(num_samples_shape, ov::element::Type_t::i32, std::vector<int>{4});
 
-    reference_tests::Tensor probabilities_2d_no_log(
-        prob_2d_shape,
-        ov::element::Type_t::f32,
-        std::vector<float>{0.001, 0.01, 0.1, 0.899, 0.899, 0.1, 0.01, 0.001});
-    reference_tests::Tensor probabilities_2d_log(prob_2d_shape,
-                                                 ov::element::Type_t::f32,
-                                                 std::vector<float>{1, 2, 3, 4, 2, 4, 6, 8});
-    reference_tests::Tensor probabilities_1d_no_log(prob_1d_shape,
-                                                    ov::element::Type_t::f32,
-                                                    std::vector<float>{0.001, 0.01, 0.1, 0.899});
-    reference_tests::Tensor probabilities_1d_log(prob_1d_shape,
-                                                 ov::element::Type_t::f32,
-                                                 std::vector<float>{1, 10, 7, 3});
+    reference_tests::Tensor probabilities_2d_no_log(prob_2d_shape,
+                                                    et,
+                                                    std::vector<vt>{0.001, 0.01, 0.1, 0.899, 0.899, 0.1, 0.01, 0.001});
+    reference_tests::Tensor probabilities_2d_log(prob_2d_shape, et, std::vector<vt>{1, 2, 3, 4, 2, 4, 6, 8});
+    reference_tests::Tensor probabilities_1d_no_log(prob_1d_shape, et, std::vector<vt>{0.001, 0.01, 0.1, 0.899});
+    reference_tests::Tensor probabilities_1d_log(prob_1d_shape, et, std::vector<vt>{1, 10, 7, 3});
 
     reference_tests::Tensor output_2d_no_log_no_replacement(prob_2d_shape,
                                                             ov::element::Type_t::i32,
@@ -120,10 +113,10 @@ std::vector<MultinomialParams> generateMultinomialParams() {
                                                          ov::element::Type_t::i32,
                                                          std::vector<int>{3, 3, 2, 3, 3, 3, 3, 3});
     reference_tests::Tensor output_1d_no_log_replacement(prob_1d_shape,
-                                                         ov::element::Type_t::i32,
+                                                         ov::element::Type_t::i64,
                                                          std::vector<int>{3, 2, 1, 0});
     reference_tests::Tensor output_1d_log_replacement(prob_1d_shape,
-                                                      ov::element::Type_t::i32,
+                                                      ov::element::Type_t::i64,
                                                       std::vector<int>{1, 2, 3, 0});
 
     std::vector<MultinomialParams> params;
@@ -145,14 +138,14 @@ std::vector<MultinomialParams> generateMultinomialParams() {
     params.emplace_back(probabilities_1d_no_log,
                         num_samples,
                         output_1d_no_log_replacement,
-                        ov::element::Type_t::i32,
+                        ov::element::Type_t::i64,
                         false,
                         true,
                         "input_1d");
     params.emplace_back(probabilities_1d_log,
                         num_samples,
                         output_1d_log_replacement,
-                        ov::element::Type_t::i32,
+                        ov::element::Type_t::i64,
                         true,
                         true,
                         "input_1d");

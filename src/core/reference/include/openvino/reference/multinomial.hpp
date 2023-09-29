@@ -52,7 +52,6 @@ void multinomial(const T* probs,
                  const uint64_t op_seed) {
     auto total_inputs_elements_count = shape_size<Shape>(probs_shape);
     auto total_output_elements_count = shape_size<Shape>(output_shape);
-    int test_nr = 1;
 
     // If probabilities are log probabilities, exponentiate to get normal probabilities
     std::vector<T> input_vals(total_inputs_elements_count);
@@ -99,8 +98,9 @@ void multinomial(const T* probs,
     const double zero = 0;
     const double one = 1;
     ov::Shape output_shape_shape{output_shape.size()};
+    std::vector<uint64_t> output_shape_u64{output_shape};
     std::pair<uint64_t, uint64_t> initial_state(0, 0);
-    random_uniform(static_cast<const uint64_t*>(output_shape.data()),  // required for emmake
+    random_uniform(output_shape_u64.data(),
                    reinterpret_cast<const char*>(&zero),
                    reinterpret_cast<const char*>(&one),
                    reinterpret_cast<char*>(uniform_samples.data()),
