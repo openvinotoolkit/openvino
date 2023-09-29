@@ -78,15 +78,27 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
         auto axis_dim = data.get_partial_shape()[axis_value].get_length();
 
         auto indices = indices_constant->cast_vector<int64_t>();
-        // check all the indices are not negative and not out of bound
+        // Check all the indices are not out of bound and check whether normalization is possible for negative values
+        bool do_indices_normalization = false;
         for (size_t i = 0; i < indices.size(); i++) {
-            if (indices[i] < 0 || indices[i] >= axis_dim) {
+            if (indices[i] < -axis_dim || indices[i] >= axis_dim) {
                 return false;
+            }
+            if (indices[i] < 0) {
+                do_indices_normalization = true;
+                indices[i] = indices[i] + axis_dim;
             }
         }
 
+        std::shared_ptr<ov::Node> new_indices_constant;
+        if (do_indices_normalization) {
+            new_indices_constant = std::make_shared<ov::op::v0::Constant>(indices_constant->get_element_type(), indices_constant->get_shape(), indices);
+        } else {
+            new_indices_constant = indices_constant;
+        }
+
         auto gather_v7_node = make_shared<ov::op::v7::Gather>(gather_v8_node->input_value(0),
-                                                              gather_v8_node->input_value(1),
+                                                              new_indices_constant,
                                                               gather_v8_node->input_value(2),
                                                               gather_v8_node->get_batch_dims());
 
