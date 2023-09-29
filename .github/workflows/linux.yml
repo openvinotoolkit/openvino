@@ -28,6 +28,7 @@ concurrency:
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
+  OPENVINO_REPO: /__w/openvino/openvino/openvino
 
 jobs:
   Build:
@@ -908,14 +909,6 @@ jobs:
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
-      - name: Docs Python snippets
-        run: |
-          # to find 'snippets' module in docs
-          export PYTHONPATH=${OPENVINO_REPO}/docs/:$PYTHONPATH
-          # for 'template' extension
-          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 ${OPENVINO_REPO}/docs/snippets/main.py
-
       - name: Model Optimizer unit tests
         run: |
           # required for MxNet
@@ -1199,6 +1192,81 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'
+
+  Python_Unit_Tests_Snippets:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: 'aks-linux-2-cores'
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+
+    steps:
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
+          popd
+
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
+          popd
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup pip cache dir
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+
+      - name: Install python dependencies
+        run: python3 -m pip install --force-reinstall -r  ${INSTALL_TEST_DIR}/bindings/python/constraints.txt
+
+      - name: Install Python wheels
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
+
+      - name: Clone API snippets
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: openvino/docs/snippets
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'false'
+
+      - name: Docs Python snippets
+        run: python3 ${OPENVINO_REPO}/openvino/docs/snippets/main.py
+        env:
+          PYTHONPATH: ${{ env.OPENVINO_REPO }}/openvino/docs
+          LD_LIBRARY_PATH: ${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-python
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            if-no-files-found: 'error'
 
   PyTorch_Models_Tests:
     name: PyTorch Models tests
