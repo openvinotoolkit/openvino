@@ -50,13 +50,6 @@ add_executable(${TARGET_NAME} ${SOURCES_ALL})
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
-# Workaround to avoid warnings during LTO build
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
-endif()
-
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              inference_engine
                                              OpenCL::OpenCL
