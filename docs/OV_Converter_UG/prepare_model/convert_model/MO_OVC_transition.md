@@ -625,14 +625,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
             - Not available in OVC tool. Please check Python API.
 
 Cutting Off Parts of a Model
-##########################
+############################
 
 In new conversion API input and output model cutting is no longer available. It is recommended to perform cutting in original framework instead.
 Below are examples of input and output cutting for TensorFlow protobuf, TensorFlow SavedModel and ONNX formats in legacy conversion API with example of how to perform identical cut in original framework.
 For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change original model code to perform model cut. 
 
 ``TensorFlow protobuf format / tf.Graph / tf.GraphDef``
-########################################################
+#######################################################
 
 .. list-table::
    :header-rows: 1
@@ -698,7 +698,7 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
 
 
 ``TensorFlow SavedModel format``
-###############################################
+################################
 
 .. list-table::
    :header-rows: 1
