@@ -716,8 +716,6 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
          - .. code-block:: py
               :force:
 
-              import numpy as np
-
               import openvino as ov
               import tensorflow_hub as hub
               
