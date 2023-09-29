@@ -392,7 +392,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores
+    runs-on: aks-linux-4-cores-16gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
@@ -585,7 +585,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores
+    runs-on: aks-linux-4-cores-16gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -895,7 +895,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores-16gb'}}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
