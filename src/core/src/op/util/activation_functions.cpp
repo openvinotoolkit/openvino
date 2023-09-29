@@ -15,6 +15,7 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/tanh.hpp"
 
+namespace builder {
 static std::shared_ptr<ov::Node> sigmoid(const std::shared_ptr<ov::Node>& arg, float /* alpha */, float /* beta */) {
     return std::make_shared<ov::op::v0::Sigmoid>(arg);
 }
@@ -33,6 +34,7 @@ static std::shared_ptr<ov::Node> hardsigmoid(const std::shared_ptr<ov::Node>& ar
 
     return std::make_shared<ov::op::v0::HardSigmoid>(arg, alpha_node, beta_node);
 }
+}  // namespace builder
 
 ov::op::util::ActivationFunction::ActivationFunction(ActivationFunctionType f, float alpha, float beta)
     : m_function{f},
@@ -53,10 +55,10 @@ ov::op::util::ActivationFunction ov::op::util::get_activation_func_by_name(const
     using ActivationFunctionMap = std::unordered_map<std::string, op::util::ActivationFunction>;
 
     static ActivationFunctionMap func_map{
-        {"sigmoid", op::util::ActivationFunction{sigmoid}},
-        {"tanh", op::util::ActivationFunction{tanh}},
-        {"relu", op::util::ActivationFunction{relu}},
-        {"hardsigmoid", op::util::ActivationFunction{hardsigmoid, 0.2f, 0.5f}},
+        {"sigmoid", op::util::ActivationFunction{builder::sigmoid}},
+        {"tanh", op::util::ActivationFunction{builder::tanh}},
+        {"relu", op::util::ActivationFunction{builder::relu}},
+        {"hardsigmoid", op::util::ActivationFunction{builder::hardsigmoid, 0.2f, 0.5f}},
     };
 
     auto func_it = func_map.find(func_name);
