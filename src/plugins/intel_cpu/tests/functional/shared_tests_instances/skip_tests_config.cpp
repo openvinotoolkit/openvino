@@ -223,6 +223,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 121313
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f16.*)",
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
+        // CPU Plugin API 2.0, convert node will use planar layout if its output is result node, skip nhwc/nChw8c/nChw16c test cases
+        R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
     };
 #if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
     // Issue: 120950
