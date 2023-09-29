@@ -70,6 +70,7 @@ TO get_value(const uint8_t* buf, size_t idx, element::Type from_type) {
     if (from_type == element::i4) {
         return detail::get_i4(buf, idx);
     }
+
     auto v = reinterpret_cast<const TI*>(buf);
     return static_cast<TO>(v[idx]);
 }
@@ -85,6 +86,8 @@ void lp_convert(const TI* arg, TO* out, size_t count, element::Type_t src_type, 
             detail::set_u4(output, i, detail::get_value<uint8_t, TI>(input, i, src_type));
         } else if (dst_type == element::i4) {
             detail::set_i4(output, i, detail::get_value<int8_t, TI>(input, i, src_type));
+        } else if (src_type == element::nf4) {
+            ConvertNF4::unpack(out, input, i);
         } else {
             out[i] = detail::get_value<TO, TI>(input, i, src_type);
         }
