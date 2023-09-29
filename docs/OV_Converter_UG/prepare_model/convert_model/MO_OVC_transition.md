@@ -777,7 +777,7 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
           # Convert model
           ov_model = ov.convert_model(cut_model_path)
                
-          #Compile model
+          # Compile model
           ov.compile_model(ov_model)
 
 
