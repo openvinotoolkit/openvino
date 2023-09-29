@@ -92,7 +92,8 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
 
         std::shared_ptr<ov::Node> new_indices_constant;
         if (do_indices_normalization) {
-            new_indices_constant = std::make_shared<ov::op::v0::Constant>(indices_constant->get_element_type(), indices_constant->get_shape(), indices);
+            new_indices_constant = std::make_shared<ov::op::v0::Constant>(indices_constant->get_element_type(),
+                indices_constant->get_shape(), indices);
         } else {
             new_indices_constant = indices_constant;
         }
