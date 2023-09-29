@@ -1,4 +1,4 @@
-name: Linux Conditional Compilation (Ubuntu 20.04, Python 3.11)
+name: Linux Conditional Compilation (Ubuntu 22.04, Python 3.11)
 on:
   workflow_dispatch:
   pull_request:
@@ -32,7 +32,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -45,7 +45,7 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       MODELS_PATH: /__w/openvino/openvino/testdata
-      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_cc_Release
+      CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_cc_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
     steps:
@@ -75,12 +75,6 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          # unzip - to download ninja
-          apt install --assume-yes --no-install-recommends unzip
-
-          wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip
-          unzip ninja-linux.zip
-          cp -v ninja /usr/local/bin/
 
       #
       # Build
