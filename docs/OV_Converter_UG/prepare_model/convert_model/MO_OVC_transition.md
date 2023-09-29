@@ -660,9 +660,9 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
           graph = load_graph("/path_to_model/HugeCTR.pb")
           
           # Convert the model with input and output cut
-          input = "concat"
-          output = "MatVec_3/Squeeze"
-          ov_model = mo.convert_model(graph, input=(input, [-1, -1]), output=output)
+          input_name = "concat"
+          output_name = "MatVec_3/Squeeze"
+          ov_model = mo.convert_model(graph, input=(input_name, [-1, -1]), output=output_name)
           
           # Compile the model
           compiled_model = ov.compile_model(ov_model)
@@ -687,10 +687,10 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
           graph = load_graph("HugeCTR.pb")
          
           # Cut the model
-          input = "concat"
-          output = "MatVec_3/Squeeze"
+          input_name = "concat"
+          output_name = "MatVec_3/Squeeze"
           graph_def = graph.as_graph_def()
-          new_graph_def = strip_unused(graph_def, [input], [output], tf.float32.as_datatype_enum)
+          new_graph_def = strip_unused(graph_def, [input_name], [output_name], tf.float32.as_datatype_enum)
           
           # Convert and compile model
           ov_model = ov.convert_model(new_graph_def, input=[-1, -1])
@@ -705,7 +705,7 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
 
    * - Legacy API
      - New API
-   * - .. Not available in legacy API
+   * - Not available in legacy API
 
      - .. code-block:: py
           :force:
@@ -753,9 +753,9 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
           input_path = "yolov8x.onnx"
                
           # Convert model and perform input and output cut
-          input = "/model.2/Concat_output_0"
-          output = "/model.22/Concat_3_output_0"
-          ov_model = mo.convert_model(input_path, input=input, output=output)
+          input_name = "/model.2/Concat_output_0"
+          output_name = "/model.22/Concat_3_output_0"
+          ov_model = mo.convert_model(input_path, input=input_name, output=output_name)
                
           # Compile model
           ov.compile_model(ov_model)
@@ -769,10 +769,10 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
           input_path = "yolov8x.onnx"
                
           # Cut the model
-          input = "/model.2/Concat_output_0"
-          output = "/model.22/Concat_3_output_0"
+          input_name = "/model.2/Concat_output_0"
+          output_name = "/model.22/Concat_3_output_0"
           cut_model_path = "/path_to_model/yolov8x_cut.onnx"
-          onnx.utils.extract_model(input_path, cut_model_path, [input], [output])
+          onnx.utils.extract_model(input_path, cut_model_path, [input_name], [output_name])
                
           # Convert model
           ov_model = ov.convert_model(cut_model_path)
