@@ -7,15 +7,9 @@
 
 #pragma once
 
-#include <assert.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <iostream>
-#include <iterator>
-#include <numeric>
-#include <vector>
 
 namespace ov {
 namespace reference {
