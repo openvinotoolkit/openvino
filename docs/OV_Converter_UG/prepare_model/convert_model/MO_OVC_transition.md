@@ -646,7 +646,6 @@ For PyTorch, TensorFlow 2 Keras and PaddlePaddle it is recommended to change ori
           import openvino.tools.mo as mo
                
           import tensorflow as tf
-          from tensorflow.python.tools.strip_unused_lib import strip_unused
 
           def load_graph(model_path):
               graph_def = tf.compat.v1.GraphDef()
