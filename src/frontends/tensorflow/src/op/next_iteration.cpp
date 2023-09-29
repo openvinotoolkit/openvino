@@ -19,7 +19,6 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_next_iteration_op(const NodeContext& node) {
-    auto node_name = node.get_name();
     default_op_checks(node, 0, {"NextIteration"});
 
     auto next_iteration_node = make_shared<NextIteration>(node.get_decoder());

@@ -19,7 +19,6 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_loop_cond_op(const NodeContext& node) {
-    auto node_name = node.get_name();
     default_op_checks(node, 1, {"LoopCond"});
     auto input = node.get_input(0);
 

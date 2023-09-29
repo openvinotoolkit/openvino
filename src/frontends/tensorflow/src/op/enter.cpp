@@ -18,7 +18,6 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_enter_op(const NodeContext& node) {
-    auto node_name = node.get_name();
     default_op_checks(node, 1, {"Enter"});
     auto data = node.get_input(0);
 

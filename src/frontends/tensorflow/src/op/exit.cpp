@@ -18,7 +18,6 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_exit_op(const NodeContext& node) {
-    auto node_name = node.get_name();
     default_op_checks(node, 1, {"Exit"});
     auto data = node.get_input(0);
 
