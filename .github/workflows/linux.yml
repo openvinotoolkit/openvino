@@ -1208,6 +1208,9 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
 
     steps:
+      - name: Create Directories
+        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
