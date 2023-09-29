@@ -284,6 +284,7 @@ void compare(const ov::Tensor& expected,
     for (size_t i = 0; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
+        std::cout << "expected value: " << expected_value << " actual value: " << actual_value << std::endl;
         if (std::isnan(expected_value)) {
             std::ostringstream out_stream;
             out_stream << "Expected value is NAN on coordinate: " << i;

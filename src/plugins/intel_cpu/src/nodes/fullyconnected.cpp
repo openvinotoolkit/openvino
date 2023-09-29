@@ -538,12 +538,23 @@ void FullyConnected::executeGGML() {
         return;
     }
 
+    /*std::cout << "src1MemPtr: ";
+    for (int i = 0; i < src1MemPtr->getSize() / sizeof(float); i++) {
+        std::cout << *(reinterpret_cast<float*>(src1MemPtr->getData()) + i) << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "src0MemPtr: ";
+    for (int i = 0; i < src0MemPtr->getSize() / sizeof(float); i++) {
+        std::cout << *(reinterpret_cast<float*>(src0MemPtr->getData()) + i) << " ";
+    }
+    std::cout << std::endl;*/
+
     ggml_mul_mat<SrcType>((dstMemPtr->getStaticDims().size() == 3) ?
                                 dstMemPtr->getStaticDims()[0] * dstMemPtr->getStaticDims()[1] :
                                 dstMemPtr->getStaticDims()[0],//M
                             src1MemPtr->getStaticDims()[0],//N
                             src1MemPtr->getStaticDims()[1],//K
-                            reinterpret_cast<SrcType*>(src0MemPtr->getData()),
+                            reinterpret_cast<float*>(src0MemPtr->getData()),
                             reinterpret_cast<float*>(src1MemPtr->getData()),
                             reinterpret_cast<float*>(dstMemPtr->getData()),
                             withBiases ? reinterpret_cast<SrcType*>(biasMemPtr->getData()) : nullptr);
@@ -856,10 +867,10 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                             impl_desc_type::ggml);
         } else {
             //out precision is hardcoded to fp32 since GGML mul_mat returns fp32 tensor
-            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                {LayoutType::ncsp, dataPrecision}},
+            addSupportedPrimDesc({{LayoutType::ncsp, InferenceEngine::Precision::FP32},
+                {LayoutType::ncsp, InferenceEngine::Precision::FP32}},
                 {{LayoutType::ncsp, InferenceEngine::Precision::FP32}},
-                impl_desc_type::ggml);
+                                impl_desc_type::ggml);
         }
         return;
     }

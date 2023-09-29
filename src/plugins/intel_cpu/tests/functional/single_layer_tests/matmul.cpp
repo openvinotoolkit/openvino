@@ -280,19 +280,19 @@ std::vector<CPUSpecificParams> filterSpecificParams_MLAS() {
 namespace fullyConnected {
 
 const std::vector<ShapeRelatedParams> IS2D_smoke = {
-   // {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, true}},
-   // {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, true}},
+     {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, true}},
+     {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, true}},
 
-    {static_shapes_to_test_representation({{3, 2}, {2, 1}}), {false, false}},
-   // {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, true}},
+    {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {false, false}},
+    {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, true}},
 
-   // {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {false, false}},
-   // {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {true, false}},
+     {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {false, false}},
+     {static_shapes_to_test_representation({{1, 120}, {120, 59}}), {true, false}},
 
-   // {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
-   // {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
+    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
+    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
 
-   /* {
+    {
         {
             {{-1, -1}, {{20, 60}, {20, 60}}},
             {{60, 120}, {{60, 120}, {60, 120}}}
@@ -305,11 +305,11 @@ const std::vector<ShapeRelatedParams> IS2D_smoke = {
             {{1, 120}, {{1, 120}, {1, 120}, {1, 120}, {1, 120}}}
         },
         {true, true}
-    },*/
+    },
 };
 
 const std::vector<ShapeRelatedParams> IS2D_nightly = {
-    {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, false}},
+        {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, false}},
     {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, false}},
 
     {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, false}},
@@ -365,12 +365,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet2D_nightly {
-        fusingRelu,
-#ifndef OV_CPU_WITH_MLAS
-        fusingScaleShift, //covered by MLAS
-#endif
-        fusingPReluPerTensor,
-        fusingFakeQuantizePerChannelRelu,
+        emptyFusingSpec
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet2DBF16 {

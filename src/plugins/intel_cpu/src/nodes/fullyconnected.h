@@ -115,12 +115,13 @@ private:
 #ifdef OV_CPU_WITH_MLAS
     int64_t M, N, K;
     MemoryPtr mlasPackedPtr = nullptr;
-    template <typename SrcType>
-    void executeGGML();
     void executeMLAS();
     void prepackMLASWeight();
 #endif
-
+#ifdef OV_CPU_WITH_GGML
+    template <typename SrcType>
+    void executeGGML();
+#endif
     bool useWeightsDecompressionImpl = false;
     dnnl::memory::data_type inputDataType;
     std::vector<float> decompressionSubtract;
