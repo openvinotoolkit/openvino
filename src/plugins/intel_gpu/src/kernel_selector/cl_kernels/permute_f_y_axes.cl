@@ -25,15 +25,11 @@ KERNEL (permute_f_y_axes)(
 #endif
     )
 {
-    const int bf = get_global_id(2);
-    const int f_idx = bf % INPUT0_FEATURE_NUM;
-    const int b_idx = bf / INPUT0_FEATURE_NUM;
-    const int x_start = get_global_id(0) * BLOCK_SIZE;
-    const int y_idx = get_global_id(1);
+    const int f_idx = get_global_id(2);
+    const int b_idx = get_global_id(1);;
+    const int y_idx = get_global_id(0);
 
-    __attribute__((opencl_unroll_hint(J_TIMES)))
-    for (int j = 0; j < J_TIMES; ++j) {
-        const int x_idx = x_start + j * VEC_SIZE;
+    for (int x_idx = 0; x_idx < J_TIMES * VEC_SIZE; x_idx+=VEC_SIZE) {
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
 #if HAS_FUSED_OPS
         FUSED_OPS_VEC;
