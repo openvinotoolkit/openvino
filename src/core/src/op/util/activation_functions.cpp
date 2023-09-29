@@ -53,10 +53,10 @@ ov::op::util::ActivationFunction ov::op::util::get_activation_func_by_name(const
     using ActivationFunctionMap = std::unordered_map<std::string, op::util::ActivationFunction>;
 
     static ActivationFunctionMap func_map{
-        {"sigmoid", op::util::ActivationFunction{sigmoid}},
-        {"tanh", op::util::ActivationFunction{tanh}},
-        {"relu", op::util::ActivationFunction{relu}},
-        {"hardsigmoid", op::util::ActivationFunction{hardsigmoid, 0.2f, 0.5f}},
+        {"sigmoid", op::util::ActivationFunction{::sigmoid}},
+        {"tanh", op::util::ActivationFunction{::tanh}},
+        {"relu", op::util::ActivationFunction{::relu}},
+        {"hardsigmoid", op::util::ActivationFunction{::hardsigmoid, 0.2f, 0.5f}},
     };
 
     auto func_it = func_map.find(func_name);

@@ -110,6 +110,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/negative.hpp"
+#include "openvino/op/nms_rotated.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/normalize_l2.hpp"
