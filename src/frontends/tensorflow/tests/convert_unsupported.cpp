@@ -143,7 +143,11 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while_and_incorrect_less_tra
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
         string ref_message = "Less expects ten inputs.\n";
+        string not_found_message =
+            "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
+            "LoopCond, Merge, NextIteration, Switch";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
+        ASSERT_TRUE(error_message.find(not_found_message) == string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
