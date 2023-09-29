@@ -860,7 +860,7 @@ static const ov::Version version = {CI_BUILD_NUMBER, "openvino_arm_cpu_plugin"};
 #elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_intel_cpu_plugin"};
 #elif defined(OPENVINO_ARCH_RISCV64)
-static const Version version = {CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"};
+static const ov::Version version = {CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"};
 #else
 #error "Undefined system processor"
 #endif
