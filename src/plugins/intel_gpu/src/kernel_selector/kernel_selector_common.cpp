@@ -92,6 +92,7 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::byxf:                  return "BYXF";
         case kernel_selector::DataLayout::byfx:                  return "BYFX";
         case kernel_selector::DataLayout::bxfy:                  return "BXFY";
+        case kernel_selector::DataLayout::fbyx:                  return "FBYX";
         case kernel_selector::DataLayout::fyxb:                  return "FYXB";
         case kernel_selector::DataLayout::b_fs_yx_fsv2:          return "B_FS_YX_FSV2";
         case kernel_selector::DataLayout::b_fs_yx_fsv4:          return "B_FS_YX_FSV4";
@@ -157,6 +158,7 @@ std::string toString(WeightsType wType) {
         case WeightsType::F32:    return "F32";
         case WeightsType::INT8:   return "INT8";
         case WeightsType::UINT8:  return "UINT8";
+        case WeightsType::INT32:  return "INT32";
         default: return "";
     }
 }

@@ -6,6 +6,7 @@
 
 #include "compare.hpp"
 #include "dimension_util.hpp"
+#include "openvino/op/nms_rotated.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "utils.hpp"
 
@@ -59,11 +60,15 @@ void num_boxes(const Node* const op, const std::vector<TShape>& input_shapes) {
 
 template <class TShape>
 void boxes_last_dim(const Node* const op, const std::vector<TShape>& input_shapes) {
+    using TDim = typename TShape::value_type;
+    TDim box_def_size = ov::is_type<v13::NMSRotated>(op) ? 5 : 4;
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           input_shapes[0][2].compatible(4),
-                           "The last dimension of the 'boxes' input must be equal to 4");
+                           input_shapes[0][2].compatible(box_def_size),
+                           "The last dimension of the 'boxes' input must be equal to ",
+                           box_def_size);
 }
+
 template <class T>
 void shapes(const Node* op, const std::vector<T>& input_shapes) {
     const auto inputs_size = input_shapes.size();
@@ -201,6 +206,7 @@ std::vector<TRShape> shape_infer(const Node* op,
             selected_boxes *= scores_shape[0].get_max_length();
             selected_boxes *= scores_shape[1].get_max_length();
         }
+
         nms::validate::boxes_last_dim(op, input_shapes);
     }
 
@@ -284,5 +290,15 @@ std::vector<TRShape> shape_infer(const NonMaxSuppression* op,
     return nms::shape_infer(op, input_shapes, ta, static_output);
 }
 }  // namespace v9
+
+namespace v13 {
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const NMSRotated* op,
+                                 const std::vector<T>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    constexpr bool static_output = !std::is_same<T, PartialShape>::value;
+    return nms::shape_infer(op, input_shapes, ta, static_output);
+}
+}  // namespace v13
 }  // namespace op
 }  // namespace ov
