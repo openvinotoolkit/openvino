@@ -472,7 +472,6 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
 
       - name: PaddlePaddle frontend tests
-        if: ${{ 'false' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
