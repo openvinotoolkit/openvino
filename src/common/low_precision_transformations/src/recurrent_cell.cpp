@@ -96,6 +96,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
     if (!canBeTransformed(context, lstm)) {
         return false;
     }
+
     for (size_t parentIndex = 0ul; parentIndex < lstm->get_input_size(); parentIndex++) {
         auto lstm_parent = lstm->get_input_node_shared_ptr(parentIndex);
         if (is_type<ov::opset1::FakeQuantize>(lstm_parent)) {
@@ -108,7 +109,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
                                             ? defaultPrecisions
                                             : precisionsAttribute.as<PrecisionsAttribute>().value();
                 const DataPrecision dataPrecision = getDataPrecision(lstm_parent, quantizationDetails, precisions);
-                if (dataPrecision.empty()) {
+                if (dataPrecision.empty() || dataPrecision.hasZeroPoint) {
                     return false;
                 }
 
@@ -148,6 +149,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
             continue;
         }
     }
+
     return true;
 }
 
