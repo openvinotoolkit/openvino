@@ -25,7 +25,7 @@ def test_get_property(device):
 
 def test_get_runtime_model(device):
     compiled_model = generate_relu_compiled_model(device)
-    
+
     core = Core()
     user_stream = compiled_model.export_model()
     core.import_model(user_stream, device)
