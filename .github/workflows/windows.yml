@@ -716,7 +716,7 @@ jobs:
         with:
           name: test-results-functional-cpu
           path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
