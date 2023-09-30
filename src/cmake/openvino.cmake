@@ -284,7 +284,7 @@ if(ENABLE_PKGCONFIG_GEN)
         set(pkgconfig_option "--validate")
     endif()
 
-    add_custom_command(OUTPUT "${pkgconfig_out}"
+    add_custom_command(TARGET openvino POST_BUILD
         COMMAND "${CMAKE_COMMAND}" --config $<CONFIG>
                 -D PKG_CONFIG_IN_FILE=${pkgconfig_in}
                 -D PKG_CONFIG_OUT_FILE=${pkgconfig_out}
@@ -297,12 +297,8 @@ if(ENABLE_PKGCONFIG_GEN)
                 -D PKGCONFIG_OpenVINO_PRIVATE_DEPS=${PKGCONFIG_OpenVINO_PRIVATE_DEPS}
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pkg_config_gen.cmake"
         COMMAND "${PKG_CONFIG_EXECUTABLE}" "${pkgconfig_option}" "${pkgconfig_out}"
-        DEPENDS "${pkgconfig_in}"
-        BYPRODUCTS "${pkgconfig_out}"
         COMMENT "[pkg-config] creation and validation of openvino.pc"
         VERBATIM)
-
-    add_custom_target(ov_pkgconfig_gen ALL DEPENDS "${pkgconfig_out}")
 
     install(FILES "${pkgconfig_out}"
             DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
