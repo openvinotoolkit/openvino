@@ -20,7 +20,7 @@ NamedOutputs p_norm(const NodeContext& node) {
 
     std::shared_ptr<Node> p_norm_node;
     const auto input_shape = data.get_partial_shape();
-    
+
     if (p == std::numeric_limits<float>::infinity()) {
         p_norm_node = std::make_shared<default_opset::ReduceMax>(absNode, axisNode, keepdim);
     } else if (p == -std::numeric_limits<float>::infinity()) {
@@ -31,7 +31,7 @@ NamedOutputs p_norm(const NodeContext& node) {
         const auto non_zero = std::make_shared<default_opset::NotEqual>(absNode, zero);
         const auto converted_non_zero = std::make_shared<default_opset::Convert>(non_zero, input_dtype);
 
-        p_norm_node = std::make_shared<default_opset::ReduceSum>(converted_non_zero, axisNode, keepdim);        
+        p_norm_node = std::make_shared<default_opset::ReduceSum>(converted_non_zero, axisNode, keepdim);
         // process 1-d input and keepdim=false, output shape is [1], instead of scalar.
         if (!keepdim) {
             PADDLE_OP_CHECK(node,
