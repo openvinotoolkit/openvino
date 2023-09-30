@@ -1259,6 +1259,7 @@ jobs:
           export PYTHONPATH=${OPENVINO_REPO}/docs/:$PYTHONPATH
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
+          python3 ${OPENVINO_REPO}/openvino/docs/snippets/main.py
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
@@ -1345,7 +1346,7 @@ jobs:
       - name: PyTorch Models Tests
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest -n logical --dist loadscope ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
+          python3 -m pytest -n logical --dist loadfile ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
