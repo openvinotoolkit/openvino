@@ -49,7 +49,7 @@ class TestWhile(CommonTFLayerTest):
     test_data_basic = [
         dict(y_shape=[2, 3], data_type=np.int32, lower_control_flow=False),
         dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=False),
-        dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=True))
+        dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=True)
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
@@ -107,7 +107,7 @@ class TestWhileShapeVariant(CommonTFLayerTest):
     test_data_basic = [
         dict(y_shape=[2, 3], lower_control_flow=False),
         dict(y_shape=[2, 1, 4], lower_control_flow=False),
-        dict(y_shape=[2, 1, 4], lower_control_flow=True))
+        dict(y_shape=[2, 1, 4], lower_control_flow=True)
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
