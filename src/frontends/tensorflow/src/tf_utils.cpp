@@ -409,7 +409,6 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     auto body_params = body_model->get_parameters();
     auto body_results = body_model->get_results();
     auto cond_results = cond_model->get_results();
-    auto cond_params_size = cond_params.size();
     FRONT_END_GENERAL_CHECK(body_params.size() == input_size,
                             "[TensorFlow Frontend] Internal error or inconsistent model: body graph "
                             " must have the same number of Parameter nodes as a number of inputs to While.");
