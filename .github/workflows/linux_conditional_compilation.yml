@@ -1,4 +1,4 @@
-name: Linux Conditional Compilation (Ubuntu 22.04, Python 3.11)
+name: Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
 on:
   workflow_dispatch:
   pull_request:
@@ -48,8 +48,8 @@ jobs:
       CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_cc_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
-    steps:
 
+    steps:
       - name: Install git
         run: |
           apt-get update
@@ -76,44 +76,205 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
+          # use clang as a default compiler
+          apt --assume-yes install clang
+          update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
+          update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
+
       #
       # Build
       #
 
-      - name: CMake configure CC COLLECT
+      - name: CMake configure - CC COLLECT
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DENABLE_TESTS=ON \
             -DENABLE_CPPLINT=OFF \
-            -DENABLE_GAPI_PREPROCESSING=OFF \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-            -DENABLE_FASTER_BUILD=ON \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
-      - name: Build CC COLLECT
-        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target openvino_intel_cpu_plugin openvino_ir_frontend benchmark_app sea_itt_lib
+      - name: Cmake build -  CC COLLECT
+        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show ccache stats
         run: ccache --show-stats
 
-      - name: Code usage analysis
+      - name: Run unit tests
+        run: ctest -V -L UNIT
+
+      - name: Perform code tracing via ITT collector
         run: |
           python3 ${OPENVINO_REPO}/thirdparty/itt_collector/runtool/sea_runtool.py \
             --bindir ${OPENVINO_REPO}/bin/intel64/Release -o ${BUILD_DIR}/itt_stat ! \
           ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
             -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
 
-      - name: CMake configure with CC ON
-        run: cmake -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=${BUILD_DIR}/*.csv -S ${OPENVINO_REPO} -B ${BUILD_DIR}
+      - name: Package collected traces
+        run: |
+          cmake .
 
-      - name: Build with CC ON
-        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target openvino_intel_cpu_plugin openvino_ir_frontend
+  CC_Build:
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+      volumes:
+        - /mount/caches:/mount/caches
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      GITHUB_WORKSPACE: '/__w/openvino/openvino'
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      BUILD_DIR: /__w/openvino/openvino/openvino_build
+      SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
+      MODELS_PATH: /__w/openvino/openvino/testdata
+      # TODO
+      CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_cc_Release
+      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
+      CCACHE_MAXSIZE: 50G
 
-      - name: Use OpenVINO after CC
+    steps:
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install --assume-yes --no-install-recommends git ca-certificates git-lfs
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'true'
+
+      - name: Clone test models
+        uses: actions/checkout@v4
+        with:
+          repository: 'openvinotoolkit/testdata'
+          path: ${{ env.MODELS_PATH }}
+          lfs: 'true'
+
+      #
+      # Dependencies
+      #
+
+      - name: Install build dependencies
+        run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
+
+      #
+      # Build
+      #
+
+      - name: CMake configure - CC ON
+        run: |
+          cmake \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DENABLE_CPPLINT=OFF \
+            -DSELECTIVE_BUILD=ON \
+            -DSELECTIVE_BUILD_STAT=${BUILD_DIR}/*.csv \
+            -S ${OPENVINO_REPO} \
+            -B ${BUILD_DIR}
+
+      - name: Cmake build -  CC ON
+        run: cmake --build ${BUILD_DIR} --parallel --target benchmark_app
+
+      - name: Show ccache stats
+        run: ccache --show-stats
+
+      - name: Run with CC-ed runtime
         run: |
           ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
             -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
+
+  CPU_Functional_Tests:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-8-cores
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    env:
+      INSTALL_DIR: /__w/openvino/openvino/install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
+      PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/functional_test_utils/run_parallel.py
+      PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
+
+    steps:
+      - name: Create Directories
+        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
+          popd
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
+          popd
+
+      - name: Install OpenVINO dependencies
+        run: bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
+
+      - name: Install 'actions/setup-python@v4' dependencies
+        run: apt-get update && apt-get install -y libssl1.1
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install python dependencies for run_parallel.py
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/requirements.txt
+
+      - name: Restore tests execution time
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tests-functional-cpu-stamp
+
+      - name: Intel CPU plugin func tests (parallel)
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
+        timeout-minutes: 40
+
+      - name: Save tests execution time
+        uses: actions/cache/save@v3
+        if: github.ref_name == 'master'
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-functional-cpu
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
+          if-no-files-found: 'error'
