@@ -74,7 +74,7 @@ public:
     template <typename T, class... Args>
     std::shared_ptr<T> add_main(Args&&... args) {
         const auto tr = std::make_shared<T>(std::forward<Args>(args)...);
-        added_main.push_back(tr);
+        additional_main_passes.push_back(tr);
         return tr;
     }
 
@@ -84,5 +84,5 @@ protected:
     // remove
     LayerTransformation::Params params;
 
-    std::vector<std::shared_ptr<MatcherPass>> added_main;
+    std::vector<std::shared_ptr<MatcherPass>> additional_main_passes;
 };

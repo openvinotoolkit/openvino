@@ -273,7 +273,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, UnsqueezeTransformation, params)
     ADD_MATCHER(common, VariadicSplitTransformation, params)
 
-    for (const auto& tr : added_main) {
+    for (const auto& tr : additional_main_passes) {
         common->add_matcher(tr);
     }
 

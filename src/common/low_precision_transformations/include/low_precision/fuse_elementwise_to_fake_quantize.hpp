@@ -14,11 +14,7 @@ namespace low_precision {
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief FuseMultiplyToFakeQuantizeTransformation fuses Multiply operation to FakeQuantize.
- *
- * For more details about the transformation, refer to
- * [FuseMultiplyToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation) page
- * in the Inference Engine Developer Guide.
+ * @brief Base class for fuse elementwise to FakeQuantize low precision transformation.
  */
 class LP_TRANSFORMATIONS_API FuseElementwiseToFakeQuantizeTransformation : public CleanupTransformation {
 public:
