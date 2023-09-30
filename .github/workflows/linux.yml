@@ -1254,10 +1254,11 @@ jobs:
           submodules: 'false'
 
       - name: Docs Python snippets
-        run: python3 ${OPENVINO_REPO}/openvino/docs/snippets/main.py
-        env:
-          PYTHONPATH: ${{ env.OPENVINO_REPO }}/openvino/docs:$PYTHONPATH
-          LD_LIBRARY_PATH: ${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
+        run: |
+          # to find 'snippets' module in docs
+          export PYTHONPATH=${OPENVINO_REPO}/docs/:$PYTHONPATH
+          # for 'template' extension
+          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
