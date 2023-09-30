@@ -169,7 +169,9 @@ std::shared_ptr<ov::opset8::Parameter> create_parameter_node_for_tensor(ov::Outp
     return param;
 }
 
-void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond, OpMap& ov_tensors_map) {
+void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
+                    OpMap& ov_tensors_map,
+                    const std::vector<std::shared_ptr<Enter>>& enter_ops) {
     // ov_tensors_map maps a operation name to a vector of its output tensors
     auto node_name = loop_cond->get_friendly_name();
     // find key points for condition and body graphs
@@ -191,6 +193,8 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond, OpMap& ov_tensors_map)
     // collect all output tensors for Loop
     // the created Loop node outputs will be connected with ov_outputs
     size_t num_inputs = switch_nodes.size();
+    FRONT_END_GENERAL_CHECK(num_inputs > 0,
+                            "[TensorFlow Frontend] internal error: LoopCond node has no output Switch nodes");
     ov::OutputVector ov_outputs(num_inputs);
     // collect ov_inputs (a list of Tensors) that will provide input data for the created Loop node
     ov::OutputVector ov_inputs(num_inputs);
@@ -198,6 +202,8 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond, OpMap& ov_tensors_map)
     ov::ParameterVector body_params(num_inputs);
     ov::OutputVector ov_body_outputs(num_inputs);
     std::vector<std::string> output_tensor_names(num_inputs);
+    std::set<std::shared_ptr<Enter>> met_enter_ops;
+    std::string frame_name;
     for (size_t ind = 0; ind < num_inputs; ++ind) {
         // Switch node has two outputs:
         // 0 (output_false) - interrupt the loop, 1 (output_true) - continue the loop
@@ -234,6 +240,8 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond, OpMap& ov_tensors_map)
                                 "[TensorFlow Frontend] internal error or inconsistent model: inputs of Merge node in "
                                 "While sub-graph are not Enter and NextIteration");
         ov_inputs[ind] = enter->input_value(0);
+        met_enter_ops.insert(enter);
+        frame_name = enter->get_frame_name();
 
         // retrieve output tensor for body graph that is an input to NextIteration node
         std::string producer_name;
@@ -249,6 +257,16 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond, OpMap& ov_tensors_map)
         ov_body_outputs[ind] = producer_outputs[producer_output_port_idx].port;
     }
     auto ov_cond_output = loop_cond->input_values();
+
+    // insert additional inputs for future Loop node
+    for (auto& enter : enter_ops) {
+        if (met_enter_ops.find(enter) == met_enter_ops.end() && enter->get_frame_name() == frame_name) {
+            ov_inputs.push_back(enter->input_value(0));
+            auto additional_param = create_parameter_node_for_tensor(enter->output(0));
+            cond_params.push_back(additional_param);
+            body_params.push_back(additional_param);
+        }
+    }
 
     // create a copy of conditional graph
     auto cond_model = std::make_shared<ov::Model>(ov_cond_output, cond_params);
@@ -301,6 +319,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     OpMap ng_op_map;
     ControlDepsMap control_deps_map;
     std::vector<std::shared_ptr<LoopCond>> loop_cond_ops;
+    std::vector<std::shared_ptr<Enter>> enter_ops;
 
     ov::ParameterVector params;
     ov::ResultVector results;
@@ -475,8 +494,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         // save LoopCond operations in topological order for further fusing
         if (ov_outputs.size() == 1 && as_type_ptr<LoopCond>(ov_outputs[0].port.get_node_shared_ptr())) {
             loop_cond_ops.push_back(as_type_ptr<LoopCond>(ov_outputs[0].port.get_node_shared_ptr()));
-        }
-        if (ov_outputs.size() == 1 && as_type_ptr<NextIteration>(ov_outputs[0].port.get_node_shared_ptr())) {
+        } else if (ov_outputs.size() == 1 && as_type_ptr<Enter>(ov_outputs[0].port.get_node_shared_ptr())) {
+            enter_ops.push_back(as_type_ptr<Enter>(ov_outputs[0].port.get_node_shared_ptr()));
+        } else if (ov_outputs.size() == 1 && as_type_ptr<NextIteration>(ov_outputs[0].port.get_node_shared_ptr())) {
             std::string producer_name;
             size_t producer_output_port_idx;
             operation_place->get_next_iteration_back_edge(producer_name, producer_output_port_idx);
@@ -635,12 +655,12 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ov::ParameterVector ordered_params = reorder_ops_by_names(input_names, params);
     ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
-    // after adding Result nodes to terminal nodes
+    // before adding Result nodes to terminal nodes
     // it fuses TF1 Control flow based While operation to Loop operation
     // it needs to perform this in the reverse order
     std::reverse(loop_cond_ops.begin(), loop_cond_ops.end());
     for (auto& loop_cond_op : loop_cond_ops) {
-        fuse_loop_cond(loop_cond_op, ng_op_map);
+        fuse_loop_cond(loop_cond_op, ng_op_map, enter_ops);
     }
 
     ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);

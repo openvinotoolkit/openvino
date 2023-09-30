@@ -413,13 +413,10 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     FRONT_END_GENERAL_CHECK(body_params.size() == input_size,
                             "[TensorFlow Frontend] Internal error or inconsistent model: body graph "
                             " must have the same number of Parameter nodes as a number of inputs to While.");
-    FRONT_END_GENERAL_CHECK(body_results.size() == input_size,
-                            "[TensorFlow Frontend] Internal error or inconsistent model: body graphs "
-                            " must have the same number of Result nodes as a number of inputs to While.");
     FRONT_END_GENERAL_CHECK(cond_params.size() == input_size,
                             "[TensorFlow Frontend] Internal error or inconsistent model: condition graph "
                             " must have the same number of Parameter nodes as a number of inputs to While.");
-    for (size_t param_ind = 0; param_ind < cond_params_size; ++param_ind) {
+    for (size_t param_ind = 0; param_ind < body_results.size(); ++param_ind) {
         cond_params[param_ind]->output(0).replace(body_results[param_ind]->input_value(0));
     }
 
@@ -438,14 +435,15 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     // set data for the Loop node
     loop->set_function(body_model);
 
-    for (size_t input_ind = 0; input_ind < input_size; ++input_ind) {
+    // body_results may contain less nodes than body_params that means back edge exists not for all body_params
+    for (size_t input_ind = 0; input_ind < static_cast<size_t>(body_condition_output_idx); ++input_ind) {
         loop->set_merged_input(body_params[input_ind], ov_inputs[input_ind], body_results[input_ind]->input_value(0));
     }
     loop->set_special_body_ports({-1, body_condition_output_idx});
 
     // set external outputs for Loop node
     // do not get execution condition outside of the Loop node
-    for (size_t output_ind = 0; output_ind < input_size; ++output_ind) {
+    for (size_t output_ind = 0; output_ind < static_cast<size_t>(body_condition_output_idx); ++output_ind) {
         loop->get_iter_value(body_results[output_ind]);
     }
     loop->validate_and_infer_types();

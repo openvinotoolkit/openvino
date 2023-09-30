@@ -20,8 +20,9 @@ namespace op {
 OutputVector translate_enter_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Enter"});
     auto data = node.get_input(0);
+    auto frame_name = node.get_attribute<string>("frame_name");
 
-    auto enter_node = make_shared<Enter>(data, node.get_decoder());
+    auto enter_node = make_shared<Enter>(data, frame_name, node.get_decoder());
     set_node_name(node.get_name(), enter_node);
 
     return enter_node->outputs();
