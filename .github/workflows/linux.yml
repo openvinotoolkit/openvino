@@ -225,9 +225,9 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04
+    runs-on: aks-linux-4-cores
     container:
-      image: ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       DEBIAN_PACKAGES_DIR: /__w/openvino/packages/
@@ -278,9 +278,9 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04
+    runs-on: aks-linux-4-cores
     container:
-      image: ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: /__w/openvino/openvino/install
