@@ -254,7 +254,13 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
         FRONT_END_GENERAL_CHECK(
             producer_output_port_idx < producer_outputs.size(),
             "[TensorFlow Frontend] internal error: NextIteration producer has insufficient number of outputs");
-        ov_body_outputs[ind] = producer_outputs[producer_output_port_idx].port;
+        auto ov_body_output = producer_outputs[producer_output_port_idx].port;
+        if (ov_body_output.get_node_shared_ptr() == switch_node) {
+            // this is case when NextIteration node is connected with Switch node
+            ov_body_outputs[ind] = body_params[ind]->output(0);
+        } else {
+            ov_body_outputs[ind] = ov_body_output;
+        }
     }
     auto ov_cond_output = loop_cond->input_values();
 
