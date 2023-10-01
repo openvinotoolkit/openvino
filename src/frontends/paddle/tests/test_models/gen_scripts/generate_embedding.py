@@ -167,6 +167,6 @@ if __name__ == "__main__":
     flatten_idx = ids.flatten()
     padding_idx = np.random.choice(flatten_idx, 1)[0]
     # print('padding_idx {}'.format(padding_idx))
-    outputs = embedding("embedding_tensorIds_paddings", ids, vocab_size, embedding_dim, padding_idx=np.long(padding_idx), vocab_embeddings=table, compare=False)
+    outputs = embedding("embedding_tensorIds_paddings", ids, vocab_size, embedding_dim, padding_idx=np.compat.long(padding_idx), vocab_embeddings=table, compare=False)
     # print('outputs {}'.format(outputs))
    
