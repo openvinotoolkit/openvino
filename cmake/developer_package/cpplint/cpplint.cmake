@@ -14,7 +14,6 @@ endif()
 if(ENABLE_CPPLINT AND NOT TARGET cpplint_all)
     add_custom_target(cpplint_all ALL)
     set_target_properties(cpplint_all PROPERTIES FOLDER cpplint)
-    set(CPPLINT_ALL_OUTPUT_FILES "" CACHE INTERNAL "All cpplint output files")
 endif()
 
 function(add_cpplint_target TARGET_NAME)
@@ -58,6 +57,7 @@ function(add_cpplint_target TARGET_NAME)
         endif()
 
         file(RELATIVE_PATH source_file_relative "${CMAKE_CURRENT_SOURCE_DIR}" "${source_file}")
+        file(RELATIVE_PATH source_file_relative_root "${CMAKE_SOURCE_DIR}" "${source_file}")
         set(output_file "${CMAKE_CURRENT_BINARY_DIR}/cpplint/${source_file_relative}.cpplint")
         string(REPLACE ".." "__" output_file "${output_file}")
         get_filename_component(output_dir "${output_file}" DIRECTORY)
@@ -81,16 +81,11 @@ function(add_cpplint_target TARGET_NAME)
                 "${IEDevScripts_DIR}/cpplint/cpplint.py"
                 "${IEDevScripts_DIR}/cpplint/cpplint_run.cmake"
             COMMENT
-                "[cpplint] ${source_file}"
+                "[cpplint] ${source_file_relative_root}"
             VERBATIM)
 
         list(APPEND all_output_files "${output_file}")
     endforeach()
-
-    set(CPPLINT_ALL_OUTPUT_FILES
-        ${CPPLINT_ALL_OUTPUT_FILES} ${all_output_files}
-        CACHE INTERNAL
-        "All cpplint output files")
 
     add_custom_target(${TARGET_NAME} ALL
         DEPENDS ${all_output_files}

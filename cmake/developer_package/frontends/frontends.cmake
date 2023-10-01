@@ -127,17 +127,17 @@ macro(ov_add_frontend)
     # Generate protobuf file on build time for each '.proto' file in src/proto
     file(GLOB proto_files ${frontend_root_dir}/src/proto/*.proto)
 
-    foreach(INFILE IN LISTS proto_files)
-        get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
-        get_filename_component(FILE_WE ${INFILE} NAME_WE)
+    foreach(proto_file IN LISTS proto_files)
+        file(RELATIVE_PATH proto_file_relative "${CMAKE_SOURCE_DIR}" "${proto_file}")
+        get_filename_component(FILE_DIR ${proto_file} DIRECTORY)
+        get_filename_component(FILE_WE ${proto_file} NAME_WE)
         set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.cc)
         set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.h)
-        set(GENERATED_PROTO ${INFILE})
         add_custom_command(
                 OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
                 COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
-                DEPENDS ${PROTOC_DEPENDENCY} ${GENERATED_PROTO}
-                COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
+                DEPENDS ${PROTOC_DEPENDENCY} ${proto_file}
+                COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${proto_file_relative}"
                 VERBATIM
                 COMMAND_EXPAND_LISTS)
         list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
@@ -145,15 +145,15 @@ macro(ov_add_frontend)
     endforeach()
 
     file(GLOB flatbuffers_schema_files ${frontend_root_dir}/src/schema/*.fbs)
-    foreach(INFILE IN LISTS flatbuffers_schema_files)
-        get_filename_component(FILE_WE ${INFILE} NAME_WE)
+    foreach(flatbuffers_schema_file IN LISTS flatbuffers_schema_files)
+        file(RELATIVE_PATH flatbuffers_schema_file_relative "${CMAKE_SOURCE_DIR}" "${flatbuffers_schema_file}")
+        get_filename_component(FILE_WE "${flatbuffers_schema_file}" NAME_WE)
         set(OUTPUT_FC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}_generated.h)
-        set(GENERATED_PROTO ${INFILE})
         add_custom_command(
                 OUTPUT "${OUTPUT_FC_HEADER}"
-                COMMAND ${flatbuffers_COMPILER} ARGS -c --gen-mutable -o ${CMAKE_CURRENT_BINARY_DIR} ${INFILE}
-                DEPENDS ${flatbuffers_DEPENDENCY} ${GENERATED_PROTO}
-                COMMENT "Running C++ flatbuffers compiler (${flatbuffers_COMPILER}) on ${GENERATED_PROTO}"
+                COMMAND ${flatbuffers_COMPILER} ARGS -c --gen-mutable -o ${CMAKE_CURRENT_BINARY_DIR} ${flatbuffers_schema_file}
+                DEPENDS ${flatbuffers_DEPENDENCY} ${flatbuffers_schema_file}
+                COMMENT "Running C++ flatbuffers compiler (${flatbuffers_COMPILER}) on ${flatbuffers_schema_file_relative}"
                 VERBATIM
                 COMMAND_EXPAND_LISTS)
         list(APPEND PROTO_HDRS "${OUTPUT_FC_HEADER}")

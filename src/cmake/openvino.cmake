@@ -284,7 +284,7 @@ if(ENABLE_PKGCONFIG_GEN)
         set(pkgconfig_option "--validate")
     endif()
 
-    add_custom_command(TARGET openvino PRE_BUILD
+    add_custom_command(TARGET openvino POST_BUILD
         COMMAND "${CMAKE_COMMAND}" --config $<CONFIG>
                 -D PKG_CONFIG_IN_FILE=${pkgconfig_in}
                 -D PKG_CONFIG_OUT_FILE=${pkgconfig_out}
