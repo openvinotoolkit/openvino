@@ -169,7 +169,5 @@ size_t BrgemmCPU::get_offset_scratch() const {
     return get_input_offset(2);
 }
 
-BrgemmCPU::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) : Brgemm::ShapeInfer(n) {}
-
 } // namespace intel_cpu
 } // namespace ov

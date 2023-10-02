@@ -58,8 +58,11 @@ void BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t
     // So we use port descs from source inputs
     const auto element_type = get_input_element_type(0);
     const auto& pshape = get_input_partial_shape(0);
+    // The data always store in planar shape after repacking
     const auto planar_pshape = snippets::utils::get_planar_pshape(pshape, layout_input);
+    // data repacking output
     set_output_type(0, element_type, planar_pshape);
+    // If compensations are needed, they are provided in 2nd output (which is used in BrgemmCPU)
     if (is_with_compensations()) {
         set_output_type(1, ov::element::f32, planar_pshape);
     }
