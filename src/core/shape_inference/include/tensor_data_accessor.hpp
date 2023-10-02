@@ -30,7 +30,7 @@ protected:
  * This accessor not take ownership of tensors container.
  * Supports following containers:
  * - ov::TensorVector
- * - ov::HostTensorVector
+ * - ngraph::HostTensorVector
  * - std::map<size_t, ngraph::HostTensorPtr>
  *
  * @tparam TContainer Type of tensor container.

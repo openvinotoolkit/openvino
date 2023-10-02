@@ -113,7 +113,7 @@ bool ov::op::v9::Eye::has_evaluate() const {
     return false;
 }
 
-bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
+bool ov::op::v9::Eye::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
     OV_OP_SCOPE(v9_Eye_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, get_input_size()), "Invalid Eye input TensorVector.");
