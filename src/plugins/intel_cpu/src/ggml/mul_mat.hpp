@@ -42,7 +42,7 @@ void ggml_mul_mat(int64_t M,
                   int64_t N,
                   int64_t K,
                   float* A_ptr,
-                  float* B_ptr,
+                  SrcType* B_ptr,
                   float* dst_ptr,
                   const SrcType* bias_ptr) {
     struct ggml_init_params params = {
@@ -61,7 +61,7 @@ void ggml_mul_mat(int64_t M,
     ggml_type ggmlDataType;
     if (std::is_same<SrcType, float>::value) {
         ggmlDataType = GGML_TYPE_F32;
-    } else if (std::is_same<SrcType, uint16_t>::value) {
+    } else if (std::is_same<SrcType, float16>::value) {
         ggmlDataType = GGML_TYPE_F16;
     } else {
         std::cout << "data type is not supported: " << typeid(SrcType).name() << std::endl;
@@ -69,7 +69,7 @@ void ggml_mul_mat(int64_t M,
     }
 
     struct ggml_tensor* ggml_A = ggml_new_tensor_2d_ext_data(ctx, GGML_TYPE_F32, K, M, reinterpret_cast<void* >(A_ptr));
-    struct ggml_tensor* ggml_B = ggml_new_tensor_2d_ext_data(ctx, GGML_TYPE_F32, K, N, reinterpret_cast<void* >(B_ptr));
+    struct ggml_tensor* ggml_B = ggml_new_tensor_2d_ext_data(ctx, ggmlDataType, K, N, reinterpret_cast<void* >(B_ptr));
 
     //memcpy(ggml_A->data, A_ptr, ggml_nbytes(ggml_A));
     //memcpy(ggml_B->data, B_ptr, ggml_nbytes(ggml_B));
@@ -84,21 +84,21 @@ void ggml_mul_mat(int64_t M,
     //struct ggml_tensor* ggml_dst_transposed = ggml_transpose(ctx, ggml_dst);
     struct ggml_cgraph ggml_graph = ggml_build_forward(ggml_dst);
 
-    //ggml_graph_compute_with_ctx(ctx, &ggml_graph, /*n_threads = */1);
+    ggml_graph_compute_with_ctx(ctx, &ggml_graph, /*n_threads = */6);
 
-    struct ggml_cplan cplan = ggml_graph_plan(&ggml_graph, 1);
+    /*struct ggml_cplan cplan = ggml_graph_plan(&ggml_graph, 4);
     struct ggml_object * obj = ggml_new_object(ctx, GGML_OBJECT_WORK_BUFFER, cplan.work_size);
     cplan.work_data = reinterpret_cast<uint8_t *>(ctx->mem_buffer) + obj->offs;
             struct ggml_compute_params compute_params = {
                 GGML_TASK_INIT,
                 0,
-                1,
+                4,
                 cplan.work_size,
                 cplan.work_data,
             };
     ggml_compute_forward_mul_mat(&compute_params, ggml_B, ggml_A, ggml_dst);
     compute_params.type = GGML_TASK_COMPUTE;
-    ggml_compute_forward_mul_mat(&compute_params, ggml_B, ggml_A, ggml_dst);
+    ggml_compute_forward_mul_mat(&compute_params, ggml_B, ggml_A, ggml_dst);*/
 
     //ggml_graph_compute(&ggml_graph, &cplan);
 

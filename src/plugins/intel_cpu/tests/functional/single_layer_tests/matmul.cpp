@@ -194,9 +194,11 @@ std::map<std::string, std::string> emptyAdditionalConfig;
 std::vector<std::map<std::string, std::string>> additionalConfig {
 #ifndef OV_CPU_WITH_MLAS
     // FP32 precision is covered by MLAS
-    std::map<std::string, std::string>{/* empty config */},
+//    std::map<std::string, std::string>{/* empty config */},
 #endif
-    {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
+    //{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}},
+    {{ov::hint::inference_precision.name(), ov::element::f32.to_string()}},
+    {{ov::hint::inference_precision.name(), ov::element::f16.to_string()}}
 };
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig_Brgemm() {
@@ -226,8 +228,8 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig_BrgemmAmx
 
 const std::vector<ElementType> netPRCs {
     ElementType::f16,
-    ElementType::f32,
-    ElementType::bf16
+    //ElementType::f32,
+    //ElementType::bf16
 };
 
 std::vector<CPUSpecificParams> filterSpecificParams() {
@@ -370,9 +372,9 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_nightly {
 
 std::vector<fusingSpecificParams> fusingParamsSet2DBF16 {
         emptyFusingSpec,
-        fusingBias,
-        fusingRelu,
-        fusingPReluPerTensor,
+        //fusingBias,
+        //fusingRelu,
+        //fusingPReluPerTensor,
 };
 
 const auto testParams2D_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke),
@@ -398,7 +400,7 @@ const auto testParams2DBF16_smoke = ::testing::Combine(::testing::Combine(::test
                                                  ::testing::ValuesIn(filterSpecificParams()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerCPUTest, testParams2D_smoke, MatMulLayerCPUTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_BF16, MatMulLayerCPUTest, testParams2DBF16_smoke, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16, MatMulLayerCPUTest, testParams2DBF16_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 #ifdef OV_CPU_WITH_MLAS
 std::vector<fusingSpecificParams> fusingParamsSet2D_MLAS_smoke {

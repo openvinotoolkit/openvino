@@ -79,9 +79,12 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseFCAndWeightsDecompression(graph);
     graph.RemoveDroppedNodes();
 
-    //OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
-    //FuseConvolutionMatMulDeconvAndBias(graph);
-    //graph.RemoveDroppedNodes();
+#ifndef OV_CPU_WITH_GGML
+    //GGML MatMul does not support bias
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
+    FuseConvolutionMatMulDeconvAndBias(graph);
+    graph.RemoveDroppedNodes();
+#endif
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMultiplyAndAdd");
     FuseMultiplyAndAdd(graph);
@@ -95,9 +98,12 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseFCAndConvertOnWeights(graph);
     graph.RemoveDroppedNodes();
 
-    //OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndTransposeOnWeights");
-    //FuseFCAndTransposeOnWeights(graph);
-    //graph.RemoveDroppedNodes();
+#ifndef OV_CPU_WITH_GGML
+    //GGML MatMul transposes weights internally
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndTransposeOnWeights");
+    FuseFCAndTransposeOnWeights(graph);
+    graph.RemoveDroppedNodes();
+#endif
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseDeconvolutionAndSimpleOperation");
     FuseDeconvolutionAndSimpleOperation(graph);

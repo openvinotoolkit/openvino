@@ -539,8 +539,8 @@ void FullyConnected::executeGGML() {
     }
 
     /*std::cout << "src1MemPtr: ";
-    for (int i = 0; i < src1MemPtr->getSize() / sizeof(float); i++) {
-        std::cout << *(reinterpret_cast<float*>(src1MemPtr->getData()) + i) << " ";
+    for (int i = 0; i < src1MemPtr->getSize() / sizeof(SrcType); i++) {
+        std::cout << *(reinterpret_cast<SrcType*>(src1MemPtr->getData()) + i) << " ";
     }
     std::cout << std::endl;
     std::cout << "src0MemPtr: ";
@@ -555,7 +555,7 @@ void FullyConnected::executeGGML() {
                             src1MemPtr->getStaticDims()[0],//N
                             src1MemPtr->getStaticDims()[1],//K
                             reinterpret_cast<float*>(src0MemPtr->getData()),
-                            reinterpret_cast<float*>(src1MemPtr->getData()),
+                            reinterpret_cast<SrcType*>(src1MemPtr->getData()),
                             reinterpret_cast<float*>(dstMemPtr->getData()),
                             withBiases ? reinterpret_cast<SrcType*>(biasMemPtr->getData()) : nullptr);
 }
@@ -599,7 +599,7 @@ void FullyConnected::execute(dnnl::stream strm) {
         if (inputDataType == memory::data_type::f32)
             executeGGML<float>();
         else if (inputDataType == memory::data_type::f16)
-            executeGGML<uint16_t>();
+            executeGGML<float16>();
         else
             IE_THROW() << "GGML can't execute FullyConnected node with name: " << getName()
                        << ", because input data type is not supported: " << int(inputDataType);
@@ -866,9 +866,9 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                             {{LayoutType::ncsp, dataPrecision}},
                             impl_desc_type::ggml);
         } else {
-            //out precision is hardcoded to fp32 since GGML mul_mat returns fp32 tensor
+            //1st input and out precisions are hardcoded to fp32 due to GGML requirements
             addSupportedPrimDesc({{LayoutType::ncsp, InferenceEngine::Precision::FP32},
-                {LayoutType::ncsp, InferenceEngine::Precision::FP32}},
+                {LayoutType::ncsp, dataPrecision}},
                 {{LayoutType::ncsp, InferenceEngine::Precision::FP32}},
                                 impl_desc_type::ggml);
         }
