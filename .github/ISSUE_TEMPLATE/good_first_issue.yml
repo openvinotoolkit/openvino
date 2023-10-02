@@ -63,6 +63,6 @@ body:
     attributes:
       label: Ticket
       description: |
-          Provide the JIRA ticket, if available.
+          Provide the ticket number, if available.
     validations:
       required: false
