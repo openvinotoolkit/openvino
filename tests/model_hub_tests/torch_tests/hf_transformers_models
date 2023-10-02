@@ -1,6 +1,6 @@
 # List of models obtained from huggingface_hub api as one model per architecture with highest likes and downloads
 abcp4/mymodel-test,mymodel,skip,Load problem
-abeja/gpt-neox-japanese-2.7b,gpt_neox_japanese
+abeja/gpt-neox-japanese-2.7b,gpt_neox_japanese,skip,Problem with GHA runner
 acl-submission-anonym/EAM-spectral,examuse,skip,Load problem
 adalbertojunior/modular-test,modular,skip,Load problem
 aerner/lm-v2,open-llama
