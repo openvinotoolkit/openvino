@@ -142,7 +142,6 @@ elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
         scons \
         gcc \
         gcc-c++ \
-        
         make \
         `# to determine openvino version via git` \
         git \
