@@ -135,6 +135,7 @@ elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
     zypper install -y \
         file \
         `# build tools` \
+        patterns-devel-C-C++-devel_C_C++ \
         cmake \
         ccache \
         ninja \
