@@ -267,21 +267,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_AutoPadding_FP32, DeconvolutionLayerCPU
         ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
         DeconvolutionLayerCPUTest::getTestCaseName);
 
-const std::vector<DeconvInputData> inputs_3D_AutoPadding = {
-        DeconvInputData{
-                InputShape{{-1, 2, 4, {32, 64}, {32, 64}}, {{1, 2, 4, 32, 32}, {1, 2, 4, 40, 40}}},
-                ngraph::helpers::InputLayerType::PARAMETER,
-                {{8, 64, 64}, {8, 80, 80}}
-        },
-        DeconvInputData{
-                InputShape{
-                        {1, 64, 5, {1, std::numeric_limits<ov::Dimension::value_type>::max()}, {1, std::numeric_limits<ov::Dimension::value_type>::max()}},
-                        {{1, 64, 5, 8, 8}}
-                },
-                ngraph::helpers::InputLayerType::CONSTANT,
-                {{10, 16, 16}}
-        },
-};
-
 } // namespace Deconvolution
 } // namespace CPULayerTestsDefinitions
