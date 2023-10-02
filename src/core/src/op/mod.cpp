@@ -4,13 +4,30 @@
 
 #include "openvino/op/mod.hpp"
 
+#include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/core/shape_util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/reference/mod.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
+namespace util {
+namespace {
+Tensor make_tensor_of_value(const element::Type_t et, const int64_t value) {
+    auto c = op::v0::Constant(et, Shape{}, value);
+    auto t = Tensor(et, Shape{});
+    std::memcpy(t.data(), c.get_data_ptr(), t.get_byte_size());
+    return t;
+}
+}  // namespace
+}  // namespace util
+
 namespace op {
 namespace mod {
 struct Evaluate : ov::element::NoAction<bool> {
@@ -31,6 +48,182 @@ struct Evaluate : ov::element::NoAction<bool> {
         return true;
     }
 };
+
+struct EvaluateBound : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& v_lb,
+                             const Tensor& v_ub,
+                             const Tensor& m_lb,
+                             const Tensor& m_ub,
+                             Tensor& out,
+                             const bool is_lower) {
+        auto v_lb_first = v_lb.data<const T>();
+        auto v_lb_last = std::next(v_lb_first, v_lb.get_size());
+        auto v_ub_first = v_ub.data<const T>();
+        auto m_lb_first = m_lb.data<const T>();
+        auto m_ub_first = m_ub.data<const T>();
+        auto out_first = out.data<T>();
+
+        if (is_lower) {
+            while (v_lb_first != v_lb_last) {
+                *out_first++ =
+                    reference::func::mod_interval(*v_lb_first++, *v_ub_first++, *m_lb_first++, *m_ub_first++).first;
+            }
+        } else {
+            while (v_lb_first != v_lb_last) {
+                *out_first++ =
+                    reference::func::mod_interval(*v_lb_first++, *v_ub_first++, *m_lb_first++, *m_ub_first++).second;
+            }
+        }
+        return true;
+    }
+};
+
+namespace {
+
+/**
+ * @brief Get node inputs bounds as TensorVector.
+ *
+ * The inputs bounds are stored as [lower0, upper0, lower1, upper1].
+ *
+ * @param op  Pointer to the node.
+ * @return Vector with inputs bounds tensors.
+ */
+TensorVector get_bounds(const Node* const op) {
+    auto&& v_bounds = ov::evaluate_both_bounds(op->input_value(0));
+    auto&& m_bounds = ov::evaluate_both_bounds(op->input_value(1));
+    return {std::move(v_bounds.first),
+            std::move(v_bounds.second),
+            std::move(m_bounds.first),
+            std::move(m_bounds.second)};
+}
+
+/**
+ * @brief Check if all bounds in vector are valid (allocated).
+ *
+ * @param bounds  TensorVector of bounds for check.
+ * @return True if bounds area valid otherwise false.
+ */
+bool are_bounds_valid(const TensorVector& bounds) {
+    return std::all_of(bounds.begin(), bounds.end(), [](const Tensor& t) {
+        return static_cast<bool>(t);
+    });
+}
+
+/**
+ * @brief Evaluate binary mask of values which cannot be calculated by modulo.
+ *
+ * @param output_mask  Output tensor to store result.
+ * @param bounds       Modulo inputs bounds.
+ * @return True if output_mask has got valid data otherwise false.
+ */
+bool evaluate_undefined_result_mask(Tensor& output_mask, const TensorVector& bounds) {
+    const auto eq_op = v1::Equal();
+    const auto or_op = v1::LogicalOr();
+
+    const auto& in_et = bounds.front().get_element_type();
+
+    auto zero_t = ov::util::make_tensor_of_value(in_et, 0);
+    auto max_t = ov::util::make_tensor_of_max_value(in_et);
+
+    const auto& v_ub = bounds[1];
+    const auto& m_lb = bounds[2];
+    const auto& m_ub = bounds[3];
+
+    auto output_mask_vector = TensorVector{output_mask};
+
+    if (!eq_op.evaluate(output_mask_vector, {m_lb, zero_t})) {
+        return false;
+    }
+
+    auto tmp_mask = TensorVector{{element::boolean, output_mask.get_shape()}};
+    if (!eq_op.evaluate(tmp_mask, {m_ub, zero_t})) {
+        return false;
+    }
+    or_op.evaluate(output_mask_vector, {output_mask_vector.front(), tmp_mask.front()});
+
+    if (!eq_op.evaluate(tmp_mask, {m_lb, max_t})) {
+        return false;
+    }
+    or_op.evaluate(output_mask_vector, {output_mask_vector.front(), tmp_mask.front()});
+
+    if (!eq_op.evaluate(tmp_mask, {v_ub, max_t})) {
+        return false;
+    }
+    return or_op.evaluate(output_mask_vector, {output_mask_vector.front(), tmp_mask.front()});
+}
+
+/**
+ * @brief Get the m (modulo) inputs bound with set to one values which can cause undefined result.
+ *
+ * @param bounds  Modulo operator inputs bounds.
+ * @param mask    Mask with undefined result values.
+ * @return Vector of bounds tensors.
+ */
+TensorVector get_m_bounds(const TensorVector& bounds, const Tensor& mask) {
+    const auto select_op = v1::Select();
+    const auto one_t = ov::util::make_tensor_of_value(bounds.front().get_element_type(), 1);
+
+    auto m_bounds = TensorVector();
+    std::transform(bounds.begin() + 2, bounds.end(), std::back_inserter(m_bounds), [&](const Tensor& b) {
+        auto tmp = TensorVector{{b.get_element_type(), b.get_shape()}};
+        return select_op.evaluate(tmp, {mask, one_t, b}) ? tmp.front() : Tensor{};
+    });
+    return m_bounds;
+}
+
+/**
+ * @brief Evaluate modulo upper or lower bound.
+ *
+ * @param op        Pointer to modulo node.
+ * @param outputs   Tensor vector with one tensor to store bounds result.
+ * @param is_lower  True to evaluate lower otherwise evaluate upper.
+ * @return True if outputs has valid data otherwise false.
+ */
+bool evaluate_bound(const Node* const op, TensorVector& outputs, bool is_lower) {
+    const auto bounds = mod::get_bounds(op);
+
+    if (mod::are_bounds_valid(bounds)) {
+        const auto& v_lb = bounds[0];
+        const auto& v_ub = bounds[1];
+        const auto& in_et = v_lb.get_element_type();
+        const auto in_shape = ov::op::infer_broadcast_shape(op, v_lb.get_shape(), bounds[2].get_shape());
+
+        // Get undefined results mask for modulo.
+        auto undefined_result_mask = Tensor{element::boolean, in_shape};
+        if (!mod::evaluate_undefined_result_mask(undefined_result_mask, bounds)) {
+            return false;
+        }
+
+        // Set 2nd input values to 1 for undefined results mask (0, inf, etc.)
+        const auto m_bounds = mod::get_m_bounds(bounds, undefined_result_mask);
+        if (!mod::are_bounds_valid(m_bounds)) {
+            return false;
+        }
+        // Evaluate bound.
+        outputs[0].set_shape(in_shape);
+        using namespace ov::element;
+        if (!IfTypeOf<i8, i16, i32, i64, u8, u16, u32, u64>::apply<mod::EvaluateBound>(in_et,
+                                                                                       v_lb,
+                                                                                       v_ub,
+                                                                                       m_bounds[0],
+                                                                                       m_bounds[1],
+                                                                                       outputs[0],
+                                                                                       is_lower)) {
+            return false;
+        }
+        // Set undefined bound value for results which cannot be calculated.
+        const auto select_op = v1::Select();
+        const auto undefined_bound =
+            is_lower ? ov::util::make_tensor_of_value(in_et, 0) : ov::util::make_tensor_of_max_value(in_et);
+        return select_op.evaluate(outputs, {undefined_result_mask, undefined_bound, outputs.front()});
+    } else {
+        return false;
+    }
+}
+}  // namespace
 }  // namespace mod
 
 namespace v1 {
@@ -57,6 +250,16 @@ bool Mod::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) co
                                                                                 inputs[1],
                                                                                 outputs[0],
                                                                                 get_autob());
+}
+
+bool Mod::evaluate_lower(TensorVector& outputs) const {
+    OV_OP_SCOPE(v1_Mod_evaluate_lower);
+    return mod::evaluate_bound(this, outputs, true);
+}
+
+bool Mod::evaluate_upper(TensorVector& outputs) const {
+    OV_OP_SCOPE(v1_Mod_evaluate_upper);
+    return mod::evaluate_bound(this, outputs, false);
 }
 
 bool Mod::has_evaluate() const {

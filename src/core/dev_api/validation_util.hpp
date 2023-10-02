@@ -27,7 +27,7 @@ OPENVINO_API bool are_unique(const std::vector<int64_t>& data);
 ///
 /// \param value  Value to be clipped.
 /// \param min    Minimum value bound.
-/// \param max    Maximum value boiund
+/// \param max    Maximum value bound.
 ///
 /// \return Value if between min, max otherwise min or max.
 OPENVINO_API int64_t clip(const int64_t& value, const int64_t& min, const int64_t& max);
@@ -36,7 +36,7 @@ OPENVINO_API int64_t clip(const int64_t& value, const int64_t& min, const int64_
 ///
 /// \param subgraph sink
 ///
-/// \return Constant node or nullptr if unable to constantfold the subgraph
+/// \return Constant node or nullptr if unable to constant fold the subgraph
 OPENVINO_API std::shared_ptr<op::v0::Constant> constantfold_subgraph(const Output<Node>& subgraph_sink);
 
 /**
@@ -47,5 +47,13 @@ OPENVINO_API std::shared_ptr<op::v0::Constant> constantfold_subgraph(const Outpu
  * @return Shared pointer to constant data or nullptr.
  */
 OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
+
+/**
+ * @brief Make scalar tensor which stores maximum value of ov::element::Type.
+ *
+ * @param et  Element type to get its maximum.
+ * @return Tensor with maximum value.
+ */
+Tensor make_tensor_of_max_value(const element::Type_t et);
 }  // namespace util
 }  // namespace ov

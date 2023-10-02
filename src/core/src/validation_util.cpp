@@ -1206,32 +1206,8 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
 }
 
 shared_ptr<ngraph::op::v0::Constant> ngraph::get_constant_max_of_type(element::Type_t t) {
-#define NGRAPH_TYPE_TO_MAX_CONST(t)                                                     \
-    case t:                                                                             \
-        return ov::op::v0::Constant::create(                                            \
-            t,                                                                          \
-            {},                                                                         \
-            {std::numeric_limits<typename element_type_traits<t>::value_type>::max()}); \
-        break
-
-    switch (t) {
-        NGRAPH_TYPE_TO_MAX_CONST(element::boolean);
-        NGRAPH_TYPE_TO_MAX_CONST(element::bf16);
-        NGRAPH_TYPE_TO_MAX_CONST(element::f16);
-        NGRAPH_TYPE_TO_MAX_CONST(element::f32);
-        NGRAPH_TYPE_TO_MAX_CONST(element::f64);
-        NGRAPH_TYPE_TO_MAX_CONST(element::i8);
-        NGRAPH_TYPE_TO_MAX_CONST(element::i16);
-        NGRAPH_TYPE_TO_MAX_CONST(element::i32);
-        NGRAPH_TYPE_TO_MAX_CONST(element::i64);
-        NGRAPH_TYPE_TO_MAX_CONST(element::u1);
-        NGRAPH_TYPE_TO_MAX_CONST(element::u8);
-        NGRAPH_TYPE_TO_MAX_CONST(element::u16);
-        NGRAPH_TYPE_TO_MAX_CONST(element::u32);
-        NGRAPH_TYPE_TO_MAX_CONST(element::u64);
-    default:
-        return nullptr;
-    }
+    auto tensor = ov::util::make_tensor_of_max_value(t);
+    return tensor ? std::make_shared<ov::op::v0::Constant>(tensor) : nullptr;
 }
 
 shared_ptr<ngraph::op::v0::Constant> ngraph::get_constant_min_of_type(element::Type_t t) {
@@ -1375,6 +1351,48 @@ std::shared_ptr<Constant> get_constant_from_source(const Output<Node>& source) {
     } else if (has_and_set_equal_bounds(source)) {
         return std::make_shared<Constant>(source.get_tensor().get_upper_value());
     } else {
+        return {};
+    }
+}
+
+template <class T>
+Tensor make_tensor_of_max_value(const element::Type_t et) {
+    Tensor t{et, Shape{}};
+    *t.data<T>() = std::numeric_limits<T>::max();
+    return t;
+}
+
+Tensor make_tensor_of_max_value(const element::Type_t et) {
+    switch (et) {
+    case element::boolean:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::boolean>>(et);
+    case element::bf16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::bf16>>(et);
+    case element::f16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::f16>>(et);
+    case element::f32:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::f32>>(et);
+    case element::f64:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::f64>>(et);
+    case element::i8:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i8>>(et);
+    case element::i16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i16>>(et);
+    case element::i32:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i32>>(et);
+    case element::i64:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i64>>(et);
+    case element::u1:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u1>>(et);
+    case element::u8:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u8>>(et);
+    case element::u16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u16>>(et);
+    case element::u32:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u32>>(et);
+    case element::u64:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u64>>(et);
+    default:
         return {};
     }
 }
