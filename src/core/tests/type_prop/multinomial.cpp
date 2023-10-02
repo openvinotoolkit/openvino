@@ -40,65 +40,59 @@ TEST_F(TypePropMultinomialV13Test, input_probs_f16_num_samples_u16_defaults_to_i
 TEST_F(TypePropMultinomialV13Test, input_incompatibile_data_type) {
     const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{4, 4});
     const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
-    OV_EXPECT_THROW(std::ignore =
-                     make_op(probs, num_samples, ov::element::u64, false, false, 0, 0),
-                 ov::NodeValidationFailure,
-            HasSubstr("Unhandled input data type 'i32' in evaluate_node()."));
+    OV_EXPECT_THROW(std::ignore = make_op(probs, num_samples, ov::element::u64, false, false, 0, 0),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Unhandled input data type 'i32' in evaluate_node()."));
 }
 
 TEST_F(TypePropMultinomialV13Test, input_incompatibile_convert_u64) {
     const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
     const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
-    OV_EXPECT_THROW(std::ignore =
-                     make_op(probs, num_samples, ov::element::u64, false, false, 0, 0),
-                 ov::NodeValidationFailure,
-            HasSubstr("Unhandled convert data type 'u64' in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
+    OV_EXPECT_THROW(std::ignore = make_op(probs, num_samples, ov::element::u64, false, false, 0, 0),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Unhandled convert data type 'u64' in evaluate_node(). Use either i32 or i64 and apply "
+                              "conversion manually."));
 }
 
 TEST_F(TypePropMultinomialV13Test, input_incompatibile_convert_u32) {
     const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
     const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
-    OV_EXPECT_THROW(std::ignore =
-                     make_op(probs, num_samples, ov::element::u32, false, false, 0, 0),
-                 ov::NodeValidationFailure,
-            HasSubstr("Unhandled convert data type 'u32' in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
+    OV_EXPECT_THROW(std::ignore = make_op(probs, num_samples, ov::element::u32, false, false, 0, 0),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Unhandled convert data type 'u32' in evaluate_node(). Use either i32 or i64 and apply "
+                              "conversion manually."));
 }
 
 TEST_F(TypePropMultinomialV13Test, input_incompatibile_convert_u16) {
     const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
     const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
-    OV_EXPECT_THROW(std::ignore =
-                     make_op(probs, num_samples, ov::element::u16, false, false, 0, 0),
-                 ov::NodeValidationFailure,
-            HasSubstr("Unhandled convert data type 'u16' in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
+    OV_EXPECT_THROW(std::ignore = make_op(probs, num_samples, ov::element::u16, false, false, 0, 0),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Unhandled convert data type 'u16' in evaluate_node(). Use either i32 or i64 and apply "
+                              "conversion manually."));
 }
 
 TEST_F(TypePropMultinomialV13Test, input_incompatibile_convert_bool) {
     const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
     const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
-    OV_EXPECT_THROW(
-        std::ignore =
-            make_op(probs, num_samples, ov::element::boolean, false, false, 0, 0),
-        ov::NodeValidationFailure,
-            HasSubstr("Unhandled convert data type 'bool' in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
+    OV_EXPECT_THROW(std::ignore = make_op(probs, num_samples, ov::element::boolean, false, false, 0, 0),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Unhandled convert data type 'bool' in evaluate_node(). Use either i32 or i64 and apply "
+                              "conversion manually."));
 }
 
 TEST_F(TypePropMultinomialV13Test, input_incompatibile_rank) {
     const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4, 4});
     const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
-    OV_EXPECT_THROW(
-        std::ignore =
-            make_op(probs, num_samples, ov::element::boolean, false, false, 0, 0),
-        ov::NodeValidationFailure,
-            HasSubstr("The rank of the 'input' tensor defining output shape must be either 1 or 2."));
+    OV_EXPECT_THROW(std::ignore = make_op(probs, num_samples, ov::element::boolean, false, false, 0, 0),
+                    ov::NodeValidationFailure,
+                    HasSubstr("The rank of the 'input' tensor defining output shape must be either 1 or 2."));
 }
 
 TEST_F(TypePropMultinomialV13Test, num_samples_incompatibile_rank) {
     const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
     const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 2});
-    OV_EXPECT_THROW(
-        std::ignore =
-            make_op(probs, num_samples, ov::element::boolean, false, false, 0, 0),
-        ov::NodeValidationFailure,
-            HasSubstr("Number of samples must be a scalar or one element 1D tensor."));
+    OV_EXPECT_THROW(std::ignore = make_op(probs, num_samples, ov::element::boolean, false, false, 0, 0),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Number of samples must be a scalar or one element 1D tensor."));
 }

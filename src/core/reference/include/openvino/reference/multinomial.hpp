@@ -111,8 +111,10 @@ void multinomial(const T* probs,
                    initial_state);
 
     auto batch_size = probs_shape.size() == 2 ? static_cast<size_t>(probs_shape[0]) : static_cast<size_t>(1);
-    auto class_size = probs_shape.size() == 2 ? static_cast<size_t>(probs_shape[1]) : static_cast<size_t>(probs_shape[0]);
-    auto samples_size = probs_shape.size() == 2 ? static_cast<size_t>(num_samples[0]) : static_cast<size_t>(probs_shape[0]);
+    auto class_size =
+        probs_shape.size() == 2 ? static_cast<size_t>(probs_shape[1]) : static_cast<size_t>(probs_shape[0]);
+    auto samples_size =
+        probs_shape.size() == 2 ? static_cast<size_t>(num_samples[0]) : static_cast<size_t>(probs_shape[0]);
 
     // Iterate over each channel in uniform samples
     std::vector<U> output_samples(total_output_elements_count);
