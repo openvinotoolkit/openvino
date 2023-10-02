@@ -77,6 +77,7 @@ TEST_P(ov_core_test, ov_core_read_model_no_bin) {
     ov_core_free(core);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST_P(ov_core_test, ov_core_read_model_from_memory) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -95,6 +96,36 @@ TEST_P(ov_core_test, ov_core_read_model_from_memory) {
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(
         ov_core_read_model_from_memory(core, reinterpret_cast<const char*>(xml_content.data()), tensor, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_shape_free(&shape);
+    ov_tensor_free(tensor);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+OPENVINO_SUPPRESS_DEPRECATED_END
+
+TEST_P(ov_core_test, ov_core_read_model_from_memory_buffer_with_size) {
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    std::vector<uint8_t> weights_content(content_from_file(bin_file_name.c_str(), true));
+
+    ov_tensor_t* tensor = nullptr;
+    ov_shape_t shape;
+    int64_t dims[2] = {1, (int64_t)weights_content.size()};
+    ov_shape_create(2, dims, &shape);
+    OV_EXPECT_OK(ov_tensor_create_from_host_ptr(ov_element_type_e::U8, shape, weights_content.data(), &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    std::vector<uint8_t> xml_content(content_from_file(xml_file_name.c_str(), false));
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model_from_memory_buffer(core,
+                                                       reinterpret_cast<const char*>(xml_content.data()),
+                                                       xml_content.size(),
+                                                       tensor,
+                                                       &model));
     EXPECT_NE(nullptr, model);
 
     ov_shape_free(&shape);
