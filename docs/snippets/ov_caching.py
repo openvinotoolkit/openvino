@@ -7,7 +7,7 @@ import openvino as ov
 
 import openvino.properties as props
 
-device_name = 'GNA'
+device_name = 'CPU'
 model_path = get_path_to_model()
 path_to_cache_dir = get_temp_dir()
 # ! [ov:caching:part0]

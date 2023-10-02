@@ -89,7 +89,7 @@ public:
     std::vector<cldnn::primitive_id> profiling_ids;
 
     std::map<std::string, cldnn::layout> inputLayouts;
-    using BlobCacheKey = std::pair<const char*, std::vector<size_t>>;
+    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
 
     std::shared_ptr<cldnn::program> get_compiled_program() const;
