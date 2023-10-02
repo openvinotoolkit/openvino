@@ -135,12 +135,14 @@ elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
     zypper install -y \
         file \
         `# build tools` \
+        patterns-devel-C-C++-devel_C_C++ \
         cmake \
         ccache \
         ninja \
         scons \
         gcc \
         gcc-c++ \
+        
         make \
         `# to determine openvino version via git` \
         git \
