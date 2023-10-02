@@ -15,9 +15,9 @@
 #include "ngraph/graph_util.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "shape_util.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 #include "tensor_conversion_util.hpp"
@@ -742,7 +742,6 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
             }
             if (output_values[i]) {
                 // Copy value to the original tensor
-                output_values[i].set_shape(tensor.get_shape());
                 tensor.copy_to(output_values[i]);
             } else {
                 // Tensor is not initialized, so create the new tensor

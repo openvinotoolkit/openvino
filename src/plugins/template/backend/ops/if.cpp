@@ -6,7 +6,7 @@
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
-#include "shape_util.hpp"
+#include "openvino/core/shape_util.hpp"
 
 namespace if_op {
 bool call(ov::TensorVector& func_outputs,
@@ -74,14 +74,14 @@ void function(const std::shared_ptr<ov::Model>& function, const ov::TensorVector
     const auto& parameters = function->get_parameters();
     const auto& parametersNumber = parameters.size();
     const auto& inputsNumber = inputs.size();
-    NGRAPH_CHECK(parametersNumber == inputsNumber,
-                 "Got function (",
-                 function->get_friendly_name(),
-                 ") with ",
-                 parametersNumber,
-                 " parameters, but ",
-                 inputsNumber,
-                 " input blobs");
+    OPENVINO_ASSERT(parametersNumber == inputsNumber,
+                    "Got function (",
+                    function->get_friendly_name(),
+                    ") with ",
+                    parametersNumber,
+                    " parameters, but ",
+                    inputsNumber,
+                    " input blobs");
 
     for (const auto& parameter : parameters) {
         const auto& parameterIndex = function->get_parameter_index(parameter);
@@ -91,16 +91,16 @@ void function(const std::shared_ptr<ov::Model>& function, const ov::TensorVector
 
         const auto& input = inputs[parameterIndex];
         const auto& inputSize = input.get_byte_size();
-        NGRAPH_CHECK(parameterSize == inputSize,
-                     "Got parameter (",
-                     parameter->get_friendly_name(),
-                     ") of size ",
-                     parameterSize,
-                     " bytes, but corresponding input with index ",
-                     parameterIndex,
-                     " has ",
-                     inputSize,
-                     " bytes");
+        OPENVINO_ASSERT(parameterSize == inputSize,
+                        "Got parameter (",
+                        parameter->get_friendly_name(),
+                        ") of size ",
+                        parameterSize,
+                        " bytes, but corresponding input with index ",
+                        parameterIndex,
+                        " has ",
+                        inputSize,
+                        " bytes");
     }
 
     const auto& results = function->get_results();
@@ -120,7 +120,7 @@ void if_reference(const std::vector<std::shared_ptr<ov::Model>>& bodies,
                   const std::vector<ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector>& input_descs,
                   ov::TensorVector& out,
                   const ov::TensorVector& args) {
-    NGRAPH_CHECK(args.size() > 0, "If operation must have input condition value");
+    OPENVINO_ASSERT(args.size() > 0, "If operation must have input condition value");
 
     auto condition_value = args[0].data<bool>()[0];
     auto branch_index = (condition_value) ? ov::op::v8::If::THEN_BODY_INDEX : ov::op::v8::If::ELSE_BODY_INDEX;
@@ -130,18 +130,17 @@ void if_reference(const std::vector<std::shared_ptr<ov::Model>>& bodies,
     auto inputs_size = args.size();
     auto output_size = out.size();
     for (const auto& input_desc : input_descs[branch_index]) {
-        NGRAPH_CHECK(inputs_size > input_desc->m_input_index,
-                     "Incorrect associating! If has not input with id ",
-                     input_desc->m_input_index);
+        OPENVINO_ASSERT(inputs_size > input_desc->m_input_index,
+                        "Incorrect associating! If has not input with id ",
+                        input_desc->m_input_index);
         inputs_to_body[input_desc->m_body_parameter_index] = args[input_desc->m_input_index];
     }
     function(bodies[branch_index], inputs_to_body, outs_from_body);
     for (const auto& out_descr : out_descs[branch_index]) {
-        NGRAPH_CHECK(output_size > out_descr->m_output_index,
-                     "Incorrect associating! If has not output with id ",
-                     out_descr->m_output_index);
+        OPENVINO_ASSERT(output_size > out_descr->m_output_index,
+                        "Incorrect associating! If has not output with id ",
+                        out_descr->m_output_index);
         auto res = outs_from_body[out_descr->m_body_value_index];
-        out[out_descr->m_output_index].set_shape(res.get_shape());
 
         res.copy_to(out[out_descr->m_output_index]);
     }
