@@ -1448,6 +1448,44 @@ auto test_backward_tile = []() {
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonTileBackward, TSTestFixture, test_backward_tile());
 
+auto test_backward_tile_tf_case = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSTileBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {parameter(element::f32, {2, 1, 1, 128}),
+                                constant<int64_t>(element::i64, {4}, std::vector<int64_t>{1, 1, 88, 1})};
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_TILE_FACTORY(Tile)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(out, data, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, set_specific_gather_for}, {{0}, {1}}};
+    test_case.model_ref.main_op = {CREATE_TILE_FACTORY(Tile)};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonTileBackwardTfCase, TSTestFixture, test_backward_tile_tf_case());
+
 auto test_backward_unsqueeze = []() {
     TestCase test_case;
 

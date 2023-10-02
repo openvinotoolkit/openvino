@@ -80,10 +80,9 @@ TSTileBackward::TSTileBackward() {
 
         RemoveTransposeConsumers(main_node);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
-        const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
         auto repeats = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
         auto new_repeats =
-            ChangeValuesOrder(main_node->input_value(TILE_REPEATS_INPUT_IDX), reversed_transpose_order, repeats);
+            ChangeValuesOrder(main_node->input_value(TILE_REPEATS_INPUT_IDX), transpose_axis_order, repeats);
         main_node->input(TILE_REPEATS_INPUT_IDX).replace_source_output(new_repeats);
 
         main_node->validate_and_infer_types();
