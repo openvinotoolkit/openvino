@@ -44,9 +44,9 @@ inline void evaluate_samples_t(const std::shared_ptr<ov::op::v13::Multinomial>& 
         evaluate_output_t<INPUT_T, SAMPLES_T, ov::element::Type_t::i64>(op, outputs, inputs);
         return;
     default:
-        OPENVINO_THROW(std::string("Unhandled convert data type ") +
+        OPENVINO_THROW(std::string("Unhandled convert data type '") +
                        ov::element::Type(op->get_convert_type()).get_type_name() +
-                       std::string(" in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
+                       std::string("' in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
     }
 }
 
@@ -88,6 +88,6 @@ bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
                                                            inputs);
     default:
         OPENVINO_THROW(std::string("Unhandled input data type ") + node->get_input_element_type(0).get_type_name() +
-                       std::string(" in evaluate_node()"));
+                       std::string(" in evaluate_node()."));
     }
 }

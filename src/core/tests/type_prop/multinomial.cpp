@@ -4,65 +4,101 @@
 
 #include "openvino/op/multinomial.hpp"
 
+#include <gtest/gtest.h>
+
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/constant.hpp"
 
-TEST(type_prop, multinomial_probs_f64_num_samples_i32_convert_i32) {
-    auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f64, ov::Shape{4, 4});
-    auto num_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {4});
-    auto multinomial_func =
-        std::make_shared<ov::op::v13::Multinomial>(probs, num_shape, ov::element::i32, false, false, 0, 0);
-    EXPECT_EQ(multinomial_func->get_element_type(), ov::element::i32);
-    EXPECT_EQ(multinomial_func->get_shape(), (ov::Shape{4}));
+using namespace testing;
+
+class TypePropMultinomialV13Test : public TypePropOpTest<ov::op::v13::Multinomial> {};
+
+TEST_F(TypePropMultinomialV13Test, input_probs_f64_num_samples_i32_convert_i32) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f64, ov::Shape{4, 4});
+    const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    const auto op = make_op(probs, num_samples, ov::element::i32, false, false, 0, 0);
+    EXPECT_EQ(op->get_element_type(), ov::element::i32);
+    EXPECT_EQ(op->get_shape(), (ov::Shape{4}));
 }
 
-TEST(type_prop, multinomial_probs_f32_num_samples_i32_convert_i64) {
-    auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
-    auto num_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {4});
-    auto multinomial_func =
-        std::make_shared<ov::op::v13::Multinomial>(probs, num_shape, ov::element::i64, false, false, 0, 0);
-    EXPECT_EQ(multinomial_func->get_element_type(), ov::element::i64);
-    EXPECT_EQ(multinomial_func->get_shape(), (ov::Shape{4}));
+TEST_F(TypePropMultinomialV13Test, input_probs_f32_num_samples_i32_convert_i64) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
+    const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
+    const auto op = make_op(probs, num_samples, ov::element::i64, false, false, 0, 0);
+    EXPECT_EQ(op->get_element_type(), ov::element::i64);
+    EXPECT_EQ(op->get_shape(), (ov::Shape{4}));
 }
 
-TEST(type_prop, multinomial_probs_f16_num_samples_u16_defaults_to_i32_convert_i64) {
-    auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{4, 4});
-    auto num_shape = ov::op::v0::Constant::create(ov::element::u16, ov::Shape{1}, {4});
-    auto multinomial_func =
-        std::make_shared<ov::op::v13::Multinomial>(probs, num_shape, ov::element::i64, false, false, 0, 0);
-    EXPECT_EQ(multinomial_func->get_element_type(), ov::element::i64);
-    EXPECT_EQ(multinomial_func->get_shape(), (ov::Shape{4}));
+TEST_F(TypePropMultinomialV13Test, input_probs_f16_num_samples_u16_defaults_to_i32_convert_i64) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{4, 4});
+    const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::u16, ov::Shape{1});
+    const auto op = make_op(probs, num_samples, ov::element::i64, false, false, 0, 0);
+    EXPECT_EQ(op->get_element_type(), ov::element::i64);
+    EXPECT_EQ(op->get_shape(), (ov::Shape{4}));
 }
 
-TEST(type_prop, multinomial_incompatibile_convert_u64) {
-    auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
-    auto num_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {4});
-    ASSERT_THROW(std::ignore =
-                     std::make_shared<ov::op::v13::Multinomial>(probs, num_shape, ov::element::u64, false, false, 0, 0),
-                 ov::NodeValidationFailure);
+TEST_F(TypePropMultinomialV13Test, input_incompatibile_data_type) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{4, 4});
+    const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
+    OV_EXPECT_THROW(std::ignore =
+                     make_op(probs, num_samples, ov::element::u64, false, false, 0, 0),
+                 ov::NodeValidationFailure,
+            HasSubstr("Unhandled input data type 'i32' in evaluate_node()."));
 }
 
-TEST(type_prop, multinomial_incompatibile_convert_u32) {
-    auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
-    auto num_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {4});
-    ASSERT_THROW(std::ignore =
-                     std::make_shared<ov::op::v13::Multinomial>(probs, num_shape, ov::element::u32, false, false, 0, 0),
-                 ov::NodeValidationFailure);
+TEST_F(TypePropMultinomialV13Test, input_incompatibile_convert_u64) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
+    const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
+    OV_EXPECT_THROW(std::ignore =
+                     make_op(probs, num_samples, ov::element::u64, false, false, 0, 0),
+                 ov::NodeValidationFailure,
+            HasSubstr("Unhandled convert data type 'u64' in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
 }
 
-TEST(type_prop, multinomial_incompatibile_convert_u16) {
-    auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
-    auto num_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {4});
-    ASSERT_THROW(std::ignore =
-                     std::make_shared<ov::op::v13::Multinomial>(probs, num_shape, ov::element::u16, false, false, 0, 0),
-                 ov::NodeValidationFailure);
+TEST_F(TypePropMultinomialV13Test, input_incompatibile_convert_u32) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
+    const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    OV_EXPECT_THROW(std::ignore =
+                     make_op(probs, num_samples, ov::element::u32, false, false, 0, 0),
+                 ov::NodeValidationFailure,
+            HasSubstr("Unhandled convert data type 'u32' in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
 }
 
-TEST(type_prop, multinomial_incompatibile_convert_bool) {
-    auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
-    auto num_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {4});
-    ASSERT_THROW(
+TEST_F(TypePropMultinomialV13Test, input_incompatibile_convert_u16) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
+    const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    OV_EXPECT_THROW(std::ignore =
+                     make_op(probs, num_samples, ov::element::u16, false, false, 0, 0),
+                 ov::NodeValidationFailure,
+            HasSubstr("Unhandled convert data type 'u16' in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
+}
+
+TEST_F(TypePropMultinomialV13Test, input_incompatibile_convert_bool) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
+    const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    OV_EXPECT_THROW(
         std::ignore =
-            std::make_shared<ov::op::v13::Multinomial>(probs, num_shape, ov::element::boolean, false, false, 0, 0),
-        ov::NodeValidationFailure);
+            make_op(probs, num_samples, ov::element::boolean, false, false, 0, 0),
+        ov::NodeValidationFailure,
+            HasSubstr("Unhandled convert data type 'bool' in evaluate_node(). Use either i32 or i64 and apply conversion manually."));
+}
+
+TEST_F(TypePropMultinomialV13Test, input_incompatibile_rank) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4, 4});
+    const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    OV_EXPECT_THROW(
+        std::ignore =
+            make_op(probs, num_samples, ov::element::boolean, false, false, 0, 0),
+        ov::NodeValidationFailure,
+            HasSubstr("The rank of the 'input' tensor defining output shape must be either 1 or 2."));
+}
+
+TEST_F(TypePropMultinomialV13Test, num_samples_incompatibile_rank) {
+    const auto probs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4});
+    const auto num_samples = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 2});
+    OV_EXPECT_THROW(
+        std::ignore =
+            make_op(probs, num_samples, ov::element::boolean, false, false, 0, 0),
+        ov::NodeValidationFailure,
+            HasSubstr("Number of samples must be a scalar or one element 1D tensor."));
 }
