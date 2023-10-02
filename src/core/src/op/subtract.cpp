@@ -65,8 +65,10 @@ bool Subtract::has_evaluate() const {
     case element::bf16:
     case element::f16:
     case element::f32:
+    case element::i8:
     case element::i32:
     case element::i64:
+    case element::u8:
     case element::u32:
     case element::u64:
         return true;
