@@ -36,8 +36,8 @@ public:
                 const ov::element::Type_t output_type,
                 const bool with_replacement,
                 const bool log_probs,
-                const uint64_t global_seed,
-                const uint64_t op_seed);
+                const uint64_t global_seed = 0,
+                const uint64_t op_seed = 0);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

@@ -5,6 +5,7 @@
 #include "multinomial_shape_inference.hpp"
 
 #include <gtest/gtest.h>
+
 #include "utils.hpp"
 
 using namespace ov;
@@ -17,9 +18,8 @@ TEST(StaticShapeInferenceTest, MultinomialDefaultShapeInferenceTest) {
     // Test Static Shape
     std::vector<StaticShape> static_input_shapes = {StaticShape{4}, StaticShape{1}};
     int32_t num_elements_val = 2;
-    auto const_data = std::map<size_t, HostTensorPtr>{
-        {1, std::make_shared<HostTensor>(element::i32, Shape{1}, &num_elements_val)}
-    };
+    auto const_data =
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{1}, &num_elements_val)}};
     auto acc = make_tensor_accessor(const_data);
     auto static_output_shapes = shape_infer(multinomial.get(), static_input_shapes, acc);
     ASSERT_EQ(static_output_shapes[0], StaticShape({2}));

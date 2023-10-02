@@ -114,10 +114,10 @@ std::vector<MultinomialParams> generateMultinomialParams() {
                                                          std::vector<int32_t>{3, 3, 2, 3, 3, 3, 3, 3});
     reference_tests::Tensor output_1d_no_log_replacement(prob_1d_shape,
                                                          ov::element::Type_t::i64,
-                                                         std::vector<int32_t>{3, 2, 1, 0});
+                                                         std::vector<int64_t>{3, 2, 1, 0});
     reference_tests::Tensor output_1d_log_replacement(prob_1d_shape,
                                                       ov::element::Type_t::i64,
-                                                      std::vector<int32_t>{1, 2, 3, 0});
+                                                      std::vector<int64_t>{1, 2, 3, 0});
 
     std::vector<MultinomialParams> params;
     // probabilities, num_samples, output, convert_type, log_probs, with_replacement, name

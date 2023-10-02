@@ -31,22 +31,22 @@ std::vector<TRShape> shape_infer(const Multinomial* op,
 
     auto output_shapes = std::vector<TRShape>(1);
     auto& result_shape = output_shapes[0];
-    const auto input_shape_static = input_shape.is_static();
-    const auto& num_samples = get_input_const_data_as_shape<TRShape>(op, 1, ta);
-    if (num_samples && input_shape_static) {
-        auto num_samples_shape = *num_samples;
-        NODE_VALIDATION_CHECK(op,
-                              num_samples_shape[0].get_min_length() >= 0,
-                              "Number of samples must be non-negative. Got number of samples: ",
-                              num_samples_shape[0].get_min_length());
-        if (input_shape_static) {
-            if (input_shape.rank().compatible(2)) {
-                num_samples_shape.insert(num_samples_shape.begin(), input_shape[0]);
-            }
+    const auto input_rank_static = input_shape.rank().is_static();
+    if (input_rank_static) {
+        const auto& num_samples = get_input_const_data_as_shape<TRShape>(op, 1, ta);
+        if (num_samples) {
+            NODE_VALIDATION_CHECK(op,
+                                  (*num_samples)[0].get_min_length() >= 0,
+                                  "Number of samples must be non-negative. Got number of samples: ",
+                                  (*num_samples)[0].get_min_length());
+            result_shape = *num_samples;
         } else {
-            num_samples_shape.insert(num_samples_shape.begin(), ov::Dimension::dynamic());
+            result_shape = ov::PartialShape::dynamic(1);
         }
-        result_shape = num_samples_shape;
+
+        if (input_shape.rank().compatible(2)) {
+            result_shape.insert(result_shape.begin(), input_shape[0]);
+        }
     } else {
         result_shape = ov::PartialShape::dynamic();
     }

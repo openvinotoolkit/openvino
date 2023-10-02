@@ -50,8 +50,8 @@ void multinomial(const T* probs,
                  const bool log_probs,
                  const uint64_t global_seed,
                  const uint64_t op_seed) {
-    auto total_inputs_elements_count = shape_size<Shape>(probs_shape);
-    auto total_output_elements_count = shape_size<Shape>(output_shape);
+    const auto total_inputs_elements_count = shape_size<Shape>(probs_shape);
+    const auto total_output_elements_count = shape_size<Shape>(output_shape);
 
     // If probabilities are log probabilities, exponentiate to get normal probabilities
     std::vector<T> input_vals(total_inputs_elements_count);
@@ -63,16 +63,16 @@ void multinomial(const T* probs,
 
     // Create a cdf of probabilties on the last axis, per batch. Note cumsum exclusive  == false
     std::vector<T> cdf(total_inputs_elements_count);
-    auto last_axis = probs_shape.size() - 1;
+    const auto last_axis = probs_shape.size() - 1;
     cumsum(input_vals.data(), last_axis, cdf.data(), probs_shape, false, false);
 
     // Obtain max value from cdf, per batch (from cumsum it is the last element)
     std::vector<T> max_value_per_batch(total_inputs_elements_count / probs_shape[last_axis]);
     Shape max_value_per_batch_shape(probs_shape);
     max_value_per_batch_shape[last_axis] = 1;
-    std::vector<int64_t> start{static_cast<int64_t>(probs_shape[last_axis] - 1)};
-    std::vector<int64_t> step{1};
-    std::vector<int64_t> target_axis_vec{static_cast<int64_t>(last_axis)};
+    const std::vector<int64_t> start{static_cast<int64_t>(probs_shape[last_axis] - 1)};
+    const std::vector<int64_t> step{1};
+    const std::vector<int64_t> target_axis_vec{static_cast<int64_t>(last_axis)};
     slice(reinterpret_cast<const char*>(cdf.data()),
           probs_shape,  // == cdf shape
           reinterpret_cast<char*>(max_value_per_batch.data()),
@@ -97,9 +97,9 @@ void multinomial(const T* probs,
     std::vector<double> uniform_samples(total_output_elements_count);
     const double zero = 0;
     const double one = 1;
-    ov::Shape output_shape_shape{output_shape.size()};
-    std::vector<uint64_t> output_shape_u64(output_shape.begin(), output_shape.end());
-    std::pair<uint64_t, uint64_t> initial_state(0, 0);
+    const ov::Shape output_shape_shape{output_shape.size()};
+    const std::vector<uint64_t> output_shape_u64(output_shape.begin(), output_shape.end());
+    const std::pair<uint64_t, uint64_t> initial_state(0, 0);
     random_uniform(output_shape_u64.data(),
                    reinterpret_cast<const char*>(&zero),
                    reinterpret_cast<const char*>(&one),
@@ -110,23 +110,23 @@ void multinomial(const T* probs,
                    op_seed,
                    initial_state);
 
-    auto first_dim_size = probs_shape.size() == 2 ? probs_shape[0] : (size_t)1;
-    auto second_input_dim_size = probs_shape.size() == 2 ? probs_shape[1] : probs_shape[0];
-    auto second_output_dim_size = probs_shape.size() == 2 ? (size_t)num_samples[0] : probs_shape[0];
+    auto batch_size = probs_shape.size() == 2 ? static_cast<size_t>(probs_shape[0]) : static_cast<size_t>(1);
+    auto class_size = probs_shape.size() == 2 ? static_cast<size_t>(probs_shape[1]) : static_cast<size_t>(probs_shape[0]);
+    auto samples_size = probs_shape.size() == 2 ? static_cast<size_t>(num_samples[0]) : static_cast<size_t>(probs_shape[0]);
 
     // Iterate over each channel in uniform samples
     std::vector<U> output_samples(total_output_elements_count);
-    for (size_t i = 0; i < first_dim_size * second_output_dim_size; i += second_output_dim_size) {
-        for (size_t j = 0; j < second_output_dim_size; ++j) {
+    for (size_t i = 0; i < batch_size * samples_size; i += samples_size) {
+        for (size_t j = 0; j < samples_size; ++j) {
             // Iterate over cdf to find the index for a given sample
             // If no class found (all have 0 probability), selects last - undefined behavior
-            auto i_translated = i / second_output_dim_size * second_input_dim_size;
-            auto selected_class_idx = second_input_dim_size;
+            auto i_translated = i / samples_size * class_size;
+            auto selected_class_idx = class_size;
             auto sample_value = uniform_samples[i + j];
-            for (size_t l = 0; l < second_input_dim_size; ++l) {
-                if (sample_value <= cdf[i_translated + l]) {
-                    output_samples[i + j] = l;  // warn
-                    selected_class_idx = l;
+            for (size_t k = 0; k < class_size; ++k) {
+                if (sample_value <= cdf[i_translated + k]) {
+                    output_samples[i + j] = k;
+                    selected_class_idx = k;
                     break;
                 }
             }
@@ -136,7 +136,7 @@ void multinomial(const T* probs,
                                                                cdf[i_translated + selected_class_idx - 1]
                                                          : cdf[i_translated + selected_class_idx];
                 T divisor = 1 - class_probability;
-                for (size_t k = 0; k < second_input_dim_size; ++k) {
+                for (size_t k = 0; k < class_size; ++k) {
                     if (k >= selected_class_idx) {
                         cdf[i_translated + k] -= class_probability;
                     }
