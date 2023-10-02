@@ -411,7 +411,7 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
-      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
+      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_onnxruntime
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
       ONNX_RUNTIME_REPO: /__w/openvino/openvino/onnxruntime
@@ -493,41 +493,38 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
           
-          ls -laR ${ONNX_RUNTIME_BUILD_DIR}
-          echo $(pwd)
-          
           ./onnxruntime_test_all --gtest_filter=-$skip_tests
-        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_shared_lib_test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_shared_lib_test --gtest_filter=-CApiTest.test_custom_op_openvino_wrapper_library
-        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_global_thread_pools_test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_global_thread_pools_test
-        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_api_tests_without_env
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_api_tests_without_env
-        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run pytorch-converted tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
-        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run pytorch-operator tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
-        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
   CXX_Unit_Tests:
     needs: Build
