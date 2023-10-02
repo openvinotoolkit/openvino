@@ -455,8 +455,6 @@ jobs:
           pushd ${INSTALL_DIR}
             tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz
           popd
-          
-          ls -laR ${INSTALL_DIR}
 
       - name: Install OpenVINO dependencies
         run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
