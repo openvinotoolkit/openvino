@@ -1141,14 +1141,6 @@ ov::runtime::Tensor generate(const
     return tensor;
 }
 
-ov::runtime::Tensor generate(const
-                             std::shared_ptr<ov::op::v1::BinaryConvolution>& node,
-                             size_t port,
-                             const ov::element::Type& elemType,
-                             const ov::Shape& targetShape) {
-    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 1, 0, 1, 7235346);
-}
-
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   size_t port,
