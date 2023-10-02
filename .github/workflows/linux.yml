@@ -410,6 +410,7 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
@@ -420,6 +421,12 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
 
     steps:
+      - name: Fetch install_build_dependencies.sh
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            install_build_dependencies.sh
+          sparse-checkout-cone-mode: false
 
       - name: Create Directories
         run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
@@ -471,6 +478,9 @@ jobs:
       #
       # Tests
       #
+
+      - name: Install Build Dependencies
+        run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
       - name: Build Lin ONNX Runtime
         run: |
