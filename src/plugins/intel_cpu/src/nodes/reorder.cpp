@@ -119,8 +119,8 @@ void Reorder::executeDynamicImpl(dnnl::stream strm) {
 
 #if defined(OV_CPU_ARM_ENABLE_FP16)
 void Reorder::prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr childDesc) {
-    auto getOrder = [](const MemoryDesc& lhs, const MemoryDesc& rhs) -> std::pair<std::vector<size_t>, std::vector<size_t>> {
-        const auto& in = lhs.getShape().getStaticDims();
+    auto getOrderAndBlockedDims = [](const MemoryDesc& lhs, const MemoryDesc& rhs) -> std::pair<std::vector<size_t>, std::vector<size_t>> {
+        const auto& in = lhs.as<BlockedMemoryDesc>()->getBlockDims();
         const auto rank = lhs.getShape().getRank();
 
         if (lhs.hasLayoutType(LayoutType::ncsp) && rhs.hasLayoutType(LayoutType::nspc)) {
@@ -142,17 +142,17 @@ void Reorder::prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr 
         }
     };
 
-    auto order = getOrder(*parentDesc, *childDesc);
+    auto order = getOrderAndBlockedDims(*parentDesc, *childDesc);
     const auto& transposeOrder = order.first;
-    const auto& transposedDims = order.second;
+    const auto& transposedBlockDims = order.second;
 
-    auto transposedDesc = std::make_shared<CpuBlockedMemoryDesc>(parentDesc->getPrecision(), Shape{transposedDims});
+    auto transposedDesc = std::make_shared<CpuBlockedMemoryDesc>(parentDesc->getPrecision(), Shape{transposedBlockDims});
 
     TransposeParams transposeParams;
     transposeParams.permuteParams.src_block_dims = parentDesc->as<BlockedMemoryDesc>()->getBlockDims();
     transposeParams.permuteParams.src_block_order = parentDesc->as<BlockedMemoryDesc>()->getOrder();
-    transposeParams.permuteParams.dst_block_dims = transposedDesc->as<BlockedMemoryDesc>()->getBlockDims();
-    transposeParams.permuteParams.dst_block_order = transposedDesc->as<BlockedMemoryDesc>()->getOrder();
+    transposeParams.permuteParams.dst_block_dims = transposedBlockDims;
+    transposeParams.permuteParams.dst_block_order = transposeParams.permuteParams.src_block_order;
     transposeParams.permuteParams.order = transposeOrder;
     transposeParams.permuteParams.data_size = parentDesc->getPrecision().size();
 
@@ -163,9 +163,9 @@ void Reorder::prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr 
                                                               transpose_context);
     dnnl::primitive_attr attr;
     transposeExecutor = factory->makeExecutor(transposeParams,
-                                                   {parentDesc},
-                                                   {transposedDesc},
-                                                   attr);
+                                              {parentDesc},
+                                              {transposedDesc},
+                                              attr);
     getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->getImplType());
     return;
 }
