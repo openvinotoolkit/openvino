@@ -97,7 +97,7 @@ void test_loop_gpu_basic_no_concat(bool is_caching_test)
         input_layout("trip_count", trip_count_mem->get_layout()),
         input_layout("initial_condition", initial_condition_mem->get_layout()),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", { input_info("input") }, body_program,
+        loop("loop", { input_info("num_iteration"), input_info("input") }, body_program,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, 8)
     );
@@ -199,7 +199,7 @@ void test_loop_gpu_basic_concat(bool is_caching_test)
         input_layout("trip_count", trip_count_mem->get_layout()),
         input_layout("initial_condition", initial_condition_mem->get_layout()),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", { input_info("input") }, body_program,
+        loop("loop", { input_info("num_iteration"), input_info("input") }, body_program,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, trip_count)
     );
@@ -314,7 +314,7 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
         input_layout("trip_count", inner_trip_count_mem->get_layout()),
         input_layout("initial_condition", inner_initial_condition_mem->get_layout()),
         mutable_data("inner_num_iteration", inner_num_iteration_mem),
-        loop("inner_loop", { input_info("inner_input"), input_info("trip_count"), input_info("initial_condition") },
+        loop("inner_loop", { input_info("inner_num_iteration"), input_info("inner_input"), input_info("trip_count"), input_info("initial_condition") },
             inner_body_program, "trip_count", "initial_condition", "inner_num_iteration",
             inner_input_primitive_maps, inner_output_primitive_maps, inner_back_edges, inner_trip_count)
     );
@@ -340,7 +340,7 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
         mutable_data("num_iteration", num_iteration_mem),
         input_layout("inner_trip_count", inner_trip_count_mem->get_layout()),
         input_layout("inner_initial_condition", inner_initial_condition_mem->get_layout()),
-        loop("loop", { input_info("input"), input_info("inner_trip_count"), input_info("inner_initial_condition") },
+        loop("loop", { input_info("num_iteration"), input_info("input"), input_info("inner_trip_count"), input_info("inner_initial_condition") },
             outer_body_program, "trip_count", "initial_condition", "num_iteration",
             outer_input_primitive_maps, outer_output_primitive_maps, outer_back_edges, outer_trip_count)
     );

@@ -183,6 +183,8 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         auto ev = stream.create_user_event(false);
 
+        OPENVINO_ASSERT(!primitive->num_iteration_id.empty(), "loop operation should have num_iteration_id");
+
         //////////////////////////////////////////
         // memory pointers for outer network
         //////////////////////////////////////////
@@ -204,12 +206,9 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         // When execution_condition is false or trip_count is zero, return execute_impl without any body_network execution.
         if (!execution_condition || trip_count == 0) {
-            // Update actual num iteration
-            if (!primitive->num_iteration_id.empty()) {
-                // update num_iterations (actual number of iterations)
-                memory::ptr num_actual_iterations_mem = outer_network.get_primitive(primitive->num_iteration_id)->output_memory_ptr();
-                write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
-            }
+            // Update num_iterations (actual number of iterations)
+            memory::ptr num_actual_iterations_mem = outer_network.get_primitive(primitive->num_iteration_id)->output_memory_ptr();
+            write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
 
             instance.update_output_layout();
             ev->set();
@@ -358,11 +357,11 @@ struct loop_impl : typed_primitive_impl<loop> {
         stream.wait_for_events(all_events);
 
         // Update actual num iteration
-        if (!primitive->num_iteration_id.empty()) {
-            // update num_iterations (actual number of iterations)
-            memory::ptr num_actual_iterations_mem = outer_network.get_primitive(primitive->num_iteration_id)->output_memory_ptr();
-            write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
-        }
+        // update num_iterations (actual number of iterations)
+        memory::ptr num_actual_iterations_mem = outer_network.get_primitive(primitive->num_iteration_id)->output_memory_ptr();
+        write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
+        GPU_DEBUG_LOG << "current_iteration(" << primitive->num_iteration_id << ", "
+                        << num_actual_iterations_mem << ")  : " << current_iteration_idx << std::endl;
 
         instance.update_output_layout();
         instance.postprocess_output_memory();

@@ -26,10 +26,15 @@ std::map<size_t, memory::ptr> loop_node::get_memory_deps() const {
             continue;
         }
 
+        memory::ptr mem_ptr = nullptr;
         if (dep.is_type<data>()) {
-            memory_deps.insert({i, dep.as<data>().get_attached_memory_ptr()});
+            mem_ptr = dep.as<data>().get_attached_memory_ptr();
         } else if (dep.is_type<mutable_data>()) {
-            memory_deps.insert({1, dep.as<mutable_data>().get_attached_memory_ptr()});
+            mem_ptr = dep.as<mutable_data>().get_attached_memory_ptr();
+        }
+
+        if (mem_ptr) {
+            memory_deps.insert({i, mem_ptr});
         }
     }
     return memory_deps;
@@ -120,7 +125,7 @@ layout loop_inst::calc_output_layout(loop_node const& /*node*/, kernel_impl_para
 }
 
 template<typename T>
-static std::vector<layout> get_output_layouts(kernel_impl_params const& impl_param, std::vector<T> body_outputs, const int32_t num_iterations = -1) {
+static std::vector<layout> get_output_layouts(kernel_impl_params const& impl_param, std::vector<T> body_outputs, const int64_t num_iterations = -1) {
     auto prim = impl_param.typed_desc<loop>();
     std::vector<layout> output_layouts;
 
@@ -137,7 +142,7 @@ static std::vector<layout> get_output_layouts(kernel_impl_params const& impl_par
         const int64_t axis_to_iterate_through = output_mapping.axis;
         if (axis_to_iterate_through != -1) {
             auto shape = loop_output_layout.get_partial_shape();
-            shape[axis_to_iterate_through] = num_iterations;
+            shape[axis_to_iterate_through] = static_cast<int32_t>(num_iterations);
             loop_output_layout.set_partial_shape(shape);
         }
         output_layouts.push_back(loop_output_layout);
@@ -157,9 +162,9 @@ std::vector<layout> loop_inst::calc_output_layouts(loop_node const& /*node*/, ke
         auto& memory_deps = impl_param.memory_deps;
         const size_t current_iteration_idx = 0;
         OPENVINO_ASSERT(memory_deps.count(current_iteration_idx) > 0, "The count of memory deps(current_iteration) should not be zero");
-        cldnn::mem_lock<int32_t, mem_lock_type::read> current_iterations_lock(memory_deps.at(current_iteration_idx), impl_param.get_stream());
-        int32_t current_iteration = static_cast<int32_t>(*current_iterations_lock.data());
-        GPU_DEBUG_LOG << "* current_iteration  : " << current_iteration << std::endl;
+        cldnn::mem_lock<int64_t, mem_lock_type::read> current_iterations_lock(memory_deps.at(current_iteration_idx), impl_param.get_stream());
+        int64_t current_iteration = static_cast<int64_t>(*current_iterations_lock.data());
+        GPU_DEBUG_LOG << "* current_iteration(" << memory_deps.at(current_iteration_idx) << ")  : " << current_iteration << std::endl;
 
         OPENVINO_ASSERT(impl_param.inner_nets.size() == 1, "Loop(", prim->id, ") should have only one inner program");
         const auto& body_outputs = impl_param.inner_nets.front()->get_outputs();
