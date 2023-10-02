@@ -12,9 +12,12 @@
 #include "helper_ops/switch.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 using namespace ov;
+using namespace ov::op;
 using namespace ov::element;
 using namespace ov::frontend::tensorflow;
 using namespace std;
@@ -367,6 +370,112 @@ bool propagate_conditional_flow(const OutputVector& ov_inputs,
     }
 
     return to_propagate;
+}
+
+// create Loop operation corresponding to TensorFlow While operation
+shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name,
+                                              const shared_ptr<Model>& body_model,
+                                              const shared_ptr<Model>& cond_model,
+                                              const OutputVector& ov_inputs) {
+    size_t input_size = ov_inputs.size();
+    // inject condition body graph prior to Loop node
+    // to check condition before to start iterations
+    auto cond_params = cond_model->get_parameters();
+    FRONT_END_GENERAL_CHECK(input_size == cond_params.size(),
+                            "[TensorFlow Frontend] internal error: mismatch number of inputs to While and a number of "
+                            "inputs in a conditional graph");
+    // type setting for body graph parameters is needed for TensorList support since DT_VARIANT type is present
+    // also for more accurate execution_condition variable shape deducing we need shape inference for condition graph
+    for (size_t input_ind = 0; input_ind < input_size; ++input_ind) {
+        cond_params[input_ind]->set_element_type(ov_inputs[input_ind].get_element_type());
+        cond_params[input_ind]->set_partial_shape(ov_inputs[input_ind].get_partial_shape());
+    }
+    cond_model->validate_nodes_and_infer_types();
+
+    auto cond_prior = cond_model->clone();
+    ov::OutputVector ov_outputs;
+    inject_body_model(cond_prior, while_node_name + "/cond", ov_inputs, ov_outputs);
+    FRONT_END_GENERAL_CHECK(
+        ov_outputs.size() == 1,
+        "[TensorFlow Frontend] Internal error or inconsistent model: condition body must contain one Result node.");
+    auto exec_cond = ov_outputs[0];
+    auto trip_count = make_shared<v0::Constant>(element::i32, Shape{}, -1);
+    auto loop = make_shared<v5::Loop>(trip_count, exec_cond);
+
+    // prepare body model to be set for the Loop node
+    // note that condition should be computed on the updated input
+    // because this is while(cond) {} construction,
+    // that is why condition graph is stitched to the body results
+    auto body_params = body_model->get_parameters();
+    auto body_results = body_model->get_results();
+    auto cond_results = cond_model->get_results();
+    FRONT_END_GENERAL_CHECK(body_params.size() == input_size,
+                            "[TensorFlow Frontend] Internal error or inconsistent model: body graph "
+                            " must have the same number of Parameter nodes as a number of inputs to While.");
+    FRONT_END_GENERAL_CHECK(cond_params.size() == input_size,
+                            "[TensorFlow Frontend] Internal error or inconsistent model: condition graph "
+                            " must have the same number of Parameter nodes as a number of inputs to While.");
+    for (size_t param_ind = 0; param_ind < body_results.size(); ++param_ind) {
+        cond_params[param_ind]->output(0).replace(body_results[param_ind]->input_value(0));
+    }
+
+    // update body model with the new result that corresponds to execution condition
+    FRONT_END_GENERAL_CHECK(
+        cond_results.size() == 1 && cond_results[0],
+        "[TensorFlow Frontend] Internal error or inconsistent model: condition body must contain one Result node.");
+    auto body_condition_output_idx = static_cast<int64_t>(body_results.size());
+    body_model->add_results(cond_results);
+
+    // type setting for body graph parameters is needed for TensorList support since DT_VARIANT type is present
+    for (size_t input_ind = 0; input_ind < input_size; ++input_ind) {
+        body_params[input_ind]->set_element_type(ov_inputs[input_ind].get_element_type());
+    }
+
+    // set data for the Loop node
+    loop->set_function(body_model);
+
+    // body_results may contain less nodes than body_params that means back edge exists not for all body_params
+    for (size_t input_ind = 0; input_ind < static_cast<size_t>(body_condition_output_idx); ++input_ind) {
+        loop->set_merged_input(body_params[input_ind], ov_inputs[input_ind], body_results[input_ind]->input_value(0));
+    }
+    loop->set_special_body_ports({-1, body_condition_output_idx});
+
+    // set external outputs for Loop node
+    // do not get execution condition outside of the Loop node
+    for (size_t output_ind = 0; output_ind < static_cast<size_t>(body_condition_output_idx); ++output_ind) {
+        loop->get_iter_value(body_results[output_ind]);
+    }
+    loop->validate_and_infer_types();
+    return loop;
+}
+
+void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,
+                       const std::string& operation_type,
+                       const ov::OutputVector& ov_inputs,
+                       ov::OutputVector& ov_outputs) {
+    ov_outputs.clear();
+    auto body_parameters = ov_model_to_inject->get_parameters();
+    FRONT_END_GENERAL_CHECK(body_parameters.size() == ov_inputs.size(),
+                            "[TensorFlow Error] Internal error or incorrect input models: number of "
+                            "inputs and arguments to the function " +
+                                operation_type + " do not match.");
+    for (size_t param_ind = 0; param_ind < body_parameters.size(); ++param_ind) {
+        auto orig_type = body_parameters[param_ind]->get_element_type();
+        // avoid not needed tensor names from body graph Parameter node after replacing
+        body_parameters[param_ind]->output(0).set_names({});
+        body_parameters[param_ind]->output(0).replace(ov_inputs[param_ind]);
+        if (auto ext_parameter = as_type_ptr<v0::Parameter>(ov_inputs[param_ind].get_node_shared_ptr())) {
+            // save type of a Parameter as converted in the body
+            // this is important if the external conversion extension is applied to body graph node
+            // with setting its own type
+            if (orig_type != element::dynamic) {
+                ext_parameter->set_element_type(orig_type);
+            }
+        }
+    }
+    for (const auto& result_node : ov_model_to_inject->get_results()) {
+        ov_outputs.push_back(result_node->input_value(0));
+    }
 }
 
 }  // namespace tensorflow

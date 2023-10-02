@@ -115,33 +115,6 @@ TEST(FrontEndConvertModelTest, test_unsupported_op) {
     ASSERT_NO_THROW(frontEnd->convert(model));
 }
 
-TEST(FrontEndConvertModelTest, test_unsupported_tf1_while) {
-    FrontEndManager fem;
-    FrontEnd::Ptr frontEnd;
-    InputModel::Ptr inputModel;
-    ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_FE));
-    ASSERT_NE(frontEnd, nullptr);
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) +
-                                                             string("model_tf1_while/model_tf1_while.pbtxt"));
-    ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
-    ASSERT_NE(inputModel, nullptr);
-    shared_ptr<ov::Model> model;
-
-    try {
-        model = frontEnd->convert(inputModel);
-        FAIL() << "TensorFlow 1 While is not supported in TF FE but conversion passed without errors. "
-                  "OpConversionFailure is expected.";
-    } catch (const OpConversionFailure& error) {
-        string error_message = error.what();
-        string ref_message = "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
-                             "LoopCond, Merge, NextIteration, Switch";
-        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
-        ASSERT_EQ(model, nullptr);
-    } catch (...) {
-        FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
-    }
-}
-
 TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithDynamicType) {
     { model = convert_model_partially("dynamic_type_model/dynamic_type_model.pb"); }
     {
@@ -169,11 +142,12 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while_and_incorrect_less_tra
                   "OpConversionFailure is expected.";
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
-        string ref_message = "Less expects ten inputs.\n"
-                             "\n"
-                             "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
-                             "LoopCond, Merge, NextIteration, Switch";
+        string ref_message = "Less expects ten inputs.\n";
+        string not_found_message =
+            "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
+            "LoopCond, Merge, NextIteration, Switch";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
+        ASSERT_TRUE(error_message.find(not_found_message) == string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
@@ -191,14 +165,12 @@ TEST(FrontEndConvertModelTest, conversion_with_unknown_exception) {
                   "OpConversionFailure is expected.";
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
-        string ref_message = "Unknown exception type\n"
-                             "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
-                             "LoopCond, Merge, NextIteration, Switch";
+        string ref_message = "Unknown exception type\n";
         string doc_message =
             "To facilitate the conversion of unsupported operations, refer to Frontend Extension documentation: "
             "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
-        ASSERT_TRUE(error_message.find(doc_message) != string::npos);
+        ASSERT_TRUE(error_message.find(doc_message) == string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
