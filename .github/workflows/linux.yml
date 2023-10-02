@@ -88,12 +88,7 @@ jobs:
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          # unzip - to download ninja
-          apt install --assume-yes --no-install-recommends default-jdk libssl1.1 unzip
-
-          wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip
-          unzip ninja-linux.zip
-          cp -v ninja /usr/local/bin/
+          apt install --assume-yes --no-install-recommends default-jdk libssl1.1
 
       - uses: actions/setup-python@v4
         with:
@@ -126,9 +121,6 @@ jobs:
       # Build
       #
 
-      - name: Setup ccache dir
-        run: mkdir -p ${CCACHE_DIR}
-
       - name: CMake configure - OpenVINO
         run: |
           cmake \
@@ -145,7 +137,6 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
-            -DCMAKE_MINIMUM_REQUIRED_VERSION=3.20 \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -180,12 +171,11 @@ jobs:
           /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           cmake -UPYTHON* \
-                -DCPACK_GENERATOR=DEB \
                 -DENABLE_PYTHON_PACKAGING=ON \
-                -DPython3_EXECUTABLE=/usr/bin/python3.8 \
                 -DENABLE_TESTS=OFF \
-                -S ${OPENVINO_REPO} \
-                -B ${BUILD_DIR}
+                -DPython3_EXECUTABLE=/usr/bin/python3.8 \
+                -DCPACK_GENERATOR=DEB \
+                ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
 
       - name: Cmake & Build - OpenVINO Contrib
@@ -392,7 +382,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores
+    runs-on: aks-linux-4-cores-16gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
@@ -585,7 +575,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores
+    runs-on: aks-linux-4-cores-16gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -895,7 +885,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores-16gb'}}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
