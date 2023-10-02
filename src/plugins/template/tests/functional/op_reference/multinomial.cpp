@@ -97,7 +97,7 @@ std::vector<MultinomialParams> generateMultinomialParams() {
     const ov::Shape prob_1d_shape{4};
     const ov::Shape num_samples_shape{1};
 
-    reference_tests::Tensor num_samples(num_samples_shape, ov::element::Type_t::i32, std::vector<int>{4});
+    reference_tests::Tensor num_samples(num_samples_shape, ov::element::Type_t::i32, std::vector<int32_t>{4});
 
     reference_tests::Tensor probabilities_2d_no_log(prob_2d_shape,
                                                     et,
@@ -108,16 +108,16 @@ std::vector<MultinomialParams> generateMultinomialParams() {
 
     reference_tests::Tensor output_2d_no_log_no_replacement(prob_2d_shape,
                                                             ov::element::Type_t::i32,
-                                                            std::vector<int>{3, 3, 3, 3, 0, 0, 0, 0});
+                                                            std::vector<int32_t>{3, 3, 3, 3, 0, 0, 0, 0});
     reference_tests::Tensor output_2d_log_no_replacement(prob_2d_shape,
                                                          ov::element::Type_t::i32,
-                                                         std::vector<int>{3, 3, 2, 3, 3, 3, 3, 3});
+                                                         std::vector<int32_t>{3, 3, 2, 3, 3, 3, 3, 3});
     reference_tests::Tensor output_1d_no_log_replacement(prob_1d_shape,
                                                          ov::element::Type_t::i64,
-                                                         std::vector<int>{3, 2, 1, 0});
+                                                         std::vector<int32_t>{3, 2, 1, 0});
     reference_tests::Tensor output_1d_log_replacement(prob_1d_shape,
                                                       ov::element::Type_t::i64,
-                                                      std::vector<int>{1, 2, 3, 0});
+                                                      std::vector<int32_t>{1, 2, 3, 0});
 
     std::vector<MultinomialParams> params;
     // probabilities, num_samples, output, convert_type, log_probs, with_replacement, name
