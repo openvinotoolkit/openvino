@@ -12,6 +12,7 @@
 #include "openvino/core/axis_vector.hpp"
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/reference/rounding_guard.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
@@ -197,17 +198,17 @@ void avg_pool(const T* const arg,
               const Strides& window_movement_strides,
               const Shape& padding_below,
               const Shape& padding_above,
-              bool include_padding_in_avg_computation) {
+              const bool include_padding_in_avg_computation) {
     if (window_shape.size() > 3)
         return;
-    const auto old_mode = std::fegetround();
-    std::fesetround(FE_TONEAREST);
+    const RoundingGuard rounding_g{FE_TONEAREST};
 
     const auto not_zero = [](size_t p) {
         return p != 0;
     };
-    include_padding_in_avg_computation &= std::any_of(padding_below.begin(), padding_below.end(), not_zero) ||
-                                          std::any_of(padding_above.begin(), padding_above.end(), not_zero);
+    const auto pads_in_avg =
+        include_padding_in_avg_computation && (std::any_of(padding_below.begin(), padding_below.end(), not_zero) ||
+                                               std::any_of(padding_above.begin(), padding_above.end(), not_zero));
 
     Shape arg_shape_3D{arg_shape};
     Shape out_shape_3D{out_shape};
@@ -244,11 +245,9 @@ void avg_pool(const T* const arg,
                                 window_movement_strides_3D,
                                 padding_below_3D,
                                 padding_above_3D,
-                                include_padding_in_avg_computation);
+                                pads_in_avg);
         }
     }
-
-    std::fesetround(old_mode);
 }
 }  // namespace reference
 }  // namespace ov

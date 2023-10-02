@@ -291,10 +291,9 @@ void max_pool(const Values_t* data,
                                                          pads_end,
                                                          indices_offset);
             } else {
-                OPENVINO_ASSERT(false,
-                                "Unsupported input shape ",
-                                data_shape,
-                                " passed to the MaxPool reference implementation. Supported shapes: 3D, 4D and 5D.");
+                OPENVINO_THROW("Unsupported input shape ",
+                               data_shape,
+                               " passed to the MaxPool reference implementation. Supported shapes: 3D, 4D and 5D.");
             }
         }
     }

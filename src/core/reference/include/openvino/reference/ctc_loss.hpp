@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <math.h>
-
+#include <cmath>
+#include <limits>
 #include <unordered_set>
 
 #include "openvino/core/shape.hpp"

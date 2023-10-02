@@ -376,14 +376,10 @@ void autobroadcast_select(const U* arg0,
                 const auto arg1_coord = util::reduce(output_coord, arg1_squeezed_axes);
                 const auto arg2_coord = util::reduce(output_coord, arg2_squeezed_axes);
 
-                const size_t arg0_idx =
-                    std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));
-                const size_t arg1_idx =
-                    std::inner_product(arg1_coord.begin(), arg1_coord.end(), arg1_strides.begin(), uint64_t(0));
-                const size_t arg2_idx =
-                    std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), uint64_t(0));
-                const size_t output_idx =
-                    std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
+                const size_t arg0_idx = coordinate_offset(arg0_coord, arg0_strides);
+                const size_t arg1_idx = coordinate_offset(arg1_coord, arg1_strides);
+                const size_t arg2_idx = coordinate_offset(arg2_coord, arg2_strides);
+                const size_t output_idx = coordinate_offset(output_coord, output_strides);
                 out[output_idx] = elementwise_functor(arg0[arg0_idx], arg1[arg1_idx], arg2[arg2_idx]);
             }
         }
@@ -449,14 +445,10 @@ void autobroadcast_select(const U* arg0,
             const auto arg0_coord = util::reduce(output_coord, arg0_squeezed_axes);
             const auto arg2_coord = util::reduce(output_coord, arg2_squeezed_axes);
 
-            const size_t arg0_idx =
-                std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));
-            const size_t arg1_idx =
-                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
-            const size_t arg2_idx =
-                std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), uint64_t(0));
-            const size_t output_idx =
-                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
+            const size_t arg0_idx = coordinate_offset(arg0_coord, arg0_strides);
+            const size_t arg1_idx = coordinate_offset(output_coord, output_strides);
+            const size_t arg2_idx = coordinate_offset(arg2_coord, arg2_strides);
+            const size_t output_idx = coordinate_offset(output_coord, output_strides);
 
             out[output_idx] = elementwise_functor(arg0[arg0_idx], arg1[arg1_idx], arg2[arg2_idx]);
         }
