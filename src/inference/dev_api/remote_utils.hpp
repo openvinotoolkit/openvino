@@ -14,7 +14,7 @@ namespace legacy_convert {
 
 INFERENCE_ENGINE_API_CPP(ov::SoPtr<ov::IRemoteContext>)
 convert_remote_context(const std::shared_ptr<InferenceEngine::RemoteContext>& context);
-INFERENCE_ENGINE_API_CPP(ie::Blob*) get_hardware_blob(ie::Blob* blob);
+INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob*) get_hardware_blob(InferenceEngine::Blob* blob);
 
 class INFERENCE_ENGINE_API_CLASS(TensorHolder) {
 public:
@@ -42,7 +42,7 @@ class INFERENCE_ENGINE_API_CLASS(RemoteBlobTensor) : public IRemoteTensor {
     mutable std::string m_dev_name;
 
 public:
-    std::shared_ptr<ie::RemoteBlob> blob;
+    std::shared_ptr<InferenceEngine::RemoteBlob> blob;
 
     RemoteBlobTensor(const InferenceEngine::RemoteBlob::Ptr& blob) : blob{blob} {
         OPENVINO_ASSERT(blob);
@@ -99,10 +99,12 @@ public:
 /**
  * @brief Create InferenceEngine::RemoteBlob from the Tensor
  */
-class INFERENCE_ENGINE_API_CLASS(TensorRemoteBlob) : public ie::RemoteBlob, public ov::legacy_convert::TensorHolder {
+class INFERENCE_ENGINE_API_CLASS(TensorRemoteBlob)
+    : public InferenceEngine::RemoteBlob,
+      public ov::legacy_convert::TensorHolder {
 public:
-    TensorRemoteBlob(const ov::SoPtr<ITensor>& tensor, ie::TensorDesc desc)
-        : ie::RemoteBlob{desc},
+    TensorRemoteBlob(const ov::SoPtr<ITensor>& tensor, InferenceEngine::TensorDesc desc)
+        : InferenceEngine::RemoteBlob{desc},
           ov::legacy_convert::TensorHolder(tensor) {
         OPENVINO_ASSERT(this->get_tensor());
     }
@@ -121,7 +123,7 @@ public:
             return {};
         }
     }
-    std::shared_ptr<ie::RemoteContext> getContext() const noexcept override {
+    std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept override {
         return {};
     }
 
@@ -129,22 +131,22 @@ public:
     bool deallocate() noexcept override {
         return true;
     }
-    ie::LockedMemory<void> buffer() noexcept override {
+    InferenceEngine::LockedMemory<void> buffer() noexcept override {
         return {nullptr, nullptr, 0};
     }
-    ie::LockedMemory<const void> cbuffer() const noexcept override {
+    InferenceEngine::LockedMemory<const void> cbuffer() const noexcept override {
         return {nullptr, nullptr, 0};
     }
-    ie::LockedMemory<void> rwmap() noexcept override {
+    InferenceEngine::LockedMemory<void> rwmap() noexcept override {
         return {nullptr, nullptr, 0};
     }
-    ie::LockedMemory<const void> rmap() const noexcept override {
+    InferenceEngine::LockedMemory<const void> rmap() const noexcept override {
         return {nullptr, nullptr, 0};
     }
-    ie::LockedMemory<void> wmap() noexcept override {
+    InferenceEngine::LockedMemory<void> wmap() noexcept override {
         return {nullptr, nullptr, 0};
     }
-    const std::shared_ptr<ie::IAllocator>& getAllocator() const noexcept override {
+    const std::shared_ptr<InferenceEngine::IAllocator>& getAllocator() const noexcept override {
         return m_allocator;
     }
     void* getHandle() const noexcept override {
@@ -154,7 +156,7 @@ public:
     using TensorHolder::get_tensor;
 
 private:
-    std::shared_ptr<ie::IAllocator> m_allocator;
+    std::shared_ptr<InferenceEngine::IAllocator> m_allocator;
 };
 
 }  // namespace ov

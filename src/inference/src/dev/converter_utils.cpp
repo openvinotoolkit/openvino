@@ -346,7 +346,7 @@ public:
                                                      const std::map<std::string, std::string>& config) const override {
         auto res = m_plugin->query_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
                                          ov::any_copy(config));
-        ie::QueryNetworkResult ret;
+        InferenceEngine::QueryNetworkResult ret;
         if (!network.getFunction() || res.empty()) {
             ret.rc = InferenceEngine::GENERAL_ERROR;
             return ret;
