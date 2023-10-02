@@ -19,11 +19,6 @@ Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, re
     constructor_validate_and_infer_types();
 }
 
-bool Tile::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_Tile_visit_attributes);
-    return true;
-}
-
 void Tile::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Tile_validate_and_infer_types);
 
