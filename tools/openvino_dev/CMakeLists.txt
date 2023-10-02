@@ -106,14 +106,14 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/readme.txt" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/setup.cfg" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${WHEEL_VERSION}
-        ${PYTHON_EXECUTABLE} ${SETUP_PY}
+        ${Python3_EXECUTABLE} ${SETUP_PY}
             --quiet
             --no-user-cfg
              bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
             --build=${WHEEL_BUILD}
     COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${WHEEL_VERSION}
-        ${PYTHON_EXECUTABLE} ${SETUP_PY} clean
+        ${Python3_EXECUTABLE} ${SETUP_PY} clean
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)

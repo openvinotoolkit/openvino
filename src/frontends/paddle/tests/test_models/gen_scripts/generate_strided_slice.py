@@ -31,7 +31,7 @@ def strided_slice(name: str, input_data, attrs: dict):
             feed={'x': input_data},
             fetch_list=[out])
 
-        # Save inputs in order of ngraph function, to facilite Fuzzy test,
+        # Save inputs in order of OpenVINO model, to facilite Fuzzy test,
         # which accepts inputs and outputs in this order as well.
         saveModel(name, exe, feedkeys=['x'], fetchlist=[out],
                   inputs=[input_data], outputs=[outs[0]], target_dir=sys.argv[1])

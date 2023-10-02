@@ -8,13 +8,18 @@
 
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
-ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
+if(WIN32 AND AARCH64 AND OV_COMPILER_IS_CLANG)
+    set(ENABLE_INTEL_CPU_DEFAULT OFF)
+else()
+    set(ENABLE_INTEL_CPU_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ${ENABLE_INTEL_CPU_DEFAULT}
+    "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
 
 ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
-
-ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
 if(X86_64)
     set(ENABLE_INTEL_GPU_DEFAULT ON)
@@ -112,8 +117,12 @@ ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package"
 
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
-find_host_package(PythonInterp 3 QUIET)
-ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
+find_host_package(Python3 QUIET COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ON)
+else()
+    ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" OFF)
+endif()
 ie_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
@@ -122,6 +131,8 @@ ie_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ie_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 ie_dependent_option(ENABLE_SNAPPY_COMPRESSION "Enables compression support for TF FE" ON
     "ENABLE_OV_TF_FRONTEND" OFF)
+
+ie_dependent_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON "ENABLE_TESTS;ENABLE_OV_ONNX_FRONTEND" OFF)
 
 if(CMAKE_HOST_LINUX AND LINUX)
     # Debian packages are enabled on Ubuntu systems

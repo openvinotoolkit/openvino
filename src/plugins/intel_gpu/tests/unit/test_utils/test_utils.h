@@ -119,6 +119,27 @@ template<typename T>
 using VVVVVVF = std::vector<VVVVVF<T>>;    // split of bfyx filters
 
 template<typename T>
+inline VF<T> flatten_2d(cldnn::format input_format, VVF<T> &data) {
+    size_t a = data.size();
+    size_t b = data[0].size();
+
+    VF<T> vec(a * b, (T)(0.0f));
+    size_t idx = 0;
+
+    switch (input_format.value) {
+        case cldnn::format::bfyx:
+            for (size_t bi = 0; bi < a; ++bi)
+                for (size_t fi = 0; fi < b; ++fi)
+                    vec[idx++] = data[bi][fi];
+            break;
+
+        default:
+            assert(0);
+    }
+    return vec;
+}
+
+template<typename T>
 inline VF<T> flatten_4d(cldnn::format input_format, VVVVF<T> &data) {
     size_t a = data.size();
     size_t b = data[0].size();
