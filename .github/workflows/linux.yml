@@ -59,6 +59,7 @@ jobs:
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
+      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
 
     steps:
       - name: Install git
@@ -157,6 +158,12 @@ jobs:
 
       - name: Pack Artifacts
         run: |
+          
+          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job 
+          # w/o the need to checkout repository
+          
+          cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
+          
           pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
@@ -376,6 +383,133 @@ jobs:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
+
+  ONNX_Runtime:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      INSTALL_DIR: /__w/openvino/openvino/install
+      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_onnxruntime
+      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
+      CCACHE_MAXSIZE: 50G
+      ONNX_RUNTIME_REPO: /__w/openvino/openvino/onnxruntime
+      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/install/onnxruntime
+      ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
+
+    steps:
+
+      - name: Fetch install_build_dependencies.sh
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            install_build_dependencies.sh
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install --assume-yes --no-install-recommends git ca-certificates
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      #
+      # Initialize OpenVINO
+      #
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO package
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz
+          popd
+
+      - name: Install OpenVINO dependencies
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+
+      - name: Clone ONNX Runtime
+        run: |
+          branch=`tr -s '\n ' < ${ONNX_RUNTIME_UTILS}/version`
+          git clone --branch $branch --single-branch --recursive https://github.com/microsoft/onnxruntime.git ${ONNX_RUNTIME_REPO}
+
+      #
+      # Tests
+      #
+
+      - name: Install Build Dependencies
+        run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
+
+      - name: Build Lin ONNX Runtime
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          ${ONNX_RUNTIME_REPO}/build.sh \
+            --config RelWithDebInfo \
+            --use_openvino CPU_FP32 \
+            --build_shared_lib \
+            --parallel \
+            --skip_tests \
+            --compile_no_warning_as_error \
+            --build_dir ${ONNX_RUNTIME_BUILD_DIR}
+        env:
+          CXXFLAGS: "-Wno-error=deprecated-declarations"
+
+      - name: Run onnxruntime_test_all
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
+          
+          ./onnxruntime_test_all --gtest_filter=-$skip_tests
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Run onnxruntime_shared_lib_test
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ./onnxruntime_shared_lib_test --gtest_filter=-CApiTest.test_custom_op_openvino_wrapper_library
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Run onnxruntime_global_thread_pools_test
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ./onnxruntime_global_thread_pools_test
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Run onnxruntime_api_tests_without_env
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ./onnxruntime_api_tests_without_env
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Run pytorch-converted tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Run pytorch-operator tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
   CXX_Unit_Tests:
     needs: Build
