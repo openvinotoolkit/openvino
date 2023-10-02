@@ -6,6 +6,7 @@
 
 #include "base_reference_test.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 
@@ -14,7 +15,7 @@ using namespace ov;
 namespace reference_tests {
 namespace BitwiseOpsRefTestDefinitions {
 
-enum BitwiseTypes { BITWISE_AND, BITWISE_OR, BITWISE_XOR };
+enum BitwiseTypes { BITWISE_AND, BITWISE_NOT, BITWISE_OR, BITWISE_XOR };
 
 struct RefBitwiseParams {
     BitwiseTypes opType;
@@ -61,6 +62,10 @@ private:
 
         std::shared_ptr<ov::Node> bitwise_op;
         switch (op_type) {
+        case BitwiseTypes::BITWISE_NOT: {
+            bitwise_op = std::make_shared<ov::op::v13::BitwiseNot>(params_vec[0]);
+            break;
+        }
         case BitwiseTypes::BITWISE_AND: {
             bitwise_op = std::make_shared<ov::op::v13::BitwiseAnd>(params_vec[0], params_vec[1]);
             break;

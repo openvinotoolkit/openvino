@@ -73,8 +73,6 @@ ie_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${S
 
 ie_option (ENABLE_NCC_STYLE "Enable ncc style check" ${STYLE_CHECKS_DEFAULT})
 
-ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
-
 ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND MSVC_VERSION GREATER_EQUAL 1930)
@@ -104,5 +102,3 @@ if(ENABLE_AVX512F)
         set(ENABLE_AVX512F OFF CACHE BOOL "" FORCE)
     endif()
 endif()
-
-set(CMAKE_VERBOSE_MAKEFILE ${VERBOSE_BUILD} CACHE BOOL "" FORCE)
