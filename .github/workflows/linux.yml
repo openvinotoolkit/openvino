@@ -428,9 +428,6 @@ jobs:
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
 
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
       - name: Install git
         run: |
           apt-get update
@@ -452,6 +449,9 @@ jobs:
 
       - name: Extract OpenVINO package
         run: |
+          
+          mkdir -p ${INSTALL_DIR}
+          
           pushd ${INSTALL_DIR}
             tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz
           popd
