@@ -6,6 +6,37 @@
    :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and 
                  macOS operating systems, using Conan Package Manager.
 
+.. note::
+   
+   Note that the Conana Package Manage distribution:
+
+   * is dedicated to users of all OSs (Windows, Linux, macOS, Solaris, FreeBSD, etc.)
+   * it can be used for any existing platfrom: desktop, mobile, embbeded, servers, bare metal, etc.
+   * can manage any compiler in any of their versions.
+
+
+.. tab-set::
+
+   .. tab-item:: System Requirements
+      :sync: system-requirements
+
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+   
+
+   .. tab-item:: Processor Notes
+      :sync: processor-notes
+   
+      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
+      | `Product Specifications <https://ark.intel.com/>`__
+
+
+   .. tab-item:: Software
+      :sync: software
+
+      There are many ways to work with Conan Package Manager. Before you proceed, learn more about it on the
+      `Conan distribution page <https://conan.io/downloads/>`__
+
 Conan Package Manager is a free, open-source dependency and package manager for C and C++ languages. 
 Its main purpose is to improve development and integration of C and C++ projects. OpenVINO™ is included  
 in the Conan Center Index (registry with the software packages).
@@ -32,7 +63,7 @@ Installing OpenVINO Runtime with Conan Package Manager
       [layout]
       cmake_layout
 
-   Run below command to create conan_toolchain.cmake file, which will be used to compile your project with OpenVINO.
+   Run below command to create ``conan_toolchain.cmake`` file, which will be used to compile your project with OpenVINO.
    
    .. code-block:: sh
 
@@ -64,4 +95,8 @@ Additional Resources
 ########################
 
 * `Conan Package Manager Webstie <https://conan.io/>`__
-* :doc:`Install OpenVINO Overview <openvino_docs_install_guides_overview>`
+* Learn more about :doc:`OpenVINO Workflow <openvino_workflow>`.
+* To prepare your models for working with OpenVINO, see :doc:`Model Preparation <openvino_docs_model_processing_introduction>`.
+* Learn more about :doc:`Inference with OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
+* See sample applications in :doc:`OpenVINO toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
+* Check out the OpenVINO product `home page <https://software.intel.com/en-us/openvino-toolkit>`__.
