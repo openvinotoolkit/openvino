@@ -109,12 +109,12 @@ class TestTorchHubConvertModel(TestConvertModel):
         super().teardown_method()
 
     @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
-    @pytest.mark.precommit
+    #@pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
         self.run(model_name, None, ie_device)
 
     @pytest.mark.parametrize("name",
                              [pytest.param(n, marks=pytest.mark.xfail) if m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models"))])
-    @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)

@@ -79,7 +79,7 @@ facebook/musicgen-small,musicgen,skip,Load problem
 facebook/opt-125m,opt
 facebook/rag-token-nq,rag,skip,Load problem
 facebook/sam-vit-large,sam,xfail,No node with name original_sizes
-facebook/timesformer-base-finetuned-k400,timesformer,xfail,Shape inference of Add node failed: Eltwise shape infer input shapes dim index: 1 mismatch
+facebook/timesformer-base-finetuned-k400,timesformer
 facebook/vit-mae-base,vit_mae,xfail,Accuracy validation failed
 facebook/wmt19-ru-en,fsmt,xfail,Tracing problem
 facebook/xlm-roberta-xl,xlm-roberta-xl
@@ -309,7 +309,7 @@ regisss/bridgetower-newyorker-a100-8x,bridgetower
 rinna/japanese-cloob-vit-b-16,cloob,skip,Load problem
 Rocketknight1/tiny-random-falcon-7b,falcon
 RUCAIBox/mass-base-uncased,mass,skip,Load problem
-RWKV/rwkv-4-169m-pile,rwkv,xfail,Unsupported op aten::maximum
+RWKV/rwkv-4-169m-pile,rwkv
 sahasrarjn/interbert,BERT,skip,Load problem
 saibo/genkalm-medium-gpt2,genkalm,skip,Load problem
 SajjadAyoubi/clip-fa-vision,clip_vision_model
