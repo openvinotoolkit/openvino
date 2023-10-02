@@ -421,20 +421,22 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
 
     steps:
+
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install --assume-yes --no-install-recommends git ca-certificates  
+
       - name: Fetch install_build_dependencies.sh
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             install_build_dependencies.sh
           sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
 
       - name: Create Directories
         run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
-      - name: Install git
-        run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - uses: actions/setup-python@v4
         with:
