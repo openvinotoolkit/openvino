@@ -39,6 +39,7 @@ static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
     pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
     if (!GetProcessMemoryInfo(GetCurrentProcess(), &pmc, pmc.cb))
         throw std::runtime_error("Can't get system memory values");
+    return pmc;
 }
 
 size_t getVmSizeInKB() {
