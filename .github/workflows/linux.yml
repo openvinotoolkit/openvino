@@ -431,6 +431,11 @@ jobs:
       - name: Create Directories
         run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install --assume-yes --no-install-recommends git ca-certificates
+
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -455,11 +460,6 @@ jobs:
 
       - name: Install OpenVINO dependencies
         run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
-
-      - name: Install git
-        run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone ONNX Runtime
         run: |
