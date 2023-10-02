@@ -7,8 +7,8 @@
 
 #include "default_opset.hpp"
 #include "utils/common.hpp"
-#include <math.h>
 #define _USE_MATH_DEFINES
+#include <math.h>
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
@@ -17,7 +17,7 @@ namespace op {
 namespace set_17 {
 OutputVector hannwindow(const Node& node) {
     const auto size = node.get_ng_inputs().at(0);
-    const auto output_datatype = common::get_ngraph_element_type(node.get_attribute_value("output_datatype", 1));
+    const auto output_datatype = common::get_ngraph_element_type(node.get_attribute_value<int64_t>("output_datatype", 1));
     const bool periodic = node.get_attribute_value<int64_t>("periodic", 1);
 
     const ov::PartialShape shape = size.get_partial_shape();
