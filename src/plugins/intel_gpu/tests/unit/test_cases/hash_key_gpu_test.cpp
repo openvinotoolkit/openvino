@@ -70,9 +70,13 @@ public:
 
         const auto primitive_hash = primitve->hash();
         const auto params_hash = primitve->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash();
-
-        ASSERT_EQ(primitive_hash, 6924775129729406941UL);
-        ASSERT_EQ(params_hash, 8552673460001178483UL);
+        if (!engine.get_device_info().supports_immad) {
+            ASSERT_EQ(primitive_hash, 6924775129729406941UL);
+            ASSERT_EQ(params_hash, 15366394052020805414UL);
+        } else {
+            ASSERT_EQ(primitive_hash, 6924775129729406941UL);
+            ASSERT_EQ(params_hash, 8552673460001178483UL);
+        }
     }
 
     void test_gather_basic(bool is_caching_test) {
@@ -172,7 +176,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-        ASSERT_EQ(params_hash, 4771142562684430881UL);
+        ASSERT_EQ(params_hash, 550629972043680951UL);
     }
 
     void test_reshape_basic(bool is_caching_test) {
