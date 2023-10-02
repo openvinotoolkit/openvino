@@ -27,7 +27,7 @@ Here is the simplest example of PyTorch model conversion using a model from ``to
 * ``torch.jit.ScriptModule``
 * ``torch.jit.ScriptFunction``
 
-When using ``torch.nn.Module`` an input model, ``openvino.convert_model`` often requires the ``example_input`` parameter to be specified. Internally, it triggers the model tracing during the model conversion process, using the capabilities  of the ``torch.jit.trace`` function.
+When using ``torch.nn.Module`` as an input model, ``openvino.convert_model`` often requires the ``example_input`` parameter to be specified. Internally, it triggers the model tracing during the model conversion process, using the capabilities  of the ``torch.jit.trace`` function.
 
 The use of ``example_input`` can lead to a better quality OpenVINO model in terms of correctness and performance compared to converting the same original model without specifying ``example_input``. While the necessity of ``example_input`` depends on the implementation details of a specific PyTorch model, it is recommended to always set the ``example_input`` parameter when it is available.
 
