@@ -235,6 +235,11 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
+    // Limitations in ACL Deconvolution layer:
+    // https://github.com/ARM-software/ComputeLibrary/blob/874e0c7b3fe93a6764ecb2d8cfad924af19a9d25/src/runtime/NEON/functions/NEDeconvolutionLayer.cpp#L124
+    retVector.emplace_back(R"(smoke_Deconv_2D_Planar_FP32.*DeconvolutionLayerCPUTest.CompareWithRefs.*IS.*TS=.*((2.12.5.7)).*)");
+    retVector.emplace_back(R"(smoke_Deconv_2D_AutoPadding_FP32.*DeconvolutionLayerCPUTest.CompareWithRefs/IS=.*TS=.*((2.67.5.7)).*)");
+
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
