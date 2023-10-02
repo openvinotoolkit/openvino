@@ -14,8 +14,8 @@ using namespace ov::test::conformance;
 namespace {
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestIOTensorTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(return_all_possible_device_combination()),
-                                ::testing::Values(pluginConfig)),
+                                ::testing::ValuesIn(return_device_combination()),
+                                ::testing::ValuesIn(generate_ov_configs())),
                         OVInferRequestIOTensorTest::getTestCaseName);
 
 std::vector<ov::element::Type> ovIOTensorElemTypes = {
@@ -36,15 +36,15 @@ std::vector<ov::element::Type> ovIOTensorElemTypes = {
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypes),
-                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::ValuesIn(return_device_combination()),
+                                 ::testing::ValuesIn(generate_ov_configs())),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypes),
-                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::ValuesIn(return_device_combination()),
+                                 ::testing::ValuesIn(generate_ov_configs())),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 
 std::vector<ov::element::Type> ovIOTensorElemTypesOptional = {
@@ -54,14 +54,14 @@ std::vector<ov::element::Type> ovIOTensorElemTypesOptional = {
 INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypesOptional),
-                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::ValuesIn(return_device_combination()),
+                                 ::testing::ValuesIn(generate_ov_configs())),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovIOTensorElemTypesOptional),
-                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::ValuesIn(return_device_combination()),
+                                 ::testing::ValuesIn(generate_ov_configs())),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 }  // namespace

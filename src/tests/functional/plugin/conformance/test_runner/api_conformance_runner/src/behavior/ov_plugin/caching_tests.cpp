@@ -42,8 +42,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBase,
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getAnyTypeOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::Values(ov::AnyMap{})),
+                                 ::testing::ValuesIn(return_device_combination()),
+                                 ::testing::ValuesIn(generate_ov_configs())),
                          CompileModelCacheTestBase::getTestCaseName);
 
 // Convolution/UnaryElementwiseArithmetic/BinaryElementwiseArithmetic is not supported boolean elemnt type
@@ -52,8 +52,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_numeric, CompileModelCacheTestBase,
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getNumericTypeOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemAnyNumericTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::Values(ov::AnyMap{})),
+                                 ::testing::ValuesIn(return_device_combination()),
+                                 ::testing::ValuesIn(generate_ov_configs())),
                          CompileModelCacheTestBase::getTestCaseName);
 
 // LSTMcell supported floating-point element type
@@ -62,8 +62,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_floating_point, CompileModelCacheTestBase,
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemAnyFloatingPointTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::Values(ov::AnyMap{})),
+                                 ::testing::ValuesIn(return_device_combination()),
+                                 ::testing::ValuesIn(generate_ov_configs())),
                          CompileModelCacheTestBase::getTestCaseName);
 
 } // namespace

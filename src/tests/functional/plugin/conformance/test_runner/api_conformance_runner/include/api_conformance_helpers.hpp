@@ -79,7 +79,13 @@ inline const std::vector<std::string> return_all_possible_device_combination(boo
     std::vector<std::string> devices{ov::test::utils::DEVICE_HETERO, ov::test::utils::DEVICE_AUTO,
                                      ov::test::utils::DEVICE_BATCH, ov::test::utils::DEVICE_MULTI};
     for (const auto& device : devices) {
-        res.emplace_back(enable_complex_name ? generate_complex_device_name(device) : device);
+        if (enable_complex_name) {
+            res.emplace_back(generate_complex_device_name(device));
+        } else {
+            if (std::find(devices.begin(), devices.end(), ov::test::conformance::targetDevice) == devices.end()) {
+                res.emplace_back(device);
+            }
+        }
     }
     return res;
 }

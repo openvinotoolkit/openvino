@@ -60,8 +60,8 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request_1, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 4, 20, 20}},
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
-                                ::testing::ValuesIn(return_all_possible_device_combination()),
-                                ::testing::Values(pluginConfig)),
+                                ::testing::ValuesIn(return_device_combination()),
+                                ::testing::ValuesIn(generate_ov_configs())),
                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_2, OVInferRequestDynamicTests,
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request_2, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::ValuesIn(return_all_possible_device_combination()),
-                                ::testing::Values(pluginConfig)),
+                                ::testing::ValuesIn(return_device_combination()),
+                                ::testing::ValuesIn(generate_ov_configs())),
                         OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace
