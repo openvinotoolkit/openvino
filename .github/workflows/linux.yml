@@ -449,9 +449,6 @@ jobs:
 
       - name: Extract OpenVINO package
         run: |
-          
-          mkdir -p ${INSTALL_DIR}
-          
           pushd ${INSTALL_DIR}
             tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz
           popd
