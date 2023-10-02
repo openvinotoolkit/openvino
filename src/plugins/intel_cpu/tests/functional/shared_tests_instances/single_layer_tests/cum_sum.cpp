@@ -20,7 +20,7 @@ const std::vector<std::vector<ov::Shape>> shapes_static = {
     {{4, 3, 6, 2, 3, 4, 5, 2, 3, 4}},
 };
 
-const std::vector<ov::element::Type> inputPrecision = {
+const std::vector<ov::element::Type> model_types = {
     ov::element::i8,
     ov::element::u8,
     ov::element::i16,
@@ -45,7 +45,7 @@ const auto testCasesNegativeAxis = ::testing::Combine(
 
 const auto testCasesAxis_0 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes_static)),
-    ::testing::ValuesIn(inputPrecision),
+    ::testing::ValuesIn(model_types),
     ::testing::Values(axes[0]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
@@ -55,7 +55,7 @@ const auto testCasesAxis_0 = ::testing::Combine(
 const auto testCasesAxis_1 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
         std::vector<std::vector<ov::Shape>>(shapes_static.begin() + 1, shapes_static.end()))),
-    ::testing::ValuesIn(inputPrecision),
+    ::testing::ValuesIn(model_types),
     ::testing::Values(axes[1]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
@@ -65,7 +65,7 @@ const auto testCasesAxis_1 = ::testing::Combine(
 const auto testCasesAxis_2 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
         std::vector<std::vector<ov::Shape>>(shapes_static.begin() + 2, shapes_static.end()))),
-    ::testing::ValuesIn(inputPrecision),
+    ::testing::ValuesIn(model_types),
     ::testing::Values(axes[2]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
@@ -75,7 +75,7 @@ const auto testCasesAxis_2 = ::testing::Combine(
 const auto testCasesAxis_3 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
         std::vector<std::vector<ov::Shape>>(shapes_static.begin() + 3, shapes_static.end()))),
-    ::testing::ValuesIn(inputPrecision),
+    ::testing::ValuesIn(model_types),
     ::testing::Values(axes[3]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
@@ -85,7 +85,7 @@ const auto testCasesAxis_3 = ::testing::Combine(
 const auto testCasesAxis_4 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
         std::vector<std::vector<ov::Shape>>(shapes_static.begin() + 4, shapes_static.end()))),
-    ::testing::ValuesIn(inputPrecision),
+    ::testing::ValuesIn(model_types),
     ::testing::Values(axes[4]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
@@ -95,7 +95,7 @@ const auto testCasesAxis_4 = ::testing::Combine(
 const auto testCasesAxis_5 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
         std::vector<std::vector<ov::Shape>>(shapes_static.begin() + 5, shapes_static.end()))),
-    ::testing::ValuesIn(inputPrecision),
+    ::testing::ValuesIn(model_types),
     ::testing::Values(axes[5]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
@@ -105,7 +105,7 @@ const auto testCasesAxis_5 = ::testing::Combine(
 const auto testCasesAxis_6 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
         std::vector<std::vector<ov::Shape>>(shapes_static.begin() + 6, shapes_static.end()))),
-    ::testing::ValuesIn(inputPrecision),
+    ::testing::ValuesIn(model_types),
     ::testing::Values(axes[6]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),

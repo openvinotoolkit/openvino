@@ -14,7 +14,7 @@ namespace test {
 
 typedef std::tuple<
         std::vector<InputShape>,     // Input shapes
-        ov::element::Type,           // Input precision
+        ov::element::Type,           // Model type
         int64_t,                     // Axis
         bool,                        // Exclusive
         bool,                        // Reverse

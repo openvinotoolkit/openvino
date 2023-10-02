@@ -15,7 +15,7 @@ namespace ov {
 namespace test {
 using depthToSpaceParamsTuple = typename std::tuple<
         std::vector<InputShape>,                        // Input shape
-        ov::element::Type,                              // Input precision
+        ov::element::Type,                              // Model type
         ov::op::v0::DepthToSpace::DepthToSpaceMode,     // Mode
         std::size_t,                                    // Block size
         std::string>;                                   // Device name>
