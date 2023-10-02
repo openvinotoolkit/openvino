@@ -406,13 +406,11 @@ jobs:
         - /mount/caches:/mount/caches
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
@@ -421,11 +419,6 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
 
     steps:
-
-      - name: Install git
-        run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates  
 
       - name: Fetch install_build_dependencies.sh
         uses: actions/checkout@v4
@@ -452,25 +445,21 @@ jobs:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO packages
+      - name: Extract OpenVINO package
         run: |
           pushd ${INSTALL_DIR}
             tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz
-          popd
-          pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz
           popd
           
           ls -laR ${INSTALL_DIR}
 
       - name: Install OpenVINO dependencies
-        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=gpu -y
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone ONNX Runtime
         run: |
