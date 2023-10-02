@@ -59,7 +59,7 @@ class TestTSmall(PytorchLayerTest):
 
     def create_model(self, mode):
         class aten_transpose(torch.nn.Module):
-            def __init__(self, inplace):
+            def __init__(self, mode):
                 super(aten_transpose, self).__init__()
                 if mode == "inplace":
                     self.forward = self.forward_inplace
