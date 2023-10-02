@@ -394,15 +394,11 @@ void loop_inst::update_mapped_memory() {
 
 event::ptr loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx) {
     auto ev = primitive_inst::set_output_memory(mem, check, idx);
-    if (mem == nullptr) {
-        std::cout << "loop_inst::set_output_memory : " << mem << std::endl;
-        std::cout << "loop_inst::set_output_memory : " << mem->get_layout().to_short_string() << std::endl;
-    }
     update_mapped_memory();
     return ev;
 }
 
-void loop_inst::preprocess_output_memory(const int64_t num_iterations) {
+void loop_inst::preprocess_output_memory(const int64_t trip_count) {
     concatenated_output_mem_mappings.reserve(_output_primitive_maps.size());
     for (size_t i = 0; i < _output_primitive_maps.size(); ++i) {
         const auto& output_mapping = _output_primitive_maps.at(i);
@@ -422,8 +418,8 @@ void loop_inst::preprocess_output_memory(const int64_t num_iterations) {
                 layout sliced_layout = output_prim->output_memory(internal_id.idx).get_layout();
 
                 std::vector<memory::ptr> sliced_mems;
-                sliced_mems.reserve(num_iterations);
-                for (int32_t j = 0; j < num_iterations; ++j) {
+                sliced_mems.reserve(trip_count);
+                for (int32_t j = 0; j < trip_count; ++j) {
                     memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
                     sliced_mems.push_back(sliced_mem);
                 }
@@ -431,7 +427,7 @@ void loop_inst::preprocess_output_memory(const int64_t num_iterations) {
                 const int64_t num_elements_batch = concatenated_memory_mapping::get_batch_size(
                     sliced_layout, output_mapping.axis);
                 const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
-                const int64_t start = output_mapping.start < 0? num_iterations - 1: output_mapping.start;
+                const int64_t start = output_mapping.start < 0? trip_count - 1: output_mapping.start;
                 auto memory_mapping_info = std::make_shared<concatenated_memory_mapping>(
                                                 output_mapping.axis, std::move(memory), sliced_mems, _network.get_stream(),
                                                 _network.get_engine(), num_elements_iteration, output_mapping.stride, start);
@@ -444,7 +440,7 @@ void loop_inst::preprocess_output_memory(const int64_t num_iterations) {
             if (output_mapping.axis >= 0) {
                 // In dynamic model, we can't calculate num_element_iteration, start, and sliced_layout.
                 // will recalculate that parameters in backedge preprocessing map after first execution.
-                const int64_t start = output_mapping.start < 0? num_iterations - 1: output_mapping.start;
+                const int64_t start = output_mapping.start < 0? trip_count - 1: output_mapping.start;
                 // Can't calculate num_elements_iteration now, update num_elements_iteration after execution
                 auto concat_output_memory_mapping = std::make_shared<concatenated_memory_mapping>(
                                                 output_mapping.axis, nullptr, std::vector<memory::ptr>{}, _network.get_stream(),
@@ -459,7 +455,7 @@ void loop_inst::preprocess_output_memory(const int64_t num_iterations) {
     }
 }
 
-void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
+void loop_inst::preprocess_input_memory(const int64_t trip_count) {
     auto& engine = _network.get_engine();
     auto& iteration_mem = concatenated_input_mem_mappings;
     for (size_t memory_num = 0; memory_num < inputs_memory_count(); memory_num++) {
@@ -490,12 +486,12 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
                 layout sliced_layout
                     = body_network->get_primitive(internal_id.pid)->output_memory(internal_id.idx).get_layout();
                 std::vector<memory::ptr> sliced_mems;
-                if (num_iterations < 0) {
+                if (trip_count < 0) {
                     memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
                     sliced_mems.push_back(sliced_mem);
                 } else {
-                    sliced_mems.reserve(num_iterations);
-                    for (int j=0; j < num_iterations; ++j) {
+                    sliced_mems.reserve(trip_count);
+                    for (int j=0; j < trip_count; ++j) {
                         memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
                         sliced_mems.push_back(sliced_mem);
                     }
@@ -503,7 +499,7 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
                 const int64_t num_elements_batch = concatenated_memory_mapping::get_batch_size(
                     sliced_layout, input_map->axis);
                 const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
-                const int64_t start = input_map->start < 0? num_iterations - 1: input_map->start;
+                const int64_t start = input_map->start < 0? trip_count - 1: input_map->start;
                 // When max_iteration is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
                 auto concatenated_input_mem_mapping_info = std::make_shared<concatenated_memory_mapping>(
                                                                 input_map->axis, memory, sliced_mems, _network.get_stream(),
@@ -513,15 +509,14 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
                 GPU_DEBUG_LOG << i << ") input mapping - concat output memory mapping: "
                                 << concatenated_input_mem_mapping_info->to_string() << std::endl;
             } else {
-                body_network->set_input_data(internal_id.pid, memory);
                 auto input_inst = body_network->get_primitive(internal_id.pid);
-
                 if (memory->get_layout() != input_inst->get_output_layout()) {
                     input_inst->set_output_layout(memory->get_layout());
                     GPU_DEBUG_LOG << input_inst->id() << " is changed memory because layout is changed from "
                                         << input_inst->get_output_layout().to_short_string()
                                         << " to " << memory->get_layout().to_short_string() << std::endl;
                 }
+                body_network->set_input_data(internal_id.pid, memory);
             }
         }
     }
@@ -690,7 +685,7 @@ void loop_inst::load(BinaryInputBuffer& ib) {
     body_network = std::make_shared<cldnn::network>(ib, get_network().get_stream_ptr(), get_network().get_engine(), get_network().is_primary_stream(), 0);
 }
 
-void loop_inst::restore_output_memory() {
+void loop_inst::postprocess_output_memory() {
     for (size_t i = 0; i < _output_primitive_maps.size(); ++i) {
         const auto& output_mapping = _output_primitive_maps.at(i);
         const auto& external_id = output_mapping.external_id;

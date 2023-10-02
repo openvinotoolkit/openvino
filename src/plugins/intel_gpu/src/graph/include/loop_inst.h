@@ -403,7 +403,7 @@ public:
     void update_input_mapped_memory();
     void update_output_mapped_memory();
     void update_backedge_mapped_memory();
-    void restore_output_memory();
+    void postprocess_output_memory();
     event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     void reset_memory();
 

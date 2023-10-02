@@ -38,6 +38,15 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
 event::ptr input_layout_inst::set_data(memory::ptr mem) {
     auto ol = get_node_output_layout();
 
+    // when inner network has 1d parameter which is connected to outer loop's constant 1d data,
+    // outer constant 1d data and inner 1d parameter has same bytes_count but layout is different
+    // (outer constant is [1, N, 1, 1] but inner parameter is [N, 1, 1, 1]).
+    // To pass check_memory_to_set for this case, update ol using get_output_layout after update impl_params.output_layout
+    // using network.set_input_layout().
+    if (!ol.is_dynamic() && (ol.bytes_count() == mem->get_layout().bytes_count())) {
+        ol = get_output_layout();
+    }
+
     check_memory_to_set(*mem, ol);
     event::ptr ev = nullptr;
     auto& engine = get_network().get_engine();
