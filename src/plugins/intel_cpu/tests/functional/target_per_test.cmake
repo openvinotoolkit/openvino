@@ -17,6 +17,17 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
     ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/fusing_test_utils.cpp
   )
 
+  message(FATAL_ERROR ${X86_64})
+  if(X86_64)
+    message(FATAL_ERROR "248")
+    list(APPEND REQUIRED_OBJECT_FILES
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64/filter_cpu_info.cpp)
+  elseif(ARM OR AARCH64)
+    message(FATAL_ERROR "123")
+    list(APPEND REQUIRED_OBJECT_FILES
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/arm/filter_cpu_info.cpp)
+  endif()
+
   file(GLOB LIST_OF_TEST_FILES ${TEST_DIR}/*.cpp)
   # create targed for each test file in directory
   foreach(TEST_FILE ${LIST_OF_TEST_FILES})
