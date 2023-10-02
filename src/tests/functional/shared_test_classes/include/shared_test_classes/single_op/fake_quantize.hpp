@@ -11,17 +11,6 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-// seed selected using current cloc time
-#define USE_CLOCK_TIME 1
-// seed started from default value, and incremented every time using big number like 9999
-#define USE_INCREMENTAL_SEED 2
-
-/**
- * redefine this seed to reproduce issue with given seed that can be read from gtest logs
- */
-#define BASE_SEED   123
-#define OV_SEED 123
-
 namespace ov {
 namespace test {
 typedef std::tuple<
@@ -43,10 +32,6 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSet>& obj);
 protected:
     void SetUp() override;
-
-    void update_seed();
-
-    int32_t  seed = 1;
 };
 }  // namespace test
 }  // namespace ov

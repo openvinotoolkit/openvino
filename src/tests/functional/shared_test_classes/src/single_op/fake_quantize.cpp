@@ -66,17 +66,9 @@ void FakeQuantizeLayerTest::SetUp() {
     }
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    update_seed();
-
     std::shared_ptr<ov::Node> fq;
     if (fq_direct_arg.empty()) {
-        int32_t ov_seed = seed;
-        if (OV_SEED != USE_CLOCK_TIME) {
-            ov_seed = OV_SEED;
-        }
-        std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
-                  << "ov_seed = " << ov_seed << std::endl;
-        fq = ngraph::builder::makeFakeQuantize(param, model_type, levels, const_shape, ov_seed);
+        fq = ngraph::builder::makeFakeQuantize(param, model_type, levels, const_shape, 1);
     } else {
         fq = ngraph::builder::makeFakeQuantize(
             param,
@@ -91,18 +83,6 @@ void FakeQuantizeLayerTest::SetUp() {
 
     auto result = std::make_shared<ov::op::v0::Result>(fq);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "fakeQuantize");
-}
-
-void FakeQuantizeLayerTest::update_seed() {
-    if (BASE_SEED == USE_CLOCK_TIME) {
-        seed = std::chrono::system_clock::now().time_since_epoch().count();
-    } else if (BASE_SEED == USE_INCREMENTAL_SEED) {
-        seed += 9999;
-    } else {
-        seed = BASE_SEED;
-    }
-    std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
-              << "seed = " << seed << std::endl;
 }
 }  // namespace test
 }  // namespace ov
