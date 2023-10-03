@@ -18,8 +18,8 @@ ov::op::util::BinaryElementwiseBitwise::BinaryElementwiseBitwise(const Output<No
 void ov::op::util::BinaryElementwiseBitwise::validate_and_infer_types() {
     OV_OP_SCOPE(v0_util_BinaryElementwiseBitwise_validate_and_infer_types);
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
+    const auto& args_et = std::get<0>(args_et_pshape);
+    const auto& args_pshape = std::get<1>(args_et_pshape);
 
     NODE_VALIDATION_CHECK(this,
                           args_et.is_dynamic() || args_et.is_integral(),
@@ -32,4 +32,10 @@ bool ov::op::util::BinaryElementwiseBitwise::visit_attributes(AttributeVisitor& 
     OV_OP_SCOPE(v0_util_BinaryElementwiseBitwise_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
+}
+const ov::op::AutoBroadcastSpec& ov::op::util::BinaryElementwiseBitwise::get_autob() const {
+    return m_autob;
+}
+void ov::op::util::BinaryElementwiseBitwise::set_autob(const AutoBroadcastSpec& autob) {
+    m_autob = autob;
 }

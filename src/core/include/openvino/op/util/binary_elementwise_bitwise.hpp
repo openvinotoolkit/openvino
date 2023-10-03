@@ -28,12 +28,9 @@ public:
 
     void validate_and_infer_types() override;
 
-    const AutoBroadcastSpec& get_autob() const override {
-        return m_autob;
-    }
-    void set_autob(const AutoBroadcastSpec& autob) {
-        m_autob = autob;
-    }
+    virtual const AutoBroadcastSpec& get_autob() const override;
+
+    void set_autob(const AutoBroadcastSpec& autob);
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:

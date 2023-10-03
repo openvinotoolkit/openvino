@@ -18,8 +18,8 @@ bool evaluate(const std::shared_ptr<ov::op::v13::BitwiseXor>& node,
     OPENVINO_ASSERT(outputs.size() == 1);
     outputs[0].set_shape(infer_broadcast_shape(node.get(), inputs[0].get_shape(), inputs[1].get_shape()));
     using T = typename ov::element_type_traits<ET>::value_type;
-    ov::reference::bitwise_xor(inputs[0].data<T>(),
-                               inputs[1].data<T>(),
+    ov::reference::bitwise_xor(inputs[0].data<const T>(),
+                               inputs[1].data<const T>(),
                                outputs[0].data<T>(),
                                inputs[0].get_shape(),
                                inputs[1].get_shape(),
