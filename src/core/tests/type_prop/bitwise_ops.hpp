@@ -408,19 +408,13 @@ TYPED_TEST_P(BitwiseOperator, dynamic_shape_intervals_b_rank_smaller_broadcast_n
 
 TYPED_TEST_P(BitwiseOperator, dynamic_shape_intervals_broadcast_pdpd) {
     {  // Equal rank
-        auto lhs =
-            std::make_shared<Parameter>(element::i32, PartialShape{{1, 3}, {2, 7}, {1, 6}, /* {6, -1}, */ -1, 8});
-        auto rhs = std::make_shared<Parameter>(element::i32, PartialShape{{1, 3}, {2, 7}, 1, /* 1, */ -1, 8});
+        auto lhs = std::make_shared<Parameter>(element::i32, PartialShape{{1, 3}, {2, 7}, {1, 6}, {6, -1}, -1, 8});
+        auto rhs = std::make_shared<Parameter>(element::i32, PartialShape{{1, 3}, {2, 7}, 1, 1, -1, 8});
 
         const auto op = this->make_op(lhs, rhs, op::AutoBroadcastType::PDPD);
 
         EXPECT_EQ(op->get_element_type(), element::i32);
-        EXPECT_EQ(op->get_output_partial_shape(0),
-                  (PartialShape{{1, 3},
-                                {2, 7},
-                                {1, 6},
-                                /* {6, -1}, */ -1,
-                                8}));
+        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{1, 3}, {2, 7}, {1, 6}, {6, -1}, -1, 8}));
     }
     {  // `lhs` rank smaller
         auto lhs =
