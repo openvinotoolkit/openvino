@@ -31,13 +31,13 @@ def part0():
     compiled_model = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={device.priorities(): "GPU,CPU"},
+        config={device.priorities: "GPU,CPU"},
     )
 
     # Optional
     # the AUTO plugin is pre-configured (globally) with the explicit option:
     core.set_property(
-        device_name="AUTO", properties={device.priorities(): "GPU,CPU"}
+        device_name="AUTO", properties={device.priorities: "GPU,CPU"}
     )
     #! [part0]
 
@@ -60,13 +60,13 @@ def part1():
     exec_net = ie.load_network(
         network=net,
         device_name="AUTO",
-        config={device.priorities(): "GPU,CPU"},
+        config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"},
     )
 
     # Optional
     # the AUTO plugin is pre-configured (globally) with the explicit option:
     ie.set_config(
-        config={device.priorities(): "GPU,CPU"}, device_name="AUTO"
+        config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"}, device_name="AUTO"
     )
     #! [part1]
 
@@ -81,7 +81,7 @@ def part3():
         model=model,
         device_name="AUTO",
         config={
-            hints.performance_mode(): hints.PerformanceMode.THROUGHPUT
+            hints.performance_mode: hints.PerformanceMode.THROUGHPUT
         },
     )
     # To use the “LATENCY” mode:
@@ -89,7 +89,7 @@ def part3():
         model=model,
         device_name="AUTO",
         config={
-            hints.performance_mode(): hints.PerformanceMode.LATENCY
+            hints.performance_mode: hints.PerformanceMode.LATENCY
         },
     )
     # To use the “CUMULATIVE_THROUGHPUT” mode:
@@ -97,7 +97,7 @@ def part3():
         model=model,
         device_name="AUTO",
         config={
-            hints.performance_mode(): hints.PerformanceMode.CUMULATIVE_THROUGHPUT
+            hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT
         },
     )
     #! [part3]
@@ -111,19 +111,19 @@ def part4():
     compiled_model0 = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={hints.model_priority(): hints.Priority.HIGH},
+        config={hints.model_priority: hints.Priority.HIGH},
     )
     compiled_model1 = core.compile_model(
         model=model,
         device_name="AUTO",
         config={
-            hints.model_priority(): hints.Priority.MEDIUM
+            hints.model_priority: hints.Priority.MEDIUM
         },
     )
     compiled_model2 = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={hints.model_priority(): hints.Priority.LOW},
+        config={hints.model_priority: hints.Priority.LOW},
     )
     # Assume that all the devices (CPU and GPUs) can support all the networks.
     # Result: compiled_model0 will use GPU.1, compiled_model1 will use GPU.0, compiled_model2 will use CPU.
@@ -132,19 +132,19 @@ def part4():
     compiled_model3 = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={hints.model_priority(): hints.Priority.HIGH},
+        config={hints.model_priority: hints.Priority.HIGH},
     )
     compiled_model4 = core.compile_model(
         model=model,
         device_name="AUTO",
         config={
-            hints.model_priority(): hints.Priority.MEDIUM
+            hints.model_priority: hints.Priority.MEDIUM
         },
     )
     compiled_model5 = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={hints.model_priority(): hints.Priority.LOW},
+        config={hints.model_priority: hints.Priority.LOW},
     )
     # Assume that all the devices (CPU ang GPUs) can support all the networks.
     # Result: compiled_model3 will use GPU.1, compiled_model4 will use GPU.1, compiled_model5 will use GPU.0.
@@ -169,12 +169,12 @@ def part6():
     compiled_model = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={log.level(): log.Level.DEBUG},
+        config={log.level: log.Level.DEBUG},
     )
     # set log level with set_property and compile model
     core.set_property(
         device_name="AUTO",
-        properties={log.level(): log.Level.DEBUG},
+        properties={log.level: log.Level.DEBUG},
     )
     compiled_model = core.compile_model(model=model, device_name="AUTO")
     #! [part6]
@@ -187,7 +187,7 @@ def part7():
     # compile a model on AUTO and set log level to debug
     compiled_model = core.compile_model(model=model, device_name="AUTO")
     # query the runtime target devices on which the inferences are being executed
-    execution_devices = compiled_model.get_property(properties.execution_devices())
+    execution_devices = compiled_model.get_property(properties.execution_devices)
     #! [part7]
 
 
