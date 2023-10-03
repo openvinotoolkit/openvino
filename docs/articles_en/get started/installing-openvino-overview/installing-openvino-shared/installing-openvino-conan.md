@@ -10,7 +10,7 @@
    
    Note that the Conan Package Manager distribution:
 
-   * is dedicated to users of all OSs (Windows, Linux, macOS, Solaris, FreeBSD, etc.)
+   * is dedicated to users of all major OSs: Windows, Linux, macOS
    * it can be used for any existing platfrom: desktop, mobile, embbeded, servers, bare metal, etc.
    * can manage any compiler in any of their versions.
    * OpenVINO™ is included in the Conan Center Index - registry with the software packages.
