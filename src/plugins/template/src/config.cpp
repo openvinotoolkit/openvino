@@ -54,6 +54,10 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                 num_requests = tmp_i;
             else
                 OPENVINO_THROW("Incorrect value, it should be unsigned integer: ", key);
+        } else if (ov::log::level == key) {
+            log_level = value.as<ov::log::Level>();
+        } else if (ov::hint::model_priority == key) {
+            model_priority = value.as<ov::hint::Priority>();
         } else if (throwOnUnsupported) {
             OPENVINO_THROW("Property was not found: ", key);
         }
@@ -90,6 +94,10 @@ ov::Any Configuration::Get(const std::string& name) const {
         return execution_mode;
     } else if (name == ov::hint::num_requests) {
         return num_requests;
+    } else if (name == ov::log::level) {
+        return log_level;
+    } else if (name == ov::hint::model_priority) {
+        return model_priority;
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
