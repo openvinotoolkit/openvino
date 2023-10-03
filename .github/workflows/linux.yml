@@ -469,7 +469,7 @@ jobs:
             -d=${TEST_DEVICE} \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR} \
-            -f=${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
+            -f=${CONFORMANCE_TOOLS_DIR}/skip_configs/${TEST_DEVICE}/expected_failures_${{ matrix.TEST_TYPE }}.csv
 
       - name: Pack Conformance Artifacts
         if: ${{ always() }}
