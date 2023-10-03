@@ -42,7 +42,8 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      BUILD_DIR: /__w/openvino/openvino/openvino_build
+      OV_BUILD_DIR: /__w/openvino/openvino/openvino_build
+      NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
       DEBIAN_FRONTEND: 'noninteractive'
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
@@ -119,21 +120,20 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_MINIMUM_REQUIRED_VERSION=3.20 \
             -S ${OPENVINO_REPO} \
-            -B ${BUILD_DIR}
+            -B ${OV_BUILD_DIR}
 
-      - name: Build
+      - name: Build - OpenVINO
         run: |
-          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
+          cmake --build ${OV_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
-      - name: Cmake & Build - CUDA Plugin
+      - name: Cmake & Build - NVIDIA Plugin
         run: |
           cmake \
-            -DBUILD_nvidia_plugin=ON \
-            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules/nvidia_plugin \
+            -DOpenVINODeveloperPackage_DIR=${OV_BUILD_DIR} \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-            -S ${OPENVINO_REPO} \
-            -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
+            -S ${OPENVINO_CONTRIB_REPO}/modules/nvidia_plugin \
+            -B ${NVIDIA_BUILD_DIR}
+          cmake --build ${NVIDIA_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
 
       - name: Show ccache stats
         run: ccache --show-stats
