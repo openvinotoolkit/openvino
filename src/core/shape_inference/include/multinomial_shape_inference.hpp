@@ -21,7 +21,7 @@ std::vector<TRShape> shape_infer(const Multinomial* op,
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            input_shape.rank().compatible(1) || input_shape.rank().compatible(2),
-                           "The rank of the 'input' tensor defining output shape must be either 1 or 2.");
+                           "The rank of the 'probs' tensor defining output shape must be either 1 or 2.");
 
     const auto& num_samples_shape = input_shapes[1];
     NODE_SHAPE_INFER_CHECK(op,

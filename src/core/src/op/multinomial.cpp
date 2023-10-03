@@ -117,7 +117,7 @@ namespace validate {
 void input_types(const Node* op) {
     NODE_VALIDATION_CHECK(op,
                           op->get_input_element_type(0).is_real(),
-                          "Expected floating point type as element type for the 'input' input.");
+                          "Expected floating point type as element type for the 'probs' input.");
 
     NODE_VALIDATION_CHECK(op,
                           op->get_input_element_type(1).is_integral_number(),
