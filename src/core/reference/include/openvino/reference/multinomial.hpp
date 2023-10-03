@@ -127,7 +127,7 @@ void multinomial(const T* probs,
             auto sample_value = uniform_samples[i + j];
             for (size_t k = 0; k < class_size; ++k) {
                 if (sample_value <= cdf[i_translated + k]) {
-                    output_samples[i + j] = k;
+                    output_samples[i + j] = static_cast<U>(k);
                     selected_class_idx = k;
                     break;
                 }
