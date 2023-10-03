@@ -34,7 +34,7 @@ struct experimental_detectron_prior_grid_generator_test
     : public ::testing::TestWithParam<ExperimentalDetectronPriorGridGeneratorParams<T>> {
 public:
     void test() {
-        auto data_type = type_to_data_type<T>::value;
+        auto data_type = ov::element::from<T>();
         ExperimentalDetectronPriorGridGeneratorParams<T> params =
             testing::TestWithParam<ExperimentalDetectronPriorGridGeneratorParams<T>>::GetParam();
         auto& engine = get_test_engine();
@@ -213,7 +213,7 @@ struct PrintToStringParamName {
 };
 
 using experimental_detectron_prior_grid_generator_test_f32 = experimental_detectron_prior_grid_generator_test<float>;
-using experimental_detectron_prior_grid_generator_test_f16 = experimental_detectron_prior_grid_generator_test<half_t>;
+using experimental_detectron_prior_grid_generator_test_f16 = experimental_detectron_prior_grid_generator_test<ov::float16>;
 
 TEST_P(experimental_detectron_prior_grid_generator_test_f32, experimental_detectron_prior_grid_generator_test_f32) {
     ASSERT_NO_FATAL_FAILURE(test());
@@ -230,10 +230,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_experimental_detectron_prior_grid_generator_test_
 
 INSTANTIATE_TEST_SUITE_P(smoke_experimental_detectron_prior_grid_generator_test_f16,
                          experimental_detectron_prior_grid_generator_test_f16,
-                         ::testing::ValuesIn(generateExperimentalPGGParams<half_t>()),
+                         ::testing::ValuesIn(generateExperimentalPGGParams<ov::float16>()),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(export_import,
                          experimental_detectron_prior_grid_generator_test_f16,
-                         ::testing::Values(generateExperimentalPGGParams<half_t>(true)[0]),
+                         ::testing::Values(generateExperimentalPGGParams<ov::float16>(true)[0]),
                          PrintToStringParamName());

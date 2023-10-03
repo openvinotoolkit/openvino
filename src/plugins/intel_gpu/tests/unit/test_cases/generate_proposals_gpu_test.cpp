@@ -162,7 +162,7 @@ float getError<float>() {
 }
 
 template<>
-float getError<half_t>() {
+float getError<ov::float16>() {
     return 0.2;
 }
 
@@ -286,8 +286,8 @@ public:
         std::tie(param, data_layout, is_caching_test) = this->GetParam();
         const bool need_reorder = data_layout != format::bfyx;
 
-        const auto data_type = type_to_data_type<T>::value;
-        const auto rois_num_type = type_to_data_type<ROIS_NUM_T>::value;
+        const auto data_type = ov::element::from<T>();
+        const auto rois_num_type = ov::element::from<ROIS_NUM_T>();
 
         auto& engine = get_test_engine();
         std::shared_ptr<cldnn::stream> stream = get_test_stream_ptr();;
@@ -442,7 +442,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(false)
         ));
 
-using f16_i32 = generate_proposals_test<half_t, int32_t>;
+using f16_i32 = generate_proposals_test<ov::float16, int32_t>;
 TEST_P(f16_i32, f16_i32) {
     test();
 }
@@ -450,12 +450,12 @@ INSTANTIATE_TEST_SUITE_P(
         generate_proposals_gpu_test,
         f16_i32,
         ::testing::Combine(
-                ::testing::ValuesIn(getGenerateProposalsParams<half_t>()),
+                ::testing::ValuesIn(getGenerateProposalsParams<ov::float16>()),
                 ::testing::ValuesIn(layouts),
                 ::testing::Values(false)
         ));
 
-using f16_i64 = generate_proposals_test<half_t, int64_t>;
+using f16_i64 = generate_proposals_test<ov::float16, int64_t>;
 TEST_P(f16_i64, f16_i64) {
     test();
 }
@@ -463,7 +463,7 @@ INSTANTIATE_TEST_SUITE_P(
         generate_proposals_gpu_test,
         f16_i64,
         ::testing::Combine(
-                ::testing::ValuesIn(getGenerateProposalsParams<half_t>()),
+                ::testing::ValuesIn(getGenerateProposalsParams<ov::float16>()),
                 ::testing::ValuesIn(layouts),
                 ::testing::Values(false)
         ));
@@ -472,7 +472,7 @@ INSTANTIATE_TEST_SUITE_P(
         export_import_generate_proposals_gpu_test,
         f16_i64,
         ::testing::Combine(
-                ::testing::Values(getGenerateProposalsParams<half_t>()[0]),
+                ::testing::Values(getGenerateProposalsParams<ov::float16>()[0]),
                 ::testing::Values(layouts[0]),
                 ::testing::Values(true)
         ));

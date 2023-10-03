@@ -415,7 +415,7 @@ struct input_data_type {
 
 template <>
 struct input_data_type <data_types::f16> {
-    using type = FLOAT16;
+    using type = ov::float16;
 };
 
 template <>
@@ -435,7 +435,7 @@ struct output_data_type {
 
 template <>
 struct output_data_type<data_types::f16> {
-    using type = FLOAT16;
+    using type = ov::float16;
 };
 
 template <>
@@ -1774,7 +1774,7 @@ TEST(reduce_gpu, b_fs_yx_fsv16_max_dynamic) {
 
     topology.add(input_layout("input", in_layout));
     topology.add(reorder("reorder", input_info("input"), used_layout));
-    topology.add(reduce("reduce", input_info("reorder"), reduce_mode::max, {1}, 0)); 
+    topology.add(reduce("reduce", input_info("reorder"), reduce_mode::max, {1}, 0));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

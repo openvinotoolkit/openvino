@@ -165,12 +165,12 @@ INSTANTIATE_TEST_SUITE_P(negative_pads,
                                           testing::Values(true),
                                           testing::Values(false)));
 
-using border_test_f16 = border_test<FLOAT16, data_types::f16>;
+using border_test_f16 = border_test<ov::float16, data_types::f16>;
 TEST_P(border_test_f16, border_test_f16) {}
 INSTANTIATE_TEST_SUITE_P(border_test_f16,
                          border_test_f16,
                          testing::Combine(testing::Values(ov::op::PadMode::REFLECT),
-                                          testing::Values(FLOAT16(123)),
+                                          testing::Values(ov::float16(123)),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
@@ -180,7 +180,7 @@ INSTANTIATE_TEST_SUITE_P(border_test_f16,
 INSTANTIATE_TEST_SUITE_P(export_import,
                          border_test_f16,
                          testing::Combine(testing::Values(ov::op::PadMode::REFLECT),
-                                          testing::Values(FLOAT16(123)),
+                                          testing::Values(ov::float16(123)),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
@@ -1830,7 +1830,7 @@ TEST(border_gpu, basic_zero_input_dynamic) {
     auto& engine = get_test_engine();
 
     // WA to avoid crash due to attempt to allocate 0 bytes for USM memory
-    layout fake_input_layout = {{1}, data_types::bin, format::bfyx};
+    layout fake_input_layout = {{1}, data_types::undefined, format::bfyx};
     auto input = engine.allocate_memory(fake_input_layout);
 
     layout zero_input_layout = {{0, 1}, data_types::f32, format::bfyx};
@@ -1878,7 +1878,7 @@ TEST(border_gpu, basic_zero_input) {
     auto& engine = get_test_engine();
 
     // WA to avoid crash due to attempt to allocate 0 bytes for USM memory
-    layout fake_input_layout = {{1}, data_types::bin, format::bfyx};
+    layout fake_input_layout = {{1}, data_types::u8, format::bfyx};
     auto input = engine.allocate_memory(fake_input_layout);
 
     layout zero_input_layout = {{0, 1}, data_types::f32, format::bfyx};

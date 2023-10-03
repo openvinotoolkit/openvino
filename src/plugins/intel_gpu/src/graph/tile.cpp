@@ -54,7 +54,7 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     auto repeats = desc->repeats;
     const auto data_accessor =
         MemoryAccessor(&impl_param.memory_deps, impl_param.prog->get_stream(), [&repeats, &repeats_shape](size_t port) {
-            return (port == 1 && repeats.data()) ? ov::Tensor(data_type_to_element_type(data_types::i64),
+            return (port == 1 && repeats.data()) ? ov::Tensor(ov::element::i64,
                                                               repeats_shape.to_shape(),
                                                               repeats.data())
                                                  : ov::Tensor();

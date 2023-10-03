@@ -49,7 +49,6 @@ topology generate_simple_branch (bool branch_true_false, const primitive_id& id,
 template < typename DataType>
 struct condition_data_types {
     using type = DataType;
-    static const data_types data_type = type_to_data_type<DataType>::value;
 };
 
 template <typename ConditionDataType>
@@ -69,7 +68,7 @@ public:
     void run_test() {
         auto& engine = get_test_engine();
 
-        auto dat_dt = ConditionDataType::data_type;
+        auto dat_dt = static_cast<ov::element::Type>(ov::element::from<typename ConditionDataType::type>());
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -140,7 +139,7 @@ public:
     }
 };
 
-using test_data_types = testing::Types<condition_data_types<FLOAT16>,
+using test_data_types = testing::Types<condition_data_types<ov::float16>,
                                     condition_data_types<float>>;
 
 TYPED_TEST_SUITE(condition_gpu_basic_test, test_data_types);

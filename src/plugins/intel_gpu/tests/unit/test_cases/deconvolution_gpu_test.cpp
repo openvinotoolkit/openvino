@@ -31,7 +31,7 @@ struct deconvolution_traits<int8_t> {
 };
 
 template <>
-struct deconvolution_traits<FLOAT16> {
+struct deconvolution_traits<ov::float16> {
     using accumulator_type = float;
 };
 
@@ -984,11 +984,11 @@ TYPED_TEST(deconvolution_basic, basic_f16_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pa
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    set_values(input, { FLOAT16(8.f), FLOAT16(0.5f),
-                        FLOAT16(6.f), FLOAT16(9.f),
+    set_values(input, { ov::float16(8.f), ov::float16(0.5f),
+                        ov::float16(6.f), ov::float16(9.f),
 
-                        FLOAT16(1.f), FLOAT16(3.f),
-                        FLOAT16(2.f), FLOAT16(4.f) });
+                        ov::float16(1.f), ov::float16(3.f),
+                        ov::float16(2.f), ov::float16(4.f) });
     set_values(weights, { -2.f, 2.f,
                           7.f, -0.5f});
     set_values(biases, { 1.0f });
@@ -1758,11 +1758,11 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    VVVVF<FLOAT16> input_rnd = rg.generate_random_4d<FLOAT16>(1, 32, 16, 16, -2, 2);
-    VF<FLOAT16> input_rnd_vec = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
-    VVVVF<FLOAT16> filter_rnd = rg.generate_random_4d<FLOAT16>(1, 32, 9, 9, -1, 1);
-    VF<FLOAT16> filter_rnd_vec = flatten_4d<FLOAT16>(format::bfyx, filter_rnd);
-    VF<FLOAT16> bias_rnd = rg.generate_random_1d<FLOAT16>(1, -1, 1);
+    VVVVF<ov::float16> input_rnd = rg.generate_random_4d<ov::float16>(1, 32, 16, 16, -2, 2);
+    VF<ov::float16> input_rnd_vec = flatten_4d<ov::float16>(format::bfyx, input_rnd);
+    VVVVF<ov::float16> filter_rnd = rg.generate_random_4d<ov::float16>(1, 32, 9, 9, -1, 1);
+    VF<ov::float16> filter_rnd_vec = flatten_4d<ov::float16>(format::bfyx, filter_rnd);
+    VF<ov::float16> bias_rnd = rg.generate_random_1d<ov::float16>(1, -1, 1);
     VF<float> filter_rnd_f32_vec, bias_f32_rnd;
 
     for (unsigned int i = 0; i < filter_rnd_vec.size(); i++)
@@ -1797,9 +1797,9 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
 
     auto outputs_ref = network_ref.execute();
     auto output_ref_prim = outputs_ref.at("plane_output").get_memory();
-    cldnn::mem_lock<FLOAT16> output_ref_ptr(output_ref_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ref_ptr(output_ref_prim, get_test_stream());
 
-    std::vector<FLOAT16> output_vec_ref;
+    std::vector<ov::float16> output_vec_ref;
     for (unsigned int i = 0; i < output_ref_prim->get_layout().count(); i++) {
         output_vec_ref.push_back(output_ref_ptr[i]);
     }
@@ -1821,7 +1821,7 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
     ASSERT_EQ(outputs_act.size(), size_t(1));
     ASSERT_EQ(outputs_act.begin()->first, "out");
     auto output_act_prim = outputs_act.begin()->second.get_memory();
-    cldnn::mem_lock<FLOAT16> output_act_ptr(output_act_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_act_ptr(output_act_prim, get_test_stream());
 
     std::vector<float> output_vec;
     for (unsigned int i = 0; i < output_act_prim->get_layout().count(); i++) {
@@ -1924,14 +1924,14 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     auto weights = engine.allocate_memory({ data_types::f16, format::oiyx,{ 1, 1, 2, 2 } });
     auto biases = engine.allocate_memory({ data_types::f16, format::bfyx,{ 1, 1, 1, 1 } });
 
-    set_values(input, { FLOAT16(8.f), FLOAT16(0.5f),
-                        FLOAT16(6.f), FLOAT16(9.f),
+    set_values(input, { ov::float16(8.f), ov::float16(0.5f),
+                        ov::float16(6.f), ov::float16(9.f),
 
-                        FLOAT16(1.f), FLOAT16(3.f),
-                        FLOAT16(2.f), FLOAT16(4.f) });
-    set_values(weights, { FLOAT16(-2.f), FLOAT16(2.f),
-                          FLOAT16(7.f), FLOAT16(-0.5f)});
-    set_values(biases, { FLOAT16(1.0f) });
+                        ov::float16(1.f), ov::float16(3.f),
+                        ov::float16(2.f), ov::float16(4.f) });
+    set_values(weights, { ov::float16(-2.f), ov::float16(2.f),
+                          ov::float16(7.f), ov::float16(-0.5f)});
+    set_values(biases, { ov::float16(1.0f) });
 
     topology topology(
             input_layout("input", input->get_layout()),
@@ -2412,14 +2412,14 @@ void test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1
     auto weights = engine.allocate_memory({ data_types::f16, format::bfyx,{ 2, 1, 2, 2 } });
     auto biases = engine.allocate_memory({ data_types::f16, format::bfyx,{ 1, 2, 1, 1 } });
 
-    set_values(input, { FLOAT16(8.f), FLOAT16(0.5f), FLOAT16(6.f), FLOAT16(9.f),
-                        FLOAT16(1.f), FLOAT16(3.f), FLOAT16(2.f), FLOAT16(4.f)
+    set_values(input, { ov::float16(8.f), ov::float16(0.5f), ov::float16(6.f), ov::float16(9.f),
+                        ov::float16(1.f), ov::float16(3.f), ov::float16(2.f), ov::float16(4.f)
                         });
     set_values(weights, {
-            FLOAT16(-2.f), FLOAT16(2.f), FLOAT16(7.f), FLOAT16(-0.5f),
-            FLOAT16(-4.f), FLOAT16(1.f), FLOAT16(-9.f), FLOAT16(-7.f)
+            ov::float16(-2.f), ov::float16(2.f), ov::float16(7.f), ov::float16(-0.5f),
+            ov::float16(-4.f), ov::float16(1.f), ov::float16(-9.f), ov::float16(-7.f)
     });
-    set_values(biases, { FLOAT16(1.0f), FLOAT16(-1.0f) });
+    set_values(biases, { ov::float16(1.0f), ov::float16(-1.0f) });
 
     topology topology(
             input_layout("input", input->get_layout()),
@@ -2544,8 +2544,8 @@ struct typed_comparator<float> {
 };
 
 template <>
-struct typed_comparator<FLOAT16> {
-    static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, FLOAT16 ref, FLOAT16 val) {
+struct typed_comparator<ov::float16> {
+    static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, ov::float16 ref, ov::float16 val) {
         double abs_error = std::abs(0.05 * (double)ref);
         return ::testing::internal::DoubleNearPredFormat(lhs_expr, rhs_expr, "5 percent", (double)ref, (double)val, abs_error);
     }
@@ -2652,8 +2652,8 @@ public:
                                                             type_test_ranges<WeightsT>::min,
                                                             type_test_ranges<WeightsT>::max);
 
-        auto in_layout = cldnn::layout(cldnn::type_to_data_type<InputT>::value, params.input_format, params.input_size);
-        auto wei_layout = cldnn::layout(cldnn::type_to_data_type<WeightsT>::value, params.weights_format, params.weights_size);
+        auto in_layout = cldnn::layout(ov::element::from<InputT>(), params.input_format, params.input_size);
+        auto wei_layout = cldnn::layout(ov::element::from<WeightsT>(), params.weights_format, params.weights_size);
 
         auto wei_mem = eng.allocate_memory(wei_layout);
         auto in_mem = eng.allocate_memory(in_layout);
@@ -2670,7 +2670,7 @@ public:
 
         if (params.with_bias) {
             auto bias_size = cldnn::tensor(feature(params.weights_size.batch[0] * params.weights_size.group[0]));
-            auto bias_lay = cldnn::layout(cldnn::type_to_data_type<OutputT>::value, cldnn::format::bfyx, bias_size);
+            auto bias_lay = cldnn::layout(ov::element::from<OutputT>(), cldnn::format::bfyx, bias_size);
             auto bias_mem = eng.allocate_memory(bias_lay);
             bias_data = rg.generate_random_1d<OutputT>(bias_lay.feature(), -1, 1);
             set_values(bias_mem, bias_data);
@@ -2763,7 +2763,7 @@ protected:
             run_typed_in<float>();
             break;
         case data_types::f16:
-            run_typed_in<FLOAT16>();
+            run_typed_in<ov::float16>();
             break;
         case data_types::i8:
             run_typed_in<int8_t>();
@@ -2795,7 +2795,7 @@ private:
             run_typed<InputT, WeightsT, float>();
             break;
         case data_types::f16:
-            run_typed<InputT, WeightsT, FLOAT16>();
+            run_typed<InputT, WeightsT, ov::float16>();
             break;
         default:
             break;
@@ -2810,7 +2810,7 @@ private:
             run_typed_in_wei<InputT, float>();
             break;
         case data_types::f16:
-            run_typed_in_wei<InputT, FLOAT16>();
+            run_typed_in_wei<InputT, ov::float16>();
             break;
         case data_types::i8:
             run_typed_in_wei<InputT, int8_t>();

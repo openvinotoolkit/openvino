@@ -24,7 +24,7 @@ namespace cldnn {
 inline std::string bool_to_str(bool cond) { return cond ? "true" : "false"; }
 
 inline std::string dt_to_str(data_types dt) {
-    return data_type_traits::name(dt);
+    return ov::element::Type(dt).to_string();
 }
 
 inline std::string fmt_to_str(format fmt) {

@@ -61,7 +61,7 @@ float getThreshold<float>(dft_type type) {
 }
 
 template <>
-float getThreshold<half_t>(dft_type type) {
+float getThreshold<ov::float16>(dft_type type) {
     if (type.direction == dft_direction::forward && type.mode == dft_mode::complex) {
         return 4e-2f;
     }
@@ -106,7 +106,7 @@ public:
 
         auto& engine = get_test_engine();
 
-        auto data_type = type_to_data_type<T>::value;
+        auto data_type = ov::element::from<T>();
         const layout data_layout(data_type, plain_format, tensor(plain_format, p.input_shape));
         auto input = engine.allocate_memory(data_layout);
         set_values(input, convert<T>(p.input_values));
@@ -146,7 +146,7 @@ public:
 
         std::ostringstream result;
         result << "InputShape=" << vec2str(p.input_shape) << "_";
-        result << "Precision=" << data_type_traits::name(type_to_data_type<T>::value) << "_";
+        result << "Precision=" << ov::element::Type(ov::element::from<T>()) << "_";
         result << "Axes=" << vec2str(p.axes) << "_";
         result << "SignalSize=" << vec2str(p.signal_size) << "_";
         result << "Inverse=" << (type.direction == dft_direction::inverse) << "_";
@@ -1990,13 +1990,13 @@ const std::vector<format> blocked_format_5d = {
 };
 
 using dft_gpu_test_float = dft_gpu_test<float>;
-using dft_gpu_test_half_t = dft_gpu_test<half_t>;
+using dft_gpu_test_float16 = dft_gpu_test<ov::float16>;
 
 TEST_P(dft_gpu_test_float, test) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
-TEST_P(dft_gpu_test_half_t, test) {
+TEST_P(dft_gpu_test_float16, test) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
@@ -2010,9 +2010,10 @@ TEST_P(dft_gpu_test_half_t, test) {
                                               testing::Values(false)),                          \
                              dft_gpu_test_##inputType::PrintToStringParamName);
 
+using ov::float16;
 #define INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(dftType, dimension) \
     INSTANTIATE_DFT_TEST_SUITE(dftType, dimension, float)         \
-    INSTANTIATE_DFT_TEST_SUITE(dftType, dimension, half_t)
+    INSTANTIATE_DFT_TEST_SUITE(dftType, dimension, float16)
 
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(DFT, 4d)
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(DFT, 5d)
@@ -2042,7 +2043,7 @@ TEST(dft_gpu_test, irdft_output_shape) {
     dft_params p = IRDFT_params_5d.front();
     auto& engine = get_test_engine();
 
-    auto data_type = type_to_data_type<T>::value;
+    auto data_type = ov::element::from<T>();
     const layout data_layout(data_type, plain_format_5d, tensor(plain_format_5d, p.input_shape));
     auto input = engine.allocate_memory(data_layout);
     set_values(input, convert<T>(p.input_values));

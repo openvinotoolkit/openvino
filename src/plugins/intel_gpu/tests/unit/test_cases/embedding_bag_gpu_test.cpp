@@ -27,11 +27,11 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16(-0.6f),
-            FLOAT16(-0.1f), FLOAT16(-0.4f),
-            FLOAT16(-1.9f), FLOAT16(-1.8f),
-            FLOAT16(-1.0f), FLOAT16(1.5f),
-            FLOAT16(0.8f), FLOAT16(-0.7f)
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
     });
     set_values<int32_t>(indices, {
             0, 2,
@@ -39,9 +39,9 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
             3, 4
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f),
-            FLOAT16(0.5f), FLOAT16(0.5f),
-            FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f),
+            ov::float16(0.5f), ov::float16(0.5f),
+            ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::packed_sum;
@@ -86,11 +86,11 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16(-0.6f),
-            FLOAT16(-0.1f), FLOAT16(-0.4f),
-            FLOAT16(-1.9f), FLOAT16(-1.8f),
-            FLOAT16(-1.0f), FLOAT16(1.5f),
-            FLOAT16(0.8f), FLOAT16(-0.7f)
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
     });
     set_values<int32_t>(indices, {
             0, 2,
@@ -161,11 +161,11 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
      * ]
      */
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16( 1.3f), FLOAT16( 0.5f), FLOAT16(-0.3f),
-            FLOAT16( 2.3f), FLOAT16( 1.3f), FLOAT16(-0.4f), FLOAT16(-0.7f),
-            FLOAT16( 3.3f), FLOAT16(-4.1f), FLOAT16( 2.1f), FLOAT16( 0.8f),
-            FLOAT16( 3.5f), FLOAT16(-5.7f), FLOAT16(-0.1f), FLOAT16( 0.3f),
-            FLOAT16( 0.3f), FLOAT16( 1.0f), FLOAT16( 2.3f), FLOAT16(-4.1f)
+            ov::float16(-0.2f), ov::float16( 1.3f), ov::float16( 0.5f), ov::float16(-0.3f),
+            ov::float16( 2.3f), ov::float16( 1.3f), ov::float16(-0.4f), ov::float16(-0.7f),
+            ov::float16( 3.3f), ov::float16(-4.1f), ov::float16( 2.1f), ov::float16( 0.8f),
+            ov::float16( 3.5f), ov::float16(-5.7f), ov::float16(-0.1f), ov::float16( 0.3f),
+            ov::float16( 0.3f), ov::float16( 1.0f), ov::float16( 2.3f), ov::float16(-4.1f)
     });
     set_values<int32_t>(indices, {
             0, 2,
@@ -173,9 +173,9 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
             3, 4
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f),
-            FLOAT16(0.5f), FLOAT16(0.5f),
-            FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f),
+            ov::float16(0.5f), ov::float16(0.5f),
+            ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::packed_sum;
@@ -279,16 +279,16 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
      * ]
      */
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16( 1.3f), FLOAT16( 0.5f), FLOAT16(-0.3f), FLOAT16( 0.4f), FLOAT16(-0.4f),
-            FLOAT16(-0.1f), FLOAT16( 1.0f), FLOAT16( 2.1f), FLOAT16( 0.7f), FLOAT16(-0.2f), FLOAT16(-0.7f),
-            FLOAT16( 1.9f), FLOAT16(-2.4f), FLOAT16( 3.4f), FLOAT16(-0.7f), FLOAT16(-0.4f), FLOAT16( 0.5f),
-            FLOAT16( 2.3f), FLOAT16( 1.3f), FLOAT16(-0.4f), FLOAT16(-0.7f), FLOAT16( 1.8f), FLOAT16(-0.9f),
-            FLOAT16( 1.5f), FLOAT16(-2.4f), FLOAT16( 4.2f), FLOAT16( 3.2f), FLOAT16(-0.6f), FLOAT16( 0.9f),
-            FLOAT16( 3.3f), FLOAT16(-4.1f), FLOAT16( 2.1f), FLOAT16( 0.8f), FLOAT16( 5.2f), FLOAT16(-2.5f),
-            FLOAT16( 0.8f), FLOAT16(-1.9f), FLOAT16( 0.7f), FLOAT16( 3.4f), FLOAT16(-3.3f), FLOAT16( 0.1f),
-            FLOAT16( 3.5f), FLOAT16(-5.7f), FLOAT16(-0.1f), FLOAT16( 0.3f), FLOAT16( 0.4f), FLOAT16( 3.3f),
-            FLOAT16( 6.1f), FLOAT16( 8.3f), FLOAT16( 0.4f), FLOAT16(-4.4f), FLOAT16(-5.2f), FLOAT16( 0.9f),
-            FLOAT16( 0.3f), FLOAT16( 1.0f), FLOAT16( 2.3f), FLOAT16(-4.1f), FLOAT16( 2.0f), FLOAT16(-5.7f)
+            ov::float16(-0.2f), ov::float16( 1.3f), ov::float16( 0.5f), ov::float16(-0.3f), ov::float16( 0.4f), ov::float16(-0.4f),
+            ov::float16(-0.1f), ov::float16( 1.0f), ov::float16( 2.1f), ov::float16( 0.7f), ov::float16(-0.2f), ov::float16(-0.7f),
+            ov::float16( 1.9f), ov::float16(-2.4f), ov::float16( 3.4f), ov::float16(-0.7f), ov::float16(-0.4f), ov::float16( 0.5f),
+            ov::float16( 2.3f), ov::float16( 1.3f), ov::float16(-0.4f), ov::float16(-0.7f), ov::float16( 1.8f), ov::float16(-0.9f),
+            ov::float16( 1.5f), ov::float16(-2.4f), ov::float16( 4.2f), ov::float16( 3.2f), ov::float16(-0.6f), ov::float16( 0.9f),
+            ov::float16( 3.3f), ov::float16(-4.1f), ov::float16( 2.1f), ov::float16( 0.8f), ov::float16( 5.2f), ov::float16(-2.5f),
+            ov::float16( 0.8f), ov::float16(-1.9f), ov::float16( 0.7f), ov::float16( 3.4f), ov::float16(-3.3f), ov::float16( 0.1f),
+            ov::float16( 3.5f), ov::float16(-5.7f), ov::float16(-0.1f), ov::float16( 0.3f), ov::float16( 0.4f), ov::float16( 3.3f),
+            ov::float16( 6.1f), ov::float16( 8.3f), ov::float16( 0.4f), ov::float16(-4.4f), ov::float16(-5.2f), ov::float16( 0.9f),
+            ov::float16( 0.3f), ov::float16( 1.0f), ov::float16( 2.3f), ov::float16(-4.1f), ov::float16( 2.0f), ov::float16(-5.7f)
     });
     set_values<int32_t>(indices, {
             0, 2,
@@ -296,9 +296,9 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
             3, 4
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f),
-            FLOAT16(0.5f), FLOAT16(0.5f),
-            FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f),
+            ov::float16(0.5f), ov::float16(0.5f),
+            ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::packed_sum;
@@ -379,11 +379,11 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16(-0.6f),
-            FLOAT16(-0.1f), FLOAT16(-0.4f),
-            FLOAT16(-1.9f), FLOAT16(-1.8f),
-            FLOAT16(-1.0f), FLOAT16(1.5f),
-            FLOAT16(0.8f), FLOAT16(-0.7f)
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
     });
     set_values<int32_t>(indices, {
             0, 2, 3, 4
@@ -392,7 +392,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
             0, 2, 2
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::offsets_sum;
@@ -443,11 +443,11 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16(-0.6f),
-            FLOAT16(-0.1f), FLOAT16(-0.4f),
-            FLOAT16(-1.9f), FLOAT16(-1.8f),
-            FLOAT16(-1.0f), FLOAT16(1.5f),
-            FLOAT16(0.8f), FLOAT16(-0.7f)
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
     });
     set_values<int32_t>(indices, {
             0, 2, 3, 4
@@ -456,7 +456,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
             0, 0, 2
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::offsets_sum;
@@ -508,11 +508,11 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16(-0.6f),
-            FLOAT16(-0.1f), FLOAT16(-0.4f),
-            FLOAT16(-1.9f), FLOAT16(-1.8f),
-            FLOAT16(-1.0f), FLOAT16(1.5f),
-            FLOAT16(0.8f), FLOAT16(-0.7f)
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
     });
     set_values<int32_t>(indices, {
             0, 2, 3, 4
@@ -521,7 +521,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
             0, 2, 4
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::offsets_sum;
@@ -570,11 +570,11 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16(-0.6f),
-            FLOAT16(-0.1f), FLOAT16(-0.4f),
-            FLOAT16(-1.9f), FLOAT16(-1.8f),
-            FLOAT16(-1.0f), FLOAT16(1.5f),
-            FLOAT16(0.8f), FLOAT16(-0.7f)
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
     });
     set_values<int32_t>(indices, {
             0, 2, 3, 4
@@ -675,16 +675,16 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
      * ]
      */
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16( 1.3f), FLOAT16( 0.5f), FLOAT16(-0.3f), FLOAT16( 0.4f), FLOAT16(-0.4f),
-            FLOAT16(-0.1f), FLOAT16( 1.0f), FLOAT16( 2.1f), FLOAT16( 0.7f), FLOAT16(-0.2f), FLOAT16(-0.7f),
-            FLOAT16( 1.9f), FLOAT16(-2.4f), FLOAT16( 3.4f), FLOAT16(-0.7f), FLOAT16(-0.4f), FLOAT16( 0.5f),
-            FLOAT16( 2.3f), FLOAT16( 1.3f), FLOAT16(-0.4f), FLOAT16(-0.7f), FLOAT16( 1.8f), FLOAT16(-0.9f),
-            FLOAT16( 1.5f), FLOAT16(-2.4f), FLOAT16( 4.2f), FLOAT16( 3.2f), FLOAT16(-0.6f), FLOAT16( 0.9f),
-            FLOAT16( 3.3f), FLOAT16(-4.1f), FLOAT16( 2.1f), FLOAT16( 0.8f), FLOAT16( 5.2f), FLOAT16(-2.5f),
-            FLOAT16( 0.8f), FLOAT16(-1.9f), FLOAT16( 0.7f), FLOAT16( 3.4f), FLOAT16(-3.3f), FLOAT16( 0.1f),
-            FLOAT16( 3.5f), FLOAT16(-5.7f), FLOAT16(-0.1f), FLOAT16( 0.3f), FLOAT16( 0.4f), FLOAT16( 3.3f),
-            FLOAT16( 6.1f), FLOAT16( 8.3f), FLOAT16( 0.4f), FLOAT16(-4.4f), FLOAT16(-5.2f), FLOAT16( 0.9f),
-            FLOAT16( 0.3f), FLOAT16( 1.0f), FLOAT16( 2.3f), FLOAT16(-4.1f), FLOAT16( 2.0f), FLOAT16(-5.7f)
+            ov::float16(-0.2f), ov::float16( 1.3f), ov::float16( 0.5f), ov::float16(-0.3f), ov::float16( 0.4f), ov::float16(-0.4f),
+            ov::float16(-0.1f), ov::float16( 1.0f), ov::float16( 2.1f), ov::float16( 0.7f), ov::float16(-0.2f), ov::float16(-0.7f),
+            ov::float16( 1.9f), ov::float16(-2.4f), ov::float16( 3.4f), ov::float16(-0.7f), ov::float16(-0.4f), ov::float16( 0.5f),
+            ov::float16( 2.3f), ov::float16( 1.3f), ov::float16(-0.4f), ov::float16(-0.7f), ov::float16( 1.8f), ov::float16(-0.9f),
+            ov::float16( 1.5f), ov::float16(-2.4f), ov::float16( 4.2f), ov::float16( 3.2f), ov::float16(-0.6f), ov::float16( 0.9f),
+            ov::float16( 3.3f), ov::float16(-4.1f), ov::float16( 2.1f), ov::float16( 0.8f), ov::float16( 5.2f), ov::float16(-2.5f),
+            ov::float16( 0.8f), ov::float16(-1.9f), ov::float16( 0.7f), ov::float16( 3.4f), ov::float16(-3.3f), ov::float16( 0.1f),
+            ov::float16( 3.5f), ov::float16(-5.7f), ov::float16(-0.1f), ov::float16( 0.3f), ov::float16( 0.4f), ov::float16( 3.3f),
+            ov::float16( 6.1f), ov::float16( 8.3f), ov::float16( 0.4f), ov::float16(-4.4f), ov::float16(-5.2f), ov::float16( 0.9f),
+            ov::float16( 0.3f), ov::float16( 1.0f), ov::float16( 2.3f), ov::float16(-4.1f), ov::float16( 2.0f), ov::float16(-5.7f)
     });
     set_values<int32_t>(indices, {
             0, 2, 3, 4
@@ -693,8 +693,8 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
             0, 2, 2
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f),
-            FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f),
+            ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::offsets_sum;
@@ -777,11 +777,11 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16(-0.6f),
-            FLOAT16(-0.1f), FLOAT16(-0.4f),
-            FLOAT16(-1.9f), FLOAT16(-1.8f),
-            FLOAT16(-1.0f), FLOAT16(1.5f),
-            FLOAT16(0.8f), FLOAT16(-0.7f)
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
     });
     set_values<int32_t>(indices, {
             0, 2, 3, 4
@@ -790,7 +790,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
             0, 0, 2, 2
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::segments_sum;
@@ -842,11 +842,11 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16(-0.6f),
-            FLOAT16(-0.1f), FLOAT16(-0.4f),
-            FLOAT16(-1.9f), FLOAT16(-1.8f),
-            FLOAT16(-1.0f), FLOAT16(1.5f),
-            FLOAT16(0.8f), FLOAT16(-0.7f)
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
     });
     set_values<int32_t>(indices, {
             0, 2, 3, 4
@@ -855,7 +855,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
             1, 1, 2, 2
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::segments_sum;
@@ -907,11 +907,11 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16(-0.6f),
-            FLOAT16(-0.1f), FLOAT16(-0.4f),
-            FLOAT16(-1.9f), FLOAT16(-1.8f),
-            FLOAT16(-1.0f), FLOAT16(1.5f),
-            FLOAT16(0.8f), FLOAT16(-0.7f)
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
     });
     set_values<int32_t>(indices, {
             0, 2, 3, 4
@@ -920,7 +920,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
             0, 0, 1, 1
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::segments_sum;
@@ -969,11 +969,11 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16(-0.6f),
-            FLOAT16(-0.1f), FLOAT16(-0.4f),
-            FLOAT16(-1.9f), FLOAT16(-1.8f),
-            FLOAT16(-1.0f), FLOAT16(1.5f),
-            FLOAT16(0.8f), FLOAT16(-0.7f)
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
     });
     set_values<int32_t>(indices, {
             0, 2, 3, 4
@@ -1074,16 +1074,16 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
      * ]
      */
     set_values(emb_table, {
-            FLOAT16(-0.2f), FLOAT16( 1.3f), FLOAT16( 0.5f), FLOAT16(-0.3f), FLOAT16( 0.4f), FLOAT16(-0.4f),
-            FLOAT16(-0.1f), FLOAT16( 1.0f), FLOAT16( 2.1f), FLOAT16( 0.7f), FLOAT16(-0.2f), FLOAT16(-0.7f),
-            FLOAT16( 1.9f), FLOAT16(-2.4f), FLOAT16( 3.4f), FLOAT16(-0.7f), FLOAT16(-0.4f), FLOAT16( 0.5f),
-            FLOAT16( 2.3f), FLOAT16( 1.3f), FLOAT16(-0.4f), FLOAT16(-0.7f), FLOAT16( 1.8f), FLOAT16(-0.9f),
-            FLOAT16( 1.5f), FLOAT16(-2.4f), FLOAT16( 4.2f), FLOAT16( 3.2f), FLOAT16(-0.6f), FLOAT16( 0.9f),
-            FLOAT16( 3.3f), FLOAT16(-4.1f), FLOAT16( 2.1f), FLOAT16( 0.8f), FLOAT16( 5.2f), FLOAT16(-2.5f),
-            FLOAT16( 0.8f), FLOAT16(-1.9f), FLOAT16( 0.7f), FLOAT16( 3.4f), FLOAT16(-3.3f), FLOAT16( 0.1f),
-            FLOAT16( 3.5f), FLOAT16(-5.7f), FLOAT16(-0.1f), FLOAT16( 0.3f), FLOAT16( 0.4f), FLOAT16( 3.3f),
-            FLOAT16( 6.1f), FLOAT16( 8.3f), FLOAT16( 0.4f), FLOAT16(-4.4f), FLOAT16(-5.2f), FLOAT16( 0.9f),
-            FLOAT16( 0.3f), FLOAT16( 1.0f), FLOAT16( 2.3f), FLOAT16(-4.1f), FLOAT16( 2.0f), FLOAT16(-5.7f)
+            ov::float16(-0.2f), ov::float16( 1.3f), ov::float16( 0.5f), ov::float16(-0.3f), ov::float16( 0.4f), ov::float16(-0.4f),
+            ov::float16(-0.1f), ov::float16( 1.0f), ov::float16( 2.1f), ov::float16( 0.7f), ov::float16(-0.2f), ov::float16(-0.7f),
+            ov::float16( 1.9f), ov::float16(-2.4f), ov::float16( 3.4f), ov::float16(-0.7f), ov::float16(-0.4f), ov::float16( 0.5f),
+            ov::float16( 2.3f), ov::float16( 1.3f), ov::float16(-0.4f), ov::float16(-0.7f), ov::float16( 1.8f), ov::float16(-0.9f),
+            ov::float16( 1.5f), ov::float16(-2.4f), ov::float16( 4.2f), ov::float16( 3.2f), ov::float16(-0.6f), ov::float16( 0.9f),
+            ov::float16( 3.3f), ov::float16(-4.1f), ov::float16( 2.1f), ov::float16( 0.8f), ov::float16( 5.2f), ov::float16(-2.5f),
+            ov::float16( 0.8f), ov::float16(-1.9f), ov::float16( 0.7f), ov::float16( 3.4f), ov::float16(-3.3f), ov::float16( 0.1f),
+            ov::float16( 3.5f), ov::float16(-5.7f), ov::float16(-0.1f), ov::float16( 0.3f), ov::float16( 0.4f), ov::float16( 3.3f),
+            ov::float16( 6.1f), ov::float16( 8.3f), ov::float16( 0.4f), ov::float16(-4.4f), ov::float16(-5.2f), ov::float16( 0.9f),
+            ov::float16( 0.3f), ov::float16( 1.0f), ov::float16( 2.3f), ov::float16(-4.1f), ov::float16( 2.0f), ov::float16(-5.7f)
     });
     set_values<int32_t>(indices, {
             0, 2, 3, 4
@@ -1092,8 +1092,8 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
             0, 0, 2, 2
     });
     set_values(per_sample_weights, {
-            FLOAT16(0.5f), FLOAT16(0.5f),
-            FLOAT16(0.5f), FLOAT16(0.5f)
+            ov::float16(0.5f), ov::float16(0.5f),
+            ov::float16(0.5f), ov::float16(0.5f)
     });
 
     auto type = embedding_bag::segments_sum;

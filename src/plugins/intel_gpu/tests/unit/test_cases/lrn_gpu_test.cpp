@@ -164,7 +164,7 @@ void test_fp16_basic1(bool is_caching_test) {
 }
 
 TEST(lrn_fp16_gpu, basic1) {
-    test_fp16_basic1<half_t>(false);
+    test_fp16_basic1<ov::float16>(false);
 }
 
 template <typename T>
@@ -272,7 +272,7 @@ TEST(lrn_fp32_gpu, basic2_cached) {
 }
 
 TEST(lrn_fp16_gpu, basic1_cached) {
-    test_fp16_basic1<half_t>(true);
+    test_fp16_basic1<ov::float16>(true);
 }
 #endif
 TEST(lrn_fp32_gpu, basic3_cached) {

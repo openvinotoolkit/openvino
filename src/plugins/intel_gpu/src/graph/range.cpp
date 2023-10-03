@@ -30,7 +30,7 @@ std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, 
     auto output_data_type = desc->output_data_types[0].value_or(impl_param.get_input_layout().data_type);
 
     ov::op::v4::Range op;
-    op.set_output_type(data_type_to_element_type(output_data_type));
+    op.set_output_type(output_data_type);
     std::vector<ShapeType> output_shapes = {ShapeType::dynamic(1)};
     std::vector<ShapeType> input_shapes = {ov::Shape(), ov::Shape(), ov::Shape()};
 
@@ -63,7 +63,7 @@ std::string range_inst::to_string(range_node const& node) {
     auto node_info = node.desc_to_json();
 
     json_composite op_info;
-    op_info.add("output_type", data_type_traits::name(desc->output_layout.data_type));
+    op_info.add("output_type", ov::element::Type(desc->output_layout.data_type));
 
     node_info->add("range info", std::move(op_info));
     return lexical_cast(*node_info);

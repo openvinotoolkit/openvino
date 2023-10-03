@@ -306,7 +306,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_ba1_sa0) {
     int32_t seq_axis = 0;
 
     set_values(input, {
-            FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f)
+            ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f)
     });
 
     set_values(seq_lengths, {
@@ -348,11 +348,11 @@ TEST(reverese_sequence_gpu_test, fp16x2_d2_2_ba1_sa0) {
     int32_t seq_axis = 0;
 
     set_values(input, {
-            FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f)
+            ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f)
         });
 
     set_values(seq_lengths, {
-            FLOAT16(1.0f), FLOAT16(2.0f)
+            ov::float16(1.0f), ov::float16(2.0f)
         });
 
     topology topology;
@@ -390,9 +390,9 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba0_sa1) {
     int32_t seq_axis = 1;
 
     set_values(input, {
-            FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f), FLOAT16(9.0f),
-            FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f), FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f),
-            FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f), FLOAT16(24.0f), FLOAT16(25.0f), FLOAT16(26.0f)
+            ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f), ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f), ov::float16(9.0f),
+            ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f), ov::float16(15.0f), ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f),
+            ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f), ov::float16(24.0f), ov::float16(25.0f), ov::float16(26.0f)
     });
 
     set_values(seq_lengths, {
@@ -436,9 +436,9 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba2_sa0) {
     int32_t seq_axis = 0;
 
     set_values(input, {
-            FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f), FLOAT16(9.0f),
-            FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f), FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f),
-            FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f), FLOAT16(24.0f), FLOAT16(25.0f), FLOAT16(26.0f)
+            ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f), ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f), ov::float16(9.0f),
+            ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f), ov::float16(15.0f), ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f),
+            ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f), ov::float16(24.0f), ov::float16(25.0f), ov::float16(26.0f)
     });
 
     set_values(seq_lengths, {
@@ -482,9 +482,9 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa3) {
     int32_t seq_axis = 3;
 
     set_values(input, {
-            FLOAT16(0.0f), FLOAT16( 1.0f), FLOAT16( 2.0f), FLOAT16( 3.0f), FLOAT16( 4.0f), FLOAT16( 5.0f), FLOAT16( 6.0f), FLOAT16( 7.0f), FLOAT16( 8.0f), FLOAT16( 9.0f),
-            FLOAT16(10.0f), FLOAT16( 11.0f), FLOAT16( 12.0f), FLOAT16( 13.0f), FLOAT16( 14.0f), FLOAT16( 15.0f), FLOAT16( 16.0f), FLOAT16( 17.0f), FLOAT16( 18.0f), FLOAT16( 19.0f),
-            FLOAT16(20.0f), FLOAT16( 21.0f), FLOAT16( 22.0f), FLOAT16( 23.0f)
+            ov::float16(0.0f), ov::float16( 1.0f), ov::float16( 2.0f), ov::float16( 3.0f), ov::float16( 4.0f), ov::float16( 5.0f), ov::float16( 6.0f), ov::float16( 7.0f), ov::float16( 8.0f), ov::float16( 9.0f),
+            ov::float16(10.0f), ov::float16( 11.0f), ov::float16( 12.0f), ov::float16( 13.0f), ov::float16( 14.0f), ov::float16( 15.0f), ov::float16( 16.0f), ov::float16( 17.0f), ov::float16( 18.0f), ov::float16( 19.0f),
+            ov::float16(20.0f), ov::float16( 21.0f), ov::float16( 22.0f), ov::float16( 23.0f)
     });
 
     set_values(seq_lengths, {
@@ -529,9 +529,9 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa2) {
     int32_t seq_axis = 2;
 
     set_values(input, {
-            FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f), FLOAT16(9.0f),
-            FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f), FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f),
-            FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f)
+            ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f), ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f), ov::float16(9.0f),
+            ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f), ov::float16(15.0f), ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f),
+            ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f)
     });
 
     set_values(seq_lengths, {
@@ -576,9 +576,9 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba2_sa0) {
     int32_t seq_axis = 0;
 
     set_values(input, {
-            FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f), FLOAT16(9.0f),
-            FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f), FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f),
-            FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f)
+            ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f), ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f), ov::float16(9.0f),
+            ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f), ov::float16(15.0f), ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f),
+            ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f)
     });
 
     set_values(seq_lengths, {

@@ -49,18 +49,18 @@ void test_d2411_axisF(bool is_caching_test) {
     auto axis = 1;
 
     set_values(input1, {
-        FLOAT16(3.0f), FLOAT16(6.0f), FLOAT16(5.0f), FLOAT16(4.0f),
-        FLOAT16(1.0f), FLOAT16(7.0f), FLOAT16(2.0f), FLOAT16(9.0f)
+        ov::float16(3.0f), ov::float16(6.0f), ov::float16(5.0f), ov::float16(4.0f),
+        ov::float16(1.0f), ov::float16(7.0f), ov::float16(2.0f), ov::float16(9.0f)
     });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f),
-        FLOAT16(2.0f), FLOAT16(3.0f)
+        ov::float16(0.0f), ov::float16(1.0f),
+        ov::float16(2.0f), ov::float16(3.0f)
     });
 
     set_values(input3, {
-        FLOAT16(10.0f), FLOAT16(11.0f),
-        FLOAT16(12.0f), FLOAT16(13.0f)
+        ov::float16(10.0f), ov::float16(11.0f),
+        ov::float16(12.0f), ov::float16(13.0f)
     });
 
     topology topology;
@@ -228,7 +228,7 @@ float getError<float>() {
 }
 
 template<>
-float getError<half_t>() {
+float getError<ov::float16>() {
     return 0.2;
 }
 
@@ -259,7 +259,7 @@ struct scatter_elements_update_gpu_formats_test
         : public ::testing::TestWithParam<ScatterElementsUpdateParamsWithFormat<T> > {
 public:
     void test(bool is_caching_test) {
-        const auto data_type = type_to_data_type<T>::value;
+        const auto data_type = ov::element::from<T>();
         ScatterElementsUpdateParams<T> params;
         format::type plain_format;
         format::type target_data_format;
@@ -316,7 +316,7 @@ public:
 };
 
 using scatter_elements_update_gpu_formats_test_f32 = scatter_elements_update_gpu_formats_test<float>;
-using scatter_elements_update_gpu_formats_test_f16 = scatter_elements_update_gpu_formats_test<half_t>;
+using scatter_elements_update_gpu_formats_test_f16 = scatter_elements_update_gpu_formats_test<ov::float16>;
 using scatter_elements_update_gpu_formats_test_i32 = scatter_elements_update_gpu_formats_test<int32_t>;
 
 TEST_P(scatter_elements_update_gpu_formats_test_f32, basic) {
@@ -346,7 +346,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f32_2d,
 INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f16_2d,
                          scatter_elements_update_gpu_formats_test_f16,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<half_t>()),
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<ov::float16>()),
                                  ::testing::Values(format::bfyx),
                                  ::testing::ValuesIn(formats2D),
                                  ::testing::Values(format::any),

@@ -51,6 +51,9 @@ struct non_max_suppression_basic : public testing::Test {
     //   1      1     1     0.2    -- iou 0.29
     //   1      1     0     0.1    -- iou 0.43
     using DataType = typename TypeWithLayout::Type;
+    static const format::type layout_format = TypeWithLayout::layout;
+    const data_types data_type = ov::element::from<DataType>();
+
     const int batch_size = 2;
     const int classes_num = 2;
     const int boxes_num = 3;
@@ -79,11 +82,12 @@ struct non_max_suppression_basic : public testing::Test {
     };
 
     const layout boxes_layout = layout(ov::PartialShape{batch_size, boxes_num, 4},
-                                       type_to_data_type<DataType>::value,
+                                       data_type,
                                        format::bfyx);
     const layout scores_layout = layout(ov::PartialShape{batch_size, classes_num, boxes_num},
-                                        type_to_data_type<DataType>::value,
+                                        data_type,
                                         format::bfyx);
+
     const layout selected_scores_layout = layout(ov::PartialShape{selected_indices_num, 3}, data_type, layout_format);
     const layout valid_outputs_layout = layout(ov::PartialShape{1}, cldnn::data_types::i32, layout_format);
 
@@ -109,8 +113,6 @@ struct non_max_suppression_basic : public testing::Test {
         return mem;
     }
 
-    static const format::type layout_format = TypeWithLayout::layout;
-    static const data_types data_type = type_to_data_type<DataType>::value;
 
     const int pad = -1;
 
@@ -329,10 +331,10 @@ struct non_max_suppression_basic : public testing::Test {
                 ASSERT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
             }
         } else {
-            cldnn::mem_lock<half_t> second_output_ptr(plane_scores_mem, get_test_stream());
+            cldnn::mem_lock<ov::float16> second_output_ptr(plane_scores_mem, get_test_stream());
 
             for (size_t i = 0; i < expected_second_out.size(); ++i) {
-                ASSERT_NEAR(expected_second_out[i], half_to_float(second_output_ptr[i]), 0.0002f);
+                ASSERT_NEAR(expected_second_out[i], static_cast<float>(second_output_ptr[i]), 0.0002f);
             }
         }
 
@@ -449,10 +451,10 @@ struct non_max_suppression_basic : public testing::Test {
                 ASSERT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
             }
         } else {
-            cldnn::mem_lock<half_t> second_output_ptr(plane_scores_mem, get_test_stream());
+            cldnn::mem_lock<ov::float16> second_output_ptr(plane_scores_mem, get_test_stream());
 
             for (size_t i = 0; i < expected_second_out.size(); ++i) {
-                ASSERT_NEAR(expected_second_out[i], half_to_float(second_output_ptr[i]), 0.0002f);
+                ASSERT_NEAR(expected_second_out[i], static_cast<float>(second_output_ptr[i]), 0.0002f);
             }
         }
 
@@ -643,12 +645,12 @@ using nms_types = testing::Types<TypeWithLayoutFormat<float, cldnn::format::bfyx
                                  TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv16_fsv16>,
                                  TypeWithLayoutFormat<float, cldnn::format::bs_fs_yx_bsv32_fsv32>,
 
-                                 TypeWithLayoutFormat<half_t, cldnn::format::bfyx>,
-                                 TypeWithLayoutFormat<half_t, cldnn::format::b_fs_yx_fsv32>,
-                                 TypeWithLayoutFormat<half_t, cldnn::format::b_fs_yx_fsv16>,
-                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv32_fsv16>,
-                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv16_fsv16>,
-                                 TypeWithLayoutFormat<half_t, cldnn::format::bs_fs_yx_bsv32_fsv32>>;
+                                 TypeWithLayoutFormat<ov::float16, cldnn::format::bfyx>,
+                                 TypeWithLayoutFormat<ov::float16, cldnn::format::b_fs_yx_fsv32>,
+                                 TypeWithLayoutFormat<ov::float16, cldnn::format::b_fs_yx_fsv16>,
+                                 TypeWithLayoutFormat<ov::float16, cldnn::format::bs_fs_yx_bsv32_fsv16>,
+                                 TypeWithLayoutFormat<ov::float16, cldnn::format::bs_fs_yx_bsv16_fsv16>,
+                                 TypeWithLayoutFormat<ov::float16, cldnn::format::bs_fs_yx_bsv32_fsv32>>;
 
 TYPED_TEST_SUITE(non_max_suppression_basic, nms_types);
 

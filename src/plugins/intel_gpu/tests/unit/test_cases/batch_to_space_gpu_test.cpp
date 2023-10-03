@@ -26,10 +26,10 @@ TEST(batch_to_space_fp16_gpu, i8111_bs1222_cb0000_ce0000) {
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, input_shape });
 
     set_values(input, {
-        FLOAT16(0.0f), FLOAT16(1.0f),
-        FLOAT16(2.0f), FLOAT16(3.0f),
-        FLOAT16(4.0f), FLOAT16(5.0f),
-        FLOAT16(6.0f), FLOAT16(7.0f)
+        ov::float16(0.0f), ov::float16(1.0f),
+        ov::float16(2.0f), ov::float16(3.0f),
+        ov::float16(4.0f), ov::float16(5.0f),
+        ov::float16(6.0f), ov::float16(7.0f)
     });
 
     topology topology;
@@ -71,12 +71,12 @@ TEST(batch_to_space_fp16_gpu, i4321_bs1212_cb0000_ce0000) {
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, input_shape });
 
     set_values(input, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
-        FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f),
-        FLOAT16(8.0f), FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f),
-        FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f),
-        FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f),
-        FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f),
+        ov::float16(4.0f), ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f),
+        ov::float16(8.0f), ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f),
+        ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f), ov::float16(15.0f),
+        ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f),
+        ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f)
     });
 
     topology topology;
@@ -121,12 +121,12 @@ TEST(batch_to_space_fp16_gpu, i4321_bs1212_cb0010_ce0101) {
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, input_shape });
 
     set_values(input, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
-        FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f),
-        FLOAT16(8.0f), FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f),
-        FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f),
-        FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f),
-        FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f),
+        ov::float16(4.0f), ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f),
+        ov::float16(8.0f), ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f),
+        ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f), ov::float16(15.0f),
+        ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f),
+        ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f)
     });
 
     topology topology;
@@ -168,12 +168,12 @@ TEST(batch_to_space_fp16_gpu, i62121_bs12311_cb02000_ce00110) {
     auto input = engine.allocate_memory({ data_types::f16, format::bfzyx, input_shape });
 
     set_values(input, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
-        FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f),
-        FLOAT16(8.0f), FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f),
-        FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f),
-        FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f),
-        FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f),
+        ov::float16(4.0f), ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f),
+        ov::float16(8.0f), ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f),
+        ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f), ov::float16(15.0f),
+        ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f),
+        ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f)
     });
 
     topology topology;
@@ -215,14 +215,14 @@ TEST(batch_to_space_fp16_gpu, i1212112_bs112321_cb02000_ce00110) {
     auto input = engine.allocate_memory({ data_types::f16, format::bfwzyx, input_shape });
 
     set_values(input, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
-        FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f),
-        FLOAT16(8.0f), FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f),
-        FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f),
-        FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f),
-        FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f),
-        FLOAT16(24.0f), FLOAT16(25.0f), FLOAT16(26.0f), FLOAT16(27.0f),
-        FLOAT16(28.0f), FLOAT16(29.0f), FLOAT16(30.0f), FLOAT16(31.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f),
+        ov::float16(4.0f), ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f),
+        ov::float16(8.0f), ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f),
+        ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f), ov::float16(15.0f),
+        ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f),
+        ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f),
+        ov::float16(24.0f), ov::float16(25.0f), ov::float16(26.0f), ov::float16(27.0f),
+        ov::float16(28.0f), ov::float16(29.0f), ov::float16(30.0f), ov::float16(31.0f)
     });
 
     topology topology;
@@ -266,10 +266,10 @@ TEST(batch_to_space_fp16_gpu, i21611_bs1112_cb0000_ce0000_b_fs_yx_fsv16) {
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, input_shape });
 
     set_values(input, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f),
-        FLOAT16(8.0f), FLOAT16(9.0f),  FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f),
-        FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f), FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f),
-        FLOAT16(24.0f), FLOAT16(25.0f), FLOAT16(26.0f), FLOAT16(27.0f), FLOAT16(28.0f), FLOAT16(29.0f), FLOAT16(30.0f), FLOAT16(31.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f), ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f),
+        ov::float16(8.0f), ov::float16(9.0f),  ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f), ov::float16(15.0f),
+        ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f), ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f),
+        ov::float16(24.0f), ov::float16(25.0f), ov::float16(26.0f), ov::float16(27.0f), ov::float16(28.0f), ov::float16(29.0f), ov::float16(30.0f), ov::float16(31.0f)
     });
 
     topology topology;
@@ -317,10 +317,10 @@ TEST(batch_to_space_fp16_gpu, i2812_bs1112_cb0000_ce0000_b_fs_yx_fsv16) {
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, input_shape });
 
     set_values(input, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f),
-        FLOAT16(8.0f), FLOAT16(9.0f),  FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f),
-        FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f), FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f),
-        FLOAT16(24.0f), FLOAT16(25.0f), FLOAT16(26.0f), FLOAT16(27.0f), FLOAT16(28.0f), FLOAT16(29.0f), FLOAT16(30.0f), FLOAT16(31.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f), ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f),
+        ov::float16(8.0f), ov::float16(9.0f),  ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f), ov::float16(15.0f),
+        ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f), ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f),
+        ov::float16(24.0f), ov::float16(25.0f), ov::float16(26.0f), ov::float16(27.0f), ov::float16(28.0f), ov::float16(29.0f), ov::float16(30.0f), ov::float16(31.0f)
     });
 
     topology topology;
