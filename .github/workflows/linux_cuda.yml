@@ -104,7 +104,6 @@ jobs:
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_SYSTEM_PUGIXML=ON \
@@ -123,13 +122,12 @@ jobs:
             -DENABLE_TESTS=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DCMAKE_MINIMUM_REQUIRED_VERSION=3.20 \
             -S ${OPENVINO_REPO} \
             -B ${OV_BUILD_DIR}
 
       - name: Build - OpenVINO
         run: |
-          cmake --build ${OV_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
+          cmake --build ${OV_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose --target ov_dev_targets
 
       - name: Cmake & Build - NVIDIA Plugin
         run: |
