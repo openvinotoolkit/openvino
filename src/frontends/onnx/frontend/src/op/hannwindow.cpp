@@ -14,7 +14,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_17 {
+namespace set_1 {
 OutputVector hannwindow(const Node& node) {
     const auto size = node.get_ng_inputs().at(0);
     const auto output_datatype = common::get_ngraph_element_type(node.get_attribute_value<int64_t>("output_datatype", 1));
@@ -50,7 +50,7 @@ OutputVector hannwindow(const Node& node) {
 
     return {y_values};
 }
-}  // namespace set_17
+}  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
