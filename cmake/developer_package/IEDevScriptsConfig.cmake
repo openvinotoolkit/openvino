@@ -37,6 +37,9 @@ function(set_ci_build_number)
     endforeach()
 endfunction()
 
+# explicitly configure FindPython3.cmake to find python3 in virtual environment first
+ov_set_if_not_defined(Python3_FIND_STRATEGY LOCATION)
+
 include(features)
 
 set_ci_build_number()
