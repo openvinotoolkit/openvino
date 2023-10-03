@@ -18,9 +18,8 @@ VariableState::VariableState(const std::string &name, cldnn::network::VariableSt
     , m_engine(engine) {
     auto internal_memory = m_variable_state->memory;
     auto internal_layout = internal_memory->get_layout();
-    auto et = cldnn::data_type_to_element_type(internal_layout.data_type);
     auto shape = internal_layout.get_shape();
-    m_state = ov::make_tensor(et, shape);
+    m_state = ov::make_tensor(internal_layout.data_type, shape);
 }
 
 void VariableState::reset() {

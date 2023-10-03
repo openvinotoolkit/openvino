@@ -5,7 +5,6 @@
 #pragma once
 
 #include "tensor.hpp"
-#include "half.hpp"
 
 #include <cmath>
 #include <cstdlib>
@@ -34,41 +33,14 @@ constexpr size_t uint_type_mask = 0x40;
 constexpr size_t bin_type_mask = 0x20;
 
 /// @brief Possible data types could be stored in memory.
-enum class data_types : size_t {
-    bin = sizeof(int32_t) | bin_type_mask,
-    u8 = sizeof(uint8_t) | uint_type_mask,
-    i8 = sizeof(int8_t),
-    f16 = sizeof(int16_t) | float_type_mask,
-    f32 = sizeof(float) | float_type_mask,
-    i32 = sizeof(int32_t),
-    i64 = sizeof(int64_t)
-};
-
-
-/// Converts C++ type to @ref data_types .
-template <typename T>
-struct type_to_data_type;
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-template <>
-struct type_to_data_type<int8_t> { static constexpr data_types value = data_types::i8; };
-template <>
-struct type_to_data_type<uint8_t> { static constexpr data_types value = data_types::u8; };
-template <>
-struct type_to_data_type<int32_t> { static constexpr data_types value = data_types::i32; };
-template <>
-struct type_to_data_type<int64_t> { static constexpr data_types value = data_types::i64; };
-template <>
-struct type_to_data_type<half_t> { static constexpr data_types value = data_types::f16; };
-template <>
-struct type_to_data_type<float> { static constexpr data_types value = data_types::f32; };
-#endif
+using data_types = ov::element::Type_t;
 
 /// Converts @ref data_types to C++ type.
 template <data_types Data_Type>
 struct data_type_to_type;
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 template <>
-struct data_type_to_type<data_types::bin> { typedef uint32_t type; };
+struct data_type_to_type<data_types::u1> { typedef uint32_t type; };
 template <>
 struct data_type_to_type<data_types::u8> { typedef uint8_t type; };
 template <>
@@ -78,7 +50,7 @@ struct data_type_to_type<data_types::i32> { typedef int32_t type; };
 template <>
 struct data_type_to_type<data_types::i64> { typedef int64_t type; };
 template <>
-struct data_type_to_type<data_types::f16> { typedef half_t type; };
+struct data_type_to_type<data_types::f16> { typedef ov::float16 type; };
 template <>
 struct data_type_to_type<data_types::f32> { typedef float type; };
 #endif
@@ -86,21 +58,24 @@ struct data_type_to_type<data_types::f32> { typedef float type; };
 /// Helper class to identify key properties for data_types.
 struct data_type_traits {
     static size_t size_of(data_types data_type) {
-        return (static_cast<uint32_t>(data_type) & ~(float_type_mask | uint_type_mask | bin_type_mask));
+        auto et = ov::element::Type(data_type);
+        OPENVINO_ASSERT(et.bitwidth() >= 8, "[GPU] Unexpected data_type_traits::size_of call for type with bitwidth < 8 (", et.get_type_name(), ")");
+        return et.size();
     }
 
     static bool is_floating_point(data_types data_type) {
-        return (static_cast<uint32_t>(data_type) & float_type_mask) != 0;
+        return ov::element::Type(data_type).is_real();
     }
 
     static bool is_i8_u8(data_types data_type) {
-        return data_type == data_types::i8 || data_type == data_types::u8;
+        auto et = ov::element::Type(data_type);
+        return et.is_quantized() && et.bitwidth() == 8;
     }
 
     static size_t align_of(data_types data_type) {
         switch (data_type) {
-            case data_types::bin:
-                return alignof(data_type_to_type<data_types::bin>::type);
+            case data_types::u1:
+                return alignof(data_type_to_type<data_types::u1>::type);
             case data_types::i8:
                 return alignof(data_type_to_type<data_types::i8>::type);
             case data_types::u8:
@@ -119,32 +94,14 @@ struct data_type_traits {
     }
 
     static std::string name(data_types data_type) {
-        switch (data_type) {
-            case data_types::bin:
-                return "bin";
-            case data_types::i8:
-                return "i8";
-            case data_types::u8:
-                return "u8";
-            case data_types::i32:
-                return "i32";
-            case data_types::i64:
-                return "i64";
-            case data_types::f16:
-                return "f16";
-            case data_types::f32:
-                return "f32";
-            default:
-                assert(0);
-                return "unknown (" + std::to_string(typename std::underlying_type<data_types>::type(data_type)) + ")";
-        }
+        return ov::element::Type(data_type).get_type_name();
     }
 
     static data_types max_type(data_types dt1, data_types dt2) {
-        if (dt1 == data_types::bin)
+        if (dt1 == data_types::u1)
             return dt2;
 
-        if (dt2 == data_types::bin)
+        if (dt2 == data_types::u1)
             return dt1;
 
         if (size_of(dt1) < size_of(dt2))
@@ -160,7 +117,7 @@ struct data_type_traits {
     }
 
     static bool is_quantized(data_types dt) {
-        return dt == data_types::u8 || dt == data_types::i8;
+        return is_i8_u8(dt);
     }
 
     template <typename T>
@@ -206,13 +163,7 @@ struct data_type_traits {
 };
 
 inline ::std::ostream& operator<<(::std::ostream& os, const data_types& dt) {
-    return os << data_type_traits::name(dt);
-}
-
-/// Helper function to check if C++ type matches @p data_type.
-template <typename T>
-bool data_type_match(data_types data_type) {
-    return data_type == type_to_data_type<T>::value;
+    return os << ov::element::Type(dt);
 }
 
 inline data_types element_type_to_data_type(ov::element::Type t) {
@@ -237,30 +188,9 @@ inline data_types element_type_to_data_type(ov::element::Type t) {
     case ov::element::Type_t::boolean:
         return cldnn::data_types::u8;
     case ov::element::Type_t::u1:
-        return cldnn::data_types::bin;
+        return cldnn::data_types::u1;
     default:
         throw std::runtime_error("Can't convert " + t.get_type_name() + " element type");
-    }
-}
-
-inline ov::element::Type data_type_to_element_type(data_types t) {
-    switch (t) {
-    case cldnn::data_types::f32:
-        return ov::element::Type_t::f32;
-    case cldnn::data_types::f16:
-        return ov::element::Type_t::f16;
-    case cldnn::data_types::u8:
-        return ov::element::Type_t::u8;
-    case cldnn::data_types::i8:
-        return ov::element::Type_t::i8;
-    case cldnn::data_types::i32:
-        return ov::element::Type_t::i32;
-    case cldnn::data_types::i64:
-        return ov::element::Type_t::i64;
-    case cldnn::data_types::bin:
-        return ov::element::Type_t::u1;
-    default:
-        throw std::runtime_error("Can't convert " + data_type_traits::name(t) + " precision");
     }
 }
 
@@ -425,7 +355,7 @@ struct layout {
     layout(const layout& other) = default;
 
     layout()
-        : data_type(cldnn::data_types::bin)
+        : data_type(cldnn::data_types::undefined)
         , format(cldnn::format::any)
         , data_padding(padding())
         , size(ov::PartialShape()) { }
@@ -489,7 +419,7 @@ struct layout {
     layout with_padding(padding const& padd) const;
 
     /// Data type stored in @ref memory (see. @ref data_types)
-    data_types data_type;
+    ov::element::Type_t data_type;
 
     /// Format stored in @ref memory (see. @ref format)
     cldnn::format format;
@@ -498,7 +428,7 @@ struct layout {
     padding data_padding;
 
     /// Number of bytes needed to store this layout
-    size_t bytes_count() const { return data_type_traits::size_of(data_type) * get_linear_size(); }
+    size_t bytes_count() const { return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3; }
 
     size_t get_rank() const;
 

@@ -121,7 +121,7 @@ namespace cldnn {
 
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
-        case cldnn::data_types::bin:
+        case cldnn::data_types::u1:
             return kernel_selector::data_type::BINARY;
         case cldnn::data_types::i8:
             return kernel_selector::data_type::INT8;
@@ -143,7 +143,7 @@ kernel_selector::data_type to_data_type(data_types dt) {
 data_types from_data_type(kernel_selector::data_type dt) {
     switch (dt) {
         case kernel_selector::data_type::BINARY:
-            return cldnn::data_types::bin;
+            return cldnn::data_types::u1;
         case kernel_selector::data_type::INT8:
             return cldnn::data_types::i8;
         case kernel_selector::data_type::UINT8:
@@ -163,7 +163,7 @@ data_types from_data_type(kernel_selector::data_type dt) {
 
 kernel_selector::weights_type to_weights_type(data_types dt) {
     switch (dt) {
-        case cldnn::data_types::bin:
+        case cldnn::data_types::u1:
             return kernel_selector::weights_type::BINARY;
         case cldnn::data_types::i8:
             return kernel_selector::weights_type::INT8;
@@ -183,7 +183,7 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
 data_types from_weights_type(kernel_selector::weights_type dt) {
     switch (dt) {
         case kernel_selector::weights_type::BINARY:
-            return data_types::bin;
+            return data_types::u1;
         case kernel_selector::weights_type::INT8:
             return data_types::i8;
         case kernel_selector::weights_type::UINT8:

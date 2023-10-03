@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, quantize_test,
         },
         {
             layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx},
-            layout{ov::PartialShape{1, 2, 3, 4}, data_types::bin, format::b_fs_yx_32fp}
+            layout{ov::PartialShape{1, 2, 3, 4}, data_types::u1, format::b_fs_yx_32fp}
         },
         {
             layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx},
