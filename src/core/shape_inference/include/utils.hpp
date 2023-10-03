@@ -76,13 +76,13 @@ OPENVINO_SUPPRESS_DEPRECATED_START
  * \return Object of TResult with data from host tensor.
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(HostTensor& tv, UnaryOperation&& func) {
+TResult get_tensor_data_as(ngraph::HostTensor& tv, UnaryOperation&& func) {
     auto t = Tensor(tv.get_element_type(), tv.get_shape(), tv.get_data_ptr());
     return get_tensor_data_as<T, TResult>(t, std::forward<UnaryOperation>(func));
 }
 
 template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(HostTensor* tv, UnaryOperation&& func) {
+TResult get_tensor_data_as(ngraph::HostTensor* tv, UnaryOperation&& func) {
     return get_tensor_data_as<T, TResult>(*tv, std::forward<UnaryOperation>(func));
 }
 OPENVINO_SUPPRESS_DEPRECATED_END

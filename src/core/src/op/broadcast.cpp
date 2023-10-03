@@ -114,9 +114,9 @@ ov::PartialShape get_result_shape_bidirectional(const Node* this_ptr,
 }
 }  // namespace
 
-bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v3::Broadcast::broadcast_evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL) {
-        auto arg_shape = inputs[0]->get_shape();
+        auto arg_shape = inputs[0].get_shape();
         ov::Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
         ov::PartialShape result_shape =
             get_result_shape_bidirectional(this, ov::PartialShape{arg_shape}, ov::PartialShape{target_shape});
@@ -193,7 +193,7 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v3::Broadcast::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v3_Broadcast_evaluate);
     return broadcast_evaluate(outputs, inputs);
 }
@@ -303,7 +303,7 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v1::Broadcast::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Broadcast_evaluate);
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
