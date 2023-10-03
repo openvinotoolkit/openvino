@@ -20,7 +20,7 @@
       :sync: system-requirements
 
       Full requirement listing is available in:
-      `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+
    
 
    .. tab-item:: Processor Notes
@@ -33,7 +33,7 @@
       :sync: software
 
       There are many ways to work with Conan Package Manager. Before you proceed, learn more about it on the
-      `Conan distribution page <https://conan.io/downloads>`__
+
 
 Installing OpenVINO Runtime with Conan Package Manager
 ############################################################
@@ -86,9 +86,9 @@ Installing OpenVINO Runtime with Conan Package Manager
 Additional Resources
 ########################
 
-* `Conan Package Manager <https://conan.io/>`__
+* `Conan Package Manager <https://conan.io>`__
 * Learn more about :doc:`OpenVINO Workflow <openvino_workflow>`.
 * To prepare your models for working with OpenVINO, see :doc:`Model Preparation <openvino_docs_model_processing_introduction>`.
 * Learn more about :doc:`Inference with OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
-* Check out the OpenVINO product `home page <https://software.intel.com/en-us/openvino-toolkit>`__.
+* Check out the OpenVINO product `home page <https://software.intel.com/en-us/openvino-toolkit>`__
