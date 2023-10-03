@@ -13,6 +13,7 @@
    * is dedicated to users of all OSs (Windows, Linux, macOS, Solaris, FreeBSD, etc.)
    * it can be used for any existing platfrom: desktop, mobile, embbeded, servers, bare metal, etc.
    * can manage any compiler in any of their versions.
+   * OpenVINO™ is included in the Conan Center Index - registry with the software packages.
 
 
 .. tab-set::
@@ -37,22 +38,17 @@
       There are many ways to work with Conan Package Manager. Before you proceed, learn more about it on the
       `Conan distribution page <https://conan.io/downloads/>`__
 
-Conan Package Manager is a free, open-source dependency and package manager for C and C++ languages. 
-Its main purpose is to improve development and integration of C and C++ projects. OpenVINO™ is included  
-in the Conan Center Index (registry with the software packages).
-
 Installing OpenVINO Runtime with Conan Package Manager
 ############################################################
 
-1. Install Conan 2.0 or higher
+1. Install Conan 2.0 or higher:
    
    .. code-block:: sh
 
       python3 -m pip install conan
 
-2. Create a conanfile.txt file for your OpenVINO project and add "openvino" dependency in there:
+2. Create a ``conanfile.txt`` file for your OpenVINO project and add "*openvino*" dependency in there:
 
-   
    .. code-block:: console
 
       [requires]
@@ -63,38 +59,37 @@ Installing OpenVINO Runtime with Conan Package Manager
       [layout]
       cmake_layout
 
-   Run below command to create ``conan_toolchain.cmake`` file, which will be used to compile your project with OpenVINO.
+   Run the command below to create ``conan_toolchain.cmake`` file, which will be used to compile your project with OpenVINO:
    
    .. code-block:: sh
 
       conan install conanfile.txt --build=missing
 
-.. note::
-
-   By default, OpenVINO is statically compiled and all available plugins, frontends are compiled as well. You can build a tailored OpenVINO by using command below:
+   .. note::
    
-      .. code-block:: sh
-
-         conan install conanfile.txt --build=missing -o:h openvino/*:enable_intel_gpu=False -o:h openvino/*:enable_onnx_frontend=False' -o:h openvino/*:shared=True.
+      By default, OpenVINO is statically compiled. All available plugins and frontends are compiled as well. You can build a tailored OpenVINO by using the command below:
+      
+         .. code-block:: sh
    
-   For more details on available options, see the `Conan Package Manager page on OpenVINO <https://conan.io/center/recipes/openvino>`__
+            conan install conanfile.txt --build=missing -o:h openvino/*:enable_intel_gpu=False -o:h openvino/*:enable_onnx_frontend=False' -o:h openvino/*:shared=True.
+      
+      For more details on available options, see the `Conan Package Manager page on OpenVINO <https://conan.io/center/recipes/openvino>`__
 
 3. Configure and compile your project with OpenVINO:
-
    
    .. code-block:: sh
 
       cmake -DCMAKE_TOOLCHAIN_FILE=<path to conan_toolchain.cmake> -DCMAKE_BUILD_TYPE=Release -S <path to CMakeLists.txt of your project> -B <build dir>
       cmake --build <build dir> --parallel
 
-.. note::
-
-   OpenVINO can be used with any build interface, as long as it is supported by Conan 2.0.
+   .. note::
+   
+      OpenVINO can be used with any build interface, as long as it is supported by Conan 2.0.
 
 Additional Resources
 ########################
 
-* `Conan Package Manager Webstie <https://conan.io/>`__
+* `Conan Package Manager <https://conan.io/>`__
 * Learn more about :doc:`OpenVINO Workflow <openvino_workflow>`.
 * To prepare your models for working with OpenVINO, see :doc:`Model Preparation <openvino_docs_model_processing_introduction>`.
 * Learn more about :doc:`Inference with OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
