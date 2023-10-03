@@ -20,7 +20,6 @@ jobs:
 #    VSTS_HTTP_TIMEOUT: 200
 #    BUILD_TYPE: Release
 #    REPO_DIR: $(Build.Repository.LocalPath)
-#    MODELS_PATH: $(REPO_DIR)/../testdata
 #    WORK_DIR: $(Pipeline.Workspace)/_w
 #    BUILD_DIR: $(WORK_DIR)/build
 
@@ -38,13 +37,6 @@ jobs:
   - script: git -C ~/work/openvino checkout -m $(Build.SourceVersion) && git -C ~/work/openvino submodule update --init --recursive
     displayName: checkout
 
-    # Should be after 'Install dependencies' because Git lfs is not installed
-#  - checkout: testdata
-#    clean: 'true'
-#    submodules: 'true'
-#    lfs: 'true'
-#    path: testdata
-
   - script: env -C ~/work ./configreleasenolto.sh
     displayName: CMake
 
@@ -57,7 +49,7 @@ jobs:
 #        -DCMAKE_VERBOSE_MAKEFILE=ON
 #        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
 #        -DENABLE_PYTHON=ON
-#        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
+#        -DPython3_EXECUTABLE=/usr/bin/python3.8
 #        -DENABLE_TESTS=ON
 #        -DENABLE_OV_ONNX_FRONTEND=ON
 #        -DENABLE_FASTER_BUILD=ON

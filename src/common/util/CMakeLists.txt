@@ -46,7 +46,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     SOURCE_DIRECTORIES ${UTIL_INCLUDE_DIR})
 

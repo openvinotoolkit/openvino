@@ -23,8 +23,6 @@ struct lstm_dynamic_timeloop
 
     lstm_dynamic_timeloop() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs lstm_dynamic layer.
     /// @param id This primitive id.
     /// @param input Primitive id of input layer.

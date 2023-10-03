@@ -90,7 +90,7 @@ def deformable_conv(name: str, x, weight, offset, mask, bias, stride=1, padding=
             feed=feed_dict,
             fetch_list=node_out)
 
-        # Save inputs in order of ngraph function, to facilite Fuzzy test,
+        # Save inputs in order of OpenVINO model, to facilite Fuzzy test,
         # which accepts inputs and outputs in this order as well.
         saveModel(name, exe, feedkeys=list(feed_dict.keys()), fetchlist=[node_out],
                   inputs=inputs_list, outputs=outs, target_dir=sys.argv[1] if len(sys.argv) > 1 else '.')
@@ -120,7 +120,7 @@ def get_output_size(input_size, out_channels, kernel_size, stride, padding, dila
 
 # ref: https://www.paddlepaddle.org.cn/documentation/docs/en/api/paddle/vision/ops/deform_conv2d_en.html
 # PaddlePaddle conv attributes padding, strides, dilation can optionally be int|lit|tuple,
-# while they are list of int in ngraph.
+# while they are list of int in OpenVINO.
 def generator(input_size=[2, 8, 4, 4],  # NCHW
               out_channels=4,
               kernel_size=[3, 3],  # spatial_kernel

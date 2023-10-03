@@ -17,7 +17,32 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     using kernel_selector_t = kernel_selector::fully_connected_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::fully_connected_params, kernel_selector::fully_connected_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::fully_connected_impl)
+
+    fully_connected_impl() = default;
+
+    fully_connected_impl(const kernel_selector::kernel_data& kd) {
+        const auto& params = kd.weightsReorderParams;
+
+        if (params.is_initialized) {
+            // Assumption that kernel data contains already reshaped 2d weights
+            auto crop_to_2d = [](const ov::PartialShape& shape) {
+                return ov::PartialShape({shape[0], shape[1]});
+            };
+
+            auto weights_reorder_params = std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src),
+                                                                                 from_weights_tensor(params.dest),
+                                                                                 params.rotate);
+            auto output_layout = weights_reorder_params->get_output_layout();
+            output_layout.set_partial_shape(crop_to_2d(output_layout.get_partial_shape()));
+            weights_reorder_params->set_output_layout(output_layout);
+
+            _weights_reorder_params = weights_reorder_params;
+        }
+        _kernel_data = kd;
+        _kernel_name = kd.kernelName;
+        can_reuse_memory = _kernel_data.can_reuse_memory;
+    }
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<fully_connected_impl>(*this);

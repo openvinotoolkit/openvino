@@ -6,10 +6,10 @@ set(TARGET_NAME ov_gpu_func_tests)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4244)
+    ov_add_compiler_flags(/wd4267)
+    ov_add_compiler_flags(/wd4244)
     # 'initializing': truncation from 'XXX' to 'YYY'
-    ie_add_compiler_flags(/wd4305)
+    ov_add_compiler_flags(/wd4305)
 endif()
 
 addIeTargetTest(
@@ -39,11 +39,9 @@ if(ENABLE_PROXY)
 endif()
 
 # try to find VA libraries
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_search_module(libva QUIET IMPORTED_TARGET libva)
-    endif()
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_search_module(libva QUIET IMPORTED_TARGET libva)
 endif()
 
 if(libva_FOUND)

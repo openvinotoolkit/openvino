@@ -6,13 +6,9 @@
 
 #include <fstream>
 
-#include "ngraph/ngraph.hpp"
-#include "paddle_utils.hpp"
 #include "common_test_utils/test_control.hpp"
+#include "paddle_utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ngraph;
 using namespace ov::frontend;
 
 using PaddleFuzzyOpTest = FrontEndFuzzyOpTest;

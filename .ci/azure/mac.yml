@@ -37,12 +37,6 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 variables:
   - group: github
 
@@ -61,7 +55,6 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
-    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     INSTALL_DIR: $(WORK_DIR)/install_pkg
@@ -108,11 +101,6 @@ jobs:
     clean: 'true'
     submodules: 'true'
     path: openvino_contrib
-
-  - checkout: testdata
-    clean: 'true'
-    lfs: 'true'
-    path: testdata
 
   - script: |
       set -e
@@ -189,6 +177,10 @@ jobs:
     displayName: 'OV Proxy Plugin Tests'
     enabled: 'false'
 
+  - script: $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroUnitTests.xml
+    displayName: 'OV Hetero Unit Tests'
+    enabled: 'false'
+
   - script: $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
     displayName: 'OV Hetero Func Tests'
     enabled: 'false'
@@ -215,17 +207,11 @@ jobs:
 
   - script: |
       $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
-    env:
-      DATA_PATH: $(MODELS_PATH)
-      MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
     enabled: 'false'
 
   - script: |
       $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
-    env:
-      DATA_PATH: $(MODELS_PATH)
-      MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
     enabled: 'false'
 

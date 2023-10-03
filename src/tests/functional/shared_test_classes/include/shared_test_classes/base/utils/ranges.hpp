@@ -20,6 +20,9 @@
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/min.hpp"
 
+#include "openvino/op/dft.hpp"
+#include "openvino/op/idft.hpp"
+
 #include <map>
 #include <vector>
 
@@ -82,6 +85,8 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> i
         { ov::op::v4::Proposal::get_type_info_static(), {{{0, 1, 1000, 8234231}}, {{0, 1, 1000, 8234231}}} },
         { ov::op::v4::ReduceL1::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v4::ReduceL2::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
+        { ov::op::v7::DFT::get_type_info_static(), {{{0, 1}}, {{0, 1, 1000000}}} },
+        { ov::op::v7::IDFT::get_type_info_static(), {{{0, 1}}, {{0, 1, 1000000}}} },
 };
 
 } // namespace utils

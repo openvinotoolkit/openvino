@@ -130,6 +130,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         case Type_t::u64:
             fill_data<Type_t::u64>(ngraph::parse_string<uint64_t>(values[0]));
             break;
+        case Type_t::nf4:
+            fill_data<Type_t::nf4>(ngraph::parse_string<uint64_t>(values[0]));
+            break;
         case Type_t::undefined:
             OPENVINO_THROW("deserialize unsupported type undefined");
         case Type_t::dynamic:
@@ -186,6 +189,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         case Type_t::u64:
             write_buffer<Type_t::u64>(ngraph::parse_string<uint64_t>(values));
             break;
+        case Type_t::nf4:
+            write_buffer<Type_t::nf4>(ngraph::parse_string<uint8_t>(values));
+            break;
         case Type_t::undefined:
             OPENVINO_THROW("deserialize unsupported type undefined");
         case Type_t::dynamic:
@@ -227,9 +233,9 @@ ov::op::v0::Constant::Constant(const Constant& other) {
 }
 
 ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape) {
-    NGRAPH_CHECK(shape_size(other.m_shape) == shape_size(new_shape),
-                 "ov::Shape size " + std::to_string(shape_size(new_shape)) + " is not equal to " +
-                     std::to_string(shape_size(other.m_shape)));
+    OPENVINO_ASSERT(shape_size(other.m_shape) == shape_size(new_shape),
+                    "ov::Shape size " + std::to_string(shape_size(new_shape)) + " is not equal to " +
+                        std::to_string(shape_size(other.m_shape)));
     m_element_type = other.m_element_type;
     m_shape = new_shape;
     m_data = other.m_data;
@@ -295,6 +301,9 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
         break;
     case Type_t::u64:
         rc = to_string(get_element_value<Type_t::u64>(index));
+        break;
+    case Type_t::nf4:
+        rc = to_string(get_element_value<Type_t::nf4>(index));
         break;
     case Type_t::undefined:
     case Type_t::dynamic:
@@ -367,6 +376,7 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
         break;
     case element::Type_t::u1:
     case element::Type_t::u4:
+    case element::Type_t::nf4:
         for (auto value : cast_vector<uint8_t>()) {
             rc.push_back(to_string(value));
         }
@@ -403,7 +413,7 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
 }
 
 ov::Shape ov::op::v0::Constant::get_shape_val() const {
-    NGRAPH_CHECK(m_element_type.is_integral_number());
+    OPENVINO_ASSERT(m_element_type.is_integral_number());
     std::vector<int64_t> out_shape = cast_vector<int64_t>();
     ov::Shape output_shape(shape_size(m_shape));
     std::transform(out_shape.begin(), out_shape.end(), output_shape.begin(), [&](const int64_t& v) {
@@ -413,7 +423,7 @@ ov::Shape ov::op::v0::Constant::get_shape_val() const {
 }
 
 ov::Strides ov::op::v0::Constant::get_strides_val() const {
-    NGRAPH_CHECK(m_element_type == element::i64);
+    OPENVINO_ASSERT(m_element_type == element::i64);
     std::vector<int64_t> out_strides = cast_vector<int64_t>();
     Strides output_strides(shape_size(m_shape));
     std::transform(out_strides.begin(), out_strides.end(), output_strides.begin(), [&](const int64_t& v) {
@@ -423,7 +433,7 @@ ov::Strides ov::op::v0::Constant::get_strides_val() const {
 }
 
 ov::Coordinate ov::op::v0::Constant::get_coordinate_val() const {
-    NGRAPH_CHECK(m_element_type == element::i64);
+    OPENVINO_ASSERT(m_element_type == element::i64);
     std::vector<int64_t> out_coordinate = cast_vector<int64_t>();
     Coordinate output_coordinate(shape_size(m_shape));
     std::transform(out_coordinate.begin(), out_coordinate.end(), output_coordinate.begin(), [&](const int64_t& v) {
@@ -433,7 +443,7 @@ ov::Coordinate ov::op::v0::Constant::get_coordinate_val() const {
 }
 
 ov::CoordinateDiff ov::op::v0::Constant::get_coordinate_diff_val() const {
-    NGRAPH_CHECK(m_element_type == element::i64);
+    OPENVINO_ASSERT(m_element_type == element::i64);
     std::vector<int64_t> out_coordinate_diff = cast_vector<int64_t>();
     CoordinateDiff output_coordinate_diff(shape_size(m_shape));
     std::transform(out_coordinate_diff.begin(),
@@ -446,7 +456,7 @@ ov::CoordinateDiff ov::op::v0::Constant::get_coordinate_diff_val() const {
 }
 
 ov::AxisVector ov::op::v0::Constant::get_axis_vector_val() const {
-    NGRAPH_CHECK(m_element_type.is_integral_number());
+    OPENVINO_ASSERT(m_element_type.is_integral_number());
     std::vector<int64_t> out_axis_vector = cast_vector<int64_t>();
     AxisVector output_axis_vector(shape_size(m_shape));
     std::transform(out_axis_vector.begin(), out_axis_vector.end(), output_axis_vector.begin(), [&](const int64_t& v) {
@@ -456,7 +466,7 @@ ov::AxisVector ov::op::v0::Constant::get_axis_vector_val() const {
 }
 
 ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
-    NGRAPH_CHECK(m_element_type.is_integral_number());
+    OPENVINO_ASSERT(m_element_type.is_integral_number());
     std::vector<int64_t> out_axis_set = cast_vector<int64_t>();
     AxisSet output_axis_set;
     for (auto& axis : out_axis_set) {
@@ -523,6 +533,7 @@ bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
     case element::Type_t::i4:
     case element::Type_t::u1:
     case element::Type_t::u4:
+    case element::Type_t::nf4:
     case element::Type_t::undefined:
     case element::Type_t::dynamic:
         break;
