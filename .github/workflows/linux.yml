@@ -885,7 +885,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores-16gb'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-16-cores'}}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
