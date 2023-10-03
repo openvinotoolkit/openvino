@@ -29,6 +29,10 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
   cancel-in-progress: true
 
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+  PYTHON_VERSION: '3.11'
+
 jobs:
   Build:
     defaults:
@@ -55,6 +59,8 @@ jobs:
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
+      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
+
     steps:
       - name: Install git
         run: |
@@ -85,16 +91,16 @@ jobs:
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          # unzip - to download ninja
-          apt install --assume-yes --no-install-recommends default-jdk libssl1.1 unzip
-
-          wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip
-          unzip ninja-linux.zip
-          cp -v ninja /usr/local/bin/
+          apt install --assume-yes --no-install-recommends default-jdk libssl1.1
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup pip cache dir
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install python dependencies
         run: |
@@ -118,10 +124,6 @@ jobs:
       # Build
       #
 
-      - name: Setup ccache
-        run: |
-          mkdir -p $CCACHE_DIR
-
       - name: CMake configure - OpenVINO
         run: |
           cmake \
@@ -139,7 +141,6 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
-            -DCMAKE_MINIMUM_REQUIRED_VERSION=3.20 \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -163,6 +164,12 @@ jobs:
 
       - name: Pack Artifacts
         run: |
+          
+          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job 
+          # w/o the need to checkout repository
+          
+          cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
+          
           pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
@@ -177,12 +184,11 @@ jobs:
           /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           cmake -UPYTHON* \
-                -DCPACK_GENERATOR=DEB \
                 -DENABLE_PYTHON_PACKAGING=ON \
-                -DPython3_EXECUTABLE=/usr/bin/python3.8 \
                 -DENABLE_TESTS=OFF \
-                -S ${OPENVINO_REPO} \
-                -B ${BUILD_DIR}
+                -DPython3_EXECUTABLE=/usr/bin/python3.8 \
+                -DCPACK_GENERATOR=DEB \
+                ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
 
       - name: Cmake & Build - OpenVINO Contrib
@@ -327,7 +333,12 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup pip cache dir
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install OpenVINO dependencies
         run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
@@ -373,7 +384,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -598,12 +609,139 @@ jobs:
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
           if-no-files-found: 'error'
 
+  ONNX_Runtime:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      INSTALL_DIR: /__w/openvino/openvino/install
+      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_onnxruntime
+      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
+      CCACHE_MAXSIZE: 50G
+      ONNX_RUNTIME_REPO: /__w/openvino/openvino/onnxruntime
+      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/install/onnxruntime
+      ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
+
+    steps:
+
+      - name: Fetch install_build_dependencies.sh
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            install_build_dependencies.sh
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install --assume-yes --no-install-recommends git ca-certificates
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      #
+      # Initialize OpenVINO
+      #
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO package
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz
+          popd
+
+      - name: Install OpenVINO dependencies
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+
+      - name: Clone ONNX Runtime
+        run: |
+          branch=`tr -s '\n ' < ${ONNX_RUNTIME_UTILS}/version`
+          git clone --branch $branch --single-branch --recursive https://github.com/microsoft/onnxruntime.git ${ONNX_RUNTIME_REPO}
+
+      #
+      # Tests
+      #
+
+      - name: Install Build Dependencies
+        run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
+
+      - name: Build Lin ONNX Runtime
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          ${ONNX_RUNTIME_REPO}/build.sh \
+            --config RelWithDebInfo \
+            --use_openvino CPU_FP32 \
+            --build_shared_lib \
+            --parallel \
+            --skip_tests \
+            --compile_no_warning_as_error \
+            --build_dir ${ONNX_RUNTIME_BUILD_DIR}
+        env:
+          CXXFLAGS: "-Wno-error=deprecated-declarations"
+
+      - name: Run onnxruntime_test_all
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
+          
+          ./onnxruntime_test_all --gtest_filter=-$skip_tests
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Run onnxruntime_shared_lib_test
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ./onnxruntime_shared_lib_test --gtest_filter=-CApiTest.test_custom_op_openvino_wrapper_library
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Run onnxruntime_global_thread_pools_test
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ./onnxruntime_global_thread_pools_test
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Run onnxruntime_api_tests_without_env
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ./onnxruntime_api_tests_without_env
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Run pytorch-converted tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
+      - name: Run pytorch-operator tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
+        working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
+
   CXX_Unit_Tests:
     needs: Build
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores
+    runs-on: aks-linux-4-cores-16gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
@@ -785,7 +923,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -796,9 +934,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores
+    runs-on: aks-linux-4-cores-16gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
@@ -825,7 +965,12 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup pip cache dir
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install Python API tests dependencies
         run: |
@@ -999,7 +1144,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-python
           path: |
@@ -1054,7 +1199,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
@@ -1082,7 +1227,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu
           path: |
@@ -1099,7 +1244,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores-16gb'}}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -1118,7 +1263,12 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup pip cache dir
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -1159,7 +1309,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-tensorflow-hub-models
           path: |
@@ -1171,27 +1321,30 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-8-cores' || 'ubuntu-20.04'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-8-cores'}}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
-      - name: Maximize build space
-        run:  |
-          sudo rm -rf /usr/local/lib/android # will release about 10 GB if you don't need Android
-          sudo rm -rf /usr/share/dotnet # will release about 20GB if you don't need .NET
-          sudo rm -rf /opt/ghc
-          echo "Available storage:"
-          df -h
+      - name: Check sudo
+        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
+
+      - name: Install dependencies
+        run: |
+          # libssl1.1 - 'python3 -m pip' in self-hosted runner
+          sudo apt install --assume-yes --no-install-recommends libssl1.1
+          # install git (required to build pip deps from the sources)
+          # install 'g++' to build 'detectron2' and 'natten' wheels
+          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
 
       - name: Create Directories
-        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -1207,29 +1360,38 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
           popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
-      - name: Install Python wheels
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup pip cache dir
         run: |
-          python3 -m pip install openvino --find-links=${{ env.INSTALL_DIR }}/tools
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+
+      - name: Install OpenVINO Python wheels
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
       - name: Install PyTorch tests requirements
         run: |
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements.txt
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/requirements_secondary.txt
-          python3 -m pip cache purge
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
           echo "Available storage:"
           df -h
-          du -h -d0 ~/.cache ~/*
+        env:
+          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
       - name: PyTorch Models Tests
         run: |
-          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/torch_tests/ -m ${{ env.TYPE }} --html=${{ env.INSTALL_TEST_DIR }}/TEST-torch_model_tests.html --self-contained-html -v
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
@@ -1238,11 +1400,10 @@ jobs:
         run: |
           echo "Available storage:"
           df -h
-          du -h -d0 ~/.cache ~/*
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-torch-models
           path: |

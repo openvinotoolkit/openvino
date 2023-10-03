@@ -53,7 +53,7 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
     auto out_it = std::inserter(out, out.end());
 
     using namespace ov::element;
-    IfTypeOf<bf16, f16, f32, f64, i4, i8, i16, i32, i64, u4, u8, u16, u32, u64>::apply<TensorTransform>(
+    IfTypeOf<bf16, f16, f32, f64, i4, i8, i16, i32, i64, u4, u8, u16, u32, u64, nf4>::apply<TensorTransform>(
         et,
         ptr,
         size,
@@ -76,13 +76,13 @@ OPENVINO_SUPPRESS_DEPRECATED_START
  * \return Object of TResult with data from host tensor.
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(HostTensor& tv, UnaryOperation&& func) {
+TResult get_tensor_data_as(ngraph::HostTensor& tv, UnaryOperation&& func) {
     auto t = Tensor(tv.get_element_type(), tv.get_shape(), tv.get_data_ptr());
     return get_tensor_data_as<T, TResult>(t, std::forward<UnaryOperation>(func));
 }
 
 template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(HostTensor* tv, UnaryOperation&& func) {
+TResult get_tensor_data_as(ngraph::HostTensor* tv, UnaryOperation&& func) {
     return get_tensor_data_as<T, TResult>(*tv, std::forward<UnaryOperation>(func));
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
