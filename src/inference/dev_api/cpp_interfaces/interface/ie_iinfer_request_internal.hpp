@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <ie_preprocess.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -12,7 +13,6 @@
 #include "ie_common.h"
 #include "ie_compound_blob.h"
 #include "ie_input_info.hpp"
-#include "ie_preprocess_data.hpp"
 #include "openvino/core/node_output.hpp"
 #include "so_ptr.hpp"
 
@@ -328,8 +328,21 @@ protected:
     InferenceEngine::BlobMap _outputs;                //!< A map of user passed blobs for network outputs
     std::vector<std::shared_ptr<const ov::Node>> _parameters;  //!< A vector of function inputs
     std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
-    std::map<std::string, PreProcessDataPtr> _preProcData;     //!< A map of pre-process data per input
     std::map<std::string, BatchedBlob::Ptr> _batched_inputs;   //!< A map of user passed blobs for network inputs
+
+    class PreProcessDataPlugin {
+    public:
+        void setRoiBlob(const Blob::Ptr& blob) {}
+
+        Blob::Ptr getRoiBlob() const {
+            return nullptr;
+        }
+
+        void execute(Blob::Ptr& preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) {}
+
+        void isApplicable(const Blob::Ptr& src, const Blob::Ptr& dst) {}
+    };
+    std::map<std::string, std::shared_ptr<PreProcessDataPlugin>> _preProcData;  //!< A map of pre-process data per input
 
     /**
      * @brief A shared pointer to IInferRequestInternal

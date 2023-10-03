@@ -14,10 +14,6 @@
 	path = thirdparty/pugixml
 	url = https://github.com/zeux/pugixml.git
 	ignore = dirty
-[submodule "thirdparty/ade"]
-	path = thirdparty/ade
-	url = https://github.com/opencv/ade.git
-	ignore = dirty
 [submodule "thirdparty/gflags/gflags"]
 	path = thirdparty/gflags/gflags
 	url = https://github.com/gflags/gflags.git

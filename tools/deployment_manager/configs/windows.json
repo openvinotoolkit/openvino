@@ -17,7 +17,6 @@
       "group": ["ie"],
       "files": [
         "runtime/bin/intel64/Release/openvino.dll",
-        "runtime/bin/intel64/Release/openvino_gapi_preproc.dll",
         "runtime/bin/intel64/Release/openvino_c.dll",
         "runtime/bin/intel64/Release/openvino_hetero_plugin.dll",
         "runtime/bin/intel64/Release/openvino_auto_plugin.dll",

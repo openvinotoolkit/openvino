@@ -106,7 +106,6 @@ jobs:
         run: |
           & "${{ env.VCVARSPATH }}" x64 && cmake -G Ninja `
             -DENABLE_CPPLINT=OFF `
-            -DENABLE_GAPI_PREPROCESSING=OFF `
             -DENABLE_PLUGINS_XML=ON `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
@@ -140,7 +139,6 @@ jobs:
           & "${{ env.VCVARSPATH }}" x64 && cmake -G "Visual Studio 17 2022" `
             -DCMAKE_VERBOSE_MAKEFILE=ON `
             -DENABLE_CPPLINT=OFF `
-            -DENABLE_GAPI_PREPROCESSING=OFF `
             -DENABLE_PROFILING_ITT=OFF `
             -DSELECTIVE_BUILD=ON `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
