@@ -89,7 +89,7 @@ public:
             break;
         }
         default:
-            throw std::runtime_error("Invalid data type : " + data_type_traits::name(prim_layout.data_type));
+            throw std::runtime_error("Invalid data type : " + ov::element::Type(prim_layout.data_type).get_type_name());
         }
         return trip_count;
     }
@@ -129,7 +129,7 @@ public:
             break;
         }
         default:
-            throw std::runtime_error("Invalid data type : " + data_type_traits::name(prim_layout.data_type));
+            throw std::runtime_error("Invalid data type : " + ov::element::Type(prim_layout.data_type).get_type_name());
         }
     }
 
