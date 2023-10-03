@@ -53,7 +53,7 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 5. Loading model to the device ----------------------
   console.log('Loading the model to the plugin');
-  const compiledModel = core.compileModel(model, deviceName);
+  const compiledModel = await core.compileModel(model, deviceName);
 
   //---------------- Step 6. Create infer request and do inference synchronously
   console.log('Starting inference in synchronous mode');

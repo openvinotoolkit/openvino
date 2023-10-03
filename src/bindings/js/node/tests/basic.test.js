@@ -10,7 +10,7 @@ const { getModelPath } = require('./utils.js');
 let testXml = getModelPath();
 const core = new ov.Core();
 const model = core.readModelSync(testXml);
-const compiledModel = core.compileModel(model, 'CPU');
+const compiledModel = core.compileModelSync(model, 'CPU');
 
 describe('Output class', () => {
   const modelLike = [[model],

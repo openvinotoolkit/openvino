@@ -81,7 +81,7 @@ async function main(modelPath, images, deviceName) {
 
   //----------------- Step 5. Loading model to the device ----------------------
   console.log('Loading the model to the plugin');
-  const compiledModel = core.compileModel(model, deviceName);
+  const compiledModel = await core.compileModel(model, deviceName);
   const outputName = compiledModel.output(0).toString();
 
   //----------- Step 6. Collecting promises to react when they resolve ---------
