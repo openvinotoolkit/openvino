@@ -33,6 +33,10 @@ public:
      */
     static Napi::Object Wrap(Napi::Env env, ov::CompiledModel compiled_model);
 
+    /** @brief Sets a _compiled_model property of a CompiledModelWrap object. Used e.g. when creating CompiledModelWrap
+     * object on node-addon side. */
+    void set_compiled_model(const ov::CompiledModel& compiled_model);
+
     /** @return A Javascript InferRequest */
     Napi::Value create_infer_request(const Napi::CallbackInfo& info);
 

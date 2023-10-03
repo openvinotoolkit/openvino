@@ -59,7 +59,16 @@ public:
      * @param info[1] string with propetries e.g. device
      * @return A Javascript CompiledModel object.
      */
-    Napi::Value compile_model(const Napi::CallbackInfo& info);
+    Napi::Value compile_model_sync(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Asynchronously creates and loads a compiled model from a source model.
+     * @param info contains two passed arguments.
+     * @param info[0] Javascript Model object acquired from CoreWrap::read_model
+     * @param info[1] string with propetries e.g. device
+     * @return A Javascript CompiledModel object.
+     */
+    Napi::Value compile_model_async(const Napi::CallbackInfo& info);
 
 private:
     ov::Core _core;
