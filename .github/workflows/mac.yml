@@ -1,4 +1,4 @@
-name: Tests on Mac (macOS 12, Python 3.11)
+name: Tests on macOS (macOS 12, Python 3.11)
 on:
   workflow_dispatch:
   pull_request:
