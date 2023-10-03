@@ -15,9 +15,9 @@ inline const std::vector<ov::AnyMap> generate_ov_configs(const std::vector<ov::A
     if (ov::test::conformance::targetDevice ==  std::string(ov::test::utils::DEVICE_MULTI) ||
         ov::test::conformance::targetDevice ==  std::string(ov::test::utils::DEVICE_AUTO) ||
         ov::test::conformance::targetDevice ==  std::string(ov::test::utils::DEVICE_HETERO)) {
-        default_config = {ov::device::priorities(ov::test::conformance::targetDevice)};
+        default_config = {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)};
     } else if (ov::test::conformance::targetDevice == std::string(ov::test::utils::DEVICE_BATCH)) {
-        default_config = {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ov::test::conformance::targetDevice)}};
+        default_config = {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ov::test::utils::DEVICE_TEMPLATE)}};
     } else {
         default_config = {};
     }
@@ -33,10 +33,14 @@ inline const std::vector<ov::AnyMap> generate_ov_configs(const std::vector<ov::A
     return resultConfig;
 }
 
-inline const std::vector<std::string> return_device_combination() {
+inline const std::vector<std::string> return_device_combination(bool complex_device = true, const std::string& targetDevice = "") {
+    if (targetDevice != "" && ov::test::conformance::targetDevice != targetDevice) {
+        return {};
+    }
+
     std::vector<std::string> sw_plugins{ov::test::utils::DEVICE_HETERO, ov::test::utils::DEVICE_AUTO,
                                         ov::test::utils::DEVICE_BATCH, ov::test::utils::DEVICE_MULTI};
-    if (std::find(sw_plugins.begin(), sw_plugins.end(), ov::test::conformance::targetDevice) != sw_plugins.end()) {
+    if (complex_device && std::find(sw_plugins.begin(), sw_plugins.end(), ov::test::conformance::targetDevice) != sw_plugins.end()) {
         std::string sw_device = generate_complex_device_name(ov::test::utils::DEVICE_TEMPLATE);
         return {sw_device};
     }

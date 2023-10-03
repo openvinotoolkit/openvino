@@ -20,13 +20,13 @@ const std::vector<ov::AnyMap> auto_batch_inproperties = {};
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
                         ::testing::Combine(
-                                ::testing::ValuesIn(return_device_combination()),
+                                ::testing::ValuesIn(return_device_combination(false)),
                                 ::testing::ValuesIn(inproperties)),
                         OVPropertiesIncorrectTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesIncorrectTests,
                         ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                                ::testing::ValuesIn(return_device_combination(false, ov::test::utils::DEVICE_BATCH)),
                                 ::testing::ValuesIn(auto_batch_inproperties)),
                         OVPropertiesIncorrectTests::getTestCaseName);
 
@@ -43,13 +43,13 @@ const std::vector<ov::AnyMap> auto_batch_properties = {
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
         ::testing::Combine(
-                ::testing::ValuesIn(return_device_combination()),
+                ::testing::ValuesIn(return_device_combination(false)),
                 ::testing::ValuesIn(default_properties)),
         OVPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesTests,
         ::testing::Combine(
-                ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                ::testing::ValuesIn(return_device_combination(false, ov::test::utils::DEVICE_BATCH)),
                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(auto_batch_properties))),
         OVPropertiesTests::getTestCaseName);
 
@@ -117,7 +117,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVPropertiesDefaultSupportedTests,
-        ::testing::ValuesIn(return_device_combination()));
+        ::testing::ValuesIn(return_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin_remove_mandatory, OVBasicPropertiesTestsP,
