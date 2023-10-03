@@ -54,7 +54,7 @@ def nms_rotated(
     attributes = {
         "sort_result_descending": sort_result_descending,
         "output_type": output_type,
-        "clockwise": clockwise
+        "clockwise": clockwise,
     }
 
     return _get_node_factory_opset13().create("NMSRotated", inputs, attributes)
