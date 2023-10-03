@@ -38,14 +38,17 @@ def test_nms_rotated_default_attrs(boxes_shape, scores_shape, max_output_boxes, 
 
 
 @pytest.mark.parametrize(
-    ("boxes_shape", "scores_shape", "max_output_boxes", "iou_threshold", "score_threshold", "sort_result_descending", "output_type", "clockwise", "expected_shape"),
+    ("boxes_shape", "scores_shape", "max_output_boxes", "iou_threshold", "score_threshold",
+     "sort_result_descending", "output_type", "clockwise", "expected_shape"),
     [
-        ([1, 100, 5], [1, 1, 100], [100], 0.1, 0.4, False, "i64", False, [PartialShape(
-            [Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
-        ([1, 100, 5], [1, 1, 100], [100], 0.1, 0.4, True, "i32", True, [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
+        ([1, 100, 5], [1, 1, 100], [100], 0.1, 0.4, False, "i64", False,
+         [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
+        ([1, 100, 5], [1, 1, 100], [100], 0.1, 0.4, True, "i32", True,
+         [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
     ],
 )
-def test_nms_rotated_custom_attrs(boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold, sort_result_descending, output_type, clockwise, expected_shape):
+def test_nms_rotated_custom_attrs(boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold,
+                                  sort_result_descending, output_type, clockwise, expected_shape):
     boxes_parameter = ov_opset13.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ov_opset13.parameter(scores_shape, name="Scores", dtype=np.float32)
 
