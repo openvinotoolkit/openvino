@@ -107,7 +107,7 @@ bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
 }
 
 void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream) {
-    auto src_et = cldnn::data_type_to_element_type(src->get_layout().data_type);
+    auto src_et = src->get_layout().data_type;
     auto dst_et = dst->get_element_type();
 
     size_t size = ov::shape_size(dst->get_shape());
@@ -558,7 +558,7 @@ cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, con
     const auto& layout = src->get_layout();
     auto& stream = m_graph->get_network()->get_stream();
 
-    if (is_convert_required(cldnn::data_type_to_element_type(layout.data_type), dst.get_element_type())) {
+    if (is_convert_required(layout.data_type, dst.get_element_type())) {
         convert_and_copy(src, &dst, stream);
         return nullptr;
     } else {
