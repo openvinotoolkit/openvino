@@ -1,4 +1,4 @@
-name: Linux CUDA Plugin (Ubuntu 20.04)
+name: Linux NVIDIA Plugin (Ubuntu 20.04)
 on:
   workflow_dispatch:
   pull_request:
@@ -22,7 +22,7 @@ on:
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-cuda
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-nvidia
   cancel-in-progress: true
 
 jobs:
@@ -106,6 +106,10 @@ jobs:
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DENABLE_CPPLINT=OFF \
+            -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_SYSTEM_PUGIXML=ON \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
             -DENABLE_INTEL_CPU=OFF \
             -DENABLE_INTEL_GPU=OFF \
@@ -117,6 +121,7 @@ jobs:
             -DENABLE_OV_ONNX_FRONTEND=OFF \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=ON \
+            -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_MINIMUM_REQUIRED_VERSION=3.20 \
             -S ${OPENVINO_REPO} \
