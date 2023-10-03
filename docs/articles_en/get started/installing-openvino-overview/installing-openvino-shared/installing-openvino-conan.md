@@ -21,15 +21,15 @@
    .. tab-item:: System Requirements
       :sync: system-requirements
 
-      | Full requirement listing is available in:
-      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+      Full requirement listing is available in:
+      `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
 
    .. tab-item:: Processor Notes
       :sync: processor-notes
    
-      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      | `Product Specifications <https://ark.intel.com/>`__
+      To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
+      `Product Specifications <https://ark.intel.com/>`__
 
 
    .. tab-item:: Software
