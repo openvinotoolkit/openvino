@@ -24,9 +24,9 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace topk {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
-inline bool evaluate_execute(const HostTensorPtr& arg0,
-                             const HostTensorPtr& out_indices,
-                             const HostTensorPtr& out_values,
+inline bool evaluate_execute(const ngraph::HostTensorPtr& arg0,
+                             const ngraph::HostTensorPtr& out_indices,
+                             const ngraph::HostTensorPtr& out_values,
                              const ov::Shape out_shape,
                              const size_t axis,
                              const size_t k,
@@ -60,9 +60,9 @@ inline bool evaluate_execute(const HostTensorPtr& arg0,
     } break
 
 template <element::Type_t INPUT_ET>
-bool evaluate(const HostTensorPtr& arg,
-              const HostTensorPtr& out_indices,
-              const HostTensorPtr& out_values,
+bool evaluate(const ngraph::HostTensorPtr& arg,
+              const ngraph::HostTensorPtr& out_indices,
+              const ngraph::HostTensorPtr& out_values,
               const ov::Shape out_shape,
               const size_t axis,
               const size_t k,
@@ -80,9 +80,9 @@ bool evaluate(const HostTensorPtr& arg,
     return rc;
 }
 
-bool evaluate_topk(const HostTensorPtr& arg,
-                   const HostTensorPtr& out_indices,
-                   const HostTensorPtr& out_values,
+bool evaluate_topk(const ngraph::HostTensorPtr& arg,
+                   const ngraph::HostTensorPtr& out_indices,
+                   const ngraph::HostTensorPtr& out_values,
                    const ov::Shape out_shape,
                    const size_t axis,
                    const size_t k,
