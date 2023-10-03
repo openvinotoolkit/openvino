@@ -74,7 +74,7 @@ Installing OpenVINO Runtime with Conan Package Manager
 
 3. Configure and compile your project with OpenVINO:
    
-   .. code-block:: sh
+   .. code-block:: console
 
       cmake -DCMAKE_TOOLCHAIN_FILE=<path to conan_toolchain.cmake> -DCMAKE_BUILD_TYPE=Release -S <path to CMakeLists.txt of your project> -B <build dir>
       cmake --build <build dir> --parallel
