@@ -473,11 +473,7 @@ void FullyConnected::prepareWeightsUsingDummyShape() {
     auto prim_desc = createPrimitiveDesc(key, getEngine());
     auto weights = DnnlExtensionUtils::makeDescriptor(prim_desc.weights_desc());
     // ignore the result since we just need to put the reordered weights into the cache
-    if (weightsNonTransposed) {
-        (void) prepareWeightMemory(weights, makeTransposedWeightDescriptor(weights));
-    } else {
-        (void) prepareWeightMemory(weights);
-    }
+    (void) prepareWeightMemory(weights);
 }
 #endif
 
