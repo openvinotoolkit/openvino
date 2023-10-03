@@ -27,7 +27,6 @@
       :sync: processor-notes
    
       To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      `Product Specifications <https://ark.intel.com/content/www/us/en/ark.html>`__
 
 
    .. tab-item:: Software
