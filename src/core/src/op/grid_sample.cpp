@@ -77,9 +77,9 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
 template <element::Type_t DATA_ET, element::Type_t GRID_ET>
-bool evaluate_exec(const HostTensorPtr& output,
-                   const HostTensorPtr& data,
-                   const HostTensorPtr& grid,
+bool evaluate_exec(const ngraph::HostTensorPtr& output,
+                   const ngraph::HostTensorPtr& data,
+                   const ngraph::HostTensorPtr& grid,
                    const op::v9::GridSample::Attributes& attributes) {
     ov::reference::grid_sample(output->get_data_ptr<DATA_ET>(),
                                data->get_data_ptr<DATA_ET>(),
@@ -99,9 +99,9 @@ bool evaluate_exec(const HostTensorPtr& output,
     } break
 
 template <element::Type_t DATA_ET>
-bool evaluate(const HostTensorPtr& output,
-              const HostTensorPtr& data,
-              const HostTensorPtr& grid,
+bool evaluate(const ngraph::HostTensorPtr& output,
+              const ngraph::HostTensorPtr& data,
+              const ngraph::HostTensorPtr& grid,
               const op::v9::GridSample::Attributes& attributes) {
     auto rc = true;
     switch (grid->get_element_type()) {
@@ -113,9 +113,9 @@ bool evaluate(const HostTensorPtr& output,
     return rc;
 }
 
-bool evaluate_grid_sample(const HostTensorPtr& output,
-                          const HostTensorPtr& data,
-                          const HostTensorPtr& grid,
+bool evaluate_grid_sample(const ngraph::HostTensorPtr& output,
+                          const ngraph::HostTensorPtr& data,
+                          const ngraph::HostTensorPtr& grid,
                           const op::v9::GridSample::Attributes& attributes) {
     auto rc = true;
     switch (output->get_element_type()) {

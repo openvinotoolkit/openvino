@@ -363,10 +363,10 @@ TEST_F(TypePropEyeV9Test, default_ctor_no_arguments) {
 
     int64_t rows = 8, cols = 5;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
-    const auto constant_map = std::map<size_t, HostTensorPtr>{
-        {0, std::make_shared<HostTensor>(element::i64, Shape{}, &rows)},
-        {1, std::make_shared<HostTensor>(element::i64, Shape{}, &cols)},
-        {3, std::make_shared<HostTensor>(element::i32, Shape{batch.size()}, batch.data())}};
+    const auto constant_map = std::map<size_t, ngraph::HostTensorPtr>{
+        {0, std::make_shared<ngraph::HostTensor>(element::i64, Shape{}, &rows)},
+        {1, std::make_shared<ngraph::HostTensor>(element::i64, Shape{}, &cols)},
+        {3, std::make_shared<ngraph::HostTensor>(element::i32, Shape{batch.size()}, batch.data())}};
 
     const auto output_shapes =
         op::v9::shape_infer(op.get(), PartialShapes{{}, {}, {}, {3}}, make_tensor_accessor(constant_map));

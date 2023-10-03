@@ -38,7 +38,7 @@ Tensor TensorAccessor<std::unordered_map<size_t, Tensor>>::operator()(size_t por
 }
 
 template <>
-Tensor TensorAccessor<std::map<size_t, HostTensorPtr>>::operator()(size_t port) const {
+Tensor TensorAccessor<std::map<size_t, ngraph::HostTensorPtr>>::operator()(size_t port) const {
     const auto t_iter = m_tensors->find(port);
     if (t_iter != m_tensors->cend()) {
         auto ptr = t_iter->second.get();

@@ -32,6 +32,12 @@ class Constant;
 }  // namespace op
 }  // namespace ov
 namespace ngraph {
+
+namespace runtime {
+class HostTensor;
+}
+
+using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
 namespace op {
 namespace v0 {
 using ov::op::v0::Constant;

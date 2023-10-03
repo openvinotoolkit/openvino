@@ -95,11 +95,11 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace scatter_elements_update {
 namespace {
 template <element::Type_t DT, element::Type_t IT, element::Type_t AT>
-bool evaluate(const HostTensorPtr& data,
-              const HostTensorPtr& indices,
-              const HostTensorPtr& updates,
-              const HostTensorPtr& axis,
-              const HostTensorPtr& out,
+bool evaluate(const ngraph::HostTensorPtr& data,
+              const ngraph::HostTensorPtr& indices,
+              const ngraph::HostTensorPtr& updates,
+              const ngraph::HostTensorPtr& axis,
+              const ngraph::HostTensorPtr& out,
               const int64_t normalized_axis,
               const op::v12::ScatterElementsUpdate::Reduction reduction_type,
               const bool use_init_value) {
@@ -128,11 +128,11 @@ bool evaluate(const HostTensorPtr& data,
     } break;
 
 template <element::Type_t DT, element::Type_t IT>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& arg2,
-              const HostTensorPtr& arg3,
-              const HostTensorPtr& out,
+bool evaluate(const ngraph::HostTensorPtr& arg0,
+              const ngraph::HostTensorPtr& arg1,
+              const ngraph::HostTensorPtr& arg2,
+              const ngraph::HostTensorPtr& arg3,
+              const ngraph::HostTensorPtr& out,
               const int64_t normalized_axis,
               const op::v12::ScatterElementsUpdate::Reduction reduction_type,
               const bool use_init_value) {
@@ -164,11 +164,11 @@ bool evaluate(const HostTensorPtr& arg0,
     } break;
 
 template <element::Type_t DT>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& arg2,
-              const HostTensorPtr& arg3,
-              const HostTensorPtr& out,
+bool evaluate(const ngraph::HostTensorPtr& arg0,
+              const ngraph::HostTensorPtr& arg1,
+              const ngraph::HostTensorPtr& arg2,
+              const ngraph::HostTensorPtr& arg3,
+              const ngraph::HostTensorPtr& out,
               const int64_t normalized_axis,
               const op::v12::ScatterElementsUpdate::Reduction reduction_type,
               const bool use_init_value) {
@@ -194,11 +194,11 @@ bool evaluate(const HostTensorPtr& arg0,
 }
 
 bool evaluate_scatter_elements_update(
-    const HostTensorPtr& arg0,
-    const HostTensorPtr& arg1,
-    const HostTensorPtr& arg2,
-    const HostTensorPtr& arg3,
-    const HostTensorPtr& out,
+    const ngraph::HostTensorPtr& arg0,
+    const ngraph::HostTensorPtr& arg1,
+    const ngraph::HostTensorPtr& arg2,
+    const ngraph::HostTensorPtr& arg3,
+    const ngraph::HostTensorPtr& out,
     const int64_t normalized_axis,
     const op::v12::ScatterElementsUpdate::Reduction reduction_type = op::v12::ScatterElementsUpdate::Reduction::NONE,
     const bool use_init_value = false) {
