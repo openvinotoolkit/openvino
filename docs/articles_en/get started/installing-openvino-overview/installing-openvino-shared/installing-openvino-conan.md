@@ -36,7 +36,7 @@
       :sync: software
 
       There are many ways to work with Conan Package Manager. Before you proceed, learn more about it on the
-      `Conan distribution page <https://conan.io/downloads/>`__
+      `Conan distribution page <https://conan.io/downloads>`__
 
 Installing OpenVINO Runtime with Conan Package Manager
 ############################################################
