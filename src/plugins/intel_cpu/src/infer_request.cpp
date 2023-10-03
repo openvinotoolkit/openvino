@@ -401,9 +401,9 @@ static InferenceEngine::TensorDesc create_tensor_desc(const ov::SoPtr<ITensor>& 
                        });
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
-    return ie::TensorDesc{ie::details::convertPrecision(element_type),
+    return InferenceEngine::TensorDesc{InferenceEngine::details::convertPrecision(element_type),
                           shape,
-                          ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
+                          InferenceEngine::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
