@@ -86,7 +86,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output('boxes');"
+                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output('boxes');"
             ],
             "outputs": []
         },

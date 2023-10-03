@@ -87,7 +87,7 @@
         {
             "language": "javascript",
             "source": [
-                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
+                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
             ],
             "outputs": []
         },
