@@ -438,10 +438,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
           pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
       - uses: actions/setup-python@v4
@@ -458,141 +458,18 @@ jobs:
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
-      # Download Previous Test Results from Cache
-      #
-
-      - name: Install @actions/cache package
-        run: npm install @actions/cache
-
-      - name: Gather Workflows Data
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs');
-            const cache = require('@actions/cache');
-
-            function sleep(ms) {
-              return new Promise(resolve => setTimeout(resolve, ms));
-            }
-
-            const org = context.payload.organization.login
-            const repositoryName = context.payload.repository.name
-            const cachePrefix = '${{ runner.os }}-conformance-hash-table-${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}-'
-            const fileName = 'hash_table_${{ env.TEST_DEVICE }}.csv'
-
-            const conformanceCacheEntries = await github.rest.actions.getActionsCacheList({
-              'owner': org,
-              'repo': repositoryName,
-              'key': cachePrefix
-            })
-
-            // The path from which all the cache entries were uploaded
-            // It is needed for the `restoreCache` function to look for the right cache entry
-            const restorePath = `${{ env.CONFORMANCE_TOOLS_DIR }}/${fileName}`
-
-            // Download the cache entries
-            for (const cacheEntryInfo of conformanceCacheEntries.data.actions_caches) {
-              const cacheKey = cacheEntryInfo.key
-            
-              // The unique path to which the current cache entry will be saved
-              const finalPath = `${{ env.CONFORMANCE_CACHE_DIR }}/${cacheKey}/${fileName}`
-
-              console.log(`Restoring cache: ${cacheKey}`)
-
-              const restoredCacheKey = await cache.restoreCache([restorePath], cacheKey, [])
-
-              if (restoredCacheKey) {
-                // Create directory for the entry
-                fs.mkdir(`${{ env.CONFORMANCE_CACHE_DIR }}/${cacheKey}`, { recursive: true }, (err) => {
-                  if (err) throw err;
-                });
-            
-                // Sleep to make sure that that downloading is complete
-                await sleep(2000);
-
-                // Move downloaded cache to its final directory
-                fs.rename(restorePath, finalPath, function (err) {
-                  if (err) throw err
-                  console.log(`${cacheKey} was restored to ${finalPath}.\n`)
-                })
-              } else {
-                console.log(`Cache was not restored: ${cacheKey}.\n`)
-              }
-              
-              // Sleep to make sure that downloading/moving is complete w/o interfering with the next one 
-              await sleep(2000)
-            }
-
-      - name: Check Cache Restoration
-        run: ls -laR ${{ env.CONFORMANCE_CACHE_DIR }}
-
-      #
       # Tests
       #
 
-      - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v2
-        id: cpu-cores
-
-      - name: Download Expected Failures List
-        uses: actions/cache/restore@v3
-        id: expected_failures_cache
-        with:
-          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
-          key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ env.TEST_DEVICE }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ env.TEST_DEVICE }}-
-
-      - name: Download Test Results Table
-        uses: actions/cache/restore@v3
-        with:
-          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/hash_table_${{ env.TEST_DEVICE }}.csv
-          key: ${{ runner.os }}-conformance-hash-table-${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-conformance-hash-table-${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}-
-
-      - name: Run Conformance Tests
+      - name: Conformance Tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
           python3 ${CONFORMANCE_TOOLS_DIR}/run_conformance.py -ov=${INSTALL_DIR}/tests \
-            -j=4 \
             -d=${TEST_DEVICE} \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR} \
             -f=${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
-
-      # Required due to: https://github.com/actions/cache/tree/main/restore#ensuring-proper-restores-and-save-happen-across-the-actions
-      - name: Rename Expected Failures List
-        if: github.ref_name == 'master'
-        # if: ${{ always() }}
-        run: |
-          rm -rf ${CONFORMANCE_TOOLS_DIR}/expected_failures_${TEST_DEVICE}.csv
-          cp ${CONFORMANCE_ARTIFACTS_DIR}/${TEST_DEVICE}_logs/logs/fix_priority.csv ${CONFORMANCE_TOOLS_DIR}/expected_failures_${TEST_DEVICE}.csv
-
-      - name: Upload Expected Failures List
-        if: github.ref_name == 'master'
-        # if: ${{ always() }}
-        uses: actions/cache/save@v3
-        with:
-          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/expected_failures_${{ env.TEST_DEVICE }}.csv
-          key: ${{ runner.os }}-conformance-${{ matrix.TEST_TYPE }}-expected-failures-${{ env.TEST_DEVICE }}-${{ github.sha }}
-
-      # Required due to: https://github.com/actions/cache/tree/main/restore#ensuring-proper-restores-and-save-happen-across-the-actions
-      - name: Rename Test Results Table
-        # if: github.ref_name == 'master'
-        if: ${{ always() }}
-        run: |
-          rm -rf ${CONFORMANCE_TOOLS_DIR}/hash_table_${TEST_DEVICE}.csv
-          cp ${CONFORMANCE_ARTIFACTS_DIR}/${TEST_DEVICE}_logs/logs/hash_table.csv ${CONFORMANCE_TOOLS_DIR}/hash_table_${TEST_DEVICE}.csv
-
-      - name: Upload Test Results Table
-        # if: github.ref_name == 'master'
-        if: ${{ always() }}
-        uses: actions/cache/save@v3
-        with:
-          path: ${{ env.CONFORMANCE_TOOLS_DIR }}/hash_table_${{ env.TEST_DEVICE }}.csv
-          key: ${{ runner.os }}-conformance-hash-table-${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}-${{ github.sha }}
 
       - name: Pack Conformance Artifacts
         if: ${{ always() }}
