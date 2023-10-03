@@ -40,7 +40,7 @@ Installing OpenVINO Runtime with Conan Package Manager
 
 1. Install Conan 2.0 or higher:
    
-   .. code-block:: sh
+   .. code-block:: 
 
       python3 -m pip install conan
 
@@ -58,7 +58,7 @@ Installing OpenVINO Runtime with Conan Package Manager
 
    Run the command below to create ``conan_toolchain.cmake`` file, which will be used to compile your project with OpenVINO:
    
-   .. code-block:: sh
+   .. code-block:: 
 
       conan install conanfile.txt --build=missing
 
@@ -66,7 +66,7 @@ Installing OpenVINO Runtime with Conan Package Manager
    
       By default, OpenVINO is statically compiled. All available plugins and frontends are compiled as well. You can build a tailored OpenVINO by using the command below:
       
-      .. code-block:: sh
+      .. code-block:: 
    
          conan install conanfile.txt --build=missing -o:h openvino/*:enable_intel_gpu=False -o:h openvino/*:enable_onnx_frontend=False' -o:h openvino/*:shared=True.
       
@@ -74,7 +74,7 @@ Installing OpenVINO Runtime with Conan Package Manager
 
 3. Configure and compile your project with OpenVINO:
    
-   .. code-block:: console
+   .. code-block:: 
 
       cmake -DCMAKE_TOOLCHAIN_FILE=<path to conan_toolchain.cmake> -DCMAKE_BUILD_TYPE=Release -S <path to CMakeLists.txt of your project> -B <build dir>
       cmake --build <build dir> --parallel
