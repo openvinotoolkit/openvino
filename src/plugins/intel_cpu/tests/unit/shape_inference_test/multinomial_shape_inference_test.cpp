@@ -20,7 +20,7 @@ TEST(StaticShapeInferenceTest, MultinomialStaticShapeInferenceTest1D) {
     std::vector<StaticShape> static_input_shapes = {StaticShape{4}, StaticShape{1}};
     int32_t num_elements_val = 2;
     auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{1}, &num_elements_val)}};
+        std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &num_elements_val}}};
     auto acc = make_tensor_accessor(const_data);
     auto static_output_shapes = shape_infer(multinomial.get(), static_input_shapes, acc);
     ASSERT_EQ(static_output_shapes[0], StaticShape({2}));
@@ -35,7 +35,7 @@ TEST(StaticShapeInferenceTest, MultinomialStaticShapeInferenceTest2D) {
     std::vector<StaticShape> static_input_shapes = {StaticShape{4, 4}, StaticShape{1}};
     int32_t num_elements_val = 2;
     auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{1}, &num_elements_val)}};
+        std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &num_elements_val}}};
     auto acc = make_tensor_accessor(const_data);
     auto static_output_shapes = shape_infer(multinomial.get(), static_input_shapes, acc);
     ASSERT_EQ(static_output_shapes[0], StaticShape({4, 2}));
@@ -50,7 +50,7 @@ TEST(StaticShapeInferenceTest, MultinomialDynamicShapeInferenceTestAllDimKnown1D
     std::vector<PartialShape> partial_input_shapes = {PartialShape{3}, PartialShape{1}};
     int32_t num_elements_val = 2;
     auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{1}, &num_elements_val)}};
+        std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &num_elements_val}}};
     auto acc = make_tensor_accessor(const_data);
     auto partial_output_shapes = shape_infer(multinomial.get(), partial_input_shapes, acc);
     ASSERT_EQ(partial_output_shapes[0], PartialShape({2}));
@@ -65,7 +65,7 @@ TEST(StaticShapeInferenceTest, MultinomialDynamicShapeInferenceTestAllDimKnown2D
     std::vector<PartialShape> partial_input_shapes = {PartialShape{2, 3}, PartialShape{1}};
     int32_t num_elements_val = 2;
     auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{1}, &num_elements_val)}};
+        std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &num_elements_val}}};
     auto acc = make_tensor_accessor(const_data);
     auto partial_output_shapes = shape_infer(multinomial.get(), partial_input_shapes, acc);
     ASSERT_EQ(partial_output_shapes[0], PartialShape({2, 2}));
