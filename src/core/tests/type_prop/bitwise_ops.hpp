@@ -678,10 +678,10 @@ TYPED_TEST_P(BitwiseOperator, labels_equal_fully_dynamic_batch_broadcast_numpy) 
 }
 
 TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_a_broadcast_numpy) {
-    Dimension batch_dim = -1;
-    DimensionTracker::set_label(batch_dim, 10);
-    PartialShape pshape_lhs = {batch_dim, 3, 224, 224}, pshape_rhs = {1, 3, 1, 1};
-    PartialShape expected_shape{batch_dim, 3, 224, 224};
+    Dimension dim_0_lhs = -1;
+    DimensionTracker::set_label(dim_0_lhs, 10);
+    PartialShape pshape_lhs = {dim_0_lhs, 3, 224, 224}, pshape_rhs = {1, 3, 1, 1};
+    PartialShape expected_shape{dim_0_lhs, 3, 224, 224};
 
     TensorLabel expected_labels{10, 0, 0, 0};
 
@@ -697,10 +697,10 @@ TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_a_broadcast_numpy) {
 }
 
 TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_b_broadcast_numpy) {
-    Dimension batch_dim = -1;
-    DimensionTracker::set_label(batch_dim, 10);
-    PartialShape pshape_rhs = {batch_dim, 3, 224, 224}, pshape_lhs = {1, 3, 1, 1};
-    PartialShape expected_shape{batch_dim, 3, 224, 224};
+    Dimension dim_0_rhs = -1;
+    DimensionTracker::set_label(dim_0_rhs, 10);
+    PartialShape pshape_rhs = {dim_0_rhs, 3, 224, 224}, pshape_lhs = {1, 3, 1, 1};
+    PartialShape expected_shape{dim_0_rhs, 3, 224, 224};
 
     TensorLabel expected_labels{10, 0, 0, 0};
 
@@ -716,12 +716,12 @@ TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_b_broadcast_numpy) {
 }
 
 TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_and_higher_rank_a_broadcast_numpy) {
-    Dimension batch_dim = -1;
-    DimensionTracker::set_label(batch_dim, 10);
+    Dimension dim_0_lhs = -1;
+    DimensionTracker::set_label(dim_0_lhs, 10);
 
-    PartialShape pshape_lhs{batch_dim, -1, -1, -1};
+    PartialShape pshape_lhs{dim_0_lhs, -1, -1, -1};
     PartialShape pshape_rhs{3, 1, 1};
-    PartialShape expected_shape{batch_dim, 3, -1, -1};
+    PartialShape expected_shape{dim_0_lhs, 3, -1, -1};
 
     TensorLabel expected_labels{10, 0, 0, 0};
 
@@ -737,12 +737,12 @@ TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_and_higher_rank_a_broadcast_numpy
 }
 
 TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_and_higher_rank_b_broadcast_numpy) {
-    Dimension batch_dim = -1;
-    DimensionTracker::set_label(batch_dim, 10);
+    Dimension dim_0_rhs = -1;
+    DimensionTracker::set_label(dim_0_rhs, 10);
 
     PartialShape pshape_lhs{3, 1, 1};
-    PartialShape pshape_rhs{batch_dim, -1, -1, -1};
-    PartialShape expected_shape{batch_dim, 3, -1, -1};
+    PartialShape pshape_rhs{dim_0_rhs, -1, -1, -1};
+    PartialShape expected_shape{dim_0_rhs, 3, -1, -1};
 
     TensorLabel expected_labels{10, 0, 0, 0};
 
