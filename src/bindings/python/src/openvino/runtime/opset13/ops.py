@@ -48,7 +48,6 @@ def nms_rotated(
     :param clockwise: Flag that specifies direction of the box rotation.
     :return: The new node which performs NMSRotated
     """
-
     inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold)
 
     attributes = {
