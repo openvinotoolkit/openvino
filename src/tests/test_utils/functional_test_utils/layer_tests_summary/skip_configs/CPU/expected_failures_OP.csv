@@ -485,7 +485,9 @@ conformance_HSwish/ReadIRTest.ImportExport/Op=HSwish.4_Type=f32_IR=13c8ea7095835
 conformance_Broadcast/ReadIRTest.ImportExport/Op=Broadcast.3_Type=f32_IR=ecae8fe0a14fbb0e17dd711a46e05fa4e6901bc3ba360990c54713775074d6b9_Device=CPU_Shape=static_Config=(),0.000699482
 conformance_AvgPool/ReadIRTest.ImportExport/Op=AvgPool.1_Type=f32_IR=AvgPool-1_403_Device=CPU_Shape=static_Config=(),0.000695592
 conformance_Concat/ReadIRTest.ImportExport/Op=Concat.1_Type=f32_IR=2702db0d741d74e9b7a040b9b861f7367f7c69193545cecd8b1acc9ea46bf13b_Device=CPU_Shape=static_Config=(),0.000683663
+conformance_Concat/ReadIRTest.Inference/Op=Concat.1_Type=f32_IR=9b7a1d1050acbadeb479db70fd51cdb0ccc5ba34aa0d1f7d77e814eca0893a22_Device=CPU_Shape=dynamic_Config=(),0
 conformance_Convolution/ReadIRTest.Inference/Op=Convolution.1_Type=f32_IR=830ab428e39124866276e2c0c352123f124a1167a4199c7acb1cc587cd952cf7_Device=CPU_Shape=dynamic_Config=(),0.000675739
+conformance_Convolution/ReadIRTest.Inference/Op=Convolution.1_Type=f32_IR=cbffaa2c9b5d9fe202f3f5bfaa43689b38a22adc631604a2c600205907a50655_Device=CPU_Shape=dynamic_Config=(), 0
 conformance_Convolution/ReadIRTest.ImportExport/Op=Convolution.1_Type=f32_IR=830ab428e39124866276e2c0c352123f124a1167a4199c7acb1cc587cd952cf7_Device=CPU_Shape=dynamic_Config=(),0.000675739
 conformance_Convolution/ReadIRTest.ImportExport/Op=Convolution.1_Type=f32_IR=962075102f4aee372758414155ba95227bbf15a567d8dc02e3b4dbdf5fe913b3_Device=CPU_Shape=static_Config=(),0.000671362
 conformance_StridedSlice/ReadIRTest.ImportExport/Op=StridedSlice.1_Type=f32_IR=647d1908985889e0e7bce82731a516b6f920f1773c6f22509d1955de50dbeac5_Device=CPU_Shape=static_Config=(),0.00066238
@@ -890,6 +892,7 @@ conformance_Subtract/ReadIRTest.ImportExport/Op=Subtract.1_Type=f32_IR=1e77537e4
 conformance_Convolution/ReadIRTest.ImportExport/Op=Convolution.1_Type=f32_IR=88e7722362388c1ed19219da89ea252bdeb00f05531d2f024134270595c580a5_Device=CPU_Shape=static_Config=(),4.89168e-05
 conformance_Power/ReadIRTest.ImportExport/Op=Power.1_Type=f32_IR=e1249b057841a6a8ecdd605a4d73887dc09f31271815bb90c7c1e91b41c4dfe1_Device=CPU_Shape=static_Config=(),4.81445e-05
 conformance_MaxPool/ReadIRTest.Inference/Op=MaxPool.8_Type=f32_IR=MaxPool-8_441_Device=CPU_Shape=dynamic_Config=(),4.7887e-05
+conformance_MaxPool/ReadIRTest.Inference/Op=MaxPool.8_Type=f32_IR=22ae8d3d0f4ba99130074a080593d4bfce691ea1fecc6069063b40aca63cf7b1_Device=CPU_Shape=dynamic_Config=(),0
 conformance_MaxPool/ReadIRTest.ImportExport/Op=MaxPool.8_Type=f32_IR=MaxPool-8_441_Device=CPU_Shape=dynamic_Config=(),4.7887e-05
 conformance_Convolution/ReadIRTest.Inference/Op=Convolution.1_Type=f32_IR=26df036b689f6aaf1436fc55f432e39ed413b933c19cde378539947360acab0a_Device=CPU_Shape=dynamic_Config=(),4.77154e-05
 conformance_Convolution/ReadIRTest.ImportExport/Op=Convolution.1_Type=f32_IR=26df036b689f6aaf1436fc55f432e39ed413b933c19cde378539947360acab0a_Device=CPU_Shape=dynamic_Config=(),4.77154e-05
@@ -1068,6 +1071,7 @@ conformance_ReduceSum/ReadIRTest.ImportExport/Op=ReduceSum.1_Type=f32_IR=0ebabff
 conformance_Power/ReadIRTest.ImportExport/Op=Power.1_Type=f32_IR=fdcab01e2bfd1d42e82e02abbc9485a70bbca7f6699c43dbd32e7cfcd32f10e6_Device=CPU_Shape=dynamic_Config=(),1.1843e-05
 conformance_Power/ReadIRTest.ImportExport/Op=Power.1_Type=f32_IR=5beacd2bb9191defe3872fe637eb2fcb831437af69e9164251f4546e5cb1156f_Device=CPU_Shape=dynamic_Config=(),1.1843e-05
 conformance_Multiply/ReadIRTest.Inference/Op=Multiply.1_Type=f32_IR=6f0d2c60afa3c010ecabbc0f54f50ab607b60c28ec71b00612c9fa1dea17224f_Device=CPU_Shape=dynamic_Config=(),1.1843e-05
+conformance_Multiply/ReadIRTest.Inference/Op=Multiply.1_Type=f32_IR=f875aa55e00c0b36cfb97f074f5efc77dfacced6f86eb726269c3d888bc4db71_Device=CPU_Shape=dynamic_Config=(),0
 conformance_Multiply/ReadIRTest.ImportExport/Op=Multiply.1_Type=f32_IR=6f0d2c60afa3c010ecabbc0f54f50ab607b60c28ec71b00612c9fa1dea17224f_Device=CPU_Shape=dynamic_Config=(),1.1843e-05
 conformance_Maximum/ReadIRTest.ImportExport/Op=Maximum.1_Type=f32_IR=9fabcc0b789906e2b65e7195462e0c915ad56a65b049e4d68f762c28437efddc_Device=CPU_Shape=dynamic_Config=(),1.1843e-05
 conformance_Maximum/ReadIRTest.ImportExport/Op=Maximum.1_Type=f32_IR=51dcd5f3e64d8126b3816a76d8ec0bca37f4b662d2b90be115af2be4e2d72c79_Device=CPU_Shape=dynamic_Config=(),1.1843e-05
