@@ -9,6 +9,7 @@
 namespace {
 using ov::test::Gather7LayerTest;
 using ov::test::Gather8LayerTest;
+using ov::test::Gather8withIndicesDataLayerTest;
 
 const std::vector<ov::element::Type> model_types = {
         ov::element::f32,
@@ -203,19 +204,16 @@ const auto gatherParamsVec3 = testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_Vec3, Gather8LayerTest, gatherParamsVec3, Gather8LayerTest::getTestCaseName);
 
-gather7ParamsTuple dummyParams = {
-        std::vector<size_t>{2, 3},
-        std::vector<size_t>{2, 2},
-        std::tuple<int, int>{1, 1},
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::UNSPECIFIED,
-        InferenceEngine::Precision::UNSPECIFIED,
-        InferenceEngine::Layout::ANY,
-        InferenceEngine::Layout::ANY,
-        ov::test::utils::DEVICE_CPU,
+
+const ov::test::gather7ParamsTuple dummyParams = {
+        ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{2, 3}}), // input shape
+        ov::Shape{2, 2},                // indices shape
+        std::tuple<int, int>{1, 1},     // axis, batch
+        ov::element::f32,               // model type
+        ov::test::utils::DEVICE_CPU     // device
 };
 
-std::vector<std::vector<int>> indicesData = {
+const std::vector<std::vector<int64_t>> indicesData = {
         {0, 1, 2, 0},           // positive in bound
         {-1, -2, -3, -1},       // negative in bound
         {-1, 0, 1, 2},          // positive and negative in bound
