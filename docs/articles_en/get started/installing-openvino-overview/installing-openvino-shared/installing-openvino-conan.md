@@ -66,9 +66,9 @@ Installing OpenVINO Runtime with Conan Package Manager
    
       By default, OpenVINO is statically compiled. All available plugins and frontends are compiled as well. You can build a tailored OpenVINO by using the command below:
       
-         .. code-block:: sh
+      .. code-block:: sh
    
-            conan install conanfile.txt --build=missing -o:h openvino/*:enable_intel_gpu=False -o:h openvino/*:enable_onnx_frontend=False' -o:h openvino/*:shared=True.
+         conan install conanfile.txt --build=missing -o:h openvino/*:enable_intel_gpu=False -o:h openvino/*:enable_onnx_frontend=False' -o:h openvino/*:shared=True.
       
       For more details on available options, see the `Conan Package Manager page on OpenVINO <https://conan.io/center/recipes/openvino>`__
 
