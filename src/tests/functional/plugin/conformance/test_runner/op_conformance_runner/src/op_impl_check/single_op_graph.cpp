@@ -1489,7 +1489,7 @@ std::shared_ptr<ov::Model> generateBinaryEltwiseBitwise(const std::shared_ptr<ov
         return nullptr;
     }
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "BinaryEltwiseBitwiseGraph");
+    return std::make_shared<ov::Model>(results, params, "BinaryEltwiseBitwiseGraph");
 }
 
 std::shared_ptr<ov::Model> generateBinaryEltwiseComp(const std::shared_ptr<ov::op::Op> &node) {
