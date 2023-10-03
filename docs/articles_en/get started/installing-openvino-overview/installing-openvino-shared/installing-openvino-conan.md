@@ -8,7 +8,7 @@
 
 .. note::
    
-   Note that the Conana Package Manage distribution:
+   Note that the Conan Package Manage distribution:
 
    * is dedicated to users of all OSs (Windows, Linux, macOS, Solaris, FreeBSD, etc.)
    * it can be used for any existing platfrom: desktop, mobile, embbeded, servers, bare metal, etc.
@@ -29,7 +29,7 @@
       :sync: processor-notes
    
       To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      `Product Specifications <https://ark.intel.com/>`__
+      `Product Specifications <https://ark.intel.com/content/www/us/en/ark.html>`__
 
 
    .. tab-item:: Software
