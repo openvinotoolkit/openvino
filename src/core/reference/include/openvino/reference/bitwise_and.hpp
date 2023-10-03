@@ -15,12 +15,12 @@ namespace func {
 // Check for char datatype used by ov::element::boolean
 template <class T, typename std::enable_if<std::is_same<typename std::decay<T>::type, char>::value>::type* = nullptr>
 T bitwise_and(const T arg0, const T arg1) {
-    return static_cast<T>(arg0 && arg1);
+    return static_cast<T>(std::bit_and<bool>()(arg0, arg1));
 }
 
 template <class T, typename std::enable_if<!std::is_same<typename std::decay<T>::type, char>::value>::type* = nullptr>
 T bitwise_and(const T arg0, const T arg1) {
-    return static_cast<T>(arg0 & arg1);
+    return static_cast<T>(std::bit_and<T>()(arg0, arg1));
 }
 }  // namespace func
 /**
