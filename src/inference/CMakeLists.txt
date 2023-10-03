@@ -23,7 +23,10 @@ file (GLOB LIBRARY_SRC
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
-if(ENABLE_IR_V7_READER)
+if(BUILD_SHARED_LIBS OR ENABLE_IR_V7_READER)
+    # TODO: remove together with GNA plugin
+    # we have unconditional adding of the ENABLE_IR_V7_READER compile definition for shared libs case
+    # to avoid rebuild, relink during work with build tree
     set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/ie_network_reader.cpp PROPERTIES
         COMPILE_DEFINITIONS "ENABLE_IR_V7_READER")
 endif()
@@ -149,7 +152,6 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     # for ov_plugins.hpp
     $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>
     # for ie_ir_version.hpp
-    $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
     "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy/include"
     $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)

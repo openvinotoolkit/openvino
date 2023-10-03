@@ -44,6 +44,7 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
     case ov::element::Type_t::u1:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::u4:
+    case ov::element::Type_t::nf4:
         fill_data_random(static_cast<uint8_t*>(tensor.data()),
                          tensor.get_byte_size(),
                          range,

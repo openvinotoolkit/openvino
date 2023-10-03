@@ -8,7 +8,14 @@
 
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
-ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
+if(WIN32 AND AARCH64 AND OV_COMPILER_IS_CLANG)
+    set(ENABLE_INTEL_CPU_DEFAULT OFF)
+else()
+    set(ENABLE_INTEL_CPU_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ${ENABLE_INTEL_CPU_DEFAULT}
+    "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
 
 ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
 
@@ -53,11 +60,7 @@ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
 
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
-if(NOT ANDROID)
-    # on Android build FindPkgConfig.cmake finds host system pkg-config, which is not appropriate
-    find_package(PkgConfig QUIET)
-endif()
-
+find_package(PkgConfig QUIET)
 ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX OR APPLE;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
 
 #
