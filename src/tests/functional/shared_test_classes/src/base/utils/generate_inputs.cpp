@@ -455,7 +455,9 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::GatherTree>& 
             return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
         }
         default:
-            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+            InputGenerateData inGenData;
+            inGenData.range = maxBeamIndx;
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
     }
 }
 
