@@ -194,8 +194,8 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
     auto input_y = engine.allocate_memory({ { 1, height, width, 1 }, data_types::f16, format::bfyx });
     auto input_uv = engine.allocate_memory({ { 1, height / 2 , width / 2, 2 }, data_types::f16, format::bfyx});
 
-    std::vector<FLOAT16> input_y_data = rg.generate_random_1d<FLOAT16>(width * height, 0, 255);
-    std::vector<FLOAT16> input_uv_data = rg.generate_random_1d<FLOAT16>(width * height / 2, 0, 255);
+    std::vector<ov::float16> input_y_data = rg.generate_random_1d<ov::float16>(width * height, 0, 255);
+    std::vector<ov::float16> input_uv_data = rg.generate_random_1d<ov::float16>(width * height / 2, 0, 255);
 
     set_values(input_y, input_y_data);
     set_values(input_uv, input_uv_data);
@@ -216,7 +216,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
     auto outputs = network.execute();
 
     std::vector<float> ref_res(width * height * 3);
-    createReferenceDataNV12<FLOAT16, float>(input_y_data.data(), input_uv_data.data(), ref_res.data(),
+    createReferenceDataNV12<ov::float16, float>(input_y_data.data(), input_uv_data.data(), ref_res.data(),
                                             1, height, width, height * width, height * width / 2, true);
 
     auto output = outputs.at("convert_color").get_memory();
