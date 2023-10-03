@@ -301,12 +301,12 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }}
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
           
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }}
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
       - uses: actions/setup-python@v4
@@ -314,21 +314,21 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Build cpp samples - GCC
-        run: ${{ env.INSTALL_DIR }}/samples/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${BUILD_DIR}/cpp_samples
+        run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       - name: Build cpp samples - Clang
         run: |
           apt-get install -y clang
-          ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${BUILD_DIR}/cpp_samples_clang
+          ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples_clang
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
           CC: clang
           CXX: clang++
 
       - name: Build c samples
-        run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${BUILD_DIR}/c_samples
+        run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
@@ -338,9 +338,9 @@ jobs:
 
       - name: Samples tests
         run: |
-          export WORKSPACE=${{ env.INSTALL_DIR }}
-          export IE_APP_PATH=${{ env.INSTALL_DIR }}/samples_bin
-          export IE_APP_PYTHON_PATH=${{ env.INSTALL_DIR }}/samples/python
+          export WORKSPACE=${INSTALL_DIR}
+          export IE_APP_PATH=${INSTALL_DIR}/samples_bin
+          export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
           export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
 
           python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
@@ -356,7 +356,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
-          name: test-results-cpp
+          name: test-results-samples
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
