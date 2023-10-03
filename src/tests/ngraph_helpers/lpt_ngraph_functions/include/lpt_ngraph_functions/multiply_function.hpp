@@ -17,42 +17,39 @@ namespace subgraph {
 
 class MultiplyBranch {
 public:
+    MultiplyBranch(const PartialShape& inputShape,
+                   const ngraph::builder::subgraph::Constant& constant,
+                   const ngraph::element::Type& input_precision,
+                   const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+                   const ngraph::builder::subgraph::FakeQuantizeOnData& fake_quantize)
+                   : inputShape(inputShape),
+                     constant(constant),
+                     input_precision(input_precision),
+                     dequantization(dequantization),
+                     fake_quantize(fake_quantize) {}
+
     PartialShape inputShape;
     ngraph::builder::subgraph::Constant constant;
-    ngraph::element::Type precisionBeforeDequantization;
+    ngraph::element::Type input_precision;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
+    ngraph::builder::subgraph::FakeQuantizeOnData fake_quantize;
 };
-
-inline std::ostream& operator<<(std::ostream& out, const MultiplyBranch& branch) {
-    return out << "_" << branch.constant << "_" << branch.precisionBeforeDequantization << "_" << branch.dequantization;
-}
 
 class MultiplyValues {
 public:
+    MultiplyValues(const MultiplyBranch& branch1,
+                   const MultiplyBranch& branch2,
+                   const ngraph::builder::subgraph::DequantizationOperations& after_dequantization)
+                   : branch1(branch1), branch2(branch2), after_dequantization(after_dequantization) {}
+
     MultiplyBranch branch1;
     MultiplyBranch branch2;
-    bool isDequantization;
+    ngraph::builder::subgraph::DequantizationOperations after_dequantization;
 };
-
-inline std::ostream& operator<<(std::ostream& out, const MultiplyValues& values) {
-    return out << "_" << values.branch1 << "_" << values.branch2 << (values.isDequantization ? "_isDequantization" : "");
-}
 
 class MultiplyFunction : public ElementwiseFunction {
 public:
-    static std::shared_ptr<ngraph::Function> get(
-            const element::Type precision,
-            const MultiplyValues& actualValues);
-
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
-        const bool broadcast1,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
-        const bool broadcast2,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fq2,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter,
-        const bool secondInputIsConstant = false);
+    static std::shared_ptr<ngraph::Function> get(const element::Type model_precision, const MultiplyValues& actualValues);
 };
 
 }  // namespace subgraph

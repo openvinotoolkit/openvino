@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "lpt_ngraph_functions/multiply_function.hpp"
+#include "lpt_ngraph_functions/multiply_partial_function.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
 
@@ -56,7 +56,7 @@ void MultiplyTransformation::SetUp() {
     MultiplyTestValues param;
     std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::MultiplyFunction::getOriginal(
+    function = ngraph::builder::subgraph::MultiplyPartialFunction::get(
         precision,
         inputShape,
         param.broadcast1,
