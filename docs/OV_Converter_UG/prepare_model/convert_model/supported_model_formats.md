@@ -21,7 +21,7 @@
 * :doc:`How to convert TensorFlow Lite <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>`
 * :doc:`How to convert PaddlePaddle <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle>`
 
-To choose the best workflow for your application, read :doc:`Introduction to Model Preparation<openvino_docs_model_processing_introduction>`
+To choose the best workflow for your application, read the :doc:`Model Preparation section <openvino_docs_model_processing_introduction>`
 
 Refer to the list of all supported conversion options in :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`
 

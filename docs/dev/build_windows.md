@@ -42,17 +42,17 @@ Supported configurations:
 
    On Windows x86 64-bits:
     ```sh
-    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release <openvino>
+    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release <path/to/openvino>
     ```
 
    On Windows on ARM for ARM64 architecture:
     ```sh
-    cmake -G "Visual Studio 16 2019" -DOPENVINO_EXTRA_MODULES=<openvino_contrib>/modules/arm_plugin -DCMAKE_BUILD_TYPE=Release <openvino>
+    cmake -G "Visual Studio 16 2019" -DOPENVINO_EXTRA_MODULES=<openvino_contrib>/modules/arm_plugin -DCMAKE_BUILD_TYPE=Release <path/to/openvino>
     ```
 
 4. Build generated solution in Visual Studio or run `cmake --build . --config Release --verbose -j8` to build from the command line. Be aware that this process may take some time.
 
-5. Before running the samples, add paths to the Threading Building Blocks (TBB) binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<openvino>/temp/tbb/bin` folder.
+5. Before running the samples, add paths to the Threading Building Blocks (TBB) binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<path/to/openvino>/temp/tbb/bin` folder.
 
 ### Additional Build Options
 
@@ -60,14 +60,14 @@ Supported configurations:
 
 - Threading Building Blocks (TBB) is used by default. To build Inference Engine with OpenMP threading, set the `-DTHREADING=OMP` option.
 
-- Required versions of TBB and OpenCV packages are downloaded automatically by the CMake-based script. If you want to use the automatically-downloaded packages but you have already installed TBB or OpenCV packages configured in your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` environment variables before running the `cmake` command; otherwise they won'tnbe downloaded and the build may fail if incompatible versions were installed.
+- Required versions of TBB and OpenCV packages are downloaded automatically by the CMake-based script. If you want to use the automatically-downloaded packages but you have already installed TBB or OpenCV packages configured in your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` environment variables before running the `cmake` command; otherwise they won't be downloaded and the build may fail if incompatible versions were installed.
 
 - If the CMake-based build script can not find and download the OpenCV package that is supported on your platform, or if you want to use a custom build of the OpenCV library, refer to the [Use Custom OpenCV Builds](./cmake_options_for_custom_compilation.md#Building-with-custom-OpenCV) section for details.
 
 - To build the OpenVINO Runtime Python API:
   1. First, install all additional packages (e.g., cython and opencv) listed in the file:
       ```sh
-      pip install -r <openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
+      pip install -r <path\to\openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
       ```
   2. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #4) option above. To specify an exact Python version, use the following options:
      ```sh
