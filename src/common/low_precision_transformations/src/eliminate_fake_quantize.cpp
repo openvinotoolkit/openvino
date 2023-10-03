@@ -15,7 +15,7 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 
-EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
+EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const Params& params) : CleanupTransformation(params) {
     MATCHER_SCOPE(FuseMultiplyToFakeQuantizeTransformation);
     const auto matcher = pattern::wrap_type<ov::opset1::FakeQuantize>({
             pattern::any_input(),
@@ -112,6 +112,10 @@ bool check_intervals(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuanti
 } // namespace
 
 bool EliminateFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+    if (!CleanupTransformation::canBeTransformed(context, operation)) {
+        return false;
+    }
+
     const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(operation);
     OPENVINO_ASSERT(fakeQuantize != nullptr, "unexpected operation type");
 

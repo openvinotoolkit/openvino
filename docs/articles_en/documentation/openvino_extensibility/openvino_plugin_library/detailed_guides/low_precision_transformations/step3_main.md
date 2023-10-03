@@ -26,7 +26,7 @@
    GatherTransformation <openvino_docs_OV_UG_lpt_GatherTransformation>
    MatMulTransformation <openvino_docs_OV_UG_lpt_MatMulTransformation>
    MaxPoolTransformation <openvino_docs_OV_UG_lpt_MaxPoolTransformation>
-   MultiplyTransformation <openvino_docs_OV_UG_lpt_MultiplyTransformation>
+   MultiplyPartialTransformation <openvino_docs_OV_UG_lpt_MultiplyPartialTransformation>
    MVNTransformation <openvino_docs_OV_UG_lpt_MVNTransformation>
    NormalizeL2Transformation <openvino_docs_OV_UG_lpt_NormalizeL2Transformation>
    PadTransformation<openvino_docs_OV_UG_lpt_PadTransformation>
@@ -45,7 +45,7 @@
    TransposeTransformation <openvino_docs_OV_UG_lpt_TransposeTransformation>
    UnsqueezeTransformation <openvino_docs_OV_UG_lpt_UnsqueezeTransformation>
    VariadicSplitTransformation <openvino_docs_OV_UG_lpt_VariadicSplitTransformation>
-   
+
 
 Main transformations are the majority of low precision transformations. Transformations operate with dequantization operations. Main transformations include:
    
@@ -64,7 +64,7 @@ Main transformations are the majority of low precision transformations. Transfor
 * :doc:`GatherTransformation <openvino_docs_OV_UG_lpt_GatherTransformation>` 
 * :doc:`MatMulTransformation <openvino_docs_OV_UG_lpt_MatMulTransformation>` 
 * :doc:`MaxPoolTransformation <openvino_docs_OV_UG_lpt_MaxPoolTransformation>` 
-* :doc:`MultiplyTransformation <openvino_docs_OV_UG_lpt_MultiplyTransformation>` 
+* :doc:`MultiplyPartialTransformation <openvino_docs_OV_UG_lpt_MultiplyPartialTransformation>` 
 * :doc:`MVNTransformation <openvino_docs_OV_UG_lpt_MVNTransformation>` 
 * :doc:`NormalizeL2Transformation <openvino_docs_OV_UG_lpt_NormalizeL2Transformation>` 
 * :doc:`PadTransformation<openvino_docs_OV_UG_lpt_PadTransformation>`

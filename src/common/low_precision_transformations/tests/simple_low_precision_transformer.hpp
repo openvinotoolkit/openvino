@@ -19,7 +19,8 @@ public:
     SimpleLowPrecisionTransformer(
         const std::vector<ov::pass::low_precision::PrecisionsRestriction>& precisionRestrictions = {},
         const std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>& quantizationRestrictions = {},
-        const AttributeParameters& params = AttributeParameters());
+        const AttributeParameters& params = AttributeParameters(),
+        const bool addCleanup = false);
 
     template <class T, class Operation>
     void add(const TestTransformationParams& params) {

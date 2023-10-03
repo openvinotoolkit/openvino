@@ -74,7 +74,7 @@ public:
     }
 
     template <typename T>
-    static PrecisionsByPorts getPrecisionsByOperationType(std::vector<PrecisionsRestriction>& restrictions) {
+    static PrecisionsByPorts getPrecisionsByOperationType(const std::vector<PrecisionsRestriction>& restrictions) {
         for (const auto& restriction : restrictions) {
             if (restriction.operationType == T::get_type_info_static()) {
                 return restriction.precisionsByPorts;

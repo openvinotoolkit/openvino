@@ -422,21 +422,23 @@ std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationBefore(
     return result.newOperation;
 }
 
-void LayerTransformation::updateOutput(
+bool LayerTransformation::updateOutput(
     TransformationContext &context,
     std::shared_ptr<ov::Node> lastNode,
     std::shared_ptr<ov::Node> originalNode) const {
-    // TODO: not tested!!!
+    bool was_updated = false;
     for (auto output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {
             if (ov::is_type<ov::opset1::Result>(input.get_node())) {
                 const std::string originalName = originalNode->get_friendly_name();
                 originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                 lastNode->set_friendly_name(originalName);
+                was_updated = true;
                 break;
             }
         }
     }
+    return was_updated;
 }
 
 void LayerTransformation::updateOutput(
