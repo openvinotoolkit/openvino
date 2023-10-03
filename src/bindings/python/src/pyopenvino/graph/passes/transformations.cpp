@@ -11,6 +11,7 @@
 #include <memory>
 #include <openvino/pass/constant_folding.hpp>
 #include <openvino/pass/convert_fp32_to_fp16.hpp>
+#include <transformations/convert_precision.hpp>
 #include <openvino/pass/low_latency.hpp>
 #include <openvino/pass/make_stateful.hpp>
 #include <openvino/pass/pass.hpp>
@@ -103,6 +104,26 @@ void regclass_transformations(py::module m) {
                   :type don_only: bool
     )");
     visualize.def("__repr__", [](const ov::pass::VisualizeTree& self) {
+        return Common::get_simple_repr(self);
+    });
+
+    py::class_<ov::pass::ConvertPrecision, std::shared_ptr<ov::pass::ConvertPrecision>, ov::pass::ModelPass, ov::pass::PassBase>
+            part_convert_to_fp16(m, "PartiallyConvertToFP16");
+    part_convert_to_fp16.doc() = "openvino.runtime.passes.ConvertPrecision transformation";
+
+    part_convert_to_fp16.def(
+            py::init([]() {
+                type_to_fuse_map empty_fuse_map = {};
+                const bool keep_precision_sensitive_in_fp32 = true;
+                return std::make_shared<ov::pass::ConvertPrecision>(
+                        ov::element::f32,
+                        ov::element::f16,
+                        empty_fuse_map,
+                        keep_precision_sensitive_in_fp32);
+            }),
+            R"(Partially convert to FP16)");
+
+    part_convert_to_fp16.def("__repr__", [](const ov::pass::ConvertPrecision& self) {
         return Common::get_simple_repr(self);
     });
 
