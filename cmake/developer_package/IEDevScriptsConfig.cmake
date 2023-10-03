@@ -8,6 +8,14 @@ if(NOT DEFINED IEDevScripts_DIR)
     message(FATAL_ERROR "IEDevScripts_DIR is not defined")
 endif()
 
+# disable FindPkgConfig.cmake for Android
+if(ANDROID)
+    # Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
+    # build system pkg-config executable, which finds packages on build system. Such
+    # libraries cannot be linked into Android binaries.
+    set(CMAKE_DISABLE_FIND_PACKAGE_PkgConfig ON)
+endif()
+
 macro(ov_set_if_not_defined var value)
     if(NOT DEFINED ${var})
         set(${var} ${value})

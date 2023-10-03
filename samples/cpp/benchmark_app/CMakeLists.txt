@@ -14,11 +14,8 @@ ie_add_sample(NAME ${TARGET_NAME}
 
 # Required nlohmann_json dependency
 
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-endif()
-
 if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_package(PkgConfig QUIET)
     find_package(nlohmann_json QUIET
                  # exception for Ubuntu 18.04, where cmake files for nlohmann_json
                  # are located in a wrong directory
