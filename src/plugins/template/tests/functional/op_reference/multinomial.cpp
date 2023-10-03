@@ -35,16 +35,6 @@ struct MultinomialParams {
     std::string test_case_name;
 };
 
-struct Builder : reference_tests::ParamsBuilder<MultinomialParams> {
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, probabilities);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, num_samples);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, expected_tensor);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, convert_type);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, log_probs);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, with_replacement);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, test_case_name);
-};
-
 class ReferenceMultinomial : public testing::TestWithParam<MultinomialParams>,
                              public reference_tests::CommonReferenceTest {
 public:
@@ -84,7 +74,7 @@ private:
                                                                             params.log_probs,
                                                                             1,
                                                                             1);
-        return std::make_shared<ov::Model>(ov::NodeVector{multinomial},
+        return std::make_shared<ov::Model>(multinomial->outputs(),
                                            ov::ParameterVector{in_probabilities, in_num_samples});
     }
 };
@@ -161,7 +151,7 @@ std::vector<MultinomialParams> generateMultinomialParams() {
 }
 }  // namespace
 
-TEST_P(ReferenceMultinomial, LayerTest) {
+TEST_P(ReferenceMultinomial, CompareWithRefs) {
     Exec();
 }
 
