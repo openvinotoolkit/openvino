@@ -9,7 +9,7 @@
 
 #include "openvino/core/shape_util.hpp"
 #include "openvino/reference/abs.hpp"
-#include "openvino/reference/sum.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {

@@ -83,7 +83,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
 
         bool leftovers = m_size % tuning_data.tile_m_size || k_size % tuning_data.tile_k_size || n_size % tuning_data.tile_n_size;
 
-        if (leftovers || total_batches > 1 || params.transpose_input0 || params.transpose_input1) {
+        if (leftovers || total_batches > 1 || params.transpose_input0 || params.transpose_input1 || !IsSIMDSizeSupported(params.engineInfo, 8)) {
             tuning_data.simd_size = 16;
             tuning_data.tile_n_size = tuning_data.simd_size;
             tuning_data.tile_k_size = tuning_data.simd_size;
