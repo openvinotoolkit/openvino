@@ -8,6 +8,14 @@ if(NOT DEFINED IEDevScripts_DIR)
     message(FATAL_ERROR "IEDevScripts_DIR is not defined")
 endif()
 
+# disable FindPkgConfig.cmake for Android
+if(ANDROID)
+    # Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
+    # build system pkg-config executable, which finds packages on build system. Such
+    # libraries cannot be linked into Android binaries.
+    set(CMAKE_DISABLE_FIND_PACKAGE_PkgConfig ON)
+endif()
+
 macro(ov_set_if_not_defined var value)
     if(NOT DEFINED ${var})
         set(${var} ${value})
@@ -200,6 +208,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
 # CMake 3.13+: option() honors normal variables.
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# CMake 3.15: Modules FindPython3, FindPython2 and FindPython use LOCATION for lookup strategy
+set(CMAKE_POLICY_DEFAULT_CMP0094 NEW)
 # CMake 3.19+: An imported target missing its location property fails during generation.
 set(CMAKE_POLICY_DEFAULT_CMP0111 NEW)
 # CMake 3.22+ :cmake_dependent_option() supports full Condition Syntax

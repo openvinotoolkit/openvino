@@ -41,6 +41,7 @@ inline uint32_t BytesPerElement(WeightsType wt) {
             return 2;
         case WeightsType::F32:
         case WeightsType::BINARY:
+        case WeightsType::INT32:
             return 4;
         default:
             throw std::runtime_error("[GPU] BytesPerElement doesn't support given precision");

@@ -38,14 +38,6 @@
 #include "openvino/op/util/variable_value.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ngraph {
-
-namespace runtime {
-class HostTensor;
-}  // namespace runtime
-
-}  // namespace ngraph
-
 namespace ov {
 namespace op {
 namespace v0 {
@@ -62,9 +54,7 @@ class Matcher;
 }  // namespace pattern
 }  // namespace pass
 OPENVINO_SUPPRESS_DEPRECATED_START
-using HostTensor = ngraph::runtime::HostTensor;
-using HostTensorPtr = std::shared_ptr<HostTensor>;
-using HostTensorVector = std::vector<HostTensorPtr>;
+using HostTensorVector = std::vector<ngraph::HostTensorPtr>;
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename NodeType>

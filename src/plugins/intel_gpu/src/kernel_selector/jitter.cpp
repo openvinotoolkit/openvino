@@ -123,6 +123,8 @@ std::string toCLType(WeightsType wType) {
             return "half";
         case WeightsType::F32:
             return GetTypeName<float>();
+        case WeightsType::INT32:
+            return GetTypeName<int32_t>();
         default:
             return "";
     }
@@ -661,6 +663,11 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             using args = std::initializer_list<std::string>;
             if (l == WeightsLayout::oiyx ||
                 l == WeightsLayout::ioyx ||
+                l == WeightsLayout::oyxi ||
+                l == WeightsLayout::oyix ||
+                l == WeightsLayout::oxiy ||
+                l == WeightsLayout::iyxo ||
+                l == WeightsLayout::yxio ||
                 l == WeightsLayout::iozyx ||
                 l == WeightsLayout::oizyx ||
                 l == WeightsLayout::goiyx ||
@@ -972,7 +979,10 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_common_4d_layout = is_common_nd_layout(base_4d_channels, layout);
             if (is_common_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, y, x)";
-                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx)
+                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx ||
+                    layout == WeightsLayout::oyxi || layout == WeightsLayout::oyix ||
+                    layout == WeightsLayout::oxiy || layout == WeightsLayout::iyxo ||
+                    layout == WeightsLayout::yxio)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::os_is_yx_isv16_osv16)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x, 16)";
@@ -1505,6 +1515,8 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::UINT8, macroName);
         case WeightsType::BINARY:
             return MakeTypeJitConstants(Datatype::UINT32, macroName);
+        case WeightsType::INT32:
+            return MakeTypeJitConstants(Datatype::INT32, macroName);
     }
     assert(false || "Unreachable!");
     // FIXME: Is there some builtin_unreachable available?
