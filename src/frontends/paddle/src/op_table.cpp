@@ -8,7 +8,6 @@ namespace frontend {
 namespace paddle {
 namespace op {
 #define OP_CONVERTER(op) NamedOutputs op(const NodeContext& node)
-OP_CONVERTER(add);
 OP_CONVERTER(argmax);
 OP_CONVERTER(assign);
 OP_CONVERTER(assign_value);
@@ -92,6 +91,7 @@ OP_CONVERTER(reduce_sum);
 OP_CONVERTER(relu);
 OP_CONVERTER(relu6);
 OP_CONVERTER(reshape2);
+OP_CONVERTER(reverse);
 OP_CONVERTER(rnn);
 OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
@@ -219,6 +219,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"relu", op::relu},
             {"relu6", op::relu6},
             {"reshape2", op::reshape2},
+            {"reverse", op::reverse},
             {"rnn", op::rnn},
             {"roi_align", op::roi_align},
             {"scale", op::scale},
