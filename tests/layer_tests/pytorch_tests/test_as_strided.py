@@ -99,3 +99,26 @@ class TestAsStridedListConstruct(PytorchLayerTest):
             ir_version,
             kwargs_to_prepare_input=inp_kwargs
         )
+
+
+class TestAsStridedLongformer(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(1, 10, 20, 40).astype(np.float32).transpose([0, 2, 3, 1]),)
+
+    def create_model(self):
+        class aten_as_strided_lf(torch.nn.Module):
+            def forward(self, x):
+                chunk_size = list(x.size())
+                chunk_size[1] = chunk_size[1] * 2 - 1
+                chunk_stride = list(x.stride())
+                chunk_stride[1] = chunk_stride[1] // 2
+                return x.as_strided(size=chunk_size, stride=chunk_stride)
+
+        ref_net = None
+
+        return aten_as_strided_lf(), ref_net, "aten::as_strided"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_as_strided_lf(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, freeze_model=True)
