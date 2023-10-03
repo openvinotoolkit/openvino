@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-endif()
+find_package(PkgConfig QUIET)
 
 function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
     if(NOT TBB_FOUND)
