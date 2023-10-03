@@ -403,8 +403,51 @@ event::ptr loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx)
     return ev;
 }
 
+loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(const input_info& internal_id,
+                                        const cldnn::loop::io_primitive_map& io_prim_map,
+                                        memory::ptr mem_ptr,
+                                        const int64_t trip_count) {
+    auto& engine = body_network->get_engine();
+    auto& stream = body_network->get_stream();
+    auto prim = body_network->get_primitive(internal_id.pid);
+    const int64_t start = io_prim_map.start < 0? trip_count - 1: io_prim_map.start;
+
+    std::vector<memory::ptr> sliced_mems;
+    int64_t num_elements_iteration = 0;
+
+    // if memory is nullptr, that means memory is not allocated yet because current network is dynamic shape model.
+    // In dynamic model, we can't calculate num_element_iteration, start, and sliced_layout.
+    // will recalculate that parameters in backedge preprocessing map after first execution.
+    if (mem_ptr != nullptr) {
+        layout sliced_layout = prim->output_memory(internal_id.idx).get_layout();
+
+        // When trip_count is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
+        if (trip_count < 0) {
+            memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
+            sliced_mems.push_back(sliced_mem);
+        } else {
+            sliced_mems.reserve(trip_count);
+            for (int j=0; j < trip_count; ++j) {
+                memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
+                sliced_mems.push_back(sliced_mem);
+            }
+        }
+
+        const int64_t num_elements_batch = concatenated_memory_mapping::get_batch_size(
+            sliced_layout, io_prim_map.axis);
+        num_elements_iteration = sliced_layout.count() / num_elements_batch;
+    }
+
+    auto concat_memory_mapping = std::make_shared<concatenated_memory_mapping>(
+                                                    io_prim_map.axis, mem_ptr, sliced_mems, stream,
+                                                    engine, num_elements_iteration, io_prim_map.stride, start);
+    concat_memory_mapping->sliced_data_prim = body_network->get_primitive(internal_id.pid);
+    return concat_memory_mapping;
+}
+
 void loop_inst::preprocess_output_memory(const int64_t trip_count) {
-    concatenated_output_mem_mappings.reserve(_output_primitive_maps.size());
+    if (concatenated_output_mem_mappings.empty())
+        concatenated_output_mem_mappings.reserve(_output_primitive_maps.size());
     for (size_t i = 0; i < _output_primitive_maps.size(); ++i) {
         const auto& output_mapping = _output_primitive_maps.at(i);
         const auto& external_id = output_mapping.external_id;
@@ -413,56 +456,30 @@ void loop_inst::preprocess_output_memory(const int64_t trip_count) {
         GPU_DEBUG_LOG << i << ") output mapping - internal " << internal_id.to_string() << std::endl;
 
         memory::ptr memory = get_external_memory(external_id.pid, external_id.idx);
-        if (memory != nullptr && !shape_changed()) {
-            auto& engine = _network.get_engine();
-            if (output_mapping.axis < 0) {
-                // In dynamic model, Don't get output memory of loop node because body network's output layouts are not calculated
+        if (output_mapping.axis < 0) {
+            // In dynamic model, Don't get output memory of loop node because body network's output layouts are not calculated
+            if (memory != nullptr) {
                 body_network->get_primitive(internal_id.pid)->set_output_memory(memory, true, internal_id.idx);
-            } else {
-                auto output_prim = body_network->get_primitive(internal_id.pid);
-                layout sliced_layout = output_prim->output_memory(internal_id.idx).get_layout();
-
-                std::vector<memory::ptr> sliced_mems;
-                sliced_mems.reserve(trip_count);
-                for (int32_t j = 0; j < trip_count; ++j) {
-                    memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
-                    sliced_mems.push_back(sliced_mem);
-                }
-
-                const int64_t num_elements_batch = concatenated_memory_mapping::get_batch_size(
-                    sliced_layout, output_mapping.axis);
-                const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
-                const int64_t start = output_mapping.start < 0? trip_count - 1: output_mapping.start;
-                auto memory_mapping_info = std::make_shared<concatenated_memory_mapping>(
-                                                output_mapping.axis, std::move(memory), sliced_mems, _network.get_stream(),
-                                                _network.get_engine(), num_elements_iteration, output_mapping.stride, start);
-                memory_mapping_info->sliced_data_prim = body_network->get_primitive(internal_id.pid);
-                memory_mapping_info->concat_data_prim = get_network().get_primitive(external_id.pid);
-                concatenated_output_mem_mappings.push_back(memory_mapping_info);
             }
         } else {
-            // if memory is nullptr, that means memory is not allocated yet because current network is dynamic shape model.
-            if (output_mapping.axis >= 0) {
-                // In dynamic model, we can't calculate num_element_iteration, start, and sliced_layout.
-                // will recalculate that parameters in backedge preprocessing map after first execution.
-                const int64_t start = output_mapping.start < 0? trip_count - 1: output_mapping.start;
-                // Can't calculate num_elements_iteration now, update num_elements_iteration after execution
-                auto concat_output_memory_mapping = std::make_shared<concatenated_memory_mapping>(
-                                                output_mapping.axis, nullptr, std::vector<memory::ptr>{}, _network.get_stream(),
-                                                _network.get_engine(), 0, output_mapping.stride, start);
-                concat_output_memory_mapping->sliced_data_prim = body_network->get_primitive(internal_id.pid);
-                concat_output_memory_mapping->concat_data_prim = get_network().get_primitive(external_id.pid);
-                concatenated_output_mem_mappings.push_back(concat_output_memory_mapping);
-                GPU_DEBUG_LOG << i << ") output mapping - concat output memory mapping: "
-                                << concat_output_memory_mapping->to_string() << std::endl;
+            auto iter = std::find_if(concatenated_output_mem_mappings.begin(), concatenated_output_mem_mappings.end(),
+                [&](loop_inst::concatenated_memory_mapping::ptr concat_mem_map) -> bool {
+                    return concat_mem_map->sliced_data_prim->id() == internal_id.pid;
+                });
+            if (iter == concatenated_output_mem_mappings.end()) {
+                auto memory_mapping_info = create_concat_memory_map(internal_id, output_mapping, memory, trip_count);
+                memory_mapping_info->concat_data_prim = get_network().get_primitive(external_id.pid);
+                concatenated_output_mem_mappings.push_back(memory_mapping_info);
+                GPU_DEBUG_LOG << i << ") generate concat output memory mapping: " << memory_mapping_info->to_string() << std::endl;
+            }
+            GPU_DEBUG_IF(iter != concatenated_output_mem_mappings.end()) {
+                GPU_DEBUG_LOG << i << ") memory_mapping_info is already existed : " << (*iter)->to_string() << std::endl;
             }
         }
     }
 }
 
 void loop_inst::preprocess_input_memory(const int64_t trip_count) {
-    auto& engine = _network.get_engine();
-    auto& iteration_mem = concatenated_input_mem_mappings;
     for (size_t memory_num = 0; memory_num < inputs_memory_count(); memory_num++) {
         const primitive_id& input_external_id = dependencies().at(memory_num).first->id();
         auto input_map_ptrs = find_io_primitive_maps(_input_primitive_maps,
@@ -486,33 +503,12 @@ void loop_inst::preprocess_input_memory(const int64_t trip_count) {
             GPU_DEBUG_LOG << i << ") input mapping - external " << external_id.to_string() << std::endl;
             GPU_DEBUG_LOG << i << ") input mapping - internal " << internal_id.to_string() << std::endl;
 
-            bool is_concatenated_input = (input_map->axis >= 0);
-            if (is_concatenated_input) {
-                layout sliced_layout
-                    = body_network->get_primitive(internal_id.pid)->output_memory(internal_id.idx).get_layout();
-                std::vector<memory::ptr> sliced_mems;
-                if (trip_count < 0) {
-                    memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
-                    sliced_mems.push_back(sliced_mem);
-                } else {
-                    sliced_mems.reserve(trip_count);
-                    for (int j=0; j < trip_count; ++j) {
-                        memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
-                        sliced_mems.push_back(sliced_mem);
-                    }
-                }
-                const int64_t num_elements_batch = concatenated_memory_mapping::get_batch_size(
-                    sliced_layout, input_map->axis);
-                const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
-                const int64_t start = input_map->start < 0? trip_count - 1: input_map->start;
-                // When max_iteration is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
-                auto concatenated_input_mem_mapping_info = std::make_shared<concatenated_memory_mapping>(
-                                                                input_map->axis, memory, sliced_mems, _network.get_stream(),
-                                                                _network.get_engine(), num_elements_iteration, input_map->stride, start);
-                concatenated_input_mem_mapping_info->sliced_data_prim = body_network->get_primitive(internal_id.pid);
-                iteration_mem.push_back(concatenated_input_mem_mapping_info);
-                GPU_DEBUG_LOG << i << ") input mapping - concat output memory mapping: "
-                                << concatenated_input_mem_mapping_info->to_string() << std::endl;
+            if (input_map->axis >= 0) {
+                OPENVINO_ASSERT(trip_count > 0, "In preprocessing concat input mapping, trip_count should be positive");
+                OPENVINO_ASSERT(memory != nullptr, "In preprocessing concat input mapping, concat memory should be allocated");
+                auto memory_mapping_info = create_concat_memory_map(internal_id, *input_map, memory, trip_count);
+                concatenated_input_mem_mappings.push_back(memory_mapping_info);
+                GPU_DEBUG_LOG << i << ") generate concat input memory mapping: " << memory_mapping_info->to_string() << std::endl;
             } else {
                 auto input_inst = body_network->get_primitive(internal_id.pid);
                 if (memory->get_layout() != input_inst->get_output_layout()) {
@@ -737,7 +733,9 @@ void loop_inst::postprocess_output_memory() {
 void loop_inst::reset_memory() {
     backedge_memory_mappings.clear();
     concatenated_input_mem_mappings.clear();
-    concatenated_output_mem_mappings.clear();
+    for (auto concat_mem_map : concatenated_output_mem_mappings) {
+        concat_mem_map->reset_data_for_shape_changed();
+    }
 }
 
 

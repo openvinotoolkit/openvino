@@ -185,8 +185,9 @@ struct loop : public primitive_base<loop> {
               input_primitive_maps(input_primitive_maps),
               output_primitive_maps(output_primitive_maps),
               back_edges(back_edges),
-              max_num_iterations(max_num_iterations)
-              {}
+              max_num_iterations(max_num_iterations) {
+        OPENVINO_ASSERT(inputs.front().pid == num_iteration_id, "first input of inputs should be num_iteration_id");
+    }
 
     /// @brief Body program to be recurrently executed.
     program::ptr body_program;

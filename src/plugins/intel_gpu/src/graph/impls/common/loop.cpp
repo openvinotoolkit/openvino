@@ -40,7 +40,7 @@ static int64_t read_scalar_value(memory::ptr mem, stream& stream) {
         break;
     }
     default:
-        OPENVINO_THROW("Invalid data type : ", data_type_traits::name(prim_layout.data_type));
+        OPENVINO_THROW("Invalid data type : ",  ov::element::Type(prim_layout.data_type).get_type_name());
     }
     return trip_count;
 }
@@ -79,7 +79,7 @@ static void write_scalar_value(memory::ptr mem, stream& stream, int64_t input) {
         break;
     }
     default:
-        OPENVINO_THROW("Invalid data type : ", data_type_traits::name(prim_layout.data_type));
+        OPENVINO_THROW("Invalid data type : ",  ov::element::Type(prim_layout.data_type).get_type_name());
     }
 }
 
@@ -162,7 +162,7 @@ struct loop_impl : typed_primitive_impl<loop> {
                     memory::ptr mem2 = mapping.from_primitive->output_memory_ptr();
                     mem1->copy_from(body_network->get_stream(), *(mem2));
                 } else {
-                    // In static model, swap memory buffer btween output and input in inner body network
+                    // In static model, swap memory buffer between output and input in inner body network
                     memory::ptr mem2 = mapping.from_primitive->output_memory_ptr();
                     set_memory_in_body_network(body_network, mapping.to_primitive, std::move(mem2));
                     set_memory_in_body_network(body_network, mapping.from_primitive, std::move(mem1));

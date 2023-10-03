@@ -105,6 +105,8 @@ class typed_primitive_inst<loop> : public typed_primitive_inst_base<loop> {
 
 public:
     struct concatenated_memory_mapping {
+        using ptr = std::shared_ptr<concatenated_memory_mapping>;
+        using cptr = std::shared_ptr<const concatenated_memory_mapping>;
         concatenated_memory_mapping(int64_t axis,
                                     memory::ptr concatenated_mem,
                                     std::vector<memory::ptr> sliced_mems, // To change shared ptr vector
@@ -240,6 +242,18 @@ public:
         }
 
         std::vector<memory::ptr>& get_sliced_mems() const { return sliced_mems; }
+
+        void reset_data_for_shape_changed() {
+            bytes_per_element = 0;
+            batch_size = 0;
+            bytes_batch_stride = 0;
+            bytes_iteration = 0;
+            bytes_iteration_stride = 0;
+            bytes_iteration_initial_offset = 0;
+            if (concatenated_mem) concatenated_mem = nullptr;
+            iteration_elements = 0;
+            sliced_mems.clear();
+        }
 
         std::string to_string() const {
             std::stringstream ss;
@@ -388,8 +402,8 @@ private:
     static layout calc_output_layout(const loop_node& /*node*/, kernel_impl_params const& impl_param);
     bool preproc_memories_done = false;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
-    std::vector<std::shared_ptr<concatenated_memory_mapping>> concatenated_input_mem_mappings;
-    std::vector<std::shared_ptr<concatenated_memory_mapping>> concatenated_output_mem_mappings;
+    std::vector<concatenated_memory_mapping::ptr> concatenated_input_mem_mappings;
+    std::vector<concatenated_memory_mapping::ptr> concatenated_output_mem_mappings;
 
     static std::string to_string(const loop_node& node);
 
@@ -404,6 +418,10 @@ public:
     void update_output_mapped_memory();
     void update_backedge_mapped_memory();
     void postprocess_output_memory();
+    concatenated_memory_mapping::ptr create_concat_memory_map(const input_info& id,
+                                                                const cldnn::loop::io_primitive_map& io_prim_map,
+                                                                memory::ptr mem_ptr,
+                                                                const int64_t trip_count);
     event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     void reset_memory();
 
