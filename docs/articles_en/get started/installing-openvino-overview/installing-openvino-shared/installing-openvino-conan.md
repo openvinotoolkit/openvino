@@ -8,7 +8,7 @@
 
 .. note::
    
-   Note that the Conan Package Manage distribution:
+   Note that the Conan Package Manager distribution:
 
    * is dedicated to users of all OSs (Windows, Linux, macOS, Solaris, FreeBSD, etc.)
    * it can be used for any existing platfrom: desktop, mobile, embbeded, servers, bare metal, etc.
