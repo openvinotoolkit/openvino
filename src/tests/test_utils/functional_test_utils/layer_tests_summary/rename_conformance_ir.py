@@ -200,7 +200,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
                 meta_path.rename(new_meta_path)
                 bin_path.rename(new_bin_path)
                 # TODO: if some models are still not renaming, create new file and remove old file
-                logger.info(f"{old_name} -> {new_name}")
+                # logger.info(f"{old_name} -> {new_name}")
             elif old_name != new_xml_path:
                 # TODO: if some models are still not renaming and there are duplicates, remove files here
                 logger.warning(f"Could not rename model {old_name} ! Model file name already exists {new_xml_path} ")
@@ -249,7 +249,7 @@ if __name__=="__main__":
         if not Path(in_dir).is_dir():
             logger.error(f"Directory {in_dir} is not exist!")
             continue
-        logger.info(f"Starting to rename models in {in_dir}")
+        # logger.info(f"Starting to rename models in {in_dir}")
         operations = create_hash(Path(in_dir), operations)
     
     if not rel_weights_dir is None:
