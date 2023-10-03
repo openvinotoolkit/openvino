@@ -9,11 +9,11 @@ core = ov.Core()
 # in case of Accuracy
 core.set_property(
     "CPU",
-    {hints.execution_mode(): hints.ExecutionMode.ACCURACY},
+    {hints.execution_mode: hints.ExecutionMode.ACCURACY},
 )
 # in case of Performance
 core.set_property(
     "CPU",
-    {hints.execution_mode(): hints.ExecutionMode.PERFORMANCE},
+    {hints.execution_mode: hints.ExecutionMode.PERFORMANCE},
 )
 #! [ov:execution_mode:part0]

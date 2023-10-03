@@ -41,15 +41,15 @@ def main():
     compiled_model = core.compile_model(model, device_name="HETERO:GPU,CPU")
     # device priorities via configuration property
     compiled_model = core.compile_model(
-        model, device_name="HETERO", config={device.priorities(): "GPU,CPU"}
+        model, device_name="HETERO", config={device.priorities: "GPU,CPU"}
     )
     #! [compile_model]
 
     #! [configure_fallback_devices]
     import openvino.hint as hints
 
-    core.set_property("HETERO", {device.priorities(): "GPU,CPU"})
-    core.set_property("GPU", {properties.enable_profiling(): True})
-    core.set_property("CPU", {hints.inference_precision(): ov.Type.f32})
+    core.set_property("HETERO", {device.priorities: "GPU,CPU"})
+    core.set_property("GPU", {properties.enable_profiling: True})
+    core.set_property("CPU", {hints.inference_precision: ov.Type.f32})
     compiled_model = core.compile_model(model=model, device_name="HETERO")
     #! [configure_fallback_devices]

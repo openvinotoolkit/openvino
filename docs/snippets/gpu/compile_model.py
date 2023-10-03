@@ -46,7 +46,7 @@ def main():
         model,
         "GPU",
         {
-            hints.performance_mode(): hints.PerformanceMode.THROUGHPUT,
+            hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
         },
     )
     #! [compile_model_auto_batch]
