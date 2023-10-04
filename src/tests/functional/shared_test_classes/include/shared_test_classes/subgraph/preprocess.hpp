@@ -10,9 +10,9 @@
 #include <memory>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/preprocess/preprocess_builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/preprocess/preprocess_builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace SubgraphTestsDefinitions {
 

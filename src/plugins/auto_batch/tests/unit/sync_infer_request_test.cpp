@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"

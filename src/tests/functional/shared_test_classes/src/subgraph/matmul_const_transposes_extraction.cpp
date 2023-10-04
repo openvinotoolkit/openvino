@@ -4,7 +4,7 @@
 
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "shared_test_classes/subgraph/matmul_const_transposes_extraction.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <exec_graph_info.hpp>
 
 namespace SubgraphTestsDefinitions {

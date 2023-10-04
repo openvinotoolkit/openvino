@@ -23,7 +23,7 @@ addIeTargetTest(
         ${exclude_path}
         LINK_LIBRARIES
             PRIVATE
-                ngraphFunctions
+                ov_models
                 gmock
                 common_test_utils_s
                 openvino_intel_gna_plugin_test_static

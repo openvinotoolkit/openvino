@@ -1,0 +1,32 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(TARGET_NAME ov_lpt_models)
+
+set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+addIeTarget(
+        NAME ${TARGET_NAME}
+        TYPE STATIC
+        ROOT ${PUBLIC_HEADERS_DIR}
+        INCLUDES
+            PUBLIC
+                ${PUBLIC_HEADERS_DIR}
+        ADDITIONAL_SOURCE_DIRS
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+        LINK_LIBRARIES
+            PRIVATE
+                ov_models
+                openvino::runtime::dev
+        ADD_CPPLINT
+        DEPENDENCIES
+            ov_models
+        DEVELOPER_PACKAGE
+            tests
+)
+
+ov_build_target_faster(${TARGET_NAME}
+    UNITY
+    PCH PRIVATE "src/precomp.hpp"
+)

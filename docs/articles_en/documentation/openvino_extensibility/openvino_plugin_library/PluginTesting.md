@@ -41,7 +41,7 @@ Test definitions are split into tests class declaration (see ``src/tests/functio
 
 .. note:: 
 
-   Such sub-graphs or patterns for sub-graph tests should be added to ``openvino::ngraphFunctions`` library first (this library is a pre-defined set of small ``ov::Model``) and re-used in sub-graph tests after.
+   Such sub-graphs or patterns for sub-graph tests should be added to ``openvino::ov_models`` library first (this library is a pre-defined set of small ``ov::Model``) and re-used in sub-graph tests after.
 
 4. **HETERO tests** (``subgraph_tests`` sub-folder) contains tests for ``HETERO`` scenario (manual or automatic affinities settings, tests for ``query_model``).
 
