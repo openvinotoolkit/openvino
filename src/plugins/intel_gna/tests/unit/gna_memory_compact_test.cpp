@@ -14,7 +14,7 @@
 #include "gna_fused_iterator.hpp"
 #include "gna_plugin.hpp"
 #include "memory/gna_memory.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace memory;

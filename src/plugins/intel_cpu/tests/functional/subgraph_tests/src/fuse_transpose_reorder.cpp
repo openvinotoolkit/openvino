@@ -3,7 +3,7 @@
 //
 
 #include "subgraph_tests/include/fuse_transpose_reorder.hpp"
-#include <ngraph_functions/preprocess/preprocess_builders.hpp>
+#include <ov_models/preprocess/preprocess_builders.hpp>
 #include <openvino/openvino.hpp>
 
 using namespace InferenceEngine;

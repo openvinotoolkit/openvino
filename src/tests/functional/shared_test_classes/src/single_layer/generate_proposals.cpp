@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/generate_proposals.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {

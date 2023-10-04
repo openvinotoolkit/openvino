@@ -13,7 +13,7 @@
 #include "transformations/utils/utils.hpp"
 #include "transformations/init_node_info.hpp"
 #include "low_precision/weightable_layer_transformation.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "ov_lpt_models/convolution.hpp"
 
 using namespace testing;
 using namespace ov;

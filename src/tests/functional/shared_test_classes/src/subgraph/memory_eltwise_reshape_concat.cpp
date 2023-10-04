@@ -4,7 +4,7 @@
 
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/memory_eltwise_reshape_concat.hpp"
 
 namespace SubgraphTestsDefinitions {

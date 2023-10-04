@@ -21,10 +21,10 @@ ov_add_test_target(
             ${OBJ_LIB}
         LINK_LIBRARIES
             unit_test_utils
-            ngraphFunctions
+            ov_models
         DEPENDENCIES
             mock_engine
-            ngraphFunctions
+            ov_models
         ADD_CLANG_FORMAT
         LABELS
             HETERO

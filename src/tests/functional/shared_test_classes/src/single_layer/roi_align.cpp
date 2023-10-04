@@ -7,7 +7,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset9.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/core/enum_names.hpp"
 
 using namespace InferenceEngine;

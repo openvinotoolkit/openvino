@@ -7,7 +7,7 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <functional_test_utils/core_config.hpp>
 #include "ngraph/opsets/opset7.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "ngraph/pass/low_latency.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "shared_test_classes/single_layer/memory.hpp"

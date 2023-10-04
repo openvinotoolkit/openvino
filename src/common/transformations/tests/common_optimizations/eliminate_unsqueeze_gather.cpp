@@ -6,9 +6,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 

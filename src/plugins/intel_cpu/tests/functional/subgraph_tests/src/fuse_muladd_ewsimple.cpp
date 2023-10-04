@@ -3,7 +3,7 @@
 //
 
 #include "subgraph_tests/include/fuse_muladd_ewsimple.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;

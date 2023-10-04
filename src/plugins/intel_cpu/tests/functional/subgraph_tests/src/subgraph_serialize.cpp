@@ -5,7 +5,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "snippets/op/subgraph.hpp"
 

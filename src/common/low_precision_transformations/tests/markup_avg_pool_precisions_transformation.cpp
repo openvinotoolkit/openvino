@@ -19,8 +19,8 @@
 #include "transformations/utils/utils.hpp"
 
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/markup_avg_pool_precisions_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/markup_avg_pool_precisions.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;

@@ -8,8 +8,8 @@
 
 #include "behavior/plugin/caching_tests.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 using namespace InferenceEngine::details;
 using namespace InferenceEngine;

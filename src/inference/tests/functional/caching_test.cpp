@@ -15,7 +15,6 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "ie_plugin_config.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
@@ -30,6 +29,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iasync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"

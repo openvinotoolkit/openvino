@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <shared_test_classes/single_layer/ctc_greedy_decoder.hpp>
 #include <string>
 #include <tuple>

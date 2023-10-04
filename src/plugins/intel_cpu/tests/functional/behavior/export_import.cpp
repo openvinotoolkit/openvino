@@ -7,7 +7,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 
 #include <openvino/opsets/opset9.hpp>

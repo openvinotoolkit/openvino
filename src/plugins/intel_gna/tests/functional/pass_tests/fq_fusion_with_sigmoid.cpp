@@ -5,7 +5,7 @@
 #include <ie_core.hpp>
 
 #include "common_test_utils/test_constants.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {

@@ -17,8 +17,8 @@
 #include "simple_low_precision_transformer.hpp"
 #include "low_precision/strided_slice.hpp"
 
-#include "lpt_ngraph_functions/strided_slice_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/strided_slice.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace {
 using namespace testing;

@@ -6,7 +6,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;

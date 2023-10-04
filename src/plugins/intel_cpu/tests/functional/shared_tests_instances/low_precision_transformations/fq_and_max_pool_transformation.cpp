@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "low_precision_transformations/fake_quantize_and_max_pool_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;

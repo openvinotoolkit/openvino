@@ -3,7 +3,7 @@
 //
 
 #include "behavior/infer_request/set_io_blob_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 

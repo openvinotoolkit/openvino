@@ -10,7 +10,7 @@
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "precision_propagation_function.hpp"
+#include "precision_propagation.hpp"
 
 namespace ov {
 namespace test {

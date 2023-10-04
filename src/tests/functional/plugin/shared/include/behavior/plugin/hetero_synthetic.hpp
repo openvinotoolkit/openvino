@@ -9,7 +9,7 @@
 #include <vector>
 #include <unordered_set>
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace HeteroTests {
 

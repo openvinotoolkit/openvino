@@ -15,7 +15,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/squeeze_function.hpp"
+#include "ov_lpt_models/squeeze.hpp"
 
 namespace {
 using namespace testing;

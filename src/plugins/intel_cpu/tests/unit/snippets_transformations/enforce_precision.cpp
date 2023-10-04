@@ -12,7 +12,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "two_binary_ops_function.hpp"
+#include "two_binary_ops.hpp"
 
 namespace ov {
 namespace test {

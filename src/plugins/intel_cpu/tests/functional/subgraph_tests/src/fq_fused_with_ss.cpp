@@ -4,7 +4,7 @@
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;

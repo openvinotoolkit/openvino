@@ -5,7 +5,7 @@
 #include "snippets/precision_propagation_convertion.hpp"
 
 #include "common_test_utils/common_utils.hpp"
-#include "precision_propagation_convertion_function.hpp"
+#include "precision_propagation_convertion.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {

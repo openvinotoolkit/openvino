@@ -39,7 +39,7 @@ Once the commands above are executed, the OpenVINO Developer Package is generate
     * ``openvino::common_test_utils`` - static library with common tests utilities 
     * ``openvino::func_test_utils`` - static library with functional tests utilities 
     * ``openvino::unit_test_utils`` - static library with unit tests utilities 
-    * ``openvino::ngraphFunctions`` - static library with the set of ``ov::Model`` builders
+    * ``openvino::ov_models`` - static library with the set of ``ov::Model`` builders
     * ``openvino::funcSharedTests`` - static library with common functional tests
     * ``openvino::ngraph_reference`` - static library with operation reference implementations.
 

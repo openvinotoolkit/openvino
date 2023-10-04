@@ -29,7 +29,7 @@ endif()
 
 ov_deprecated_no_errors()
 
-add_subdirectory(ngraph_helpers)
+add_subdirectory(ov_helpers)
 add_subdirectory(test_utils)
 
 if(ENABLE_FUNCTIONAL_TESTS)

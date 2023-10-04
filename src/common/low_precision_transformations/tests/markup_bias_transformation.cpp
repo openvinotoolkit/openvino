@@ -11,7 +11,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/markup_bias_function.hpp"
+#include "ov_lpt_models/markup_bias.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;

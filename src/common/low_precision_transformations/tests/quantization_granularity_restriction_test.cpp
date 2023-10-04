@@ -15,7 +15,7 @@
 #include "low_precision/markup_quantization_granularity.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "ov_lpt_models/convolution.hpp"
 
 using namespace testing;
 using namespace ov;

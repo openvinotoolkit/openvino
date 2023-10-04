@@ -9,7 +9,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/common_util.hpp"

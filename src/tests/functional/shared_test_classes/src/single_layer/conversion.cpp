@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/conversion.hpp"
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 

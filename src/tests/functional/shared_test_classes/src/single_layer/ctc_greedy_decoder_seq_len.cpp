@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "shared_test_classes/single_layer/ctc_greedy_decoder_seq_len.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(

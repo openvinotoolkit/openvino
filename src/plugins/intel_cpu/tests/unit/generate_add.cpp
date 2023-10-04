@@ -27,7 +27,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 
 using namespace testing;
 

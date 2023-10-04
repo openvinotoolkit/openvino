@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "behavior/plugin/hetero_synthetic.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 namespace {
 using namespace HeteroTests;

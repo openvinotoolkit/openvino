@@ -7,7 +7,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/sigmoid.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 

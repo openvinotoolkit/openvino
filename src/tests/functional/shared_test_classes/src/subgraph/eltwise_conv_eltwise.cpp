@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/eltwise_conv_eltwise.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 

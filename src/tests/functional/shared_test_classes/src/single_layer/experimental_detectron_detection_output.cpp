@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/experimental_detectron_detection_output.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 

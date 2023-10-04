@@ -11,7 +11,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
+#include "ov_models/pass/convert_prc.hpp"
 
 using namespace InferenceEngine;
 using namespace ngraph;

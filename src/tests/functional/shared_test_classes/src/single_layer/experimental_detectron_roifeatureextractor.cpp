@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/single_layer/experimental_detectron_roifeatureextractor.hpp"

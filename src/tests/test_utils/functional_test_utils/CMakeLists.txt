@@ -22,7 +22,7 @@ addIeTarget(
             openvino::runtime
             openvino::runtime::dev
         PRIVATE
-            ngraphFunctions
+            ov_models
             openvino::pugixml
     INCLUDES
         PUBLIC
