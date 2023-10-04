@@ -9,7 +9,6 @@
 
 namespace {
 using ov::test::InterpolateLayerTest;
-using ov::test::Interpolate11LayerTest;
 
 const std::vector<ov::element::Type> model_types = {
     ov::element::f16,
