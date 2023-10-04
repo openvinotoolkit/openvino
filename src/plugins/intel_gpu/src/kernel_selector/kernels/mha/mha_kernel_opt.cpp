@@ -27,8 +27,8 @@ static std::pair<size_t, size_t> GetAvailableBlockSize(size_t N, size_t d, const
     size_t M = static_cast<size_t>(params.engineInfo.maxLocalMemSize/2);
 
     // initial block size
-    size_t blk_col_size = static_cast<size_t>(std::ceil(M/(4 * d)));
-    size_t blk_row_size = std::min(blk_col_size, d);
+    size_t blk_col_size = 32; // static_cast<size_t>(std::ceil(M/(4 * d)));
+    size_t blk_row_size = 64; // std::min(blk_col_size, d);
 
     /*
      * Used shared local memories
@@ -69,7 +69,8 @@ MHAKernelOpt::TuningData MHAKernelOpt::GetTuningData(const mha_params& params) c
     td.v_blk_size     = td.k_blk_size;
     td.score_mat_size = td.blk_row_size * td.blk_col_size;
     td.out_blk_size   = td.q_blk_size;
-
+    td.num_col_thread = 8; // params.engineInfo.maxWorkGroupSize/td.blk_col_size;
+    td.col_thread_size = 8;
     return td;
 }
 
@@ -85,8 +86,8 @@ CommonDispatchData MHAKernelOpt::SetDefault(const mha_params& params) const {
         << ", max group size: " << params.engineInfo.maxWorkGroupSize << std::endl;
     dispatchData.gws = {batch * feature, td.num_blk_row, td.blk_row_size};
     dispatchData.lws = {1, 1, td.blk_row_size};
-    // dispatchData.gws = {batch * feature, td.num_blk_row, 16};
-    // dispatchData.lws = {1, 1, 16};
+    // dispatchData.gws = {batch * feature, td.num_blk_row, td.blk_row_size * 8};
+    // dispatchData.lws = {1, 1, td.blk_row_size * 8};
 
     std::cout << __FILE__ << ":" << __LINE__ << " GWS: "
         << dispatchData.gws[0] << ", "
@@ -118,6 +119,8 @@ JitConstants MHAKernelOpt::GetJitConstants(const mha_params& params) const {
         MakeJitConstant("V_BLK_SIZE", td.v_blk_size),
         MakeJitConstant("SCORE_MAT_SIZE", td.score_mat_size),
         MakeJitConstant("OUT_BLK_SIZE", td.out_blk_size),
+        MakeJitConstant("NUM_COL_THREAD", td.num_col_thread),
+        MakeJitConstant("COL_THREAD_SIZE", td.col_thread_size),
     });
 
     return jit;
