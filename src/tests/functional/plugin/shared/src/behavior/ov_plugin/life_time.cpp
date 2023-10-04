@@ -4,7 +4,7 @@
 
 #include <fstream>
 
-#include <ngraph_functions/subgraph_builders.hpp>
+#include <ov_models/subgraph_builders.hpp>
 #include <base/behavior_test_utils.hpp>
 #include "behavior/ov_plugin/life_time.hpp"
 
