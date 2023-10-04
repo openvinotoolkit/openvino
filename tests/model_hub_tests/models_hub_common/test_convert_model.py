@@ -73,13 +73,13 @@ class TestConvertModel:
                     "OpenVINO outputs does not contain tensor with name {}".format(out_name)
                 cur_ov_res = ov_outputs[out_name]
                 print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
-                is_ok = is_ok or compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
+                is_ok = is_ok and compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
         else:
             for i in range(len(ov_outputs)):
                 cur_fw_res = fw_outputs[i]
                 cur_ov_res = ov_outputs[i]
                 print(f"fw_res: {cur_fw_res};\n ov_res: {cur_ov_res}")
-                is_ok = is_ok or compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
+                is_ok = is_ok and compare_two_tensors(cur_ov_res, cur_fw_res, fw_eps)
         assert is_ok, "Accuracy validation failed"
 
     def teardown_method(self):
