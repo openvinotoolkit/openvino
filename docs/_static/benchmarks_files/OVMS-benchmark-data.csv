@@ -1,4 +1,4 @@
-﻿Network model,Release,IE-Type,Platform name,Throughput-OVMS-INT8,Throughput-OV-INT8,Throughput-OVMS-FP32,Throughput-OV-FP32,KluskiSlaskie
+﻿Network model,Release,IE-Type,Platform name,Throughput-OVMS-INT8,Throughput-OV-INT8,Throughput-OVMS-FP32,Throughput-OV-FP32,Units
 begin_rec,,,,,,,,
 bert-base-cased,OV-2023.0,xeon,Intel®  Xeon® 8260M CPU-only,474.65,485.70,185.24,187.38,FPS
 bert-base-cased,OV-2023.0,xeon,Intel®  Xeon® Gold 6238M CPU-only,415.43,420.67,151.44,155.64,FPS
