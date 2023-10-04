@@ -445,13 +445,29 @@ extern template bool evaluate_node<ov::op::v12::GroupNormalization>(std::shared_
                                                                     ov::TensorVector& outputs,
                                                                     const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v13::BitwiseAnd>(std::shared_ptr<ov::Node> node,
+                                                            ov::TensorVector& outputs,
+                                                            const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v13::BitwiseNot>(std::shared_ptr<ov::Node> node,
+                                                            ov::TensorVector& outputs,
+                                                            const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v13::BitwiseOr>(std::shared_ptr<ov::Node> node,
+                                                           ov::TensorVector& outputs,
+                                                           const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v13::BitwiseXor>(std::shared_ptr<ov::Node> node,
                                                             ov::TensorVector& outputs,
                                                             const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v13::NMSRotated>(std::shared_ptr<ov::Node> node,
                                                             ov::TensorVector& outputs,
                                                             const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
+                                                             ov::TensorVector& outputs,
+                                                             const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<ov::Node> node,
                                                                 ov::TensorVector& outputs,

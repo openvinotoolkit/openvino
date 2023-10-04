@@ -21,10 +21,10 @@ addIeTargetTest(
             ${SHARED_HEADERS_DIR}
         LINK_LIBRARIES
             unit_test_utils
-            ngraphFunctions
+            ov_models
         DEPENDENCIES
             mock_engine
-            ngraphFunctions
+            ov_models
         ADD_CPPLINT
         LABELS
             Auto_Batch

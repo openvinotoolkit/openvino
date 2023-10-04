@@ -6,7 +6,7 @@
 
 #include "shared_test_classes/single_op/eltwise.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {

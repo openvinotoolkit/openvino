@@ -417,17 +417,17 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
     auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
 
-    auto input1_data = rg.generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
-    auto input2_data = rg.generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
+    auto input1_data = rg.generate_random_4d<ov::float16>(1, input_f, 1, 1, -1, 1);
+    auto input2_data = rg.generate_random_4d<ov::float16>(1, input_f, 1, 1, -1, 1);
     set_values(input1, flatten_4d(format::bfyx, input1_data));
     set_values(input2, flatten_4d(format::bfyx, input2_data));
 
     auto weights = engine.allocate_memory({ data_types::f16, format::oiyx, {input_f, input_f, 3, 3} });
     // Construct weights for convolution that just double input values.
-    VVVVF<FLOAT16> weights_data;
+    VVVVF<ov::float16> weights_data;
     weights_data.resize(input_f);
     for (size_t oi = 0; oi < input_f; ++oi) {
-        weights_data[oi].resize(input_f, VVF<FLOAT16>(3, VF<FLOAT16>(3, FLOAT16(0.f))));
+        weights_data[oi].resize(input_f, VVF<ov::float16>(3, VF<ov::float16>(3, ov::float16(0.f))));
         weights_data[oi][oi][1][1] = 2.f;
     }
     set_values(weights, flatten_4d(format::bfyx, weights_data));
@@ -500,17 +500,17 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
     auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
 
-    auto input1_data = rg.generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
-    auto input2_data = rg.generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
+    auto input1_data = rg.generate_random_4d<ov::float16>(1, input_f, 1, 1, -1, 1);
+    auto input2_data = rg.generate_random_4d<ov::float16>(1, input_f, 1, 1, -1, 1);
     set_values(input1, flatten_4d(format::bfyx, input1_data));
     set_values(input2, flatten_4d(format::bfyx, input2_data));
 
     auto weights = engine.allocate_memory({ data_types::f16, format::oiyx, {output_f, output_f, 3, 3} });
     // Construct weights for convolution that just double input values.
-    VVVVF<FLOAT16> weights_data;
+    VVVVF<ov::float16> weights_data;
     weights_data.resize(output_f);
     for (size_t oi = 0; oi < output_f; ++oi) {
-        weights_data[oi].resize(output_f, VVF<FLOAT16>(3, VF<FLOAT16>(3, FLOAT16(0.f))));
+        weights_data[oi].resize(output_f, VVF<ov::float16>(3, VF<ov::float16>(3, ov::float16(0.f))));
         weights_data[oi][oi][1][1] = 2.f;
     }
     set_values(weights, flatten_4d(format::bfyx, weights_data));
@@ -1248,7 +1248,7 @@ public:
         if (generic_params->data_type == data_types::f32) {
             return generate_reference_typed<float>(inputs);
         } else {
-            return generate_reference_typed<FLOAT16>(inputs);
+            return generate_reference_typed<ov::float16>(inputs);
         }
     }
 
