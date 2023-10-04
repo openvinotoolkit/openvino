@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from openvino.runtime import Type
-import openvino.runtime.opset8 as ov
+import openvino.runtime.opset13 as ov
 
 
 @pytest.mark.parametrize(
@@ -183,3 +183,43 @@ def test_power_v1():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [8, 4, 6, 5]
     assert node.get_output_element_type(0) == Type.f32
+
+@pytest.mark.parametrize(
+    "graph_api_helper",
+    [ov.bitwise_xor],
+)
+@pytest.mark.parametrize(
+    "dtype",
+    [bool, np.int32],
+)
+def test_binary_bitwise_op(graph_api_helper, dtype):
+    shape = [2, 2]
+    parameter_a = ov.parameter(shape, name="A", dtype=dtype)
+    parameter_b = ov.parameter(shape, name="B", dtype=dtype)
+
+    model = graph_api_helper(parameter_a, parameter_b)
+
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == shape
+    assert model.get_output_element_type(0) == Type(dtype)
+
+
+@pytest.mark.parametrize(
+    "graph_api_helper",
+    [ov.bitwise_xor],
+)
+@pytest.mark.parametrize(
+    "dtype",
+    [bool, np.int32],
+)
+def test_binary_bitwise_op_with_scalar(graph_api_helper, dtype):
+    value_b = np.array([[3, 0], [-7, 21]], dtype=dtype)
+
+    shape = [2, 2]
+    parameter_a = ov.parameter(shape, name="A", dtype=dtype)
+
+    model = graph_api_helper(parameter_a, value_b)
+
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == shape
+    assert model.get_output_element_type(0) == Type(dtype)
