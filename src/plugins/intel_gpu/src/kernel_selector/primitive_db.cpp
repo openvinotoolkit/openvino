@@ -9,7 +9,7 @@
 #include <utility>
 #include <stdexcept>
 
-#ifndef NDEBUG
+#if 1
 #include <fstream>
 #include <iostream>
 #endif
@@ -28,10 +28,12 @@ primitive_db::primitive_db()
 }
 
 std::vector<code> primitive_db::get(const primitive_id& id) const {
-#ifndef NDEBUG
+#if 1
     {
+        std::string pattern("#include \"include/fetch_utils.cl\"");
         std::ifstream kernel_file{id + ".cl", std::ios::in | std::ios::binary};
-        if (kernel_file.is_open()) {
+        if (kernel_file.is_open() && id == "mha_opt") {
+            std::cout << __FILE__ << ":" << __LINE__ << "  " << id << std::endl;
             code ret;
             auto beg = kernel_file.tellg();
             kernel_file.seekg(0, std::ios::end);
@@ -40,7 +42,7 @@ std::vector<code> primitive_db::get(const primitive_id& id) const {
 
             ret.resize((size_t)(end - beg));
             kernel_file.read(&ret[0], (size_t)(end - beg));
-
+            ret.replace(ret.find(pattern), pattern.length(), "");
             return {std::move(ret)};
         }
     }
