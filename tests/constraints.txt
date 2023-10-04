@@ -20,5 +20,5 @@ pytest>=5.0,<7.5
 pytest-dependency==0.5.1
 pytest-html==3.2.0
 pytest-timeout==2.1.0
-jax<=0.4.14
+jax<=0.4.17
 jaxlib<=0.4.14
