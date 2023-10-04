@@ -1,21 +1,22 @@
 #!/usr/bin/bash -e
 
 PREV=0
+TEST=ov_gpu_unit_tests
+FILE=mha_opt.cl
 build_and_measure() {
     TITLE=$1
-    ninja -C ../../../build -j 24 ov_gpu_unit_tests | grep -v processing &> /dev/null
-    NS=`CLI_DevicePerformanceTiming=1 cliloader ./ov_gpu_unit_tests --gtest_filter=*mha_graph_test_f2_N9216_d64* 2>&1 | grep mha_opt | cut -d',' -f 3`
+    # ninja -C ../../../build -j 24 ov_gpu_unit_tests | grep -v processing &> /dev/null
+    NS=`CLI_DevicePerformanceTiming=1 cliloader $TEST --gtest_filter=*mha_graph_test_f2_N9216_d64* 2>&1 | grep mha_opt | cut -d',' -f 3`
     US=$((NS/1000))
     echo "$TITLE: $US us, $((US-PREV)) us"
     PREV=$((US))
 }
-if [[ ! -d ../../../build ]]; then
-    echo "cannot file ../../../build directory"
-    echo "Please execute this script within binary folder (Release/RelWithDebInfo/Debug)"
-    return 1
+if [[ ! -f mha_opt.cl ]]; then
+    echo "cannot find mha_opt.cl file"
+    echo "Please execute this script within cl_kernel directory"
+    exit 1
 fi
 
-FILE=../../../src/plugins/intel_gpu/src/kernel_selector/cl_kernels/mha_opt.cl
 # Prepare
 sed -i -e 's/define MEASURE_BLOCK_/define AMEASURE_BLOCK_/' $FILE
 sed -i -e 's/define RETURN_BLOCK_/define ARETURN_BLOCK_/' $FILE
