@@ -36,7 +36,8 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
         // const won't be cloned in case model takes > 50% RAM
         auto model_bytesize = model->get_graph_size();
         // check that Free RAM memory is enough. Serialize in other case
-        if (m_graph_cache_bytesize + 2 * model_bytesize > mem_size) {
+        // serialize graph cache in case graph cache bytesize > 4GB to avoid long search the same graphs
+        if (m_graph_cache_bytesize + 2 * model_bytesize > mem_size || m_graph_cache_bytesize >> 20 != 0) {
             // std::cout << "[ GRAPH CACHE ][ WARNING ] There are not enought RAM memory! Serialize graph cache" << std::endl;
             serialize_cache();
             m_graph_cache_bytesize = 0;
