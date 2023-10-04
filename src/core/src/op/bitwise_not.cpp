@@ -4,7 +4,6 @@
 #include "openvino/op/bitwise_not.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {

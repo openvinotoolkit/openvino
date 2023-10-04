@@ -5,14 +5,17 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 
 using namespace ov;
 
 namespace reference_tests {
 namespace BitwiseOpsRefTestDefinitions {
 
-enum BitwiseTypes { BITWISE_NOT };
+enum BitwiseTypes { BITWISE_AND, BITWISE_NOT, BITWISE_OR, BITWISE_XOR };
 
 struct RefBitwiseParams {
     BitwiseTypes opType;
@@ -30,7 +33,7 @@ class ReferenceBitwiseLayerTest : public testing::TestWithParam<RefBitwiseParams
 public:
     void SetUp() override {
         const auto& params = GetParam();
-        function = CreateFunction(params.opType, params.inputs);
+        function = create_model(params.opType, params.inputs);
         for (auto& input : params.inputs) {
             inputData.push_back(input.data);
         }
@@ -50,23 +53,33 @@ public:
     }
 
 private:
-    static std::shared_ptr<ov::Model> CreateFunction(BitwiseTypes op_type,
-                                                     const std::vector<reference_tests::Tensor>& inputs) {
+    static std::shared_ptr<ov::Model> create_model(BitwiseTypes op_type,
+                                                   const std::vector<reference_tests::Tensor>& inputs) {
         ov::ParameterVector params_vec;
         for (auto& input : inputs) {
             params_vec.push_back(std::make_shared<op::v0::Parameter>(input.type, input.shape));
         }
 
-        std::shared_ptr<ov::Node> bitwise_op;
+        std::shared_ptr<ov::Node> bitwise_op = nullptr;
         switch (op_type) {
         case BitwiseTypes::BITWISE_NOT: {
             bitwise_op = std::make_shared<ov::op::v13::BitwiseNot>(params_vec[0]);
             break;
         }
-        default: {
-            throw std::runtime_error("Incorrect type of Bitwise operation");
+        case BitwiseTypes::BITWISE_AND: {
+            bitwise_op = std::make_shared<ov::op::v13::BitwiseAnd>(params_vec[0], params_vec[1]);
+            break;
+        }
+        case BitwiseTypes::BITWISE_OR: {
+            bitwise_op = std::make_shared<ov::op::v13::BitwiseOr>(params_vec[0], params_vec[1]);
+            break;
+        }
+        case BitwiseTypes::BITWISE_XOR: {
+            bitwise_op = std::make_shared<ov::op::v13::BitwiseXor>(params_vec[0], params_vec[1]);
+            break;
         }
         }
+        EXPECT_TRUE(bitwise_op) << "Incorrect type of Bitwise operation";
         return std::make_shared<ov::Model>(ov::NodeVector{bitwise_op}, ov::ParameterVector{params_vec});
     }
 };
