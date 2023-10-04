@@ -885,21 +885,24 @@ jobs:
       # Tests
       #
 
-      - name: Python API 1.0 Tests
+      - name: Install PyTorch tests requirements
         run: |
-          python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py \
-            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
+          python3 -m pip install pytest-xdist[psutil]
 
-      - name: Python API 2.0 Tests
+      - name: nGraph and IE Python Bindings and Python API 2.0 Tests
         run: |
-          # for 'template' extension
-          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
+          source ${INSTALL_DIR}/setupvars.sh
+          python3 -m pytest -n logical --dist loadfile -sv \
+            ${INSTALL_TEST_DIR}/pyngraph ${INSTALL_TEST_DIR}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-python_unit.xml \
+            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_zoo_models.py \
+            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_backend.py \
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py \
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_onnx/test_zoo_models.py \
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_onnx/test_backend.py
+        env:
+          LD_LIBRARY_PATH: ${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
+          PYTHONPATH: ${{ env. INSTALL_TEST_DIR }}:$PYTHONPATH
 
       - name: Docs Python snippets
         run: |
