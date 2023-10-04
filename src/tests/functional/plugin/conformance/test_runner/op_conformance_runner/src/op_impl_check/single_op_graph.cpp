@@ -606,6 +606,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::MatMul> &n
     return std::make_shared<ov::Model>(results, params, "MatMul-1");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::Multinomial>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 5}}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1})};
+    auto multinomial =
+        std::make_shared<ov::op::v13::Multinomial>(params[0], params[1], ov::element::i32, false, false, 0, 0);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(multinomial)};
+    return std::make_shared<ov::Model>(results, params, "Multinomial-13");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::NMSRotated> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 6, 5}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 6}}),
