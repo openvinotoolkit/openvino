@@ -542,53 +542,67 @@ void loop_inst::preprocess_backedge_memory() {
         GPU_DEBUG_LOG << idx << ") back_edge mapping - back_edge.to   " << back_edge.to << std::endl;
 
         auto backedged_sliced_output = get_sliced_mem(back_edge.from);
-        if (backedged_sliced_output == nullptr) {
-            // backedge output which does not need concatenation
-            const auto output_mapping = find_io_primitive_maps(_input_primitive_maps,
-                                                                _output_primitive_maps, back_edge.from, false);
-            memory::ptr backedge_mem;
-            if (output_mapping.empty()) {
-                // from and to primitives in backedge are connected directly
-                if (backedge_to_prim == backedge_from_prim->dependencies().front().first) {
-                    // SINGLE mode
-                    backedge_memory_mappings.emplace_back(
-                        backedge_from_prim, backedge_to_prim, initial_mem, body_network->get_stream());
-                    GPU_DEBUG_LOG << idx << ") add back_edge mapping with SINGLE type, initial_mem(" << initial_mem << ")" << std::endl;
-                    continue;
-                } else {
-                    auto output_prim = body_network->get_primitive(back_edge.from);
-                    layout output_layout = output_prim->output_memory().get_layout();
-                    backedge_mem = body_network->get_engine().allocate_memory(output_layout, 0);
-                    GPU_DEBUG_LOG << idx << ") Get backedge_mem from back_edge.from(" << back_edge.from << ")" << std::endl;
-                }
-            } else {
-                auto& out_mapping_ext_id = output_mapping.front()->external_id;
-                backedge_mem = get_external_memory(out_mapping_ext_id.pid, out_mapping_ext_id.idx);
-                GPU_DEBUG_LOG << idx << ") Get backedge_mem from output_mapping_external_id.pid("
-                                << out_mapping_ext_id.pid << ")" << std::endl;
-                // when input layout is changed, set backedge_mem to nullptr and update it after first execution.
-                if (backedge_mem != nullptr && backedge_mem->get_layout() != initial_mem->get_layout()) {
-                    backedge_mem = nullptr;
-                }
-            }
-            if (backedge_mem != nullptr) {
-                body_network->set_input_data(back_edge.to, backedge_mem);
-                body_network->set_output_memory(back_edge.from, backedge_mem);
-            } else {
-                body_network->set_input_data(back_edge.to, initial_mem);
-            }
-
-            // SINGLE_SHARED mode
-            backedge_memory_mappings.emplace_back(
-                backedge_from_prim, backedge_to_prim, backedge_mem, initial_mem, body_network->get_stream());
-            GPU_DEBUG_LOG << idx << ") add back_edge mapping with SINGLE_SHARED type, backedge_mem("
-                            << backedge_mem << "), initial_mem(" << initial_mem << ")" << std::endl;
-        } else {
-            // backedge output which needs concatenation, CONCAT_OUTPUT mode
+        const auto output_mapping = find_io_primitive_maps(_input_primitive_maps,
+                                                            _output_primitive_maps, back_edge.from, false);
+        if (backedged_sliced_output != nullptr) {
+            // CONCAT_OUTPUT mode, backedge output which needs concatenation
             backedge_memory_mappings.emplace_back(
                 backedge_from_prim, backedge_to_prim, backedged_sliced_output, initial_mem, body_network->get_stream());
             GPU_DEBUG_LOG << idx << ") add back_edge mapping with CONCAT_OUTPUT type, backedged_sliced_output("
                             << backedged_sliced_output << "), initial_mem(" << initial_mem << ")" << std::endl;
+        } else if (output_mapping.empty() && backedge_to_prim == backedge_from_prim->dependencies().front().first) {
+            // SINGLE mode, from and to primitives in backedge are connected directly
+            backedge_memory_mappings.emplace_back(
+                backedge_from_prim, backedge_to_prim, initial_mem, body_network->get_stream());
+            GPU_DEBUG_LOG << idx << ") add back_edge mapping with SINGLE type, initial_mem(" << initial_mem << ")" << std::endl;
+        } else {
+            // SINGLE_SHARED mode
+            memory::ptr backedge_mem;
+            auto output_prim = body_network->get_primitive(back_edge.from);
+
+            if (is_dynamic()) {
+                if (output_prim->outputs_allocated()) {
+                    auto internal_output_prim_mem = output_prim->output_memory_ptr();
+                    if (internal_output_prim_mem->get_layout() == initial_mem->get_layout()) {
+                        backedge_mem = internal_output_prim_mem;
+                        body_network->set_input_data(back_edge.to, backedge_mem);
+                        GPU_DEBUG_LOG << idx << ") Get backedge_mem(" << backedge_mem
+                                    << ") from back_edge.from(" << back_edge.from << ")" << std::endl;
+                    } else {
+                        // When input layout is changed or backedge_mem is null
+                        // because output layout of body network is not calculated yet,
+                        // Set backedge_mem to nullptr and update it after first execution.
+                        body_network->set_input_data(back_edge.to, initial_mem);
+                        GPU_DEBUG_LOG << idx << ") Just set input data using initial_mem because back_edge.from("
+                                                << back_edge.from << ") layout is changed or backedge_mem is nullptr" << std::endl;
+                    }
+                } else {
+                    body_network->set_input_data(back_edge.to, initial_mem);
+                    GPU_DEBUG_LOG << idx << ") Just set input data using initial_mem because back_edge.from("
+                                            << back_edge.from << ") has dynamic layout now" << std::endl;
+                }
+            } else {
+                if (output_mapping.empty()) {
+                    backedge_mem = output_prim->output_memory_ptr();
+                    body_network->set_input_data(back_edge.to, backedge_mem);
+                    GPU_DEBUG_LOG << idx << ") Get backedge_mem(" << backedge_mem
+                                    << ") from back_edge.from(" << back_edge.from << ")" << std::endl;
+                } else {
+                    // Set input and output memory for body_network using external output memory of loop op
+                    auto& out_mapping_ext_id = output_mapping.front()->external_id;
+                    backedge_mem = get_external_memory(out_mapping_ext_id.pid, out_mapping_ext_id.idx);
+                    GPU_DEBUG_LOG << idx << ") Get backedge_mem(" << backedge_mem << ") from output_mapping_external_id.pid("
+                                    << out_mapping_ext_id.pid << ")" << std::endl;
+
+                    body_network->set_input_data(back_edge.to, backedge_mem);
+                    body_network->set_output_memory(back_edge.from, backedge_mem);
+                }
+            }
+
+            backedge_memory_mappings.emplace_back(
+                backedge_from_prim, backedge_to_prim, backedge_mem, initial_mem, body_network->get_stream());
+            GPU_DEBUG_LOG << idx << ") add back_edge mapping with SINGLE_SHARED type, backedge_mem("
+                            << backedge_mem << "), initial_mem(" << initial_mem << ")" << std::endl;
         }
     }
 }
@@ -704,6 +718,8 @@ void loop_inst::postprocess_output_memory() {
                 auto external_mem = externalOutputPrim->output_memory_ptr(external_id.idx);
                 if (external_mem->get_layout() != internal_mem->get_layout()) {
                     externalOutputPrim->set_output_memory(internal_mem, external_id.idx);
+                } else if (external_mem != internal_mem) {
+                    external_mem->copy_from(get_network().get_stream(), *internal_mem);
                 }
             }
         } else {

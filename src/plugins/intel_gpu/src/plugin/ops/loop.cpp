@@ -250,7 +250,7 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     p.add_primitive(*op, std::move(num_iteration_data));
     inputs.insert(inputs.begin(), cldnn::input_info(num_iteration_id, 0));
 
-    GPU_DEBUG_LOG << "* trip_count                    : " << trip_count_id << std::endl;
+    GPU_DEBUG_LOG << "* trip_count_id                 : " << trip_count_id << std::endl;
     GPU_DEBUG_LOG << "* num_iteration_id              : " << num_iteration_id << std::endl;
     GPU_DEBUG_LOG << "* body_current_iteration_id     : " << body_current_iteration_id << std::endl;
     GPU_DEBUG_LOG << "* first_execution_condition_id  : " << first_execution_condition_id << std::endl;

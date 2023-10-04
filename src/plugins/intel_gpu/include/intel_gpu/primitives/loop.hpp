@@ -9,7 +9,6 @@
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-#define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
 
 ///
