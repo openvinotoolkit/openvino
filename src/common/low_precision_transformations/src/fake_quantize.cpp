@@ -11,6 +11,7 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
+#include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "itt.hpp"
 
 namespace ov {
@@ -51,8 +52,9 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ov::p
 }
 
 namespace fq {
+namespace {
 
-static std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const PartialShape& targetShape) {
+std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const PartialShape& targetShape) {
     assert(constantOp->get_output_partial_shape(0).is_static());
     const Shape shape = constantOp->get_output_shape(0);
 
@@ -64,7 +66,7 @@ static std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const
     return constantOp;
 }
 
-static std::shared_ptr<Node> getDataNode(const std::shared_ptr<Node>& eltwise) {
+std::shared_ptr<Node> getDataNode(const std::shared_ptr<Node>& eltwise) {
     if (!ov::is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(0))) {
         return eltwise->get_input_node_shared_ptr(0);
     }
@@ -76,7 +78,7 @@ static std::shared_ptr<Node> getDataNode(const std::shared_ptr<Node>& eltwise) {
     return nullptr;
 }
 
-static std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwise) {
+std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwise) {
     if (eltwise->get_input_size() != 2) {
         return nullptr;
     }
@@ -124,6 +126,7 @@ bool all_precisions_equal(const std::shared_ptr<Node>& node) {
     return true;
 }
 
+}  // namespace
 }  // namespace fq
 
 bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& eltwise) {
@@ -162,6 +165,10 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
 
     if (!updatePrecisions && !fq::all_precisions_equal(eltwise)) {
+        return nullptr;
+    }
+
+    if (!getAttribute<DisableCleanupAttribute>(eltwise).empty()) {
         return nullptr;
     }
 

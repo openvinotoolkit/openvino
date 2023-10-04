@@ -45,8 +45,6 @@ public:
     /// \param signal_size Signal sizes for 'axes'
     DFT(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 }  // namespace v7

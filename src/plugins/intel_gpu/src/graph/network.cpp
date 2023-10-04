@@ -14,7 +14,6 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/half.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 
 #include "intel_gpu/graph/program.hpp"
@@ -140,7 +139,7 @@ float convert_element(int32_t i) { return static_cast<float>(i); }
 
 float convert_element(float f) { return f; }
 
-float convert_element(half_t h) { return half_to_float(h); }
+float convert_element(ov::float16 h) { return static_cast<float>(h); }
 
 size_t get_x_pitch(const layout& layout) {
     try {
@@ -266,8 +265,8 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
     if (mem_dt == cldnn::data_types::f32)
         dump<float>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f16)
-        dump<half_t>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::bin)
+        dump<ov::float16>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::u1)
         dump<uint32_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i64)
         dump<int64_t>(actual_mem, stream, file_stream, dump_raw);
@@ -311,7 +310,7 @@ static uint32_t get_unique_net_id() {
 
 static std::string get_file_path_for_binary_dump(cldnn::layout layout, std::string name) {
     std::string filename;
-    std::string data_type = data_type_traits::name(layout.data_type);
+    std::string data_type = ov::element::Type(layout.data_type).get_type_name();
     std::string format = layout.format.to_string();
     std::string tensor;
     auto dims = layout.get_dims();
@@ -1234,9 +1233,18 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             GPU_DEBUG_COUT << inst->id() << std::endl;
             if (inst->get_node().is_type<loop>()) {
                 auto& loop_node = inst->get_node().as<loop>();
-                auto loop_body_primitives = loop_node.get_body_topology().get_primitives_ids();
-                for (auto& primitive_id : loop_body_primitives) {
-                    GPU_DEBUG_COUT << "\t" << primitive_id << std::endl;
+                for (auto& prim : loop_node.get_body_program()->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+            } else if (inst->get_node().is_type<condition>()) {
+                auto& cond_node = inst->get_node().as<condition>();
+                GPU_DEBUG_COUT << "* Branch_True" << std::endl;
+                for (auto& prim : cond_node.get_branch_true().inner_program->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+                GPU_DEBUG_COUT << "* Branch_False" << std::endl;
+                for (auto& prim : cond_node.get_branch_false().inner_program->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
                 }
             }
         }

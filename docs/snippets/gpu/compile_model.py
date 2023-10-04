@@ -39,12 +39,14 @@ def main():
     #! [compile_model_batch_plugin]
 
     #! [compile_model_auto_batch]
+    import openvino.properties.hint as hints
+
     core = ov.Core()
     compiled_model = core.compile_model(
         model,
         "GPU",
         {
-            ov.properties.hint.performance_mode(): ov.properties.hint.PerformanceMode.THROUGHPUT,
+            hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
         },
     )
     #! [compile_model_auto_batch]

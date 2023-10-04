@@ -19,7 +19,8 @@ public:
     SimpleLowPrecisionTransformer(
         const std::vector<ov::pass::low_precision::PrecisionsRestriction>& precisionRestrictions = {},
         const std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>& quantizationRestrictions = {},
-        const AttributeParameters& params = AttributeParameters());
+        const AttributeParameters& params = AttributeParameters(),
+        const bool addCleanup = false);
 
     template <class T, class Operation>
     void add(const TestTransformationParams& params) {
@@ -28,6 +29,10 @@ public:
     template <class T, class Operation>
     void add(const std::shared_ptr<ov::Model> model, const TestTransformationParams& params) {
         commonGraphRewrite->add_matcher<T>(model, TestTransformationParams::toParams(params));
+    }
+    template <class T>
+    void add(const TestTransformationParams& params) {
+        commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
     }
 
     void transform(std::shared_ptr<ov::Model>& model);

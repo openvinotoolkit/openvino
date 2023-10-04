@@ -43,6 +43,7 @@
 #include "low_precision/add.hpp"
 #include "low_precision/assign_and_read_value.hpp"
 #include "low_precision/avg_pool.hpp"
+#include "low_precision/batch_to_space.hpp"
 #include "low_precision/clamp.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
@@ -52,7 +53,7 @@
 #include "low_precision/interpolate.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/max_pool.hpp"
-#include "low_precision/multiply.hpp"
+#include "low_precision/multiply_partial.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/normalize_l2.hpp"
 #include "low_precision/pad.hpp"
@@ -66,6 +67,7 @@
 #include "low_precision/relu.hpp"
 #include "low_precision/squeeze.hpp"
 #include "low_precision/subtract.hpp"
+#include "low_precision/space_to_batch.hpp"
 #include "low_precision/split.hpp"
 #include "low_precision/shuffle_channels.hpp"
 #include "low_precision/strided_slice.hpp"
@@ -237,6 +239,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, AddTransformation, params)
     ADD_MATCHER(common, AssignAndReadValueTransformation, f, params)
     ADD_MATCHER(common, AvgPoolTransformation, params)
+    ADD_MATCHER(common, BatchToSpaceTransformation, params)
     ADD_MATCHER(common, ClampTransformation, params)
     ADD_MATCHER(common, ConcatTransformation, params)
     ADD_MATCHER(common, ConvolutionTransformation, params)
@@ -248,7 +251,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, GroupConvolutionTransformation, params)
     ADD_MATCHER(common, MatMulTransformation, params)
     ADD_MATCHER(common, MaxPoolTransformation, params)
-    ADD_MATCHER(common, MultiplyTransformation, params)
+    ADD_MATCHER(common, MultiplyPartialTransformation, params)
     ADD_MATCHER(common, MVNTransformation, params)
     ADD_MATCHER(common, NormalizeL2Transformation, params)
     ADD_MATCHER(common, PadTransformation, params)
@@ -262,12 +265,17 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, ReshapeTransformation, params)
     ADD_MATCHER(common, SqueezeTransformation, params)
     ADD_MATCHER(common, ShuffleChannelsTransformation, params)
+    ADD_MATCHER(common, SpaceToBatchTransformation, params)
     ADD_MATCHER(common, SplitTransformation, params)
     ADD_MATCHER(common, StridedSliceTransformation, params)
     ADD_MATCHER(common, TransposeTransformation, params)
     ADD_MATCHER(common, GatherTransformation, params)
     ADD_MATCHER(common, UnsqueezeTransformation, params)
     ADD_MATCHER(common, VariadicSplitTransformation, params)
+
+    for (const auto& tr : additional_main_passes) {
+        common->add_matcher(tr);
+    }
 
     std::shared_ptr<ov::pass::GraphRewrite> cleanup = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(cleanup, EliminateFakeQuantizeTransformation, params)

@@ -18,6 +18,11 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "transformations/utils/utils.hpp"
 
+#ifdef __GNUC__
+// on RHEL 8.2 deprecation inside the macro does not work
+OPENVINO_SUPPRESS_DEPRECATED_START
+#endif
+
 #define OV_INFER_REQ_CALL_STATEMENT(...)                                    \
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized."); \
     OPENVINO_SUPPRESS_DEPRECATED_START                                      \
@@ -243,7 +248,7 @@ void InferRequest::wait() {
         _impl->wait();
     } catch (const ov::Cancelled&) {
         throw;
-    } catch (const ie::InferCancelled& e) {
+    } catch (const InferenceEngine::InferCancelled& e) {
         Cancelled::create(e.what());
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -258,7 +263,7 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     try {
         return _impl->wait_for(timeout);
-    } catch (const ie::InferCancelled& e) {
+    } catch (const InferenceEngine::InferCancelled& e) {
         Cancelled::create(e.what());
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());

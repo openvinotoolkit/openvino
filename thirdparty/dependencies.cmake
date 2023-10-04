@@ -11,17 +11,12 @@ endif()
 set(_old_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 set(_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
 
-# Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
-# build system pkg-config executable, which finds packages on build system. Such
-# libraries cannot be linked into Android binaries.
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-    # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
-    # cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
-    # so, we have to use 'IMPORTED_GLOBAL' property
-    if(CMAKE_VERSION VERSION_LESS 3.18)
-        set(OV_PkgConfig_VISILITY GLOBAL)
-    endif()
+find_package(PkgConfig QUIET)
+# see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
+# cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
+# so, we have to use 'IMPORTED_GLOBAL' property
+if(CMAKE_VERSION VERSION_LESS 3.18)
+    set(OV_PkgConfig_VISILITY GLOBAL)
 endif()
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -533,20 +528,20 @@ if(ENABLE_SNAPPY_COMPRESSION)
             set(CMAKE_CXX_STANDARD 14)
             if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
                 # '<': signed/unsigned mismatch
-                ie_add_compiler_flags(/wd4018)
+                ov_add_compiler_flags(/wd4018)
                 # conditional expression is constant
-                ie_add_compiler_flags(/wd4127)
+                ov_add_compiler_flags(/wd4127)
                 # 'conversion' conversion from 'type1' to 'type2', possible loss of data
-                ie_add_compiler_flags(/wd4244)
+                ov_add_compiler_flags(/wd4244)
                 # 'conversion' : conversion from 'type1' to 'type2', signed/unsigned mismatch
-                ie_add_compiler_flags(/wd4245)
+                ov_add_compiler_flags(/wd4245)
                 # 'var' : conversion from 'size_t' to 'type', possible loss of data
-                ie_add_compiler_flags(/wd4267)
+                ov_add_compiler_flags(/wd4267)
             elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
                 # we need to pass -Wextra first, then -Wno-sign-compare
                 # otherwise, snappy's CMakeLists.txt will do it for us
-                ie_add_compiler_flags(-Wextra)
-                ie_add_compiler_flags(-Wno-sign-compare)
+                ov_add_compiler_flags(-Wextra)
+                ov_add_compiler_flags(-Wno-sign-compare)
             endif()
 
             add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)

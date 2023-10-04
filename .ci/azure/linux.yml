@@ -34,12 +34,6 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 variables:
   - group: github
 
@@ -83,7 +77,6 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
-    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
@@ -215,13 +208,6 @@ jobs:
       echo TargetBranch: $(System.PullRequest.TargetBranch)
       echo SourceBranch: $(Build.SourceBranch)
     displayName: 'System info'
-
-
-    # Should be after 'Install dependencies' because Git lfs is not installed
-  - checkout: testdata
-    clean: 'true'
-    lfs: 'true'
-    path: testdata
 
   - task: CMake@1
     inputs:
@@ -383,7 +369,7 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
 
-  # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
+  # TODO Reenable PDPD after paddlepaddle==2.5.1 with compliant protobuf is released (ticket 95904)
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
     enabled: 'false'
