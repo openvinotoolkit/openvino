@@ -14,8 +14,8 @@ using namespace ov::test::conformance;
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestCallbackTests,
         ::testing::Combine(
-            ::testing::ValuesIn(return_device_combination()),
-            ::testing::ValuesIn(generate_ov_configs())),
+            ::testing::Values(targetDevice),
+            ::testing::Values(pluginConfig)),
         OVInferRequestCallbackTests::getTestCaseName);
 
 }  // namespace

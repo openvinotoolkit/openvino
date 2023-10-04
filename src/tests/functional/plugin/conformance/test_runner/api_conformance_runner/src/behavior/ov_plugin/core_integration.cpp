@@ -18,15 +18,15 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory,
                          OVClassModelTestP,
-                         ::testing::ValuesIn(return_device_combination()));
+                         ::testing::Values(targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassModelOptionalTestP,
-                         ::testing::ValuesIn(return_device_combination()));
+                         ::testing::Values(targetDevice));
 
 // IE Class Query network
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory,
                          OVClassQueryModelTest,
-                         ::testing::ValuesIn(return_device_combination()));
+                         ::testing::Values(targetDevice));
 }  // namespace

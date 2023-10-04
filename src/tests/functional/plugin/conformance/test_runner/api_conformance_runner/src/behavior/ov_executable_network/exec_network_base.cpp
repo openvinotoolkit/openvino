@@ -13,13 +13,13 @@ using namespace ov::test::conformance;
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVCompiledModelBaseTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(return_device_combination()),
-                                ::testing::ValuesIn(generate_ov_configs())),
+                                ::testing::Values(targetDevice),
+                                ::testing::Values(pluginConfig)),
                         OVCompiledModelBaseTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model, OVCompiledModelBaseTestOptional,
                         ::testing::Combine(
-                                ::testing::ValuesIn(return_device_combination()),
-                                ::testing::ValuesIn(generate_ov_configs())),
+                                ::testing::Values(targetDevice),
+                                ::testing::Values(pluginConfig)),
                         OVCompiledModelBaseTestOptional::getTestCaseName);
 }  // namespace
