@@ -33,7 +33,7 @@ std::vector<code> primitive_db::get(const primitive_id& id) const {
         std::string pattern("#include \"include/fetch_utils.cl\"");
         std::ifstream kernel_file{id + ".cl", std::ios::in | std::ios::binary};
         if (kernel_file.is_open() && id == "mha_opt") {
-            std::cout << __FILE__ << ":" << __LINE__ << "  " << id << std::endl;
+            // std::cout << __FILE__ << ":" << __LINE__ << "  " << id << std::endl;
             code ret;
             auto beg = kernel_file.tellg();
             kernel_file.seekg(0, std::ios::end);
