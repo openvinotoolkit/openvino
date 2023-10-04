@@ -31,6 +31,7 @@
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace std;
 
@@ -354,6 +355,13 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
 
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& output_model, bool compress_to_fp16) {
     ov::pass::Manager manager;
+    for (auto& node : m->get_ops()) {
+        auto& rt_info = node->get_rt_info();
+        bool is_disabled = rt_info.count(DisableFP16Compression::get_type_info_static());
+        if (is_disabled) {
+            rt_info[DisableFP16Compression::get_type_info_static()] = DisableFP16Compression{};
+        }
+    }
     if (compress_to_fp16) {
         manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>(/*postponed=*/true);

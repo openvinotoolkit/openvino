@@ -176,8 +176,8 @@ class TestPrecisionSensitive():
         from openvino._offline_transformations import compress_model_transformation  # pylint: disable=import-error,no-name-in-module
         # compress_model_transformation(model)
 
-        from openvino.tools.ovc.improve_fp16_accuracy import improve_fp16_accuracy
-        new_ov_model = improve_fp16_accuracy(model, test_params['example_input'])
+        from openvino.tools.ovc.partially_upcast_nodes_to_fp32 import partially_upcast_nodes_to_fp32
+        new_ov_model = partially_upcast_nodes_to_fp32(model, test_params['example_input'])
 
 
         core = Core()
