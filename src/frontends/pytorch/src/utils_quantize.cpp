@@ -252,7 +252,6 @@ std::shared_ptr<Node> u4_compression_concat(const NodeContext* context,
             OPENVINO_ASSERT(i == lane_size);
         }
     } else {
-        std::cerr << "[ DEBUG ] Complressed u4 in not interleaved format\n";
         // TODO: If pack_byte is implemented trivially (no exchange of the halfs of a byte) then the following loop is not needed and we can use the original constant as-is
         for (size_t lane_start = 0; lane_start < full_size; lane_start += lane_size) {
             auto src_lane = src + lane_start;

@@ -43,11 +43,9 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
         auto axis = axis_const->cast_vector<int64_t>();
         OPENVINO_ASSERT(axis.size() == 1);
         // Check if ListConstruct is an input
-        std::cerr << "[ DEBUG ] Attempt to prase aten::stack-based decompression of u4: 1\n";
         if (auto list_construct_node = cast_fw_node(input_node, "prim::ListConstruct")) {
             const auto& list_inputs = list_construct_node->input_values();
             std::shared_ptr<Node> node;
-            std::cerr << "[ DEBUG ] Attempt to prase aten::stack-based decompression of u4: 2\n";
             if (auto compression = u4_compression_concat(nullptr, std::deque<Output<Node>>(list_inputs.begin(), list_inputs.end()), axis[0], false)) {
                 // TODO: Add postprocessing with Reshape
                 // Not doing right now because we should have Reshape anyway in the model afterwards
