@@ -62,17 +62,30 @@ KERNEL(mha_opt)(
     __local half k_block[K_BLK_SIZE];
     __local half v_block[V_BLK_SIZE];
     __local half q_block[Q_BLK_SIZE];
-
+// #adefine MEASURE_BLOCK_1
+// #adefine MEASURE_BLOCK_2
+// #adefine MEASURE_BLOCK_3
+// #adefine MEASURE_BLOCK_4 // QK
+// #adefine MEASURE_BLOCK_5
+// #adefine RETURN_BLOCK_5
+// #adefine MEASURE
     // Read i-th row of Q block
+    half accum = 0.0;
     const int q_row_idx = BLK_ROW_SIZE * block_id + row_id;
     for (int c = 0; c < DEPTH_SIZE; c++) {
         // Replace GET_INDEX_SAFE, it's slow.
         q_block[DEPTH_SIZE * row_id + c] = inputq[INPUT0_GET_INDEX_SAFE(b, f, q_row_idx, c)];
         O[DEPTH_SIZE * row_id + c] = 0.0f;
+#ifdef MEASURE_BLOCK_1
+        accum += q_block[DEPTH_SIZE * row_id + c];
+#endif
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
-
+#ifdef RETURN_BLOCK_1
+    output[0] = accum;
+    return;
+#endif
     half row_max = -HALF_MAX;
     half row_sum = 0.0f;
 
@@ -86,9 +99,15 @@ KERNEL(mha_opt)(
         unroll_for (int y = row_id; y < DEPTH_SIZE; y += BLK_ROW_SIZE) {
             int kidx = INPUT1_GET_INDEX(b, f, y, x_offset);
             unroll_for (int x = 0; x < BLK_COL_SIZE; x++) {
-                k_block[(DEPTH_SIZE * x ) + y] = inputk[kidx + x];
+                k_block[(DEPTH_SIZE * x) + y] = k_block[(DEPTH_SIZE * x ) + y] = inputk[kidx + x];
+#ifdef MEASURE_BLOCK_2
+                accum += k_block[(DEPTH_SIZE * x) + y];
+#endif
             }
         }
+#ifdef RETURN_BLOCK_2
+        continue;
+#endif
 
         // Fill Value block
         const int y_offset = BLK_COL_SIZE * j; // Y-axis
@@ -96,10 +115,17 @@ KERNEL(mha_opt)(
             int vidx = INPUT2_GET_INDEX(b, f, y_offset + y, 0);
             unroll_for (int x = 0; x < DEPTH_SIZE; x++) {
                 v_block[(BLK_COL_SIZE * x) + y] = inputv[vidx + x];
+#ifdef MEASURE_BLOCK_3
+                accum += v_block[(BLK_COL_SIZE * x) + y];
+#endif
             }
         }
 
+
         barrier(CLK_LOCAL_MEM_FENCE);
+#ifdef RETURN_BLOCK_3
+        continue;
+#endif
 
         // S = matmul(Q, K) and get max value.
         row_max = -HALF_MAX;
@@ -114,9 +140,16 @@ KERNEL(mha_opt)(
             }
             P[BLK_COL_SIZE * row_id + c] = acc;
             row_max = max(row_max , acc);
+#ifdef MEASURE_BLOCK_4
+            accum += P[BLK_COL_SIZE * row_id + c];
+            accum += row_max;
+#endif
         }
         m = max(p_m, row_max);
 
+#ifdef RETURN_BLOCK_4
+        continue;
+#endif
         // Calculate P
         row_sum = 0.0f;
         half4 e = 0.f;
@@ -127,9 +160,13 @@ KERNEL(mha_opt)(
                 row_sum += e[i];
             }
         }
-
+#ifdef MEASURE_BLOCK_5
+        accum += row_sum;
+#endif
         barrier(CLK_LOCAL_MEM_FENCE);
-
+#ifdef RETURN_BLOCK_5
+        continue;
+#endif
         // Calculate l value.
         half exp_m = exp(p_m - m);
         l = exp_m * p_l + row_sum;
@@ -161,4 +198,7 @@ KERNEL(mha_opt)(
     unroll_for (int c = 0; c < DEPTH_SIZE; c++) {
         output[oidx + c] = O[DEPTH_SIZE * row_id + c]/l;
     }
+#ifdef MEASURE
+    output[0] = accum;
+#endif
 }
