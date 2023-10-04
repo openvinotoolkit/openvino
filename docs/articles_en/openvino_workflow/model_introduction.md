@@ -22,17 +22,17 @@ and run a pre-trained network from an online database, such as
 or `Torchvision models <https://pytorch.org/hub/>`__.
 
 If your selected model is in one of the :doc:`OpenVINO™ supported model formats <Supported_Model_Formats>`,
-you can use it directly, without the need to save as the OpenVINO IR.
+you can use it directly, without the need to save as OpenVINO IR
 (`openvino.Model <api/ie_python_api/_autosummary/openvino.Model.html>`__ -
-`ov.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__). 
+`ov.Model <api/ie_python_api/_autosummary/openvino.Model.html>`__). 
 For this purpose, you can use ``openvino.Core.read_model`` and ``openvino.Core.compile_model`` 
 methods, so that conversion is performed automatically before inference, for 
-maximum convenience (note that working with PyTorch differs slightly, the Python API
-being the only option, while TensorFlow may present additional considerations
-:doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`).
+maximum convenience. Note that for PyTorch models, Python API
+is the only conversion option. TensorFlow may present additional considerations
+:doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`.
 
 
-For better performance and more optimization options, OpenVINO offers a conversion
+For better performance and more optimization options, OpenVINO also offers a conversion
 API with two possible approaches: the Python API functions (``openvino.convert_model`` 
 and ``openvino.save_model``) and the ``ovc`` command line tool, which are described in detail in this article. 
 
@@ -50,7 +50,7 @@ and ``openvino.save_model``) and the ``ovc`` command line tool, which are descri
 Convert a Model in Python: ``convert_model``
 ##############################################
 
-You can use the Model conversion API in Python with the ``openvino.convert_model`` function. This function converts a model from its original framework representation, for example PyTorch or TensorFlow, to the object of type ``openvino.Model``. The resulting ``openvino.Model`` can be inferred in the same application (Python script or Jupyter Notebook) or saved into a file using``openvino.save_model`` for future use. Below, there are examples of how to use the ``openvino.convert_model`` with models from popular public repositories:
+You can use the Model conversion API in Python with the ``openvino.convert_model`` function. This function converts a model from its original framework representation, for example PyTorch or TensorFlow, to the object of type ``openvino.Model``. The resulting ``openvino.Model`` can be compiled with ``openvino.compile_model`` and inferred in the same application (Python script or Jupyter Notebook) or saved into a file using``openvino.save_model`` for future use. Below, there are examples of how to use the ``openvino.convert_model`` with models from popular public repositories:
 
 
 .. tab-set::
@@ -64,7 +64,7 @@ You can use the Model conversion API in Python with the ``openvino.convert_model
             import torch
             from torchvision.models import resnet50
 
-            model = resnet50(pretrained=True)
+            model = resnet50(weights='DEFAULT')
 
             # prepare input_data
             input_data = torch.rand(1, 3, 224, 224)
@@ -81,7 +81,7 @@ You can use the Model conversion API in Python with the ``openvino.convert_model
             # compile model
             compiled_model = ov.compile_model(ov_model)
 
-            # run the inference
+            # run inference
             result = compiled_model(input_data)
 
    .. tab-item:: Hugging Face Transformers
