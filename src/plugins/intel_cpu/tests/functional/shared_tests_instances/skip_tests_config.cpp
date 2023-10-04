@@ -200,6 +200,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 121313
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f16.*)",
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
+        // Issue: 122177
+        R"(smoke_LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
     };
 #if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
     // Issue: 120950
