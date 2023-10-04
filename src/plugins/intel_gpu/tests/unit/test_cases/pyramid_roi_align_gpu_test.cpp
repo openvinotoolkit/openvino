@@ -13,7 +13,7 @@ using namespace ::tests;
 
 template <typename T>
 struct pyramid_roi_align_typed_test : testing::Test {
-    static const data_types data_type = type_to_data_type<T>::value;
+    const data_types data_type = ov::element::from<T>();
     using Type = T;
 
     void execute(bool is_caching_test) {
@@ -124,7 +124,7 @@ struct pyramid_roi_align_typed_test : testing::Test {
         }
     }
 };
-using pyramid_roi_align_types = testing::Types<float, half_t>;
+using pyramid_roi_align_types = testing::Types<float, ov::float16>;
 
 TYPED_TEST_SUITE(pyramid_roi_align_typed_test, pyramid_roi_align_types);
 
