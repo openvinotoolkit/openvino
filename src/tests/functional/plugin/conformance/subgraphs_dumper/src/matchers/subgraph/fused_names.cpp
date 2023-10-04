@@ -6,12 +6,33 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/if.hpp"
 
+#include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 
 #include "matchers/subgraph/fused_names.hpp"
 #include "utils/model.hpp"
 
 using namespace ov::tools::subgraph_dumper;
+
+void FusedNamesExtractor::set_target_device(const std::string& _device) {
+    auto available_devices = core->get_available_devices();
+    if (_device.empty()) {
+        device = available_devices.front();
+        std::cout << "[ WARNING ][ GRAPH CACHE ] " << device <<
+            " will be used for `fused_names` extractor" << std::endl;
+        return;
+    } else if (std::find(available_devices.begin(),
+                         available_devices.end(),
+                         _device) == available_devices.end()) {
+        std::string message = "Incorrect device ";
+        message += _device;
+        message += " to enable `fused_names` extractor! Available devices: ";
+        message += ov::test::utils::vec2str(available_devices);
+        throw std::runtime_error(message);
+    }
+    device = _device;
+    std::cout << "[ INFO ][ GRAPH CACHE ] " << device << " is using for `fused_names` extractor" << std::endl;
+}
 
 std::unordered_set<std::string>
 FusedNamesExtractor::extract_compiled_model_names(const std::shared_ptr<ov::Model>& model) {
@@ -26,9 +47,9 @@ FusedNamesExtractor::extract_compiled_model_names(const std::shared_ptr<ov::Mode
     return compiled_op_name;
 }
 
-FusedNamesExtractor::FusedNamesExtractor() {
+FusedNamesExtractor::FusedNamesExtractor(const std::string& device) {
     core = ov::test::utils::PluginCache::get().core();
-    device = *(core->get_available_devices().begin());
+    set_target_device(device);
 }
 
 FusedNamesExtractor::~FusedNamesExtractor() {
@@ -37,7 +58,8 @@ FusedNamesExtractor::~FusedNamesExtractor() {
 
 std::list<ExtractedPattern>
 FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
-                             bool is_extract_body) {
+                             bool is_extract_body,
+                             bool is_copy_constants) {
     auto compiled_op_name = extract_compiled_model_names(model);
     std::list<ExtractedPattern> matched_patterns;
     std::unordered_set<std::string> checked_ops;
@@ -49,10 +71,10 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
         if (compiled_op_name.count(op_name)) {
             try {
-                matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name));
+                matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name, is_copy_constants));
             } catch(std::exception& e) {
-                if (std::string(e.what()) != "Incorrect node number to create model") {
-                    std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+                if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
+                    // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
                 }
             }
             nodes.clear();
@@ -82,10 +104,10 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
     }
     try {
-        matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name));
+        matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name, is_copy_constants));
     } catch(std::exception& e) {
-        if (std::string(e.what()) != "Incorrect node number to create model") {
-            std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+        if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
+            // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
         }
     }
     return matched_patterns;

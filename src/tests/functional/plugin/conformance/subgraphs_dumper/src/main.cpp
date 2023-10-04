@@ -10,6 +10,7 @@
 #include "openvino/util/file_util.hpp"
 
 #include "common_test_utils/file_utils.hpp"
+#include "utils/memory.hpp"
 
 
 using namespace ov::tools::subgraph_dumper;
@@ -40,6 +41,9 @@ int main(int argc, char *argv[]) {
         std::cout << "[ INFO ] Try 'subgraphsDumper -h' for more information. \nException: " << e.what() << std::endl;
         return 1;
     }
+    size_t ram_size_gb = get_ram_size();
+    ram_size_gb >>= 30;
+    std::cout << "[ INFO ] RAM size is " << ram_size_gb << "GB" << std::endl;
 
     std::vector<std::shared_ptr<ICache>> caches;
     if (FLAGS_cache_type == "OP" || FLAGS_cache_type.empty()) {
@@ -48,7 +52,7 @@ int main(int argc, char *argv[]) {
     }
     if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
         std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
-        caches.push_back(GraphCache::get());
+        caches.push_back(GraphCache::get(FLAGS_device));
     }
 
     for (auto& cache : caches) {

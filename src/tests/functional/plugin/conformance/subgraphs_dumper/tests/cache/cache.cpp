@@ -42,7 +42,7 @@ protected:
             test_model = std::make_shared<ov::Model>(convert, params);
             test_model->set_friendly_name(model_name);
         }
-        test_meta = ov::tools::subgraph_dumper::MetaInfo(test_model_path, {{"in_0", ov::tools::subgraph_dumper::InputInfo(0, 1, true)}});
+        test_meta = ov::tools::subgraph_dumper::MetaInfo(test_model_path, {{"in_0", ov::tools::subgraph_dumper::InputInfo({1, 2}, 0, 1, true)}});
     }
 
     void TearDown() override {

@@ -49,13 +49,17 @@ static std::vector<std::regex> FROTEND_REGEXP = {
 enum ModelCacheStatus {
     SUCCEED = 0,
     NOT_FULLY_CACHED = 1,
-    NOT_READ = 2
+    NOT_READ = 2,
+    LARGE_MODELS_EXCLUDED = 3,
+    LARGE_MODELS_INCLUDED = 4,
 };
 
 static std::map<ModelCacheStatus, std::string> model_cache_status_to_str = {
     { ModelCacheStatus::SUCCEED, "successful_models" },
     { ModelCacheStatus::NOT_FULLY_CACHED, "not_fully_cached_models" },
     { ModelCacheStatus::NOT_READ, "not_read_models" },
+    { ModelCacheStatus::LARGE_MODELS_EXCLUDED, "large_models_excluded" },
+    { ModelCacheStatus::LARGE_MODELS_INCLUDED, "large_models_included" },
 };
 
 std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
@@ -70,10 +74,32 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
 void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
                                const std::string& output_dir);
 
+inline bool is_dynamic_model(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& parameter : model->get_parameters()) {
+        if (is_dynamic_node(parameter)) {
+            return true;
+        }
+    }
+    for (const auto& result : model->get_results()) {
+        if (is_dynamic_node(result)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+inline std::string get_model_type(const std::shared_ptr<ov::Model>& model) {
+    if (is_dynamic_model(model)) {
+        return "dynamic";
+    }
+    return "static";
+}
+
 inline ExtractedPattern
 generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                std::unordered_set<std::string>& checked_ops,
-               const std::string& extractor_name) {
+               const std::string& extractor_name,
+               bool is_copy_constants = true) {
     // map to recover graph using cloned nodes and original connections
     // { original_node_name, cloned_node }
     std::unordered_map<std::string, std::shared_ptr<ov::Node>> cloned_node_map;
@@ -89,7 +115,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
             auto orig_node_name = node->get_friendly_name();
             checked_ops.insert(orig_node_name);
             cloned_node_map.insert({ orig_node_name,
-                                     clone_node(node, true, false, orig_node_name) });
+                                     clone_node(node, is_copy_constants, false, orig_node_name) });
             
             // create temporary vector to fill node output indexes
             std::vector<size_t> out_ports(node->outputs().size());
@@ -127,7 +153,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                             if (cloned_node_map.count(orig_in_node_name)) {
                                 auto orig_in_node = cloned_node_map[orig_in_node_name];
                                 auto cloned_in_node_name = cloned_in_node->get_friendly_name();
-                                ov::replace_output_update_name(cloned_in_node->get_default_output(), orig_in_node->output(out_idx));
+                                ov::replace_output_update_name(cloned_in_node->output(out_idx), orig_in_node->output(out_idx));
                                 if (ov::op::util::is_parameter(orig_in_node)) {
                                     auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(orig_in_node);
                                     model_parameters.push_back(param);

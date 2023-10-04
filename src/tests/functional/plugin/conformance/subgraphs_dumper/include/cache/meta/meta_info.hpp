@@ -13,8 +13,12 @@ namespace subgraph_dumper {
 
 class MetaInfo {
 public:
-    MetaInfo(const std::string& model_path = "", const std::map<std::string, InputInfo>& _input_info = {},
-             size_t total_op_cnt = 1, size_t this_op_cnt = 1, const std::string& extractor = "", size_t model_priority = 1);
+    MetaInfo(const std::string& model_path = "",
+             const std::map<std::string, InputInfo>& _input_info = {},
+             size_t total_op_cnt = 1,
+             size_t this_op_cnt = 1,
+             const std::string& extractor = "",
+             size_t model_priority = 1);
     MetaInfo(std::map<std::string, InputInfo> _in_info,
              std::map<std::string, ModelInfo> _model_info,
              std::unordered_set<std::string> _extractors) :
@@ -22,9 +26,14 @@ public:
              input_info(_in_info),
              extractors(_extractors) {};
     void serialize(const std::string& serialization_path);
-    void update(const std::string& model_path, const std::map<std::string, InputInfo>& _input_info, size_t _total_op_cnt = 1,
-                size_t _this_op_cnt = 1, const std::string& extractor = "", const std::vector<std::string>& ignored_inputs = {});
+    void update(const std::string& model_path,
+                const std::map<std::string, InputInfo>& _input_info,
+                size_t _total_op_cnt = 1,
+                size_t _this_op_cnt = 1,
+                const std::string& extractor = "",
+                const std::vector<std::string>& ignored_inputs = {});
     std::map<std::string, InputInfo> get_input_info() const;
+    void set_input_info(const std::map<std::string, InputInfo>& new_in_info) { input_info = new_in_info; };
     std::map<std::string, ModelInfo> get_model_info() const;
     std::string get_any_extractor() const { return *extractors.begin(); }
 

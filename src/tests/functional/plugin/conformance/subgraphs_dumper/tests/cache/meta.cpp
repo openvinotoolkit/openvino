@@ -25,25 +25,36 @@ class InputInfoUnitTest : public SubgraphsDumperBaseTest {};
 
 TEST_F(InputInfoUnitTest, constructor) {
     ASSERT_NO_THROW(auto in_info = InputInfo());
-    ASSERT_NO_THROW(auto in_info = InputInfo(0));
-    ASSERT_NO_THROW(auto in_info = InputInfo(0, 1));
-    ASSERT_NO_THROW(auto in_info = InputInfo(0, 1, true));
+    ASSERT_NO_THROW(auto in_info = InputInfo({10}));
+    ASSERT_NO_THROW(auto in_info = InputInfo({}, 0));
+    ASSERT_NO_THROW(auto in_info = InputInfo({}, 0, 1));
+    ASSERT_NO_THROW(auto in_info = InputInfo({}, 0, 1, true));
 }
 
 TEST_F(InputInfoUnitTest, update_ranges) {
     auto in_info_0 = InputInfo();
-    auto in_info_1 = InputInfo(0);
+    auto in_info_1 = InputInfo({}, 0);
     in_info_0 = in_info_1;
     ASSERT_EQ(in_info_0.ranges.min, in_info_1.ranges.min);
     ASSERT_EQ(in_info_0.ranges.max, in_info_1.ranges.max);
     ASSERT_EQ(in_info_0.is_const, in_info_1.is_const);
 
-    auto in_info_2 = InputInfo(1, 2);
-    auto ref_in_info = InputInfo(0, 2);
+    auto in_info_2 = InputInfo({}, 1, 2);
+    auto ref_in_info = InputInfo({}, 0, 2);
     in_info_0 = in_info_2;
     ASSERT_EQ(in_info_0.ranges.min, ref_in_info.ranges.min);
     ASSERT_EQ(in_info_0.ranges.max, ref_in_info.ranges.max);
     ASSERT_EQ(in_info_0.is_const, ref_in_info.is_const);
+}
+
+TEST_F(InputInfoUnitTest, update_shapes) {
+    auto in_info_0 = InputInfo({10});
+    ASSERT_EQ(in_info_0.min_shape, ov::PartialShape({10}));
+    ASSERT_EQ(in_info_0.max_shape, ov::PartialShape({10}));
+    auto in_info_1 = InputInfo({20});
+    in_info_0 = in_info_1;
+    ASSERT_EQ(in_info_0.min_shape, ov::PartialShape({10}));
+    ASSERT_EQ(in_info_1.max_shape, ov::PartialShape({20}));
 }
 
 // ======================== Model Info Func tests =============================================
@@ -55,6 +66,7 @@ TEST_F(ModelInfoFuncTest, constructor) {
     ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml"));
     ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml", 1));
     ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml", 1, 2));
+    ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml", 1, 2, 3));
 }
 
 // ======================== Meta Info Functional tests =============================================
@@ -71,7 +83,7 @@ protected:
         test_model_path = "test_model_path.xml";
         test_extractor_name = "test_extractor";
         test_model_name = ov::test::utils::replaceExt(test_model_path, "");
-        test_in_info = {{ "test_in_0", InputInfo(DEFAULT_MIN_VALUE, 1, true) }};
+        test_in_info = {{ "test_in_0", InputInfo({10}, DEFAULT_MIN_VALUE, 1, true) }};
         test_model_info = {{ test_model_name, ModelInfo(test_model_path, 5) }};
         test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
         ov::util::create_directory_recursive(test_artifacts_dir);
@@ -110,17 +122,22 @@ TEST_F(MetaInfoFuncTest, get_any_extractor) {
 }
 
 TEST_F(MetaInfoFuncTest, update) {
-    std::map<std::string, InputInfo> test_in_info = {{ "test_in_0", InputInfo(DEFAULT_MIN_VALUE, 1, true) }};
+    std::map<std::string, InputInfo> test_in_info = {{ "test_in_0", InputInfo({10}, DEFAULT_MIN_VALUE, 1, true) }};
     auto test_meta = MetaInfo(test_model_name, test_in_info, 1, 1, test_extractor_name);
-    std::map<std::string, InputInfo> test_input_info_1 = {{ "test_in_0", InputInfo(0, 1, true) }};
+    ASSERT_EQ(test_meta.get_input_info().at("test_in_0").min_shape, ov::PartialShape({10}));
+    ASSERT_EQ(test_meta.get_input_info().at("test_in_0").max_shape, ov::PartialShape({10}));
+    std::map<std::string, InputInfo> test_input_info_1 = {{ "test_in_0", InputInfo({50}, 0, 1, true) }};
     std::string test_model_1 = "test_model_1";
     std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"});
     ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {}));
-    ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_1", InputInfo() }}));
-    ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_0", InputInfo(0, 1, false) }}));
+    ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_1", InputInfo({10}) }}));
+    ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_0", InputInfo({10}, 0, 1, false) }}));
     ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1));
+    ASSERT_EQ(test_meta.get_input_info().at("test_in_0").min_shape, ov::PartialShape({10}));
+    ASSERT_EQ(test_meta.get_input_info().at("test_in_0").max_shape, ov::PartialShape({50}));
     ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 1, 2, "test_extractor_1"));
     ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 2));
+    ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 2, 4, "test"));
 }
 
 TEST_F(MetaInfoFuncTest, serialize) {
@@ -178,6 +195,12 @@ TEST_F(MetaInfoUnitTest, serialize) {
             ASSERT_EQ(input_info[in_xml].ranges.min, min_xml);
             auto max_xml = std::string(in_info_xml.attribute("max").value()) == "undefined" ? DEFAULT_MAX_VALUE : in_info_xml.attribute("max").as_double();
             ASSERT_EQ(input_info[in_xml].ranges.max, max_xml);
+            auto max_shape_str = std::string(in_info_xml.attribute("max_shape").value());
+            auto max_shape_ref = ov::test::utils::partialShape2str({this->get_input_info().begin()->second.max_shape});
+            ASSERT_EQ(max_shape_str, max_shape_ref);
+            auto min_shape_str = std::string(in_info_xml.attribute("min_shape").value());
+            auto min_shape_ref = ov::test::utils::partialShape2str({this->get_input_info().begin()->second.min_shape});
+            ASSERT_EQ(min_shape_str, min_shape_ref);
         }
     }
     {
@@ -202,18 +225,22 @@ TEST_F(MetaInfoUnitTest, read_meta_from_file) {
 
 TEST_F(MetaInfoUnitTest, update) {
     auto test_meta = MetaInfo(test_model_name, test_in_info);
-    std::map<std::string, InputInfo> test_meta_1 = {{ "test_in_0", InputInfo(0, 1, true) }};
+    std::map<std::string, InputInfo> test_meta_1 = {{ "test_in_0", InputInfo({20}, 0, 1, true) }};
     std::string test_model_1 = "test_model_1";
     std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"});
-    this->update(test_model_path_1, test_meta_1);
+    ASSERT_NO_THROW(this->update(test_model_path_1, test_meta_1));
     ASSERT_NE(this->model_info.find(test_model_1), this->model_info.end());
     ASSERT_EQ(*this->model_info[test_model_1].model_paths.begin(), test_model_path_1);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 1);
-    this->update(test_model_path_1, test_meta_1);
+    ASSERT_EQ(this->input_info.begin()->second.min_shape, ov::PartialShape({10}));
+    ASSERT_EQ(this->input_info.begin()->second.max_shape, ov::PartialShape({20}));
+    ASSERT_NO_THROW(this->update(test_model_path_1, test_meta_1));
     ASSERT_EQ(this->model_info[test_model_1].model_paths.size(), 1);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 2);
+    ASSERT_EQ(this->input_info.begin()->second.min_shape, ov::PartialShape({10}));
+    ASSERT_EQ(this->input_info.begin()->second.max_shape, ov::PartialShape({20}));
     test_model_path_1 = ov::util::path_join({ "path", "to", "test", test_model_1 + ".xml"});
-    this->update(test_model_path_1, test_meta_1, 0, 1, "test_extractor");
+    ASSERT_NO_THROW(this->update(test_model_path_1, test_meta_1, 0, 1, "test_extractor"));
     ASSERT_EQ(this->model_info[test_model_1].model_paths.size(), 2);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 3);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 3);
