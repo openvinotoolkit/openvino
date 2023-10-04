@@ -11,10 +11,12 @@
 #include "common_test_utils/file_utils.hpp"
 
 #include "cache/cache.hpp"
+#include "utils/memory.hpp"
 
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
+size_t ICache::mem_size = get_ram_size();
 
 bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInfo>& graph_info,
                              const std::string& rel_serialization_dir) {
@@ -40,8 +42,8 @@ bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInf
             meta.serialize(meta_path);
             return true;
         } catch (std::exception &e) {
-            std::cout << "[ ERROR ] Failed to serialize model: " << model_name
-                        << ". Exception: " << e.what() << std::endl;
+            // std::cout << "[ ERROR ] Failed to serialize model: " << model_name
+            //             << ". Exception: " << e.what() << std::endl;
             ov::test::utils::removeFile(xml_path);
             ov::test::utils::removeFile(bin_path);
             ov::test::utils::removeFile(meta_path);
