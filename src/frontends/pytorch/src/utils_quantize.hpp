@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <deque>
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "pt_framework_node.hpp"
 
@@ -165,6 +166,19 @@ OutputVector quantizable_op(const NodeContext& context) {
     return translation_res;
 }
 }  // namespace op
+
+
+/**
+ * Captures RootOp(aten::bitwise_and(Constant(u8)), aten::bitwise_right_shift(Constant(u8))), where RootOp is Concat-like operation along `axis` dimension.
+ * This pattern is transformed to a single Constant(u4) in assumption that RootOp-like op is a regular Concat op.
+ * RootOp can be a modified Concat op like aten::stack, the transformation doesn't check the real type of RootOp, it just builds the result
+ * assuming that this is Concat. If it is not exactly Concat, you need to add more operations as a post-processing. For example,
+ * for aten::stack we need to add Reshape afterwards.
+*/
+std::shared_ptr<Node> u4_compression_concat(const NodeContext* context,
+                                            const std::deque<ov::Output<ov::Node>>& list_elems,
+                                            int64_t axis,
+                                            bool interleaved);
 
 }  // namespace pytorch
 }  // namespace frontend

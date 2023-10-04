@@ -6,6 +6,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -166,6 +167,104 @@ std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> no
         return nullptr;
     }
     return quant_node;
+}
+
+std::shared_ptr<Node> u4_compression_concat(const NodeContext* context,
+                                            const std::deque<ov::Output<ov::Node>>& list_elems,
+                                            int64_t axis,
+                                            bool interleaved) {
+    // Part 1: Detect pattern
+
+    if (list_elems.size() != 2)
+        return nullptr;
+    auto bitwise_and = cast_fw_node(list_elems[0].get_node_shared_ptr(), "aten::bitwise_and");
+    if (!bitwise_and)
+        return nullptr;
+    auto bitwise_shift = cast_fw_node(list_elems[1].get_node_shared_ptr(), "aten::bitwise_right_shift");
+    if (!bitwise_shift)
+        return nullptr;
+
+    // TODO: Use context (if not nullptr) to mark newly created nodes
+
+    // TODO: Check mask and shift values
+
+    auto weights_u8 = std::dynamic_pointer_cast<v0::Constant>(bitwise_and->get_input_node_shared_ptr(0));
+    if (weights_u8 != std::dynamic_pointer_cast<v0::Constant>(bitwise_shift->get_input_node_shared_ptr(0)))
+        return nullptr;
+
+    if (weights_u8->get_output_element_type(0) != element::u8)
+        return nullptr;
+
+    if (axis != -1 && axis != weights_u8->get_shape().size() - 1)
+        return nullptr;
+
+    // Pattern detected, weights_u8 is target u8 packed constant with weights
+
+    // Part 2: Form u4 constant by repacking of the original weights_u8
+    // Repacking transformes half of lanes to interleaved representation.
+
+    auto u8_shape = weights_u8->get_shape();
+    size_t full_size = shape_size(u8_shape);
+    size_t lane_size = u8_shape.back();
+    size_t outer_size = full_size / lane_size;
+    auto src = weights_u8->get_data_ptr<uint8_t>();
+
+    auto u4_shape = u8_shape;
+    u4_shape.back() *= 2;
+    auto new_const = std::make_shared<v0::Constant>(element::u4, u4_shape);
+    auto dst = const_cast<uint8_t*>(
+        reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));  // TODO: How to better accees u4 data?
+
+    auto pack_byte = [](uint8_t lo, uint8_t hi) { return (lo << 4) | hi; };  // swap halfs because Convert op assumes this layout
+
+    if (interleaved) {
+        for (size_t lane_start = 0; lane_start < full_size; lane_start += lane_size) {
+            auto src_lane = src + lane_start;
+            auto dst_lane = dst + lane_start;
+
+            size_t i = 0;
+            for (; i < lane_size - 1; i += 2) {
+                dst_lane[i / 2] = pack_byte(src_lane[i] & 0x0F, src_lane[i + 1] & 0x0F);//(src_lane[i] & 0x0F) | (src_lane[i + 1] << 4);
+                //std::cerr << dst_lane[i / 2] << ", ";
+                //std::cerr << int(src_lane[i] & 0x0F) << "|" << int(src_lane[i + 1] & 0x0F) << ", ";
+            }
+
+            // Handle a byte in the middle if lane_size is odd
+            if (i < lane_size) {
+                OPENVINO_ASSERT(i == lane_size - 1);
+                dst_lane[i / 2] = pack_byte(src_lane[i] & 0x0F, src_lane[0] >> 4); //(src_lane[i] & 0x0F) | (src_lane[0] & 0xF0);
+                //std::cerr << dst_lane[i / 2] << ", ";
+                //std::cerr << int(src_lane[i] & 0x0F) << "|" << int((src_lane[0] & 0xF0) >> 4) << ", ";
+
+                i = 1;
+            } else {
+                i = 0;
+            }
+
+            for (; i < lane_size; i += 2) {
+                dst_lane[(lane_size + i) / 2] = pack_byte(src_lane[i] >> 4, src_lane[i + 1] >> 4); //(src_lane[i] >> 4) | (src_lane[i + 1] & 0xF0);
+                //std::cerr << dst_lane[(lane_size + i) / 2] << ", ";
+                //std::cerr << int(src_lane[i] >> 4) << "|" << int((src_lane[i + 1] & 0xF0) >> 4) << ", ";
+            }
+
+            //std::cerr << "\n";
+
+            OPENVINO_ASSERT(i == lane_size);
+        }
+    } else {
+        std::cerr << "[ DEBUG ] Complressed u4 in not interleaved format\n";
+        // TODO: If pack_byte is implemented trivially (no exchange of the halfs of a byte) then the following loop is not needed and we can use the original constant as-is
+        for (size_t lane_start = 0; lane_start < full_size; lane_start += lane_size) {
+            auto src_lane = src + lane_start;
+            auto dst_lane = dst + lane_start;
+
+            for (size_t i = 0; i < lane_size; ++i) {
+                dst_lane[i] = pack_byte(src_lane[i] & 0x0F, (src_lane[i] & 0xF0) >> 4);
+            }
+        }
+    }
+
+    return new_const;
 }
 
 }  // namespace pytorch
