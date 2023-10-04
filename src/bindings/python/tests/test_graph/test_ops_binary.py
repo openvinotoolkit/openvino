@@ -184,9 +184,10 @@ def test_power_v1():
     assert list(node.get_output_shape(0)) == [8, 4, 6, 5]
     assert node.get_output_element_type(0) == Type.f32
 
+
 @pytest.mark.parametrize(
     "graph_api_helper",
-    [ov.bitwise_xor],
+    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor],
 )
 @pytest.mark.parametrize(
     "dtype",
@@ -206,7 +207,7 @@ def test_binary_bitwise_op(graph_api_helper, dtype):
 
 @pytest.mark.parametrize(
     "graph_api_helper",
-    [ov.bitwise_xor],
+    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor],
 )
 @pytest.mark.parametrize(
     "dtype",
