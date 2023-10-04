@@ -9,6 +9,7 @@
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 
@@ -86,15 +87,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
 
     auto is_supported_fq_op = [](const std::shared_ptr<const Node>& n) -> bool {
-        // TODO [92179]: Add support of FakeQuantize with non-constants inputs and with binarization algorithm.
-        const auto fq = ov::as_type_ptr<const opset1::FakeQuantize>(n);
-        return fq && fq->get_levels() != 2 &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)) &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(2)) &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(3)) &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(4)) &&
-               (fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NUMPY ||
-                fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NONE);
+        return CommonFakeQuantizeDecomposition::is_supported_fq(ov::as_type_ptr<const opset1::FakeQuantize>(n));
     };
 
     auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
@@ -188,7 +181,7 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [&n](descriptor::Tensor& t) -> bool {
         // Todo: int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
         //  So i32 is supported exclusively for transposes and broadcast
-        return TokenizeSnippets::supported_element_types.count(t.get_element_type()) != 0 ||
+        return TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0 ||
                 (t.get_element_type() == ov::element::i32 &&
                         (ov::is_type<const opset1::Transpose>(n) ||
                          ov::is_type<const opset1::Broadcast>(n)));
@@ -227,8 +220,11 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 }
 } // namespace
 
-const std::set<ov::element::Type> ov::snippets::pass::TokenizeSnippets::supported_element_types =
+const std::set<ov::element::Type>& ov::snippets::pass::TokenizeSnippets::get_supported_element_types() {
+    static const std::set<ov::element::Type> supported_element_types =
         { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+    return supported_element_types;
+}
 
 bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
     return

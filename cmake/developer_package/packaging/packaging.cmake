@@ -35,9 +35,9 @@ endmacro()
 # ov_get_pyversion(<OUT pyversion>)
 #
 function(ov_get_pyversion pyversion)
-    find_package(PythonInterp 3 QUIET)
-    if(PYTHONINTERP_FOUND)
-        set(${pyversion} "python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}" PARENT_SCOPE)
+    find_package(Python3 QUIET COMPONENTS Interpreter Develoment.Module)
+    if(Python3_Interpreter_FOUND)
+        set(${pyversion} "python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}" PARENT_SCOPE)
     else()
         set(${pyversion} "NOT-FOUND" PARENT_SCOPE)
     endif()
@@ -127,12 +127,6 @@ macro(ov_define_component_names)
 endmacro()
 
 ov_define_component_names()
-
-if(NOT DEFINED CPACK_GENERATOR)
-    set(CPACK_GENERATOR "TGZ")
-elseif(NOT CPACK_GENERATOR)
-    message(FATAL_ERROR "CPACK_GENERATOR cannot contain an empty value")
-endif()
 
 #
 # Include generator specific configuration file:

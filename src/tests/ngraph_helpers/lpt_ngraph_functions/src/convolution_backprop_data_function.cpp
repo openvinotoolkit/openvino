@@ -15,7 +15,7 @@
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace ngraph {
 namespace builder {

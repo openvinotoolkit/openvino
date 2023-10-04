@@ -54,6 +54,7 @@ class TFGraphNodeDecoder(DecoderBase):
         self.m_operation = operation
         self.m_inner_graph = inner_graph
         self.m_data_type = None
+        self.m_parsed_content = None
 
         # Copies value from inner buffer of TF_Operation to NodeDef class.
         self.m_node_def = self.m_operation.node_def
@@ -87,11 +88,11 @@ class TFGraphNodeDecoder(DecoderBase):
         if self.m_operation.type == "Placeholder":
             self.m_data_type = tf.dtypes.DType(self.m_node_def.attr["dtype"].type).name
 
-            if self.m_data_type == "resource" and not self.m_inner_graph:
+            if not self.m_inner_graph:
                 variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
                 if variable_value is not None:
                     # does not copy data
-                    self.m_parsed_content = variable_value.value().__array__()
+                    self.m_parsed_content = variable_value.__array__()
 
                     if isinstance(self.m_parsed_content, bytes):
                         self.m_data_type = "string"
@@ -103,7 +104,7 @@ class TFGraphNodeDecoder(DecoderBase):
     def get_op_type(self) -> str:
         if self.m_operation.type == "Placeholder":
             type_attr = tf.dtypes.DType(self.m_node_def.attr["dtype"].type)
-            if type_attr.name == "resource" and not self.m_inner_graph:
+            if not self.m_inner_graph and self.m_parsed_content is not None:
                 if TFGraphNodeDecoder.get_variable(self.m_operation) is not None:
                     return "Const"
                 raise Exception("Could not get variable for resource Placeholder {0}".format(self.m_operation.name))
@@ -116,10 +117,11 @@ class TFGraphNodeDecoder(DecoderBase):
             return None
         for var_tensor, op_tensor in tf_graph.captures:
             if operation.outputs[0].name == op_tensor.name:
-                resource_name = var_tensor._name
+                if var_tensor.dtype.name != 'resource':
+                    return var_tensor
                 for variable_value in operation.graph.variables:
-                    if variable_value.name == resource_name:
-                        return variable_value
+                    if id(variable_value.handle) == id(var_tensor):
+                        return variable_value.value()
                 return None
         return None
 
@@ -152,7 +154,8 @@ class TFGraphNodeDecoder(DecoderBase):
             if self.m_parsed_content.size == 1:
                 if isinstance(self.m_parsed_content, np.ndarray):
                     return OVAny(Tensor(self.m_parsed_content))
-                return OVAny(Tensor(np.array([self.m_parsed_content]), shape=[1]))
+                self.m_parsed_content = np.array(self.m_parsed_content)
+                return OVAny(Tensor(self.m_parsed_content))
             ov_tensor = Tensor(self.m_parsed_content, shared_memory=self.m_shared_memory)
             ov_tensor = OVAny(ov_tensor)
             return ov_tensor
