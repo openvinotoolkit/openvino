@@ -12,17 +12,19 @@ namespace kernel_selector {
 class MHAKernelOpt : public KernelBaseOpenCL {
 public:
     struct TuningData {
-        size_t num_words;      // N: NUM_WORDS
-        size_t depth_size;     // d: DEPTH_SIZE
-        size_t blk_row_size;   // Br: BLK_ROW_SIZE
-        size_t blk_col_size;   // Bc: BLK_COL_SIZE
-        size_t num_blk_row;    // Tr: NUM_BLK_ROW
-        size_t num_blk_col;    // Tc: NUM_BLK_COL
-        size_t q_blk_size;     // Br * d: Q_BLK_SIZE
-        size_t k_blk_size;     // Bc * d: K_BLK_SIZE
-        size_t v_blk_size;     // Bc * d: V_BLK_SIZE
-        size_t score_mat_size; // Br * Bc: SCORE_MAT_SIZE
-        size_t out_blk_size;   // Br * d: OUT_BLK_SIZE
+        size_t num_words;       // N: NUM_WORDS
+        size_t depth_size;      // d: DEPTH_SIZE
+        size_t blk_row_size;    // Br: BLK_ROW_SIZE
+        size_t blk_col_size;    // Bc: BLK_COL_SIZE
+        size_t num_blk_row;     // Tr: NUM_BLK_ROW
+        size_t num_blk_col;     // Tc: NUM_BLK_COL
+        size_t q_blk_size;      // Br * d: Q_BLK_SIZE
+        size_t k_blk_size;      // Bc * d: K_BLK_SIZE
+        size_t v_blk_size;      // Bc * d: V_BLK_SIZE
+        size_t score_mat_size;  // Br * Bc: SCORE_MAT_SIZE
+        size_t out_blk_size;    // Br * d: OUT_BLK_SIZE
+        size_t num_col_thread;  //
+        size_t col_thread_size; //
 
         std::string to_string() {
             std::stringstream ss;

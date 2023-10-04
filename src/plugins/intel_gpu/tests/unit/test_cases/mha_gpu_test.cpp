@@ -159,9 +159,9 @@ void test_mha_graph(int f, int N, int d, bool is_caching_test) {
 
     // Compare results of two paths
     for (size_t i = 0; i < output_ptr.size(); ++i) {
-        // if (std::abs(half_to_float(output_ptr_mha[i]) - half_to_float(output_ptr[i])) > 3e-1)
+        // if (std::abs(half_to_float(output_ptr_mha[i]) - half_to_float(output_ptr[i])) > 1e-1)
         //     std::cout << "output at " << i << ": " << half_to_float(output_ptr_mha[i]) << "  --  " << half_to_float(output_ptr[i]) << std::endl;
-        ASSERT_NEAR(half_to_float(output_ptr_mha[i]), half_to_float(output_ptr[i]), 3.1e-1);
+        ASSERT_NEAR(half_to_float(output_ptr_mha[i]), half_to_float(output_ptr[i]), 3e-1);
     }
 }
 
