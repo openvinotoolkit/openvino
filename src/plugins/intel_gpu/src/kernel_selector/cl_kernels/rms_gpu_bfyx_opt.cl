@@ -4,17 +4,23 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
-KERNEL(rms_ref)(
-    // OPTIONAL_SHAPE_INFO_ARG
+KERNEL(rms_gpu_bfyx_opt)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     const __global INPUT1_TYPE* gamma,
     __global OUTPUT_TYPE* output)
 {
     const uint in_data_idx = get_global_id(0);
     const uint data_idx = get_global_id(1);
-    const uint data_size = DATA_SIZE;
-    const uint data_count = DATA_COUNT;
+    const uint lws_size = LWS;
     const uint items_num = VEC_SIZE;
+    const uint data_size = DATA_SIZE;
+    const uint total_items_num = lws_size * items_num;
+#if !IS_DYNAMIC
+    const uint leftovers = LEFTOVERS;
+#else
+    const uint leftovers = data_size % items_num;
+#endif
 
     const uint data_offset = data_idx * data_size;
     const uint in_data_offset = data_offset + in_data_idx * items_num;
@@ -30,12 +36,22 @@ KERNEL(rms_ref)(
         rms += TO_ACCUMULATOR_TYPE(square[i]);
     }
 
+    if (in_data_idx < leftovers)
+    {
+        const uint input_idx = data_offset + total_items_num + in_data_idx;
+        rms += pow(TO_ACCUMULATOR_TYPE(input[input_idx]), 2);
+    }
+
     slm_buf[in_data_idx] = rms;
 
     barrier(CLK_LOCAL_MEM_FENCE);
     if (in_data_idx == 0)
     {
-        unroll_for (uint i = 1; i < SLM_SIZE; ++i)
+#if !IS_DYNAMIC
+        unroll_for (uint i = 1; i < LWS; ++i)
+#else
+        for (uint i = 1; i < lws_size; ++i)
+#endif
             rms += slm_buf[i];
 
         rms = rms / data_size;
@@ -47,4 +63,13 @@ KERNEL(rms_ref)(
 
     OUTPUTVTYPE results = (OUTPUTVTYPE)(rms) * AS_OUTPUTVTYPE(inputs) * AS_OUTPUTVTYPE(VLOAD(0, gamma + gamma_offset));
     VSTORE(results, 0, output + in_data_offset);
+
+    if (in_data_idx < leftovers)
+    {
+        const uint input_idx = data_offset + total_items_num + in_data_idx;
+        const uint output_idx = data_offset + total_items_num + in_data_idx;
+        const uint gamma_idx = total_items_num + in_data_idx;
+        OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]) * TO_OUTPUT_TYPE(gamma[gamma_idx]);
+        output[output_idx] = result;
+    }
 }
