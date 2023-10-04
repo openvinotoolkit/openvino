@@ -84,16 +84,18 @@ KERNEL(mha_opt)(
         // Fill Key block
         const int x_offset = BLK_COL_SIZE * j; // X-axis
         unroll_for (int y = row_id; y < DEPTH_SIZE; y += BLK_ROW_SIZE) {
+            int kidx = INPUT1_GET_INDEX(b, f, y, x_offset);
             unroll_for (int x = 0; x < BLK_COL_SIZE; x++) {
-                k_block[(DEPTH_SIZE * x) + y] = inputk[INPUT1_GET_INDEX_SAFE(b, f, y, x_offset + x)];
+                k_block[(DEPTH_SIZE * x ) + y] = inputk[kidx + x];
             }
         }
 
         // Fill Value block
         const int y_offset = BLK_COL_SIZE * j; // Y-axis
         unroll_for (int y = row_id; y < BLK_COL_SIZE; y += BLK_ROW_SIZE) {
+            int vidx = INPUT2_GET_INDEX(b, f, y_offset + y, 0);
             unroll_for (int x = 0; x < DEPTH_SIZE; x++) {
-                v_block[(BLK_COL_SIZE * x) + y] = inputv[INPUT2_GET_INDEX_SAFE(b, f, y_offset + y, x)];
+                v_block[(BLK_COL_SIZE * x) + y] = inputv[vidx + x];
             }
         }
 
@@ -155,7 +157,8 @@ KERNEL(mha_opt)(
     }
 
     const int out_row_idx = BLK_ROW_SIZE * block_id + row_id;
+    int oidx = OUTPUT_GET_INDEX(b, f, out_row_idx, 0);
     unroll_for (int c = 0; c < DEPTH_SIZE; c++) {
-        output[OUTPUT_GET_INDEX_SAFE(b, f, out_row_idx, c)] = O[DEPTH_SIZE * row_id + c]/l;
+        output[oidx + c] = O[DEPTH_SIZE * row_id + c]/l;
     }
 }
