@@ -864,8 +864,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         dependencies = events;
     } else {
         auto queue_type = get_network().get_stream().get_queue_type();
-        if (id() == "nonmaxsuppressionieinternal:4565")
-            std::cout << id() << std::endl;
         // Prepare dependencies events in case of OOO queue, CPU implementation,
         // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
         if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
@@ -874,8 +872,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                 if (input->is_input() && queue_type != QueueTypes::out_of_order)
                     continue;
                 auto id = input->id();
-                if (id == "nonmaxsuppressionieinternal:4565")
-                    std::cout << id << std::endl;
                 try {
                     // if the requested event does not exists it means that it has not been executed, so the processing_order is
                     // wrong or synchronization failed.
