@@ -714,7 +714,7 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
         // MatMul has to be decomposed to Brgemm operations before enforcement
         // Note, MatMul decomposition will be run later again for case if BF16 enforcement is not happened
         SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), ov::snippets::pass::MatMulToBrgemm);
-        SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), pass::EnforcePrecision, element::f32, element::bf16);
+        SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "MatMulToBrgemm"), pass::EnforcePrecision, element::f32, element::bf16);
     }
 
     SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::pass::BrgemmToBrgemmCPU);
