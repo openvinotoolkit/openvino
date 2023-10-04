@@ -27,7 +27,13 @@ OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing 
 
 .. note::
 
-   For more detailed information on how to convert, read, and compile supported model formats in OpenVINO™ are available :doc:`here <Supported_Model_Formats_MO_DG>`.
+   For more detailed information on how to convert, read, and compile supported model formats
+   see the :doc:`Supported Formats article <Supported_Model_Formats_MO_DG>`.
+   
+   Note that TensorFlow models can be run using the
+   :doc:`torch.compile feature <pytorch_2_0_torch_compile>`, as well as the standard ways of
+   :doc:`converting TensorFlow <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>`
+    or reading them directly.
 
 OpenVINO Runtime uses a plugin architecture. Its plugins are software components that contain complete implementation for inference on a particular Intel® hardware device: CPU, GPU, GNA, etc. Each plugin implements the unified API and provides additional hardware-specific APIs for configuring devices or API interoperability between OpenVINO Runtime and underlying plugin backend.
 
