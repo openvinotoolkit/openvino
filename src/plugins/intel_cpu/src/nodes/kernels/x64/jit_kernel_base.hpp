@@ -214,19 +214,19 @@ public:
         this->operator()(&args);
     }
 
-    template <template<dnnl::impl::cpu::x64::cpu_isa_t isa> typename KernelT>
+    template <template<dnnl::impl::cpu::x64::cpu_isa_t isa> class KernelT>
     static std::shared_ptr<JitKernel<CompileParams, CallArgs>> createInstance(const CompileParams& jcp) {
         std::shared_ptr<JitKernel<CompileParams, CallArgs>> res;
 
         try {
-#define IF_ISA_CASE(ISA)                             \
-            (dnnl::impl::cpu::x64::mayiuse(ISA)) {   \
-                res.reset(new KernelT<ISA>(jcp));    \
-            }
+#define IF_ISA_CASE(ISA)                                \
+            if (dnnl::impl::cpu::x64::mayiuse(ISA))     \
+                res.reset(new KernelT<ISA>(jcp));       \
+            else
 
-            if IF_ISA_CASE(dnnl::impl::cpu::x64::avx512_core)
-            else if IF_ISA_CASE(dnnl::impl::cpu::x64::avx2)
-            else if IF_ISA_CASE(dnnl::impl::cpu::x64::sse41)
+                IF_ISA_CASE(dnnl::impl::cpu::x64::avx512_core)
+                IF_ISA_CASE(dnnl::impl::cpu::x64::avx2)
+                IF_ISA_CASE(dnnl::impl::cpu::x64::sse41);
 
 #undef IF_ISA_CASE
 

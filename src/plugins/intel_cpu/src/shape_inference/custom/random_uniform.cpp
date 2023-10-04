@@ -15,21 +15,26 @@ IShapeInfer::Result RandomUniformShapeInfer::infer(
     VectorDims dims;
     const auto& mem = data_dependency.at(0);
     const auto rank = mem->getShape().getElementsCount();
-    if (mem->getDesc().getPrecision() == InferenceEngine::Precision::I32) {
-        auto data = reinterpret_cast<const int32_t*>(mem->getData());
-        dims.assign(data, data + rank);
-    } else if (mem->getDesc().getPrecision() == InferenceEngine::Precision::I64) {
-        auto data = reinterpret_cast<const int64_t*>(mem->getData());
-        dims.assign(data, data + rank);
+    auto shape_prc = mem->getDesc().getPrecision();
+    switch (shape_prc) {
+        case InferenceEngine::Precision::I32: {
+            auto data = reinterpret_cast<const int32_t*>(mem->getData());
+            dims.assign(data, data + rank);
+        } break;
+        case InferenceEngine::Precision::I64: {
+            auto data = reinterpret_cast<const int64_t*>(mem->getData());
+            dims.assign(data, data + rank);
+        } break;
+        default:
+            OPENVINO_THROW("Unexpected Shape input precision: ", shape_prc);
     }
 
     return {{dims}, ShapeInferStatus::success};
 }
 
 RandomUniformShapeInferFactory::RandomUniformShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {
-    if (!ov::is_type<const op::v8::RandomUniform>(m_op)) {
-        OPENVINO_THROW("Unexpected op type in RandomUniform shape inference factory: ", m_op->get_type_name());
-    }
+    OPENVINO_ASSERT(ov::is_type<const op::v8::RandomUniform>(m_op),
+            "Unexpected op type in RandomUniform shape inference factory: ", m_op->get_type_name());
 }
 
 ShapeInferPtr RandomUniformShapeInferFactory::makeShapeInfer() const {

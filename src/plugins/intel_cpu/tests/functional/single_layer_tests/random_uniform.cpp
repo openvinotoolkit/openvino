@@ -21,40 +21,36 @@ typedef std::tuple<
         bool,                            // Is 1st input constant
         bool,                            // Is 2nd input constant
         bool,                            // Is 3rd input constant
-        ov::AnyMap,                      // Additional plugin configuration
-        CPUTestUtils::CPUSpecificParams
+        CPUSpecificParams,               // CPU specific params
+        ov::AnyMap                       // Additional plugin configuration
 > RandomUniformLayerTestCPUParamSet;
 
 class RandomUniformLayerTestCPU : public testing::WithParamInterface<RandomUniformLayerTestCPUParamSet>,
-                                  public SubgraphBaseTest, public CPUTestUtils::CPUTestsBase {
+                                  public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RandomUniformLayerTestCPUParamSet>& obj) {
-        const auto& out_sahpe        = std::get<0>(obj.param);
-        const auto& min_max          = std::get<1>(obj.param);
-        const auto& shape_prc        = std::get<2>(obj.param);
-        const auto& output_prc       = std::get<3>(obj.param);
-        const auto& global_seed      = std::get<4>(obj.param);
-        const auto& operational_seed = std::get<5>(obj.param);
-        const auto& const_in_1       = std::get<6>(obj.param);
-        const auto& const_in_2       = std::get<7>(obj.param);
-        const auto& const_in_3       = std::get<8>(obj.param);
-        const auto& config           = std::get<9>(obj.param);
-        const auto& cpu_params       = std::get<10>(obj.param);
+        const auto& out_shape = std::get<0>(obj.param);
+        const auto& min_max   = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result << "IS={" << out_sahpe.size();
-        result << "}_OS=" << out_sahpe;
-        result << "_Min=" << std::get<0>(min_max);
-        result << "_Max=" << std::get<1>(min_max);
-        result << "_ShapePrc=" << shape_prc;
-        result << "_OutPrc=" << output_prc;
-        result << "_GlobalSeed=" << global_seed;
-        result << "_OperationalSeed=" << operational_seed;
-        result << "_ConstIn={" << (const_in_1 ? "True," : "False,") << (const_in_2 ? "True," : "False,") << (const_in_3 ? "True}" : "False}");
-        result << CPUTestsBase::getTestCaseName(cpu_params);
 
+        result << "IS={"              << out_shape.size();
+        result << "}_OS="             << out_shape;
+        result << "_Min="             << std::get<0>(min_max);
+        result << "_Max="             << std::get<1>(min_max);
+        result << "_ShapePrc="        << std::get<2>(obj.param);
+        result << "_OutPrc="          << std::get<3>(obj.param);
+        result << "_GlobalSeed="      << std::get<4>(obj.param);
+        result << "_OperationalSeed=" << std::get<5>(obj.param);
+        result << "_ConstIn={"        << utils::bool2str(std::get<6>(obj.param)) << ","
+                                      << utils::bool2str(std::get<7>(obj.param)) << ","
+                                      << utils::bool2str(std::get<8>(obj.param)) << "}";
+
+        result << CPUTestsBase::getTestCaseName(std::get<9>(obj.param));
+
+        const auto& config = std::get<10>(obj.param);
         if (!config.empty()) {
-            result << "_PluginConf{";
+            result << "_PluginConf={";
             for (const auto& conf_item : config) {
                 result << "_" << conf_item.first << "=";
                 conf_item.second.print(result);
@@ -79,8 +75,8 @@ protected:
         const auto& const_in_1 = std::get<6>(params);
         const auto& const_in_2 = std::get<7>(params);
         const auto& const_in_3 = std::get<8>(params);
-        configuration          = std::get<9>(params);
-        const auto& cpu_params = std::get<10>(params);
+        const auto& cpu_params = std::get<9>(params);
+        configuration          = std::get<10>(params);
 
         m_min_val = std::get<0>(min_max);
         m_max_val = std::get<1>(min_max);
@@ -350,8 +346,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Param, RandomUniformLayerTestCPU,
                 ::testing::Values(false),
                 ::testing::Values(false),
                 ::testing::Values(false),
-                ::testing::Values(empty_plugin_config),
-                ::testing::Values(CPUSpecificParams{})),
+                ::testing::Values(CPUSpecificParams{}),
+                ::testing::Values(empty_plugin_config)),
         RandomUniformLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ParamConst, RandomUniformLayerTestCPU,
@@ -365,8 +361,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ParamConst, RandomUniformLayerTestCPU,
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
-                ::testing::Values(empty_plugin_config),
-                ::testing::Values(CPUSpecificParams{})),
+                ::testing::Values(CPUSpecificParams{}),
+                ::testing::Values(empty_plugin_config)),
         RandomUniformLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_Param, RandomUniformLayerTestCPU,
@@ -380,8 +376,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_Param, RandomUniformLayerTestCPU,
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
-                ::testing::Values(empty_plugin_config),
-                ::testing::Values(CPUSpecificParams{})),
+                ::testing::Values(CPUSpecificParams{}),
+                ::testing::Values(empty_plugin_config)),
         RandomUniformLayerTestCPU::getTestCaseName);
 
 } // namespace

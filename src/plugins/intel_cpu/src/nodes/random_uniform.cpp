@@ -102,7 +102,7 @@ void RandomUniform::createPrimitive() {
 
         jcp.out_data_type = m_output_prc;
 
-        m_jit_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>::createInstance<kernel::RandomUniform>(jcp);
+        m_jit_kernel = RandomUniformJitKernel::createInstance<kernel::RandomUniform>(jcp);
 
         if (m_jit_kernel) {
             if (auto selected_pd = getSelectedPrimitiveDescriptor()) {

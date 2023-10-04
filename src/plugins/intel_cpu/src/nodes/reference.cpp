@@ -19,7 +19,7 @@ Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
                                          const std::string& errorMessage) :
         Node(op, context, NgraphShapeInferFactory(op, FULL_PORT_MASK)), ovCoreNode(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
-        IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (ov::Node::evaluate() is not implemented)";
+        THROW_CPU_NODE_ERR("cannot fallback on ngraph reference implementation (ov::Node::evaluate() is not implemented)");
     }
 
     setType(Type::Reference);
@@ -53,7 +53,7 @@ void Reference::execute(dnnl::stream strm) {
     auto inputs = prepareInputs();
     auto outputs = prepareOutputs();
     if (!ovCoreNode->evaluate(outputs, inputs)) {
-        IE_THROW() << "Evaluation failed on node of type: " << std::string(ovCoreNode->get_type_name()) << " name: " << getName();
+        THROW_CPU_NODE_ERR("evaluation failed for core operation: ", std::string(ovCoreNode->get_type_name()));
     }
 }
 
@@ -75,12 +75,10 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
             }
         }
     } else {
-         IE_THROW(Unexpected) <<
-            "Unexpected shape infer result status during the inference of a node with type " <<
-            getTypeStr() << " and name " << getName();
+         THROW_CPU_NODE_ERR("got unexpected shape infer result status during the inference.");
     }
     if (!ovCoreNode->evaluate(outputs, inputs)) {
-        IE_THROW() << "Evaluation failed on node of type: " << std::string(ovCoreNode->get_type_name()) << " name: " << getName();
+        THROW_CPU_NODE_ERR("evaluation failed for core operation: ", std::string(ovCoreNode->get_type_name()));
     }
     if (ShapeInferStatus::skip == result.status) {
         std::vector<VectorDims> newOutputDims;
@@ -93,8 +91,7 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
             auto memory = getChildEdgesAtPort(i)[0]->getMemoryPtr();
             auto& tensor = outputs[i];
             if (memory->getSize() != tensor.get_byte_size()) {
-                IE_THROW(Unexpected) << "Output tensor data size mismatch occurred during the inference of a node with type " <<
-                getTypeStr() << " and name " << getName() << " on output port number " << i;
+                THROW_CPU_NODE_ERR("output tensor data size mismatch occurred during the inference on output port number ", i);
             }
             cpu_memcpy(memory->getData(), tensor.data(), tensor.get_byte_size());
         }
