@@ -1474,6 +1474,24 @@ std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::O
     return std::make_shared<ov::Model>(results, params, "BinaryEltwiseGraph");
 }
 
+std::shared_ptr<ov::Model> generateBinaryEltwiseBitwise(const std::shared_ptr<ov::op::Op> &node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 2}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 2})};
+
+    std::shared_ptr<ov::Node> eltwise;
+    if (ov::is_type<ov::op::v13::BitwiseAnd>(node)) {
+        eltwise = std::make_shared<ov::op::v13::BitwiseAnd>(params[0], params[1]);
+    } else if (ov::is_type<ov::op::v13::BitwiseOr>(node)) {
+        eltwise = std::make_shared<ov::op::v13::BitwiseOr>(params[0], params[1]);
+    } else if (ov::is_type<ov::op::v13::BitwiseXor>(node)) {
+        eltwise = std::make_shared<ov::op::v13::BitwiseXor>(params[0], params[1]);
+    } else {
+        return nullptr;
+    }
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
+    return std::make_shared<ov::Model>(results, params, "BinaryEltwiseBitwiseGraph");
+}
+
 std::shared_ptr<ov::Model> generateBinaryEltwiseComp(const std::shared_ptr<ov::op::Op> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2})};
@@ -1976,6 +1994,8 @@ std::shared_ptr<ov::Model> generateGraph() {
         return generateScatterNDBase(node);
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(node)) {
         return generateUnaryEltwise(node);
+    } else if (ov::is_type<ov::op::util::BinaryElementwiseBitwise>(node)) {
+        return generateBinaryEltwiseBitwise(node);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseComparison>(node)) {
         return generateBinaryEltwiseComp(node);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseLogical>(node)) {
