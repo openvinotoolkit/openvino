@@ -23,7 +23,7 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
 
     layout weight_layout = layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx};
     auto weights = engine.allocate_memory(weight_layout);
-    set_values<FLOAT16>(weights, {
+    set_values<ov::float16>(weights, {
             1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
