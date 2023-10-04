@@ -1,0 +1,143 @@
+name: Linux NVIDIA Plugin (Ubuntu 20.04)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-nvidia
+  cancel-in-progress: true
+
+jobs:
+  Build:
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
+      volumes:
+        - /mount/caches:/mount/caches
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_CUDA_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
+      OV_BUILD_DIR: /__w/openvino/openvino/openvino_build
+      NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
+      DEBIAN_FRONTEND: 'noninteractive'
+      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
+      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
+      CCACHE_MAXSIZE: 50G
+    steps:
+
+      - name: Install Prerequisites
+        run: |
+          apt update
+          apt install -y git curl git git-lfs unzip wget
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v3
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'true'
+
+      - name: Clone OpenVINO Contrib
+        uses: actions/checkout@v3
+        with:
+          repository: 'openvinotoolkit/openvino_contrib'
+          path: ${{ env.OPENVINO_CONTRIB_REPO }}
+          ref: 'master'
+
+      #
+      # Dependencies
+      #
+
+      - name: Install build dependencies
+        run: |
+          ${OPENVINO_REPO}/install_build_dependencies.sh
+          
+          apt -y --no-install-recommends install unzip wget software-properties-common
+
+      - name: Install CUDA
+        run: |
+         wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin 
+         mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+         
+         apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
+         add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
+         apt update
+         apt install -y \
+            libcudnn8=8.9.4.*-1+cuda11.8 \
+            libcudnn8-dev=8.9.4.*-1+cuda11.8 \
+            libcudnn8-samples=8.9.4.*-1+cuda11.8 \
+            cuda-runtime-11-8 \
+            cuda-11-8 \
+            libcutensor1=1.6.1.5-1 \
+            libcutensor-dev=1.6.1.5-1 \
+            cuda-drivers=520.61.05-1
+
+      #
+      # Build
+      #
+
+      - name: CMake configure
+        run: |
+          cmake \
+            -G "${{ env.CMAKE_GENERATOR }}" \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_SYSTEM_PUGIXML=ON \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+            -DENABLE_INTEL_CPU=OFF \
+            -DENABLE_INTEL_GPU=OFF \
+            -DENABLE_INTEL_GNA=OFF \
+            -DENABLE_OV_TF_FRONTEND=OFF \
+            -DENABLE_OV_TF_LITE=OFF \
+            -DENABLE_OV_PADDLE_FRONTEND=OFF \
+            -DENABLE_OV_PYTORCH_FRONTEND=OFF \
+            -DENABLE_OV_ONNX_FRONTEND=OFF \
+            -DENABLE_PYTHON=OFF \
+            -DENABLE_TESTS=ON \
+            -DCPACK_GENERATOR=TGZ \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+            -S ${OPENVINO_REPO} \
+            -B ${OV_BUILD_DIR}
+
+      - name: Build - OpenVINO
+        run: |
+          cmake --build ${OV_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose --target ov_dev_targets
+
+      - name: Cmake & Build - NVIDIA Plugin
+        run: |
+          cmake \
+            -DOpenVINODeveloperPackage_DIR=${OV_BUILD_DIR} \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+            -S ${OPENVINO_CONTRIB_REPO}/modules/nvidia_plugin \
+            -B ${NVIDIA_BUILD_DIR}
+          cmake --build ${NVIDIA_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
+
+      - name: Show ccache stats
+        run: ccache --show-stats
