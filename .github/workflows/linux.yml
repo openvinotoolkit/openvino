@@ -70,8 +70,6 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
-          repository: 'akashchi/openvino'
-          ref: 'ci/gha/introduce-conformance'
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
