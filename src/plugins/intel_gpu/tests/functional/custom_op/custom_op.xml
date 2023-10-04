@@ -1,0 +1,13 @@
+<CustomLayer name="CustomOp" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel">
+        <Source filename="custom_op.cl"/>
+        <Define name="alpha" type="float" param="alpha" default="1.0"/>
+        <Define name="beta" type="float" param="beta" default="0.0"/>
+    </Kernel>
+    <Buffers><!-- use the same order as the kernel entry function, so in this case (input0,input1,output0,int,float,weights) -->
+        <Tensor arg-index="0" type="input" port-index="0"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="B*F*Y*X,1,1"/>
+</CustomLayer>

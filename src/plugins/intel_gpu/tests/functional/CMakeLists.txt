@@ -12,6 +12,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4305)
 endif()
 
+list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op.xml")
+
 addIeTargetTest(
         NAME
             ${TARGET_NAME}
@@ -23,6 +25,8 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}
             $<TARGET_PROPERTY:openvino_intel_gpu_plugin,SOURCE_DIR>/include/
             ${TEST_COMMON_INCLUDE_DIR}
+        DEFINES
+            ${DEFINES}
         DEPENDENCIES
             openvino_intel_gpu_plugin
         LINK_LIBRARIES
