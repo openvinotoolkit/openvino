@@ -22,6 +22,10 @@
 
 #include "openvino/op/dft.hpp"
 #include "openvino/op/idft.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/logical_not.hpp"
 
 #include <map>
 #include <vector>
