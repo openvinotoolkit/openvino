@@ -133,7 +133,7 @@ The following Intel® Graphics Driver versions were used during OpenVINO's inter
 +==================+===========================================================================================+
 | Ubuntu 22.04     | `22.43.24595.30 <https://github.com/intel/compute-runtime/releases/tag/22.43.24595.30>`__ |
 +------------------+-------------------------------------------------------------------------------------------+
-| Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__       |
+| Ubuntu 20.04     | `21.48.21782 <https://github.com/intel/compute-runtime/releases/tag/21.48.21782>`__       |
 +------------------+-------------------------------------------------------------------------------------------+
 | Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__       |
 +------------------+-------------------------------------------------------------------------------------------+
@@ -147,7 +147,7 @@ What’s Next?
 ############
 
 * :doc:`GPU Device <openvino_docs_OV_UG_supported_plugins_GPU>`
-* :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image <openvino_docs_install_guides_installing_openvino_docker_linux>`
+* :doc:`Install Intel® Distribution of OpenVINO™ toolkit from a Docker Image <openvino_docs_install_guides_installing_openvino_docker>`
 * `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
 * `Dockerfiles with Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/README.md>`__

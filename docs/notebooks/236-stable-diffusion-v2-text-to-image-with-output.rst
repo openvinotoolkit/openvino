@@ -1,7 +1,7 @@
 Text-to-Image Generation with Stable Diffusion v2 and OpenVINO™
 ===============================================================
 
-.. _top:
+
 
 Stable Diffusion v2 is the next generation of Stable Diffusion model a
 Text-to-Image latent diffusion model created by the researchers and
@@ -80,6 +80,8 @@ Notebook contains the following steps:
    quickly, check out `236-stable-diffusion-v2-text-to-image-demo
    notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image-demo.ipynb>`__.
 
+
+.. _top:
 
 **Table of contents**: 
 
@@ -1022,7 +1024,7 @@ seed for latent state initialization and number of steps.
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7863/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7863/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

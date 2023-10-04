@@ -16,8 +16,6 @@ struct matrix_nms : public primitive_base<matrix_nms> {
 
     matrix_nms() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     enum decay_function { gaussian, linear };
 
     enum sort_result_type {

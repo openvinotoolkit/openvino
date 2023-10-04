@@ -1,541 +1,481 @@
-﻿Network model,Release,IE-Type,Platform name,Throughput-INT8,ThroughputFP16,ThroughputFP32,Value,Efficiency,Price,TDP,Sockets,Price/socket,TDP/socket,Latency
-begin_rec,,,,,,,,,,,,,,
-bert-base-cased,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,71.70,,25.90,0.103,1.593,697,45,1,697,45,21.119
-bert-base-cased,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,2.72,,1.33,0.080,0.286,34,9.5,1,34,9.5,392.843
-bert-base-cased,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,11.27,,4.28,0.105,0.752,107,15,1,107,15,88.854
-bert-base-cased,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,22.23,,14.89,0.190,0.342,117,65,1,117,65,46.754
-bert-base-cased,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,33.65,,19.51,0.157,0.961,214,35,1,214,35,35.398
-bert-base-cased,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,103.31,,44.62,0.314,0.826,329,125,1,329,125,18.719
-bert-base-cased,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,34.72,,22.57,0.176,0.534,197,65,1,197,65,30.392
-bert-base-cased,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,49.78,,17.87,0.117,1.778,426,28,1,426,28,24.03
-bert-base-cased,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,38.20,,14.91,0.078,1.364,490,28,1,490,28,26.874
-bert-base-cased,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,28.32,,16.03,0.093,0.809,303,35,1,303,35,41.835
-bert-base-cased,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,35.62,,18.79,0.073,1.018,488,35,1,488,35,38.627
-bert-base-cased,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,51.56,,19.50,0.095,1.473,544,35,1,544,35,26.626
-bert-base-cased,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,150.45,,67.78,0.251,1.204,599,125,1,599,125,15.82
-bert-base-cased,OV-2023.0,atom,Intel® Processor N-200,1.62,,0.85,0.008,0.270,193,6,1,193,6,668.333
-bert-base-cased,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,59.78,,35.79,0.101,0.478,594,125,1,594,125,19.817
-bert-base-cased,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,21.83,,14.60,0.088,0.307,249,71,1,249,71,47.596
-bert-base-cased,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,215.56,,80.01,0.069,1.057,3144,204,2,1572,102,14.761
-bert-base-cased,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,557.71,,222.26,0.033,1.360,16954,410,2,8477,205,8.731
-bert-base-cased,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,206.20,,76.54,0.103,0.825,2004,250,2,1002,125,15.389
-bert-base-cased,OV-2023.0,core,Intel® Core™ i7-11800H,92.59,,33.22,0.213,2.057,435,45,1,435,45,14.206
-bert-base-cased,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,877.01,,196.60,0.047,1.624,18718,540,2,9359,270,7.873
-bert-base-cased,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,3107.56,,448.17,0.091,4.439,34000,700,2,17000,350,5.274
-bert-base-cased,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,429.94,,171.12,0.189,1.433,2274,300,2,1137,150,8.897
-bert-base-cased,OV-2023.0,accel,Intel® Flex-170,648.29,582.97,,0.337,4.322,1925,150,1,1925,150,24.289
-bert-base-cased,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,44.64,32.01,21.94,0.417,2.976,107,15,1,107,15,89.466
-bert-base-cased,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,69.65,55.42,36.87,0.142,2.487,490,28,1,490,28,53.822
-bert-base-cased,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,88.24,60.90,46.38,0.127,1.961,697,45,1,697,45,44.864
-bert-base-cased,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,3.31,2.36,1.49,0.017,0.551,193,6,1,193,6,1207.72
-bert-base-cased,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,82.48,59.66,41.79,0.194,2.946,426,28,1,426,28,48.15
-bert-base-cased,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,53.07,,24.80,0.496,3.538,107,15,1,107,15,
-bert-base-cased,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,71.87,,27.99,0.147,2.567,490,28,1,490,28,
-bert-base-cased,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,127.08,,55.39,0.182,2.824,697,45,1,697,45,
-bert-base-cased,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,4.21,,2.08,0.022,0.701,193,6,1,193,6,
-bert-base-cased,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,83.41,,39.13,0.196,2.979,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,6.79,,2.68,0.010,0.151,697,45,1,697,45,181.851
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,0.26,,0.13,0.008,0.028,34,9.5,1,34,9.5,4055.305
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,1.10,,0.38,0.010,0.074,107,15,1,107,15,883.753
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,2.11,,1.26,0.018,0.032,117,65,1,117,65,492.094
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,2.98,,1.75,0.014,0.085,214,35,1,214,35,351.295
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,9.17,,3.72,0.028,0.073,329,125,1,329,125,149.646
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,3.26,,1.91,0.017,0.050,197,65,1,197,65,308.598
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,4.60,,1.57,0.011,0.164,426,28,1,426,28,230.242
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,3.32,,1.28,0.007,0.118,490,28,1,490,28,271.873
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,2.71,,1.55,0.009,0.077,303,35,1,303,35,407.64
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,3.14,,1.76,0.006,0.090,488,35,1,488,35,335.174
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,5.13,,1.89,0.009,0.146,544,35,1,544,35,214.42
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,14.55,,6.05,0.024,0.116,599,125,1,599,125,115.166
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,atom,Intel® Processor N-200,0.16,,0.08,0.001,0.026,193,6,1,193,6,6605.009
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,4.40,,2.71,0.007,0.035,594,125,1,594,125,180.697
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,2.12,,1.30,0.008,0.030,249,71,1,249,71,481.442
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,20.31,,7.14,0.006,0.100,3144,204,2,1572,102,104.829
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,46.48,,19.65,0.003,0.113,16954,410,2,8477,205,50.293
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,19.27,,6.83,0.010,0.077,2004,250,2,1002,125,109.227
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™ i7-11800H,8.50,,2.90,0.020,0.189,435,45,1,435,45,125.712
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,74.00,,26.69,0.004,0.137,18718,540,2,9359,270,39.786
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,125.14,,44.52,0.004,0.179,34000,700,2,17000,350,23.966
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,37.60,,14.83,0.017,0.125,2274,300,2,1137,150,60.232
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,accel,Intel® Flex-170,120.47,80.23,,0.063,0.803,1925,150,1,1925,150,132.308
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,4.72,3.49,2.13,0.044,0.314,107,15,1,107,15,815.785
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,5.06,6.29,2.96,0.010,0.181,490,28,1,490,28,788.772
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,11.39,8.22,5.15,0.016,0.253,697,45,1,697,45,350.737
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,0.35,0.24,0.14,0.002,0.058,193,6,1,193,6,11593.101
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,9.16,7.22,4.24,0.021,0.327,426,28,1,426,28,445.659
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,4.87,,2.19,0.046,0.325,107,15,1,107,15,
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,3.38,,2.09,0.007,0.121,490,28,1,490,28,
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,11.78,,4.86,0.017,0.262,697,45,1,697,45,
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,0.44,,0.18,0.002,0.073,193,6,1,193,6,
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,7.98,,3.42,0.019,0.285,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-deeplabv3,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,74.12,,31.22,0.106,1.647,697,45,1,697,45,18.344
-deeplabv3,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,2.91,,1.47,0.086,0.306,34,9.5,1,34,9.5,359.456
-deeplabv3,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,12.54,,4.67,0.117,0.836,107,15,1,107,15,80.847
-deeplabv3,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,23.64,,14.69,0.202,0.364,117,65,1,117,65,42.294
-deeplabv3,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,36.23,,16.70,0.169,1.035,214,35,1,214,35,32.374
-deeplabv3,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,95.00,,41.09,0.289,0.760,329,125,1,329,125,15.959
-deeplabv3,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,38.31,,21.59,0.194,0.589,197,65,1,197,65,26.51
-deeplabv3,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,54.05,,16.27,0.127,1.930,426,28,1,426,28,20.653
-deeplabv3,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,34.93,,10.57,0.071,1.247,490,28,1,490,28,27.623
-deeplabv3,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,32.93,,18.64,0.109,0.941,303,35,1,303,35,35.127
-deeplabv3,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,38.14,,18.17,0.078,1.090,488,35,1,488,35,27.35
-deeplabv3,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,59.94,,23.05,0.110,1.713,544,35,1,544,35,20.761
-deeplabv3,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,146.06,,56.67,0.244,1.168,599,125,1,599,125,11.988
-deeplabv3,OV-2023.0,atom,Intel® Processor N-200,1.78,,1.03,0.009,0.297,193,6,1,193,6,572.256
-deeplabv3,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,55.64,,19.26,0.094,0.445,594,125,1,594,125,17.404
-deeplabv3,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,23.34,,15.54,0.094,0.329,249,71,1,249,71,42.626
-deeplabv3,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,201.62,,77.92,0.064,0.988,3144,204,2,1572,102,10.754
-deeplabv3,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,448.78,,157.91,0.026,1.095,16954,410,2,8477,205,4.853
-deeplabv3,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,196.52,,75.53,0.098,0.786,2004,250,2,1002,125,11.109
-deeplabv3,OV-2023.0,core,Intel® Core™ i7-11800H,86.85,,27.00,0.200,1.930,435,45,1,435,45,12.137
-deeplabv3,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,649.53,,229.92,0.035,1.203,18718,540,2,9359,270,3.847
-deeplabv3,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,1030.08,,382.32,0.030,1.472,34000,700,2,17000,350,3.199
-deeplabv3,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,410.93,,141.37,0.181,1.370,2274,300,2,1137,150,5.369
-deeplabv3,OV-2023.0,accel,Intel® Flex-170,746.27,500.10,,0.388,4.975,1925,150,1,1925,150,21.133
-deeplabv3,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,62.44,28.53,16.72,0.584,4.163,107,15,1,107,15,63.94
-deeplabv3,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,76.73,36.90,13.98,0.157,2.740,490,28,1,490,28,49.979
-deeplabv3,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,121.55,55.55,36.78,0.174,2.701,697,45,1,697,45,32.538
-deeplabv3,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,3.85,2.01,1.36,0.020,0.641,193,6,1,193,6,1038.839
-deeplabv3,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,109.22,50.67,28.82,0.256,3.901,426,28,1,426,28,36.378
-deeplabv3,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,62.77,,16.96,0.587,4.184,107,15,1,107,15,
-deeplabv3,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,51.34,,8.91,0.105,1.834,490,28,1,490,28,
-deeplabv3,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,139.61,,40.39,0.200,3.103,697,45,1,697,45,
-deeplabv3,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,4.81,,1.97,0.025,0.802,193,6,1,193,6,
-deeplabv3,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,92.48,,24.81,0.217,3.303,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,97.01,,57.69,0.139,2.156,697,45,1,697,45,14.749
-efficientdet-d0,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,3.76,,2.64,0.111,0.396,34,9.5,1,34,9.5,290.49
-efficientdet-d0,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,17.79,,11.10,0.166,1.186,107,15,1,107,15,61.812
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,33.53,,23.96,0.287,0.516,117,65,1,117,65,31.273
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,50.07,,28.48,0.234,1.430,214,35,1,214,35,24.356
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,128.34,,84.12,0.390,1.027,329,125,1,329,125,13.006
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,53.85,,35.65,0.273,0.828,197,65,1,197,65,20.31
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,69.87,,39.11,0.164,2.495,426,28,1,426,28,17.367
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,47.89,,20.09,0.098,1.710,490,28,1,490,28,23.549
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,47.53,,33.64,0.157,1.358,303,35,1,303,35,26.193
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,54.68,,32.54,0.112,1.562,488,35,1,488,35,21.202
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,71.50,,45.10,0.131,2.043,544,35,1,544,35,17.779
-efficientdet-d0,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,192.62,,103.94,0.322,1.541,599,125,1,599,125,10.401
-efficientdet-d0,OV-2023.0,atom,Intel® Processor N-200,2.05,,1.65,0.011,0.342,193,6,1,193,6,496.613
-efficientdet-d0,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,79.60,,35.06,0.134,0.637,594,125,1,594,125,13.426
-efficientdet-d0,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,32.46,,25.97,0.130,0.457,249,71,1,249,71,32.053
-efficientdet-d0,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,236.75,,163.08,0.075,1.161,3144,204,2,1572,102,12.998
-efficientdet-d0,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,458.66,,294.01,0.027,1.119,16954,410,2,8477,205,8.597
-efficientdet-d0,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,228.21,,157.38,0.114,0.913,2004,250,2,1002,125,13.254
-efficientdet-d0,OV-2023.0,core,Intel® Core™ i7-11800H,109.41,,61.21,0.252,2.431,435,45,1,435,45,10.459
-efficientdet-d0,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,709.57,,452.65,0.038,1.314,18718,540,2,9359,270,9.743
-efficientdet-d0,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,922.74,,791.57,0.027,1.318,34000,700,2,17000,350,6.149
-efficientdet-d0,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,416.02,,270.47,0.183,1.387,2274,300,2,1137,150,8.367
-efficientdet-d0,OV-2023.0,accel,Intel® Flex-170,684.48,640.17,,0.356,4.563,1925,150,1,1925,150,22.703
-efficientdet-d0,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,66.61,60.60,33.76,0.623,4.441,107,15,1,107,15,59.789
-efficientdet-d0,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,61.69,49.32,24.14,0.126,2.203,490,28,1,490,28,63.923
-efficientdet-d0,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,123.77,105.73,60.06,0.178,2.751,697,45,1,697,45,31.947
-efficientdet-d0,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,5.64,5.03,3.02,0.029,0.940,193,6,1,193,6,707.252
-efficientdet-d0,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,108.15,90.40,51.00,0.254,3.862,426,28,1,426,28,36.641
-efficientdet-d0,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,56.00,,33.11,0.523,3.733,107,15,1,107,15,
-efficientdet-d0,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,50.72,,18.56,0.104,1.811,490,28,1,490,28,
-efficientdet-d0,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,144.59,,69.25,0.207,3.213,697,45,1,697,45,
-efficientdet-d0,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,6.03,,3.81,0.031,1.005,193,6,1,193,6,
-efficientdet-d0,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,97.10,,49.20,0.228,3.468,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,10.07,,3.25,0.014,0.224,697,45,1,697,45,173.007
-faster_rcnn_resnet50_coco,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,0.31,,0.13,0.009,0.032,34,9.5,1,34,9.5,3336.101
-faster_rcnn_resnet50_coco,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,1.60,,0.42,0.015,0.106,107,15,1,107,15,640.413
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,2.89,,1.51,0.025,0.045,117,65,1,117,65,358.209
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,4.22,,2.26,0.020,0.120,214,35,1,214,35,307.054
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,13.04,,4.32,0.040,0.104,329,125,1,329,125,163.824
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,4.59,,2.39,0.023,0.071,197,65,1,197,65,247.538
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,6.74,,1.78,0.016,0.241,426,28,1,426,28,165.661
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,5.16,,1.43,0.011,0.184,490,28,1,490,28,199.974
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,3.60,,1.89,0.012,0.103,303,35,1,303,35,344.134
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,4.42,,2.27,0.009,0.126,488,35,1,488,35,252.351
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,7.29,,2.34,0.013,0.208,544,35,1,544,35,188.868
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,20.79,,7.23,0.035,0.166,599,125,1,599,125,111.834
-faster_rcnn_resnet50_coco,OV-2023.0,atom,Intel® Processor N-200,0.20,,0.09,0.001,0.034,193,6,1,193,6,5079.528
-faster_rcnn_resnet50_coco,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,7.85,,4.03,0.013,0.063,594,125,1,594,125,138.525
-faster_rcnn_resnet50_coco,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,2.78,,1.49,0.011,0.039,249,71,1,249,71,363.574
-faster_rcnn_resnet50_coco,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,29.15,,8.22,0.009,0.143,3144,204,2,1572,102,77.58
-faster_rcnn_resnet50_coco,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,85.87,,22.37,0.005,0.209,16954,410,2,8477,205,30.369
-faster_rcnn_resnet50_coco,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,27.70,,7.83,0.014,0.111,2004,250,2,1002,125,79.521
-faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™ i7-11800H,12.17,,3.28,0.028,0.270,435,45,1,435,45,93.88
-faster_rcnn_resnet50_coco,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,112.09,,32.42,0.006,0.208,18718,540,2,9359,270,90.8
-faster_rcnn_resnet50_coco,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,417.49,,50.54,0.012,0.596,34000,700,2,17000,350,10.218
-faster_rcnn_resnet50_coco,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,65.13,,16.92,0.029,0.217,2274,300,2,1137,150,42.57
-faster_rcnn_resnet50_coco,OV-2023.0,accel,Intel® Flex-170,222.32,144.56,,0.115,1.482,1925,150,1,1925,150,71.57
-faster_rcnn_resnet50_coco,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,8.22,4.09,1.84,0.077,0.548,107,15,1,107,15,475.771
-faster_rcnn_resnet50_coco,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,13.31,6.13,2.38,0.027,0.475,490,28,1,490,28,298.019
-faster_rcnn_resnet50_coco,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,17.32,9.61,4.50,0.025,0.385,697,45,1,697,45,230.593
-faster_rcnn_resnet50_coco,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,0.48,0.28,0.14,0.002,0.080,193,6,1,193,6,8322.584
-faster_rcnn_resnet50_coco,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,15.37,8.20,3.72,0.036,0.549,426,28,1,426,28,266.287
-faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,8.58,,1.99,0.080,0.572,107,15,1,107,15,
-faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,11.83,,1.81,0.024,0.423,490,28,1,490,28,
-faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,20.10,,5.54,0.029,0.447,697,45,1,697,45,
-faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,0.60,,0.19,0.003,0.099,193,6,1,193,6,
-faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,13.39,,3.31,0.031,0.478,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-googlenet-v4,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,111.78,,31.98,0.160,2.484,697,45,1,697,45,16.401
-googlenet-v4,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,3.19,,1.34,0.094,0.335,34,9.5,1,34,9.5,330.309
-googlenet-v4,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,15.15,,4.13,0.142,1.010,107,15,1,107,15,65.484
-googlenet-v4,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,29.71,,15.29,0.254,0.457,117,65,1,117,65,34.592
-googlenet-v4,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,42.94,,22.86,0.201,1.227,214,35,1,214,35,25.957
-googlenet-v4,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,147.72,,42.20,0.449,1.182,329,125,1,329,125,15.377
-googlenet-v4,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,47.19,,23.81,0.240,0.726,197,65,1,197,65,21.507
-googlenet-v4,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,68.56,,17.47,0.161,2.449,426,28,1,426,28,16.906
-googlenet-v4,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,55.82,,14.00,0.114,1.994,490,28,1,490,28,19.042
-googlenet-v4,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,35.79,,18.77,0.118,1.023,303,35,1,303,35,31.127
-googlenet-v4,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,45.87,,22.92,0.094,1.311,488,35,1,488,35,24.9
-googlenet-v4,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,80.22,,22.64,0.147,2.292,544,35,1,544,35,19.511
-googlenet-v4,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,219.92,,69.93,0.367,1.759,599,125,1,599,125,11.893
-googlenet-v4,OV-2023.0,atom,Intel® Processor N-200,2.02,,0.92,0.010,0.337,193,6,1,193,6,536.385
-googlenet-v4,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,82.75,,41.21,0.139,0.662,594,125,1,594,125,13.243
-googlenet-v4,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,28.17,,14.89,0.113,0.397,249,71,1,249,71,36.365
-googlenet-v4,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,302.16,,77.16,0.096,1.481,3144,204,2,1572,102,10.628
-googlenet-v4,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,950.44,,228.44,0.056,2.318,16954,410,2,8477,205,5.714
-googlenet-v4,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,287.12,,73.94,0.143,1.148,2004,250,2,1002,125,11.353
-googlenet-v4,OV-2023.0,core,Intel® Core™ i7-11800H,128.48,,32.51,0.295,2.855,435,45,1,435,45,10.465
-googlenet-v4,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,1475.64,,347.33,0.079,2.733,18718,540,2,9359,270,3.308
-googlenet-v4,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,5145.62,,522.17,0.151,7.351,34000,700,2,17000,350,3.46
-googlenet-v4,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,730.64,,169.52,0.321,2.435,2274,300,2,1137,150,6.386
-googlenet-v4,OV-2023.0,accel,Intel® Flex-170,834.65,515.70,,0.434,5.564,1925,150,1,1925,150,18.9
-googlenet-v4,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,66.82,31.46,18.62,0.625,4.455,107,15,1,107,15,59.758
-googlenet-v4,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,106.60,55.16,33.10,0.218,3.807,490,28,1,490,28,36.221
-googlenet-v4,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,126.94,64.60,41.28,0.182,2.821,697,45,1,697,45,31.129
-googlenet-v4,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,4.27,1.99,1.14,0.022,0.712,193,6,1,193,6,934.853
-googlenet-v4,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,120.74,59.65,36.70,0.283,4.312,426,28,1,426,28,32.7
-googlenet-v4,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,86.46,,20.87,0.808,5.764,107,15,1,107,15,
-googlenet-v4,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,134.97,,32.38,0.275,4.820,490,28,1,490,28,
-googlenet-v4,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,203.09,,55.43,0.291,4.513,697,45,1,697,45,
-googlenet-v4,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,6.00,,1.59,0.031,1.001,193,6,1,193,6,
-googlenet-v4,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,125.28,,33.33,0.294,4.474,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-GPT-2,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,3.76,,2.02,0.005,0.083,697,45,1,697,45,296.881
-GPT-2,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,0.20,,0.10,0.006,0.021,34,9.5,1,34,9.5,5419.817
-GPT-2,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,0.88,,0.30,0.008,0.058,107,15,1,107,15,1086.958
-GPT-2,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,1.44,,1.03,0.012,0.022,117,65,1,117,65,717.508
-GPT-2,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,1.71,,1.21,0.008,0.049,214,35,1,214,35,597.084
-GPT-2,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,5.38,,2.94,0.016,0.043,329,125,1,329,125,227.166
-GPT-2,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,2.09,,1.50,0.011,0.032,197,65,1,197,65,488.848
-GPT-2,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,3.33,,1.25,0.008,0.119,426,28,1,426,28,340.886
-GPT-2,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,1.73,,0.85,0.004,0.062,490,28,1,490,28,567.627
-GPT-2,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,1.93,,1.26,0.006,0.055,303,35,1,303,35,572.361
-GPT-2,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,1.93,,1.28,0.004,0.055,488,35,1,488,35,511.396
-GPT-2,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,2.86,,1.48,0.005,0.082,544,35,1,544,35,325.104
-GPT-2,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,5.88,,4.25,0.010,0.047,599,125,1,599,125,179.104
-GPT-2,OV-2023.0,atom,Intel® Processor N-200,0.12,,0.07,0.001,0.021,193,6,1,193,6,8434.695
-GPT-2,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,2.14,,1.45,0.004,0.017,594,125,1,594,125,401.241
-GPT-2,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,1.57,,1.07,0.006,0.022,249,71,1,249,71,673.96
-GPT-2,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,13.74,,5.55,0.004,0.067,3144,204,2,1572,102,154.435
-GPT-2,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,22.60,,14.00,0.001,0.055,16954,410,2,8477,205,77.3
-GPT-2,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,13.28,,5.30,0.007,0.053,2004,250,2,1002,125,160.915
-GPT-2,OV-2023.0,core,Intel® Core™ i7-11800H,5.05,,2.19,0.012,0.112,435,45,1,435,45,208.952
-GPT-2,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,38.52,,22.01,0.002,0.071,18718,540,2,9359,270,57.554
-GPT-2,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,76.59,,29.21,0.002,0.109,34000,700,2,17000,350,30.93
-GPT-2,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,23.32,,11.26,0.010,0.078,2274,300,2,1137,150,132.245
-GPT-2,OV-2023.0,accel,Intel® Flex-170,39.06,49.09,,0.020,0.260,1925,150,1,1925,150,408.749
-GPT-2,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,3.02,2.27,1.51,0.028,0.201,107,15,1,107,15,1319.205
-GPT-2,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,2.00,2.74,1.57,0.004,0.071,490,28,1,490,28,1989.235
-GPT-2,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,5.68,4.85,3.22,0.008,0.126,697,45,1,697,45,703.429
-GPT-2,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,0.23,0.16,0.11,0.001,0.038,193,6,1,193,6,17533.595
-GPT-2,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,4.16,4.13,2.69,0.010,0.148,426,28,1,426,28,960.778
-GPT-2,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,3.00,,1.49,0.028,0.200,107,15,1,107,15,
-GPT-2,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,1.68,,1.09,0.003,0.060,490,28,1,490,28,
-GPT-2,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,5.09,,3.28,0.007,0.113,697,45,1,697,45,
-GPT-2,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,0.28,,0.13,0.001,0.046,193,6,1,193,6,
-GPT-2,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,4.27,,2.26,0.010,0.153,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,789.36,,299.79,1.133,17.541,697,45,1,697,45,2.072
-mobilenet-ssd,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,27.01,,12.73,0.794,2.843,34,9.5,1,34,9.5,39.577
-mobilenet-ssd,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,116.16,,40.17,1.086,7.744,107,15,1,107,15,8.472
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,221.80,,140.58,1.896,3.412,117,65,1,117,65,4.715
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,344.62,,201.93,1.610,9.846,214,35,1,214,35,3.456
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,1020.39,,400.82,3.101,8.163,329,125,1,329,125,1.993
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,357.97,,218.52,1.817,5.507,197,65,1,197,65,2.96
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,548.92,,158.26,1.289,19.604,426,28,1,426,28,2.106
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,441.91,,112.33,0.902,15.783,490,28,1,490,28,2.364
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,285.67,,177.22,0.943,8.162,303,35,1,303,35,4.236
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,361.27,,208.16,0.740,10.322,488,35,1,488,35,3.267
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,583.02,,215.65,1.072,16.658,544,35,1,544,35,2.48
-mobilenet-ssd,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,1604.36,,665.09,2.678,12.835,599,125,1,599,125,1.778
-mobilenet-ssd,OV-2023.0,atom,Intel® Processor N-200,15.32,,8.77,0.079,2.554,193,6,1,193,6,67.817
-mobilenet-ssd,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,652.21,,307.44,1.098,5.218,594,125,1,594,125,1.656
-mobilenet-ssd,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,211.82,,140.47,0.851,2.983,249,71,1,249,71,4.88
-mobilenet-ssd,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,2268.48,,693.51,0.722,11.120,3144,204,2,1572,102,1.499
-mobilenet-ssd,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,6587.85,,1822.35,0.389,16.068,16954,410,2,8477,205,1.043
-mobilenet-ssd,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,2163.47,,666.62,1.080,8.654,2004,250,2,1002,125,1.55
-mobilenet-ssd,OV-2023.0,core,Intel® Core™ i7-11800H,1031.34,,300.85,2.371,22.919,435,45,1,435,45,1.295
-mobilenet-ssd,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,11311.71,,2529.80,0.604,20.948,18718,540,2,9359,270,0.697
-mobilenet-ssd,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,24846.06,,3999.29,0.731,35.494,34000,700,2,17000,350,0.839
-mobilenet-ssd,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,5398.00,,1364.13,2.374,17.993,2274,300,2,1137,150,0.809
-mobilenet-ssd,OV-2023.0,accel,Intel® Flex-170,4127.47,3257.04,,2.144,27.516,1925,150,1,1925,150,3.644
-mobilenet-ssd,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,453.40,238.03,149.06,4.237,30.226,107,15,1,107,15,8.634
-mobilenet-ssd,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,619.19,332.33,199.95,1.264,22.114,490,28,1,490,28,6.244
-mobilenet-ssd,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,816.41,453.27,310.53,1.171,18.142,697,45,1,697,45,4.657
-mobilenet-ssd,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,32.42,16.84,10.65,0.168,5.403,193,6,1,193,6,121.698
-mobilenet-ssd,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,702.15,407.81,276.23,1.648,25.077,426,28,1,426,28,5.535
-mobilenet-ssd,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,326.89,,144.12,3.055,21.793,107,15,1,107,15,
-mobilenet-ssd,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,569.19,,143.17,1.162,20.328,490,28,1,490,28,
-mobilenet-ssd,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,1042.75,,416.99,1.496,23.172,697,45,1,697,45,
-mobilenet-ssd,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,37.18,,15.37,0.193,6.197,193,6,1,193,6,
-mobilenet-ssd,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,748.60,,253.99,1.757,26.736,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,1726.00,,932.73,2.476,38.356,697,45,1,697,45,1.085
-mobilenet-v2,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,74.74,,45.44,2.198,7.867,34,9.5,1,34,9.5,14.582
-mobilenet-v2,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,280.00,,133.14,2.617,18.667,107,15,1,107,15,3.497
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,534.65,,456.87,4.570,8.225,117,65,1,117,65,1.974
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,882.73,,483.11,4.125,25.221,214,35,1,214,35,1.556
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,2619.92,,1305.55,7.963,20.959,329,125,1,329,125,0.958
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,876.27,,684.15,4.448,13.481,197,65,1,197,65,1.325
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,1378.21,,520.06,3.235,49.222,426,28,1,426,28,0.931
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,1065.40,,315.10,2.174,38.050,490,28,1,490,28,1.015
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,718.66,,516.57,2.372,20.533,303,35,1,303,35,1.854
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,920.75,,638.15,1.887,26.307,488,35,1,488,35,1.514
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,1283.37,,687.61,2.359,36.668,544,35,1,544,35,1.219
-mobilenet-v2,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,3959.96,,2062.89,6.611,31.680,599,125,1,599,125,0.768
-mobilenet-v2,OV-2023.0,atom,Intel® Processor N-200,40.77,,29.63,0.211,6.795,193,6,1,193,6,27.138
-mobilenet-v2,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,1670.25,,813.61,2.812,13.362,594,125,1,594,125,0.795
-mobilenet-v2,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,519.94,,450.61,2.088,7.323,249,71,1,249,71,2.036
-mobilenet-v2,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,5539.89,,1920.53,1.762,27.156,3144,204,2,1572,102,1.349
-mobilenet-v2,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,15210.14,,4417.85,0.897,37.098,16954,410,2,8477,205,0.851
-mobilenet-v2,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,5369.69,,1859.79,2.679,21.479,2004,250,2,1002,125,1.364
-mobilenet-v2,OV-2023.0,core,Intel® Core™ i7-11800H,2575.56,,938.74,5.921,57.235,435,45,1,435,45,0.636
-mobilenet-v2,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,23172.78,,6910.90,1.238,42.913,18718,540,2,9359,270,0.522
-mobilenet-v2,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,35561.67,,10976.35,1.046,50.802,34000,700,2,17000,350,0.618
-mobilenet-v2,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,12687.83,,3600.85,5.580,42.293,2274,300,2,1137,150,0.51
-mobilenet-v2,OV-2023.0,accel,Intel® Flex-170,5398.23,5255.59,,2.804,35.988,1925,150,1,1925,150,2.256
-mobilenet-v2,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,671.48,511.12,338.92,6.276,44.765,107,15,1,107,15,5.565
-mobilenet-v2,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,909.69,583.68,350.46,1.857,32.489,490,28,1,490,28,4.207
-mobilenet-v2,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,1205.84,894.32,586.79,1.730,26.796,697,45,1,697,45,3.127
-mobilenet-v2,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,60.97,41.27,26.90,0.316,10.162,193,6,1,193,6,64.669
-mobilenet-v2,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,1000.97,740.36,523.20,2.350,35.749,426,28,1,426,28,3.855
-mobilenet-v2,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,1468.05,,394.16,13.720,97.870,107,15,1,107,15,
-mobilenet-v2,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,1168.44,,216.48,2.385,41.730,490,28,1,490,28,
-mobilenet-v2,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,3183.48,,1119.78,4.567,70.744,697,45,1,697,45,
-mobilenet-v2,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,117.36,,49.87,0.608,19.560,193,6,1,193,6,
-mobilenet-v2,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,2238.11,,597.27,5.254,79.933,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-resnet-50,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,372.55,,103.20,0.535,8.279,697,45,1,697,45,4.778
-resnet-50,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,10.92,,4.54,0.321,1.150,34,9.5,1,34,9.5,94.519
-resnet-50,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,50.13,,14.45,0.469,3.342,107,15,1,107,15,19.719
-resnet-50,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,97.59,,51.99,0.834,1.501,117,65,1,117,65,10.637
-resnet-50,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,144.61,,75.37,0.676,4.132,214,35,1,214,35,8.098
-resnet-50,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,500.94,,143.02,1.523,4.008,329,125,1,329,125,4.456
-resnet-50,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,155.16,,81.16,0.788,2.387,197,65,1,197,65,6.958
-resnet-50,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,224.35,,60.58,0.527,8.012,426,28,1,426,28,5.088
-resnet-50,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,182.57,,47.31,0.373,6.520,490,28,1,490,28,5.96
-resnet-50,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,121.71,,62.98,0.402,3.477,303,35,1,303,35,9.845
-resnet-50,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,155.09,,77.88,0.318,4.431,488,35,1,488,35,7.418
-resnet-50,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,267.58,,75.49,0.492,7.645,544,35,1,544,35,5.351
-resnet-50,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,744.56,,235.07,1.243,5.956,599,125,1,599,125,3.366
-resnet-50,OV-2023.0,atom,Intel® Processor N-200,6.73,,3.18,0.035,1.121,193,6,1,193,6,160.351
-resnet-50,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,276.11,,141.28,0.465,2.209,594,125,1,594,125,3.804
-resnet-50,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,93.19,,50.97,0.374,1.312,249,71,1,249,71,11.014
-resnet-50,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,968.34,,269.28,0.308,4.747,3144,204,2,1572,102,2.912
-resnet-50,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,2928.36,,755.50,0.173,7.142,16954,410,2,8477,205,1.501
-resnet-50,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,928.12,,257.71,0.463,3.712,2004,250,2,1002,125,3.015
-resnet-50,OV-2023.0,core,Intel® Core™ i7-11800H,418.87,,112.99,0.963,9.308,435,45,1,435,45,2.909
-resnet-50,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,5006.83,,1168.91,0.267,9.272,18718,540,2,9359,270,1.016
-resnet-50,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,18906.26,,1671.79,0.556,27.009,34000,700,2,17000,350,1.003
-resnet-50,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,2292.86,,570.35,1.008,7.643,2274,300,2,1137,150,1.463
-resnet-50,OV-2023.0,accel,Intel® Flex-170,3088.38,1947.78,,1.604,20.589,1925,150,1,1925,150,4.919
-resnet-50,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,212.07,117.19,66.74,1.982,14.138,107,15,1,107,15,18.752
-resnet-50,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,296.02,166.15,90.65,0.604,10.572,490,28,1,490,28,13.174
-resnet-50,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,380.98,229.42,143.43,0.547,8.466,697,45,1,697,45,10.195
-resnet-50,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,15.19,7.96,4.35,0.079,2.532,193,6,1,193,6,262.333
-resnet-50,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,351.93,210.88,120.40,0.826,12.569,426,28,1,426,28,11.145
-resnet-50,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,298.19,,75.45,2.787,19.880,107,15,1,107,15,
-resnet-50,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,440.34,,87.84,0.899,15.726,490,28,1,490,28,
-resnet-50,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,714.02,,187.03,1.024,15.867,697,45,1,697,45,
-resnet-50,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,21.28,,6.36,0.110,3.546,193,6,1,193,6,
-resnet-50,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,469.96,,122.38,1.103,16.784,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,6.00,,1.85,0.009,0.133,697,45,1,697,45,241.005
-ssd-resnet34-1200,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,0.18,,0.08,0.005,0.019,34,9.5,1,34,9.5,5553.228
-ssd-resnet34-1200,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,0.90,,0.23,0.008,0.060,107,15,1,107,15,1118.931
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,1.69,,0.98,0.014,0.026,117,65,1,117,65,593.303
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,2.42,,1.40,0.011,0.069,214,35,1,214,35,459.773
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,8.10,,2.46,0.025,0.065,329,125,1,329,125,207.938
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,2.63,,1.49,0.013,0.040,197,65,1,197,65,393.411
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,3.82,,0.99,0.009,0.136,426,28,1,426,28,280.093
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,3.15,,0.82,0.006,0.113,490,28,1,490,28,315.974
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,2.02,,1.13,0.007,0.058,303,35,1,303,35,562.292
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,2.49,,1.38,0.005,0.071,488,35,1,488,35,411.048
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,4.07,,1.34,0.007,0.116,544,35,1,544,35,297.001
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,12.38,,4.12,0.021,0.099,599,125,1,599,125,157.781
-ssd-resnet34-1200,OV-2023.0,atom,Intel® Processor N-200,0.11,,0.05,0.001,0.019,193,6,1,193,6,8993.66
-ssd-resnet34-1200,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,4.57,,2.53,0.008,0.037,594,125,1,594,125,202.869
-ssd-resnet34-1200,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,1.60,,0.92,0.006,0.023,249,71,1,249,71,622.799
-ssd-resnet34-1200,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,17.65,,4.59,0.006,0.087,3144,204,2,1572,102,116.003
-ssd-resnet34-1200,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,57.90,,14.86,0.003,0.141,16954,410,2,8477,205,36.506
-ssd-resnet34-1200,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,16.78,,4.37,0.008,0.067,2004,250,2,1002,125,121.986
-ssd-resnet34-1200,OV-2023.0,core,Intel® Core™ i7-11800H,7.08,,1.82,0.016,0.157,435,45,1,435,45,155.088
-ssd-resnet34-1200,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,78.77,,20.79,0.004,0.146,18718,540,2,9359,270,106.673
-ssd-resnet34-1200,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,440.92,,31.41,0.013,0.630,34000,700,2,17000,350,8.749
-ssd-resnet34-1200,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,42.63,,10.56,0.019,0.142,2274,300,2,1137,150,59.63
-ssd-resnet34-1200,OV-2023.0,accel,Intel® Flex-170,150.99,92.06,,0.078,1.007,1925,150,1,1925,150,105.864
-ssd-resnet34-1200,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,5.04,2.62,1.41,0.047,0.336,107,15,1,107,15,774.647
-ssd-resnet34-1200,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,8.74,4.78,2.25,0.018,0.312,490,28,1,490,28,444.2
-ssd-resnet34-1200,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,10.88,6.26,3.42,0.016,0.242,697,45,1,697,45,367.297
-ssd-resnet34-1200,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,0.29,0.17,,0.002,0.049,193,6,1,193,6,13690.681
-ssd-resnet34-1200,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,9.70,5.42,2.84,0.023,0.347,426,28,1,426,28,422.084
-ssd-resnet34-1200,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,0.90,,0.23,0.008,0.060,107,15,1,107,15,
-ssd-resnet34-1200,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,3.15,,0.82,0.006,0.112,490,28,1,490,28,
-ssd-resnet34-1200,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,5.93,,1.87,0.009,0.132,697,45,1,697,45,
-ssd-resnet34-1200,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,0.11,,0.05,0.001,0.018,193,6,1,193,6,
-ssd-resnet34-1200,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,3.91,,1.00,0.009,0.140,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,8.65,,3.05,0.012,0.192,697,45,1,697,45,156.161
-unet-camvid-onnx-0001,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,0.26,,0.04,0.008,0.027,34,9.5,1,34,9.5,3981.236
-unet-camvid-onnx-0001,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,1.49,,0.38,0.014,0.100,107,15,1,107,15,672.584
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,2.46,,1.55,0.021,0.038,117,65,1,117,65,413.844
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,3.60,,2.25,0.017,0.103,214,35,1,214,35,322.582
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,11.67,,4.03,0.035,0.093,329,125,1,329,125,132.595
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,3.85,,2.39,0.020,0.059,197,65,1,197,65,263.384
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,6.42,,1.61,0.015,0.229,426,28,1,426,28,169.941
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,5.20,,1.28,0.011,0.186,490,28,1,490,28,188.957
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,3.01,,1.86,0.010,0.086,303,35,1,303,35,384.226
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,3.62,,2.25,0.007,0.103,488,35,1,488,35,286.784
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,6.15,,2.25,0.011,0.176,544,35,1,544,35,187.178
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,18.36,,6.78,0.031,0.147,599,125,1,599,125,99.814
-unet-camvid-onnx-0001,OV-2023.0,atom,Intel® Processor N-200,0.17,,0.09,0.001,0.029,193,6,1,193,6,5875.117
-unet-camvid-onnx-0001,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,6.61,,4.00,0.011,0.053,594,125,1,594,125,153.203
-unet-camvid-onnx-0001,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,2.35,,1.49,0.009,0.033,249,71,1,249,71,436.422
-unet-camvid-onnx-0001,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,29.07,,7.34,0.009,0.142,3144,204,2,1572,102,71.813
-unet-camvid-onnx-0001,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,95.23,,21.78,0.006,0.232,16954,410,2,8477,205,23.521
-unet-camvid-onnx-0001,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,27.71,,7.01,0.014,0.111,2004,250,2,1002,125,74.843
-unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™ i7-11800H,11.74,,2.94,0.027,0.261,435,45,1,435,45,94.316
-unet-camvid-onnx-0001,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,129.48,,31.77,0.007,0.240,18718,540,2,9359,270,73.505
-unet-camvid-onnx-0001,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,505.87,,48.40,0.015,0.723,34000,700,2,17000,350,9.311
-unet-camvid-onnx-0001,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,69.94,,16.08,0.031,0.233,2274,300,2,1137,150,41.748
-unet-camvid-onnx-0001,OV-2023.0,accel,Intel® Flex-170,254.48,144.90,,0.132,1.697,1925,150,1,1925,150,62.698
-unet-camvid-onnx-0001,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,8.41,4.37,2.38,0.079,0.560,107,15,1,107,15,475.669
-unet-camvid-onnx-0001,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,15.72,8.02,4.27,0.032,0.562,490,28,1,490,28,253.853
-unet-camvid-onnx-0001,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,19.13,10.06,5.58,0.027,0.425,697,45,1,697,45,208.318
-unet-camvid-onnx-0001,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,0.47,0.27,0.14,0.002,0.078,193,6,1,193,6,8545.949
-unet-camvid-onnx-0001,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,17.31,8.85,4.83,0.041,0.618,426,28,1,426,28,227.453
-unet-camvid-onnx-0001,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,8.90,,2.45,0.083,0.593,107,15,1,107,15,
-unet-camvid-onnx-0001,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,14.81,,3.73,0.030,0.529,490,28,1,490,28,
-unet-camvid-onnx-0001,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,19.83,,6.12,0.028,0.441,697,45,1,697,45,
-unet-camvid-onnx-0001,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,0.57,,0.20,0.003,0.096,193,6,1,193,6,
-unet-camvid-onnx-0001,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,14.14,,3.75,0.033,0.505,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-yolo_v3,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,39.77,,11.97,0.057,0.884,697,45,1,697,45,34.872
-yolo_v3,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,1.13,,0.52,0.033,0.119,34,9.5,1,34,9.5,903.841
-yolo_v3,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,5.45,,1.55,0.051,0.363,107,15,1,107,15,184.58
-yolo_v3,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,10.63,,5.89,0.091,0.164,117,65,1,117,65,95.036
-yolo_v3,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,15.37,,8.39,0.072,0.439,214,35,1,214,35,74.286
-yolo_v3,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,51.84,,15.89,0.158,0.415,329,125,1,329,125,30.003
-yolo_v3,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,16.37,,8.99,0.083,0.252,197,65,1,197,65,63.341
-yolo_v3,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,23.65,,6.47,0.056,0.845,426,28,1,426,28,46.28
-yolo_v3,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,19.40,,5.08,0.040,0.693,490,28,1,490,28,51.709
-yolo_v3,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,12.66,,6.99,0.042,0.362,303,35,1,303,35,86.495
-yolo_v3,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,16.06,,8.39,0.033,0.459,488,35,1,488,35,68.145
-yolo_v3,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,27.93,,8.41,0.051,0.798,544,35,1,544,35,42.848
-yolo_v3,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,79.98,,26.47,0.134,0.640,599,125,1,599,125,23.62
-yolo_v3,OV-2023.0,atom,Intel® Processor N-200,0.71,,0.35,0.004,0.118,193,6,1,193,6,1470.788
-yolo_v3,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,29.22,,14.28,0.049,0.234,594,125,1,594,125,32.442
-yolo_v3,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,10.06,,5.72,0.040,0.142,249,71,1,249,71,100.122
-yolo_v3,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,105.44,,29.93,0.034,0.517,3144,204,2,1572,102,22.133
-yolo_v3,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,318.96,,88.54,0.019,0.778,16954,410,2,8477,205,10.668
-yolo_v3,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,100.48,,28.51,0.050,0.402,2004,250,2,1002,125,23.175
-yolo_v3,OV-2023.0,core,Intel® Core™ i7-11800H,43.61,,11.91,0.100,0.969,435,45,1,435,45,26.339
-yolo_v3,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,485.45,,108.76,0.026,0.899,18718,540,2,9359,270,6.704
-yolo_v3,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,2042.57,,194.96,0.060,2.918,34000,700,2,17000,350,3.296
-yolo_v3,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,240.71,,62.50,0.106,0.802,2274,300,2,1137,150,13.156
-yolo_v3,OV-2023.0,accel,Intel® Flex-170,715.46,313.59,,0.372,4.770,1925,150,1,1925,150,21.953
-yolo_v3,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,32.01,15.01,8.05,0.299,2.134,107,15,1,107,15,123.951
-yolo_v3,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,59.08,26.50,13.68,0.121,2.110,490,28,1,490,28,67.531
-yolo_v3,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,69.33,34.30,18.80,0.099,1.541,697,45,1,697,45,57.179
-yolo_v3,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,1.82,0.94,0.51,0.009,0.304,193,6,1,193,6,2193.513
-yolo_v3,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,62.39,29.62,16.26,0.146,2.228,426,28,1,426,28,64.935
-yolo_v3,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,33.33,,8.57,0.311,2.222,107,15,1,107,15,
-yolo_v3,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,54.94,,12.76,0.112,1.962,490,28,1,490,28,
-yolo_v3,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,79.34,,21.62,0.114,1.763,697,45,1,697,45,
-yolo_v3,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,2.18,,0.72,0.011,0.363,193,6,1,193,6,
-yolo_v3,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,50.76,,13.72,0.119,1.813,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,433.83,,136.36,0.622,9.641,697,45,1,697,45,3.411
-yolo_v3_tiny,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,12.33,,6.20,0.363,1.297,34,9.5,1,34,9.5,82.687
-yolo_v3_tiny,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,54.23,,18.05,0.507,3.615,107,15,1,107,15,18.195
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,112.45,,65.07,0.961,1.730,117,65,1,117,65,8.957
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,167.83,,92.82,0.784,4.795,214,35,1,214,35,6.71
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,600.04,,199.22,1.824,4.800,329,125,1,329,125,3.14
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,176.01,,99.54,0.893,2.708,197,65,1,197,65,5.439
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,241.89,,75.37,0.568,8.639,426,28,1,426,28,4.543
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,203.84,,57.67,0.416,7.280,490,28,1,490,28,5.129
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,137.74,,78.00,0.455,3.936,303,35,1,303,35,8.162
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,180.44,,92.86,0.370,5.155,488,35,1,488,35,6.283
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,303.14,,97.03,0.557,8.661,544,35,1,544,35,4.164
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,882.39,,296.77,1.473,7.059,599,125,1,599,125,2.558
-yolo_v3_tiny,OV-2023.0,atom,Intel® Processor N-200,7.82,,4.15,0.041,1.304,193,6,1,193,6,136.62
-yolo_v3_tiny,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,349.17,,156.05,0.588,2.793,594,125,1,594,125,2.995
-yolo_v3_tiny,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,106.71,,64.03,0.429,1.503,249,71,1,249,71,9.391
-yolo_v3_tiny,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,1052.16,,339.30,0.335,5.158,3144,204,2,1572,102,2.514
-yolo_v3_tiny,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,2932.78,,914.37,0.173,7.153,16954,410,2,8477,205,1.216
-yolo_v3_tiny,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,1010.00,,323.69,0.504,4.040,2004,250,2,1002,125,2.623
-yolo_v3_tiny,OV-2023.0,core,Intel® Core™ i7-11800H,448.62,,139.59,1.031,9.969,435,45,1,435,45,2.61
-yolo_v3_tiny,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,4584.21,,1374.00,0.245,8.489,18718,540,2,9359,270,0.876
-yolo_v3_tiny,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,13092.13,,2107.19,0.385,18.703,34000,700,2,17000,350,1.143
-yolo_v3_tiny,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,2217.64,,704.05,0.975,7.392,2274,300,2,1137,150,1.319
-yolo_v3_tiny,OV-2023.0,accel,Intel® Flex-170,3196.82,2123.72,,1.661,21.312,1925,150,1,1925,150,4.692
-yolo_v3_tiny,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,290.98,151.90,86.09,2.719,19.398,107,15,1,107,15,13.63
-yolo_v3_tiny,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,505.41,257.15,136.41,1.031,18.050,490,28,1,490,28,7.676
-yolo_v3_tiny,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,616.60,331.25,206.56,0.885,13.702,697,45,1,697,45,6.288
-yolo_v3_tiny,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,17.57,9.95,5.67,0.091,2.928,193,6,1,193,6,226.048
-yolo_v3_tiny,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,547.67,291.75,171.00,1.286,19.560,426,28,1,426,28,7.089
-yolo_v3_tiny,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,321.12,,92.81,3.001,21.408,107,15,1,107,15,
-yolo_v3_tiny,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,324.93,,98.38,0.663,11.605,490,28,1,490,28,
-yolo_v3_tiny,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,755.15,,230.16,1.083,16.781,697,45,1,697,45,
-yolo_v3_tiny,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,24.02,,7.84,0.124,4.003,193,6,1,193,6,
-yolo_v3_tiny,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,487.88,,144.54,1.145,17.424,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-yolo_v8n,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,184.70,,72.61,0.265,4.104,697,45,1,697,45,7.542
-yolo_v8n,OV-2023.0,atom,Intel®  Atom™  x5-E3940 CPU-only,5.69,,3.01,0.167,0.598,34,9.5,1,34,9.5,185.626
-yolo_v8n,OV-2023.0,atom,Intel®  Celeron™  6305E CPU-only,24.68,,9.60,0.231,1.645,107,15,1,107,15,40.111
-yolo_v8n,OV-2023.0,core,Intel® Core™  i3-8100 CPU-only,53.97,,33.14,0.461,0.830,117,65,1,117,65,18.918
-yolo_v8n,OV-2023.0,core,Intel® Core™  i5-10500TE CPU-only,81.11,,47.46,0.379,2.317,214,35,1,214,35,16.114
-yolo_v8n,OV-2023.0,core,Intel® Core™  i5-13600K CPU-only,244.02,,96.78,0.742,1.952,329,125,1,329,125,6.96
-yolo_v8n,OV-2023.0,core,Intel® Core™  i5-8500 CPU-only,84.64,,51.15,0.430,1.302,197,65,1,197,65,11.917
-yolo_v8n,OV-2023.0,core,Intel® Core™  i7-1185G7 CPU-only,106.30,,39.77,0.250,3.796,426,28,1,426,28,10.673
-yolo_v8n,OV-2023.0,core,Intel® Core™  i7-1185GRE CPU-only,76.65,,29.15,0.156,2.738,490,28,1,490,28,12.187
-yolo_v8n,OV-2023.0,core,Intel® Core™  i7-8700T CPU-only,69.89,,42.39,0.231,1.997,303,35,1,303,35,16.596
-yolo_v8n,OV-2023.0,core,Intel® Core™  i9-10900TE CPU-only,83.42,,49.70,0.171,2.383,488,35,1,488,35,13.027
-yolo_v8n,OV-2023.0,core,Intel® Core™  i9-12900TE CPU-only,132.88,,51.98,0.244,3.796,544,35,1,544,35,9.23
-yolo_v8n,OV-2023.0,core,Intel® Core™  i9-13900K CPU-only,379.01,,156.74,0.633,3.032,599,125,1,599,125,5.512
-yolo_v8n,OV-2023.0,atom,Intel® Processor N-200,3.25,,1.94,0.017,0.541,193,6,1,193,6,315.715
-yolo_v8n,OV-2023.0,xeon,Intel®  Xeon® W1290P CPU-only,125.84,,74.97,0.212,1.007,594,125,1,594,125,6.46
-yolo_v8n,OV-2023.0,xeon,Intel®  Xeon®  E-2124G CPU-only,52.07,,32.87,0.209,0.733,249,71,1,249,71,19.471
-yolo_v8n,OV-2023.0,xeon,Intel®  Xeon®  Gold 5218T CPU-only,449.63,,175.44,0.143,2.204,3144,204,2,1572,102,5.959
-yolo_v8n,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,996.63,,459.95,0.059,2.431,16954,410,2,8477,205,3.622
-yolo_v8n,OV-2023.0,xeon,Intel®  Xeon®  Silver 4216R CPU-only,432.72,,168.42,0.216,1.731,2004,250,2,1002,125,6.229
-yolo_v8n,OV-2023.0,core,Intel® Core™ i7-11800H,194.10,,74.94,0.446,4.313,435,45,1,435,45,5.995
-yolo_v8n,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,1686.49,,552.54,0.090,3.123,18718,540,2,9359,270,2.37
-yolo_v8n,OV-2023.0,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,2714.73,,1006.34,0.080,3.878,34000,700,2,17000,350,4.403
-yolo_v8n,OV-2023.0,xeon,Intel®  Xeon®  Silver 4316 CPU-only,846.47,,341.19,0.372,2.822,2274,300,2,1137,150,3.309
-yolo_v8n,OV-2023.0,accel,Intel® Flex-170,1205.32,1210.94,,0.626,8.035,1925,150,1,1925,150,12.951
-yolo_v8n,OV-2023.0,core-iGPU,Intel®  Celeron™  6305E GPU-only,126.20,82.53,48.62,1.179,8.413,107,15,1,107,15,31.597
-yolo_v8n,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,154.20,106.82,59.95,0.315,5.507,490,28,1,490,28,24.83
-yolo_v8n,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,218.28,155.96,102.82,0.313,4.851,697,45,1,697,45,17.971
-yolo_v8n,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,8.78,5.75,3.36,0.045,1.463,193,6,1,193,6,454.508
-yolo_v8n,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,201.27,141.88,88.88,0.472,7.188,426,28,1,426,28,19.643
-yolo_v8n,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,111.94,,48.30,1.046,7.462,107,15,1,107,15,
-yolo_v8n,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,116.95,,45.54,0.239,4.177,490,28,1,490,28,
-yolo_v8n,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,283.25,,118.51,0.406,6.294,697,45,1,697,45,
-yolo_v8n,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,10.11,,4.49,0.052,1.685,193,6,1,193,6,
-yolo_v8n,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,175.79,,75.16,0.413,6.278,426,28,1,426,28,
-end_rec,,,,,,,,,,,,,,
+﻿Network model,Release,IE-Type,Platform name,Throughput-INT8,ThroughputFP16,ThroughputFP32,Value,Efficiency,Price,TDP,Sockets,Price/socket,TDP/socket,Latency,UOM_T,UOM_V,UOM_E,UOM_L
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,11.35,,4.27,0.106093669,0.756801503,107,15,1,107,15,88.11,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,21.38,,15.11,0.182727309,0.328909156,117,65,1,117,65,48.47,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,32.23,,20.26,0.15061144,0.495859202,214,65,1,214,65,36.18,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,113.18,,45.08,0.344024364,0.905472125,329,125,1,329,125,17.43,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,34.34,,24.04,0.178867029,0.528345686,192,65,1,192,65,30.88,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,51.27,,18.44,0.120345681,1.830973571,426,28,1,426,28,23.31,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,37.98,,13.59,0.077518083,1.356566444,490,28,1,490,28,29.22,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,27.60,,17.56,0.091086845,0.788551831,303,35,1,303,35,42.83,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,34.12,,20.30,0.069915909,0.974827538,488,35,1,488,35,37.09,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,53.08,,19.48,0.097575059,1.516595204,544,35,1,544,35,23.07,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,163.20,,66.23,0.272459575,1.305626285,599,125,1,599,125,13.68,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,atom,Intel® Processor N-200,1.65,,0.83,0.008529061,0.274351466,193,6,1,193,6,641.46,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,51.01,,29.43,0.08587761,0.408090401,594,125,1,594,125,28.93,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,20.86,,14.80,0.068171185,0.293808206,306,71,1,306,71,49.41,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,217.83,,80.66,0.069284052,1.037281242,3144,210,2,1572,105,13.64,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,572.10,,224.73,0.033744047,1.395357512,16954,410,2,8477,205,7.81,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,872.62,,338.47,0.04661922,1.61596031,18718,540,2,9359,270,43.32,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,3255.60,,505.88,0.095752851,4.650852741,34000,700,2,17000,350,4.08,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,204.84,,76.40,0.101307066,1.024214437,2022,200,2,1011,100,14.24,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,426.78,,167.54,0.187678462,1.422602743,2274,300,2,1137,150,8.09,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,accel,Intel® Flex-170,842.00,683.21,,,,,,1,,,18.63,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,accel,Intel® Flex-140,174.28,123.71,,,,,,1,,,91.68,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,45.83,31.96,,0.428279604,3.055061174,107,15,1,107,15,87.12,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,73.09,55.44,,0.149162436,2.610342624,490,28,1,490,28,54.56,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,3.37,2.36,,0.017448724,0.561267278,193,6,1,193,6,1185.78,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,84.42,60.51,,0.198161663,3.014888156,426,28,1,426,28,46.90,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,46.67,,23.26,0.436174206,3.111376,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,73.20,,31.70,0.149385536,2.614246884,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,4.43,,2.03,0.022934748,0.7377344,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+bert-base-cased,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,83.69,,37.23,0.196445915,2.988784286,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,1.18,,0.38,0.011017319,0.078590206,107,15,1,107,15,863.34,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,2.09,,1.33,0.017880344,0.032184618,117,65,1,117,65,492.10,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,2.97,,1.87,0.013882493,0.045705439,214,65,1,214,65,347.78,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,9.93,,3.74,0.030176091,0.079423471,329,125,1,329,125,155.72,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,3.36,,2.13,0.017518449,0.051746803,192,65,1,192,65,302.24,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,5.09,,1.63,0.011951214,0.181829179,426,28,1,426,28,219.77,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,3.79,,1.22,0.007726669,0.135216715,490,28,1,490,28,266.14,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,2.71,,1.61,0.008936965,0.077368581,303,35,1,303,35,412.44,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,3.35,,1.83,0.006861724,0.095672042,488,35,1,488,35,327.59,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,5.06,,1.75,0.009296462,0.144493584,544,35,1,544,35,210.96,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,15.19,,5.91,0.025358635,0.12151858,599,125,1,599,125,113.61,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,atom,Intel® Processor N-200,0.16,,0.08,0.000828224,0.0266412,193,6,1,193,6,6367.32,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,4.66,,2.88,0.007842661,0.037268324,594,125,1,594,125,224.55,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,2.11,,1.34,0.006898006,0.029729433,306,71,1,306,71,486.76,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,21.27,,6.90,0.006764356,0.101272067,3144,210,2,1572,105,103.38,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,50.91,,17.71,0.003002727,0.124166415,16954,410,2,8477,205,63.45,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,67.03,,27.69,0.003581195,0.124134843,18718,540,2,9359,270,253.77,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,251.10,,47.69,0.007385431,0.358720946,34000,700,2,17000,350,36.69,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,20.81,,6.64,0.010291168,0.104043704,2022,200,2,1011,100,106.83,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,38.76,,14.75,0.017046987,0.129216158,2274,300,2,1137,150,237.83,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,accel,Intel® Flex-170,144.12,101.13,,,,,,1,,,110.90,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,accel,Intel® Flex-140,29.97,20.57,,,,,,1,,,534.35,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,4.66,3.35,,0.043581125,0.31087869,107,15,1,107,15,820.82,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,5.11,5.77,,0.010428379,0.182496635,490,28,1,490,28,745.40,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,0.34,0.23,,0.00174067,0.055991537,193,6,1,193,6,11899.92,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,9.13,6.65,,0.021425568,0.325974707,426,28,1,426,28,449.68,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,5.20,,2.33,0.048610495,0.346754867,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,3.87,,2.23,0.007899318,0.138238071,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,0.44,,0.17,0.002288653,0.073618327,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,8.63,,3.52,0.02025661,0.308189857,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,11.86,,4.61,0.11084032,0.79066095,107,15,1,107,15,85.88,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,22.85,,14.48,0.195256904,0.351462427,117,65,1,117,65,43.93,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,34.47,,16.42,0.161068212,0.530286114,214,65,1,214,65,33.07,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,94.13,,42.32,0.286105004,0.753028371,329,125,1,329,125,16.23,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,37.18,,21.16,0.193650962,0.572015148,192,65,1,192,65,27.36,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,52.88,,16.51,0.124135164,1.888627857,426,28,1,426,28,19.87,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,30.78,,9.65,0.062807791,1.099136335,490,28,1,490,28,31.13,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,32.02,,18.34,0.105688204,0.914957883,303,35,1,303,35,37.47,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,40.36,,18.54,0.082712269,1.153245355,488,35,1,488,35,27.15,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,57.69,,22.51,0.106053446,1.648373567,544,35,1,544,35,21.75,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,148.87,,57.81,0.248526818,1.190940511,599,125,1,599,125,12.44,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,atom,Intel® Processor N-200,1.72,,1.01,0.008897382,0.286199128,193,6,1,193,6,595.26,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,51.51,,19.39,0.086713894,0.412064422,594,125,1,594,125,21.10,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,22.69,,15.40,0.074145796,0.319557937,306,71,1,306,71,43.78,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,190.40,,77.08,0.060561308,0.906689304,3144,210,2,1572,105,11.76,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,416.77,,155.13,0.024582207,1.016504228,16954,410,2,8477,205,5.66,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,584.92,,227.30,0.031248866,1.083178298,18718,540,2,9359,270,3.70,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,999.22,,380.82,0.029388758,1.427453957,34000,700,2,17000,350,3.55,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,184.31,,74.61,0.091151132,0.921537946,2022,200,2,1011,100,12.07,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,370.93,,139.96,0.163117657,1.236431838,2274,300,2,1137,150,6.87,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,accel,Intel® Flex-170,803.58,560.76,,,,,,1,,,19.59,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,accel,Intel® Flex-140,148.01,97.06,,,,,,1,,,108.12,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,60.17,27.60,,0.562349486,4.011426332,107,15,1,107,15,66.33,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,76.40,36.69,,0.155928067,2.728741167,490,28,1,490,28,51.90,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,3.65,1.92,,0.018917206,0.608503456,193,6,1,193,6,1094.30,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,105.14,48.76,,0.24680943,3.755029182,426,28,1,426,28,37.64,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,61.90,,17.22,0.578511308,4.126714,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,49.44,,9.02,0.100894422,1.765652381,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,4.81,,2.03,0.024920889,0.801621937,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+deeplabv3,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,89.16,,24.78,0.209304953,3.184425357,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,272.36,,133.20,2.545454771,18.15757736,107,15,1,107,15,3.60,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,542.97,,451.26,4.640733479,8.353320262,117,65,1,117,65,1.99,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,899.54,,499.68,4.203451742,13.8390565,214,65,1,214,65,1.58,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,2804.17,,1285.76,8.523326054,22.43339417,329,125,1,329,125,0.88,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,868.27,,679.32,4.522249945,13.35803061,192,65,1,192,65,1.35,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,1372.54,,531.48,3.221931925,49.01939286,426,28,1,426,28,0.96,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,990.18,,318.31,2.020773404,35.36353457,490,28,1,490,28,1.18,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,741.91,,511.96,2.448553162,21.19747452,303,35,1,303,35,1.84,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,960.08,,614.86,1.967381666,27.43092151,488,35,1,488,35,1.49,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,1296.04,,651.56,2.382432184,37.02980308,544,35,1,544,35,1.31,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,4078.62,,2016.89,6.809056345,32.628998,599,125,1,599,125,0.73,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,atom,Intel® Processor N-200,39.61,,29.85,0.205210747,6.600945698,193,6,1,193,6,26.82,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,1458.83,,554.06,2.455950239,11.67067553,594,125,1,594,125,1.29,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,527.91,,453.23,1.725211318,7.435417792,306,71,1,306,71,2.04,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,5479.84,,1921.88,1.742952604,26.09449042,3144,210,2,1572,105,1.43,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,14421.48,,4410.27,0.850624065,35.17434244,16954,410,2,8477,205,0.92,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,22622.04,,6912.71,1.208571487,41.89266868,18718,540,2,9359,270,0.56,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,38771.76,,10993.76,1.140345798,55.3882245,34000,700,2,17000,350,0.66,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,5229.87,,1856.59,2.586481754,26.14933053,2022,200,2,1011,100,1.44,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,12359.26,,3615.96,5.435030176,41.19752874,2274,300,2,1137,150,0.55,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,accel,Intel® Flex-170,7195.50,6410.60,,,,,,1,,,1.97,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,accel,Intel® Flex-140,1219.84,1149.89,,,,,,1,,,13.07,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,692.73,509.86,,6.474119544,46.18205274,107,15,1,107,15,5.58,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,903.44,556.69,,1.84375582,32.26572686,490,28,1,490,28,4.30,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,57.93,40.13,,0.300129792,9.65417499,193,6,1,193,6,68.05,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,1008.77,740.13,,2.36801077,36.02759243,426,28,1,426,28,3.82,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,514.94,,313.82,4.812519626,34.32930667,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,1114.75,,268.28,2.275002757,39.81254825,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,73.89,,44.62,0.38286464,12.31547925,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+mobilenet-v2,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,1497.43,,605.84,3.515084507,53.4795,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,49.96,,14.45,0.466891776,3.330494671,107,15,1,107,15,19.80,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,97.49,,51.23,0.833227829,1.499810092,117,65,1,117,65,10.67,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,145.23,,74.40,0.678644387,2.234306135,214,65,1,214,65,8.18,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,515.94,,140.29,1.568210731,4.127530643,329,125,1,329,125,3.87,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,158.18,,82.33,0.823856129,2.433544259,192,65,1,192,65,7.04,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,229.98,,61.97,0.539855399,8.213514286,426,28,1,426,28,5.09,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,173.03,,44.88,0.353117963,6.179564359,490,28,1,490,28,6.59,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,122.85,,61.90,0.405448145,3.510022512,303,35,1,303,35,9.95,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,158.96,,76.32,0.325734087,4.541663835,488,35,1,488,35,7.54,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,270.04,,72.19,0.496399722,7.715469968,544,35,1,544,35,4.89,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,749.50,,228.07,1.251250835,5.995994004,599,125,1,599,125,2.93,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,atom,Intel® Processor N-200,6.55,,3.16,0.03395277,1.092147419,193,6,1,193,6,159.41,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,242.15,,98.01,0.407662044,1.937210033,594,125,1,594,125,5.41,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,93.12,,50.42,0.30430895,1.311528714,306,71,1,306,71,11.07,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,967.51,,269.32,0.307731475,4.607179803,3144,210,2,1572,105,2.90,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,2904.14,,747.72,0.171295011,7.083257598,16954,410,2,8477,205,1.53,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,4995.38,,1161.61,0.266875909,9.250709751,18718,540,2,9359,270,1.02,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,20106.68,,1683.03,0.591372933,28.72382815,34000,700,2,17000,350,1.01,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,930.86,,255.73,0.46036761,4.654316532,2022,200,2,1011,100,3.01,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,2277.89,,566.74,1.001712531,7.592980986,2274,300,2,1137,150,1.47,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,accel,Intel® Flex-170,3587.03,2207.96,,,,,,1,,,4.17,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,accel,Intel® Flex-140,681.39,441.41,,,,,,1,,,23.43,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,211.61,117.01,,1.977639185,14.10715952,107,15,1,107,15,18.79,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,289.48,170.46,,0.590782847,10.33869983,490,28,1,490,28,13.64,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,14.62,7.80,,0.075769949,2.437266688,193,6,1,193,6,272.49,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,352.09,211.39,,0.826510493,12.57476679,426,28,1,426,28,11.09,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,201.96,,71.44,1.887469159,13.46394667,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,307.08,,88.49,0.626686058,10.96700601,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,18.58,,6.49,0.09624999,3.096041335,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+resnet-50,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,358.14,,114.23,0.840715023,12.79087857,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,107.63,,36.80,1.005906996,7.175469906,107,15,1,107,15,9.12,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,212.15,,122.46,1.813284395,3.263911911,117,65,1,117,65,4.93,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,327.95,,171.39,1.532485774,5.045414702,214,65,1,214,65,3.61,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,999.78,,361.81,3.038835794,7.99821581,329,125,1,329,125,1.90,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,343.23,,200.57,1.787633018,5.280392915,192,65,1,192,65,3.11,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,518.48,,150.36,1.217089202,18.51714286,426,28,1,426,28,2.24,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,387.68,,101.48,0.791191606,13.8458531,490,28,1,490,28,2.80,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,275.38,,157.24,0.908858835,7.868120772,303,35,1,303,35,4.33,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,367.82,,194.43,0.753734827,10.50921702,488,35,1,488,35,3.35,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,543.47,,186.05,0.999034589,15.5278519,544,35,1,544,35,2.61,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,1525.02,,586.71,2.545949853,12.20019169,599,125,1,599,125,1.62,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,atom,Intel® Processor N-200,14.49,,7.97,0.075060228,2.414437321,193,6,1,193,6,71.99,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,577.55,,223.76,0.972304716,4.620392012,594,125,1,594,125,2.38,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,203.21,,126.30,0.664084594,2.862111065,306,71,1,306,71,5.09,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,2048.96,,639.54,0.651703831,9.756937353,3144,210,2,1572,105,1.57,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,5725.24,,1655.76,0.337692546,13.96399861,16954,410,2,8477,205,1.11,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,10274.06,,2354.69,0.548886883,19.0260457,18718,540,2,9359,270,0.67,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,22569.91,,3519.34,0.663820955,32.24273208,34000,700,2,17000,350,0.82,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,1946.94,,612.87,0.962878848,9.73470515,2022,200,2,1011,100,1.63,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,4808.85,,1247.67,2.114709828,16.02950049,2274,300,2,1137,150,0.81,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,accel,Intel® Flex-170,4012.21,3280.14,,,,,,1,,,3.65,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,accel,Intel® Flex-140,837.59,673.84,,,,,,1,,,19.02,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,408.97,220.07,,3.822128486,27.26451654,107,15,1,107,15,9.63,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,522.64,285.29,,1.066608011,18.6656402,490,28,1,490,28,7.49,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,28.92,15.36,,0.149828275,4.819476185,193,6,1,193,6,136.60,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,637.62,384.26,,1.496766725,22.77223659,426,28,1,426,28,6.11,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,321.29,,138.22,3.002740187,21.41954667,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,531.28,,141.48,1.084245141,18.97428996,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,35.69,,14.88,0.184945841,5.949091211,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+ssd_mobilenet_v1_coco,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,690.18,,239.85,1.620143192,24.64932143,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,0.89,,0.23,0.00834996,0.059563049,107,15,1,107,15,1119.27,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,1.68,,0.97,0.014338412,0.025809141,117,65,1,117,65,596.89,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,2.42,,1.40,0.011301245,0.037207176,214,65,1,214,65,459.48,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,8.23,,2.40,0.025006186,0.065816281,329,125,1,329,125,163.47,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,2.78,,1.56,0.014501179,0.042834252,192,65,1,192,65,362.12,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,3.93,,1.00,0.009217819,0.140242536,426,28,1,426,28,278.25,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,2.96,,0.76,0.006043555,0.105762215,490,28,1,490,28,336.81,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,2.02,,1.13,0.006664408,0.057694728,303,35,1,303,35,563.91,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,2.68,,1.49,0.00548551,0.076483685,488,35,1,488,35,405.46,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,4.40,,1.32,0.008086729,0.125690868,544,35,1,544,35,235.75,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,12.52,,4.02,0.020905788,0.100180536,599,125,1,599,125,125.64,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,atom,Intel® Processor N-200,0.11,,0.05,0.000581374,0.01870087,193,6,1,193,6,8951.48,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,4.33,,2.45,0.007285664,0.034621476,594,125,1,594,125,239.93,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,1.60,,0.92,0.005224348,0.022516206,306,71,1,306,71,625.20,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,17.63,,4.57,0.005609079,0.083975927,3144,210,2,1572,105,115.76,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,57.85,,14.82,0.003412426,0.141107992,16954,410,2,8477,205,36.60,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,79.09,,20.81,0.004225558,0.146470375,18718,540,2,9359,270,106.87,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,445.98,,31.40,0.013117158,0.637119123,34000,700,2,17000,350,8.59,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,16.77,,4.34,0.008295831,0.083870853,2022,200,2,1011,100,121.62,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,42.59,,10.54,0.018728616,0.141962906,2274,300,2,1137,150,59.65,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,accel,Intel® Flex-170,167.49,103.03,,,,,,1,,,95.09,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,accel,Intel® Flex-140,29.99,17.56,,,,,,1,,,529.50,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,5.05,2.63,,0.047178932,0.336543045,107,15,1,107,15,773.01,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,8.98,4.71,,0.018327459,0.320730535,490,28,1,490,28,445.01,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,0.29,0.16,,0.001497632,0.048173819,193,6,1,193,6,13818.30,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,9.70,5.44,,0.022760985,0.34629213,426,28,1,426,28,422.10,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,0.90,,0.23,0.00837685,0.059754867,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,2.91,,0.75,0.005937663,0.103909111,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,0.11,,0.05,0.000582108,0.01872448,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+ssd-resnet34-1200,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,3.92,,1.00,0.00919669,0.139921071,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,5.46,,1.54,0.051044248,0.364115633,107,15,1,107,15,183.90,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,10.65,,5.82,0.09106238,0.163912284,117,65,1,117,65,94.90,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,15.38,,8.31,0.071851432,0.236557023,214,65,1,214,65,74.19,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,51.71,,15.62,0.157162207,0.41365093,329,125,1,329,125,29.85,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,17.56,,9.38,0.091438134,0.270094181,192,65,1,192,65,57.84,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,24.16,,6.62,0.056714953,0.8628775,426,28,1,426,28,45.99,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,18.06,,4.86,0.03686323,0.645106519,490,28,1,490,28,57.19,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,12.66,,6.85,0.041784766,0.361736687,303,35,1,303,35,86.80,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,16.86,,8.71,0.034540452,0.48159259,488,35,1,488,35,65.99,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,27.01,,8.10,0.049658249,0.771831063,544,35,1,544,35,42.00,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,78.04,,25.56,0.1302838,0.62431997,599,125,1,599,125,23.30,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,atom,Intel® Processor N-200,0.70,,0.35,0.003642344,0.117162061,193,6,1,193,6,1468.27,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,27.34,,14.09,0.046032451,0.218746209,594,125,1,594,125,40.58,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,10.07,,5.66,0.032912167,0.141846806,306,71,1,306,71,100.10,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,106.30,,29.82,0.033811441,0.506205571,3144,210,2,1572,105,21.86,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,313.22,,88.20,0.018474663,0.76394984,16954,410,2,8477,205,10.58,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,493.02,,109.11,0.026339551,0.913006894,18718,540,2,9359,270,18.51,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,2136.92,,194.88,0.06285072,3.052749275,34000,700,2,17000,350,3.29,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,101.27,,28.40,0.050083923,0.50634846,2022,200,2,1011,100,22.87,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,242.00,,62.34,0.106421602,0.806675746,2274,300,2,1137,150,13.70,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,accel,Intel® Flex-170,789.11,338.45,,,,,,1,,,19.85,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,accel,Intel® Flex-140,159.67,87.28,,,,,,1,,,99.99,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,31.90,15.02,,0.298118652,2.126579715,107,15,1,107,15,123.93,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,57.77,25.96,,0.117907546,2.063382053,490,28,1,490,28,68.96,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,1.76,0.94,,0.009116198,0.293237699,193,6,1,193,6,2271.06,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,63.86,29.69,,0.149904983,2.280697234,426,28,1,426,28,63.56,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,34.09,,9.18,0.318603364,2.272704,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,55.18,,12.97,0.112605748,1.970600588,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,2.22,,0.74,0.011488536,0.369547916,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,52.21,,13.99,0.122567488,1.864776786,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,54.42,,18.04,0.508553978,3.627685044,107,15,1,107,15,18.25,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,112.01,,63.79,0.957390784,1.723303411,117,65,1,117,65,9.02,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,167.15,,91.46,0.781091755,2.571594392,214,65,1,214,65,6.72,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,599.98,,196.78,1.823638134,4.799815567,329,125,1,329,125,3.05,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,185.17,,102.47,0.964441757,2.848812574,192,65,1,192,65,5.42,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,251.02,,77.47,0.589250939,8.965032143,426,28,1,426,28,4.54,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,186.99,,55.22,0.381609578,6.678167613,490,28,1,490,28,5.74,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,137.72,,76.53,0.454530194,3.934932821,303,35,1,303,35,8.20,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,186.09,,96.75,0.381340728,5.316979292,488,35,1,488,35,6.26,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,290.20,,92.52,0.533462621,8.291533312,544,35,1,544,35,4.20,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,858.94,,286.41,1.433957861,6.871526071,599,125,1,599,125,2.44,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,atom,Intel® Processor N-200,7.65,,4.05,0.039622221,1.27451476,193,6,1,193,6,136.49,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,298.60,,148.94,0.502696157,2.388812138,594,125,1,594,125,3.99,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,106.58,,62.62,0.348291454,1.501087112,306,71,1,306,71,9.44,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,1051.30,,339.08,0.334382549,5.006184448,3144,210,2,1572,105,2.51,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,2824.66,,923.96,0.166607362,6.889417597,16954,410,2,8477,205,1.22,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,4664.34,,1378.51,0.249189958,8.637662274,18718,540,2,9359,270,0.87,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,13094.97,,2140.00,0.385146034,18.70709309,34000,700,2,17000,350,1.09,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,1008.44,,322.64,0.49873439,5.042204682,2022,200,2,1011,100,2.62,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,2217.58,,702.90,0.975190642,7.391945065,2274,300,2,1137,150,1.33,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,accel,Intel® Flex-170,3731.30,2395.93,,,,,,1,,,4.06,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,accel,Intel® Flex-140,595.41,589.87,,,,,,1,,,26.79,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,289.69,151.78,,2.707403451,19.31281129,107,15,1,107,15,13.67,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,482.61,255.46,,0.984928525,17.23624918,490,28,1,490,28,8.06,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,18.65,9.81,,0.096624282,3.108081056,193,6,1,193,6,212.84,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,555.59,293.27,,1.304201059,19.84248754,426,28,1,426,28,6.92,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,266.57,,93.47,2.491299065,17.77126667,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,383.36,,116.03,0.782374111,13.69154694,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,23.03,,8.30,0.119308014,3.837741122,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+yolo-v3-tiny,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,444.34,,149.05,1.043043427,15.86916071,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,1.49,,0.38,0.013950494,0.099513526,107,15,1,107,15,672.25,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,2.43,,1.57,0.020775748,0.037396346,117,65,1,117,65,425.88,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,3.62,,2.29,0.016924989,0.055722272,214,65,1,214,65,322.49,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,11.46,,3.96,0.03483307,0.091680639,329,125,1,329,125,121.88,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,3.95,,2.54,0.020576722,0.06078047,192,65,1,192,65,262.38,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,6.56,,1.65,0.015387439,0.234108893,426,28,1,426,28,169.32,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,4.93,,1.23,0.010063508,0.176111389,490,28,1,490,28,209.95,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,3.02,,1.85,0.009976084,0.086364383,303,35,1,303,35,386.94,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,3.86,,2.43,0.007900388,0.110153975,488,35,1,488,35,282.08,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,6.32,,2.19,0.01162052,0.18061608,544,35,1,544,35,169.49,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,18.02,,6.59,0.030079429,0.144140625,599,125,1,599,125,91.92,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,atom,Intel® Processor N-200,0.17,,0.09,0.000895225,0.0287964,193,6,1,193,6,5824.42,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,6.10,,3.95,0.010266964,0.048788613,594,125,1,594,125,180.82,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,2.33,,1.48,0.007623167,0.032854777,306,71,1,306,71,431.48,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,29.17,,7.32,0.009277061,0.138890851,3144,210,2,1572,105,70.99,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,95.18,,21.75,0.005614225,0.232155061,16954,410,2,8477,205,23.58,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,129.66,,31.77,0.006926924,0.240107724,18718,540,2,9359,270,73.18,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,597.42,,48.08,0.017571322,0.853464211,34000,700,2,17000,350,9.00,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,27.77,,6.96,0.01373266,0.138837194,2022,200,2,1011,100,74.54,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,68.21,,15.93,0.029995749,0.227367774,2274,300,2,1137,150,43.86,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,accel,Intel® Flex-170,277.97,158.53,,,,,,1,,,57.27,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,accel,Intel® Flex-140,46.10,28.49,,,,,,1,,,346.80,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,8.40,4.35,,0.078545387,0.56029043,107,15,1,107,15,475.75,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,15.51,7.81,,0.03164744,0.553830203,490,28,1,490,28,257.89,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,0.46,0.25,,0.002385152,0.076722378,193,6,1,193,6,8685.75,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,17.28,8.86,,0.04056698,0.617197621,426,28,1,426,28,227.89,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,8.96,,2.57,0.083779393,0.597626333,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,15.42,,3.90,0.031467977,0.550689601,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,0.55,,0.19,0.002833692,0.09115042,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+unet-camvid-onnx-0001,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,14.32,,3.81,0.033621549,0.511527857,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,24.40,,9.61,0.22800938,1.626466914,107,15,1,107,15,40.45,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,53.51,,33.07,0.457363269,0.823253884,117,65,1,117,65,19.20,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,81.91,,47.09,0.382748211,1.260124878,214,65,1,214,65,13.68,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,248.13,,95.51,0.754209583,1.985079623,329,125,1,329,125,6.70,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,86.77,,53.00,0.451947196,1.334982486,192,65,1,192,65,11.88,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,110.84,,40.77,0.260193662,3.958660714,426,28,1,426,28,10.71,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,76.53,,27.31,0.156180065,2.733151145,490,28,1,490,28,13.42,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,71.40,,42.60,0.235643867,2.040002619,303,35,1,303,35,16.51,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,93.44,,53.42,0.19148001,2.669778431,488,35,1,488,35,12.45,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,129.22,,50.19,0.237534522,3.691965149,544,35,1,544,35,9.42,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,374.34,,153.46,0.624943307,2.994728327,599,125,1,599,125,5.32,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,atom,Intel® Processor N-200,3.26,,1.95,0.016869276,0.542628378,193,6,1,193,6,316.56,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,136.37,,72.87,0.229579691,1.090962692,594,125,1,594,125,9.15,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,52.29,,32.98,0.170869765,0.73642462,306,71,1,306,71,19.47,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,452.92,,175.37,0.144058565,2.156762523,3144,210,2,1572,105,5.85,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,978.34,,454.72,0.057705352,2.386186661,16954,410,2,8477,205,3.51,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,1708.13,,573.45,0.091255994,3.163203145,18718,540,2,9359,270,2.38,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,2882.62,,945.60,0.084783045,4.118033592,34000,700,2,17000,350,3.82,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,431.62,,166.10,0.213460485,2.158085503,2022,200,2,1011,100,6.19,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,855.04,,342.65,0.376007503,2.850136872,2274,300,2,1137,150,3.25,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,accel,Intel® Flex-170,1445.14,1480.07,,,,,,1,,,10.71,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,accel,Intel® Flex-140,201.93,259.00,,,,,,1,,,79.17,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,126.14,82.58,,1.178855159,8.409166799,107,15,1,107,15,31.55,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,170.37,110.99,,0.347683792,6.084466364,490,28,1,490,28,23.22,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,8.61,5.66,,0.044636,1.435791346,193,6,1,193,6,463.22,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,210.16,143.23,,0.493335138,7.505741748,426,28,1,426,28,18.84,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,116.50,,51.35,1.088790654,7.766706667,107,15,1,107,15,,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,114.23,,46.77,0.233123263,4.079657102,490,28,1,490,28,,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,10.54,,4.68,0.05458634,1.755860615,193,6,1,193,6,,FPS,FPS/$,FPS/TDP,msec.
+yolo_v8n,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,181.83,,76.10,0.426834977,6.493989286,426,28,1,426,28,,FPS,FPS/$,FPS/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,,,,0,0,107,15,1,107,15,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,,,,0,0,117,65,1,117,65,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,,,,0,0,214,65,1,214,65,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,,,,0,0,329,125,1,329,125,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,,,,0,0,192,65,1,192,65,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,,,,0,0,426,28,1,426,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,,,,0,0,490,28,1,490,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,,,,0,0,303,35,1,303,35,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,,,,0,0,488,35,1,488,35,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,,,,0,0,544,35,1,544,35,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,32.34,,49.17,0.053990134,0.25872072,599,125,1,599,125,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,atom,Intel® Processor N-200,,,,0,0,193,6,1,193,6,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,,,,0,0,594,125,1,594,125,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,,,,0,0,306,71,1,306,71,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,,,,0,0,3144,210,2,1572,105,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,,,,0,0,16954,410,2,8477,205,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,28.29,,43.45,0.001511565,0.052395333,18718,540,2,9359,270,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,47.21,,52.77,0.00138849,0.067440929,34000,700,2,17000,350,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,,,,0,0,2022,200,2,1011,100,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,40.07,,42.88,0.017620783,0.133565533,2274,300,2,1137,150,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,accel,Intel® Flex-170,81.64,,82.81,,,,,1,,,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,accel,Intel® Flex-140,70.36,,65.11,,,,,1,,,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,,,,0,0,107,15,1,107,15,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,,,,0,0,490,28,1,490,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,,,,0,0,193,6,1,193,6,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,,,,0,0,426,28,1,426,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,,,,0,0,107,15,1,107,15,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,,,,0,0,490,28,1,490,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,,,,0,0,193,6,1,193,6,,msec/token,msec/token/$,msec/token/TDP,msec.
+bloomz-560m,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,,,,0,0,426,28,1,426,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,,,,0,0,107,15,1,107,15,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,,,,0,0,117,65,1,117,65,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,,,,0,0,214,65,1,214,65,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,,,,0,0,329,125,1,329,125,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,,,,0,0,192,65,1,192,65,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,,,,0,0,426,28,1,426,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,,,,0,0,490,28,1,490,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,,,,0,0,303,35,1,303,35,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,,,,0,0,488,35,1,488,35,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,,,,0,0,544,35,1,544,35,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,242.95,,457.83,0.405588331,1.94357928,599,125,1,599,125,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,atom,Intel® Processor N-200,,,,0,0,193,6,1,193,6,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,,,,0,0,594,125,1,594,125,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,,,,0,0,306,71,1,306,71,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,,,,0,0,3144,210,2,1572,105,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,,,,0,0,16954,410,2,8477,205,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,110.25,,200.49,0.005889907,0.204161611,18718,540,2,9359,270,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,119.09,,131.63,0.003502792,0.170135629,34000,700,2,17000,350,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,,,,0,0,2022,200,2,1011,100,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,277.75,,278.22,0.122140598,0.925825733,2274,300,2,1137,150,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,accel,Intel® Flex-170,143.21,,143.00,,,,,1,,,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,accel,Intel® Flex-140,,,,,,,,1,,,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,,,,0,0,107,15,1,107,15,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,,,,0,0,490,28,1,490,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,,,,0,0,193,6,1,193,6,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,,,,0,0,426,28,1,426,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,,,,0,0,107,15,1,107,15,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,,,,0,0,490,28,1,490,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,,,,0,0,193,6,1,193,6,,msec/token,msec/token/$,msec/token/TDP,msec.
+GPT-j-6b,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,,,,0,0,426,28,1,426,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,,,,0,0,107,15,1,107,15,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,,,,0,0,117,65,1,117,65,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,,,,0,0,214,65,1,214,65,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,,,,0,0,329,125,1,329,125,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,,,,0,0,192,65,1,192,65,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,,,,0,0,426,28,1,426,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,,,,0,0,490,28,1,490,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,,,,0,0,303,35,1,303,35,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,,,,0,0,488,35,1,488,35,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,,,,0,0,544,35,1,544,35,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,285.08,,511.77,0.475930451,2.28065872,599,125,1,599,125,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,atom,Intel® Processor N-200,,,,0,0,193,6,1,193,6,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,,,,0,0,594,125,1,594,125,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,,,,0,0,306,71,1,306,71,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,,,,0,0,3144,210,2,1572,105,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,,,,0,0,16954,410,2,8477,205,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,95.08,,182.22,0.005079793,0.176080667,18718,540,2,9359,270,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,119.29,,133.20,0.003508666,0.170420929,34000,700,2,17000,350,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,,,,0,0,2022,200,2,1011,100,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,338.67,,345.26,0.148931821,1.1289032,2274,300,2,1137,150,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,accel,Intel® Flex-170,138.06,,137.36,,,,,1,,,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,accel,Intel® Flex-140,,,,,,,,1,,,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,,,,0,0,107,15,1,107,15,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,,,,0,0,490,28,1,490,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,,,,0,0,193,6,1,193,6,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,,,,0,0,426,28,1,426,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,,,,0,0,107,15,1,107,15,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,,,,0,0,490,28,1,490,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,,,,0,0,193,6,1,193,6,,msec/token,msec/token/$,msec/token/TDP,msec.
+llama-2-7b-chat,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,,,,0,0,426,28,1,426,28,,msec/token,msec/token/$,msec/token/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,
+begin_rec,,,,,,,,,,,,,,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,atom,Intel®  Celeron™  6305E CPU-only,,,,0,0,107,15,1,107,15,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core,Intel® Core™  i3-8100 CPU-only,,,,0,0,117,65,1,117,65,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core,Intel® Core™  i5-10500TE CPU-only,,,,0,0,214,65,1,214,65,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core,Intel® Core™  i5-13600K CPU-only,,,,0,0,329,125,1,329,125,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core,Intel® Core™  i5-8500 CPU-only,,,,0,0,192,65,1,192,65,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core,Intel® Core™  i7-1185G7 CPU-only,,,,0,0,426,28,1,426,28,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core,Intel® Core™  i7-1185GRE CPU-only,,,,0,0,490,28,1,490,28,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core,Intel® Core™  i7-8700T CPU-only,,,,0,0,303,35,1,303,35,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core,Intel® Core™  i9-10900TE CPU-only,,,,0,0,488,35,1,488,35,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core,Intel® Core™  i9-12900TE CPU-only,,,,0,0,544,35,1,544,35,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core,Intel® Core™  i9-13900K CPU-only,43.21,,43.13,0.072129599,0.34564504,599,125,1,599,125,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,atom,Intel® Processor N-200,,,,0,0,193,6,1,193,6,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,xeon,Intel®  Xeon® W1290P CPU-only,,,,0,0,594,125,1,594,125,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,xeon,Intel®  Xeon®  E-2124G CPU-only,,,,0,0,306,71,1,306,71,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,xeon,Intel®  Xeon®  Gold 5218T CPU-only,,,,0,0,3144,210,2,1572,105,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,,,,0,0,16954,410,2,8477,205,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8380 CPU-only,18.95,,19.43,0.001012236,0.035087093,18718,540,2,9359,270,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,xeon,Intel®  Xeon®  Platinum 8490H CPU-only,5.88,,6.47,0.000172889,0.008397471,34000,700,2,17000,350,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,xeon,Intel®  Xeon®  Silver 4216R CPU-only,,,,0,0,2022,200,2,1011,100,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,xeon,Intel®  Xeon®  Silver 4316 CPU-only,21.92,,22.42,0.00963796,0.073055733,2274,300,2,1137,150,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,accel,Intel® Flex-170,4.29,,4.31,,,,,1,,,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,accel,Intel® Flex-140,18.68,,18.46,,,,,1,,,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core-iGPU,Intel®  Celeron™  6305E iGPU-only,,,,0,0,107,15,1,107,15,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,,,,0,0,490,28,1,490,28,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core-iGPU,Intel®  Processor N200 iGPU-only,,,,0,0,193,6,1,193,6,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core-iGPU,Intel®  Core™  i7-1185G7 iGPU-only,,,,0,0,426,28,1,426,28,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,,,,0,0,107,15,1,107,15,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core-CPU+iGPU,Intel® Core™  i7-1185GRE CPU+iGPU,,,,0,0,490,28,1,490,28,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core-CPU+iGPU,Intel®  Processor N200 CPU+iGPU,,,,0,0,193,6,1,193,6,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+stable diffusion V2,OV-2023.1,core-CPU+iGPU,Intel®  Core™  i7-1185G7 CPU+iGPU,,,,0,0,426,28,1,426,28,,"Generation time, sec.",Generation-time/$,Generation-time/TDP,msec.
+end_rec,,,,,,,,,,,,,,,,,,

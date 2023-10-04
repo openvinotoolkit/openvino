@@ -35,6 +35,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: releases/2023/1
 
 variables:
   - group: github

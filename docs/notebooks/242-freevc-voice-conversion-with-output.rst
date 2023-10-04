@@ -1,7 +1,7 @@
 High-Quality Text-Free One-Shot Voice Conversion with FreeVC and OpenVINO™
 ==========================================================================
 
-.. _top:
+
 
 `FreeVC <https://github.com/OlaWod/FreeVC>`__ allows alter the voice of
 a source speaker to a target style, while keeping the linguistic content
@@ -29,6 +29,8 @@ devices. It consists of the following steps:
 -  Inference.
 -  Convert models to OpenVINO Intermediate Representation.
 -  Inference using only OpenVINO’s IR models.
+
+.. _top:
 
 **Table of contents**:
 
@@ -798,9 +800,9 @@ inference. Use rate corresponding to the value of
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. code:: ipython3

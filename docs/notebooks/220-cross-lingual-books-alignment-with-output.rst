@@ -1,7 +1,7 @@
 Cross-lingual Books Alignment with Transformers and OpenVINO™
 =============================================================
 
-.. _top:
+
 
 Cross-lingual text alignment is the task of matching sentences in a pair
 of texts that are translations of each other. In this notebook, you’ll
@@ -18,7 +18,7 @@ part of the pipeline - getting vectors from sentences - using the
 OpenVINO™ framework.
 
 Pipeline
---------
+###############################################################################################################################
 
 The notebook guides you through the entire process of creating a
 parallel book: from obtaining raw texts to building a visualization of
@@ -30,7 +30,7 @@ Visualizing the result allows you to identify areas for improvement in
 the pipeline steps, as indicated in the diagram.
 
 Prerequisites
--------------
+###############################################################################################################################
 
 -  ``requests`` - for getting books
 -  ``pysbd`` - for splitting sentences
@@ -65,7 +65,7 @@ Prerequisites
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
 
-Get Books `⇑ <#top>`__
+Get Books 
 ###############################################################################################################################
 
 
@@ -211,7 +211,7 @@ which in a raw format looks like this:
 
 
 
-Clean Text `⇑ <#top>`__
+Clean Text 
 ###############################################################################################################################
 
 
@@ -342,7 +342,7 @@ needed.
       0%|          | 0/3 [00:00<?, ?it/s]
 
 
-Split Text `⇑ <#top>`__
+Split Text 
 ###############################################################################################################################
 
 
@@ -386,7 +386,7 @@ languages.
 
 
 
-Get Sentence Embeddings `⇑ <#top>`__
+Get Sentence Embeddings 
 ###############################################################################################################################
 
 
@@ -476,7 +476,7 @@ best fit.
       0%|          | 0/34 [00:00<?, ?it/s]
 
 
-Optimize the Model with OpenVINO `⇑ <#top>`__
+Optimize the Model with OpenVINO 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -555,7 +555,7 @@ model predictions remain within an acceptable tolerance:
 
 
 
-Calculate Sentence Alignment `⇑ <#top>`__
+Calculate Sentence Alignment 
 ###############################################################################################################################
 
 
@@ -681,7 +681,7 @@ will be lists of German sentence numbers.
 
 
 
-Postprocess Sentence Alignment `⇑ <#top>`__
+Postprocess Sentence Alignment 
 ###############################################################################################################################
 
 
@@ -707,7 +707,7 @@ Most likely, English sentence 14 is part of either German sentence 17 or
 18. By comparing the similarity using the model, you can choose the most
 suitable alignment.
 
-Visualize Sentence Alignment `⇑ <#top>`__
+Visualize Sentence Alignment 
 ###############################################################################################################################
 
 
@@ -867,7 +867,7 @@ To read the model from disk, use the ``read_model`` method of the
 
     ov_model = core.read_model(ov_model_path)
 
-Speed up Embeddings Computation `⇑ <#top>`__
+Speed up Embeddings Computation 
 ###############################################################################################################################
 
 
@@ -958,7 +958,7 @@ Let’s compare the models and plot the results.
 .. note::
 
    To get a more accurate benchmark, use the `Benchmark Python
-   Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+   Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 
 
 .. code:: ipython3

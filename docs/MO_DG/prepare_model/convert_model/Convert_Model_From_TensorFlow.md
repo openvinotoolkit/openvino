@@ -7,11 +7,9 @@
                  TensorFlow format to the OpenVINO Intermediate Representation.
 
 
-This page provides general instructions on how to run model conversion from a TensorFlow format to the OpenVINO IR format. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
-
 .. note:: TensorFlow models are supported via :doc:`FrontEnd API <openvino_docs_MO_DG_TensorFlow_Frontend>`. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
 
-To use model conversion API, install OpenVINO Development Tools by following the :doc:`installation instructions <openvino_docs_install_guides_install_dev_tools>`.
+The conversion instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
 
 Converting TensorFlow 1 Models
 ###############################
@@ -19,7 +17,7 @@ Converting TensorFlow 1 Models
 Converting Frozen Model Format
 +++++++++++++++++++++++++++++++
 
-To convert a TensorFlow model, use the ``*mo*`` script to simply convert a model with a path to the input model ``*.pb*`` file:
+To convert a TensorFlow model, use the ``*mo*`` script to simply convert a model with a path to the input model *.pb* file:
 
 .. code-block:: sh
 
@@ -32,7 +30,7 @@ Converting Non-Frozen Model Formats
 There are three ways to store non-frozen TensorFlow models and convert them by model conversion API:
 
 1. **Checkpoint**. In this case, a model consists of two files: ``inference_graph.pb`` (or ``inference_graph.pbtxt``) and ``checkpoint_file.ckpt``.
-If you do not have an inference graph file, refer to the `Freezing Custom Models in Python <#Freezing-Custom-Models-in-Python>`__  section.
+If you do not have an inference graph file, refer to the `Freezing Custom Models in Python <#freezing-custom-models-in-python>`__  section.
 To convert the model with the inference graph in ``.pb`` format, run the `mo` script with a path to the checkpoint file:
 
 .. code-block:: sh
@@ -141,7 +139,7 @@ It is essential to freeze the model before pruning. Use the following code snipp
 Keras H5
 ++++++++
 
-If you have a model in the HDF5 format, load the model using TensorFlow 2 and serialize it in the
+If you have a model in HDF5 format, load the model using TensorFlow 2 and serialize it to
 SavedModel format. Here is an example of how to do it:
 
 .. code-block:: py

@@ -191,7 +191,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     explicit proposal_impl(const proposal_node& arg) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::proposal_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);

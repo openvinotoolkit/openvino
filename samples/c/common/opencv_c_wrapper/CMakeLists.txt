@@ -20,9 +20,8 @@ if(NOT OpenCV_FOUND)
     message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} is built without OPENCV support")
 else()
     target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES})
 endif()
-
-target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES})
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")

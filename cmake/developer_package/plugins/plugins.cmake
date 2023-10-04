@@ -358,7 +358,7 @@ function(ov_generate_plugins_hpp)
                          "${plugins_hpp_in}"
                          "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
                        COMMENT
-                         "Generate ov_plugins.hpp for build"
+                         "Generate ov_plugins.hpp"
                        VERBATIM)
 
     # for some reason dependency on source files does not work

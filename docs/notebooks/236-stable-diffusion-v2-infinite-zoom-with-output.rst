@@ -1,7 +1,7 @@
 Infinite Zoom Stable Diffusion v2 and OpenVINO™
 ===============================================
 
-.. _top:
+
 
 Stable Diffusion v2 is the next generation of Stable Diffusion model a
 Text-to-Image latent diffusion model created by the researchers and
@@ -73,6 +73,8 @@ Notebook contains the following steps:
    API.
 3. Run Stable Diffusion v2 inpainting pipeline for generation infinity
    zoom video
+
+.. _top:
 
 **Table of contents**:
 
@@ -1386,7 +1388,7 @@ Run Infinite Zoom video generation `⇑ <#top>`__
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="https://462b1833bf3b980731.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="https://462b1833bf3b980731.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

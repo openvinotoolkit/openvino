@@ -2,52 +2,55 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from openvino.runtime import Core
+import openvino as ov
+import openvino.runtime.properties as props
+import openvino.runtime.properties.hint as hints
 
+from utils import get_model
 
-core = Core()
+core = ov.Core()
 
 # ! [core_set_property]
-core.set_property(device_name="CPU", properties={"PERF_COUNT": "YES"})
+core.set_property(device_name="CPU", properties={props.enable_profiling(): True})
 # ! [core_set_property]
 
-model = core.read_model("sample.xml")
+model = get_model()
 
 # ! [core_compile_model]
 compiled_model = core.compile_model(model=model, device_name="MULTI", config=
     {
-        "MULTI_DEVICE_PRIORITIES": "GPU,CPU",
-        "PERFORMANCE_HINT": "THROUGHPUT",
-        "INFERENCE_PRECISION_HINT": "f32"
+        props.device.priorities(): "GPU,CPU",
+        hints.performance_mode(): hints.PerformanceMode.THROUGHPUT,
+        hints.inference_precision(): ov.Type.f32
     })
 # ! [core_compile_model]
 
 # ! [compiled_model_set_property]
 # turn CPU off for multi-device execution
-compiled_model.set_property(properties={"MULTI_DEVICE_PRIORITIES": "GPU"})
+compiled_model.set_property(properties={props.device.priorities(): "GPU"})
 # ! [compiled_model_set_property]
 
 # ! [core_get_rw_property]
-num_streams = core.get_property("CPU", "NUM_STREAMS")
+num_streams = core.get_property("CPU", props.streams.num())
 # ! [core_get_rw_property]
 
 # ! [core_get_ro_property]
-full_device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
+full_device_name = core.get_property("CPU", props.device.full_name())
 # ! [core_get_ro_property]
 
 # ! [compiled_model_get_rw_property]
-perf_mode = compiled_model.get_property("PERFORMANCE_HINT")
+perf_mode = compiled_model.get_property(hints.performance_mode())
 # ! [compiled_model_get_rw_property]
 
 # ! [compiled_model_get_ro_property]
-nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")
+nireq = compiled_model.get_property(props.optimal_number_of_infer_requests())
 # ! [compiled_model_get_ro_property]
 
+import ngraph as ng
+import openvino.inference_engine as ie
+from utils import get_ngraph_model
 
-from openvino.inference_engine import IECore
-
-
-core = IECore()
+core = ie.IECore()
 #! [core_get_metric]
 full_device_name = core.get_metric("CPU", "FULL_DEVICE_NAME")
 #! [core_get_metric]
@@ -60,7 +63,7 @@ num_streams = core.get_config("CPU", "CPU_THROUGHPUT_STREAMS")
 core.set_config({"PERF_COUNT": "YES"}, "CPU")
 #! [core_set_config]
 
-net = core.read_network("sample.xml")
+net = get_ngraph_model()
 
 #! [core_load_network]
 exec_network = core.load_network(net, "MULTI", {"DEVICE_PRIORITIES": "CPU, GPU",

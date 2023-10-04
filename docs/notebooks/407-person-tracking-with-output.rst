@@ -1,7 +1,7 @@
 Person Tracking with OpenVINO™
 ==============================
 
-.. _top:
+
 
 This notebook demonstrates live person tracking with OpenVINO: it reads
 frames from an input video sequence, detects people in the frames,
@@ -94,6 +94,8 @@ Research Logistics Quarterly, vol. 2, pp. 83-97, 1955.
 realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
+
+.. _top:
 
 **Table of contents**:
 
