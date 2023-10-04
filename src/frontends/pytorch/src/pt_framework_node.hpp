@@ -75,8 +75,8 @@ public:
         return m_decoder->get_op_type();
     }
 
-    TorchDecoder* get_decoder() const {
-        return m_decoder.get();
+    std::shared_ptr<TorchDecoder> get_decoder() const {
+        return m_decoder;
     }
 
 private:

@@ -64,6 +64,11 @@ if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
+if(RISCV64)
+    # for std::atomic_bool
+    target_link_libraries(${TARGET_NAME} PRIVATE atomic)
+endif()
+
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_mark_target_as_cc(${TARGET_NAME})
 
@@ -279,7 +284,7 @@ if(ENABLE_PKGCONFIG_GEN)
         set(pkgconfig_option "--validate")
     endif()
 
-    add_custom_command(TARGET openvino PRE_BUILD
+    add_custom_command(TARGET openvino POST_BUILD
         COMMAND "${CMAKE_COMMAND}" --config $<CONFIG>
                 -D PKG_CONFIG_IN_FILE=${pkgconfig_in}
                 -D PKG_CONFIG_OUT_FILE=${pkgconfig_out}

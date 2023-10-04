@@ -606,6 +606,25 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::MatMul> &n
     return std::make_shared<ov::Model>(results, params, "MatMul-1");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::NMSRotated> &node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 6, 5}}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 6}}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{})};
+
+    auto nms = std::make_shared<ov::op::v13::NMSRotated>(params[0],
+                                                         params[1],
+                                                         params[2],
+                                                         params[3],
+                                                         params[4],
+                                                         true,
+                                                         ov::element::i32,
+                                                         true);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
+    return std::make_shared<ov::Model>(results, params, "NMSRotated-13");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::NonMaxSuppression> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 6, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 6}}),
@@ -1240,6 +1259,13 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::IsNaN> &n
     auto is_finite = std::make_shared<ov::op::v10::IsNaN>(param);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(is_finite)};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "is_nan_graph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::BitwiseNot> &node) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 2});
+    auto bitwise = std::make_shared<ov::op::v13::BitwiseNot>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(bitwise)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "BitwiseNotGraph");
 }
 
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {
