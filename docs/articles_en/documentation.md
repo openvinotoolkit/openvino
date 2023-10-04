@@ -16,7 +16,6 @@
    Legacy Features <openvino_legacy_features> 
    Tool Ecosystem <openvino_ecosystem>
    OpenVINO Extensibility <openvino_docs_Extensibility_UG_Intro>
-   Media Processing and CV Libraries <media_processing_cv_libraries>
    OpenVINO™ Security <openvino_docs_security_guide_introduction>
 
 
