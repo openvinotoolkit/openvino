@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import math
 
-import openvino.runtime.opset12 as ops
+import openvino.runtime.opset13 as ops
 from openvino import (
     Core,
     Model,

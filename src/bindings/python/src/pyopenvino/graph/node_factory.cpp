@@ -127,7 +127,7 @@ private:
         return it->second();
     }
 
-    const ov::OpSet& m_opset = ov::get_opset12();
+    const ov::OpSet& m_opset = ov::get_opset13();
     std::map<std::string, std::shared_ptr<ov::detail::SOExtension>> m_opset_so_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> m_variables;
 };

@@ -5,7 +5,7 @@
 import numpy as np
 
 from openvino.runtime import Type
-import openvino.runtime.opset12 as ov
+import openvino.runtime.opset13 as ov
 
 
 def test_lrn():

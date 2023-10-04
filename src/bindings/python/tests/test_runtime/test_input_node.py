@@ -6,7 +6,7 @@ import os
 
 from openvino.runtime import Input, RTMap
 from openvino._pyopenvino import DescriptorTensor
-import openvino.runtime.opset12 as ops
+import openvino.runtime.opset13 as ops
 
 from openvino import Core, OVAny, Shape, PartialShape, Type
 from tests.utils.helpers import get_relu_model
