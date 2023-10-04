@@ -1241,7 +1241,7 @@ jobs:
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install python dependencies
-        run: python3 -m pip install --force-reinstall -r  ${INSTALL_TEST_DIR}/bindings/python/constraints.txt
+        run: python3 -m pip install --force-reinstall -r  ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
 
       - name: Install Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
