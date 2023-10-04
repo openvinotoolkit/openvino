@@ -22,7 +22,8 @@
                  on different platforms.
 
 
-OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read an Intermediate Representation (IR), TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle or PyTorch model and execute it on preferred devices. For PyTorch models you can either :doc:`convert them <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>` or use :doc:`torch.compile feature <pytorch_2_0_torch_compile>`.
+OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read PyTorch, TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle models and execute them on preferred devices. OpenVINO gives you the option to use these models directly or convert them to the OpenVINO IR (Intermediate Representation) format explicitly, for maximum performance.
+
 
 .. note::
 
