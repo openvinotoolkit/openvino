@@ -62,13 +62,13 @@ KERNEL(mha_opt)(
     __local half k_block[K_BLK_SIZE];
     __local half v_block[V_BLK_SIZE];
     __local half q_block[Q_BLK_SIZE];
-// #adefine MEASURE_BLOCK_1
-// #adefine MEASURE_BLOCK_2
-// #adefine MEASURE_BLOCK_3
-// #adefine MEASURE_BLOCK_4 // QK
-// #adefine MEASURE_BLOCK_5
-// #adefine RETURN_BLOCK_5
-// #adefine MEASURE
+#define AMEASURE_BLOCK_1
+#define AMEASURE_BLOCK_2
+#define AMEASURE_BLOCK_3
+#define AMEASURE_BLOCK_4
+#define AMEASURE_BLOCK_5
+#define ARETURN_BLOCK_1
+#define AMEASURE
     // Read i-th row of Q block
     half accum = 0.0;
     const int q_row_idx = BLK_ROW_SIZE * block_id + row_id;
