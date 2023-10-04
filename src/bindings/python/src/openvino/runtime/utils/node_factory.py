@@ -14,7 +14,7 @@ from openvino.runtime import Node, Output
 
 from openvino.runtime.exceptions import UserInputError
 
-DEFAULT_OPSET = "opset12"
+DEFAULT_OPSET = "opset13"
 
 
 class NodeFactory(object):

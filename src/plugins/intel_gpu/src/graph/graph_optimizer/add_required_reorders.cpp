@@ -272,10 +272,10 @@ void add_required_reorders::run(program& p) {
                 OPENVINO_ASSERT(correct_layout_selected,
                                 "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
                                 " (format: ", original_layout.format.to_string(),
-                                ", data_type: ", data_type_traits::name(original_layout.data_type), ") ",
+                                ", data_type: ", ov::element::Type(original_layout.data_type), ") ",
                                 "compatible with ", node.first->id(),
                                 " (format: ", node.first->get_output_layout().format.to_string(),
-                                ", data_type: ", data_type_traits::name(node.first->get_output_layout().data_type), ")");
+                                ", data_type: ", ov::element::Type(node.first->get_output_layout().data_type), ")");
             }
         }
 
