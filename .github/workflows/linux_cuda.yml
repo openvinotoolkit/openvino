@@ -64,9 +64,9 @@ jobs:
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v3
         with:
-          repository: 'openvinotoolkit/openvino_contrib'
+          repository: 'nkogteva/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          submodules: 'true'
+          ref: 'nvidia_fix_cmake'
 
       #
       # Dependencies
