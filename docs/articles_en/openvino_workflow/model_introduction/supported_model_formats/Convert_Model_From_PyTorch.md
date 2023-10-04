@@ -18,7 +18,7 @@ Here is the simplest example of PyTorch model conversion using a model from ``to
    import torch
    import openvino as ov
 
-   model = torchvision.models.resnet50(pretrained=True)
+   model = torchvision.models.resnet50(weights='DEFAULT')
    ov_model = ov.convert_model(model)
 
 ``openvino.convert_model`` function supports the following PyTorch model object types:
@@ -27,9 +27,9 @@ Here is the simplest example of PyTorch model conversion using a model from ``to
 * ``torch.jit.ScriptModule``
 * ``torch.jit.ScriptFunction``
 
-When passing a ``torch.nn.Module`` derived class object as an input model, converting PyTorch models often requires the ``example_input`` parameter to be specified in the ``openvino.convert_model`` function call. Internally it triggers the model tracing during the model conversion process, using the capabilities  of the ``torch.jit.trace`` function.
+When using ``torch.nn.Module`` as an input model, ``openvino.convert_model`` often requires the ``example_input`` parameter to be specified. Internally, it triggers the model tracing during the model conversion process, using the capabilities  of the ``torch.jit.trace`` function.
 
-The use of ``example_input`` can lead to a better quality of the resulting OpenVINO model in terms of correctness and performance compared to converting the same original model without specifying ``example_input``. While the necessity of ``example_input`` depends on the implementation details of a specific PyTorch model, it is recommended to always set the ``example_input`` parameter when it is available.
+The use of ``example_input`` can lead to a better quality OpenVINO model in terms of correctness and performance compared to converting the same original model without specifying ``example_input``. While the necessity of ``example_input`` depends on the implementation details of a specific PyTorch model, it is recommended to always set the ``example_input`` parameter when it is available.
 
 The value for the ``example_input`` parameter can be easily derived from knowing the input tensor's element type and shape. While it may not be suitable for all cases, random numbers can frequently serve this purpose effectively:
 
@@ -131,7 +131,7 @@ Exporting a PyTorch Model to ONNX Format
 An alternative method of converting PyTorch models is exporting a PyTorch model to ONNX with ``torch.onnx.export`` first and then converting the resulting ``.onnx`` file to OpenVINO Model with ``openvino.convert_model``. It can be considered as a backup solution if a model cannot be converted directly from PyTorch to OpenVINO as described in the above chapters. Converting through ONNX can be more expensive in terms of code, conversion time, and allocated memory.
 
 1. Refer to the `Exporting PyTorch models to ONNX format <https://pytorch.org/docs/stable/onnx.html>`__ guide to learn how to export models from PyTorch to ONNX.
-2. Follow :doc:`Convert the ONNX model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>` chapter to produce OpenVINO model.
+2. Follow :doc:`Convert an ONNX model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>` chapter to produce OpenVINO model.
 
 Here is an illustration of using these two steps together:
 
@@ -142,7 +142,7 @@ Here is an illustration of using these two steps together:
    import torch
    import openvino as ov
 
-   model = torchvision.models.resnet50(pretrained=True)
+   model = torchvision.models.resnet50(weights='DEFAULT')
    # 1. Export to ONNX
    torch.onnx.export(model, (torch.rand(1, 3, 224, 224), ), 'model.onnx')
    # 2. Convert to OpenVINO
