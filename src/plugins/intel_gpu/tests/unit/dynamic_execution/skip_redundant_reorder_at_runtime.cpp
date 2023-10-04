@@ -31,7 +31,8 @@ TEST(remove_redundant_reorder, skip_reorder_at_runtime) {
     topology topology(input_layout("input", input_l),
                       data("weight", weight_mem),
                       fully_connected("fc", input_info("input"), {"weight"}, "", data_types::f32),
-                      reorder("reorder", input_info("fc"), format::bfyx, data_types::f32)); /*output padding*/
+                      reorder("reorder", input_info("fc"), format::bfyx, data_types::f32),
+                      permute("permute", input_info("reorder"), {1, 0})); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
