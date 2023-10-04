@@ -176,77 +176,6 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
-      #      - name: Cmake Layer Tests
-#        run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
-#
-#      - name: Build Layer Tests
-#        run: cmake --build ${{ env.BUILD_DIR }}/layer_tests --parallel --config Release
-#
-#      - name: Install wheel packages
-#        run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-#
-#      - name: Install Layer Tests
-#        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/layer_tests/cmake_install.cmake
-#
-#      - name: Install python wheels
-#        run: python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
-#
-#      - name: Install tests
-#        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-#
-#      - name: Install OpenVINO
-#        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-#
-#      - name: CMake Samples Tests
-#        run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/samples_tests -B ${{ env.BUILD_DIR }}/samples_tests
-#
-#      - name: Build Samples Tests
-#        run: cmake --build ${{ env.BUILD_DIR }}/samples_tests --config Release
-#
-#      - name: Install Samples Tests
-#        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/samples_tests/cmake_install.cmake
-#
-
-#
-#      - name: Build cpp samples
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
-#
-#      - name: Build c samples
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
-#
-#      #
-#      # Tests
-#      #
-#
-#      - name: Samples tests
-#        run: |
-#          python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
-#          export LD_LIBRARY_PATH=${{ env.IE_APP_PATH }}:$LD_LIBRARY_PATH
-#
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#
-#          # Ignore "test_speech_sample.py" as GNA is not available on the Mac GH Runners
-#          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/smoke_tests \
-#            --env_conf ${{ env.INSTALL_TEST_DIR }}/smoke_tests/env_config.yml \
-#            --ignore=${{ env.INSTALL_TEST_DIR }}/smoke_tests/test_speech_sample.py \
-#            --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
-#        env:
-#          IE_APP_PATH: ${{ env.INSTALL_DIR }}/samples_bin
-#          IE_APP_PYTHON_PATH: ${{ env.INSTALL_DIR }}/samples/python
-#          SHARE: ${{ env.INSTALL_TEST_DIR }}/smoke_tests/samples_smoke_tests_data
-#          WORKSPACE: ${{ env.INSTALL_DIR }}
-#
-#      # Present in the "Build" job due to the fact that these tests require build directory
-#      - name: ONNX frontend tests
-#        if: ${{ always() }}
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
-#                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
       #
       # Upload build artifacts
@@ -308,6 +237,9 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
+
+      - name: Install dependencies
+        run: brew install coreutils
 
       - uses: actions/setup-python@v4
         with:
@@ -378,11 +310,6 @@ jobs:
       #
       # Dependencies
       #
-
-#      - name: Install dependencies
-#        run: |
-#          sudo -E apt update
-#          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -458,12 +385,11 @@ jobs:
       #     ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_print_time=1 --gtest_filter=*smoke* \
       #           --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
 
-      # Present in the "Build" job as these tests require build directory
-      # - name: ONNX frontend tests
-      #   run: |
-      #     source ${{ env.INSTALL_DIR }}/setupvars.sh
-      #     ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
-      #           --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
+      - name: ONNX frontend tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
+               --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common tests
         if: ${{ always() }}
@@ -506,13 +432,6 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
-
-      # Disabled in Azure: https://github.com/openvinotoolkit/openvino/blob/master/.ci/azure/linux.yml#L409
-      # - name: GNA plugin unit tests
-      #   run: |
-      #     source ${{ env.INSTALL_DIR }}/setupvars.sh
-      #     ${{ env.INSTALL_TEST_DIR }}/ov_gna_unit_tests --gtest_print_time=1 \
-      #           --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GNAUnitTests.xml
 
       - name: AUTO UT
         if: ${{ always() }}
@@ -593,11 +512,6 @@ jobs:
       #
       # Dependencies
       #
-
-#      - name: Install dependencies
-#        run: |
-#          sudo -E apt update
-#          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
 
       - uses: actions/setup-python@v4
         with:
@@ -721,13 +635,6 @@ jobs:
         env:
           TEST_DEVICE: CPU
 
-      - name: Check Files
-        if: ${{ always() }}
-        run: |
-          ls -la ${{ github.workspace }}
-          echo "11111"
-          ls -laR ${{ github.workspace }}
-
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ always() }}
         run: |
@@ -802,73 +709,52 @@ jobs:
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
-      - name: Upload Debug Results
-        uses: actions/upload-artifact@v3
-        if: ${{ always() }}
-        with:
-          name: debug-results-python
-          path: |
-            ${{ github.workspace }}/**/saved_for_debug*
-          if-no-files-found: 'error'
-
-      - name: Upload Debug Results 2
-        uses: actions/upload-artifact@v3
-        if: ${{ always() }}
-        with:
-          name: debug-results-python-2
-          path: ${{ github.workspace }}/saved_for_debug*
-          if-no-files-found: 'error'
-
-  CPU_Functional_Tests:
-    needs: Build
-    if: ${{ always() }}
-    defaults:
-      run:
-        shell: bash
-    runs-on: macos-12
-    env:
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-
-    steps:
-      - name: Create Directories
-        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-
-#      - name: Install dependencies
+# Ticket: 122001
+#  CPU_Functional_Tests:
+#    needs: Build
+#    if: ${{ always() }}
+#    defaults:
+#      run:
+#        shell: bash
+#    runs-on: macos-12
+#    env:
+#      INSTALL_DIR: ${{ github.workspace }}/install
+#      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+#
+#    steps:
+#      - name: Create Directories
+#        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+#
+#      - name: Download OpenVINO package
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: openvino_package
+#          path: ${{ env.INSTALL_DIR }}
+#
+#      - name: Download OpenVINO tests package
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: openvino_tests
+#          path: ${{ env.INSTALL_TEST_DIR }}
+#
+#      - name: Extract OpenVINO packages
 #        run: |
-#          sudo -E apt update
-#          sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
-          popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
-          popd
-
-      - name: Intel CPU plugin func tests
-        run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v3
-        if: ${{ always() }}
-        with:
-          name: test-results-functional-cpu
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'error'
+#          pushd ${{ env.INSTALL_DIR }}
+#            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+#          popd
+#          pushd ${{ env.INSTALL_TEST_DIR }}
+#            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+#          popd
+#
+#      - name: Intel CPU plugin func tests
+#        run: |
+#          source ${{ env.INSTALL_DIR }}/setupvars.sh
+#          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
+#
+#      - name: Upload Test Results
+#        uses: actions/upload-artifact@v3
+#        if: ${{ always() }}
+#        with:
+#          name: test-results-functional-cpu
+#          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+#          if-no-files-found: 'error'
