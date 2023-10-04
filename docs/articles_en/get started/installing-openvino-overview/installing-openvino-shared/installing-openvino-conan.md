@@ -10,8 +10,10 @@
    
    Note that the Conan Package Manager distribution:
 
-   * is dedicated to users of all major OSs: Windows, Linux, macOS
-  
+   * offers C/C++ API only
+   * does not offer support for GNA and NPU inference
+   * is dedicated to users of all major OSes: Windows, Linux, and macOS 
+     (all x86_64 / arm64 architectures)
 
 
 .. tab-set::
@@ -22,7 +24,6 @@
       Full requirement listing is available in:
       `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
-
    .. tab-item:: Processor Notes
       :sync: processor-notes
    
@@ -38,9 +39,9 @@
 Installing OpenVINO Runtime with Conan Package Manager
 ############################################################
 
-1. Install Conan 2.0 or higher:
+1. Install Conan 2.0.8 or higher:
    
-   .. code-block:: 
+   .. code-block:: console
 
       python3 -m pip install conan
 
@@ -58,23 +59,22 @@ Installing OpenVINO Runtime with Conan Package Manager
 
    Run the command below to create ``conan_toolchain.cmake`` file, which will be used to compile your project with OpenVINO:
    
-   .. code-block:: 
+   .. code-block:: console
 
       conan install conanfile.txt --build=missing
-
-   .. note::
    
-      By default, OpenVINO is statically compiled. All available plugins and frontends are compiled as well. You can build a tailored OpenVINO by using the command below:
+   By default, OpenVINO is statically compiled, together with all available 
+   plugins and frontends. To build a version tailored to your needs, check
+   what options there are on the `Conan Package Manager page for OpenVINO <https://conan.io/center/recipes/openvino>`__ 
+   and extend the command, like so:
       
-      .. code-block:: 
+   .. code-block:: console
    
-         conan install conanfile.txt --build=missing -o:h openvino/*:enable_intel_gpu=False -o:h openvino/*:enable_onnx_frontend=False' -o:h openvino/*:shared=True.
+      conan install conanfile.txt --build=missing -o:h openvino/*:enable_intel_gpu=False -o:h openvino/*:enable_onnx_frontend=False' -o:h openvino/*:shared=True.
       
-      For more details on available options, see the `Conan Package Manager page on OpenVINO <https://conan.io/center/recipes/openvino>`__
-
 3. Configure and compile your project with OpenVINO:
    
-   .. code-block:: 
+   .. code-block:: console
 
       cmake -DCMAKE_TOOLCHAIN_FILE=<path to conan_toolchain.cmake> -DCMAKE_BUILD_TYPE=Release -S <path to CMakeLists.txt of your project> -B <build dir>
       cmake --build <build dir> --parallel
@@ -86,11 +86,12 @@ Installing OpenVINO Runtime with Conan Package Manager
 Additional Resources
 ########################
 
-* `Conan Package Manager <https://conan.io>`__
+* `Conan Package Manager <https://conan.io>`__.
 * Learn more about :doc:`OpenVINO Workflow <openvino_workflow>`.
 * To prepare your models for working with OpenVINO, see :doc:`Model Preparation <openvino_docs_model_processing_introduction>`.
 * Learn more about :doc:`Inference with OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
-* Check out the OpenVINO product `home page <https://software.intel.com/en-us/openvino-toolkit>`__
+* Check out the OpenVINO product `home page <https://software.intel.com/en-us/openvino-toolkit>`__.
+
 
 @endsphinxdirective

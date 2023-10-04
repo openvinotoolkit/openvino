@@ -47,14 +47,14 @@
 
    .. dropdown:: Distribution Comparison for OpenVINO 2023.1
    
-      ===============  ==========  ======  =========  ========  ============ ==========
-       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg
-      ===============  ==========  ======  =========  ========  ============ ==========
-       CPU              V           V        V         V          V           V
-       GPU              V           V        V         V          V           V
-       GNA              V          n/a      n/a       n/a        n/a         n/a
-       NPU              V          n/a      n/a       n/a        n/a         n/a 
-      ===============  ==========  ======  =========  ========  ============ ==========
+      ===============  ==========  ======  =========  ========  ============ ========== ========== 
+       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg      Conan     
+      ===============  ==========  ======  =========  ========  ============ ========== ========== 
+       CPU              V           V        V         V          V           V          V         
+       GPU              V           V        V         V          V           V          V         
+       GNA              V          n/a      n/a       n/a        n/a         n/a        n/a        
+       NPU              V          n/a      n/a       n/a        n/a         n/a        n/a        
+      ===============  ==========  ======  =========  ========  ============ ========== ========== 
 
 | **Build OpenVINO from source**
 |    OpenVINO Toolkit source files are available on GitHub as open source. If you want to build your own version of OpenVINO for your platform, 
