@@ -1,0 +1,29 @@
+# YAML schema for Smart CI configuration file components.yml (see https://json-schema.org)
+
+definitions:
+  component_name:
+    type: string
+    pattern: "^[a-zA-Z_][a-zA-Z0-9_]*$"
+
+  component_data:
+    type: ["object", "null"]  # dict or empty
+    additionalProperties: false
+    properties:
+      dependent_components:  # Components that have to also be validated when a "parent" component was changed
+        type: object  # dict (mapping of dependent component names to their validation scope)
+        propertyNames:
+          '$ref': '#/definitions/component_name'
+        patternProperties:
+          ".*":  # Component (name validated via propertyNames)
+            items:
+              type: string
+              enum: ["build", "test"]  # Validation scope for the dependent component
+            type: ['array', 'null']  # Either list or empty value (if empty - a full validation scope is assumed)
+            minItems: 0
+
+propertyNames:  # Validates component names
+  '$ref': '#/definitions/component_name'
+patternProperties:
+  ".*":  # Component (name validated via propertyNames)
+    '$ref': '#/definitions/component_data'
+additionalProperties: false
