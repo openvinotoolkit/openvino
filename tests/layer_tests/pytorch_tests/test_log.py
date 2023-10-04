@@ -45,6 +45,7 @@ class TestLog(PytorchLayerTest):
                              ["log2", "float32"], 
                              ["log2", "int32"], 
                              ["log2_", "float32"],
+                             ["log1p", "float32"], 
                              ["log1p", "int32"], 
                              ["log1p_", "float32"]])
     def test_log(self, op, input_dtype, ie_device, precision, ir_version):
