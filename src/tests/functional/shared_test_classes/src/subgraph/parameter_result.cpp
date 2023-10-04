@@ -47,7 +47,7 @@ void ParameterResultSubgraphTestLegacyApi::SetUp() {
     ov::test::InputShape inShape;
     std::tie(inShape, targetDevice) = this->GetParam();
 
-    IE_ASSERT(inShape.first.is_static());
+    OPENVINO_ASSERT(inShape.first.is_static());
 
     function = createModel(inShape.first);
 }
