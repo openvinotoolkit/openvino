@@ -38,6 +38,7 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_CUDA_COMPILER_LAUNCHER: ccache
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
@@ -64,9 +65,9 @@ jobs:
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v3
         with:
-          repository: 'nkogteva/openvino_contrib'
+          repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          ref: 'nvidia_fix_cmake'
+          ref: 'master'
 
       #
       # Dependencies
