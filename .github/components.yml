@@ -1,7 +1,48 @@
 CPU:
   dependent_components:
-    - Python_API
+    Python_API: [build, test]
 
 Python_API:
   dependent_components:
-    - CPU.build
+    CPU: [build]
+
+C_API:
+  dependent_components:
+    CPU: [build]
+
+Model_Hub_Tests:
+  dependent_components:
+    Torch_Model_Hub_Tests: [build, test]
+    TF_Model_Hub_Tests: [build, test]
+
+TF_FE:
+  dependent_components:
+    TF_Model_Hub_Tests: [build, test]
+
+PyTorch_FE:
+  dependent_components:
+    Torch_Model_Hub_Tests: [build, test]
+
+TFL_FE:
+
+ONNX_FE:
+
+PDPD_FE:
+
+IR_FE:
+
+AUTO:
+
+AUTO_BATCH:
+
+TEMPLATE:
+
+HETERO:
+
+MO:
+
+samples:
+
+transformations:
+
+LP_transformations:
