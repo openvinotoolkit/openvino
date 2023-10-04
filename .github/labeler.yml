@@ -138,6 +138,15 @@
 - 'tests/layer_tests/pytorch_tests/**/*'
 - 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
 
+'category: Model Hub Tests':
+- 'tests/model_hub_tests/**/*'
+
+'category: Torch Model Hub Tests':
+- 'tests/model_hub_tests/torch_tests/**/*'
+
+'category: TF Model Hub Tests':
+- 'tests/model_hub_tests/tf_hub_tests/**/*'
+
 'category: tools':
 - any: ['tools/**',
         '!tools/pot/**/*',
