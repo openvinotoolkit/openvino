@@ -28,9 +28,9 @@ def nms_rotated(
     max_output_boxes_per_class: NodeInput,
     iou_threshold: NodeInput,
     score_threshold: NodeInput,
-    sort_result_descending: Optional[bool] = True,
-    output_type: Optional[str] = "i64",
-    clockwise: Optional[bool] = True,
+    sort_result_descending: bool = True,
+    output_type: str = "i64",
+    clockwise: bool = True,
     name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs NMSRotated.
