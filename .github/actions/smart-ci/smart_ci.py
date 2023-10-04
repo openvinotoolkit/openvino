@@ -33,7 +33,7 @@ class ComponentConfig:
         """Returns changed components, their dependencies and validation scope for them"""
         affected_components = dict()
         for name in changed_components_names:
-            dependent_components = self.config[name].get('dependent_components', dict())
+            dependent_components = self.config.get(name, dict()).get('dependent_components', dict())
             affected_components.update({dep_name: scope if scope else self.FullScope
                                         for dep_name, scope in dependent_components.items()})
         # We want to run the full scope if the component was explicitly changed
