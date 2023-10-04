@@ -6,12 +6,10 @@
 
 #include "shared_test_classes/subgraph/constant_result.hpp"
 
-namespace ov {
-namespace test {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ConstantResultSubgraphTest, CompareWithRefs) {
-    run();
+    Run();
 }
 
-}  // namespace test
-}  // namespace ov
+}  // namespace SubgraphTestsDefinitions
