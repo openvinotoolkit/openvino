@@ -298,7 +298,7 @@ class TestParallelRunner:
     def __get_test_list_by_runtime(self, test_unit = constants.TEST_UNIT_NAME):
         self._total_test_cnt = 0
         self._disabled_tests.clear()
-        test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
+        test_list_file_name = os.path.join(self._working_dir, f"test_list_{datetime.datetime.now().timestamp()}.lst")
         if os.path.isfile(test_list_file_name):
             try:
                 os.remove(test_list_file_name)
@@ -336,7 +336,7 @@ class TestParallelRunner:
                         tests_dict[test_suite] = tests_dict.get(test_suite, 0) + 1
                         self._total_test_cnt += 1
             test_list_file.close()
-        os.remove(test_list_file_name)
+        # os.remove(test_list_file_name)
         logger.info(f"Len test_list_runtime (without disabled tests): {len(tests_dict)}")
         if len(tests_dict) == 0:
             logger.warning(f"Look like there are not tests to run! Please check the filters!")
