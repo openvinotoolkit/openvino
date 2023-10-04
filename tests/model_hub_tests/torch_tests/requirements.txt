@@ -14,3 +14,5 @@ pyctcdecode
 protobuf
 soundfile
 pandas
+git+https://github.com/facebookresearch/detectron2.git@1a4df4d954089534daebbd7a0a45f08ece87056e
+natten
