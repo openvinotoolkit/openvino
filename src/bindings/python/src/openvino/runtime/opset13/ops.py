@@ -35,13 +35,13 @@ def nms_rotated(
 ) -> Node:
     """Return a node which performs NMSRotated.
 
-    :param boxes: Tensor with box coordinates [x_ctr, y_ctr, width, height, angle_radians].
-    :param scores: Tensor with box scores.
-    :param max_output_boxes_per_class: Tensor Specifying maximum number of boxes
+    :param boxes: Tensor with box coordinates of shape [num_batches, num_boxes, 5],
+                  where the last dimension is defined as [x_ctr, y_ctr, width, height, angle_radians].
+    :param scores: Tensor with box scores of shape [num_batches, num_classes, num_boxes].
+    :param max_output_boxes_per_class: Tensor (scalar or 1D) specifying maximum number of boxes
                                         to be selected per class.
-    :param iou_threshold: Tensor specifying intersection over union threshold
-    :param score_threshold: Tensor specifying minimum score to consider box for the processing.
-    :param box_encoding: Format of boxes data encoding.
+    :param iou_threshold: Tensor (scalar or 1D) specifying intersection over union threshold
+    :param score_threshold: Tensor (scalar or 1D) specifying minimum score to consider box for the processing.
     :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
                                    boxes across batches or not.
     :param output_type: Output element type.
