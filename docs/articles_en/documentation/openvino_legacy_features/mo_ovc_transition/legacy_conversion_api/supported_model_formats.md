@@ -58,7 +58,7 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 model = torchvision.models.resnet50(pretrained=True)
+                 model = torchvision.models.resnet50(weights='DEFAULT')
                  ov_model = convert_model(model)
                  compiled_model = core.compile_model(ov_model, "AUTO")
 

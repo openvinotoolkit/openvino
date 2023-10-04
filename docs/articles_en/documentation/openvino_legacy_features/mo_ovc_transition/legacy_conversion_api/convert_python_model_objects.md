@@ -20,7 +20,7 @@ Example of converting a PyTorch model directly from memory:
 
    import torchvision
 
-   model = torchvision.models.resnet50(pretrained=True)
+   model = torchvision.models.resnet50(weights='DEFAULT')
    ov_model = convert_model(model)
 
 The following types are supported as an input model for ``convert_model()``:

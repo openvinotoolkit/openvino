@@ -26,7 +26,7 @@ To convert a PyTorch model to the OpenVINO IR format, use the OVC API (supersedi
    import torch
    from openvino.tools.mo import convert_model
    
-   model = torchvision.models.resnet50(pretrained=True)
+   model = torchvision.models.resnet50(weights='DEFAULT')
    ov_model = convert_model(model)
 
 Following PyTorch model formats are supported:
@@ -45,7 +45,7 @@ parameter to be set, for example:
    import torch
    from openvino.tools.mo import convert_model
    
-   model = torchvision.models.resnet50(pretrained=True)
+   model = torchvision.models.resnet50(weights='DEFAULT')
    ov_model = convert_model(model, example_input=torch.randn(1, 3, 100, 100))
 
 ``example_input`` accepts the following formats:
@@ -70,7 +70,7 @@ Exporting a PyTorch Model to ONNX Format
 It is also possible to export a PyTorch model to ONNX and then convert it to OpenVINO IR. To convert and deploy a PyTorch model this way, follow these steps:
 
 1. `Export a PyTorch model to ONNX <#exporting-a-pytorch-model-to-onnx-format>`__.
-2. :doc:`Convert the ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.
+2. :doc:`Convert an ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.
 
 PyTorch models are defined in Python. To export them, use the ``torch.onnx.export()`` method. The code to
 evaluate or test the model is usually provided with its code and can be used for its initialization and export.

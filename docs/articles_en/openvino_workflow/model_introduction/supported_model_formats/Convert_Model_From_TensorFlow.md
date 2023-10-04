@@ -45,7 +45,7 @@ To convert a model, run conversion with the directory as the model argument:
 Keras H5 Format
 +++++++++++++++
 
-If you have a model in the HDF5 format, load the model using TensorFlow 2 and serialize it in the
+If you have a model in HDF5 format, load the model using TensorFlow 2 and serialize it to
 SavedModel format. Here is an example of how to do it:
 
 .. code-block:: py
