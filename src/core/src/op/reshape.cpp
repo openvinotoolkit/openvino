@@ -11,7 +11,6 @@
 #include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/reshape.hpp"
@@ -23,12 +22,12 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reshapeop {
 namespace {
 bool evaluate_reshape(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order) {
-    runtime::opt_kernel::reshape(arg0->get_data_ptr<char>(),
-                                 out->get_data_ptr<char>(),
-                                 arg0->get_shape(),
-                                 order,
-                                 out->get_shape(),
-                                 arg0->get_element_type().size());
+    ov::reference::reshape(arg0->get_data_ptr<char>(),
+                           out->get_data_ptr<char>(),
+                           arg0->get_shape(),
+                           order,
+                           out->get_shape(),
+                           arg0->get_element_type().size());
     return true;
 }
 

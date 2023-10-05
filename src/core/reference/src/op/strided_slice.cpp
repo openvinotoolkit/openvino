@@ -9,7 +9,7 @@
 #include <cmath>
 
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "openvino/reference/reshape.hpp"
 
 using namespace ov;
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -39,12 +39,12 @@ void reference::strided_slice(const char* arg,
           elem_type);
 
     ngraph::runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) * elem_type);
-    ngraph::runtime::opt_kernel::reshape(slice_out_buffer.get_ptr<char>(),
-                                         reshape_out_buffer.get_ptr<char>(),
-                                         sp.reshape_in_shape,
-                                         ngraph::get_default_order(sp.reshape_in_shape.size()),
-                                         sp.reshape_out_shape,
-                                         elem_type);
+    reshape(slice_out_buffer.get_ptr<char>(),
+            reshape_out_buffer.get_ptr<char>(),
+            sp.reshape_in_shape,
+            ngraph::get_default_order(sp.reshape_in_shape.size()),
+            sp.reshape_out_shape,
+            elem_type);
 
     reverse(reshape_out_buffer.get_ptr<char>(),
             out,
