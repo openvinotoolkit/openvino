@@ -15,11 +15,11 @@ namespace ov {
 namespace op {
 namespace reduce_prod {
 namespace {
-bool has_positive_bounds_on_data(const Node* const op) {
+bool has_applicable_bounds_on_data(const Node* const op) {
     const auto& lb = op->get_input_tensor(0).get_lower_value();
     const auto& ub = op->get_input_tensor(0).get_upper_value();
 
-    return lb && ub && tensor_is_positive(lb) && tensor_is_positive(ub);
+    return lb && ub && tensor_is_non_negative(lb) && tensor_is_non_negative(ub) && !tensor_has_max_bound(ub);
 }
 }  // namespace
 
@@ -78,12 +78,12 @@ bool ReduceProd::has_evaluate() const {
 }
 
 bool ReduceProd::evaluate_lower(ov::TensorVector& output_values) const {
-    return reduce_prod::has_positive_bounds_on_data(this) && get_input_tensor(1).has_and_set_bound() &&
+    return reduce_prod::has_applicable_bounds_on_data(this) && get_input_tensor(1).has_and_set_bound() &&
            default_lower_bound_evaluator(this, output_values);
 }
 
 bool ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
-    return reduce_prod::has_positive_bounds_on_data(this) && get_input_tensor(1).has_and_set_bound() &&
+    return reduce_prod::has_applicable_bounds_on_data(this) && get_input_tensor(1).has_and_set_bound() &&
            default_upper_bound_evaluator(this, output_values);
 }
 }  // namespace v1
