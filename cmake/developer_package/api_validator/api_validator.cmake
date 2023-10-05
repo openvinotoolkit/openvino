@@ -190,9 +190,16 @@ function(_ov_add_api_validator_post_build_step)
     set(VALIDATED_TARGETS "${VALIDATED_TARGETS}" CACHE INTERNAL "" FORCE)
 endfunction()
 
+#
+# ov_add_api_validator_post_build_step(TARGET <name>)
+#
+macro(ov_add_api_validator_post_build_step)
+    _ov_add_api_validator_post_build_step(${ARGV})
+endmacro()
+
 # deprecated
 
 macro(ie_add_api_validator_post_build_step)
     message(WARNING "'ie_add_api_validator_post_build_step' is deprecated, use 'ov_add_api_validator_post_build_step' instead")
-    _ov_add_api_validator_post_build_step(${ARGV})
+    ov_add_api_validator_post_build_step(${ARGV})
 endmacro()

@@ -75,7 +75,7 @@ ov_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 set(THREADING "TBB" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
-list (APPEND ov_OPTIONS THREADING)
+list (APPEND OV_OPTIONS THREADING)
 if (NOT THREADING STREQUAL "TBB" AND
     NOT THREADING STREQUAL "TBB_AUTO" AND
     NOT THREADING STREQUAL "OMP" AND
@@ -209,4 +209,4 @@ if (ENABLE_PROFILING_RAW)
     add_definitions(-DENABLE_PROFILING_RAW=1)
 endif()
 
-print_enabled_features()
+ov_print_enabled_features()

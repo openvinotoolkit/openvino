@@ -76,13 +76,13 @@ macro(ov_dev_package_no_errors)
     if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
         set(ov_c_cxx_dev_no_errors "-Wno-all")
         if(SUGGEST_OVERRIDE_SUPPORTED)
-            set(ie_cxx_dev_no_errors "-Wno-error=suggest-override")
+            set(ov_cxx_dev_no_errors "-Wno-error=suggest-override")
         endif()
     endif()
 
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors} ${ie_cxx_dev_no_errors}")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_dev_no_errors} ${ie_cxx_dev_no_errors}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_dev_no_errors}")
 endmacro()
 
@@ -388,9 +388,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4275)
 
     # Enable __FILE__ trim, use path with forward and backward slash as directory separator
-    add_compile_options(
-        "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>"
-        "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OpenVINO_SOURCE_DIR}/>")
+    # github actions use sccache which doesn't support /d1trimfile compile option
+    if(NOT DEFINED ENV{GITHUB_ACTIONS})
+        add_compile_options(
+            "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OpenVINO_SOURCE_DIR}/>")
+    endif()
 
     #
     # Debug information flags, by default CMake adds /Zi option

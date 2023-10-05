@@ -236,10 +236,10 @@ macro(ov_add_sample)
             EXCLUDE_FROM_ALL)
 
     # create global target with all samples / demo apps
-    if(NOT TARGET ie_samples)
-        add_custom_target(ie_samples ALL)
+    if(NOT TARGET ov_samples)
+        add_custom_target(ov_samples ALL)
     endif()
-    add_dependencies(ie_samples ${SAMPLE_NAME})
+    add_dependencies(ov_samples ${SAMPLE_NAME})
 
     if(COMMAND ov_add_clang_format_target AND NOT SAMPLE_EXCLUDE_CLANG_FORMAT)
         ov_add_clang_format_target(${SAMPLE_NAME}_clang FOR_SOURCES ${SAMPLE_SOURCES} ${SAMPLE_HEADERS})

@@ -103,7 +103,7 @@ function (ExtractWithVersion URL archive_path unpacked_path folder result files_
   #dont need archive actually after unpacking
   file(REMOVE_RECURSE "${archive_path}")
   if (${status})
-    set (version_file ${unpacked_path}/ov_dependency.info)
+    set (version_file ${unpacked_path}/ie_dependency.info)
     file(WRITE ${version_file} ${URL})
   else()
     file(REMOVE_RECURSE "${unpacked_path}")
@@ -179,14 +179,14 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
     DownloadOrExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} status ${sha256} ${files_to_extract})
   else(NOT EXISTS ${unpacked_path})
     #path exists, so we would like to check what was unpacked version
-    set (version_file ${unpacked_path}/ov_dependency.info)
+    set (version_file ${unpacked_path}/ie_dependency.info)
 
     if (NOT EXISTS ${version_file})
       clean_message(FATAL_ERROR "error: Dependency doesn't contain version file. Please select actions: \n"
         "if you are not sure about your FS dependency - remove it : \n"
         "\trm -rf ${unpacked_path}\n"
         "and rerun cmake.\n"
-        "If your dependency is fine, then execute:\n\techo ${URL} > ${unpacked_path}/ov_dependency.info\n")
+        "If your dependency is fine, then execute:\n\techo ${URL} > ${unpacked_path}/ie_dependency.info\n")
 #     file(REMOVE_RECURSE "${unpacked_path}")
 #     DownloadOrExtractInternal(${URL} ${archive_path} ${unpacked_path} ${fattal} status)
     else()
