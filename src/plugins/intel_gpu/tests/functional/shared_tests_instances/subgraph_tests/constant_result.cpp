@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "subgraph_tests/constant_result.hpp"
+#include "subgraph_tests/constant_result_legacy.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace SubgraphTestsDefinitions;
