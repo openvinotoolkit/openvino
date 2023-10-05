@@ -406,7 +406,7 @@ jobs:
 
       - name: Create Directories
         run: |
-          mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR} ${CONFORMANCE_ARTIFACTS_DIR}
+          mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
 
       #
       # Dependencies
