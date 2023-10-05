@@ -241,11 +241,8 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                    None, None, True, True, False, False)
 
     def test_conversion_failure_fallback_use_new_frontend(self):
-        with self.assertRaisesRegex(Exception,
-                                    "\[TensorFlow Frontend\] Internal error, no translator found for operation\(s\)\: "
-                                    "TensorArrayGatherV3\, TensorArrayReadV3\, TensorArraySizeV3\, TensorArrayV3\, TensorArrayWriteV3"):
-            self.basic("ctc_model_based.pbtxt", None, None, None, None,
-                       None, None, True, True, True, False)
+        self.basic("ctc_model_based.pbtxt", None, None, None, None,
+                   None, None, True, True, True, False)
 
     @unittest.skip("88349: Fix auto-pruning in legacy FE")
     def test_conversion_model_oneshot_iterator_use_legacy_frontend(self):
