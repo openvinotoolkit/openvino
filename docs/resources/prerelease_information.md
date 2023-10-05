@@ -84,7 +84,7 @@ Please file a github Issue on these with the label “pre-release” so we can g
    * Fixed #19617 “Add a clear error message when creating an empty Constant” with PR #19674 
    * Fixed #19616 “Align openvino.compile_model and openvino.Core.compile_model functions” with PR #19778 
    * Fixed #19469 “[Feature Request]: Add SeLu activation in the OpenVino IR (TensorFlow Conversion)” with PR #19528 
-   * Fixed #19019 “[Bug]: Low perfromance of the TF quantized model.” With PR #19735 
+   * Fixed #19019 “[Bug]: Low performance of the TF quantized model.” With PR #19735 
    * Fixed #19018 “[Feature Request]: Support aarch64 python wheel for Linux” with PR #19594 
    * Fixed #18831 “Question: openvino support for Nvidia Jetson Xavier ?” with PR #19594 
    * Fixed #18786 “OpenVINO Wheel does not install Debug libraries when CMAKE_BUILD_TYPE is Debug #18786” with PR #19197 
