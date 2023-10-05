@@ -1,27 +1,28 @@
 name: Tests on Windows (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#  push:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#    branches:
-#      - master
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
 
 concurrency:
-  group: ${{ github.head_ref || github.run_id }}-windows
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows
   cancel-in-progress: true
 
 env:
@@ -37,7 +38,7 @@ env:
   LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
   BUILD_DIR: "${{ github.workspace }}\\build"
   OV_TEMP: "${{ github.workspace }}\\openvino_temp"
-  PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+  PYTHON_STATIC_ARGS: -m "not dynamic_library"
   VCVARSPATH: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvarsall.bat"
 
 jobs:
@@ -124,9 +125,10 @@ jobs:
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
-          key: ${{ github.job }}-windows
+          append-timestamp: true
+          key: ${{ github.job }}-${{ runner.os }}-common
           restore-keys: |
-            ${{ github.job }}-windows
+            ${{ github.job }}-${{ runner.os }}-common
 
       - name: CMake configure
         run: |
@@ -222,7 +224,6 @@ jobs:
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
       - name: List installed files
-        if: ${{ always() }}
         run: |
           Get-ChildItem -Recurse -Directory ${{ env.INSTALL_DIR }}
 
@@ -316,6 +317,8 @@ jobs:
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+
       - name: Install MO dependencies
         run: |
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt `
@@ -377,7 +380,6 @@ jobs:
 #          TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - TF FE
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -389,7 +391,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 2 Layer Tests - TF FE
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -401,7 +402,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -411,7 +411,6 @@ jobs:
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -423,7 +422,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow Lite Layer Tests - TFL FE
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -442,7 +440,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: MO Python API Tests
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -454,7 +451,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: Python Frontend tests
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
@@ -465,7 +461,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-python
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -636,7 +632,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
@@ -647,10 +643,12 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-latest
+    runs-on: windows-latest-8-cores
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\run_parallel.py"
+      PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache.lst"
 
     steps:
       - name: Create Directories
@@ -685,15 +683,43 @@ jobs:
           ls "${{ env.INSTALL_DIR }}"
           ls "${{ env.INSTALL_TEST_DIR }}"
 
-      - name: Intel CPU plugin func tests
+      - name: Install python dependencies
         shell: cmd
         run: |
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\requirements.txt
+
+      - name: Restore tests execution time
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tests-functional-cpu-stamp
+
+      - name: Intel CPU plugin func tests (parallel)
+        shell: cmd
+        run: |
+          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -- --gtest_filter=*smoke*"
+        timeout-minutes: 45
+
+      - name: Save tests execution time
+        uses: actions/cache/save@v3
+        if: github.ref_name == 'master'
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
           if-no-files-found: 'error'
