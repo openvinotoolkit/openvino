@@ -10,10 +10,12 @@
 #include <openvino/reference/multiply.hpp>
 #include <thread>
 #include <utility>
+#include <vector>
 
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "utils/denormals.hpp"
+#include "openvino/core/parallel.hpp"
 
 using namespace testing;
 
@@ -23,14 +25,18 @@ public:
         // Default setting
         ov::intel_cpu::flush_to_zero(false);
         ov::intel_cpu::denormals_as_zero(false);
+
+        for (int i = 0; i < 3; i++) {
+            vecConst.emplace_back(new float[shape_size(inpShape)]);
+        }
+        input1 = ov::Tensor(ov::element::f32, inpShape, vecConst[0]);
+        input2 = ov::Tensor(ov::element::f32, inpShape, vecConst[1]);
     }
     ~DenormalsOptimizeTestF() {
-        if (pConst1)
-            delete[] pConst1;
-        if (pConst2)
-            delete[] pConst2;
-        if (pConst3)
-            delete[] pConst3;
+        for (size_t i = 0; i < vecConst.size(); i++) {
+            if (vecConst[i])
+                delete[] vecConst[i];
+        }
 
         // Recover the default setting to avoid impacting other tests.
         ov::intel_cpu::flush_to_zero(false);
@@ -38,8 +44,8 @@ public:
     }
 
     void SetUp() override {
-        initBuf(pConst1, shape_size(inpShape), std::numeric_limits<float>::min());
-        initBuf(pConst2, shape_size(inpShape), 0.5f);
+        initBuf(vecConst[0], shape_size(inpShape), std::numeric_limits<float>::min());
+        initBuf(vecConst[1], shape_size(inpShape), 0.5f);
         initModel();
     }
 
@@ -47,12 +53,8 @@ public:
 
     ov::Shape inpShape = ov::Shape{1, 5, 12, 64};
     ov::element::Type rtPrc = ov::element::f32;
-
-    float* pConst1 = new float[shape_size(inpShape)];
-    float* pConst2 = new float[shape_size(inpShape)];
-    float* pConst3 = new float[shape_size(inpShape)];
-    ov::Tensor input1 = ov::Tensor(ov::element::f32, inpShape, pConst1);
-    ov::Tensor input2 = ov::Tensor(ov::element::f32, inpShape, pConst2);
+    std::vector<float*> vecConst;
+    ov::Tensor input1, input2;
     std::shared_ptr<ov::Model> model;
 
     ov::Core core = ov::Core();
@@ -60,9 +62,9 @@ public:
 
     void run_reference_multiply() {
         // Subnormal optimization is not used in the current thread.
-        ov::reference::multiply<float>(pConst1, pConst2, pConst3, shape_size(inpShape));
+        ov::reference::multiply<float>(vecConst[0], vecConst[1], vecConst[2], shape_size(inpShape));
         for (size_t i = 0; i < shape_size(inpShape); i++) {
-            EXPECT_GT(pConst3[i], 0);
+            EXPECT_GT(vecConst[2][i], 0);
         }
     }
 

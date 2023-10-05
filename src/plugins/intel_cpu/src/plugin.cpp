@@ -573,7 +573,17 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
 
     if (conf.changedDenormalsOptMode) {
-        set_denormals_optimization(conf);
+        static Xbyak::util::Cpu cpu;
+        // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
+        if (cpu.has(Xbyak::util::Cpu::tSSE)) {
+            if (conf.denormalsOptMode == ov::intel_cpu::Config::DenormalsOptMode::DO_On) {
+                flush_to_zero(true);
+                conf.DAZOn = denormals_as_zero(true);
+            } else if (conf.denormalsOptMode == ov::intel_cpu::Config::DenormalsOptMode::DO_Off) {
+                flush_to_zero(false);
+                denormals_as_zero(false);
+            }
+        }
     }
 
     return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, shared_from_this());

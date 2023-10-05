@@ -12,9 +12,6 @@
 #include <set>
 #include <thread>
 #include <vector>
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <immintrin.h>
-#endif
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
