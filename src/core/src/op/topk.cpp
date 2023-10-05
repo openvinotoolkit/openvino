@@ -30,35 +30,20 @@ bool data_type(const element::Type& et) {
     }
 }
 
-bool k_type(const element::Type& et, const bool is_const) {
-    bool is_valid_type;
-
+bool k_type(const element::Type& et) {
     switch (et) {
     case element::i8:
+    case element::i16:
     case element::i32:
     case element::i64:
-        is_valid_type = true;
-        break;
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
+        return true;
     default:
-        is_valid_type = false;
-        break;
+        return false;
     }
-
-    if (!is_valid_type && !is_const) {
-        switch (et) {
-        case element::i16:
-        case element::u8:
-        case element::u16:
-        case element::u32:
-        case element::u64:
-            is_valid_type = true;
-            break;
-        default:
-            break;
-        }
-    }
-
-    return is_valid_type;
 }
 }  // namespace
 }  // namespace validate
@@ -188,8 +173,7 @@ bool TopK::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
 bool TopK::has_evaluate() const {
     OV_OP_SCOPE(v1_TopK_has_evaluate);
-    return topk::validate::data_type(get_input_element_type(0)) &&
-           topk::validate::k_type(get_input_element_type(1), util::is_constant(input_value(1).get_node()));
+    return topk::validate::data_type(get_input_element_type(0)) && topk::validate::k_type(get_input_element_type(1));
 }
 }  // namespace v1
 
@@ -226,8 +210,7 @@ bool TopK::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
 bool TopK::has_evaluate() const {
     OV_OP_SCOPE(v3_TopK_has_evaluate);
-    return topk::validate::data_type(get_input_element_type(0)) &&
-           topk::validate::k_type(get_input_element_type(1), util::is_constant(input_value(1).get_node()));
+    return topk::validate::data_type(get_input_element_type(0)) && topk::validate::k_type(get_input_element_type(1));
 }
 }  // namespace v3
 
