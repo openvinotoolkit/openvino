@@ -52,13 +52,6 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
         }
     }
 
-    if (m_const_inputs[MIN_VAL]) {
-        initEdgeValues(m_min_val, as_type<op::v0::Constant>(op->get_input_node_ptr(MIN_VAL))->get_data_ptr(), m_output_prc);
-    }
-    if (m_const_inputs[MAX_VAL]) {
-        initEdgeValues(m_max_val, as_type<op::v0::Constant>(op->get_input_node_ptr(MAX_VAL))->get_data_ptr(), m_output_prc);
-    }
-
     if (m_algo == STL) {
         m_generator = std::default_random_engine{static_cast<uint32_t>(m_op_seed)};
     }
@@ -96,6 +89,13 @@ void RandomUniform::initSupportedPrimitiveDescriptors() {
 }
 
 void RandomUniform::createPrimitive() {
+    if (m_const_inputs[MIN_VAL]) {
+        initEdgeValues(m_min_val, getParentEdgeAt(MIN_VAL)->getMemoryPtr()->getData(), m_output_prc);
+    }
+    if (m_const_inputs[MAX_VAL]) {
+        initEdgeValues(m_max_val, getParentEdgeAt(MAX_VAL)->getMemoryPtr()->getData(), m_output_prc);
+    }
+
     if (m_algo == PHILOX) {
 #if defined(OPENVINO_ARCH_X86_64)
         kernel::RandomUniformCompileParams jcp;

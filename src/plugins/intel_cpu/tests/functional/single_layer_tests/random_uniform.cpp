@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -87,13 +87,8 @@ protected:
         } else if (output_prc == ElementType::f64) {
             updateSelectedType(getPrimitiveType(), ElementType::f32, configuration);
         } else if (output_prc == ElementType::f16) {
-            const auto it = configuration.find(ov::hint::inference_precision.name());
-            if (it != configuration.end() && it->second == ov::device::capability::FP16) {
-                if (InferenceEngine::with_cpu_x86_avx512_core_fp16()) {
-                    updateSelectedType(getPrimitiveType(), ElementType::f16, configuration);
-                } else {
-                    updateSelectedType("ref", ElementType::f16, configuration);
-                }
+            if (InferenceEngine::with_cpu_x86_avx512_core_fp16()) {
+                updateSelectedType(getPrimitiveType(), ElementType::f16, configuration);
             } else {
                 updateSelectedType(getPrimitiveType(), ElementType::f32, configuration);
             }
@@ -227,11 +222,13 @@ case P :                                                                        
     }
 
     precisions_map get_ref_precisions_convert_map() override {
-        precisions_map precisions = {
-            { ov::element::f16, ov::element::f32 }
-        };
+        precisions_map precisions;
+
         if (!InferenceEngine::with_cpu_x86_avx512_core()) {
             precisions.insert({ ov::element::bf16, ov::element::f32 });
+        }
+        if (!InferenceEngine::with_cpu_x86_avx512_core_fp16()) {
+            precisions.insert({ ov::element::f16, ov::element::f32 });
         }
 
         return precisions;
@@ -346,7 +343,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Param, RandomUniformLayerTestCPU,
                 ::testing::Values(false),
                 ::testing::Values(false),
                 ::testing::Values(false),
-                ::testing::Values(CPUSpecificParams{}),
+                ::testing::Values(emptyCPUSpec),
                 ::testing::Values(empty_plugin_config)),
         RandomUniformLayerTestCPU::getTestCaseName);
 
@@ -361,7 +358,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ParamConst, RandomUniformLayerTestCPU,
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
-                ::testing::Values(CPUSpecificParams{}),
+                ::testing::Values(emptyCPUSpec),
                 ::testing::Values(empty_plugin_config)),
         RandomUniformLayerTestCPU::getTestCaseName);
 
@@ -376,7 +373,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Param, RandomUniformLayerTestCPU,
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
-                ::testing::Values(CPUSpecificParams{}),
+                ::testing::Values(emptyCPUSpec),
                 ::testing::Values(empty_plugin_config)),
         RandomUniformLayerTestCPU::getTestCaseName);
 

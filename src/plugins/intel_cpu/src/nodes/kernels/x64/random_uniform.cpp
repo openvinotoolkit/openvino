@@ -25,8 +25,8 @@ void RandomUniform<isa>::generate() {
     r64_dst = getReg64();
     r64_work_amount = getReg64();
 
-    mov(r64_work_amount, ptr[regParams + GET_OFF(work_amount)]);
-    mov(r64_dst,  ptr[regParams + GET_OFF(dst_ptr)]);
+    mov(r64_work_amount, ptr[r64_params + GET_OFF(work_amount)]);
+    mov(r64_dst,  ptr[r64_params + GET_OFF(dst_ptr)]);
 
     initVectors();
     process();
@@ -45,8 +45,6 @@ void RandomUniform<x64::avx512_core>::initVectors() {
     v_max_mul_c_64 = getVmm();
     v_add_low_k    = getVmm();
     v_add_up_k     = getVmm();
-    v_convert_0    = getVmm();
-    v_convert_1    = getVmm();
     v_n_inc        = getVmm();
     v_range        = getVmm();
     v_min          = getVmm();
@@ -55,56 +53,62 @@ void RandomUniform<x64::avx512_core>::initVectors() {
     v_n_64         = getVmm();
     v_res_perm     = getVmm();
 
+    if (m_jcp.out_data_type.is_real()) {
+        v_convert_0 = getVmm();
+        v_convert_1 = getVmm();
+    }
+
     // Initialize constants.
-    mov(r64_aux, 0xd2511f53);
-    vpbroadcastq(v_max_mul_n_64, r64_aux);
+#define BROADCAST_R(F, V, R, C)           \
+    mov(R, C);                            \
+    F(V, R);
+#define BROADCAST_P(F, V, R, C)           \
+    mov(R, ptr[r64_params + GET_OFF(C)]);  \
+    F(V, ptr[R]);
 
-    mov(r64_aux, 0xcd9e8d57);
-    vpbroadcastq(v_max_mul_c_64, r64_aux);
-
-    mov(r32_aux, 0x9e3779b9);
-    vpbroadcastd(v_add_low_k, r32_aux);
-
-    mov(r32_aux, 0xbb67ae85);
-    vpbroadcastd(v_add_up_k, r32_aux);
-
-    mov(r64_aux, 0x00000008);
-    vpbroadcastq(v_n_inc, r64_aux);
+    BROADCAST_R(vpbroadcastq, v_max_mul_n_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_N)
+    BROADCAST_R(vpbroadcastq, v_max_mul_c_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER)
+    BROADCAST_R(vpbroadcastd, v_add_low_k,    r32_aux, CRUSH_RESISTANCE_CONST_LOWER_VALUE)
+    BROADCAST_R(vpbroadcastd, v_add_up_k,     r32_aux, CRUSH_RESISTANCE_CONST_UPPER_VALUE)
+    BROADCAST_R(vpbroadcastq, v_n_inc,        r64_aux, 0x00000008)
 
     if (m_jcp.out_data_type == element::f32) {
-        mov(r32_aux, 0x3f800000);
-        vpbroadcastd(v_convert_0, r32_aux);
-
-        mov(r32_aux, 0x007fffff);
-        vpbroadcastd(v_convert_1, r32_aux);
-
-        mov(r64_aux, ptr[regParams + GET_OFF(max_ptr)]);
-        vpbroadcastd(v_range, ptr[r64_aux]);
-
-        mov(r64_aux, ptr[regParams + GET_OFF(min_ptr)]);
-        vpbroadcastd(v_min, ptr[r64_aux]);
+        BROADCAST_R(vpbroadcastd, v_convert_0, r32_aux, 0x3f800000)
+        BROADCAST_R(vpbroadcastd, v_convert_1, r32_aux, 0x007fffff)
+        BROADCAST_P(vpbroadcastd, v_range,     r64_aux, max_ptr)
+        BROADCAST_P(vpbroadcastd, v_min,       r64_aux, min_ptr)
 
         uni_vsubps(v_range, v_range, v_min);
-    } else if (m_jcp.out_data_type == element::f16) {
-        mov(r16_aux, 0x3c00);
-        vpbroadcastw(v_convert_0, r16_aux);
+    } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
+        BROADCAST_R(vpbroadcastw, v_convert_0, r16_aux, 0x3c00)
+        BROADCAST_R(vpbroadcastw, v_convert_1, r16_aux, 0x03ff)
+        BROADCAST_P(vpbroadcastw, v_range,     r64_aux, max_ptr)
+        BROADCAST_P(vpbroadcastw, v_min,       r64_aux, min_ptr)
 
-        mov(r16_aux, 0x03ff);
-        vpbroadcastw(v_convert_1, r16_aux);
-    } else if (m_jcp.out_data_type == element::bf16) {
-        mov(r16_aux, 0x3f80);
-        vpbroadcastw(v_convert_0, r16_aux);
+        vsubph(v_range, v_range, v_min);
+    } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
+        v_convert_2 = getVmm();
+        const auto ymm_min = Xbyak::Ymm(v_min.getIdx());
+        const auto ymm_range = Xbyak::Ymm(v_range.getIdx());
 
-        mov(r16_aux, 0x007f);
-        vpbroadcastw(v_convert_1, r16_aux);
+        BROADCAST_R(vpbroadcastw, v_convert_0, r16_aux, 0x3f80)
+        BROADCAST_R(vpbroadcastw, v_convert_1, r16_aux, 0x007f)
+        BROADCAST_R(vpbroadcastd, v_convert_2, r32_aux, 0x3f800000)
+
+        BROADCAST_P(vpbroadcastw, v_range, r64_aux, max_ptr)
+        vpmovzxwd(v_range, ymm_range);
+        uni_vpslld(v_range, v_range, 16);
+
+        BROADCAST_P(vpbroadcastw, v_min, r64_aux, min_ptr)
+        vpmovzxwd(v_min, ymm_min);
+        uni_vpslld(v_min, v_min, 16);
+
+        uni_vsubps(v_range, v_range, v_min);
     } else if (m_jcp.out_data_type == element::i32) {
         const auto ymm_range = Xbyak::Ymm(v_range.getIdx());
 
-        mov(r64_aux, ptr[regParams + GET_OFF(max_ptr)]);
-        vpbroadcastd(v_range, ptr[r64_aux]);
-
-        mov(r64_aux, ptr[regParams + GET_OFF(min_ptr)]);
-        vpbroadcastd(v_min, ptr[r64_aux]);
+        BROADCAST_P(vpbroadcastd, v_range, r64_aux, max_ptr)
+        BROADCAST_P(vpbroadcastd, v_min,   r64_aux, min_ptr)
 
         uni_vpsubd(v_range, v_range, v_min);
         uni_vcvtdq2pd(v_range, ymm_range);
@@ -113,14 +117,10 @@ void RandomUniform<x64::avx512_core>::initVectors() {
     }
 
     // Initialize inputs.
-    mov(r64_aux, ptr[regParams + GET_OFF(key_ptr)]);
-    vpbroadcastq(v_key_64, ptr[r64_aux]);
+    BROADCAST_P(vpbroadcastq, v_key_64,     r64_aux, key_ptr)
+    BROADCAST_P(vpbroadcastq, v_counter_64, r64_aux, counter_ptr)
+    BROADCAST_P(vpbroadcastq, v_n_64,       r64_aux, n_ptr)
 
-    mov(r64_aux, ptr[regParams + GET_OFF(counter_ptr)]);
-    vpbroadcastq(v_counter_64, ptr[r64_aux]);
-
-    mov(r64_aux, ptr[regParams + GET_OFF(n_ptr)]);
-    vpbroadcastq(v_n_64, ptr[r64_aux]);
     if (m_jcp.out_data_type.size() <= 4) {
         static const uint64_t n_inc_arr[8]  = { 0, 1, 2, 3, 4, 5, 6, 7 };
         mov(r64_aux, reinterpret_cast<uintptr_t>(n_inc_arr));
@@ -135,12 +135,24 @@ void RandomUniform<x64::avx512_core>::initVectors() {
                                                 0b00000100, 0b00010100, 0b00001100, 0b00011100, 0b00000110, 0b00010110, 0b00001110, 0b00011110 };
     mov(r64_aux, reinterpret_cast<uintptr_t>(res_perm_mask));
     uni_vmovups(v_res_perm, ptr[r64_aux]);
+
+    if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
+        v_perm_16 = getVmm();
+        static const uint16_t perm_16[32] = { 0b00000000, 0b00000010, 0b00000100, 0b00000110, 0b00001000, 0b00001010, 0b00001100, 0b00001110,
+                                              0b00010000, 0b00010010, 0b00010100, 0b00010110, 0b00011000, 0b00011010, 0b00011100, 0b00011110,
+                                              0b00100000, 0b00100010, 0b00100100, 0b00100110, 0b00101000, 0b00101010, 0b00101100, 0b00101110,
+                                              0b00110000, 0b00110010, 0b00110100, 0b00110110, 0b00111000, 0b00111010, 0b00111100, 0b00111110 };
+        mov(r64_aux, reinterpret_cast<uintptr_t>(perm_16));
+        uni_vmovups(v_perm_16, ptr[r64_aux]);
+    }
+
+#undef BROADCAST_R
+#undef BROADCAST_P
 }
 
 template <x64::cpu_isa_t isa> // Works for AVX2, SSE41
 void RandomUniform<isa>::initVectors() {
     const auto r64_aux = getReg64();
-    const auto r16_aux = Xbyak::Reg16(r64_aux.getIdx());
 
     v_max_mul_n_64 = getVmm();
     v_max_mul_c_64 = getVmm();
@@ -164,16 +176,16 @@ void RandomUniform<isa>::initVectors() {
     }
 
     // Initialize constants.
-    INIT_ARR(max_mul_n_64, 0xd2511f53, r64_aux, uint64_t);
+    INIT_ARR(max_mul_n_64, STATISTIC_MAXIMIZING_MULTIPLIER_N, r64_aux, uint64_t);
     uni_vmovups(v_max_mul_n_64, ptr[r64_aux]);
 
-    INIT_ARR(max_mul_c_64, 0xcd9e8d57, r64_aux, uint64_t);
+    INIT_ARR(max_mul_c_64, STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER, r64_aux, uint64_t);
     uni_vmovups(v_max_mul_c_64, ptr[r64_aux]);
 
-    INIT_ARR(add_low_k, 0x9e3779b9, r64_aux, uint32_t);
+    INIT_ARR(add_low_k, CRUSH_RESISTANCE_CONST_LOWER_VALUE, r64_aux, uint32_t);
     uni_vmovups(v_add_low_k, ptr[r64_aux]);
 
-    INIT_ARR(add_up_k, 0xbb67ae85, r64_aux, uint32_t);
+    INIT_ARR(add_up_k, CRUSH_RESISTANCE_CONST_UPPER_VALUE, r64_aux, uint32_t);
     uni_vmovups(v_add_up_k, ptr[r64_aux]);
 
     INIT_ARR(n_inc_step, isa == x64::avx2 ? 4 : 2, r64_n_inc, uint64_t);
@@ -185,27 +197,17 @@ void RandomUniform<isa>::initVectors() {
         INIT_ARR(convert_0, 0x3f800000, r64_convert_0, uint32_t);
         INIT_ARR(convert_1, 0x007fffff, r64_convert_1, uint32_t);
 
-        mov(r64_aux, ptr[regParams + GET_OFF(max_ptr)]);
+        mov(r64_aux, ptr[r64_params + GET_OFF(max_ptr)]);
         uni_vpbroadcastd(v_range, ptr[r64_aux]);
 
         auto v_aux = getVmm();
-        mov(r64_aux, ptr[regParams + GET_OFF(min_ptr)]);
+        mov(r64_aux, ptr[r64_params + GET_OFF(min_ptr)]);
         uni_vpbroadcastd(v_aux, ptr[r64_aux]);
         static uint32_t min_arr[8];
         mov(r64_min, reinterpret_cast<uintptr_t>(min_arr));
         uni_vmovups(ptr[r64_min], v_aux);
 
         uni_vsubps(v_range, v_range, v_aux);
-    } else if (m_jcp.out_data_type == element::f16) {
-        mov(r16_aux, 0x00003c00);
-        vpbroadcastw(v_convert_0, r16_aux);
-        mov(r16_aux, 0x000003ff);
-        vpbroadcastw(v_convert_1, r16_aux);
-    } else if (m_jcp.out_data_type == element::bf16) {
-        mov(r16_aux, 0x00003f80);
-        vpbroadcastw(v_convert_0, r16_aux);
-        mov(r16_aux, 0x0000007f);
-        vpbroadcastw(v_convert_1, r16_aux);
     } else if (m_jcp.out_data_type == element::i32) {
         r64_f64_pow_52 = getReg64();
         const auto v_aux = getVmm();
@@ -213,10 +215,10 @@ void RandomUniform<isa>::initVectors() {
 
         INIT_ARR(f64_pow_52, 0x4330000000000000, r64_f64_pow_52, uint64_t);
 
-        mov(r64_aux, ptr[regParams + GET_OFF(max_ptr)]);
+        mov(r64_aux, ptr[r64_params + GET_OFF(max_ptr)]);
         uni_vpbroadcastd(v_range, ptr[r64_aux]);
 
-        mov(r64_aux, ptr[regParams + GET_OFF(min_ptr)]);
+        mov(r64_aux, ptr[r64_params + GET_OFF(min_ptr)]);
         uni_vpbroadcastd(v_aux, ptr[r64_aux]);
         static uint32_t min_arr[8];
         mov(r64_min, reinterpret_cast<uintptr_t>(min_arr));
@@ -229,13 +231,13 @@ void RandomUniform<isa>::initVectors() {
     }
 
     // Initialize inputs.
-    mov(r64_aux, ptr[regParams + GET_OFF(key_ptr)]);
+    mov(r64_aux, ptr[r64_params + GET_OFF(key_ptr)]);
     uni_vpbroadcastq(v_key_64, ptr[r64_aux]);
 
-    mov(r64_aux, ptr[regParams + GET_OFF(counter_ptr)]);
+    mov(r64_aux, ptr[r64_params + GET_OFF(counter_ptr)]);
     uni_vpbroadcastq(v_counter_64, ptr[r64_aux]);
 
-    mov(r64_aux, ptr[regParams + GET_OFF(n_ptr)]);
+    mov(r64_aux, ptr[r64_params + GET_OFF(n_ptr)]);
     uni_vpbroadcastq(v_n_64, ptr[r64_aux]);
 
     if (m_jcp.out_data_type.size() <= 4) {
@@ -385,8 +387,8 @@ template <>
 void RandomUniform<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
     if (m_jcp.out_data_type.size() == 4) {
         for (size_t i = 0lu; i < v_src.size(); i++) {
-            auto vmm_src = v_src[i];
-            auto vmm_dst = v_dst[i];
+            const auto& vmm_src = v_src[i];
+            const auto& vmm_dst = v_dst[i];
 
             if (m_jcp.out_data_type == element::f32) {
                 uni_vandps(vmm_dst, vmm_src, v_convert_1);
@@ -423,36 +425,30 @@ void RandomUniform<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, con
         }
     } else if (m_jcp.out_data_type.size() == 2) {
         if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-            auto ymm_dst_0 = Xbyak::Ymm(v_dst[0].getIdx());
-            auto ymm_dst_1 = Xbyak::Ymm(v_dst[1].getIdx());
+            const auto& vmm_dst = v_dst[0];
 
-            vpmovusdw(ymm_dst_0, v_dst[0]);
-            vpmovusdw(ymm_dst_1, v_dst[1]);
-            vshuff64x2(v_dst[0], v_dst[0], v_dst[1], 0b01000100);
+            if (v_src[0].getIdx() != vmm_dst.getIdx()) {
+                uni_vmovups(vmm_dst, v_src[0]);
+            }
+            vpermt2w(vmm_dst, v_perm_16, v_src[1]);
 
-            uni_vandps(v_dst[0], v_dst[0], v_convert_1);
-            uni_vorps(v_dst[0], v_dst[0], v_convert_0);
-            vsubph(v_dst[0], v_dst[0], v_convert_0);
-            vfmadd132ph(v_dst[0], v_min, v_range);
+            uni_vandps(vmm_dst, vmm_dst, v_convert_1);
+            uni_vorps(vmm_dst, vmm_dst, v_convert_0);
+            vsubph(vmm_dst, vmm_dst, v_convert_0);
+            vfmadd132ph(vmm_dst, v_min, v_range);
         } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
-            auto ymm_convert_0 = Xbyak::Ymm(v_convert_0.getIdx());
-            auto ymm_convert_1 = Xbyak::Ymm(v_convert_1.getIdx());
+            for (size_t i = 0lu; i < v_src.size(); i++) {
+                const auto& vmm_dst = v_dst[i];
 
-            for (const auto& vmm_dst : v_dst) {
-                auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
-
-                vpmovusdw(ymm_dst, vmm_dst);
-                uni_vandps(ymm_dst, ymm_dst, ymm_convert_1);
-                uni_vorps(ymm_dst, ymm_dst, ymm_convert_0);
-
-                vpmovzxwd(vmm_dst, ymm_dst);
+                uni_vandps(vmm_dst, v_src[i], v_convert_1);
+                uni_vorps(vmm_dst, vmm_dst, v_convert_0);
                 uni_vpslld(vmm_dst, vmm_dst, 16);
 
-                uni_vsubps(vmm_dst, vmm_dst, v_convert_0);
+                uni_vsubps(vmm_dst, vmm_dst, v_convert_2);
                 vfmadd132ps(vmm_dst, v_min, v_range);
             }
 
-            vcvtne2ps2bf16(v_dst[0], v_dst[0], v_dst[1]);
+            vcvtne2ps2bf16(v_dst[0], v_dst[1], v_dst[0]);
         } else {
             OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
         }
@@ -551,9 +547,8 @@ void RandomUniform<isa>::convert(const std::vector<Vmm>& v_dst, const std::vecto
 
 template <>
 void RandomUniform<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
-    Xbyak::Label l_0, l_end;
+    Xbyak::Label l_end;
     const auto k_rest_mask = getMask();
-    const auto step = vlen / sizeof(uint32_t);
 
     cmp(r64_work_amount, 0);
     jle(l_end, T_NEAR);
@@ -561,19 +556,27 @@ void RandomUniform<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
     runPhilox(vmm_dst, v_key_64, v_counter_64, v_n_64);
     convert(vmm_dst, vmm_dst);
 
-    cmp(r64_work_amount, step);
-    jl(l_0, T_NEAR);
+    if (m_jcp.out_data_type.size() == 4) {
+        Xbyak::Label l_0;
+        const auto step = vlen / sizeof(uint32_t);
 
-    uni_vmovups(ptr[r64_dst], vmm_dst[0]);
-    add(r64_dst, vlen);
-    sub(r64_work_amount, step);
-    fillRestWorkMask(k_rest_mask, r64_work_amount);
-    uni_vmovups(ptr[r64_dst] | k_rest_mask, vmm_dst[1]);
-    jmp(l_end, T_NEAR);
+        cmp(r64_work_amount, step);
+        jl(l_0, T_NEAR);
 
-    L(l_0);
-    fillRestWorkMask(k_rest_mask, r64_work_amount);
-    uni_vmovups(ptr[r64_dst] | k_rest_mask, vmm_dst[0]);
+        uni_vmovups(ptr[r64_dst], vmm_dst[0]);
+        add(r64_dst, vlen);
+        sub(r64_work_amount, step);
+        fillRestWorkMask(k_rest_mask, r64_work_amount);
+        uni_vmovups(ptr[r64_dst] | k_rest_mask, vmm_dst[1]);
+        jmp(l_end, T_NEAR);
+
+        L(l_0);
+        fillRestWorkMask(k_rest_mask, r64_work_amount);
+        uni_vmovups(ptr[r64_dst] | k_rest_mask, vmm_dst[0]);
+    } else if (m_jcp.out_data_type.size() == 2) {
+        fillRestWorkMask(k_rest_mask, r64_work_amount);
+        vmovdqu16(ptr[r64_dst] | k_rest_mask, vmm_dst[0]);
+    }
 
     L(l_end);
 }
