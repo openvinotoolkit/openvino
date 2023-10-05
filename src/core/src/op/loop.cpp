@@ -12,14 +12,12 @@
 #include "openvino/reference/loop.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-using namespace ov;
-
-op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
+ov::op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
     set_argument(0, trip_count);
     set_argument(1, execution_condition);
 }
 
-bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v5::Loop::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v5_Loop_visit_attributes);
     visitor.on_attribute("body", m_bodies[0]);
     visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
@@ -29,7 +27,7 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v5::Loop::validate_and_infer_types() {
+void ov::op::v5::Loop::validate_and_infer_types() {
     OV_OP_SCOPE(v5_Loop_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
@@ -322,7 +320,7 @@ void op::v5::Loop::validate_and_infer_types() {
                           "Number of outputs must be the same as number of output descriptions");
 }
 
-std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v5_Loop_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto op = std::make_shared<op::v5::Loop>();
@@ -336,12 +334,12 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
     return op;
 }
 
-Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
-                                                   int64_t start,
-                                                   int64_t stride,
-                                                   int64_t part_size,
-                                                   int64_t end,
-                                                   int64_t axis) {
+ov::Output<ov::Node> ov::op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
+                                                               int64_t start,
+                                                               int64_t stride,
+                                                               int64_t part_size,
+                                                               int64_t end,
+                                                               int64_t axis) {
     OPENVINO_ASSERT(start == 0 && stride == 1 && part_size == 1 && end == -1,
                     "Invalid start, stride, part_size, or end attribute values in Loop op. "
                     "Supported values for start {0}, for stride and part_size {1}, for end "
@@ -349,7 +347,7 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
     return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
 }
 
-bool op::v5::Loop::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+bool ov::op::v5::Loop::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v5_Loop_evaluate);
     ov::reference::loop(m_bodies[0],
                         m_output_descriptions[0],
@@ -360,7 +358,7 @@ bool op::v5::Loop::evaluate(ov::TensorVector& outputs, const ov::TensorVector& i
     return true;
 }
 
-bool op::v5::Loop::has_evaluate() const {
+bool ov::op::v5::Loop::has_evaluate() const {
     OV_OP_SCOPE(v5_Loop_has_evaluate);
     switch (get_input_element_type(0)) {
     case ov::element::i32:
@@ -372,7 +370,7 @@ bool op::v5::Loop::has_evaluate() const {
     return false;
 }
 
-void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) const {
+void ov::op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) const {
     dst.set_arguments(new_args);
     dst.set_output_size(m_output_descriptions.size());
 
@@ -390,6 +388,6 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) con
     dst.validate_and_infer_types();
 }
 
-op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
+ov::op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
     other.clone_to(*this, other.input_values());
 }
