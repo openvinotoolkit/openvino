@@ -77,16 +77,13 @@ OutputVector translate_channel_shuffle(const NodeContext& context) {
     auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
-    Output<Node> shape;
-    Output<Node> rank;
-    std::tie(shape, rank) = get_shape_rank(context, x, true);
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
     // PyTorch realization uses assumption that channels dim is always 1
     auto indices = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {0, 1}));
     auto dims = context.mark_node(std::make_shared<v8::Gather>(shape, indices, zero));
     auto dims_splitted = context.mark_node(std::make_shared<v1::Split>(dims, zero, 2));
     auto c = dims_splitted->output(1);
     auto n = dims_splitted->output(0);
-    auto rank_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(rank, zero));
     groups = context.mark_node(std::make_shared<v0::Convert>(groups, element::i32));
     auto k = context.mark_node(std::make_shared<v1::Divide>(c, groups, true));
     auto g = context.mark_node(std::make_shared<v0::Unsqueeze>(groups, zero));
