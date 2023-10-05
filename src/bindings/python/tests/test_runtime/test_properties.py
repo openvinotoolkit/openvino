@@ -544,5 +544,5 @@ def test_core_cpu_properties(properties_to_set):
     assert isinstance(core.get_property("CPU", props.optimal_number_of_infer_requests), int)
     assert isinstance(core.get_property("CPU", props.range_for_streams), tuple)
     assert isinstance(core.get_property("CPU", props.range_for_async_infer_requests), tuple)
-    assert isinstance(core.get_property("CPU", props.full_name), str)
-    assert isinstance(core.get_property("CPU", props.capabilities), list)
+    assert isinstance(core.get_property("CPU", device.full_name), str)
+    assert isinstance(core.get_property("CPU", device.capabilities), list)
