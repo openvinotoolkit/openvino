@@ -13,7 +13,7 @@
 
    * offers both C/C++ and Python APIs
    * additionally includes code samples 
-   * is dedicated to users of all major OSs: Windows, Linux, macOS and x86_64 / arm64 architectures
+   * is dedicated to Linux users (archives for other systems are also available)
    * may offer different hardware support under different operating systems
      (see the drop-down below for more details).
 
