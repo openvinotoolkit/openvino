@@ -1,6 +1,7 @@
 CPU:
   dependent_components:
     Python_API: [build, test]
+    C_API: [build, test]
 
 Python_API:
   dependent_components:
