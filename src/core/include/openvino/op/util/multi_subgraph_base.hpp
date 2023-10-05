@@ -212,7 +212,7 @@ public:
     virtual void set_function(int index, const std::shared_ptr<Model>& func) {
         m_bodies[index] = func;
     }
-    /// \brief     Gets vector with connections beewtwen operation inputs
+    /// \brief     Gets vector with connections between operation inputs
     /// and internal sub-graph parameters
     ///
     /// \param index   index of internal sub-graph
@@ -220,7 +220,7 @@ public:
     const MultiSubgraphInputDescriptionVector& get_input_descriptions(int index) const {
         return m_input_descriptions[index];
     }
-    /// \brief     Gets vector with connections beewtwen operation inputs
+    /// \brief     Gets vector with connections between operation inputs
     /// and internal sub-graph parameters
     ///
     /// \param index   index of internal sub-graph
@@ -228,7 +228,7 @@ public:
     MultiSubgraphInputDescriptionVector& get_input_descriptions(int index) {
         return m_input_descriptions[index];
     }
-    /// \brief     Gets vector with connections beewtwen operation outputs
+    /// \brief     Gets vector with connections between operation outputs
     /// and internal sub-graph results
     ///
     /// \param index   index of internal sub-graph
@@ -236,7 +236,7 @@ public:
     const MultiSubgraphOutputDescriptionVector& get_output_descriptions(int index) const {
         return m_output_descriptions[index];
     }
-    /// \brief     Gets vector with connections beewtwen operation outputs
+    /// \brief     Gets vector with connections between operation outputs
     /// and internal sub-graph results
     ///
     /// \param index   index of internal sub-graph
@@ -244,7 +244,7 @@ public:
     MultiSubgraphOutputDescriptionVector& get_output_descriptions(int index) {
         return m_output_descriptions[index];
     }
-    /// \brief     Sets vector with connections beewtwen operation inputs
+    /// \brief     Sets vector with connections between operation inputs
     /// and internal sub-graph parameters
     ///
     /// \param index   index of internal sub-graph
@@ -253,7 +253,7 @@ public:
         m_input_descriptions[index] = inputs;
     }
 
-    /// \brief     Sets vector with connections beewtwen operation outputs
+    /// \brief     Sets vector with connections between operation outputs
     /// and internal sub-graph results
     ///
     /// \param index   index of internal sub-graph

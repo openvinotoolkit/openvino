@@ -11,6 +11,7 @@ list(APPEND LIBRARIES
         openvino::pugixml
 )
 
+# add subgraphs_dumpers tool
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -25,4 +26,23 @@ addIeTargetTest(
         ADD_CPPLINT
 )
 
-ie_faster_build(${TARGET_NAME} UNITY)
+# add subgraphs_dumpers lib to get API
+addIeTarget(
+        NAME "${TARGET_NAME}Util"
+        TYPE STATIC
+        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        INCLUDES
+            PUBLIC
+                ${CMAKE_CURRENT_SOURCE_DIR}/include
+        LINK_LIBRARIES
+            PUBLIC
+                ${LIBRARIES}
+        EXCLUDED_SOURCE_PATHS
+            ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/src/main.cpp
+            ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include/gflag_config.hpp
+        DEPENDENCIES
+            ov_frontends
+        ADD_CPPLINT
+)
+
+ov_build_target_faster(${TARGET_NAME} UNITY)

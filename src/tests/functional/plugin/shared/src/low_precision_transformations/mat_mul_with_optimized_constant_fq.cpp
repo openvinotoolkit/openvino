@@ -15,8 +15,8 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "lpt_ngraph_functions/mat_mul_with_optimized_constant_fake_quantize_function.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_lpt_models/mat_mul_with_optimized_constant_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -25,7 +25,7 @@ std::string MatMulWithOptimizedConstantFq::getTestCaseName(
     ngraph::element::Type netPrecision;
     std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
 
     std::tie(netPrecision, shapes, targetDevice, param) = obj.param;
@@ -44,7 +44,7 @@ void MatMulWithOptimizedConstantFq::SetUp() {
 
     ngraph::element::Type precision;
     std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
     std::tie(precision, shapes, targetDevice, param) = this->GetParam();
 

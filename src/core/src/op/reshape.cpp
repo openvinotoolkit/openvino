@@ -16,14 +16,12 @@
 #include "openvino/reference/reshape.hpp"
 #include "reshape_shape_inference.hpp"
 
-using namespace std;
-
 namespace ov {
 namespace op {
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reshape {
 namespace {
-bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order) {
+bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out, const AxisVector& order) {
     ngraph::runtime::opt_kernel::reshape(arg0->get_data_ptr<char>(),
                                          out->get_data_ptr<char>(),
                                          arg0->get_shape(),
@@ -63,10 +61,10 @@ void Reshape::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
-shared_ptr<Node> Reshape::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Reshape::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_Reshape_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::Reshape>(new_args.at(0), new_args.at(1), m_special_zero);
+    return std::make_shared<Reshape>(new_args.at(0), new_args.at(1), m_special_zero);
 }
 
 bool Reshape::evaluate_reshape(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

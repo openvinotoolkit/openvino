@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/conversion.hpp"
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -45,7 +45,7 @@ void ConversionLayerTest::SetUp() {
     }
     auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, conversionOpType);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(conversion)};
+    ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(conversion)};
     function = std::make_shared<ngraph::Function>(results, params, "Conversion");
 }
 }  // namespace LayerTestsDefinitions
