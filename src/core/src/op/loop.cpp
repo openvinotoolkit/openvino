@@ -2,20 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/loop.hpp"
+#include "openvino/op/loop.hpp"
 
 #include <climits>
-#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/factory.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/reference/loop.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
     set_argument(0, trip_count);
@@ -63,7 +60,7 @@ void op::v5::Loop::validate_and_infer_types() {
                               "Rank of ExecutionCondition input must be equal to 0 or 1");
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& cond_value = get_constant_from_source(loop_execution_condition)) {
+    if (const auto& cond_value = ov::get_constant_from_source(loop_execution_condition)) {
         OPENVINO_SUPPRESS_DEPRECATED_END
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
@@ -101,7 +98,7 @@ void op::v5::Loop::validate_and_infer_types() {
         } else {
             m_num_iterations = 1;  // condition_always_false, do_while mode
         }
-    } else if (const auto& cond_param = std::dynamic_pointer_cast<const ngraph::opset5::Parameter>(
+    } else if (const auto& cond_param = std::dynamic_pointer_cast<const ov::op::v0::Parameter>(
                    body_execution_condition.get_node_shared_ptr())) {
         // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
         for (const auto& desc : get_input_descriptions()) {
@@ -178,8 +175,7 @@ void op::v5::Loop::validate_and_infer_types() {
             } else {
                 auto out_shape = input_partial_shape;
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto axis =
-                    ngraph::normalize_axis(this, slice_input_description->m_axis, input_partial_shape.rank());
+                const auto axis = ov::normalize_axis(this, slice_input_description->m_axis, input_partial_shape.rank());
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 out_shape[axis] = slice_input_description->m_part_size;
                 body_parameter->set_partial_shape(out_shape);
@@ -196,7 +192,7 @@ void op::v5::Loop::validate_and_infer_types() {
             body_parameter->set_element_type(input_type);
             back_edges[merged_input_description->m_body_value_index] = merged_input_description->m_body_parameter_index;
         } else if (auto invariant_input_description =
-                       ov::as_type_ptr<v0::TensorIterator::InvariantInputDescription>(input_description)) {
+                       ov::as_type_ptr<ov::op::v0::TensorIterator::InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
             auto input_partial_shape = input(index).get_partial_shape();
@@ -290,7 +286,7 @@ void op::v5::Loop::validate_and_infer_types() {
                 out_shape = ov::PartialShape{0};
             } else if (out_shape.rank().is_static()) {
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto axis = ngraph::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
+                const auto axis = ov::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 const auto rank = out_shape.rank().get_length();
                 if (rank == 0) {
@@ -329,7 +325,7 @@ void op::v5::Loop::validate_and_infer_types() {
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v5_Loop_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto op = make_shared<op::v5::Loop>();
+    auto op = std::make_shared<op::v5::Loop>();
     OPENVINO_ASSERT(op.get(),
                     op != nullptr,
                     "Cannot clone ",
@@ -367,8 +363,8 @@ bool op::v5::Loop::evaluate(ov::TensorVector& outputs, const ov::TensorVector& i
 bool op::v5::Loop::has_evaluate() const {
     OV_OP_SCOPE(v5_Loop_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
+    case ov::element::i32:
+    case ov::element::i64:
         return true;
     default:
         break;

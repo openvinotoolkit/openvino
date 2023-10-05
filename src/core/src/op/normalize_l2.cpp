@@ -2,19 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/normalize_l2.hpp"
+#include "openvino/op/normalize_l2.hpp"
 
-#include <algorithm>
-#include <iterator>
-#include <ngraph/validation_util.hpp>
-
-#include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/util/op_types.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 op::v0::NormalizeL2::NormalizeL2(const Output<Node>& data, const Output<Node>& axes, float eps, EpsMode eps_mode)
     : Op({data, axes}),
@@ -65,7 +59,7 @@ void op::v0::NormalizeL2::validate_and_infer_types() {
 AxisSet op::v0::NormalizeL2::get_reduction_axes() const {
     AxisSet axes;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto const_op = get_constant_from_source(input_value(1))) {
+    if (auto const_op = ov::get_constant_from_source(input_value(1))) {
         OPENVINO_SUPPRESS_DEPRECATED_END
         const auto const_data = const_op->cast_vector<int64_t>();
         const auto input_data_rank = get_input_partial_shape(0).rank();

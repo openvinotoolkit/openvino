@@ -2,25 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/tile.hpp"
+#include "openvino/op/tile.hpp"
 
 #include <tile_shape_inference.hpp>
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/tile.hpp"
 
-using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, repeats}) {
     ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Tile::visit_attributes(AttributeVisitor& visitor) {
+bool op::v0::Tile::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Tile_visit_attributes);
     return true;
 }
@@ -44,36 +42,10 @@ void op::v0::Tile::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
 }
 
-shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Tile_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<Tile>(new_args.at(0), new_args.at(1));
-}
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    const auto& data = inputs[0];
-    const auto& axis = inputs[1];
-    auto& output = outputs[0];
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto repeats_val = read_index_vector(axis);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    const auto repeats_rank = repeats_val.size();
-
-    const auto input_shapes = std::vector<ov::PartialShape>{data->get_shape(), axis->get_shape()};
-    const auto& output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
-    if (!output->get_is_allocated()) {
-        output->set_shape(output_shape);
-    }
-    repeats_val.insert(repeats_val.begin(), output_shape.size() - repeats_rank, 1);
-    ov::reference::tile(data->get_data_ptr<const char>(),
-                        output->get_data_ptr<char>(),
-                        data->get_shape(),
-                        output_shape,
-                        data->get_element_type().size(),
-                        repeats_val);
-
-    return true;
+    return std::make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
 
 bool op::v0::Tile::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
@@ -103,14 +75,6 @@ bool op::v0::Tile::has_evaluate() const {
     OV_OP_SCOPE(v0_Tile_has_evaluate);
     return true;
 }
-
-bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    // This duplicate version for ov::Tensor because template plugin and shape inference utils
-    // are not ready for usage with ov::Tensor when it happens this function can be removed.
-    OV_OP_SCOPE(v0_Tile_evaluate);
-    return evaluate_tile(outputs, inputs);
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v0::Tile::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate_lower);

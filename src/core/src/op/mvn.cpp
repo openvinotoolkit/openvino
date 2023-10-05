@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/mvn.hpp"
-
-#include <algorithm>
+#include "openvino/op/mvn.hpp"
 
 #include "itt.hpp"
 #include "openvino/reference/mvn.hpp"
 
-using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // ------------------------------ V0 ------------------------------
 op::v0::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
@@ -48,7 +45,7 @@ void op::v0::MVN::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::v0::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v0::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_MVN_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 1,
@@ -70,15 +67,15 @@ bool op::v0::MVN::visit_attributes(AttributeVisitor& visitor) {
 
 namespace ov {
 template <>
-NGRAPH_API EnumNames<ngraph::op::MVNEpsMode>& EnumNames<ngraph::op::MVNEpsMode>::get() {
-    static auto enum_names = EnumNames<ngraph::op::MVNEpsMode>(
+OPENVINO_API EnumNames<ov::op::MVNEpsMode>& EnumNames<ov::op::MVNEpsMode>::get() {
+    static auto enum_names = EnumNames<ov::op::MVNEpsMode>(
         "op::MVNEpsMode",
-        {{"OUTSIDE_SQRT", ngraph::op::MVNEpsMode::OUTSIDE_SQRT}, {"INSIDE_SQRT", ngraph::op::MVNEpsMode::INSIDE_SQRT}});
+        {{"OUTSIDE_SQRT", ov::op::MVNEpsMode::OUTSIDE_SQRT}, {"INSIDE_SQRT", ov::op::MVNEpsMode::INSIDE_SQRT}});
     return enum_names;
 }
 }  // namespace ov
 
-std::ostream& ov::op::operator<<(std::ostream& s, const ngraph::op::MVNEpsMode& type) {
+std::ostream& ov::op::operator<<(std::ostream& s, const ov::op::MVNEpsMode& type) {
     return s << as_string(type);
 }
 
@@ -112,13 +109,13 @@ void op::v6::MVN::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_MVN_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 2,
                           "Expected 2 element in new_args for the MVN op but got ",
                           new_args.size());
-    return make_shared<op::v6::MVN>(new_args.at(0), new_args.at(1), m_normalize_variance, m_eps, m_eps_mode);
+    return std::make_shared<op::v6::MVN>(new_args.at(0), new_args.at(1), m_normalize_variance, m_eps, m_eps_mode);
 }
 
 bool op::v6::MVN::visit_attributes(AttributeVisitor& visitor) {
@@ -164,7 +161,7 @@ bool evaluate_mvn(ov::TensorVector& outputs,
                   ov::op::MVNEpsMode eps_mode) {
     bool rc = true;
     switch (inputs[0].get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_mvn, f32, outputs, inputs, normalize_variance, eps, eps_mode);
+        OPENVINO_TYPE_CASE(evaluate_mvn, f32, outputs, inputs, normalize_variance, eps, eps_mode);
     default:
         rc = false;
         break;

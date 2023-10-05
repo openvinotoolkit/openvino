@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 
 #include <memory>
 #include <sstream>
@@ -12,7 +12,6 @@
 #include "atomic_guard.hpp"
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
