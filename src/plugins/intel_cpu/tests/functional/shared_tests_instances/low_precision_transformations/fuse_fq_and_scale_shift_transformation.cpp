@@ -6,7 +6,7 @@
 
 #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_and_scale_shift_function.hpp"
+#include "ov_lpt_models/fuse_fake_quantize_and_scale_shift.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ov::pass::low_precision;

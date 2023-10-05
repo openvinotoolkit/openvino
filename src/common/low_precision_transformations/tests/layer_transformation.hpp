@@ -10,7 +10,7 @@
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/transformation_context.hpp"
 #include "low_precision/network_helper.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 using namespace ov;
 

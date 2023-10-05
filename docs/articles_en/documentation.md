@@ -16,7 +16,6 @@
    Legacy Features <openvino_legacy_features> 
    Tool Ecosystem <openvino_ecosystem>
    OpenVINO Extensibility <openvino_docs_Extensibility_UG_Intro>
-   Media Processing and CV Libraries <media_processing_cv_libraries>
    OpenVINO™ Security <openvino_docs_security_guide_introduction>
 
 
@@ -30,12 +29,6 @@ This section provides reference documents that guide you through the OpenVINO to
 
 | :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>`
 | The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle (OpenVINO support for Apache MXNet, Caffe, and Kaldi is being deprecated and will be removed in the future). Learn how to extend OpenVINO functionality with custom settings. 
-
-| :doc:`Media Processing and Computer Vision Libraries <media_processing_cv_libraries>`
-| The OpenVINO™ toolkit also works with the following media processing frameworks and libraries:
-| 	• Intel® Deep Learning Streamer (Intel® DL Streamer) — A streaming media analytics framework based on GStreamer, for creating complex media analytics pipelines optimized for Intel hardware platforms. Go to the Intel® DL Streamer documentation website to learn more.
-| 	• Intel® oneAPI Video Processing Library (oneVPL) — A programming interface for video decoding, encoding, and processing to build portable media pipelines on CPUs, GPUs, and other accelerators. 
-| You can also add computer vision capabilities to your application using optimized versions of OpenCV.
 
 | :doc:`OpenVINO™ Security <openvino_docs_security_guide_introduction>`
 | Learn how to use OpenVINO securely and protect your data to meet specific security and privacy requirements. 

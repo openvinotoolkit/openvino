@@ -6,7 +6,7 @@
 
 #include <numeric>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "utils/span.hpp"
 
 namespace ov {

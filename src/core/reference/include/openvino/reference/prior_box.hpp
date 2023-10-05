@@ -6,9 +6,8 @@
 
 #include <cmath>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/check.hpp"
-#include "ngraph/op/prior_box.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/op/prior_box.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
@@ -50,7 +49,7 @@ void prior_box(const T* data,
     }
 
     std::vector<float> variance = attrs.variance;
-    NGRAPH_CHECK(variance.size() == 1 || variance.size() == 4 || variance.empty());
+    OPENVINO_ASSERT(variance.size() == 1 || variance.size() == 4 || variance.empty());
     if (variance.empty())
         variance.push_back(0.1f);
 
