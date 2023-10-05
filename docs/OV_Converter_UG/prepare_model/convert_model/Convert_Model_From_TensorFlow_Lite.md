@@ -7,7 +7,7 @@
                  TensorFlow Lite format to the OpenVINO Model.
 
 
-To convert an TensorFlow Lite model, run model conversion with the path to the ``.tflite`` model file:
+To convert a TensorFlow Lite model, run model conversion with the path to the ``.tflite`` model file:
 
 .. tab-set::
 
