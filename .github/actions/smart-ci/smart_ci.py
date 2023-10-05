@@ -12,21 +12,27 @@ from github import Github, PullRequest
 class ComponentConfig:
     FullScope = ['build', 'test']
 
-    def __init__(self, config: dict, schema: dict = None):
+    def __init__(self, config: dict, schema: dict, all_possible_components: set):
         self.config = config
-        self.validate(schema)
+        self.validate(schema, all_possible_components)
 
-    def validate(self, schema: dict) -> None:
+    def validate(self, schema: dict, all_possible_components: set) -> None:
         """Validates syntax of configuration file"""
         jsonschema.validate(self.config, schema)
-        all_components = set(self.config.keys())
+
+        all_defined_components = set(self.config.keys())
+        invalid_components = all_defined_components.difference(all_possible_components)
+        if invalid_components:
+            error_msg = f"components are invalid: " \
+                        f"{invalid_components} not listed in labeler config: {all_possible_components}"
+            raise jsonschema.exceptions.ValidationError(error_msg)
 
         for component_name, data in self.config.items():
             dependent_components = set(data.get('dependent_components', dict()).keys()) if data else set()
-            invalid_dependents = dependent_components.difference(all_components)
+            invalid_dependents = dependent_components.difference(all_possible_components)
             if invalid_dependents:
                 error_msg = f"dependent_components of {component_name} are invalid: " \
-                            f"{invalid_dependents} are not listed in {all_components}"
+                            f"{invalid_dependents} not listed in components config: {all_possible_components}"
                 raise jsonschema.exceptions.ValidationError(error_msg)
 
     def get_affected_components(self, changed_components_names: set) -> dict:
@@ -37,6 +43,7 @@ class ComponentConfig:
             affected_components.update({dep_name: scope if scope else self.FullScope
                                         for dep_name, scope in dependent_components.items()})
         # We want to run the full scope if the component was explicitly changed
+        # TODO: also run full scope for everything if "GHA CI" has changed
         affected_components.update({name: self.FullScope for name in changed_components_names})
         return affected_components
 
@@ -77,6 +84,8 @@ def parse_args():
                         help='Path to config file with info about dependencies between components')
     parser.add_argument('-m', '--components-config-schema', default='.github/actions/smart-ci/components_schema.yml',
                         help='Path to the schema file for components config')
+    parser.add_argument('-l', '--labeler-config', default='.github/labeler.yml',
+                        help='Path to PR labeler config file')
     args = parser.parse_args()
     return args
 
@@ -108,7 +117,7 @@ def main():
 
     gh_api = Github(os.getenv("GITHUB_TOKEN"))
     repository = gh_api.get_repo(args.repo)
-    pr = repository.get_pull(args.pr) if args.pr else None  # get_pr_by_commit(repository, args.commit_sha)
+    pr = repository.get_pull(args.pr) if args.pr else None
 
     # For now, we don't want to apply smart ci rules for post-commits
     is_postcommit = not pr
@@ -117,19 +126,22 @@ def main():
 
     # In post-commits - validate all components regardless of changeset
     # In pre-commits - validate only changed components with their dependencies
-    all_components = components_config.keys()
-    changed_component_names = all_components if is_postcommit else get_changed_component_names(pr, args.pattern)
+    all_defined_components = components_config.keys()
+    changed_component_names = all_defined_components if is_postcommit else get_changed_component_names(pr, args.pattern)
     logger.info(f"changed_component_names: {changed_component_names}")
 
-    schema_path = Path(args.components_config_schema)
-    with open(schema_path, 'r') as schema_file:
+    with open(Path(args.components_config_schema), 'r') as schema_file:
         schema = yaml.safe_load(schema_file)
 
-    cfg = ComponentConfig(components_config, schema)
+    with open(Path(args.labeler_config), 'r') as labeler_file:
+        labeler_config = yaml.safe_load(labeler_file)
+    all_possible_components = set([component_name_from_label(label, args.pattern) for label in labeler_config.keys()])
+
+    cfg = ComponentConfig(components_config, schema, all_possible_components)
     affected_components = cfg.get_affected_components(changed_component_names)
 
     # Syntactic sugar for easier use in GHA pipeline
-    all_components_output = {component: True for component in all_components}
+    all_components_output = {component: True for component in all_defined_components}
     affected_components_output = {name: {s: True for s in scope} for name, scope in affected_components.items()}
 
     # We need to know which components were defined in a config to be able to apply smart ci rules only to them.

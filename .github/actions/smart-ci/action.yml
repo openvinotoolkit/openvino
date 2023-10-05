@@ -28,6 +28,10 @@ inputs:
     description: "Path to the schema file for components configuration"
     required: false
     default: ".github/actions/smart-ci/components_schema.yml"
+  labeler_config:
+    description: "Path to labeler configuration file"
+    required: false
+    default: ".github/labeler.yml"
 
 outputs:
   all_components:
@@ -70,7 +74,8 @@ runs:
           -r ${{ inputs.repository }} \
           -p "${{ inputs.component_pattern }}" \
           -c "${{ inputs.components_config }}" \
-          -m "${{ inputs.components_config_schema }}"
+          -m "${{ inputs.components_config_schema }}" \
+          -l "${{ inputs.labeler_config }}"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.repo_token }}
