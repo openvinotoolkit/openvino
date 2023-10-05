@@ -13,9 +13,7 @@
 namespace cldnn {
 
 inline ov::Tensor make_tensor(const layout& l, void* memory_pointer) {
-    ov::element::Type et = data_type_to_element_type(l.data_type);
-
-    return ov::Tensor(et, l.get_shape(), memory_pointer);
+    return ov::Tensor(l.data_type, l.get_shape(), memory_pointer);
 }
 
 struct TensorsContainer final {

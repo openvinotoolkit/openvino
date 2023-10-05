@@ -60,7 +60,7 @@ struct AvgPoolParams {
 class ReferenceAvgPoolLayerTest : public testing::TestWithParam<AvgPoolParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.m_input_shape,
                                   params.m_input_type,
                                   params.m_strides,
@@ -75,11 +75,11 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<AvgPoolParams>& obj) {
-        auto params = obj.param;
+        const auto& params = obj.param;
         std::ostringstream result;
         result << "iShape=" << params.m_input_shape << "_";
         result << "iType=" << params.m_input_type << "_";
-        result << "iShape=" << params.m_output_shape << "_";
+        result << "oShape=" << params.m_output_shape << "_";
         result << "oType=" << params.m_output_type << "_";
         result << "excludePad=" << params.m_exclude_pad << "_";
         result << "roundingType=" << params.m_rounding_type << "_";
@@ -126,6 +126,32 @@ std::vector<AvgPoolParams> generateParamsForAvgPool() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<AvgPoolParams> params{
+        AvgPoolParams(ov::Shape{1, 1, 5},
+                      ov::Shape{1, 1, 5},
+                      IN_ET,
+                      IN_ET,
+                      std::vector<T>{1, 2, 3, 4, 5},
+                      std::vector<T>{1.5, 2.5, 3.5, 4.5, 5},
+                      Strides{1},
+                      Shape{0},
+                      Shape{1},
+                      Shape{2},
+                      true,
+                      op::RoundingType::FLOOR,
+                      op::PadType::EXPLICIT),
+        AvgPoolParams(ov::Shape{1, 1, 8},
+                      ov::Shape{1, 1, 4},
+                      IN_ET,
+                      IN_ET,
+                      std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},
+                      std::vector<T>{2, 4, 6, 7.5},
+                      Strides{2},
+                      Shape{0},
+                      Shape{0},
+                      Shape{3},
+                      false,
+                      op::RoundingType::CEIL,
+                      op::PadType::EXPLICIT),
         AvgPoolParams(ov::Shape{1, 1, 3, 3},
                       ov::Shape{1, 1, 2, 2},
                       IN_ET,
