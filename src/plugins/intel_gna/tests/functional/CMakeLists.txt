@@ -8,7 +8,7 @@ endif()
 
 set(TARGET_NAME ov_gna_func_tests)
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
@@ -19,7 +19,7 @@ addIeTargetTest(
             funcSharedTests
         ADD_CLANG_FORMAT
         LABELS
-            GNA
+            OV GNA
 )
 
 target_compile_definitions(${TARGET_NAME}
