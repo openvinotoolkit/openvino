@@ -6,7 +6,7 @@
 
 #include <string>
 #include <memory>
-#include "lpt_ngraph_functions/fuse_fake_quantize_and_scale_shift_function.hpp"
+#include "ov_lpt_models/fuse_fake_quantize_and_scale_shift.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {

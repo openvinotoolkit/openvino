@@ -19,7 +19,7 @@ addIeTarget(
         LINK_LIBRARIES
             PRIVATE
                 func_test_utils
-                ngraphFunctions
+                ov_models
 )
 
 ov_build_target_faster(${TARGET_NAME}
