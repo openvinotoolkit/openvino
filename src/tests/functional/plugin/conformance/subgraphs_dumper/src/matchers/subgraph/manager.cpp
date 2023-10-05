@@ -11,11 +11,12 @@ using namespace ov::tools::subgraph_dumper;
 
 bool ExtractorsManager::match(const std::shared_ptr<ov::Model> &model,
                               const std::shared_ptr<ov::Model> &ref) {
-    for (const auto &it : m_extractors) {
-        if (it.second->match(model, ref)) {
+    // `match` is not virtual method in base `SubgraphExtractor` class
+    // we can use function from any `extractor` to avoid of cycle
+    if (!m_extractors.empty()) {
+        if (m_extractors.begin()->second->match(model, ref)) {
             return true;
         }
-        return false;
     }
     return false;
 }
@@ -25,8 +26,10 @@ ExtractorsManager::is_subgraph(const std::shared_ptr<ov::Model> &model,
                                const std::shared_ptr<ov::Model> &ref_model,
                                const std::map<std::string, InputInfo> &in_info,
                                const std::map<std::string, InputInfo> &in_info_ref) {
-    for (const auto &it : m_extractors) {
-        auto extractor_res = it.second->is_subgraph(model, ref_model);
+    if (!m_extractors.empty()) {
+        // `is_subgraph` is not virtual method in base `SubgraphExtractor` class
+        // we can use function from any `extractor` to avoid of cycle
+        auto extractor_res = m_extractors.begin()->second->is_subgraph(model, ref_model);
         if (std::get<0>(extractor_res)) {
             std::map<std::string, InputInfo> graph_in_info, subgraph_in_info;
             if (std::get<1>(extractor_res) == model && std::get<2>(extractor_res) == ref_model) {
@@ -40,13 +43,13 @@ ExtractorsManager::is_subgraph(const std::shared_ptr<ov::Model> &model,
             }
             try {
                 subgraph_in_info = align_input_info(std::get<2>(extractor_res), std::get<1>(extractor_res), subgraph_in_info, graph_in_info);
-            } catch(...) {
+            } catch(std::exception) {
                 return { false, nullptr, nullptr, {}, {} };
             }
             return { true, std::get<1>(extractor_res), std::get<2>(extractor_res), graph_in_info, subgraph_in_info };
         }
-        return { false, nullptr, nullptr, {}, {} };
     }
+    return { false, nullptr, nullptr, {}, {} };
 }
 
 bool ExtractorsManager::match(const std::shared_ptr<ov::Model> &model,
@@ -57,7 +60,7 @@ bool ExtractorsManager::match(const std::shared_ptr<ov::Model> &model,
         try {
             in_info = align_input_info(model, ref, in_info, in_info_ref);
             return true;
-        } catch (...) {
+        } catch (std::exception) {
             return false;
         }
     }
