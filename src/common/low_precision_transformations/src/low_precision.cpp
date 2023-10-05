@@ -53,7 +53,7 @@
 #include "low_precision/interpolate.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/max_pool.hpp"
-#include "low_precision/multiply.hpp"
+#include "low_precision/multiply_partial.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/normalize_l2.hpp"
 #include "low_precision/pad.hpp"
@@ -251,7 +251,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, GroupConvolutionTransformation, params)
     ADD_MATCHER(common, MatMulTransformation, params)
     ADD_MATCHER(common, MaxPoolTransformation, params)
-    ADD_MATCHER(common, MultiplyTransformation, params)
+    ADD_MATCHER(common, MultiplyPartialTransformation, params)
     ADD_MATCHER(common, MVNTransformation, params)
     ADD_MATCHER(common, NormalizeL2Transformation, params)
     ADD_MATCHER(common, PadTransformation, params)
@@ -272,6 +272,10 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, GatherTransformation, params)
     ADD_MATCHER(common, UnsqueezeTransformation, params)
     ADD_MATCHER(common, VariadicSplitTransformation, params)
+
+    for (const auto& tr : additional_main_passes) {
+        common->add_matcher(tr);
+    }
 
     std::shared_ptr<ov::pass::GraphRewrite> cleanup = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(cleanup, EliminateFakeQuantizeTransformation, params)

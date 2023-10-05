@@ -71,9 +71,9 @@ public:
 
 } // namespace
 
-#define CASE_BIN_CONV1 { 1, 16, 4, 5 }, { 1, 16, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
-#define CASE_BIN_CONV2 { 1, 16, 4, 5 }, { 1, 30, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
-#define CASE_BIN_CONV3 { 1, 184, 12, 21 }, { 1, 224, 12, 21 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
+#define CASE_BIN_CONV1 { 1, 16, 4, 5 }, { 1, 16, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u1, format::b_fs_yx_32fp, data_types::u1, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
+#define CASE_BIN_CONV2 { 1, 16, 4, 5 }, { 1, 30, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u1, format::b_fs_yx_32fp, data_types::u1, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
+#define CASE_BIN_CONV3 { 1, 184, 12, 21 }, { 1, 224, 12, 21 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u1, format::b_fs_yx_32fp, data_types::u1, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* -------------------------------------- binary convolution cases ------------------------------------- */
@@ -133,7 +133,7 @@ TEST_P(conv_bin_quantize_bin, channel_wise_quantize) {
         data("out_hi", get_mem(get_per_channel_layout(p),  1)),
         binary_convolution("bin_conv_prim", input_info("input"), { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
         quantize("quantize_data", input_info("bin_conv_prim"), input_info("in_lo"), input_info("in_hi"),
-                 input_info("out_lo"), input_info("out_hi"), 2, data_types::bin),
+                 input_info("out_lo"), input_info("out_hi"), 2, data_types::u1),
         reorder("reorder_bfyx", input_info("quantize_data"), p.default_format, data_types::f32)
     );
 
@@ -153,7 +153,7 @@ TEST_P(conv_bin_quantize_bin, blob_wise_quantize) {
         data("out_hi", get_mem(get_single_element_layout(p), 1)),
         binary_convolution("bin_conv_prim", input_info("input"), { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
         quantize("quantize_data", input_info("bin_conv_prim"), input_info("in_lo"), input_info("in_hi"),
-                 input_info("out_lo"), input_info("out_hi"), 2, data_types::bin),
+                 input_info("out_lo"), input_info("out_hi"), 2, data_types::u1),
         reorder("reorder_bfyx", input_info("quantize_data"), p.default_format, data_types::f32)
     );
 
