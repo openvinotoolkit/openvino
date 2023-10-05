@@ -79,6 +79,6 @@ class TestMaskedScatter(PytorchLayerTest):
     @pytest.mark.parametrize("shape", [[2, 5], [10, 10], [2, 3, 4], [10, 5, 10, 3], [2, 6, 4, 1]])
     @pytest.mark.parametrize("input_dtype", ["float32", "int32", "float", "int", "uint8"])
     @pytest.mark.parametrize("mask_dtype", ["uint8"])
-    def test_masked_scatter_inplace(self, shape, input_dtype, mask_dtype, ie_device, precision, ir_version):
+    def test_masked_scatter_inplace_u8(self, shape, input_dtype, mask_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(inplace=True), ie_device, precision, ir_version, 
                    kwargs_to_prepare_input={"shape": shape, "x_dtype": input_dtype, "mask_dtype": mask_dtype})
