@@ -50,10 +50,13 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         MakeJitConstant("VEC_SIZE", 8),
         MakeJitConstant("VLOAD", "CAT(vload, VEC_SIZE)"),
         MakeJitConstant("VSTORE", "CAT(vstore, VEC_SIZE)"),
-        MakeJitConstant("INPUTVTYPE", "CAT(INPUT0_TYPE, VEC_SIZE)"),
-        MakeJitConstant("OUTPUTVTYPE", "CAT(OUTPUT_TYPE, VEC_SIZE)"),
-        MakeJitConstant("AS_INPUTVTYPE", "CAT(as_, INPUTVTYPE)"),
-        MakeJitConstant("AS_OUTPUTVTYPE", "CAT(as_, OUTPUTVTYPE)")
+        MakeJitConstant("INPUT_VEC_TYPE", "MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)"),
+        MakeJitConstant("ACCUMULATOR_VEC_TYPE", "MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE)"),
+        MakeJitConstant("OUTPUT_VEC_TYPE", "MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)"),
+        MakeJitConstant("AS_INPUT_VEC_TYPE", "CAT(as_, INPUT_VEC_TYPE)"),
+        MakeJitConstant("AS_ACCUMULATOR_VEC_TYPE", "CAT(as_, ACCUMULATOR_VEC_TYPE)"),
+        MakeJitConstant("TO_ACCUMULATOR_VEC_TYPE", "CAT(convert_, ACCUMULATOR_VEC_TYPE)"),
+        MakeJitConstant("TO_OUTPUT_VEC_TYPE", "CAT(convert_, OUTPUT_VEC_TYPE)"),
     });
 
     return jit;

@@ -30,10 +30,10 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     __local ACCUMULATOR_TYPE slm_buf[SLM_SIZE];
 
-    INPUTVTYPE inputs = AS_INPUTVTYPE(VLOAD(0, input + in_data_offset));
-    INPUTVTYPE square = pow(inputs, (INPUTVTYPE)(2));
+    INPUT_VEC_TYPE inputs = AS_INPUT_VEC_TYPE(VLOAD(0, input + in_data_offset));
+    ACCUMULATOR_VEC_TYPE square = pow(TO_ACCUMULATOR_VEC_TYPE(inputs), (ACCUMULATOR_VEC_TYPE)(2));
     unroll_for (uint i = 0; i < VEC_SIZE; ++i) {
-        rms += TO_ACCUMULATOR_TYPE(square[i]);
+        rms += square[i];
     }
 
     if (in_data_idx < leftovers)
@@ -61,7 +61,7 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     rms = slm_buf[0];
 
-    OUTPUTVTYPE results = (OUTPUTVTYPE)(rms) * AS_OUTPUTVTYPE(inputs) * AS_OUTPUTVTYPE(VLOAD(0, gamma + gamma_offset));
+    OUTPUT_VEC_TYPE results = TO_OUTPUT_VEC_TYPE((ACCUMULATOR_VEC_TYPE)(rms) * TO_ACCUMULATOR_VEC_TYPE(inputs) * AS_ACCUMULATOR_VEC_TYPE(VLOAD(0, gamma + gamma_offset)));
     VSTORE(results, 0, output + in_data_offset);
 
     if (in_data_idx < leftovers)
@@ -69,7 +69,7 @@ KERNEL(rms_gpu_bfyx_opt)(
         const uint input_idx = data_offset + total_items_num + in_data_idx;
         const uint output_idx = data_offset + total_items_num + in_data_idx;
         const uint gamma_idx = total_items_num + in_data_idx;
-        OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]) * TO_OUTPUT_TYPE(gamma[gamma_idx]);
+        OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]) * TO_ACCUMULATOR_TYPE(gamma[gamma_idx]));
         output[output_idx] = result;
     }
 }
