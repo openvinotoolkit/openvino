@@ -60,10 +60,19 @@ def parse_arguments():
     repeat_help = "Number of times to repeat failed and interrupted tests"
 
     parser.add_argument(
-        "-e", "--exec_file", help=exec_file_path_help, type=str, required=True
+        "-e",
+        "--exec_file",
+        help=exec_file_path_help,
+        type=str,
+        required=True
     )
     parser.add_argument(
-        "-c", "--cache_path", help=cache_path_help, type=str, required=False, default=""
+        "-c",
+        "--cache_path",
+        help=cache_path_help,
+        type=str,
+        required=False,
+        default=""
     )
     parser.add_argument(
         "-j",
@@ -106,7 +115,12 @@ def parse_arguments():
         default=constants.TEST_UNIT_NAME,
     )
     parser.add_argument(
-        "-rf", "--repeat_failed", help=repeat_help, type=int, required=False, default=1
+        "-rf",
+        "--repeat_failed",
+        help=repeat_help,
+        type=int,
+        required=False,
+        default=1
     )
 
     return parser.parse_args()
@@ -233,16 +247,10 @@ class TaskManager:
         while True:
             for pid in range(len(self._process_list)):
                 try:
-                    if (
-                        float(
-                            (
-                                datetime.datetime.now() - self._timers[pid]
-                            ).total_seconds()
-                        )
-                        > self.process_timeout
-                    ):
+                    p_time = float((datetime.datetime.now() - self._timers[pid]).total_seconds())
+                    if p_time > self.process_timeout:
                         logger.warning(
-                            f"Process {pid} exceed time limetattion per process"
+                            f"Process {pid} exceed time limitation per process"
                         )
                         self.kill_process_tree(self._process_list[pid].pid)
                         self._process_list[pid].kill()
@@ -285,14 +293,8 @@ class TaskManager:
         while len(self._process_list) > 0:
             for pid in range(len(self._process_list)):
                 try:
-                    if (
-                        float(
-                            (
-                                datetime.datetime.now() - self._timers[pid]
-                            ).total_seconds()
-                        )
-                        > self.process_timeout
-                    ):
+                    p_time = float((datetime.datetime.now() - self._timers[pid]).total_seconds())
+                    if p_time > self.process_timeout:
                         logger.warning(
                             f"Process {pid} exceed time limetation per process. The process will be killed"
                         )
