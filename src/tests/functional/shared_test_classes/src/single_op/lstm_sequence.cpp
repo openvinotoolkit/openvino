@@ -171,17 +171,5 @@ void LSTMSequenceTest::SetUp() {
         EXPECT_EQ(ti_found, false);
     }
 }
-
-// void LSTMSequenceTest::GenerateInputs() {
-//     for (const auto &input : executableNetwork.GetInputsInfo()) {
-//         const auto &info = input.second;
-//         auto blob = GenerateInput(*info);
-//         if (input.first == "seq_lengths") {
-//             blob = FuncTestUtils::createAndFillBlob(info->getTensorDesc(), m_max_seq_len, 0);
-//         }
-
-//         inputs.push_back(blob);
-//     }
-// }
 }  // namespace test
 }  // namespace ov

@@ -640,7 +640,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::LSTMSequence>& no
         unsigned int m_max_seq_len = 10;
         return ov::test::utils::create_and_fill_tensor(elemType, targetShape, m_max_seq_len, 0);
     }
-    if (port == 3) {
+    if (port == 3 && node->input(0).get_partial_shape().is_static()) {
         auto seq_len = node->input(0).get_shape()[1];
         return ov::test::utils::create_and_fill_tensor(elemType, targetShape, seq_len);
     }
