@@ -19,5 +19,5 @@ void reshape(const char* in,
              const AxisVector& in_axis_order,
              const Shape& out_shape,
              size_t elem_size);
-}
+}  // namespace reference
 }  // namespace ov
