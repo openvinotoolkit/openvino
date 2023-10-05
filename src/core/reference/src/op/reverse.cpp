@@ -8,13 +8,10 @@
 #include <cstring>
 #include <iterator>
 
-#include "ngraph/check.hpp"
-#include "ngraph/coordinate_range.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
 
-using namespace ngraph;
-
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void reverse(const char* arg,
              char* out,
@@ -22,7 +19,7 @@ void reverse(const char* arg,
              const Shape& out_shape,
              const AxisSet& reversed_axes,
              size_t elem_size) {
-    NGRAPH_CHECK(shape_size(arg_shape) == shape_size(out_shape));
+    OPENVINO_ASSERT(shape_size(arg_shape) == shape_size(out_shape));
 
     const bool nothing_to_revers = reversed_axes.empty();
     if (nothing_to_revers) {
@@ -50,5 +47,4 @@ void reverse(const char* arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

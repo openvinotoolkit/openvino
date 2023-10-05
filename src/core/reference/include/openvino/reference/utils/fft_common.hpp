@@ -11,11 +11,9 @@
 #include <type_traits>
 #include <vector>
 
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 namespace fft_common {
 // To simplify calculation of strides for all axes of 'shape' of some complex
@@ -26,7 +24,7 @@ namespace fft_common {
 // into [N_{r - 1}, ..., N_0].
 // At this time, complex tensors are supported only for FFT-like operations, as
 // DFT, IDFT, RDFT
-std::vector<int64_t> reverse_shape_of_emulated_complex_tensor(const ngraph::Shape& shape);
+std::vector<int64_t> reverse_shape_of_emulated_complex_tensor(const Shape& shape);
 
 // Calculates strides for all axes.
 std::vector<int64_t> compute_strides(const std::vector<int64_t>& v);
@@ -43,5 +41,4 @@ int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const
 std::vector<int64_t> reverse_fft_axes(const std::vector<int64_t>& axes, int64_t complex_data_rank);
 }  // namespace fft_common
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

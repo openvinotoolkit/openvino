@@ -9,6 +9,8 @@
 using namespace std;
 using namespace ov;
 
+namespace {
+
 //
 // RNN sequence parameters
 //
@@ -120,6 +122,8 @@ shared_ptr<opset1::LSTMSequence> lstm_seq_v0_tensor_initialization(const recurre
 
     return lstm_sequence;
 }
+
+}  // namespace
 
 TEST(type_prop, lstm_sequence_forward) {
     const size_t batch_size = 8;

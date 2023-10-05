@@ -7,11 +7,9 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 void reverse_sequence(const T* arg,
@@ -26,8 +24,8 @@ void reverse_sequence(const T* arg,
         size_t batch_index = in_coord[batch_axis];
         auto orig_seq_index = static_cast<size_t>(sequence_lengths[batch_index]);
 
-        NGRAPH_CHECK(orig_seq_index <= arg_shape.at(sequence_axis),
-                     "One of the elements of sequence lengths is greater than sequence axis dimension");
+        OPENVINO_ASSERT(orig_seq_index <= arg_shape.at(sequence_axis),
+                        "One of the elements of sequence lengths is greater than sequence axis dimension");
 
         if (orig_seq_index == 0) {
             orig_seq_index = 1;
@@ -46,5 +44,4 @@ void reverse_sequence(const T* arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

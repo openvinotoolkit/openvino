@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "ngraph/util.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/reference/group_convolution.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 
 void infer_backward_conv_output_shape(const Shape& in_spatial_shape,
@@ -80,18 +80,18 @@ void group_convolution_backprop_data(const T* in,
     for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx) {
         group_filter = f;
         for (size_t group_idx = 0; group_idx < group_count; ++group_idx) {
-            runtime::reference::convolution_backprop_in(group_batch,
-                                                        group_filter,
-                                                        group_out,
-                                                        group_batch_shape,
-                                                        group_filter_shape,
-                                                        group_out_shape,
-                                                        in_dilation,
-                                                        dilation,
-                                                        pads_begin,
-                                                        pads_end,
-                                                        strides,
-                                                        output_padding);
+            reference::convolution_backprop_in(group_batch,
+                                               group_filter,
+                                               group_out,
+                                               group_batch_shape,
+                                               group_filter_shape,
+                                               group_out_shape,
+                                               in_dilation,
+                                               dilation,
+                                               pads_begin,
+                                               pads_end,
+                                               strides,
+                                               output_padding);
             group_batch += group_batch_size;
             group_filter += group_filter_size;
             group_out += group_out_size;
@@ -101,8 +101,8 @@ void group_convolution_backprop_data(const T* in,
 
 // DEPRECATED, can't be removed currently due to arm-plugin dependency
 template <typename OUTPUT, typename FILTER, typename INPUT, typename ACCUMULATION = typename widen<INPUT>::type>
-NGRAPH_DEPRECATED("group_convolution_backprop_data function without output_paddings is deprecated, "
-                  "use the one with output_padding.")
+OPENVINO_DEPRECATED("group_convolution_backprop_data function without output_paddings is deprecated, "
+                    "use the one with output_padding.")
 void group_convolution_backprop_data(const INPUT* in,
                                      const FILTER* f,
                                      OUTPUT* out,
@@ -113,7 +113,7 @@ void group_convolution_backprop_data(const INPUT* in,
                                      const Strides& dilation,
                                      const CoordinateDiff& pads_begin,
                                      const CoordinateDiff& pads_end) {
-    const ngraph::CoordinateDiff output_padding(in_shape.size() - 2, 0);
+    const CoordinateDiff output_padding(in_shape.size() - 2, 0);
 
     group_convolution_backprop_data(in,
                                     f,
@@ -129,5 +129,4 @@ void group_convolution_backprop_data(const INPUT* in,
 }
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

@@ -19,8 +19,8 @@ public:
     FrontEnd() = default;
 
     /// \brief Completely convert the remaining, not converted part of a function.
-    /// \param partiallyConverted partially converted nGraph function
-    /// \return fully converted nGraph function
+    /// \param partiallyConverted partially converted ov::Model
+    /// \return fully converted ov::Model function
     std::shared_ptr<Model> convert(const InputModel::Ptr& model) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients

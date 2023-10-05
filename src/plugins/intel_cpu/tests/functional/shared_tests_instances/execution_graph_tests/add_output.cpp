@@ -5,7 +5,9 @@
 #include <common_test_utils/test_constants.hpp>
 #include "execution_graph_tests/add_output.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/sigmoid.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 

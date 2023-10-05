@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from hashlib import sha256
 from utils.conformance_utils import get_logger, set_env_variable
-from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME, REL_WEIGHTS_FILENAME, REL_WEIGHTS_REPLACE_STR, CONVERT_OP_NAME
+from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME, REL_WEIGHTS_FILENAME, REL_WEIGHTS_REPLACE_STR
 from utils.file_utils import get_ov_path, find_latest_dir
 import defusedxml.ElementTree as ET
 
@@ -91,7 +91,7 @@ def update_rel_weight(meta_info_file:Path, additional_value: float):
         logger.error(f"Meta info {meta_info_file} is incorrect!")
 
 def is_report_op(op_name:str):
-    if "Parameter-1" == op_name or "Result-1" == op_name or "Constant-1" == op_name or CONVERT_OP_NAME == op_name:
+    if "Parameter-1" == op_name or "Result-1" == op_name or "Constant-1" == op_name:
         return False
     return True
 
@@ -137,6 +137,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
     core = Core()
     models = in_dir_path.rglob("*.xml")
     models = sorted(models)
+    model_prefix = os.path.commonprefix(models)
     for model_path in models:
         bin_path = model_path.with_suffix(BIN_EXTENSION)
         meta_path = model_path.with_suffix(META_EXTENSION)
@@ -156,6 +157,15 @@ def create_hash(in_dir_path: Path, operations=dict()):
                     if is_report_op(op_name):
                         if not op_name in operations.keys():
                             operations.update({op_name: TestStructure()})
+                        # add op/subgraphs, dynamic/static and extractor_name to hash
+                        model_dir, _ = os.path.split(model_path)
+                        model_dir = str(model_dir).replace(model_prefix, "")
+                        if op_name in model_dir:
+                            model_dir = model_dir[:model_dir.find(op_name):]
+                        model_dir = model_dir[:-1:]
+                        model_dir = model_dir.replace(os.path.sep, "_")
+                        str_to_hash += model_dir
+                        # upgrade expected rel passrates files
                         if "static" in str(model_path):
                             operations[op_name].static += rel_weight
                         elif "dynamic" in str(model_path):
@@ -170,8 +180,11 @@ def create_hash(in_dir_path: Path, operations=dict()):
                 logger.error(f"Impossible to create hash for {model_path}")
 
             try:
-                input_info = ET.parse(meta_path).getroot().find("input_info")
-                str_to_hash += ET.tostring(input_info).decode('utf8').replace('\t', '')
+                # check only parameters/constant structures
+                for input in ET.parse(meta_path).getroot().find("input_info"):
+                    for attrib in input.attrib:
+                        if attrib == "convert_to_const":
+                            str_to_hash += input.attrib.get(attrib)
             except:
                 logger.error(f"Impossible to add input_info to hash for {model_path}")
 
@@ -187,7 +200,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
                 meta_path.rename(new_meta_path)
                 bin_path.rename(new_bin_path)
                 # TODO: if some models are still not renaming, create new file and remove old file
-                logger.info(f"{old_name} -> {new_name}")
+                # logger.info(f"{old_name} -> {new_name}")
             elif old_name != new_xml_path:
                 # TODO: if some models are still not renaming and there are duplicates, remove files here
                 logger.warning(f"Could not rename model {old_name} ! Model file name already exists {new_xml_path} ")
@@ -236,7 +249,7 @@ if __name__=="__main__":
         if not Path(in_dir).is_dir():
             logger.error(f"Directory {in_dir} is not exist!")
             continue
-        logger.info(f"Starting to rename models in {in_dir}")
+        # logger.info(f"Starting to rename models in {in_dir}")
         operations = create_hash(Path(in_dir), operations)
     
     if not rel_weights_dir is None:

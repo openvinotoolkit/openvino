@@ -69,7 +69,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const std::map<std::string, std::string> &prop, ModelType modelType) {
+void Config::readProperties(const std::map<std::string, std::string> &prop, const ModelType modelType) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
     for (const auto& kvp : prop) {
@@ -79,6 +79,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, Mode
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.SetConfig(key, val);
+            if (key == ov::affinity.name()) {
+                const auto affinity_val = ov::util::from_string(val, ov::affinity);
+                if (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) {
+                    enableCpuPinning = true;
+                    changedCpuPinning = true;
+                } else if (affinity_val == ov::Affinity::NUMA) {
+                    enableCpuPinning = false;
+                    changedCpuPinning = true;
+                }
+            }
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
@@ -267,6 +277,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, Mode
     streamExecutorConfig._streams = 1;
     streamExecutorConfig._streams_changed = true;
 #endif
+    this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();

@@ -7,8 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename X, typename Y, typename Z>
 void atan2(const X* py, const Y* px, Z* pout, size_t count) {
@@ -17,5 +16,4 @@ void atan2(const X* py, const Y* px, Z* pout, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

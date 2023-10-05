@@ -4,13 +4,9 @@
 
 #pragma once
 
-#include <cmath>
+#include "openvino/core/shape.hpp"
 
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/type/element_type.hpp"
-
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void tile(const char* arg,
           char* out,
@@ -19,5 +15,4 @@ void tile(const char* arg,
           const size_t elem_size,
           const std::vector<int64_t>& repeats);
 }
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

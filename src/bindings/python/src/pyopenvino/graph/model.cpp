@@ -998,6 +998,20 @@ void regclass_graph_Model(py::module m) {
                 :type path: str
              )");
 
+    model.def(
+        "_get_raw_address",
+        [](ov::Model& self) {
+            return reinterpret_cast<uint64_t>(&self);
+        },
+        R"(
+        Returns a raw address of the Model object from C++.
+        
+        Use this function in order to compare underlying C++ addresses instead of using `__eq__` in Python.
+
+        :return: a raw address of the Model object.
+        :rtype: int
+    )");
+
     model.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::inputs);
     model.def_property_readonly("outputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::outputs);
     model.def_property_readonly("name", &ov::Model::get_name);

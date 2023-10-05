@@ -1,7 +1,7 @@
 Audio compression with EnCodec and OpenVINO
 ===========================================
 
-.. _top:
+
 
 Compression is an important part of the Internet today because it
 enables people to easily share high-quality photos, listen to audio
@@ -27,6 +27,8 @@ and original `repo <https://github.com/facebookresearch/encodec>`__.
    :alt: image.png
 
    image.png
+
+.. _top:
 
 **Table of contents**:
 
@@ -585,7 +587,7 @@ like with the original PyTorch models.
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://10.211.120.12:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://10.211.120.12:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

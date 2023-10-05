@@ -55,13 +55,13 @@ namespace shape_of {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const ov::Shape& shape, const HostTensorPtr& output_value) {
-    runtime::reference::shape_of(shape, output_value->get_data_ptr<ET>());
+    ov::reference::shape_of(shape, output_value->get_data_ptr<ET>());
     return true;
 }
 
 template <element::Type_t ET>
 inline bool evaluate(const ov::Shape& shape, ov::Tensor& output_value) {
-    runtime::reference::shape_of(shape, output_value.data<fundamental_type_for<ET>>());
+    ov::reference::shape_of(shape, output_value.data<fundamental_type_for<ET>>());
     return true;
 }
 
@@ -114,7 +114,7 @@ bool constant_fold_shape_of(Node* shape_of_node, Output<Node>& replacement, cons
 }
 
 bool evaluate_bound_shape(const Node* shape_of_node, ov::TensorVector& output_values, bool is_upper) {
-    NGRAPH_CHECK(shape_of_node, output_values.size() == 1);
+    OPENVINO_ASSERT(shape_of_node, output_values.size() == 1);
     const auto& input_partial_shape = shape_of_node->get_input_partial_shape(0);
     if (input_partial_shape.rank().is_dynamic())
         return false;
@@ -126,7 +126,7 @@ bool evaluate_bound_shape(const Node* shape_of_node, ov::TensorVector& output_va
         pshape_up[i] = Dimension(interval.get_max_val()).is_dynamic() ? Dimension(interval.get_max_val() - 1)
                                                                       : interval.get_max_val();
     }
-    NGRAPH_CHECK(pshape_up.is_static() && pshape_low.is_static());
+    OPENVINO_ASSERT(pshape_up.is_static() && pshape_low.is_static());
     const auto output_et = output_values[0].get_element_type();
 
     if (pshape_low.to_shape() == pshape_up.to_shape()) {
@@ -156,7 +156,7 @@ bool evaluate_bound_shape(const Node* shape_of_node, ov::TensorVector& output_va
 
 bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels) {
     const auto& shape = shape_of_node->get_input_partial_shape(0);
-    NGRAPH_CHECK(shape.rank().is_static());  // sanity check. at this point value propagation was successful
+    OPENVINO_ASSERT(shape.rank().is_static());  // sanity check. at this point value propagation was successful
     output_labels[0].reserve(shape.size());
     bool label_is_set = false;
     for (const auto& d : shape) {
@@ -173,8 +173,8 @@ bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels)
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v3_ShapeOf_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
@@ -241,20 +241,20 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     OV_OP_SCOPE(v0_ShapeOf_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto new_shape_of = make_shared<op::v0::ShapeOf>(new_args.at(0));
-    NGRAPH_CHECK(new_shape_of.get(),
-                 new_shape_of != nullptr,
-                 "Cannot clone ",
-                 description(),
-                 " operation with name ",
-                 get_friendly_name());
+    OPENVINO_ASSERT(new_shape_of.get(),
+                    new_shape_of != nullptr,
+                    "Cannot clone ",
+                    description(),
+                    " operation with name ",
+                    get_friendly_name());
     return new_shape_of;
 }
 
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v0_ShapeOf_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }

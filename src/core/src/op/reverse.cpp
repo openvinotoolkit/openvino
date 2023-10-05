@@ -99,7 +99,7 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const Ho
             GET_AXES(u32, axes, inputs[1]);
             GET_AXES(u64, axes, inputs[1]);
         default:
-            NGRAPH_CHECK(false, "Not supported axes type", inputs[1]->get_element_type());
+            OPENVINO_ASSERT(false, "Not supported axes type", inputs[1]->get_element_type());
         }
     } else  // Mode::MASK
     {
@@ -110,12 +110,12 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const Ho
             }
         }
     }
-    ngraph::runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
-                                        outputs[0]->get_data_ptr<char>(),
-                                        inputs[0]->get_shape(),
-                                        outputs[0]->get_shape(),
-                                        axes,
-                                        inputs[0]->get_element_type().size());
+    ov::reference::reverse(inputs[0]->get_data_ptr<const char>(),
+                           outputs[0]->get_data_ptr<char>(),
+                           inputs[0]->get_shape(),
+                           outputs[0]->get_shape(),
+                           axes,
+                           inputs[0]->get_element_type().size());
     return true;
 }
 

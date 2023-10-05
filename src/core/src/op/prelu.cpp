@@ -37,11 +37,11 @@ namespace prelu {
 namespace {
 template <ov::element::Type_t ET>
 bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& slope, const ngraph::HostTensorPtr& out) {
-    ngraph::runtime::reference::prelu(arg->get_data_ptr<ET>(),
-                                      slope->get_data_ptr<ET>(),
-                                      out->get_data_ptr<ET>(),
-                                      arg->get_shape(),
-                                      slope->get_shape());
+    ov::reference::prelu(arg->get_data_ptr<ET>(),
+                         slope->get_data_ptr<ET>(),
+                         out->get_data_ptr<ET>(),
+                         arg->get_shape(),
+                         slope->get_shape());
     return true;
 }
 
@@ -66,7 +66,7 @@ bool evaluate_prelu(const ngraph::HostTensorPtr& arg,
 bool ov::op::v0::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_PRelu_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1) && ngraph::validate_host_tensor_vector(inputs, 2));
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1) && ngraph::validate_host_tensor_vector(inputs, 2));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }

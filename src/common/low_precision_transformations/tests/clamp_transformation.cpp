@@ -4,15 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/clamp.hpp>
+#include "low_precision/clamp.hpp"
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/clamp_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/clamp.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -42,12 +42,12 @@ public:
     bool nonDequantizationMultiply;
 };
 
-typedef std::tuple<ngraph::PartialShape, ClampTransformationTestValues> ClampTransformationParams;
+typedef std::tuple<ov::PartialShape, ClampTransformationTestValues> ClampTransformationParams;
 
 class ClampTransformation : public LayerTransformation, public testing::WithParamInterface<ClampTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const ClampTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction =
@@ -60,7 +60,7 @@ public:
                                                                         testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ClampTransformation, ov::op::v0::Clamp>(testValues.params);
+        transformer.add<ov::pass::low_precision::ClampTransformation, ov::op::v0::Clamp>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = testValues.nonDequantizationMultiply
@@ -76,7 +76,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj) {
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const ClampTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -97,9 +97,9 @@ TEST_P(ClampTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
-    ngraph::PartialShape({1, 3, 224, 224}),
-    ngraph::PartialShape({-1, -1, -1, -1}),
+const std::vector<ov::PartialShape> inputShapes = {
+    ov::PartialShape({1, 3, 224, 224}),
+    ov::PartialShape({-1, -1, -1, -1}),
 };
 
 const std::vector<ClampTransformationTestValues> testValues = {
@@ -214,8 +214,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapes = {
-    ngraph::PartialShape({1, 3, 4, 4}),
+const std::vector<ov::PartialShape> inputShapes = {
+    ov::PartialShape({1, 3, 4, 4}),
 };
 
 const std::vector<ClampTransformationTestValues> testValuesDeqBySpatialDimension = {
@@ -253,7 +253,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {PartialShape::dynamic()};
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {PartialShape::dynamic()};
 
 const std::vector<ClampTransformationTestValues> testValues = {
     // U8 per tensor quantization

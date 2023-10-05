@@ -1,7 +1,7 @@
 Zero-shot Image Classification with OpenAI CLIP and OpenVINO™
 =============================================================
 
-.. _top:
+
 
 Zero-shot image classification is a computer vision task to classify
 images into one of several classes without any prior training or
@@ -29,6 +29,8 @@ image classification. The notebook contains the following steps:
 3. Export the ONNX model and convert it to OpenVINO IR, using model
    conversion API.
 4. Run CLIP with OpenVINO.
+
+.. _top:
 
 **Table of contents**:
 

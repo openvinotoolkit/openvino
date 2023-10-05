@@ -4,19 +4,17 @@
 
 #pragma once
 
-#include "ngraph/op/depth_to_space.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/depth_to_space.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void depth_to_space(const char* const in,
                     const Shape& in_shape,
                     char* const out,
                     const Shape& out_shape,
                     const size_t block_size,
-                    const op::DepthToSpace::DepthToSpaceMode mode,
+                    const op::v0::DepthToSpace::DepthToSpaceMode mode,
                     const size_t elem_size);
 }
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
