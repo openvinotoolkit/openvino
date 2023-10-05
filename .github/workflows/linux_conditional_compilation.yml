@@ -127,6 +127,8 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -233,7 +235,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: openvino_selective_build_stat
-          path: ${{ env.INSTALL_TEST_DIR }}
+          path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
 
       - name: Extract selective build statistics package
         run: tar -xvzf ${SELECTIVE_BUILD_STAT_DIR}/openvino_selective_build_stat.tar.gz -C ${SELECTIVE_BUILD_STAT_DIR}
@@ -277,9 +279,7 @@ jobs:
         run: ccache --show-stats
 
       - name: Run with CC-ed runtime
-        run: |
-          ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
-            -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
+        run: ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
 
   CPU_Functional_Tests:
     name: CPU functional tests
