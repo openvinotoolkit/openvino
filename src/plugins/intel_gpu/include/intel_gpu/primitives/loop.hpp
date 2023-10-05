@@ -173,8 +173,8 @@ struct loop : public primitive_base<loop> {
          int64_t max_num_iterations = -1,
          const primitive_id& body_current_iteration_id = primitive_id(),
          const primitive_id& body_execution_condition_id = primitive_id(),
-         const padding& output_padding = padding())
-            : primitive_base(id, inputs, {output_padding}),
+         const size_t num_outputs = 1)
+            : primitive_base(id, inputs, {padding()}, {optional_data_type()}, num_outputs),
               body_program(std::move(body_program)),
               trip_count_id(trip_count_id),
               first_execution_condition_id(first_execution_condition_id),

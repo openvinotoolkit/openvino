@@ -58,8 +58,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
     const auto& body_inputs = op->get_function()->get_parameters();
     const auto& body_outputs = op->get_function()->get_results();
 
-    auto config = p.get_config();
-    bool use_new_shape_infer = config.get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool use_new_shape_infer = p.use_new_shape_infer();
 
     // set input mapping & back edges
     for (const auto& loop_input_desc : loop_input_descs) {
@@ -179,7 +178,11 @@ static std::vector<cldnn::primitive_id> GetOutputNames(const cldnn::primitive_id
 
     // setup outputs for backedges
     for (auto& back_edge : back_edges) {
-        output_names.push_back(back_edge.from);
+        auto iter = std::find(output_names.begin(), output_names.end(), back_edge.from);
+        // Do not add duplicated output name
+        if (iter == output_names.end()) {
+            output_names.push_back(back_edge.from);
+        }
     }
 
     // if execution_condition_id is specified, we need to add the id in build_option::outputs
@@ -196,7 +199,9 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     auto inputs = p.GetInputInfo(op);
     bool is_dynamic = p.use_new_shape_infer() || op->is_dynamic();
 
+    auto num_outputs = is_dynamic? op->get_output_size() : 1;
     auto ov_model = op->get_function();
+
     // Set special body ports: current_iteration input , execution condition output
     cldnn::primitive_id body_current_iteration_id;
     cldnn::primitive_id body_execution_condition_id;
@@ -268,7 +273,8 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
         back_edges,                     /* back edge mapping */
         num_iterations,                 /* max iteration, i.e. length of iteration axis */
         body_current_iteration_id,
-        body_execution_condition_id);
+        body_execution_condition_id,
+        num_outputs);
 
     p.add_primitive(*op, loopPrimitive);
 }
