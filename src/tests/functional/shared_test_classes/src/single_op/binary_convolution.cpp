@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_op/binary_convolution.hpp"
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
