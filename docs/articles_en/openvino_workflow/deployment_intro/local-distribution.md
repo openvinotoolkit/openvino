@@ -145,15 +145,6 @@ Depending on the model format types that are used in the application in `ov::Cor
 
    To optimize the size of the final distribution package, it is recommended to convert models to OpenVINO IR by using :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. This way you do not have to keep TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
 
-(Legacy) Preprocessing via G-API
-++++++++++++++++++++++++++++++++
-
-.. note::
-
-   :doc:`G-API <openvino_docs_gapi_gapi_intro>` preprocessing is a legacy functionality, use :doc:`preprocessing capabilities from OpenVINO 2.0 <openvino_docs_OV_UG_Preprocessing_Overview>` which do not require any additional libraries.
-
-If the application uses `InferenceEngine::PreProcessInfo::setColorFormat <classInferenceEngine_1_1PreProcessInfo.html#doxid-class-inference-engine-1-1-pre-process-info-1a3a10ba0d562a2268fe584d4d2db94cac>`__ or `InferenceEngine::PreProcessInfo::setResizeAlgorithm <classInferenceEngine_1_1PreProcessInfo.html#doxid-class-inference-engine-1-1-pre-process-info-1a0c083c43d01c53c327f09095e3e3f004>`__ methods, OpenVINO Runtime dynamically loads `openvino_gapi_preproc` plugin to perform preprocessing via G-API.
-
 Examples
 ####################
 
