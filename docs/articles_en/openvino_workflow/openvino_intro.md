@@ -22,7 +22,18 @@
                  on different platforms.
 
 
-OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read an Intermediate Representation (IR), TensorFlow, TensorFlow Lite, ONNX, or PaddlePaddle model and execute it on preferred devices.
+OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read PyTorch, TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle models and execute them on preferred devices. OpenVINO gives you the option to use these models directly or convert them to the OpenVINO IR (Intermediate Representation) format explicitly, for maximum performance.
+
+
+.. note::
+
+   For more detailed information on how to convert, read, and compile supported model formats
+   see the :doc:`Supported Formats article <Supported_Model_Formats_MO_DG>`.
+   
+   Note that TensorFlow models can be run using the
+   :doc:`torch.compile feature <pytorch_2_0_torch_compile>`, as well as the standard ways of
+   :doc:`converting TensorFlow <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>`
+    or reading them directly.
 
 OpenVINO Runtime uses a plugin architecture. Its plugins are software components that contain complete implementation for inference on a particular Intel® hardware device: CPU, GPU, GNA, etc. Each plugin implements the unified API and provides additional hardware-specific APIs for configuring devices or API interoperability between OpenVINO Runtime and underlying plugin backend.
 
@@ -31,18 +42,5 @@ The scheme below illustrates the typical workflow for deploying a trained deep l
 
 .. image:: _static/images/BASIC_FLOW_IE_C.svg
 
-
-Video
-####################
-
-
-.. list-table::
-
-   * - .. raw:: html
-
-           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen height="315" width="560"
-           src="https://www.youtube.com/embed/e6R13V8nbak">
-           </iframe>
-   * - **OpenVINO Runtime Concept**. Duration: 3:43
 
 @endsphinxdirective

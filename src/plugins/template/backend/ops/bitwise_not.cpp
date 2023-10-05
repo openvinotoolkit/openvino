@@ -19,7 +19,7 @@ bool evaluate(const std::shared_ptr<ov::op::v13::BitwiseNot>& node,
     outputs[0].set_shape(inputs[0].get_shape());
 
     using T = typename ov::element_type_traits<ET>::value_type;
-    ov::reference::bitwise_not(inputs[0].data<T>(), outputs[0].data<T>(), shape_size(inputs[0].get_shape()));
+    ov::reference::bitwise_not(inputs[0].data<const T>(), outputs[0].data<T>(), shape_size(inputs[0].get_shape()));
     return true;
 }
 

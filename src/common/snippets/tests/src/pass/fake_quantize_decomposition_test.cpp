@@ -7,7 +7,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "fake_quantize_function.hpp"
+#include "fake_quantize_helper.hpp"
 #include "function_helper.hpp"
 
 namespace ov {
