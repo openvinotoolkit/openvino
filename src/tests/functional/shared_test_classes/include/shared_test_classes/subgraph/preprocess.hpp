@@ -31,3 +31,10 @@ protected:
 
 }  // namespace test
 }  // namespace ov
+
+namespace SubgraphTestsDefinitions {
+
+using ov::test::PrePostProcessTest;
+using ov::test::preprocessParamsTuple;
+
+}  // namespace SubgraphTestsDefinitions

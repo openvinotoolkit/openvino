@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 
-#include "ngraph_functions/builders.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "ov_models/builders.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 
 using namespace ov;
