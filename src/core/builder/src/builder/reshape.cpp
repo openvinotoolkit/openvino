@@ -120,12 +120,11 @@ shared_ptr<Node> builder::opset1::flatten(const Output<Node>& value, int axis) {
             make_shared<ngraph::opset1::ReduceProd>(first_part_dims,
                                                     ngraph::opset1::Constant::create(element::i64, {}, {0}),
                                                     true);
-        const auto first_part_dims_length_abs = make_shared<ngraph::opset1::Abs>(first_part_dims_length);
 
         const auto remaining_part_length = ngraph::opset1::Constant::create(element::i64, {1}, {-1});
 
         output_shape =
-            make_shared<ngraph::opset1::Concat>(OutputVector{first_part_dims_length_abs, remaining_part_length}, 0);
+            make_shared<ngraph::opset1::Concat>(OutputVector{first_part_dims_length, remaining_part_length}, 0);
     }
     return make_shared<ngraph::opset1::Reshape>(value, output_shape, true);
 }

@@ -19,7 +19,7 @@ bool has_positive_bounds_on_data(const Node* const op) {
     const auto& lb = op->get_input_tensor(0).get_lower_value();
     const auto& ub = op->get_input_tensor(0).get_upper_value();
 
-    return lb && ub && tensor_is_positive(lb) && tensor_is_positive(ub);
+    return lb && ub && tensor_is_non_negative(lb) && tensor_is_non_negative(ub);
 }
 }  // namespace
 
@@ -83,9 +83,26 @@ bool ReduceProd::evaluate_lower(ov::TensorVector& output_values) const {
 }
 
 bool ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
-    return reduce_prod::has_positive_bounds_on_data(this) && get_input_tensor(1).has_and_set_bound() &&
-           default_upper_bound_evaluator(this, output_values);
+    if (!reduce_prod::has_positive_bounds_on_data(this) || !get_input_tensor(1).has_and_set_bound())
+        return false;
+    // We need to cover a corner case: if an Upper Bound comes from ShapeOf and contains
+    // dynamic dimension (-1) - it has a value 0x7FFFFFFFFFFFFFFF, which points on
+    // a maximum possible value. For example, Upper Bound of shape [-1, 12] is
+    // [0x7FFFFFFFFFFFFFFF, 12].
+    // In such case we shouldn't evaluate a real ReduceProd because it'll cause an
+    // overflow and returns wrong value. We should return an Upper Bound as for [-1],
+    // which will be evaluated as [0x7FFFFFFFFFFFFFFF]
+    if (get_input_tensor(0).get_element_type() == element::i64 &&
+        tensor_has_max_value(get_input_tensor(0).get_upper_value())) {
+        output_values[0].set_shape(Shape{});
+        output_values[0].data<int64_t>()[0] =
+            std::numeric_limits<typename element_type_traits<element::i64>::value_type>::max();
+        return true;
+    }
+
+    return default_upper_bound_evaluator(this, output_values);
 }
+
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
