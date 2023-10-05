@@ -8,8 +8,9 @@
 #include <numeric>
 #include <utility>
 
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
@@ -103,13 +104,13 @@ void autobroadcast_binop(const T* arg0,
         }
         break;
     case op::AutoBroadcastType::NUMPY:
-        // We'll be using CoordinateTransform to handle the broadcasting. The general
+        // We'll be using CoordinateTransformBasic to handle the broadcasting. The general
         // procedure is as follows:
         //
         // (1) Left pad the shorter of the two shapes with ones.
         // (2) Squeeze (remove ones from) both shapes, and record the squeezed axis
         //     indices.
-        // (3) Using CoordinateTransform, broadcast both args to the final output
+        // (3) Using CoordinateTransformBasic, broadcast both args to the final output
         //     shape. The "broadcasted axes" will be those that were squeezed in step
         //     2.
         //
@@ -207,7 +208,7 @@ void autobroadcast_binop(const T* arg0,
         }
         break;
     case op::AutoBroadcastType::PDPD:
-        // We'll be using CoordinateTransform to handle the broadcasting. No need to
+        // We'll be using CoordinateTransformBasic to handle the broadcasting. No need to
         // process arg0 and output shape will be the same as arg0. We need to process
         // arg1 and the general procedure is as follows:
         //
@@ -216,7 +217,7 @@ void autobroadcast_binop(const T* arg0,
         //     to align between arg0 and arg1.
         // (3) Squeeze (remove ones from) arg1 shape, and record the squeezed axis
         //     indices.
-        // (3) Using CoordinateTransform, broadcast arg1 to the final output
+        // (3) Using CoordinateTransformBasic, broadcast arg1 to the final output
         //     shape. The "broadcasted axes" will be those that were squeezed in step
         //     23.
         //
@@ -262,18 +263,15 @@ void autobroadcast_binop(const T* arg0,
                 }
             }
 
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            CoordinateTransform arg0_transform(arg0_shape);
-            CoordinateTransform arg1_transform(arg1_squeezed_shape);
-            CoordinateTransform output_transform(arg0_shape);
+            const CoordinateTransformBasic output_transform{arg0_shape};
 
             for (const Coordinate& output_coord : output_transform) {
-                Coordinate arg1_coord = ngraph::reduce(output_coord, arg1_squeezed_axes, false);
-                out[output_transform.index(output_coord)] =
-                    elementwise_functor(arg0[arg0_transform.index(output_coord)],
-                                        arg1[arg1_transform.index(arg1_coord)]);
+                const auto arg1_coord = util::reduce(output_coord, arg1_squeezed_axes);
+                const auto out_index = coordinate_index(output_coord, arg0_shape);
+                const auto arg0_index = coordinate_index(output_coord, arg0_shape);
+                const auto arg1_index = coordinate_index(arg1_coord, arg1_squeezed_shape);
+                out[out_index] = elementwise_functor(arg0[arg0_index], arg1[arg1_index]);
             }
-            NGRAPH_SUPPRESS_DEPRECATED_END
         }
     }
 }
@@ -366,10 +364,7 @@ void autobroadcast_select(const U* arg0,
                 output_shape.push_back(std::max({arg0_padded_shape[i], arg2_padded_shape[i], arg1_padded_shape[i]}));
             }
 
-            CoordinateTransformBasic arg0_transform(arg0_squeezed_shape);
-            CoordinateTransformBasic arg1_transform(arg1_squeezed_shape);
-            CoordinateTransformBasic arg2_transform(arg2_squeezed_shape);
-            CoordinateTransformBasic output_transform(output_shape);
+            const CoordinateTransformBasic output_transform{output_shape};
 
             const auto arg0_strides = row_major_strides(arg0_squeezed_shape);
             const auto arg1_strides = row_major_strides(arg1_squeezed_shape);
@@ -377,20 +372,14 @@ void autobroadcast_select(const U* arg0,
             const auto output_strides = row_major_strides(output_shape);
 
             for (const Coordinate& output_coord : output_transform) {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                const Coordinate arg0_coord = ngraph::reduce(output_coord, arg0_squeezed_axes, false);
-                const Coordinate arg1_coord = ngraph::reduce(output_coord, arg1_squeezed_axes, false);
-                const Coordinate arg2_coord = ngraph::reduce(output_coord, arg2_squeezed_axes, false);
-                NGRAPH_SUPPRESS_DEPRECATED_END
+                const auto arg0_coord = util::reduce(output_coord, arg0_squeezed_axes);
+                const auto arg1_coord = util::reduce(output_coord, arg1_squeezed_axes);
+                const auto arg2_coord = util::reduce(output_coord, arg2_squeezed_axes);
 
-                const size_t arg0_idx =
-                    std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));
-                const size_t arg1_idx =
-                    std::inner_product(arg1_coord.begin(), arg1_coord.end(), arg1_strides.begin(), uint64_t(0));
-                const size_t arg2_idx =
-                    std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), uint64_t(0));
-                const size_t output_idx =
-                    std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
+                const size_t arg0_idx = coordinate_offset(arg0_coord, arg0_strides);
+                const size_t arg1_idx = coordinate_offset(arg1_coord, arg1_strides);
+                const size_t arg2_idx = coordinate_offset(arg2_coord, arg2_strides);
+                const size_t output_idx = coordinate_offset(output_coord, output_strides);
                 out[output_idx] = elementwise_functor(arg0[arg0_idx], arg1[arg1_idx], arg2[arg2_idx]);
             }
         }
@@ -446,29 +435,20 @@ void autobroadcast_select(const U* arg0,
             }
         }
 
-        CoordinateTransformBasic arg0_transform(arg0_squeezed_shape);
-        CoordinateTransformBasic arg1_transform(arg1_shape);
-        CoordinateTransformBasic arg2_transform(arg2_squeezed_shape);
-        CoordinateTransformBasic output_transform(arg1_shape);
+        const CoordinateTransformBasic output_transform{arg1_shape};
 
         const auto arg0_strides = row_major_strides(arg0_squeezed_shape);
         const auto arg2_strides = row_major_strides(arg2_squeezed_shape);
         const auto output_strides = row_major_strides(arg1_shape);
 
         for (const Coordinate& output_coord : output_transform) {
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            const Coordinate arg0_coord = ngraph::reduce(output_coord, arg0_squeezed_axes, false);
-            const Coordinate arg2_coord = ngraph::reduce(output_coord, arg2_squeezed_axes, false);
-            NGRAPH_SUPPRESS_DEPRECATED_END
+            const auto arg0_coord = util::reduce(output_coord, arg0_squeezed_axes);
+            const auto arg2_coord = util::reduce(output_coord, arg2_squeezed_axes);
 
-            const size_t arg0_idx =
-                std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));
-            const size_t arg1_idx =
-                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
-            const size_t arg2_idx =
-                std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), uint64_t(0));
-            const size_t output_idx =
-                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
+            const size_t arg0_idx = coordinate_offset(arg0_coord, arg0_strides);
+            const size_t arg1_idx = coordinate_offset(output_coord, output_strides);
+            const size_t arg2_idx = coordinate_offset(arg2_coord, arg2_strides);
+            const size_t output_idx = coordinate_offset(output_coord, output_strides);
 
             out[output_idx] = elementwise_functor(arg0[arg0_idx], arg1[arg1_idx], arg2[arg2_idx]);
         }
