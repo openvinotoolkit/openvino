@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/ops.hpp>
-
-#include "ngraph/shape_util.hpp"
+#include "openvino/op/extractimagepatches.hpp"
 
 namespace ov {
 namespace reference {
