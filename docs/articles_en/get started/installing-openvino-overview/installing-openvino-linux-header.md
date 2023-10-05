@@ -19,8 +19,8 @@
    Use Conda Forge <openvino_docs_install_guides_installing_openvino_conda>
    Use vcpkg <openvino_docs_install_guides_installing_openvino_vcpkg>
    Use Homebrew <openvino_docs_install_guides_installing_openvino_brew>
-   Use Docker <openvino_docs_install_guides_installing_openvino_docker>
    Use Conan <openvino_docs_install_guides_installing_openvino_conan>
+   Use Docker <openvino_docs_install_guides_installing_openvino_docker>
 
 
 If you want to install OpenVINO™ Runtime on Linux, you have the following options:

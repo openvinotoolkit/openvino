@@ -133,6 +133,11 @@ JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_eleme
 
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetScatterElementsUpdateChannelIndex(params)));
 
+    if (params.mode != ScatterUpdateReduction::NONE) {
+        jit.AddConstant(MakeJitConstant("REDUCE_MODE", static_cast<int>(params.mode)));
+        jit.AddConstant(MakeJitConstant("USE_INIT_VAL", params.use_init_val));
+    }
+
     if (!params.fused_ops.empty()) {
         FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
         FusedOpsConfiguration conf2 = { "_SECOND_KERNEL", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };

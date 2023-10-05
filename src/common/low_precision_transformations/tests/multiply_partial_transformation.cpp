@@ -14,11 +14,11 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include "low_precision/multiply_partial.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/multiply_partial_function.hpp"
+#include "ov_lpt_models/multiply_partial_function.hpp"
 
 namespace {
 using namespace testing;
