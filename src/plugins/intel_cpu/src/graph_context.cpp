@@ -7,7 +7,10 @@
 namespace ov {
 namespace intel_cpu {
 
-dnnl::engine GraphContext::eng(dnnl::engine::kind::cpu, 0);
+const dnnl::engine& GraphContext::getEngine() {
+    static const dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+    return eng;
+}
 
 }   // namespace intel_cpu
 }   // namespace ov

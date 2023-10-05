@@ -96,7 +96,7 @@ public:
     virtual operator std::vector<uint64_t>&() {
         OPENVINO_THROW("Invalid type access");
     }
-    virtual operator HostTensorPtr&() {
+    virtual operator ngraph::HostTensorPtr&() {
         OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::shared_ptr<ov::Model>&() {
@@ -219,7 +219,7 @@ public:
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
-            auto& data = m_values.get<HostTensorPtr>(name);
+            auto& data = m_values.get<ngraph::HostTensorPtr>(name);
             data->read(a->get()->get_ptr(), a->get()->size());
         } else if (auto a = ov::as_type<
                        ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(
@@ -291,7 +291,7 @@ public:
     }
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
         OPENVINO_SUPPRESS_DEPRECATED_START
-        HostTensorPtr& data = m_values.get<HostTensorPtr>(name);
+        ngraph::HostTensorPtr& data = m_values.get<ngraph::HostTensorPtr>(name);
         data->read(adapter.get_ptr(), adapter.size());
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
@@ -311,7 +311,7 @@ public:
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
-            HostTensorPtr data = std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
+            ngraph::HostTensorPtr data = std::make_shared<ngraph::HostTensor>(element::u8, Shape{a->get()->size()});
             data->write(a->get()->get_ptr(), a->get()->size());
             m_values.insert(name, data);
         } else if (auto a = ov::as_type<

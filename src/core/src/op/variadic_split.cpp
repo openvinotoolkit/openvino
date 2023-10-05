@@ -82,9 +82,10 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
     const auto& data_tensor = inputs[0];
     const auto& axis_tensor = inputs[1];
     const auto& split_lengths_tensor = inputs[2];
-    NGRAPH_CHECK(axis_tensor->get_element_type().is_integral_number(), "axis element type is not integral data type");
-    NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
-                 "split_lengths element type is not integral data type");
+    OPENVINO_ASSERT(axis_tensor->get_element_type().is_integral_number(),
+                    "axis element type is not integral data type");
+    OPENVINO_ASSERT(split_lengths_tensor->get_element_type().is_integral_number(),
+                    "split_lengths element type is not integral data type");
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];

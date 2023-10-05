@@ -30,8 +30,8 @@
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/summary/environment.hpp"
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/pass/convert_prc.hpp"
 
 namespace LayerTestsUtils {
 

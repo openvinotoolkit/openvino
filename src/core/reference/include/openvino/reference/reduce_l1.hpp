@@ -7,10 +7,10 @@
 #include <cmath>
 #include <numeric>
 
+#include "openvino/core/shape_util.hpp"
 #include "openvino/reference/abs.hpp"
-#include "openvino/reference/sum.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 #include "openvino/reference/utils/type_util.hpp"
-#include "shape_util.hpp"
 
 namespace ov {
 namespace reference {
