@@ -16,8 +16,8 @@
 #include "low_precision/network_helper.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/move_dequantization_after_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/move_dequantization_after.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 using namespace testing;
 using namespace ov::pass;

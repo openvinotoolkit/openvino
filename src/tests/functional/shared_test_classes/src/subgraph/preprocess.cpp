@@ -4,8 +4,8 @@
 
 #include "shared_test_classes/subgraph/preprocess.hpp"
 
-#include "ngraph_functions/preprocess/preprocess_builders.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "ov_models/preprocess/preprocess_builders.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;

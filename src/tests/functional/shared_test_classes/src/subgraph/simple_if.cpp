@@ -4,9 +4,8 @@
 
 #include "shared_test_classes/subgraph/simple_if.hpp"
 
-#include <common_test_utils/ov_tensor_utils.hpp>
-
-#include "ngraph_functions/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {
