@@ -16,6 +16,7 @@ from consts import (
     no_binder_template,
     repo_directory,
     repo_name,
+    repo_branch,
     repo_owner,
     rst_template,
     section_names,
@@ -96,6 +97,7 @@ class NbProcessor:
             "owner": repo_owner,
             "repo": repo_name,
             "folder": repo_directory,
+            "branch": repo_branch,
         }
 
     def fetch_binder_list(self, file_format: str = 'txt') -> list:

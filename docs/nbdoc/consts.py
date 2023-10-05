@@ -8,6 +8,8 @@ repo_owner = "openvinotoolkit"
 
 repo_name = "openvino_notebooks"
 
+repo_branch = "tree/main"
+
 artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20230517220809/dist/rst_files/"
 
 blacklisted_extensions = ['.xml', '.bin']
@@ -34,7 +36,7 @@ To run without installing anything, click the launch binder button.
 
 .. |github_link| raw:: html
 
-   <a href="https://github.com/{{ owner }}/{{ repo }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
+   <a href="https://github.com/{{ owner }}/{{ repo }}/{{ branch }}/{{ folder }}/{{ notebook }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
 
 \n
 """
@@ -50,7 +52,7 @@ See the |installation_link| for instructions to run this tutorial locally on Win
 
 .. |github_link| raw:: html
 
-   <a href="https://github.com/{{ owner }}/{{ repo }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
+   <a href="https://github.com/{{ owner }}/{{ repo }}/{{ branch }}/{{ folder }}/{{ notebook }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
 
 \n
 """
