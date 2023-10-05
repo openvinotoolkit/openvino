@@ -30,10 +30,161 @@ Please file a github Issue on these with the label “pre-release” so we can g
       :material-regular:`feedback;1.4em` Share your feedback
 
 
-.. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230728
+
+
+.. dropdown:: OpenVINO Toolkit 2023.2 Dev 22.09.2023
    :animate: fade-in-slide-down
    :color: primary
    :open:
+
+   `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.2.0.dev20230922>`__
+   
+   **What's Changed:**
+   
+   * CPU runtime: 
+
+     * Optimized Yolov8n and YoloV8s models on BF16/FP32. 
+     * Optimized Falcon model on 4th Generation Intel® Xeon® Scalable Processors. 
+
+   * GPU runtime:  
+
+     * int8 weight compression further improves LLM performance. PR #19548 
+     * Optimization for gemm & fc in iGPU. PR #19780 
+
+   * TensorFlow FE: 
+
+     * Added support for Selu operation. PR #19528 
+     * Added support for XlaConvV2 operation. PR #19466 
+     * Added support for TensorListLength and TensorListResize operations. PR #19390 
+
+   * PyTorch FE: 
+
+     * New operations supported 
+  
+       * aten::minimum aten::maximum. PR #19996 
+       * aten::broadcast_tensors. PR #19994 
+       * added support aten::logical_and, aten::logical_or, aten::logical_not, aten::logical_xor. PR #19981 
+       * aten::scatter_reduce and extend aten::scatter. PR #19980 
+       * prim::TupleIndex operation. PR #19978 
+       * mixed precision in aten::min/max. PR #19936 
+       * aten::tile op PR #19645 
+       * aten::one_hot PR #19779 
+       * PReLU. PR #19515 
+       * aten::swapaxes. PR #19483 
+       * non-boolean inputs for __or__ and __and__ operations. PR #19268 
+
+   * Torchvision NMS can accept negative scores. PR #19826 
+   * New openvino_notebooks: 
+
+     * Visual Question Answering and Image Captioning using BLIP 
+
+   **Fixed GitHub issues**
+
+   * Fixed #19784 “[Bug]: Cannot install libprotobuf-dev along with libopenvino-2023.0.2 on Ubuntu 22.04” with PR #19788 
+   * Fixed #19617 “Add a clear error message when creating an empty Constant” with PR #19674 
+   * Fixed #19616 “Align openvino.compile_model and openvino.Core.compile_model functions” with PR #19778 
+   * Fixed #19469 “[Feature Request]: Add SeLu activation in the OpenVino IR (TensorFlow Conversion)” with PR #19528 
+   * Fixed #19019 “[Bug]: Low performance of the TF quantized model.” With PR #19735 
+   * Fixed #19018 “[Feature Request]: Support aarch64 python wheel for Linux” with PR #19594 
+   * Fixed #18831 “Question: openvino support for Nvidia Jetson Xavier ?” with PR #19594 
+   * Fixed #18786 “OpenVINO Wheel does not install Debug libraries when CMAKE_BUILD_TYPE is Debug #18786” with PR #19197 
+   * Fixed #18731 “[Bug] Wrong output shapes of MaxPool” with PR #18965 
+   * Fixed #18091 “[Bug] 2023.0 Version crashes on Jetson Nano - L4T - Ubuntu 18.04” with PR #19717 
+   * Fixed #7194 “Conan for simplifying dependency management” with PR #17580 
+
+ 
+   **Acknowledgements:**
+
+   Thanks for contributions from the OpenVINO developer community: 
+   
+   * @siddhant-0707, 
+   * @PRATHAM-SPS, 
+   * @okhovan 
+
+
+.. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230728
+   :animate: fade-in-slide-down
+   :color: secondary
+
+   `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230811>`__ 
+
+   **New features:**
+   
+   * CPU runtime: 
+
+     * Enabled weights decompression support for Large Language models (LLMs). The implementation 
+       supports avx2 and avx512 HW targets for Intel® Core™ processors for improved 
+       latency mode (FP32 VS FP32+INT8 weights comparison). For 4th Generation Intel® Xeon® 
+       Scalable Processors (formerly Sapphire Rapids) this INT8 decompression feature provides 
+       performance improvement, compared to pure BF16 inference.
+     * Reduced memory consumption of compile model stage by moving constant folding of Transpose 
+       nodes to the CPU Runtime side.  
+     * Set FP16 inference precision by default for non-convolution networks on ARM. Convolution 
+       network will be executed in FP32.  
+
+   * GPU runtime: Added paddings for dynamic convolutions to improve performance for models like 
+     Stable-Diffusion v2.1. 
+
+   * Python API: 
+
+     * Added the ``torchvision.transforms`` object to OpenVINO preprocessing.  
+     * Moved all python tools related to OpenVINO into a single namespace, 
+       improving user experience with better API readability. 
+
+   * TensorFlow FE: 
+
+     * Added support for the TensorFlow 1 Checkpoint format. All native TensorFlow formats are now enabled. 
+     * Added support for 8 new operations: 
+
+       * MaxPoolWithArgmax 
+       * UnravelIndex 
+       * AdjustContrastv2 
+       * InvertPermutation 
+       * CheckNumerics 
+       * DivNoNan 
+       * EnsureShape 
+       * ShapeN 
+
+   * PyTorch FE: 
+
+     * Added support for 6 new operations. To know how to enjoy PyTorch models conversion follow 
+       this `Link <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#experimental-converting-a-pytorch-model-with-pytorch-frontend>`__ 
+
+       * aten::concat 
+       * aten::masked_scatter 
+       * aten::linspace 
+       * aten::view_as 
+       * aten::std 
+       * aten::outer 
+       * aten::broadcast_to 
+
+   **New openvino_notebooks:**
+
+   * `245-typo-detector <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/245-typo-detector>`__
+     : English Typo Detection in sentences with OpenVINO™ 
+
+   * `247-code-language-id <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/247-code-language-id/247-code-language-id.ipynb>`__
+     : Identify the programming language used in an arbitrary code snippet 
+
+   * `121-convert-to-openvino <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/121-convert-to-openvino>`__
+     : Learn OpenVINO model conversion API 
+
+   * `244-named-entity-recognition <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/244-named-entity-recognition>`__
+     : Named entity recognition with OpenVINO™ 
+
+   * `246-depth-estimation-videpth <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/246-depth-estimation-videpth>`__
+     : Monocular Visual-Inertial Depth Estimation with OpenVINO™ 
+
+   * `248-stable-diffusion-xl <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/248-stable-diffusion-xl>`__
+     : Image generation with Stable Diffusion XL 
+
+   * `249-oneformer-segmentation <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/249-oneformer-segmentation>`__
+     : Universal segmentation with OneFormer 
+
+
+.. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230728
+   :animate: fade-in-slide-down
+   :color: secondary
    
    `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230728>`__ 
    
