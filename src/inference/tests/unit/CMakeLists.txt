@@ -17,5 +17,5 @@ ov_add_test_target(
             unit_test_utils
         ADD_CLANG_FORMAT
         LABELS
-            OV
+            OV UNIT RUNTIME
 )

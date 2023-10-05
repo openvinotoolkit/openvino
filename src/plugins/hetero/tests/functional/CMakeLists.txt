@@ -18,7 +18,7 @@ ov_add_test_target(
             common_test_utils
         ADD_CLANG_FORMAT
         LABELS
-            HETERO
+            OV UNIT HETERO
 )
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")

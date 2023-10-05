@@ -16,7 +16,7 @@ function(add_common_utils ADD_TARGET_NAME)
     endif()
 
     # create target
-    addIeTarget(
+    ov_add_target(
             NAME ${ADD_TARGET_NAME}
             TYPE STATIC
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}

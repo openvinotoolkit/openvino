@@ -27,5 +27,5 @@ ov_add_test_target(
             ov_models
         ADD_CLANG_FORMAT
         LABELS
-            HETERO
+            OV UNIT HETERO
 )

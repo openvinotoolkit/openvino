@@ -12,8 +12,9 @@ list(APPEND LIBRARIES
 )
 
 # add subgraphs_dumpers tool
-addIeTargetTest(
+ov_add_target(
         NAME ${TARGET_NAME}
+        TYPE EXECUTABLE
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}/src
         INCLUDES
             PRIVATE
@@ -27,7 +28,7 @@ addIeTargetTest(
 )
 
 # add subgraphs_dumpers lib to get API
-addIeTarget(
+ov_add_target(
         NAME "${TARGET_NAME}Util"
         TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src"

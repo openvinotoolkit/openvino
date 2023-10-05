@@ -118,7 +118,11 @@ if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
     # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
     set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
 elseif(NOT OV_GENERATOR_MULTI_CONFIG)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+    if(NOT CMAKE_BUILD_TYPE)
+        # default value
+        set(CMAKE_BUILD_TYPE "Release")
+    endif()
+    set(CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}" CACHE STRING "CMake build type")
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
 endif()
 
