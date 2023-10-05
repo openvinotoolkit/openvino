@@ -10,7 +10,7 @@
 #include <cfenv>
 #include <cmath>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/op/grid_sample.hpp"
 
 namespace ov {
