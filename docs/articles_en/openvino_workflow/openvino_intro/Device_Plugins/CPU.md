@@ -52,7 +52,7 @@ CPU plugin supports the following data types as inference precision of internal 
 - Floating-point data types:
 
   - ``f32`` (Intel® x86-64, Arm®)
-  - ``bf16``(Intel® x86-64)
+  - ``bf16`` (Intel® x86-64)
 - Integer data types:
 
   - ``i32`` (Intel® x86-64, Arm®)
