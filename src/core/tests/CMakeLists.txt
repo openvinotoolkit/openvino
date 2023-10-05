@@ -47,9 +47,7 @@ ov_add_test_target(
             openvino::runtime::dev
         ADD_CLANG_FORMAT
         LABELS
-            OV
-            IE
-            CORE
+            OV UNIT CORE
 )
 
 get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)

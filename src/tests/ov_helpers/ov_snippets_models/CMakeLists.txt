@@ -7,7 +7,8 @@ set(TARGET_NAME ov_snippets_models)
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(SNIPPETS_INCLUDES "$<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include")
 set(COMMON_TEST_UTILS_INCLUDES "$<TARGET_PROPERTY:common_test_utils,INTERFACE_INCLUDE_DIRECTORIES>")
-addIeTarget(
+
+ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT ${PUBLIC_HEADERS_DIR}

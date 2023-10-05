@@ -35,7 +35,6 @@ find_package(IEDevScripts REQUIRED
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
-include(CTest)
 include(cmake/features.cmake)
 
 # These options are shared with 3rdparty plugins by means of developer package

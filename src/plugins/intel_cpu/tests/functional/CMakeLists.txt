@@ -44,7 +44,7 @@ if(NOT X86_64)
          ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/x64)
 endif()
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES ${INCLUDES}
@@ -54,7 +54,7 @@ addIeTargetTest(
         DEPENDENCIES ${DEPENDENCIES}
         LINK_LIBRARIES ${LINK_LIBRARIES}
         ADD_CPPLINT
-        LABELS CPU
+        LABELS OV CPU
 )
 
 ov_set_threading_interface_for(${TARGET_NAME})

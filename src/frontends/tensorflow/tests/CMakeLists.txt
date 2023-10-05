@@ -22,8 +22,7 @@ ov_add_test_target(
             openvino_tensorflow_common
         ADD_CLANG_FORMAT
         LABELS
-            OV
-            TF_FE
+            OV UNIT TF_FE
 )
 
 # Test model generating

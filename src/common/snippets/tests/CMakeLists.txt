@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ov_snippets_func_tests)
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
@@ -16,7 +16,7 @@ addIeTargetTest(
             ov_snippets_models
         ADD_CPPLINT
         LABELS
-        IE OV SNIPPETS
+            OV UNIT SNIPPETS
 )
 
 # LTO

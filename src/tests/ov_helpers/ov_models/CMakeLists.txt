@@ -6,7 +6,7 @@ set(TARGET_NAME ov_models)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-addIeTarget(
+ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT ${PUBLIC_HEADERS_DIR}

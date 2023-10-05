@@ -14,7 +14,7 @@ endif()
 
 list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op.xml")
 
-addIeTargetTest(
+ov_add_test_target(
         NAME
             ${TARGET_NAME}
         ROOT
@@ -35,7 +35,7 @@ addIeTargetTest(
             OpenCL::OpenCL
         ADD_CPPLINT
         LABELS
-            GPU
+            OV GPU
 )
 
 if(ENABLE_PROXY)

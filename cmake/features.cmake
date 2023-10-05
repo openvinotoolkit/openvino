@@ -21,6 +21,11 @@ ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmak
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
+if(ENABLE_TESTS)
+    include(CTest)
+    enable_testing()
+endif()
+
 if(X86_64)
     set(ENABLE_INTEL_GPU_DEFAULT ON)
 else()

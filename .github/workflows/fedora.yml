@@ -178,9 +178,6 @@ jobs:
       RPM_PACKAGES_DIR: /__w/openvino/packages/
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${RPM_PACKAGES_DIR}
-
       - name: Download OpenVINO RPM packages
         uses: actions/download-artifact@v3
         with:
