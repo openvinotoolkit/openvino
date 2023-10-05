@@ -30,7 +30,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
+  CACHE_1_PATH: /mount/caches
+  CACHE_2_PATH: /mount/cinfsshare
+  CMAKE_CACHE_PATH: /mount/caches/ccache
+  PIP_CACHE_PATH: /mount/cinfsshare/pip/linux
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -42,7 +45,8 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
-        - /mount/caches:/mount/caches
+        - ${{ env.CACHE_1_PATH }}:${{ env.CACHE_1_PATH }}
+        - ${{ env.CACHE_2_PATH }}:${{ env.CACHE_2_PATH }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -56,7 +60,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       OPENVINO_CONTRIB_BUILD_DIR: /__w/openvino/openvino/openvino_contrib_build
-      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
+      CCACHE_DIR: ${{ env.CMAKE_CACHE_PATH }}/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
@@ -158,12 +162,12 @@ jobs:
 
       - name: Pack Artifacts
         run: |
-          
-          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job 
+
+          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job
           # w/o the need to checkout repository
-          
+
           cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
-          
+
           pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
@@ -477,7 +481,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
-          
+
           ./onnxruntime_test_all --gtest_filter=-$skip_tests
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
