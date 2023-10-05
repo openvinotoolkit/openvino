@@ -891,7 +891,6 @@ jobs:
 
       - name: nGraph and IE Python Bindings and Python API 2.0 Tests
         run: |
-          source ${INSTALL_DIR}/setupvars.sh
           # For python imports to import 'pybind_mock_frontend'
           export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
           # for 'template' extension
