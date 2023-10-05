@@ -9,7 +9,11 @@
 
 namespace ov {
 namespace reference {
-void reshape(const char* arg,
+inline void reshape(const char* in, char* out, const Shape& in_shape, size_t elem_size) {
+    std::memcpy(out, in, shape_size(in_shape) * elem_size);
+}
+
+void reshape(const char* in,
              char* out,
              const Shape& in_shape,
              const AxisVector& in_axis_order,

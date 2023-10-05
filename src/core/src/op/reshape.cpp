@@ -21,16 +21,6 @@ using namespace ngraph;
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reshapeop {
 namespace {
-bool evaluate_reshape(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order) {
-    ov::reference::reshape(arg0->get_data_ptr<char>(),
-                           out->get_data_ptr<char>(),
-                           arg0->get_shape(),
-                           order,
-                           out->get_shape(),
-                           arg0->get_element_type().size());
-    return true;
-}
-
 template <element::Type_t ET>
 void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_t>& output_shape) {
     size_t output_rank;
@@ -184,10 +174,13 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
     OPENVINO_ASSERT(ov::PartialShape(output_shape).is_static());
     outputs[0]->set_shape(ov::PartialShape(output_shape).to_shape());
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const AxisVector order = get_default_order(inputs[0]->get_shape());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return reshapeop::evaluate_reshape(inputs[0], outputs[0], order);
+    const auto& in = inputs[0];
+    const auto& out = outputs[0];
+    ov::reference::reshape(in->get_data_ptr<char>(),
+                           out->get_data_ptr<char>(),
+                           in->get_shape(),
+                           in->get_element_type().size());
+    return true;
 }
 
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
