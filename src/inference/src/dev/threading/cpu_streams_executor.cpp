@@ -144,7 +144,7 @@ struct CPUStreamsExecutor::Impl {
 
 #    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
             unsigned int mxcsrOld = _mm_getcsr();
-            if (_impl->_config.optDenormalsForTBB) {
+            if (_impl->_config._opt_denormals_for_tbb) {
                 // Refer: src/plugins/intel_cpu/src/utils/denormals.cpp
                 unsigned int mxcsr = _mm_getcsr();
                 static constexpr unsigned int FTZ_FLAG = 0x8000;
@@ -196,7 +196,7 @@ struct CPUStreamsExecutor::Impl {
                 }
             }
 #    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-            if (_impl->_config.optDenormalsForTBB) {
+            if (_impl->_config._opt_denormals_for_tbb) {
                 // Recover the default setting to avoid impacting the custumer's application.
                 _mm_setcsr(mxcsrOld);
             }

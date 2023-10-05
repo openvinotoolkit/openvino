@@ -229,7 +229,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, cons
                 IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION
                 << ". Expected only YES/NO";
             }
-            streamExecutorConfig.optDenormalsForTBB = !changedDenormalsOptMode;
+            streamExecutorConfig._opt_denormals_for_tbb = !changedDenormalsOptMode;
         } else if (key == PluginConfigInternalParams::KEY_SNIPPETS_MODE) {
             if (val == PluginConfigInternalParams::ENABLE)
                 snippetsMode = SnippetsMode::Enable;

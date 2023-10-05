@@ -118,7 +118,7 @@ public:
         bool _cpu_reservation = false;
         bool _streams_changed = false;
 
-        bool optDenormalsForTBB = true;
+        bool _opt_denormals_for_tbb = true;
 
         /**
          * @brief      A constructor with arguments
