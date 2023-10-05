@@ -259,8 +259,8 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
-      - name: Cmake build -  CC ON
-        run: cmake --build ${BUILD_DIR} --parallel 8 --target benchmark_app
+      - name: Cmake build - CC ON
+        run: cmake --build ${BUILD_DIR} --parallel --target benchmark_app
 
       - name: Show ccache stats
         run: ccache --show-stats
@@ -286,9 +286,6 @@ jobs:
       PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_TEST_DIR}
-
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
@@ -298,7 +295,7 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_TEST_DIR}
-            tar -xvzf openvino_tests.tar.gz -C ${INSTALL_TEST_DIR} && rm openvino_tests.tar.gz || exit 1
+            tar -xvzf openvino_tests.tar.gz -C ${INSTALL_TEST_DIR}
           popd
 
       - name: Install OpenVINO dependencies
@@ -325,13 +322,6 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 40
-
-      - name: Save tests execution time
-        uses: actions/cache/save@v3
-        if: github.ref_name == 'master'
-        with:
-          path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
