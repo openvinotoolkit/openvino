@@ -888,6 +888,9 @@ jobs:
       - name: Install PyTorch tests requirements
         run: |
           python3 -m pip install pytest-xdist[psutil]
+          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          # required for MxNet
+          apt-get install -y libgomp1 libquadmath0
 
       - name: nGraph and IE Python Bindings and Python API 2.0 Tests
         run: |
@@ -896,7 +899,9 @@ jobs:
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
           python3 -m pytest -n logical --dist loadfile -sv \
-            ${INSTALL_TEST_DIR}/pyngraph ${INSTALL_TEST_DIR}/pyopenvino \
+            ${INSTALL_TEST_DIR}/pyngraph \
+            ${INSTALL_TEST_DIR}/pyopenvino \
+            ${INSTALL_TEST_DIR}/mo/unit_tests \
             --junitxml=${INSTALL_TEST_DIR}/TEST-python_unit.xml \
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_zoo_models.py \
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_backend.py \
@@ -912,13 +917,14 @@ jobs:
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
           python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
-      - name: Model Optimizer unit tests
-        run: |
-          # required for MxNet
-          apt-get install -y libgomp1 libquadmath0
+      # - name: Model Optimizer unit tests
+      #   run: |
+      #     export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
+      #     # required for MxNet
+      #     apt-get install -y libgomp1 libquadmath0
 
-          python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
-              --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
+      #     python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
+      #         --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
         run: |
