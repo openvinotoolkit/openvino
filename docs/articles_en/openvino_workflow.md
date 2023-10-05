@@ -18,7 +18,7 @@
    Deployment on a Local System  <openvino_deployment_guide>
    Deployment on a Model Server <ovms_what_is_openvino_model_server>
    pytorch_2_0_torch_compile
-   Generative AI optimization and deployment <gen_ai_guide>
+   Generative AI Optimization and Deployment <gen_ai_guide>
    
 
 | :doc:`Model Preparation <openvino_docs_model_processing_introduction>`

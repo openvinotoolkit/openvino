@@ -38,17 +38,14 @@ The table below summarizes differences of both Hugging Face and Native approache
      - Python (Hugging Face API)
      - Python, C++ (OpenVINO API)
    * - Model Format
-     - Source Framework
+     - Source Framework / OpenVINO
      - OpenVINO
    * - Inference code
      - Hugging Face based
      - Custom inference pipelines
-   * - Time to inference
-     - Slow
-     - Fast
    * - Additional dependencies
      - As much as Hugging Face has
-     - Numpy
+     - Ligthweight (e.g. numpy, boost, etc.)
    * - Application footprint
      - Large
      - Small
