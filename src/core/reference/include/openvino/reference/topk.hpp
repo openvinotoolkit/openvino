@@ -17,23 +17,11 @@ namespace reference {
 // This used to be lambda expressions but MSVC had difficulty compiling it. This way is more explicit.
 template <bool D, typename T, typename U>
 inline bool compare_max(const std::tuple<T, U>& a, const std::tuple<T, U>& b) {
-// this is intentional to be able to compare floats directly
-// without using relative or absolute tolerance
-#if defined(__GNUC__)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wfloat-equal"
-#endif
-    if (std::get<0>(a) == std::get<0>(b)) {
+    if (std::get<0>(a) != std::get<0>(b)) {
+        return D ? std::get<0>(a) > std::get<0>(b) : std::get<0>(a) < std::get<0>(b);
+    } else {
         return std::get<1>(a) < std::get<1>(b);
     }
-#if defined(__GNUC__)
-#    pragma GCC diagnostic pop
-#endif
-
-    if (D)
-        return std::get<0>(a) > std::get<0>(b);
-    else
-        return std::get<0>(a) < std::get<0>(b);
 }
 
 template <typename T, typename U>
