@@ -10,16 +10,12 @@ on:
       - 'docs/**'
       - '**/**.md'
       - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
   push:
     paths-ignore:
       - '**/docs/**'
       - 'docs/**'
       - '**/**.md'
       - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
     branches:
       - master
       - 'releases/**'
@@ -129,7 +125,6 @@ jobs:
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
-            -DENABLE_FUNCTIONAL_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
@@ -147,9 +142,6 @@ jobs:
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
-
-      - name: Build Conformance Tests
-        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target conformanceTests apiConformanceTests func_test_utils
 
       - name: Show ccache stats
         run: ccache --show-stats
@@ -388,7 +380,7 @@ jobs:
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
-  Conformance_Tests:
+  Conformance:
     needs: Build
     defaults:
       run:
@@ -443,11 +435,11 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install Dependencies
         run: |
-          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
           
           # Needed for downloading IRs from storage.openvinotoolkit with Python urllib
           sudo apt-get update && sudo apt-get install --assume-yes --no-install-recommends ca-certificates
