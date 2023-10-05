@@ -46,6 +46,8 @@ bool op::v0::Result::evaluate(ov::TensorVector& outputs, const ov::TensorVector&
         outputs.emplace_back(ov::Tensor(inputs[0].get_element_type(), inputs[0].get_shape()));
     else
         OPENVINO_ASSERT(outputs.size() == 1);
+    if (!outputs[0])
+        outputs[0] = ov::Tensor(inputs[0].get_element_type(), inputs[0].get_shape());
     if (inputs[0].get_shape() != outputs[0].get_shape())
         outputs[0].set_shape(inputs[0].get_shape());
     void* output = outputs[0].data();

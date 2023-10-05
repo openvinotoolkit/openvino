@@ -213,10 +213,10 @@ ov::op::v0::Constant::Constant(bool memset_allocation, const element::Type& type
 void ov::op::v0::Constant::allocate_buffer(bool memset_allocation) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     m_data = std::make_shared<ngraph::runtime::AlignedBuffer>(mem_size(), host_alignment());
-    OPENVINO_SUPPRESS_DEPRECATED_END
     if (memset_allocation) {
         std::memset(m_data->get_ptr(), 0, m_data->size());
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
