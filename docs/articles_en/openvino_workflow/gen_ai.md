@@ -99,7 +99,7 @@ In this case, you can load the converted model in OpenVINO representation direct
     model = OVModelForCausalLM.from_pretrained(model_id)
 
 
-To select inference device use `.to()` method. The device naming convention is the same as in OpenVINO native API:
+By default, inference will run on CPU. To select a different inference device, for example GPU, add `device="GPU"` to the `.from_pretrained()` call. To switch to a different device after the model has been loaded, use the `.to()` method. The device naming convention is the same as in OpenVINO native API:
 
 .. code-block:: python
 
