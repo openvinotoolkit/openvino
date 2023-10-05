@@ -838,6 +838,9 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
 
+      - name: Install OpenVINO dependencies
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
+
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install openvino-dev[mxnet,caffe,kaldi,onnx,tensorflow2] --find-links=${INSTALL_DIR}/tools
 
@@ -975,7 +978,6 @@ jobs:
           export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           source ${INSTALL_DIR}/setupvars.sh
-          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
