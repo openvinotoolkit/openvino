@@ -3,13 +3,6 @@
 
 @sphinxdirective
 
-
-.. meta::
-   :description: Check the F.A.Q. for performance benchmarks in Intel® Distribution of OpenVINO™ toolkit.
-
-
-
-
 .. dropdown:: How often do performance benchmarks get updated?
 
    New performance benchmarks are typically published on every
@@ -77,6 +70,14 @@
         -  DeepLab v3 Tf
         - semantic segmentation
         - 513x513
+      * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`__
+        - Efficientdet
+        - classification
+        - 512x512
+      * - `faster_rcnn_resnet50_coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/faster_rcnn_resnet50_coco>`__
+        - Faster RCNN TF
+        - object detection
+        - 600x1024
       * - `mobilenet-v2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
         - Mobilenet V2 PyTorch
         - classification

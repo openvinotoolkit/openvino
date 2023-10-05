@@ -40,6 +40,18 @@ for more information.
      - 0.00%
      - 0.23%
      - -0.13%
+   * - efficientdet-d0
+     - COCO2017_detection_91cl
+     - coco_precision
+     - -0.87%
+     - -0.58%
+     - -0.56%
+   * - faster_rcnn_resnet50_coco
+     - COCO2017_detection_91cl_bkgr
+     - coco_orig_precision
+     - -0.19%
+     - -0.19%
+     - -0.04%
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
@@ -139,6 +151,18 @@ for more information.
      - mean_iou
      - 0.49%
      - 0.00%
+     - 0.00%
+   * - efficientdet-d0
+     - COCO2017_detection_91cl
+     - coco_precision
+     - -0.02%
+     - -0.02%
+     - -0.02%
+   * - faster_rcnn_resnet50_coco
+     - COCO2017_detection_91cl_bkgr
+     - coco_orig_precision
+     - 0.00%
+     - -0.01%
      - 0.00%
    * - mobilenet-v2
      - ImageNet2012

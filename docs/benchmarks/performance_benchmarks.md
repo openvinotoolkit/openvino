@@ -13,7 +13,7 @@
 
    openvino_docs_performance_benchmarks_faq
    OpenVINO Accuracy <openvino_docs_performance_int8_vs_fp32>
-   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2023.1/_static/benchmarks_files/OV-2023.0-Performance-Data.xlsx> 
+   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2023.1/_static/benchmarks_files/OV-2023.1-Performance-Data.xlsx> 
    openvino_docs_MO_DG_Getting_Performance_Numbers
 
 
@@ -168,7 +168,7 @@ Disclaimers
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2023.1, as of September 12, 2023.
 
-* OpenVINO Model Server performance results are based on release 2023.0, as of June 01, 2023.
+* OpenVINO Model Server performance results are based on release 2023.1, as of September 27, 2023.
 
 The results may not reflect all publicly available updates. Intel technologies’ features and benefits depend on system configuration 
 and may require enabled hardware, software, or service activation. Learn more at intel.com, or from the OEM or retailer.
