@@ -38,7 +38,7 @@ void eye(T* data, const Shape& out_shape, const int64_t diagonal_index) {
     const int64_t count =
         diagonal_index > 0 ? std::min(count_by_columns, num_rows) : std::min(count_by_rows, num_columns);
 
-    for (auto matrix_offset = 0; matrix_offset < out_size; matrix_offset += matrix_size) {
+    for (auto matrix_offset = zero; matrix_offset < out_size; matrix_offset += matrix_size) {
         for (auto j = 0; j < count; ++j) {
             const int64_t index = (j + shift_by_columns - diagonal_index) * num_columns + j + shift_by_columns;
             data[matrix_offset + index] = T{1};
