@@ -22,6 +22,47 @@
     #error "OUTPUT_DIMS is supposed to be same as INPUT2_DIMS"
 #endif
 
+#ifdef REDUCE_MODE
+    #define SUM 1
+    #define PROD 2
+    #define MIN 3
+    #define MAX 4
+    #define MEAN 5
+
+    #if USE_INIT_VAL == 0
+        #if REDUCE_MODE == SUM
+            #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ZERO
+        #elif REDUCE_MODE == PROD
+            #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ONE
+        #elif REDUCE_MODE == MIN
+            #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_MAX
+        #elif REDUCE_MODE == MAX
+            #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_MIN
+        #elif REDUCE_MODE == MEAN
+            #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ZERO
+        #else
+            #error "Invalid REDUCE_MODE value"
+        #endif
+    #endif
+
+    inline INPUT2_TYPE FUNC(reduce)(INPUT2_TYPE a, INPUT2_TYPE b)
+    {
+    #if REDUCE_MODE == SUM
+        return a + b;
+    #elif REDUCE_MODE == PROD
+        return a * b;
+    #elif REDUCE_MODE == MIN
+        return min(a, b);
+    #elif REDUCE_MODE == MAX
+        return max(a, b);
+    #elif REDUCE_MODE == MEAN
+        return (a + b) / (INPUT2_TYPE)(1 + USE_INIT_VAL);
+    #else
+        #error "Invalid REDUCE_MODE value"
+    #endif
+    }
+#endif
+
 KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
                    const __global INPUT2_TYPE* updates,
@@ -92,38 +133,53 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
 
     #if OUTPUT_DIMS == 4
     #if     AXIS_VALUE == 0
+        if (index < 0) { index += INPUT0_BATCH_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint f = idx_f; const uint b = index;
     #elif   AXIS_VALUE == 1
+        if (index < 0) { index += INPUT0_FEATURE_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint f = index; const uint b = idx_b;
     #elif   AXIS_VALUE == 2
+        if (index < 0) { index += INPUT0_SIZE_Y; }
         const uint x = idx_x; const uint y = index; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 3
+        if (index < 0) { index += INPUT0_SIZE_X; }
         const uint x = index; const uint y = idx_y; const uint f = idx_f; const uint b = idx_b;
     #endif  // AXIS_VALUE
     #elif OUTPUT_DIMS == 5
     #if     AXIS_VALUE == 0
+        if (index < 0) { index += INPUT0_BATCH_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint f = idx_f; const uint b = index;
     #elif   AXIS_VALUE == 1
+        if (index < 0) { index += INPUT0_FEATURE_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint f = index; const uint b = idx_b;
     #elif   AXIS_VALUE == 2
+        if (index < 0) { index += INPUT0_SIZE_Z; }
         const uint x = idx_x; const uint y = idx_y; const uint z = index; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 3
+        if (index < 0) { index += INPUT0_SIZE_Y; }
         const uint x = idx_x; const uint y = index; const uint z = idx_z; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 4
+        if (index < 0) { index += INPUT0_SIZE_X; }
         const uint x = index; const uint y = idx_y; const uint z = idx_z; const uint f = idx_f; const uint b = idx_b;
     #endif  // AXIS_VALUE
     #elif OUTPUT_DIMS == 6
     #if     AXIS_VALUE == 0
+        if (index < 0) { index += INPUT0_BATCH_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = index;
     #elif   AXIS_VALUE == 1
+        if (index < 0) { index += INPUT0_FEATURE_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = index; const uint b = idx_b;
     #elif   AXIS_VALUE == 2
+        if (index < 0) { index += INPUT0_SIZE_W; }
         const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = index; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 3
+        if (index < 0) { index += INPUT0_SIZE_Z; }
         const uint x = idx_x; const uint y = idx_y; const uint z = index; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 4
+        if (index < 0) { index += INPUT0_SIZE_Y; }
         const uint x = idx_x; const uint y = index; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 5
+        if (index < 0) { index += INPUT0_SIZE_X; }
         const uint x = index; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
     #endif  // AXIS_VALUE
     #endif
@@ -131,6 +187,14 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
 
     const uint updates_idx = GET_UPDATES_INDEX(IDX_ORDER);
     INPUT2_TYPE val = updates[(int)updates_idx];
+
+    #ifdef REDUCE_MODE
+        #if USE_INIT_VAL == 0
+            output[output_idx] = REDUCTION_NEUTRAL_VALUE;
+        #endif
+        val = FUNC_CALL(reduce)(output[output_idx], val);
+    #endif
+
     #if HAS_FUSED_OPS
         FUSED_OPS_SECOND_KERNEL;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
@@ -139,6 +203,15 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
     #endif
 #endif
 }
+
+#ifdef REDUCE_MODE
+    #undef SUM
+    #undef PROD
+    #undef MIN
+    #undef MAX
+    #undef MEAN
+    #undef REDUCTION_NEUTRAL_VALUE
+#endif
 
 #undef GET_INDICES_INDEX
 #undef GET_UPDATES_INDEX
