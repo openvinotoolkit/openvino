@@ -7,10 +7,8 @@
 #include <cmath>
 #include <type_traits>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/check.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {

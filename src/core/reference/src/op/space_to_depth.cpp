@@ -6,8 +6,8 @@
 
 #include <vector>
 
-#include "ngraph/check.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace reference {
@@ -34,13 +34,13 @@ void space_to_depth(const char* const in,
     const size_t spatial_dims = in_shape.size() - spatial_dim_index;
 
     for (size_t i = spatial_dim_index; i < in_shape.size(); ++i) {
-        NGRAPH_CHECK(block_size > 0 && in_shape.at(i) % block_size == 0,
-                     "SpaceToDepth: The dimension on position: ",
-                     i,
-                     " equal to: ",
-                     in_shape.at(i),
-                     " must be a multiple of blocksize: ",
-                     block_size);
+        OPENVINO_ASSERT(block_size > 0 && in_shape.at(i) % block_size == 0,
+                        "SpaceToDepth: The dimension on position: ",
+                        i,
+                        " equal to: ",
+                        in_shape.at(i),
+                        " must be a multiple of blocksize: ",
+                        block_size);
     }
 
     Shape dispersed_shape{n_dim, c_dim};

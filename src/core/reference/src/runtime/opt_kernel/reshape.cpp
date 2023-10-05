@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstring>
 
-#include "ngraph/check.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/reference/reshape.hpp"
 

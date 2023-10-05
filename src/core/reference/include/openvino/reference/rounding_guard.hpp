@@ -18,10 +18,10 @@ namespace ov {
  * - FE_UPWARD
  * see std <cfenv> header for details.
  */
-class RoundGuard {
+class RoundingGuard {
 public:
-    RoundGuard(int mode);
-    ~RoundGuard();
+    RoundingGuard(int mode);
+    ~RoundingGuard();
 
 private:
     int m_prev_round_mode;

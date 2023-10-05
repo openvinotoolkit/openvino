@@ -11,10 +11,10 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/check.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
@@ -65,11 +65,11 @@ void fake_quantize(const T* const arg,
             out[i] = q(arg[i]);
         }
     } else {
-        NGRAPH_CHECK(in_low_shape.size() <= arg_shape.size() && in_high_shape.size() <= arg_shape.size() &&
-                         out_low_shape.size() <= arg_shape.size() && out_high_shape.size() <= arg_shape.size(),
-                     "Tensors with input\\output ranges should have rank less or "
-                     "equal to data tensor rank equal to ",
-                     arg_shape.size());
+        OPENVINO_ASSERT(in_low_shape.size() <= arg_shape.size() && in_high_shape.size() <= arg_shape.size() &&
+                            out_low_shape.size() <= arg_shape.size() && out_high_shape.size() <= arg_shape.size(),
+                        "Tensors with input\\output ranges should have rank less or "
+                        "equal to data tensor rank equal to ",
+                        arg_shape.size());
 
         Shape arg0_padded_shape = arg_shape;
         Shape arg1_padded_shape = in_low_shape;
@@ -156,13 +156,11 @@ void fake_quantize(const T* const arg,
         const auto output_strides = row_major_strides(output_shape);
 
         for (const Coordinate& output_coord : output_transform) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const Coordinate arg0_coord = ngraph::reduce(output_coord, arg0_squeezed_axes, false);
-            const Coordinate arg1_coord = ngraph::reduce(output_coord, arg1_squeezed_axes, false);
-            const Coordinate arg2_coord = ngraph::reduce(output_coord, arg2_squeezed_axes, false);
-            const Coordinate arg3_coord = ngraph::reduce(output_coord, arg3_squeezed_axes, false);
-            const Coordinate arg4_coord = ngraph::reduce(output_coord, arg4_squeezed_axes, false);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const auto arg0_coord = util::reduce(output_coord, arg0_squeezed_axes);
+            const auto arg1_coord = util::reduce(output_coord, arg1_squeezed_axes);
+            const auto arg2_coord = util::reduce(output_coord, arg2_squeezed_axes);
+            const auto arg3_coord = util::reduce(output_coord, arg3_squeezed_axes);
+            const auto arg4_coord = util::reduce(output_coord, arg4_squeezed_axes);
 
             const size_t arg0_idx =
                 std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));

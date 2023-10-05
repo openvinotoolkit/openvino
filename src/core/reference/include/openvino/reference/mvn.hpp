@@ -5,9 +5,9 @@
 #pragma once
 
 #include <cstddef>
-#include <ngraph/op/mvn.hpp>
-#include <ngraph/shape.hpp>
 
+#include "openvino/core/shape.hpp"
+#include "openvino/op/mvn.hpp"
 #include "openvino/reference/add.hpp"
 #include "openvino/reference/divide.hpp"
 #include "openvino/reference/multiply.hpp"
@@ -18,7 +18,6 @@
 
 namespace ov {
 namespace reference {
-OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
 void mvn(const T* arg,
          T* out,
@@ -26,7 +25,7 @@ void mvn(const T* arg,
          const bool normalize_variance,
          const AxisSet& reduction_axes,
          const double eps) {
-    auto reduced_shape = ngraph::reduce(in_shape, reduction_axes, true);
+    auto reduced_shape = util::reduce_keep_dims(in_shape, reduction_axes);
     std::vector<T> tmp_buffer(shape_size(in_shape));
     reduce_mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
     subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY);
@@ -56,7 +55,7 @@ void mvn_6(const T* arg,
            bool normalize_variance,
            double eps,
            op::MVNEpsMode eps_mode) {
-    auto reduced_shape = ngraph::reduce(in_shape, reduction_axes, true);
+    auto reduced_shape = util::reduce_keep_dims(in_shape, reduction_axes);
     std::vector<T> tmp_buffer(shape_size(in_shape));
     reduce_mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
     subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY);
@@ -87,7 +86,6 @@ void mvn_6(const T* arg,
         divide(out, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY, true);
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename T>
 AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {

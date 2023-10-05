@@ -7,8 +7,8 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/check.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace reference {
@@ -35,16 +35,16 @@ void depth_to_space(const char* const in,
     const size_t spatial_dims = in_shape.size() - spatial_dim_index;
     const size_t c_dim_divider = static_cast<size_t>(std::pow(block_size, spatial_dims));
 
-    NGRAPH_CHECK(block_size > 0 && c_dim % c_dim_divider == 0,
-                 "DepthToSpace: The input data's 'channels' axis size: ",
-                 c_dim,
-                 " must be evenly divided by 'block_size'^'spatial_dims': (",
-                 c_dim_divider,
-                 ", ",
-                 block_size,
-                 "^",
-                 spatial_dims,
-                 ")");
+    OPENVINO_ASSERT(block_size > 0 && c_dim % c_dim_divider == 0,
+                    "DepthToSpace: The input data's 'channels' axis size: ",
+                    c_dim,
+                    " must be evenly divided by 'block_size'^'spatial_dims': (",
+                    c_dim_divider,
+                    ", ",
+                    block_size,
+                    "^",
+                    spatial_dims,
+                    ")");
 
     const size_t c_flat = c_dim / c_dim_divider;
 

@@ -9,8 +9,6 @@
 #include <numeric>
 #include <vector>
 
-#include "ngraph/shape.hpp"
-
 namespace ov {
 namespace reference {
 template <typename T>

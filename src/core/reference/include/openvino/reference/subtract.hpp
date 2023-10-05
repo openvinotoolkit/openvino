@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <functional>
 
+#include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 
 namespace ov {
