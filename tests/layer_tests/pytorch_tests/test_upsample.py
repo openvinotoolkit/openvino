@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from sys import platform
-
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -43,7 +41,6 @@ class TestUpsample1D(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122111")
     def test_upsample1d(self, mode, size, scale, ie_device, precision, ir_version):
         self._test(*self.create_model(size, scale, mode), ie_device,
                    precision, ir_version, trace_model=True)
