@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/matrix_nms.hpp"
+#include "openvino/op/matrix_nms.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -10,7 +10,7 @@
 #include <queue>
 #include <vector>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/matrix_nms.hpp"
 #include "openvino/reference/utils/nms_common.hpp"
 

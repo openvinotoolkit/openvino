@@ -170,30 +170,6 @@ std::vector<float> get_scales_vector(const ov::TensorVector& args,
     return scales;
 }
 
-static void pad_input_data(const uint8_t* data_ptr,
-                           uint8_t* padded_data_ptr,
-                           size_t type_size,
-                           const ov::Shape& input_shape,
-                           const ov::Shape& padded_input_shape,
-                           const std::vector<size_t>& pads_begin) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::CoordinateTransform input_transform(input_shape);
-    ov::CoordinateTransform padded_transform(padded_input_shape);
-
-    for (const ov::Coordinate& input_coord : input_transform) {
-        auto padded_coord = input_coord;
-        size_t i = 0;
-        for (size_t pad : pads_begin) {
-            padded_coord[i] += pad;
-            ++i;
-        }
-        uint8_t* dst_ptr = padded_data_ptr + type_size * padded_transform.index(padded_coord);
-        const uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
-        memcpy(dst_ptr, src_ptr, type_size);
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 namespace v11 {
 bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
                           ov::TensorVector& outputs,
@@ -236,12 +212,12 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
     const uint8_t* data_ptr = static_cast<uint8_t*>(inputs[0].data());
     uint8_t* padded_data_ptr = padded_input_data.data();
 
-    pad_input_data(data_ptr,
-                   padded_data_ptr,
-                   type_size,
-                   input_shape.to_shape(),
-                   padded_input_shape,
-                   m_attrs.pads_begin);
+    reference::pad_input_data(data_ptr,
+                              padded_data_ptr,
+                              type_size,
+                              input_shape.to_shape(),
+                              padded_input_shape,
+                              m_attrs.pads_begin);
 
     switch (input_et) {
     case element::f32:

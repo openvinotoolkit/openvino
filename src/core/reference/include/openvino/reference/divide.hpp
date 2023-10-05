@@ -8,10 +8,10 @@
 #include <stdexcept>
 #include <type_traits>
 
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 
 namespace ov {

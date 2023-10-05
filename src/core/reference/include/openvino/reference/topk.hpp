@@ -8,7 +8,8 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/op/topk.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
@@ -51,30 +52,21 @@ void topk(const T* arg,
           size_t k,
           bool compute_max,
           op::TopKSortType sort = op::TopKSortType::NONE) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
     using namespace std;
-    // reorder source axis visit order and make "axis" inner most
-    size_t ndim = static_cast<size_t>(in_shape.size());
-    Coordinate start_corner(ndim, 0);
-    Coordinate end_corner(in_shape);
-    end_corner[axis] = 1;
-    Strides strides(ndim, 1);
-    AxisVector axis_order(ndim);
-    iota(axis_order.begin(), axis_order.end(), 0);
-    axis_order.erase(axis_order.begin() + axis);
-    axis_order.push_back(axis);
-    // Create CoordinateTransforms that visits only the first element along "axis"
-    CoordinateTransform input_transform(in_shape, start_corner, end_corner, strides, axis_order);
-    CoordinateTransform output_transform(out_shape, start_corner, end_corner, strides, axis_order);
     // Create temp vector for sorting.
     vector<tuple<T, U>> workspace(in_shape[axis]);
-    vector<size_t> in_strides = ngraph::row_major_strides(in_shape);
-    vector<size_t> out_strides = ngraph::row_major_strides(out_shape);
+    vector<size_t> in_strides = row_major_strides(in_shape);
+    vector<size_t> out_strides = row_major_strides(out_shape);
     auto in_axis_stride = in_strides[axis];
     auto out_axis_stride = out_strides[axis];
-    for (const Coordinate& coord : input_transform) {
-        auto arg_index = input_transform.index(coord);
-        auto out_index = output_transform.index(coord);
+
+    // Iterate over elements with 0 index at "axis" dimension
+    auto traverse_shape = in_shape;
+    traverse_shape[axis] = 1;
+    CoordinateTransformBasic traverse_transform(traverse_shape);
+    for (const Coordinate& coord : traverse_transform) {
+        auto arg_index = coordinate_index(coord, in_shape);
+        auto out_index = coordinate_index(coord, out_shape);
         // Fill the temp vector
         U i = 0;
         for (tuple<T, U>& entry : workspace) {
@@ -109,7 +101,6 @@ void topk(const T* arg,
             out_index += out_axis_stride;
         }
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace ov

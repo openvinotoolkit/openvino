@@ -7,7 +7,6 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/shape_util.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"

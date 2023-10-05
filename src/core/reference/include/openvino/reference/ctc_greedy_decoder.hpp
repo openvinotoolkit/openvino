@@ -8,7 +8,7 @@
 #include <limits>
 #include <vector>
 
-#include "openvino/reference/utils/coordinate_transform.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 
 namespace ov {
 namespace reference {
@@ -20,15 +20,10 @@ void ctc_greedy_decoder(const T* data,
                         const Shape& sequence_masks_shape,
                         const Shape& out_shape,
                         const bool ctc_merge_repeated) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto max_seq_len = data_shape[0];
     const auto batch_size = data_shape[1];
     const auto class_count = data_shape[2];
     const uint64_t blank_index = class_count - 1;
-
-    CoordinateTransform out_transform = CoordinateTransform(out_shape);
-    CoordinateTransform data_transform = CoordinateTransform(data_shape);
-    CoordinateTransform seq_masks_transform = CoordinateTransform(sequence_masks_shape);
 
     // final sequences don't have to fill the whole output, elements that don't store
     // information are set to -1
@@ -38,10 +33,10 @@ void ctc_greedy_decoder(const T* data,
 
     for (unsigned int batch_ind = 0; batch_ind < batch_size; batch_ind++) {
         T previous_class_index = static_cast<T>(-1);
-        auto out_index = out_transform.index({batch_ind, 0, 0, 0});
+        auto out_index = coordinate_index({batch_ind, 0, 0, 0}, out_shape);
         for (unsigned int seq_ind = 0; seq_ind < max_seq_len; seq_ind++) {
-            auto data_index = data_transform.index({seq_ind, batch_ind, 0});
-            auto mask_index = seq_masks_transform.index({seq_ind, batch_ind});
+            auto data_index = coordinate_index({seq_ind, batch_ind, 0}, data_shape);
+            auto mask_index = coordinate_index({seq_ind, batch_ind}, sequence_masks_shape);
 
             if (sequence_masks[mask_index] == T{0}) {
                 break;
@@ -59,7 +54,6 @@ void ctc_greedy_decoder(const T* data,
         }
     }
     std::copy(tmp_out.begin(), tmp_out.end(), out);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace ov

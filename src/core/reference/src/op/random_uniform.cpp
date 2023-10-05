@@ -6,8 +6,8 @@
 
 #include <ctime>
 
-#include "ngraph/shape.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {
@@ -140,7 +140,7 @@ void run_philox(uint64_t key, uint64_t counter, uint64_t n, size_t n_rounds, std
 template <typename T>
 void convert_to_output_type(const std::vector<uint32_t>& res,
                             size_t step,
-                            const ngraph::element::Type& elem_type,
+                            const element::Type& elem_type,
                             const char* min_val,
                             const char* max_val,
                             char* out,
@@ -185,7 +185,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              const char* max_val,
                                              char* out,
                                              const Shape& out_shape_shape,
-                                             const ngraph::element::Type& elem_type,
+                                             const element::Type& elem_type,
                                              uint64_t seed,
                                              uint64_t seed2,
                                              std::pair<uint64_t, uint64_t> prev_state) {
@@ -229,11 +229,11 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
 
         // convert values to corresponding output_type
         switch (elem_type) {
-        case ngraph::element::Type_t::f32: {
+        case element::Type_t::f32: {
             convert_to_output_type<float>(res, step, elem_type, min_val, max_val, out, k, elem_count, uint32_to_float);
             break;
         }
-        case ngraph::element::Type_t::f16: {
+        case element::Type_t::f16: {
             convert_to_output_type<float16>(res,
                                             step,
                                             elem_type,
@@ -245,7 +245,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                             uint32_to_float16);
             break;
         }
-        case ngraph::element::Type_t::bf16: {
+        case element::Type_t::bf16: {
             convert_to_output_type<bfloat16>(res,
                                              step,
                                              elem_type,
@@ -257,7 +257,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              uint32_to_bfloat16);
             break;
         }
-        case ngraph::element::Type_t::f64: {
+        case element::Type_t::f64: {
             convert_to_output_type<double>(res,
                                            step,
                                            elem_type,
@@ -272,7 +272,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                            });
             break;
         }
-        case ngraph::element::Type_t::i32: {
+        case element::Type_t::i32: {
             convert_to_output_type<int>(res,
                                         step,
                                         elem_type,
@@ -288,7 +288,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                         });
             break;
         }
-        case ngraph::element::Type_t::i64: {
+        case element::Type_t::i64: {
             convert_to_output_type<int64_t>(res,
                                             step,
                                             elem_type,

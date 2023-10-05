@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <ngraph/op/normalize_l2.hpp>
-
 #include "openvino/reference/autobroadcast_binop.hpp"
 #include "openvino/reference/reduce_sum.hpp"
 

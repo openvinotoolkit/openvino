@@ -13,16 +13,16 @@
 #include <map>
 
 #include "interpolate_pil.hpp"
-#include "ngraph/op/interpolate.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "transpose.hpp"
 
 namespace ov {
 namespace reference {
-using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
-using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
-using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
+using Nearest_mode = op::v4::Interpolate::NearestMode;
+using Transform_mode = op::v4::Interpolate::CoordinateTransformMode;
+using InterpolateMode = op::v4::Interpolate::InterpolateMode;
 
 /// \brief Calculation of nearest pixel.
 class GetNearestPixel final {
@@ -211,7 +211,7 @@ public:
         float prod_a;
         std::vector<float> a;
         std::vector<int64_t> r;
-        Shape shape_for_indeces;
+        Shape shape_for_indices;
     };
 
     InfoForLinearMode get_info_for_linear_mode();
@@ -362,9 +362,7 @@ template <typename T>
 void InterpolateEval<T>::linear_func(const T* input_data, T* out) {
     auto info = helper.get_info_for_linear_mode();
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform output_transform(m_out_shape);
-    CoordinateTransform input_transform(m_input_data_shape);
+    const CoordinateTransformBasic output_transform{m_out_shape};
 
     for (const Coordinate& output_coord : output_transform) {
         auto icoords_data = helper.get_icoords(output_coord);
@@ -372,29 +370,30 @@ void InterpolateEval<T>::linear_func(const T* input_data, T* out) {
         float summa = 0.0f;
         float wsum = 0.0f;
 
-        CoordinateTransform indices{info.shape_for_indeces};
+        const CoordinateTransformBasic indices{info.shape_for_indices};
         for (const auto& index : indices) {
             auto inner_result = helper.inner_calculation(output_coord, icoords_data, info, index);
             if (!inner_result.condition) {
                 continue;
             }
 
+            const auto input_index = coordinate_index(inner_result.inner_coord, m_input_data_shape);
             wsum += inner_result.w;
-            summa += inner_result.w * static_cast<float>(input_data[input_transform.index(inner_result.inner_coord)]);
+            summa += inner_result.w * static_cast<float>(input_data[input_index]);
         }
 
+        const auto out_index = coordinate_index(output_coord, m_out_shape);
         if (wsum == 0.0f) {
-            out[output_transform.index(output_coord)] = T{};
+            out[out_index] = T{};
         } else {
             if (std::is_integral<T>()) {
                 // Round value for integral return types
-                out[output_transform.index(output_coord)] = static_cast<T>(std::round(summa / wsum));
+                out[out_index] = static_cast<T>(std::round(summa / wsum));
             } else {
-                out[output_transform.index(output_coord)] = static_cast<T>(summa / wsum);
+                out[out_index] = static_cast<T>(summa / wsum);
             }
         }
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 template <typename T>
@@ -532,9 +531,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
     size_t input_rank = m_input_data_shape.size();
     size_t num_of_axes = m_axes.size();
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform output_transform(m_out_shape);
-    CoordinateTransform input_transform(m_input_data_shape);
+    const CoordinateTransformBasic output_transform{m_out_shape};
     Shape indices_shape{std::vector<size_t>(num_of_axes, 4)};
 
     for (const Coordinate& output_coord : output_transform) {
@@ -551,7 +548,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
         }
 
         float summa = 0.0f;
-        CoordinateTransform indices{indices_shape};
+        const CoordinateTransformBasic indices{indices_shape};
 
         for (const Coordinate& idx : indices) {
             auto coords_for_sum = output_coord;
@@ -567,12 +564,12 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
                 coeffs_prod *= cubic_coeffs[axis][idx[i]];
             }
 
-            summa += coeffs_prod * static_cast<float>(input_data[input_transform.index(coords_for_sum)]);
+            const auto input_index = coordinate_index(coords_for_sum, m_input_data_shape);
+            summa += coeffs_prod * static_cast<float>(input_data[input_index]);
         }
 
-        out[output_transform.index(output_coord)] = static_cast<T>(summa);
+        out[coordinate_index(output_coord, m_out_shape)] = static_cast<T>(summa);
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 template <typename T>
@@ -677,15 +674,14 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, const in
 
 template <typename T>
 void InterpolateEval<T>::nearest_func(const T* input_data, T* out) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform output_transform(m_out_shape);
-    CoordinateTransform input_transform(m_input_data_shape);
+    const CoordinateTransformBasic output_transform{m_out_shape};
 
     for (const Coordinate& output_coord : output_transform) {
         auto input_coord = helper.get_input_coords_for_nearest_mode(output_coord);
-        out[output_transform.index(output_coord)] = input_data[input_transform.index(input_coord)];
+        const auto input_index = coordinate_index(input_coord, m_input_data_shape);
+        const auto out_index = coordinate_index(output_coord, m_out_shape);
+        out[out_index] = input_data[input_index];
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 inline void pad_input_data(const uint8_t* data_ptr,
@@ -694,9 +690,7 @@ inline void pad_input_data(const uint8_t* data_ptr,
                            const ov::Shape& input_shape,
                            const ov::Shape& padded_input_shape,
                            const std::vector<size_t>& pads_begin) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform input_transform(input_shape);
-    CoordinateTransform padded_transform(padded_input_shape);
+    const CoordinateTransformBasic input_transform{input_shape};
 
     for (const Coordinate& input_coord : input_transform) {
         auto padded_coord = input_coord;
@@ -705,11 +699,10 @@ inline void pad_input_data(const uint8_t* data_ptr,
             padded_coord[i] += pad;
             ++i;
         }
-        uint8_t* dst_ptr = padded_data_ptr + type_size * padded_transform.index(padded_coord);
-        const uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
+        uint8_t* dst_ptr = padded_data_ptr + type_size * coordinate_index(padded_coord, padded_input_shape);
+        const uint8_t* src_ptr = data_ptr + type_size * coordinate_index(input_coord, input_shape);
         memcpy(dst_ptr, src_ptr, type_size);
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 inline PartialShape get_padded_input_shape(const PartialShape& input_shape,

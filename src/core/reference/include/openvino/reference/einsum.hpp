@@ -5,9 +5,8 @@
 #pragma once
 
 #include <algorithm>
-#include <ngraph/opsets/opset7.hpp>
 
-#include "ngraph/shape.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace reference {

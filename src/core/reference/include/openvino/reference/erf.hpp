@@ -8,9 +8,6 @@
 #include <cstddef>
 #include <type_traits>
 
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
-
 namespace ov {
 namespace reference {
 template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>

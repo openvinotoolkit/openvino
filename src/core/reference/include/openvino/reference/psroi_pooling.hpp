@@ -7,7 +7,7 @@
 #include <cmath>
 #include <string>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace reference {
@@ -29,7 +29,7 @@ void psroi_pooling(const T* input,
     } else if (mode_str == "bilinear") {
         mode = BILINEAR;
     } else {
-        NGRAPH_CHECK(false, "Invalid PS ROI pooling mode: " + mode_str);
+        OPENVINO_ASSERT(false, "Invalid PS ROI pooling mode: " + mode_str);
     }
     size_t channels_in = input_shape[1];
     size_t height = input_shape[2];

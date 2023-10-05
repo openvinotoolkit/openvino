@@ -6,9 +6,8 @@
 
 #include <numeric>
 
-using namespace ov::reference;
-
-using Coordinate = ngraph::Coordinate;
+namespace ov {
+namespace reference {
 
 float InterpolateEvalHelper::triangle_coeff(float dz) {
     return std::max(0.0f, 1.0f - std::fabs(dz));
@@ -122,19 +121,15 @@ InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_lin
     std::vector<float> a(num_of_axes);
     std::vector<int64_t> r(num_of_axes);
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform output_transform(m_out_shape);
-    CoordinateTransform input_transform(m_input_data_shape);
-
-    std::vector<std::size_t> vector_for_indeces(num_of_axes);
+    std::vector<std::size_t> vector_for_indices(num_of_axes);
     float prod_a = 1;
     for (std::size_t i = 0; i < num_of_axes; ++i) {
         a[i] = antialias ? m_scales[i] : 1.0f;
         prod_a *= a[i];
         r[i] = (m_scales[i] > 1.0) ? static_cast<int64_t>(2) : static_cast<int64_t>(std::ceil(2.0f / a[i]));
-        vector_for_indeces[i] = 2 * r[i] + 1;
+        vector_for_indices[i] = 2 * r[i] + 1;
     }
-    Shape shape_for_indeces{vector_for_indeces};
+    Shape shape_for_indices{vector_for_indices};
 
     InfoForLinearMode result;
 
@@ -142,8 +137,7 @@ InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_lin
     result.a = a;
     result.r = r;
     result.prod_a = prod_a;
-    result.shape_for_indeces = shape_for_indeces;
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    result.shape_for_indices = shape_for_indices;
 
     return result;
 }
@@ -228,3 +222,5 @@ InterpolateEvalHelper::LinearModeInnerIterationResult InterpolateEvalHelper::inn
 
     return result;
 }
+}  // namespace reference
+}  // namespace ov

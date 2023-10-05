@@ -8,7 +8,6 @@
 
 #include <cmath>
 
-#include "ngraph/check.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 

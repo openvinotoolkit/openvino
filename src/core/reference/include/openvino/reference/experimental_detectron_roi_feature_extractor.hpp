@@ -6,13 +6,9 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <ngraph/runtime/host_tensor.hpp>
 #include <vector>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 namespace ov {
 namespace reference {
@@ -25,7 +21,7 @@ void experimental_detectron_roi_feature_extractor(
 
 void experimental_detectron_roi_feature_extractor_postprocessing(void* prois_features,
                                                                  void* prois,
-                                                                 const ngraph::element::Type output_type,
+                                                                 const element::Type output_type,
                                                                  const std::vector<float>& output_roi_features,
                                                                  const std::vector<float>& output_rois,
                                                                  const Shape& output_roi_features_shape,

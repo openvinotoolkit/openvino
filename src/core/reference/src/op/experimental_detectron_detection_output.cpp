@@ -14,13 +14,13 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/experimental_detectron_detection_output.hpp"
+#include "openvino/op/experimental_detectron_detection_output.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <utility>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/experimental_detectron_detection_output.hpp"
 
 namespace {
@@ -318,7 +318,7 @@ void experimental_detectron_detection_output(const float* boxes,
 void experimental_detectron_detection_output_postprocessing(void* pboxes,
                                                             void* pclasses,
                                                             void* pscores,
-                                                            const ngraph::element::Type output_type,
+                                                            const element::Type output_type,
                                                             const std::vector<float>& output_boxes,
                                                             const std::vector<int32_t>& output_classes,
                                                             const std::vector<float>& output_scores,

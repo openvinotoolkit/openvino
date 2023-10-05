@@ -21,17 +21,17 @@ inline void validate_deformable_convolution_params(const Shape& in_shape,
                                                    const int64_t groups,
                                                    const int64_t deformable_groups) {
     // this implementation supports 2D deformable convolutions
-    NGRAPH_CHECK(in_shape.size() == 4, "Unsupported input rank: ", in_shape);
-    NGRAPH_CHECK(o_shape.size() == 4, "Unsupported offset rank: ", o_shape);
-    NGRAPH_CHECK(f_shape.size() == 4, "Unsupported kernel rank: ", f_shape);
-    NGRAPH_CHECK(m_shape.size() == 4, "Unsupported mask rank: ", m_shape);
+    OPENVINO_ASSERT(in_shape.size() == 4, "Unsupported input rank: ", in_shape);
+    OPENVINO_ASSERT(o_shape.size() == 4, "Unsupported offset rank: ", o_shape);
+    OPENVINO_ASSERT(f_shape.size() == 4, "Unsupported kernel rank: ", f_shape);
+    OPENVINO_ASSERT(m_shape.size() == 4, "Unsupported mask rank: ", m_shape);
 
-    NGRAPH_CHECK(in_shape[1] % groups == 0,
-                 "Input channels of data batch input must be evenly divisible by "
-                 "'groups' attribute");
-    NGRAPH_CHECK(f_shape[0] % groups == 0,
-                 "Output channels of filters must be evenly divisible by 'groups' "
-                 "attribute");
+    OPENVINO_ASSERT(in_shape[1] % groups == 0,
+                    "Input channels of data batch input must be evenly divisible by "
+                    "'groups' attribute");
+    OPENVINO_ASSERT(f_shape[0] % groups == 0,
+                    "Output channels of filters must be evenly divisible by 'groups' "
+                    "attribute");
 
     const Shape scaled_f_shape = [f_shape](int64_t g) {
         Shape shape{f_shape};
@@ -46,14 +46,15 @@ inline void validate_deformable_convolution_params(const Shape& in_shape,
     const Shape m_spatial_shape{std::next(m_shape.begin(), 2), std::end(m_shape)};
     const Shape out_spatial_shape{std::next(out_shape.begin(), 2), std::end(out_shape)};
 
-    NGRAPH_CHECK(o_shape[1] == deformable_groups * shape_size(f_spatial_shape) * 2,
-                 "The channels dimension of offsets input is not "
-                 "compatible with filters and 'deformable group' attribute");
-    NGRAPH_CHECK(m_shape[1] == deformable_groups * shape_size(f_spatial_shape),
-                 "The channels dimension of mask input is not "
-                 "compatible with filters and 'deformable group' attribute");
-    NGRAPH_CHECK(out_spatial_shape == o_spatial_shape, "Spatial dimensions of output and offsets values must be equal");
-    NGRAPH_CHECK(out_spatial_shape == m_spatial_shape, "Spatial dimensions of output and mask values must be equal");
+    OPENVINO_ASSERT(o_shape[1] == deformable_groups * shape_size(f_spatial_shape) * 2,
+                    "The channels dimension of offsets input is not "
+                    "compatible with filters and 'deformable group' attribute");
+    OPENVINO_ASSERT(m_shape[1] == deformable_groups * shape_size(f_spatial_shape),
+                    "The channels dimension of mask input is not "
+                    "compatible with filters and 'deformable group' attribute");
+    OPENVINO_ASSERT(out_spatial_shape == o_spatial_shape,
+                    "Spatial dimensions of output and offsets values must be equal");
+    OPENVINO_ASSERT(out_spatial_shape == m_spatial_shape, "Spatial dimensions of output and mask values must be equal");
 }
 
 inline Shape shape_reduce(const Shape& s) {
@@ -295,7 +296,7 @@ void deformable_convolution(const T* in,
                             const int64_t deformable_groups,
                             const bool bilinear_interpolation_pad = false) {
     Shape m_shape = {o_shape[0], o_shape[1] / 2, o_shape[2], o_shape[3]};
-    std::vector<T> mask(ngraph::shape_size(m_shape), 1);
+    std::vector<T> mask(shape_size(m_shape), 1);
     deformable_convolution(in,
                            offsets,
                            filters,

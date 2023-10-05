@@ -10,7 +10,7 @@
 #include <functional>
 #include <vector>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/fft.hpp"
 #include "openvino/reference/utils/fft_common.hpp"
 
