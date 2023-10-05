@@ -32,7 +32,6 @@ void strided_slice(const char* arg,
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::runtime::AlignedBuffer slice_out_buffer(shape_size(sp.reshape_in_shape) * elem_type);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     slice(reinterpret_cast<const char*>(arg),
           slice_out_buffer.get_ptr<char>(),
           arg_shape,
@@ -42,10 +41,12 @@ void strided_slice(const char* arg,
           sp.reshape_in_shape,
           elem_type);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) * elem_type);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    reshape(slice_out_buffer.get_ptr<char>(), reshape_out_buffer.get_ptr<char>(), sp.reshape_in_shape, elem_type);
+    reshape(slice_out_buffer.get_ptr<char>(),
+            reshape_out_buffer.get_ptr<char>(),
+            sp.reshape_in_shape,
+            sp.reshape_out_shape,
+            elem_type);
 
     reverse(reshape_out_buffer.get_ptr<char>(),
             out,
@@ -53,6 +54,7 @@ void strided_slice(const char* arg,
             sp.reshape_out_shape,
             sp.reverse_axes,
             elem_type);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace ov

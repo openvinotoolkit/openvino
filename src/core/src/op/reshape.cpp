@@ -179,6 +179,7 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
     ov::reference::reshape(in->get_data_ptr<char>(),
                            out->get_data_ptr<char>(),
                            in->get_shape(),
+                           out->get_shape(),
                            in->get_element_type().size());
     return true;
 }
