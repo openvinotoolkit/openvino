@@ -140,10 +140,10 @@ public:
     static auto get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t;
     static auto is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool;
 
-    void data_flow_shape_agnostic(const BlockedShapeVector& blocked_input_shapes = {},
-                                  const std::vector<ov::element::Type>& input_precisions = {},
-                                  const std::vector<ov::element::Type>& output_precisions = {},
-                                  const std::vector<snippets::pass::Manager::PositionedPass>& = {});
+    void data_flow_transformations(const BlockedShapeVector& blocked_input_shapes = {},
+                                   const std::vector<ov::element::Type>& input_precisions = {},
+                                   const std::vector<ov::element::Type>& output_precisions = {},
+                                   const std::vector<snippets::pass::Manager::PositionedPass>& = {});
     std::shared_ptr<lowered::LinearIR>
     convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
     std::shared_ptr<Subgraph> clone() const;
@@ -161,8 +161,6 @@ private:
     size_t m_virtual_port_count = 0;
     Shape exec_domain = {};
     std::shared_ptr<ov::snippets::Generator> m_generator = nullptr;
-    // true if Subgraph was created with dynamic shapes. Allows skip shape inference
-    bool m_is_dynamic = false;
 
     ov::PartialShape master_shape;
     size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call

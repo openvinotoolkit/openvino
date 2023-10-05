@@ -363,7 +363,7 @@ void Snippet::initOptimalPrimitiveDescriptor() {
     for (const auto& p :  snippetAttrs.outMemPrecs)
         output_precisions.push_back(InferenceEngine::details::convertPrecision(p));
 
-    snippetAttrs.snippet->data_flow_shape_agnostic(in_blocked_shapes, input_precisions, output_precisions, backend_passes);
+    snippetAttrs.snippet->data_flow_transformations(in_blocked_shapes, input_precisions, output_precisions, backend_passes);
     snippetAttrs.snippet->convert_body_to_linear_ir(std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
 }
 

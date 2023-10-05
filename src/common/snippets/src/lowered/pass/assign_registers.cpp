@@ -50,9 +50,13 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
                 const auto& out_connector = expr->get_output_port_connector(0);
                 manually_assigned_gprs[out_connector] = io_expr->get_index();
                 // Note: get_consumers() returns by value, so can't really use const reference here.
-                const auto first_consumer = out_connector->get_consumers().begin()->get_expr();
-                if (ov::is_type<op::RankNormalization>(first_consumer->get_node()))
+                const auto& consumer_inputs = out_connector->get_consumers();
+                const auto& first_consumer = consumer_inputs.begin()->get_expr();
+                if (ov::is_type<op::RankNormalization>(first_consumer->get_node())) {
+                    OPENVINO_ASSERT(consumer_inputs.size() == 1 && first_consumer->get_output_count() == 1,
+                                    "RankNormalization expression is supposed to be the only consumer and to have one output port");
                     manually_assigned_gprs[first_consumer->get_output_port_connector(0)] = io_expr->get_index();
+                }
             } else if (io_expr->get_type() == IOExpression::io_type::OUTPUT) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
             } else {

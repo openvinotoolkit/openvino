@@ -22,8 +22,6 @@ namespace op {
  // but RankNormalization has a much narrower semantics, and hence allows for an easier control and a more efficient shape infer.
  //
 class  RankNormalization : public ov::op::Op {
-    size_t m_num_prepend = 0;
-    size_t m_num_append = 0;
 public:
     OPENVINO_OP("RankNormalization", "SnippetsOpset");
 
@@ -40,8 +38,12 @@ public:
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
         IShapeInferSnippets::Result
-        infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+        infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
+
+private:
+    size_t m_num_prepend = 0;
+    size_t m_num_append = 0;
 };
 
 } // namespace op

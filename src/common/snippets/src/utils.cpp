@@ -134,11 +134,7 @@ VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port) 
 }
 
 bool is_dynamic_vdims(const VectorDims& shape) {
-    for (const auto& v : shape) {
-        if (v == IShapeInferSnippets::DYNAMIC_DIMENSION)
-            return true;
-    }
-    return false;
+    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return v == IShapeInferSnippets::DYNAMIC_DIMENSION; });
 }
 
 } // namespace utils

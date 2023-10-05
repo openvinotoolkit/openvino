@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/insert_broadcastmove.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
@@ -16,6 +17,7 @@ namespace pass {
 bool InsertBroadcastMove::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertBroadcastMove")
     bool modified = false;
+    const auto& loop_manager = linear_ir.get_loop_manager();
 
     auto supports_broadcasting = [](const std::shared_ptr<ov::Node>& n) {
       return ov::op::util::supports_auto_broadcast(n) ||
@@ -29,7 +31,7 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
         // - Fill can be inserted only after VectorBuffer, and should be ignored as well.
         return utils::is_scalar_constant(v.get_node_shared_ptr()) ||
                ov::is_type<ov::snippets::op::VectorBuffer>(v.get_node_shared_ptr()) ||
-                ov::is_type<ov::snippets::op::Fill>(v.get_node_shared_ptr());
+               ov::is_type<ov::snippets::op::Fill>(v.get_node_shared_ptr());
     };
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto& expr = *expr_it;
@@ -70,7 +72,9 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
                 expr->get_input_port_descriptor(i)->set_shape(broadcast_expr->get_output_port_descriptor(0)->get_shape());
 
                 // Copy Loop identifies
-                broadcast_expr->set_loop_ids(expr->get_loop_ids());
+                const auto& loop_ids = expr->get_loop_ids();
+                broadcast_expr->set_loop_ids(loop_ids);
+                loop_manager->update_loops_port(loop_ids, expr->get_input_port(0), {broadcast_expr->get_input_port(0)}, true);
 
                 modified = true;
             }

@@ -36,11 +36,11 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     auto is_blocked_layout = [](const Layout& l) {
         return l.size() != std::set<size_t>(l.begin(), l.end()).size();
     };
-    auto get_rank = [](const Layout& l, const Layout& r) {
+    auto compare_ranks = [](const Layout& l, const Layout& r) {
         return l.size() < r.size();
     };
     // Layout with the max rank
-    const auto& max_rank_it = std::max_element(m_in_layouts.begin(), m_in_layouts.end(), get_rank);
+    const auto& max_rank_it = std::max_element(m_in_layouts.begin(), m_in_layouts.end(), compare_ranks);
     Layout base_layout = *max_rank_it;
     size_t max_rank = base_layout.size();
     const bool base_is_blocked = is_blocked_layout(base_layout);
@@ -65,7 +65,6 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
             size_t num_append = base_is_blocked;
             OPENVINO_ASSERT(max_rank >= i_rank + num_append, "Unsupported blocked shapes combination in canonicalization");
             size_t num_prepend = max_rank - i_rank - num_append;
-            // here I should insert unsqueeze operation after the corresponding input
             for (const auto& out : params[i]->outputs()) {
                 const auto& target_inputs = out.get_target_inputs();
                 auto rank_norm = std::make_shared<op::RankNormalization>(out, num_prepend, num_append);

@@ -163,7 +163,6 @@ Subgraph::Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& b
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
     m_transformations_allowed = false;
     m_shape_infer = std::make_shared<OVShapeInfer>(body);
-    m_is_dynamic = body->is_dynamic();
 }
 
 Subgraph::Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body)
@@ -318,7 +317,7 @@ IShapeInferSnippets::Result Subgraph::OVShapeInfer::infer(const std::vector<Vect
 
 VectorDims Subgraph::get_master_shape() {
     std::vector<VectorDims> output_dims;
-    if (m_is_dynamic) {
+    if (is_dynamic()) {
         // Note that in case of dynamic implementation shapeInfer() is called before PrepareParams,
         // so there must be last_result available
         // In principle, we can instantiate shape_infer here, but it's not an intended pipeline behavior.
@@ -328,7 +327,7 @@ VectorDims Subgraph::get_master_shape() {
     } else {
         for (const auto& res : body_ptr()->get_results()) {
             const auto& res_input = res->input(0);
-            OPENVINO_ASSERT(!res_input.get_partial_shape().is_dynamic(), "Result have dynamic shape in static pipeline");
+            OPENVINO_ASSERT(res_input.get_partial_shape().is_static(), "Result have dynamic shape in static pipeline");
             // We need to account to the shape's layout stored in Output<Node> rt_info
             const auto& planar_shape = utils::get_planar_pshape(res_input.get_source_output());
             output_dims.emplace_back(planar_shape.get_shape());
@@ -358,8 +357,8 @@ Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFac
     lowering_config.m_min_parallel_work_amount = config.m_min_parallel_work_amount;
     lowering_config.m_min_kernel_work_amount = config.m_min_jit_work_amount;
 
-     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
-     m_shape_infer = m_linear_ir->get_shape_infer_instance();
+    m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
+    m_shape_infer = m_linear_ir->get_shape_infer_instance();
     return m_linear_ir;
 }
 
@@ -377,16 +376,16 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     result->set_friendly_name(get_friendly_name());
     if (m_linear_ir)
         result->m_linear_ir = std::make_shared<lowered::LinearIR>(m_linear_ir->deep_copy());
-    // Note: we don't update shapeInfer here, since it's initialized ihn the constructor
+    // Note: we don't update shapeInfer here, since it's initialized in the constructor
     if (m_generator)
         result->m_generator = m_generator->clone();
     return result;
 }
 
-void Subgraph::data_flow_shape_agnostic(const BlockedShapeVector& blocked_input_shapes,
-                                        const std::vector<ov::element::Type>& input_precisions,
-                                        const std::vector<ov::element::Type>& output_precisions,
-                                        const std::vector<snippets::pass::Manager::PositionedPass>& backend_passes) {
+void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input_shapes,
+                                         const std::vector<ov::element::Type>& input_precisions,
+                                         const std::vector<ov::element::Type>& output_precisions,
+                                         const std::vector<snippets::pass::Manager::PositionedPass>& backend_passes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
@@ -477,7 +476,7 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_sh
                                       const lowered::pass::PassPipeline& backend_passes_post_common,
                                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                                       const void* compile_params) {
-    data_flow_shape_agnostic(blocked_input_shapes, input_precisions, output_precisions, data_flow_backend_passes);
+    data_flow_transformations(blocked_input_shapes, input_precisions, output_precisions, data_flow_backend_passes);
     convert_body_to_linear_ir(factory);
     return generate_from_linear_ir(backend_passes_pre_common, backend_passes_post_common, compile_params);
 }

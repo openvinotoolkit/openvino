@@ -27,10 +27,26 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
     for (size_t i = 0; i < m_output_precisions.size(); i++) {
         const auto needed_out_type = m_output_precisions[i];
         if (results[i]->get_input_element_type(0) != needed_out_type) {
-            const auto convert = std::make_shared<op::ConvertSaturation>(
-                    results[i]->get_input_node_shared_ptr(0), needed_out_type);
-            results[i]->set_argument(0, convert);
-            results[i]->validate_and_infer_types();
+            std::shared_ptr<ov::Node> consumer = results[i];
+            auto parent_output = consumer->get_input_source_output(0);
+
+            // Snippets supports Transpose only after Parameter or before Result nodes
+            // So we have to insert Convert before Transpose (if there is) on Subgraph outputs
+            const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent_output.get_node_shared_ptr());
+            if (transpose) {
+                OPENVINO_ASSERT(parent_output.get_target_inputs().size() == 1,
+                                "If Result has Transpose on input, this Result must be single consumer of the Transpose");
+                parent_output = transpose->get_input_source_output(0);
+                consumer = transpose;
+            }
+
+            const auto convert = std::make_shared<op::ConvertSaturation>(parent_output, needed_out_type);
+            ov::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+
+            consumer->set_argument(0, convert);
+            consumer->validate_and_infer_types();
+            if (transpose)
+                results[i]->validate_and_infer_types();
             is_modified = true;
         }
     }
@@ -39,21 +55,40 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
     for (size_t i = 0; i < m_input_precisions.size(); ++i) {
         const auto needed_in_type = m_input_precisions[i];
         const auto& parameter = params[i];
-        if (parameter->get_element_type() != needed_in_type) {
-            auto parameter_output = parameter->output(0);
-            const auto& targets = parameter_output.get_target_inputs();
-            const auto& first_child = targets.begin()->get_node()->shared_from_this();
+        const auto original_type = parameter->get_element_type();
+        if (original_type != needed_in_type) {
+            parameter->set_element_type(needed_in_type);
+            parameter->validate_and_infer_types();
+
+            auto parent_output = parameter->output(0);
+            auto consumer_inputs = parent_output.get_target_inputs();
+
+            const auto& first_child = consumer_inputs.begin()->get_node()->shared_from_this();
             // Note: RankNormalization of is designed for shape-inference purposes only.
             // It does not process any data (nor does it emit any code), so it doesn't require Convert operations
-            if (targets.size() == 1 && ov::is_type<op::RankNormalization>(first_child))
-                parameter_output = first_child->output(0);
+            if (is_type<op::RankNormalization>(first_child)) {
+                OPENVINO_ASSERT(consumer_inputs.size() == 1 && first_child->get_output_size() == 1,
+                                "RankNormalization expression is supposed to be the only consumer and to have one output port");
+                parent_output = first_child->output(0);
+            }
 
-            const auto convert = std::make_shared<op::ConvertSaturation>(
-                    parameter_output,
-                    parameter_output.get_element_type());
-            ov::copy_runtime_info(parameter, convert);
+            // Snippets supports Transpose only after Parameter or before Result nodes
+            // So we have to insert Convert after Transpose (if there is) on Subgraph inputs
+            if (std::any_of(consumer_inputs.cbegin(), consumer_inputs.cend(),
+                            [](const ov::Input<ov::Node>& input) { return ov::is_type<ov::op::v1::Transpose>(input.get_node()); })) {
+                OPENVINO_ASSERT(consumer_inputs.size() == 1,
+                                "If Parameter has Transpose on output, this Transpose must be single consumer of the Parameter");
+                const auto transpose = consumer_inputs.begin()->get_node()->shared_from_this();
+                transpose->validate_and_infer_types();
 
-            for (const auto input : parameter_output.get_target_inputs()) {
+                parent_output = transpose;
+                consumer_inputs = parent_output.get_target_inputs();
+            }
+
+            const auto& convert = std::make_shared<ov::snippets::op::ConvertSaturation>(parent_output, original_type);
+            ov::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+
+            for (const auto input : consumer_inputs) {
                 const auto& input_node = input.get_node();
                 if (input_node == convert.get()) {
                     continue;
@@ -61,8 +96,6 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
                 input_node->set_argument(input.get_index(), convert->output(0));
             }
 
-            parameter->set_element_type(needed_in_type);
-            parameter->validate_and_infer_types();
             is_modified = true;
         }
     }

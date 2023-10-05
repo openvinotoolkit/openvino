@@ -3,6 +3,7 @@
 //
 
 #include "snippets/op/rank_normalization.hpp"
+#include "snippets/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -22,7 +23,7 @@ std::shared_ptr<ov::Node> RankNormalization::clone_with_new_inputs(const OutputV
 void RankNormalization::validate_and_infer_types() {
     auto new_shape = get_input_partial_shape(0);
     // Note: other values are not allowed, only planar + blocked layout combination can be normalized.
-    NODE_VALIDATION_CHECK(this, m_num_append == 0 || m_num_append == 1,
+    NODE_VALIDATION_CHECK(this, utils::one_of(m_num_append, 0, 1),
                           "num_append could be only 0 or 1, other values are not allowed.");
     new_shape.insert(new_shape.begin(), m_num_prepend, Dimension(1));
     new_shape.insert(new_shape.end(), m_num_append, Dimension(1));
@@ -43,7 +44,7 @@ RankNormalization::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
 }
 
 IShapeInferSnippets::Result
-RankNormalization::ShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) {
+RankNormalization::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of input shapes passed to RankNormalization::ShapeInfer::infer");
     VectorDims out_shape = input_shapes[0].get();
     out_shape.insert(out_shape.begin(), m_num_prepend, 1);

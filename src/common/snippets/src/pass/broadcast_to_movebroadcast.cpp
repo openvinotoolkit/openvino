@@ -32,7 +32,7 @@ ov::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
         const auto value_shape = root->get_input_partial_shape(0);
         OPENVINO_ASSERT(target_shape.is_static() && value_shape.rank().is_static(), "Broadcast with dynamic target shape is not supported in Snippets");
         // Insert BroadcastMove only if the last dimension needs to be broadcasted. Higher-level dims broadcasting
-        // will be handled by pointer arithmetics. Note that this behavior should ber changed in case of full op::Boradcast support.
+        // will be handled by pointer arithmetics. Note that this behavior should be changed in case of full op::Boradcast support.
         Output<ov::Node> in_value = root->input_value(0);
         if (*target_shape.rbegin() != *value_shape.rbegin()) {
             auto broadcasted_shape = value_shape;

@@ -24,7 +24,7 @@ class Generator;
  * @brief Holds all relevant information produced during lowering
  * @param compiled_snippet pointer to interface class that encapsulates compiled binary code
  * @param buffer_scratchpad_size the amount of additional memory required by the binary code to execute.
- * Must be allocated and freed by the backed.
+ * Must be allocated and freed by the backend.
  */
 class LoweringResult {
     friend class Generator;
@@ -83,11 +83,11 @@ public:
     * @brief Allows to tweak the lowering process.
     */
     /**
-     * @brief virtual method any specific implementation should implement
-     * @param m model in canonical for for table-based code generation
-     * @param config config with transformation and optimization parameters
-     * @param compile_params parameters for generated code
-     * @return pointer to generated code
+     * @brief generates executable code
+     * @param linear_ir lowered IR for code generation
+     * @param result variable to hande the result, only compiled_snippet and m_saved_emitters field will be modified
+     * @param compile_params compile-time parameters used for code generation
+     * @return void
      */
     void generate(lowered::LinearIR& linear_ir, LoweringResult& result, const void* compile_params = nullptr) const;
 
