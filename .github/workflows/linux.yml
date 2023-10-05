@@ -1234,11 +1234,11 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      # - name: Setup pip cache dir
-      #   run: |
-      #     PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-      #     echo "Using pip version: ${PIP_VER}"
-      #     echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+      - name: Setup pip cache dir
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install python dependencies
         run: |
@@ -1246,7 +1246,7 @@ jobs:
           python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
 
       - name: Install Python wheels
-        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-* ${INSTALL_DIR}/tools/openvino_dev-*
 
       - name: Clone API snippets
         uses: actions/checkout@v4
@@ -1326,11 +1326,11 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      # - name: Setup pip cache dir
-      #   run: |
-      #     PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-      #     echo "Using pip version: ${PIP_VER}"
-      #     echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+      - name: Setup pip cache dir
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
