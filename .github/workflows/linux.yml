@@ -158,12 +158,12 @@ jobs:
 
       - name: Pack Artifacts
         run: |
-          
-          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job 
+
+          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job
           # w/o the need to checkout repository
-          
+
           cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
-          
+
           pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
@@ -477,7 +477,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
-          
+
           ./onnxruntime_test_all --gtest_filter=-$skip_tests
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
@@ -1096,11 +1096,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-8-cores'}}
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount/caches:/mount/caches
+    runs-on: ubuntu-20.04-16-cores
+    # container:
+    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    #   volumes:
+    #     - /mount/caches:/mount/caches
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -1168,7 +1168,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: 'nightly'
           TEST_DEVICE: CPU
 
       - name: Available storage after tests
