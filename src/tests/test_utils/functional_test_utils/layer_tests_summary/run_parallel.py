@@ -305,7 +305,7 @@ class TestParallelRunner:
                 os.remove(test_list_file_name)
             except Exception as err:
                 logger.warning(f"Imposible to remove {test_list_file_name}. Error: {err}")
-        command_to_get_test_list = self._command + f' --gtest_list_tests >> {test_list_file_name}'
+        command_to_get_test_list = self._command + f' --gtest_list_tests > {test_list_file_name}'
         logger.info(f"Get test list using command: {command_to_get_test_list}")
         run_res = run(command_to_get_test_list, check=True, shell=True)
         if run_res.stderr != "" and run_res.stderr != None:
