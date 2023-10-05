@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_op/activation.hpp"
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"

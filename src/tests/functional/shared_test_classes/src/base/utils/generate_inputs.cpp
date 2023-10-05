@@ -89,12 +89,10 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid>&
                              const ov::Shape& targetShape) {
     switch (port) {
         case 1: {
-            std::vector<float> alpha(node->get_input_shape(1).size(), 0.2f);
-            return ov::test::utils::create_tensor<float>(elemType, targetShape, alpha, alpha.size());
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 0, 0.2f);
         }
         case 2: {
-            std::vector<float> beta(node->get_input_shape(2).size(), 0.5f);
-            return ov::test::utils::create_tensor<float>(elemType, targetShape, beta, beta.size());
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, 0, 0.5f);
         }
         default: {
             return Activation::generate(elemType, targetShape);
