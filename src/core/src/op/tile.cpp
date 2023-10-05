@@ -11,19 +11,17 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/tile.hpp"
 
-using namespace ov;
-
-op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, repeats}) {
+ov::op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, repeats}) {
     ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
-bool op::v0::Tile::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v0::Tile::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Tile_visit_attributes);
     return true;
 }
 
-void op::v0::Tile::validate_and_infer_types() {
+void ov::op::v0::Tile::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Tile_validate_and_infer_types);
 
     // Repeats should have integer data type. For now we only allow i64
@@ -42,13 +40,13 @@ void op::v0::Tile::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
 }
 
-std::shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v0::Tile::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Tile_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
 
-bool op::v0::Tile::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
+bool ov::op::v0::Tile::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate);
     const auto& data = input_values[0];
     const auto& axis = input_values[1];
@@ -71,24 +69,24 @@ bool op::v0::Tile::evaluate(ov::TensorVector& output_values, const ov::TensorVec
     return true;
 }
 
-bool op::v0::Tile::has_evaluate() const {
+bool ov::op::v0::Tile::has_evaluate() const {
     OV_OP_SCOPE(v0_Tile_has_evaluate);
     return true;
 }
 
-bool op::v0::Tile::evaluate_lower(ov::TensorVector& output_values) const {
+bool ov::op::v0::Tile::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate_lower);
 
     return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v0::Tile::evaluate_upper(ov::TensorVector& output_values) const {
+bool ov::op::v0::Tile::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate_upper);
 
     return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
-bool op::v0::Tile::evaluate_label(TensorLabelVector& output_labels) const {
+bool ov::op::v0::Tile::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(v0_Tile_evaluate_label);
     OPENVINO_ASSERT(output_labels.size() == 1);
 
