@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+
 if(WIN32)
     # 3.16: FindPython3.cmake can find Python via -DPython3_EXECUTABLE
     # 3.18: FindPython3.cmake can find Python automatically from virtualenv
