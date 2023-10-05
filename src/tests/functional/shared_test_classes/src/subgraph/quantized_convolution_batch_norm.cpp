@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <exec_graph_info.hpp>
 
 namespace SubgraphTestsDefinitions {

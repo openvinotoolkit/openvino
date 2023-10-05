@@ -217,6 +217,7 @@ class TestParallelRunner:
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
         self._conformance_ir_filelists = list()
+        self._gtest_filter = ""
         self._command = self.__init_basic_command_line_for_exec_file(test_command_line)
         self._worker_num = worker_num
         if not os.path.exists(self._working_dir):
