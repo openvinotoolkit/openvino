@@ -13,6 +13,10 @@
 #include <thread>
 #include <vector>
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <immintrin.h>
+#endif
+
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
 #include "openvino/itt.hpp"
@@ -142,7 +146,7 @@ struct CPUStreamsExecutor::Impl {
 #    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
             unsigned int mxcsrOld = _mm_getcsr();
             if (_impl->_config._opt_denormals_for_tbb) {
-                // Refer: src/plugins/intel_cpu/src/utils/denormals.cpp
+                // Refer: src/plugins/intel_cpu/src/utils/denormals.hpp
                 unsigned int mxcsr = _mm_getcsr();
                 static constexpr unsigned int FTZ_FLAG = 0x8000;
                 static constexpr unsigned int DAZ_FLAG = 0x0040;
