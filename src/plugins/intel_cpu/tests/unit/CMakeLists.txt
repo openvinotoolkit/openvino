@@ -58,8 +58,8 @@ addIeTargetTest(
             openvino::shape_inference
             inference_engine_s
             unit_test_utils
-            ngraphFunctions
-            snippetsNgraphFunctions
+            ov_models
+            ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
         ADD_CPPLINT

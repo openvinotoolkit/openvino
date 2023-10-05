@@ -7,19 +7,17 @@
 #include <string>
 #include <sstream>
 #include <memory>
-
 #include <gtest/gtest.h>
-
 #include <utility>
+
 #include "transformations/utils/utils.hpp"
 #include "transformations/init_node_info.hpp"
 #include "low_precision/multiply.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/multiply_function.hpp"
+#include "ov_lpt_models/multiply.hpp"
 
 namespace {
 using namespace testing;
