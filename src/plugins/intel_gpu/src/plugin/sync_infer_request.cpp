@@ -107,7 +107,7 @@ bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
 }
 
 void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream) {
-    auto src_et = cldnn::data_type_to_element_type(src->get_layout().data_type);
+    auto src_et = src->get_layout().data_type;
     auto dst_et = dst->get_element_type();
 
     size_t size = ov::shape_size(dst->get_shape());
@@ -558,7 +558,7 @@ cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, con
     const auto& layout = src->get_layout();
     auto& stream = m_graph->get_network()->get_stream();
 
-    if (is_convert_required(cldnn::data_type_to_element_type(layout.data_type), dst.get_element_type())) {
+    if (is_convert_required(layout.data_type, dst.get_element_type())) {
         convert_and_copy(src, &dst, stream);
         return nullptr;
     } else {
@@ -676,6 +676,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto element_type = user_tensor->get_element_type();
     auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor);
     bool is_remote = remote_ptr != nullptr;
+    GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << name << " ( is_remote ? " << is_remote << ")" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
     auto network = m_graph->get_network();
     auto& engine = m_graph->get_engine();
@@ -709,6 +712,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
             if (device_tensor->get_original_memory()->size() < user_tensor->get_byte_size()) {
                 auto& shape_predictor = network->get_shape_predictor();
                 auto actual_shape = predict_shape(name, user_tensor->get_shape(), device_tensor_et, shape_predictor);
+                GPU_DEBUG_TRACE_DETAIL << "    actual memory shape: " << actual_shape.to_string() << std::endl;
                 auto new_tensor = create_device_tensor(actual_shape, device_tensor_et, false);
                 new_tensor->set_shape(user_tensor->get_shape());
                 m_plugin_inputs[name] = { new_tensor, TensorOwner::PLUGIN };
@@ -759,7 +763,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     const cldnn::primitive_id internal_name = "parameter:" + name;
     network->set_input_data(internal_name, memory);
 
-    if (ret_event)
+    if (ret_event && !ret_event->is_set())
         return { ret_event };
     else
         return {};
@@ -775,6 +779,10 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(const std::strin
     auto user_tensor = user_tensor_wrapper.ptr;
     auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor);
     bool is_remote = remote_ptr != nullptr;
+
+    GPU_DEBUG_TRACE_DETAIL << "Prepare output for " << name << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
     if (user_tensor->get_size() > 0) {
         OPENVINO_ASSERT(pshape.compatible(ov::PartialShape(user_tensor->get_shape())),
