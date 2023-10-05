@@ -90,7 +90,7 @@ Please file a github Issue on these with the label “pre-release” so we can g
    * Fixed #18786 “OpenVINO Wheel does not install Debug libraries when CMAKE_BUILD_TYPE is Debug #18786” with PR #19197 
    * Fixed #18731 “[Bug] Wrong output shapes of MaxPool” with PR #18965 
    * Fixed #18091 “[Bug] 2023.0 Version crashes on Jetson Nano - L4T - Ubuntu 18.04” with PR #19717 
-   * Fixed #7194 “Conan for simplifing dependency management” with PR #17580 
+   * Fixed #7194 “Conan for simplifying dependency management” with PR #17580 
 
  
    **Acknowledgements:**
