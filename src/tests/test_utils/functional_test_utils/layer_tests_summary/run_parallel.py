@@ -209,7 +209,7 @@ class TaskManager:
             log_file_name = self._log_filename.replace(
                 LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length)
             )
-            with open(log_file_name, "w", encoding='UTF-8') as log_file:
+            with open(log_file_name, "w", encoding=constants.ENCODING) as log_file:
                 args = self._command_list[self._idx].replace(
                     self._device, target_device
                 )
@@ -280,7 +280,7 @@ class TaskManager:
         log_file_name = self._log_filename.replace(
             LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length)
         )
-        with open(log_file_name, "w", encoding='UTF-8') as log_file:
+        with open(log_file_name, "w", encoding=constants.ENCODING) as log_file:
             self._workers[pid] = self.__create_thread(
                 self.__update_process(pid, log_file, device)
             )
@@ -437,7 +437,7 @@ class TestParallelRunner:
             sys.exit(-1)
 
         tests_dict = {}
-        with open(test_list_file_name, encoding='UTF-8') as test_list_file:
+        with open(test_list_file_name, encoding=constants.ENCODING) as test_list_file:
             test_suite = ""
             for test_name in test_list_file.read().split("\n"):
                 if "Running main() from" in test_name:
@@ -476,7 +476,7 @@ class TestParallelRunner:
         tests_dict_cache = {}
         if os.path.isfile(self._cache_path):
             logger.info(f"Get test list from cache file: {self._cache_path}")
-            with open(self._cache_path, "r", encoding='UTF-8') as cache_file:
+            with open(self._cache_path, "r", encoding=constants.ENCODING) as cache_file:
                 for line in cache_file.readlines():
                     pos = line.find(":")
                     time = int(line[:pos])
@@ -635,7 +635,7 @@ class TestParallelRunner:
         interapted_tests = []
         for log in Path(os.path.join(self._working_dir, "temp")).rglob("log_*.log"):
             log_filename = os.path.join(self._working_dir, log)
-            with open(log_filename, "r", encoding='UTF-8') as log_file:
+            with open(log_filename, "r", encoding=constants.ENCODING) as log_file:
                 has_status = False
                 test_name = None
                 try:
@@ -731,7 +731,7 @@ class TestParallelRunner:
             test_log_filename = os.path.join(
                 logs_dir, dir, f"{test_name}.txt".replace("/", "_")
             )
-            hash_str = str(sha256(test_name.encode("utf-8")).hexdigest())
+            hash_str = str(sha256(test_name.encode(constants.ENCODING)).hexdigest())
             if hash_str in hash_map.keys():
                 (dir_hash, _) = hash_map[hash_str]
                 if dir_hash != INTERAPTED_DIR:
@@ -757,7 +757,7 @@ class TestParallelRunner:
             if os.path.isfile(test_log_filename):
                 # logger.warning(f"Log file {test_log_filename} is exist!")
                 return False
-            with open(test_log_filename, "w", encoding='UTF-8') as log:
+            with open(test_log_filename, "w", encoding=constants.ENCODING) as log:
                 log.writelines(test_log)
                 log.close()
             saved_tests.append(test_name)
@@ -776,7 +776,7 @@ class TestParallelRunner:
         fix_priority = []
         for log in Path(self._working_dir).rglob("log_*.log"):
             log_filename = os.path.join(self._working_dir, log)
-            with open(log_filename, "r", encoding='UTF-8') as log_file:
+            with open(log_filename, "r", encoding=constants.ENCODING) as log_file:
                 test_name = None
                 test_log = []
                 test_suites = set()
@@ -858,11 +858,9 @@ class TestParallelRunner:
                 else:
                     os.remove(log_filename)
 
-        if (
-            len(list(Path(os.path.join(self._working_dir, "temp")).rglob("log_*.log")))
-            == 0
-        ):
+        if not list(Path(os.path.join(self._working_dir, "temp")).rglob("log_*.log")):
             rmtree(os.path.join(self._working_dir, "temp"))
+
         for test_name in interapted_tests:
             # update test_cache with tests. If tests is crashed use -1 as unknown time
             time = -1
@@ -871,7 +869,7 @@ class TestParallelRunner:
                 test_results[INTERAPTED_DIR] += 1
             else:
                 test_results[INTERAPTED_DIR] = 1
-            hash_str = str(sha256(test_name.encode("utf-8")).hexdigest())
+            hash_str = str(sha256(test_name.encode(constants.ENCODING)).hexdigest())
             interapted_log_path = os.path.join(
                 logs_dir, INTERAPTED_DIR, f"{hash_str}.log"
             )
@@ -879,14 +877,14 @@ class TestParallelRunner:
                 test_cnt_real_saved_now += 1
         if self._is_save_cache:
             test_times.sort(reverse=True)
-            with open(self._cache_path, "w", encoding='UTF-8') as cache_file:
+            with open(self._cache_path, "w", encoding=constants.ENCODING) as cache_file:
                 cache_file.writelines(
                     [f"{time}:{test_name}\n" for time, test_name in test_times]
                 )
                 cache_file.close()
                 logger.info(f"Test cache test is saved to: {self._cache_path}")
         hash_table_path = os.path.join(logs_dir, "hash_table.csv")
-        with open(hash_table_path, "w", encoding='UTF-8') as csv_file:
+        with open(hash_table_path, "w", encoding=constants.ENCODING) as csv_file:
             csv_writer = csv.writer(csv_file, dialect="excel")
             csv_writer.writerow(["Dir", "Hash", "Test Name"])
             for hash, st in hash_map.items():
@@ -895,7 +893,7 @@ class TestParallelRunner:
             logger.info(f"Hashed test list is saved to: {hash_table_path}")
         if len(fix_priority) > 0:
             fix_priority_path = os.path.join(logs_dir, "fix_priority.csv")
-            with open(fix_priority_path, "w", encoding='UTF-8') as csv_file:
+            with open(fix_priority_path, "w", encoding=constants.ENCODING) as csv_file:
                 fix_priority.sort(reverse=True)
                 csv_writer = csv.writer(csv_file, dialect="excel")
                 csv_writer.writerow(["Test Name", "Fix Priority"])
@@ -919,7 +917,7 @@ class TestParallelRunner:
                 )
                 failed_models = set()
                 for conformance_ir_filelist in self._conformance_ir_filelists:
-                    with open(conformance_ir_filelist, "r", encoding='UTF-8') as file:
+                    with open(conformance_ir_filelist, "r", encoding=constants.ENCODING) as file:
                         for conformance_ir in file.readlines():
                             correct_ir = conformance_ir.replace("\n", "")
                             _, tail = os.path.split(correct_ir)
@@ -959,14 +957,14 @@ class TestParallelRunner:
                         )
                     rmtree(failed_ir_dir)
                 if len(failed_models) > 0:
-                    with open(failed_models_file_path, "w", encoding='UTF-8') as failed_models_file:
+                    with open(failed_models_file_path, "w", encoding=constants.ENCODING) as failed_models_file:
                         failed_models_list = []
                         for item in failed_models:
                             failed_models_list.append(f"{item}\n")
                         failed_models_file.writelines(failed_models_list)
                         failed_models_file.close()
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.log")
-        with open(disabled_tests_path, "w", encoding='UTF-8') as disabled_tests_file:
+        with open(disabled_tests_path, "w", encoding=constants.ENCODING) as disabled_tests_file:
             for i in range(len(self._disabled_tests)):
                 self._disabled_tests[i] += "\n"
             disabled_tests_file.writelines(self._disabled_tests)
@@ -974,7 +972,7 @@ class TestParallelRunner:
             logger.info(f"Disabled test list is saved to: {disabled_tests_path}")
 
         not_run_tests_path = os.path.join(logs_dir, "not_run_tests.log")
-        with open(not_run_tests_path, "w", encoding='UTF-8') as not_run_tests_path_file:
+        with open(not_run_tests_path, "w", encoding=constants.ENCODING) as not_run_tests_path_file:
             test_list_runtime = self.__get_test_list_by_runtime()
             diff_set = (
                 set(saved_tests)
