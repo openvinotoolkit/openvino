@@ -121,7 +121,7 @@ def test_tensor_iterator_basic():
 
     subgraph_func = ti.get_function()
 
-    assert type(subgraph_func) == type(graph_body)
+    assert isinstance(subgraph_func, type(graph_body))
     assert compare_models(subgraph_func, graph_body)
     assert subgraph_func._get_raw_address() == graph_body._get_raw_address()
     assert ti.get_num_iterations() == 16

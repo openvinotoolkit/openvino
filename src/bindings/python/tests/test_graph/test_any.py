@@ -47,8 +47,8 @@ def test_any_dict(value_dict, value_type, data_type):
     assert isinstance(ovany.value, dict)
     assert ovany[key] == list(value_dict.values())[0]
     assert len(ovany.value) == 1
-    assert type(ovany.value[key]) == value_type
-    assert type(list(value_dict.values())[0]) == data_type
+    assert isinstance(ovany.value[key], value_type)
+    assert isinstance(list(value_dict.values())[0], data_type)
     assert ovany.get() == value_dict
 
 
