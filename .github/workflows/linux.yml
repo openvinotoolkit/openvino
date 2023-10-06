@@ -20,10 +20,10 @@ on:
       - master
       - 'releases/**'
 
-concurrency:
-  # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
-  cancel-in-progress: true
+# concurrency:
+#   # github.ref is not unique in post-commit
+#   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
+#   cancel-in-progress: true
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
@@ -34,7 +34,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-arm
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
