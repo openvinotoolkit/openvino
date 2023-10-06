@@ -1097,10 +1097,10 @@ jobs:
       run:
         shell: bash
     runs-on: ubuntu-20.04-16-cores
-    # container:
-    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-    #   volumes:
-    #     - /mount/caches:/mount/caches
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
