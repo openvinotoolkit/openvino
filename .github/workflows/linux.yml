@@ -1101,8 +1101,11 @@ jobs:
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
+      - name: Check sudo
+        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
+
       - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
+        run: sudo apt-get update && sudo apt-get install -y libssl1.1 ca-certificates
 
       - uses: actions/setup-python@v4
         with:
