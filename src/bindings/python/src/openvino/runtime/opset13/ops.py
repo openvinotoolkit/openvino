@@ -34,7 +34,7 @@ def bitwise_and(
     :param right_node: Tensor of integer or boolean datatype providing data.
     :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to “NUMPY”.
     :param name: The optional new name for output node.
-    :return: The node performing bitwise XOR operation on input nodes corresponding elements.
+    :return: The node performing bitwise AND operation on input nodes corresponding elements.
     """
     return _get_node_factory_opset13().create(
         "BitwiseAnd",
