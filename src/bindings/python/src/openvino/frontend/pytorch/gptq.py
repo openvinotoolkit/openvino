@@ -33,11 +33,11 @@ def patched_forward(self, *args, **kwargs):
 
     unpacked_weights = torch.stack(
                     (torch.bitwise_and(self._openvino_u4_compression_submodule_qweights(), mask),
-                    torch.bitwise_right_shift(self._openvino_u4_compression_submodule_qweights(), 4)), dim=-1).contiguous().view(height, -1, 8)
+                    torch.bitwise_right_shift(self._openvino_u4_compression_submodule_qweights(), 4)), dim=-1).half().contiguous().view(height, -1, 8)
     unpacked_weights = torch.transpose(unpacked_weights, 1, 2).contiguous().view(-1, self.group_size, self.width)
     unpacked_zp = torch.stack(
                     (torch.bitwise_and(self._openvino_u4_compression_submodule_qzeros(), mask),
-                    torch.bitwise_right_shift(self._openvino_u4_compression_submodule_qzeros(), 4)), dim=-1).contiguous().view(groups, 1, -1)
+                    torch.bitwise_right_shift(self._openvino_u4_compression_submodule_qzeros(), 4)), dim=-1).half().contiguous().view(groups, 1, -1)
 
     unpacked_zp = unpacked_zp.half() + 1 # +1 !!
 
