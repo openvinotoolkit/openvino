@@ -57,12 +57,12 @@ endfunction()
 
 macro (ie_option variable description value)
     message(WARNING "'ie_option' is deprecated, please, use 'ov_option' instead")
-    ov_option(${ARGV})
+    ov_option(${ARGN})
 endmacro()
 
 macro(ie_dependent_option)
     message(WARNING "'ie_dependent_option' is deprecated, please, use 'ov_dependent_option' instead")
-    ov_dependent_option(${ARGV})
+    ov_dependent_option(${ARGN})
 endmacro()
 
 function(print_enabled_features)

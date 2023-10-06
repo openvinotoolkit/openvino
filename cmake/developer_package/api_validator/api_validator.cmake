@@ -201,5 +201,5 @@ endmacro()
 
 macro(ie_add_api_validator_post_build_step)
     message(WARNING "'ie_add_api_validator_post_build_step' is deprecated, use 'ov_add_api_validator_post_build_step' instead")
-    ov_add_api_validator_post_build_step(${ARGV})
+    _ov_add_api_validator_post_build_step(${ARGN})
 endmacro()
