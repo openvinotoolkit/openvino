@@ -454,7 +454,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
         if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
-            OPENVINO_THROW("Can't set input tensor with name: ",
+            OPENVINO_THROW("Can't set the input tensor with name: ",
                            name,
                            ", because the model input (shape=",
                            shape,
