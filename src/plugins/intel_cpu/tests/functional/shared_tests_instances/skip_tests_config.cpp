@@ -227,6 +227,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
         // Issue: 121812
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
+        // Issue: 122321
+        R"(.*smoke_ConvertCPULayerTest_BOOL.*)",
     };
 #if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
     // Issue: 120950
