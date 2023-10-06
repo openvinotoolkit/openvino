@@ -142,7 +142,7 @@ TDim resolve_minus_one_dim(const Product<TDim>& product) {
         using namespace ov::util;
         auto& minus_one_interval = minus_one_dim.get_interval();
 
-        if (product_out.get_min_length() != 0 && minus_one_interval != Interval{} && product_out != TDim{}) {
+        if (minus_one_interval.has_upper_bound() && product_out.get_min_length() != 0 && product_out != TDim{}) {
             minus_one_interval.set_max_val(minus_one_interval.get_max_val() / product_out.get_min_length());
         } else {
             minus_one_interval.set_max_val(Interval::s_max);

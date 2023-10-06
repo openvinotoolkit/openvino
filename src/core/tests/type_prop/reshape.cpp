@@ -1024,6 +1024,22 @@ TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_9) {
     EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, 21, 22, no_label));
 }
 
+TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_10) {
+    PartialShape data_shape = PartialShape{1, {1, -1}, {1, -1}, 512};
+    set_shape_labels(data_shape, 10);
+    constexpr int64_t squeeze_dim = 7 * 7 * 512;
+
+    auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
+    auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{-1, squeeze_dim});
+    output_pattern->get_default_output().get_tensor().set_value_label({20, 21});
+
+    const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, PartialShape({{1, -1}, squeeze_dim}));
+    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(no_label, 21));
+}
+
 TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_1) {
     auto data_shape = PartialShape{4, -1, 2, 1, 3};
     set_shape_labels(data_shape, 10);
