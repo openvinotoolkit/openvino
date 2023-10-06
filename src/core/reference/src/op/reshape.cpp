@@ -41,7 +41,7 @@ static inline void copy_element(char* out, const char* in, size_t elem_size) {
 void reshape_2D(const char* in,
                 char* out,
                 const Shape& in_shape,
-                const AxisVector& in_axis_order,
+                const AxisVector& axes_order,
                 const Shape& out_shape,
                 size_t elem_size) {
     size_t num_elements = shape_size(in_shape);
@@ -81,12 +81,12 @@ static std::vector<size_t> get_strides(size_t rank, size_t elem_size, const Axis
 void reshape_3D(const char* in,
                 char* out,
                 const Shape& in_shape,
-                const AxisVector& in_axis_order,
+                const AxisVector& axes_order,
                 const Shape& out_shape,
                 size_t elem_size) {
     size_t num_elements = shape_size(in_shape);
     if (num_elements <= get_threshold()) {
-        const auto strides = get_strides(3, elem_size, in_axis_order, in_shape);
+        const auto strides = get_strides(3, elem_size, axes_order, in_shape);
 
         size_t off_0 = 0;
         for (size_t i = 0; i < out_shape[0]; i++) {
@@ -106,11 +106,11 @@ void reshape_3D(const char* in,
         ov::parallel_for3d(out_shape[0],
                            out_shape[1],
                            out_shape[2],
-                           [in, out, in_axis_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k) {
+                           [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k) {
                                size_t in_indexes[3];
-                               in_indexes[in_axis_order[0]] = i;
-                               in_indexes[in_axis_order[1]] = j;
-                               in_indexes[in_axis_order[2]] = k;
+                               in_indexes[axes_order[0]] = i;
+                               in_indexes[axes_order[1]] = j;
+                               in_indexes[axes_order[2]] = k;
                                size_t in_off =
                                    (in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2];
                                size_t out_off = (i * out_shape[1] + j) * out_shape[2] + k;
@@ -122,12 +122,12 @@ void reshape_3D(const char* in,
 void reshape_4D(const char* in,
                 char* out,
                 const Shape& in_shape,
-                const AxisVector& in_axis_order,
+                const AxisVector& axes_order,
                 const Shape& out_shape,
                 size_t elem_size) {
     size_t num_elements = shape_size(in_shape);
     if (num_elements <= get_threshold()) {
-        const auto strides = get_strides(4, elem_size, in_axis_order, in_shape);
+        const auto strides = get_strides(4, elem_size, axes_order, in_shape);
 
         size_t off_0 = 0;
         for (size_t i = 0; i < out_shape[0]; i++) {
@@ -153,12 +153,12 @@ void reshape_4D(const char* in,
             out_shape[1],
             out_shape[2],
             out_shape[3],
-            [in, out, in_axis_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k, size_t l) {
+            [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k, size_t l) {
                 size_t in_indexes[4];
-                in_indexes[in_axis_order[0]] = i;
-                in_indexes[in_axis_order[1]] = j;
-                in_indexes[in_axis_order[2]] = k;
-                in_indexes[in_axis_order[3]] = l;
+                in_indexes[axes_order[0]] = i;
+                in_indexes[axes_order[1]] = j;
+                in_indexes[axes_order[2]] = k;
+                in_indexes[axes_order[3]] = l;
                 size_t in_off =
                     ((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3] +
                     in_indexes[3];
@@ -171,12 +171,12 @@ void reshape_4D(const char* in,
 void reshape_5D(const char* in,
                 char* out,
                 const Shape& in_shape,
-                const AxisVector& in_axis_order,
+                const AxisVector& axes_order,
                 const Shape& out_shape,
                 size_t elem_size) {
     size_t num_elements = shape_size(in_shape);
     if (num_elements <= get_threshold()) {
-        const auto strides = get_strides(5, elem_size, in_axis_order, in_shape);
+        const auto strides = get_strides(5, elem_size, axes_order, in_shape);
 
         size_t off_0 = 0;
         for (size_t i = 0; i < out_shape[0]; i++) {
@@ -207,17 +207,13 @@ void reshape_5D(const char* in,
             out_shape[2],
             out_shape[3],
             out_shape[4],
-            [in, out, in_axis_order, &in_shape, &out_shape, elem_size](size_t i,
-                                                                       size_t j,
-                                                                       size_t k,
-                                                                       size_t l,
-                                                                       size_t m) {
+            [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k, size_t l, size_t m) {
                 size_t in_indexes[5];
-                in_indexes[in_axis_order[0]] = i;
-                in_indexes[in_axis_order[1]] = j;
-                in_indexes[in_axis_order[2]] = k;
-                in_indexes[in_axis_order[3]] = l;
-                in_indexes[in_axis_order[4]] = m;
+                in_indexes[axes_order[0]] = i;
+                in_indexes[axes_order[1]] = j;
+                in_indexes[axes_order[2]] = k;
+                in_indexes[axes_order[3]] = l;
+                in_indexes[axes_order[4]] = m;
                 size_t in_off =
                     (((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3] +
                      in_indexes[3]) *
@@ -232,12 +228,12 @@ void reshape_5D(const char* in,
 void reshape_6D(const char* in,
                 char* out,
                 const Shape& in_shape,
-                const AxisVector& in_axis_order,
+                const AxisVector& axes_order,
                 const Shape& out_shape,
                 size_t elem_size) {
     size_t num_elements = shape_size(in_shape);
     if (num_elements <= get_threshold()) {
-        const auto strides = get_strides(6, elem_size, in_axis_order, in_shape);
+        const auto strides = get_strides(6, elem_size, axes_order, in_shape);
 
         size_t off_0 = 0;
         for (size_t i = 0; i < out_shape[0]; i++) {
@@ -273,14 +269,14 @@ void reshape_6D(const char* in,
             out_shape[3],
             out_shape[4],
             out_shape[5],
-            [=, &in_axis_order, &in_shape, &out_shape](size_t i, size_t j, size_t k, size_t l, size_t m, size_t n) {
+            [=, &axes_order, &in_shape, &out_shape](size_t i, size_t j, size_t k, size_t l, size_t m, size_t n) {
                 size_t in_indexes[6];
-                in_indexes[in_axis_order[0]] = i;
-                in_indexes[in_axis_order[1]] = j;
-                in_indexes[in_axis_order[2]] = k;
-                in_indexes[in_axis_order[3]] = l;
-                in_indexes[in_axis_order[4]] = m;
-                in_indexes[in_axis_order[5]] = n;
+                in_indexes[axes_order[0]] = i;
+                in_indexes[axes_order[1]] = j;
+                in_indexes[axes_order[2]] = k;
+                in_indexes[axes_order[3]] = l;
+                in_indexes[axes_order[4]] = m;
+                in_indexes[axes_order[5]] = n;
                 size_t in_off =
                     ((((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3] +
                       in_indexes[3]) *
@@ -310,19 +306,19 @@ std::vector<size_t> reorder(const std::vector<size_t>& origin, const AxisVector&
 void reshape_ND(const char* in,
                 char* out,
                 const Shape& in_shape,
-                const AxisVector& in_axis_order,
+                const AxisVector& axes_order,
                 const Shape& out_shape,
                 size_t elem_size) {
     char* output = out;
     const char* const output_end = out + shape_size(out_shape) * elem_size;
-    const auto axis_strides = reorder(row_major_strides(in_shape), in_axis_order);
-    for (const auto& coordinate : CoordinateTransformBasic(reorder(in_shape, in_axis_order))) {
+    const auto axis_strides = reorder(row_major_strides(in_shape), axes_order);
+    for (const auto& coordinate : CoordinateTransformBasic(reorder(in_shape, axes_order))) {
         if (output >= output_end) {
             break;
         }
         const auto elem_offset = std::inner_product(begin(coordinate), end(coordinate), begin(axis_strides), 0ll);
         const auto input = in + elem_offset * elem_size;
-        std::memcpy(output, input, elem_size);
+        copy_element(output, input, elem_size);
         output += elem_size;
     }
 }
@@ -338,10 +334,10 @@ bool no_axis_reordering(const AxisVector& axis_order) {
 void reshape(const char* in,
              char* out,
              const Shape& in_shape,
-             const AxisVector& in_axis_order,
+             const AxisVector& axes_order,
              const Shape& out_shape,
              size_t elem_size) {
-    if (no_axis_reordering(in_axis_order)) {
+    if (no_axis_reordering(axes_order)) {
         std::memcpy(out, in, shape_size(in_shape) * elem_size);
         return;
     }
@@ -359,22 +355,22 @@ void reshape(const char* in,
         std::memcpy(out, in, in_shape[0] * elem_size);
         break;
     case 2:
-        reshape_2D(in, out, in_shape, in_axis_order, out_shape, elem_size);
+        reshape_2D(in, out, in_shape, axes_order, out_shape, elem_size);
         break;
     case 3:
-        reshape_3D(in, out, in_shape, in_axis_order, out_shape, elem_size);
+        reshape_3D(in, out, in_shape, axes_order, out_shape, elem_size);
         break;
     case 4:
-        reshape_4D(in, out, in_shape, in_axis_order, out_shape, elem_size);
+        reshape_4D(in, out, in_shape, axes_order, out_shape, elem_size);
         break;
     case 5:
-        reshape_5D(in, out, in_shape, in_axis_order, out_shape, elem_size);
+        reshape_5D(in, out, in_shape, axes_order, out_shape, elem_size);
         break;
     case 6:
-        reshape_6D(in, out, in_shape, in_axis_order, out_shape, elem_size);
+        reshape_6D(in, out, in_shape, axes_order, out_shape, elem_size);
         break;
     default:
-        reshape_ND(in, out, in_shape, in_axis_order, out_shape, elem_size);
+        reshape_ND(in, out, in_shape, axes_order, out_shape, elem_size);
         break;
     }
 }
