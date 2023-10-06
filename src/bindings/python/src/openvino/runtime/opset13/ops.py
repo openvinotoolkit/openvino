@@ -30,7 +30,7 @@ def bitwise_not(
 
     :param node: Tensor of integer or boolean datatype providing data.
     :param name: The optional new name for output node.
-    :return: The node performing bitwise NOT operation with given tensor.
+    :return: The node performing bitwise NOT operation on the given tensor.
     """
     return _get_node_factory_opset13().create(
         "BitwiseNot",
