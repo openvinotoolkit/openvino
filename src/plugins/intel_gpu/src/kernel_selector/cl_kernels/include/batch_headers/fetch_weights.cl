@@ -17,15 +17,15 @@
     )
 
 #define GET_FILTER_IS_OS_YX_OSV_ISV_INDEX(prefix, o, i, y, x, osv, isv) \
-    get_is_os_zyx_osv_isv_index(                                  \
-        o, i, 0, y, x,                                            \
+    get_os_is_zyx_isv_osv_index(                                  \
+        i, o, 0, y, x,                                            \
         CAT(prefix, _SIZE_X),                                     \
         CAT(prefix, _SIZE_Y),                                     \
         1,                                                        \
-        CAT(prefix, _IFM_NUM),                                    \
         CAT(prefix, _OFM_NUM),                                    \
-        osv,                                                      \
-        isv                                                       \
+        CAT(prefix, _IFM_NUM),                                    \
+        isv,                                                      \
+        osv                                                       \
     )
 
 #define GET_FILTER_IS_OS_YX_ISV_OSV_INDEX(prefix, o, i, y, x, osv, isv) \
@@ -132,32 +132,6 @@ inline uint get_os_is_zyx_isv_osv_index(uint o, uint i, uint z, uint y, uint x,
         z * z_pitch +
         is * is_pitch +
         os * os_pitch;
-
-    return output_offset;
-}
-
-inline uint get_is_os_zyx_osv_isv_index(uint o, uint i, uint z, uint y, uint x,
-    uint x_size, uint y_size, uint z_size, uint i_size, uint o_size, uint osv_size, uint isv_size)
-{
-    const uint isv = i % isv_size;
-    const uint osv = o % osv_size;
-    const uint is = i / isv_size;
-    const uint os = o / osv_size;
-
-    const uint x_pitch = osv_size * isv_size;
-    const uint y_pitch = x_pitch * x_size;
-    const uint z_pitch = y_pitch * y_size;
-    const uint os_pitch = z_pitch * z_size;
-    const uint is_pitch = os_pitch * ((o_size + osv_size - 1) / osv_size);
-
-    const uint output_offset =
-        isv +
-        osv * isv_size +
-        x * x_pitch +
-        y * y_pitch +
-        z * z_pitch +
-        os * os_pitch +
-        is * is_pitch;
 
     return output_offset;
 }

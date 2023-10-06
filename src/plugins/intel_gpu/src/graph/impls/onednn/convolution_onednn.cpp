@@ -69,23 +69,24 @@ protected:
         }
 
         if (instance.weights_zero_points_term()) {
-            auto w_zp = instance.weights_zero_points_memory();
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
-            args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
+            throw std::runtime_error("Convolution oneDNN primitive doesn't support asymmetric weights quantization");
+            // auto w_zp = instance.weights_zero_points_memory();
+            // dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
+            // args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
-                auto dnnl_mem = w_zp->get_onednn_memory(desc);
-                void *mapped_ptr = dnnl_mem.map_data();
-                if (mapped_ptr) {
-                    GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
-                    for (size_t i = 0; i < desc.get_size(); ++i) {
-                        GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-                    }
-                    GPU_DEBUG_TRACE_DETAIL << std::endl;
-                    dnnl_mem.unmap_data(mapped_ptr);
-                }
-            }
+            // GPU_DEBUG_GET_INSTANCE(debug_config);
+            // GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
+            //     auto dnnl_mem = w_zp->get_onednn_memory(desc);
+            //     void *mapped_ptr = dnnl_mem.map_data();
+            //     if (mapped_ptr) {
+            //         GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
+            //         for (size_t i = 0; i < desc.get_size(); ++i) {
+            //             GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+            //         }
+            //         GPU_DEBUG_TRACE_DETAIL << std::endl;
+            //         dnnl_mem.unmap_data(mapped_ptr);
+            //     }
+            // }
         }
 
         return args;

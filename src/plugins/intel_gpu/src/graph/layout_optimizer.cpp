@@ -1720,10 +1720,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<mvn>()) {
         auto input_layout = node.get_input_layout(0);
         if (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) {
-            if (input_layout.format.dimension() == 4)
-                expected = format::bfyx;
-            else if (input_layout.format.dimension() == 5)
-                expected = format::bfzyx;
+            expected = format::get_default_format(input_layout.get_rank());
         }
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
