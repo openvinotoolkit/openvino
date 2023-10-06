@@ -204,15 +204,16 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         for (auto& output : curr_node->input_values()) {
             if (is_output_foldable(output) && output.get_tensor().has_and_set_bound()) {
                 auto input_node = output.get_node_shared_ptr();
-                auto& rt_info = input_node->get_rt_info();
-                // Set fused names to precalculated
-                if (rt_info.count(PreFusedNames::get_type_info_static()))
-                    rt_info[ov::FusedNames::get_type_info_static()] = ov::FusedNames(
-                        rt_info.at(PreFusedNames::get_type_info_static()).as<PreFusedNames>().getVectorNames());
                 const auto& lower = output.get_tensor().get_lower_value();
                 auto replacement =
                     std::make_shared<ov::op::v0::Constant>(lower.get_element_type(), lower.get_shape(), lower.data());
                 if (replacement && !ov::is_type<ov::op::v0::Constant>(input_node)) {
+                    auto& rt_info = input_node->get_rt_info();
+                    // Set fused names to precalculated
+                    if (rt_info.count(PreFusedNames::get_type_info_static()))
+                        rt_info[ov::FusedNames::get_type_info_static()] = ov::FusedNames(
+                            rt_info.at(PreFusedNames::get_type_info_static()).as<PreFusedNames>().getVectorNames());
+
                     replacement->set_friendly_name(
                         friendly_name_from(*input_node, input_node->get_output_size(), output.get_index()));
 
