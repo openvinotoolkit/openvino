@@ -289,7 +289,7 @@ def test_evaluate_invalid_input_shape():
             [Tensor("float32", Shape([2, 1]))],
             [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
         )
-    assert "Could set new shape: [1,3]" in str(e.value)
+    assert "must be compatible with the partial shape: [2,1]" in str(e.value)
 
 
 def test_get_batch():
