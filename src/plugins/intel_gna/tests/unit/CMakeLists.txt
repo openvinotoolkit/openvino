@@ -17,20 +17,20 @@ if(NOT BUILD_SHARED_LIBS)
     set(exclude_path EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/(gna_api_stub|gna_wait_test|gna_export_import_test|gna_infer_request_test|gna_plugin_load_network_test|gna_mock_api_initializer|gna_extra_pwl_segments_tests).cpp")
 endif()
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ${exclude_path}
         LINK_LIBRARIES
             PRIVATE
-                ngraphFunctions
+                ov_models
                 gmock
                 common_test_utils_s
                 openvino_intel_gna_plugin_test_static
                 inference_engine_legacy_s
         ADD_CLANG_FORMAT
         LABELS
-            GNA
+            OV GNA
 )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

@@ -4,6 +4,7 @@
 
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "matchers/single_op/single_op.hpp"
 
@@ -34,10 +35,13 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
         if (std::find(ignored_ports.begin(), ignored_ports.end(), port_id) != ignored_ports.end()) {
             continue;
         }
-        const auto &cur_node_input_type = node->input_value(port_id).get_node_shared_ptr()->get_type_info();
-        const auto &ref_node_input_type = ref->input_value(port_id).get_node_shared_ptr()->get_type_info();
-        if (cur_node_input_type != ref_node_input_type) {
-            return false;
+        if (!ov::op::util::is_parameter(node) && !ov::op::util::is_parameter(ref) &&
+            !ov::op::util::is_constant(node) && !ov::op::util::is_constant(ref)) {
+            const auto &cur_node_input_type = node->input_value(port_id).get_node_shared_ptr()->get_type_info();
+            const auto &ref_node_input_type = ref->input_value(port_id).get_node_shared_ptr()->get_type_info();
+            if (cur_node_input_type != ref_node_input_type) {
+                return false;
+            }
         }
         if (node->get_input_tensor(port_id).get_partial_shape().rank() != ref->get_input_tensor(port_id).get_partial_shape().rank()) {
             return false;
@@ -59,6 +63,13 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
         return false;
     }
     for (size_t port_id = 0; port_id < node->get_output_size(); ++port_id) {
+        if (!ov::op::util::is_output(node) && !ov::op::util::is_output(ref)) {
+            const auto &cur_node_out_type = node->output(port_id).get_node_shared_ptr()->get_type_info();
+            const auto &ref_node_out_type = ref->output(port_id).get_node_shared_ptr()->get_type_info();
+            if (cur_node_out_type != ref_node_out_type) {
+                return false;
+            }
+        }
         if (node->get_output_tensor(port_id).get_element_type() != ref->get_output_tensor(port_id).get_element_type()) {
             return false;
         }
@@ -94,7 +105,7 @@ bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
     if (!match_inputs(node, ref)) {
         return false;
     }
-    if (!match_attrs(node, ref)) {
+    if (!match_attrs(node, ref) && !ov::op::util::is_parameter(node) && !ov::op::util::is_parameter(ref)) {
         return false;
     }
     if (!match_outputs(node, ref)) {
