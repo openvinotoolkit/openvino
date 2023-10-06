@@ -59,6 +59,10 @@ function(ov_generate_dev_package_config)
     endforeach()
     add_custom_target(ov_dev_targets DEPENDS ${all_dev_targets})
 
+    #
+    # OpenVINODeveloperPackageConfig.cmake for build tree
+    #
+
     set(PATH_VARS "OpenVINO_SOURCE_DIR")
     if(ENABLE_SAMPLES OR ENABLE_TESTS)
         list(APPEND PATH_VARS "gflags_BINARY_DIR")
@@ -77,6 +81,76 @@ function(ov_generate_dev_package_config)
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
                    "${CMAKE_BINARY_DIR}/OpenVINODeveloperPackageConfig-version.cmake" 
                    @ONLY)
+
+    #
+    # OpenVINODeveloperPackageConfig.cmake for installation tree
+    #
+
+    set(DEV_PACKAGE_ROOT_DIR developer_package)
+    set(DEV_PACKAGE_CMAKE_DIR ${DEV_PACKAGE_ROOT_DIR}/cmake)
+
+    set(DEVELOPER_PACKAGE_COMPONENT developer_package)
+
+    # create and install main developer package config files
+
+    # TODO: handle
+    # - replace OpenVINODevScripts finding not relative to 'OpenVINO_SOURCE_DIR'
+
+    function(_ov_generate_relocatable_openvino_developer_package_config)
+        set(_real_OpenVINO_SOURCE_DIR "${OpenVINO_SOURCE_DIR}")
+
+        # set OpenVINO source directory to cmake root of Developer Package to correctly find OpenVINODevScripts
+        set(OpenVINO_SOURCE_DIR "${DEV_PACKAGE_CMAKE_DIR}")
+
+        configure_package_config_file("${_real_OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINODeveloperPackageConfig.cmake.in"
+                                      "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
+                                      INSTALL_DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
+                                      PATH_VARS ${PATH_VARS}
+                                      NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+    endfunction()
+
+    _ov_generate_relocatable_openvino_developer_package_config()
+
+    configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
+                   "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake" 
+                   @ONLY)
+
+    install(FILES "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
+                  "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake"
+            DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
+            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+
+    # Install whole 'cmake/developer_package' folder
+
+    install(DIRECTORY "${OpenVINODeveloperPackage_DIR}"
+            DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
+            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+
+    # Install CMakeLists.txt to read cache variables from
+
+    install(FILES "${OpenVINO_BINARY_DIR}/CMakeCache.txt"
+            DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
+            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+
+    # export all sets of developer package targets
+
+    # foreach(component IN LISTS openvino_export_components)
+    #     # filter out targets which are installed by OpenVINOConfig.cmake static build case
+    #     set(exported_targets)
+    #     foreach(target IN LISTS ${component})
+    #         if(NOT target IN_LIST openvino_installed_targets)
+    #             list(APPEND exported_targets ${target})
+    #         endif()
+    #     endforeach()
+    #     # export all developer targets with prefix and use them during extra modules build
+    #     export(TARGETS ${exported_targets} NAMESPACE openvino::
+    #         APPEND FILE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
+    # endforeach()
+
+    # TODO: OpenCV
+
+    # TODO: gflags for samples
+
 endfunction()
 
 #
