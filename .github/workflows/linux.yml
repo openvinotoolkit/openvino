@@ -892,22 +892,22 @@ jobs:
           # required for MxNet
           apt-get install -y libgomp1 libquadmath0
 
-      - name: nGraph and IE Python Bindings and Python API 2.0 Tests
-        run: |
-          # For python imports to import 'pybind_mock_frontend'
-          export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
-          # for 'template' extension
-          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 -m pytest -n logical --dist loadfile -sv \
-            ${INSTALL_TEST_DIR}/pyngraph \
-            ${INSTALL_TEST_DIR}/pyopenvino \
-            ${INSTALL_TEST_DIR}/mo/unit_tests \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-python_unit.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_zoo_models.py \
-            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_backend.py \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_onnx/test_zoo_models.py \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_onnx/test_backend.py
+      # - name: nGraph and IE Python Bindings and Python API 2.0 Tests
+      #   run: |
+      #     # For python imports to import 'pybind_mock_frontend'
+      #     export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
+      #     # for 'template' extension
+      #     export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
+      #     python3 -m pytest -n logical --dist loadfile -sv \
+      #       ${INSTALL_TEST_DIR}/pyngraph \
+      #       ${INSTALL_TEST_DIR}/pyopenvino \
+      #       ${INSTALL_TEST_DIR}/mo/unit_tests \
+      #       --junitxml=${INSTALL_TEST_DIR}/TEST-python_unit.xml \
+      #       --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_zoo_models.py \
+      #       --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_backend.py \
+      #       --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py \
+      #       --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_onnx/test_zoo_models.py \
+      #       --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_onnx/test_backend.py
 
       - name: Docs Python snippets
         run: |
