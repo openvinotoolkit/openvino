@@ -186,19 +186,6 @@ public:
         m_allocator.deallocate(m_ptr, get_byte_size());
     }
 
-    void set_shape(ov::Shape new_shape) override {
-        if (m_shape == new_shape)
-            return;
-        auto old_byte_size = get_byte_size();
-        m_shape = std::move(new_shape);
-        if (get_byte_size() > old_byte_size) {
-            m_allocator.deallocate(m_ptr, old_byte_size);
-            m_ptr = m_allocator.allocate(get_byte_size());
-        }
-        m_strides.clear();
-        update_strides();
-    }
-
 private:
     Allocator m_allocator;
 };
