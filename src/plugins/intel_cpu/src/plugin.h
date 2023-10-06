@@ -37,7 +37,7 @@ public:
                                "",
                                false,
                                "Not Implemented",
-                               "import_model with RemoteContext is not supported by this plugin!");
+                               "import_model with RemoteContext is not supported by CPU plugin!");
     };
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
@@ -47,20 +47,20 @@ public:
                                "",
                                false,
                                "Not Implemented",
-                               "create_context  is not supported by this plugin!");
+                               "create_context  is not supported by CPU plugin!");
     };
     ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
         OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
                                "",
                                false,
                                "Not Implemented",
-                               "get_default_context  is not supported by this plugin!");
+                               "get_default_context  is not supported by CPU plugin!");
     };
 
 private:
     bool is_legacy_api() const;
 
-    ov::Any get_metric(const std::string& name, const ov::AnyMap& options) const;
+    ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
     ov::Any get_metric_legacy(const std::string& name, const ov::AnyMap& options) const;
 
     ov::Any get_property_legacy(const std::string& name, const ov::AnyMap& options) const;

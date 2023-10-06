@@ -537,7 +537,15 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
 
     if ((cloned_model->inputs().size() != model->inputs().size()) ||
         (cloned_model->outputs().size() != model->outputs().size())) {
-        OPENVINO_THROW("Input/output port size mismatched after transformation!");
+        OPENVINO_THROW("Input/output ports count mismatch between the original model and after the transformation! "
+                       "Original model inputs count: ",
+                       model->inputs().size(),
+                       " after the transformations ",
+                       cloned_model->inputs().size(),
+                       ". Original model outputs count:",
+                       model->inputs().size(),
+                       " after the transformations ",
+                       cloned_model->outputs().size());
     }
     // Make output ports have the same tensor names with original model
     for (size_t idx = 0; idx < cloned_model->outputs().size(); idx++) {
@@ -588,10 +596,12 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
 
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig._streams;
-        return decltype(ov::optimal_number_of_infer_requests)::value_type(streams); // ov::optimal_number_of_infer_requests has no negative values
+        return decltype(ov::optimal_number_of_infer_requests)::value_type(
+            streams);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
         const auto streams = engConfig.streamExecutorConfig._streams;
-        return decltype(ov::num_streams)::value_type(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+        return decltype(ov::num_streams)::value_type(
+            streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
         switch (affinity) {
@@ -633,7 +643,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
     }
-    return get_metric(name, options);
+    return get_ro_property(name, options);
 }
 
 ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& options) const {
@@ -692,7 +702,7 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-ov::Any Engine::get_metric(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
     if (is_legacy_api())
         return get_metric_legacy(name, options);
 
@@ -858,7 +868,7 @@ static const ov::Version version = {CI_BUILD_NUMBER, "openvino_arm_cpu_plugin"};
 #elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_intel_cpu_plugin"};
 #elif defined(OPENVINO_ARCH_RISCV64)
-static const Version version = {CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"};
+static const ov::Version version = {CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"};
 #else
 #error "Undefined system processor"
 #endif

@@ -6,6 +6,7 @@
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/reference/mod.hpp"
 #include "utils.hpp"
 

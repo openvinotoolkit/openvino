@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace reference {
@@ -60,11 +60,11 @@ struct BoxInfo {
 void nms_common_postprocessing(void* prois,
                                void* pscores,
                                void* pselected_num,
-                               const ngraph::element::Type& output_type,
+                               const element::Type& output_type,
                                const std::vector<float>& selected_outputs,
                                const std::vector<int64_t>& selected_indices,
                                const std::vector<int64_t>& valid_outputs,
-                               const ngraph::element::Type& selected_outputs_type);
+                               const element::Type& selected_outputs_type);
 
 }  // namespace nms_common
 }  // namespace reference

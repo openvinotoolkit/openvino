@@ -12,7 +12,6 @@
 #include "nodes/memory.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "precision_utils.h"
 #include "serialize.h"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
@@ -21,10 +20,6 @@
 #    include <threading/ie_tbb_streams_executor.hpp>
 #endif
 
-#include "ie_ngraph_utils.hpp"
-#include "ie_system_conf.h"
-#include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
@@ -209,23 +204,6 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     return get_graph()._graph.dump();
 }
 
-ov::Any CompiledModel::get_property(const std::string& name) const {
-    if (m_graphs.empty())
-        OPENVINO_THROW("No graph was found");
-
-    if (name == ov::loaded_from_cache) {
-        return m_loaded_from_cache;
-    }
-
-    Config engConfig = get_graph()._graph.getConfig();
-    auto option = engConfig._config.find(name);
-    if (option != engConfig._config.end()) {
-        return option->second;
-    }
-
-    return get_metric(name);
-}
-
 ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGuard& graph) const {
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (name == METRIC_KEY(NETWORK_NAME)) {
@@ -255,9 +233,20 @@ ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGua
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-ov::Any CompiledModel::get_metric(const std::string& name) const {
+ov::Any CompiledModel::get_property(const std::string& name) const {
     if (m_graphs.empty())
         OPENVINO_THROW("No graph was found");
+
+    if (name == ov::loaded_from_cache) {
+        return m_loaded_from_cache;
+    }
+
+    Config engConfig = get_graph()._graph.getConfig();
+    auto option = engConfig._config.find(name);
+    if (option != engConfig._config.end()) {
+        return option->second;
+    }
+
     // @todo Can't we just use local copy (_cfg) instead?
     auto graphLock = get_graph();
     const auto& graph = graphLock._graph;

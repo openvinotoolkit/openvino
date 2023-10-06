@@ -201,40 +201,6 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         });
     };
 
-    auto find_input_port_prec = [&](const std::string& name) -> ov::element::Type_t {
-        for (auto& it : model->inputs()) {
-            auto port_name = get_port_name(it, is_legacy_api);
-            if (port_name == name)
-                return it.get_element_type();
-            port_name = it.get_node_shared_ptr()->get_friendly_name();
-            if (port_name == name)
-                return it.get_element_type();
-        }
-        OPENVINO_THROW("Cannot find input port with name: ", name);
-    };
-    // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
-    for (auto &input : inputNodesMap) {
-        auto prec = InferenceEngine::details::convertPrecision(find_input_port_prec(input.first));
-        const auto precToSet = normalizeToSupportedPrecision(prec);
-        input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
-    }
-
-    auto find_output_port_prec = [&](const std::string& name) -> ov::element::Type_t {
-        for (auto& it : model->outputs()) {
-            auto port_name = get_port_name(it, is_legacy_api);
-            if (port_name == name)
-                return it.get_element_type();
-            port_name = it.get_node_shared_ptr()->get_friendly_name();
-            if (port_name == name)
-                return it.get_element_type();
-        }
-        OPENVINO_THROW("Cannot find output port with name: ", name);
-    };
-    for (auto &output : outputNodesMap) {
-        auto prec = InferenceEngine::details::convertPrecision(find_output_port_prec(output.first));
-        const auto precToSet = normalizeToSupportedPrecision(prec);
-        output.second->setOriginalInputPrecisionAtPort(0, precToSet);
-    }
     // enforce must be performed after inputs and outputs info are taken into account
     EnforceInferencePrecision();
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
@@ -311,12 +277,6 @@ void Graph::InitDescriptors() {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "InitDescriptors", "Prepare");
 
     for (auto &node : graphNodes) {
-        if (node->getType() == Type::Input && _normalizePreprocMap.find(node->getName()) != _normalizePreprocMap.end()) {
-            auto *inputNode = dynamic_cast<node::Input *>(node.get());
-            if (inputNode)
-                inputNode->withMeanImage();
-        }
-
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
         DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
         node->getSupportedDescriptors();
@@ -445,6 +405,33 @@ void Graph::CreatePrimitivesAndExecConstants() const {
     }
 }
 
+static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc, const dnnl::engine& eng) {
+    auto definedParentDesc = parentDesc->isDefined() ? parentDesc : MemoryDescUtils::makeDummyDesc(*parentDesc);
+    memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedParentDesc)->getDnnlDesc();
+
+    auto definedChildDesc = childDesc->isDefined() ? childDesc : MemoryDescUtils::makeDummyDesc(*childDesc);
+    memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedChildDesc)->getDnnlDesc();
+
+    dnnl::primitive_attr attr;
+
+    dnnl_primitive_desc_t result = nullptr;
+    auto status = dnnl_reorder_primitive_desc_create(&result, srcMemDesc.get(), eng.get(), dstMemDesc.get(), eng.get(),
+                                                     attr.get());
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    // temporary WA for slow FP32->FP16 conversion reorder in oneDNN on ARM
+    // pretend the reorder is not available to use Convert node instead
+    if (result && parse_impl_name(result->impl()->name()) == ref_any) {
+        dnnl_primitive_desc_destroy(result);
+        return false;
+    }
+#endif
+    if (result) {
+        dnnl_primitive_desc_destroy(result);
+    }
+
+    return dnnl_success == status;
+}
+
 void Graph::InitEdges() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitEdges");
 
@@ -482,7 +469,32 @@ void Graph::InitEdges() {
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
         if (reorderStatus == Edge::ReorderStatus::Regular) {
-            insertReorder(edge, false);
+            Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
+            // Check if there is a reorder that needs the precision conversion
+            if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
+                    !isReorderAvailable(edge->getInputPortDesc()->getMemDesc(),
+                                        edge->getOutputPortDesc()->getMemDesc(),
+                                        this->getEngine())) {
+                // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
+                const auto& inDesc = edge->getInputDesc();
+                const auto& outDesc = edge->getOutputDesc();
+
+                std::string convertName = edge->getParent()->getName() + "_" +
+                                          inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
+
+                auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
+                                                                       convertName, context);
+                convertNode->setDescs(inDesc, outDesc);
+                InsertNode(edge, convertNode, true);
+
+                //Check if reorder is still needed
+                reorderStatusInternal = convertNode->getChildEdgeAt(0)->needReorder();
+                if (reorderStatusInternal != Edge::ReorderStatus::No)
+                    edge = convertNode->getChildEdgeAt(0);
+            }
+            if (reorderStatusInternal != Edge::ReorderStatus::No) {
+                insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized);
+            }
             updateEdge(i);
         } else if (reorderStatus == Edge::ReorderStatus::Optimized) {
             insertReorder(edge, true);
@@ -856,13 +868,15 @@ bool Graph::ProcessDynNodes() {
     return result;
 }
 
-void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &in) {
+void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input) {
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
-    auto input = inputNodesMap.find(name);
-    if (input != inputNodesMap.end()) {
+    auto input_itr = inputNodesMap.find(name);
+    if (input_itr != inputNodesMap.end()) {
         auto create_mem_desc = [&](const ov::SoPtr<ITensor>& tensor) -> CpuBlockedMemoryDesc {
             auto element_type = tensor->get_element_type();
             auto shape = tensor->get_shape();
+            if (shape.empty())
+                shape = {tensor->get_size()};
             std::vector<size_t> blk_order(shape.size());
             std::iota(blk_order.begin(), blk_order.end(), 0);
             std::vector<size_t> dim_offset(shape.size(), 0);
@@ -885,46 +899,47 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &in)
                                    return byte_stride / element_type.size();
                                });
             }
-            InferenceEngine::TensorDesc tensorDesc(ie::details::convertPrecision(tensor->get_element_type()),
-                                                   shape,
-                                                   ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides});
+            InferenceEngine::TensorDesc tensorDesc(
+                InferenceEngine::details::convertPrecision(tensor->get_element_type()),
+                shape,
+                InferenceEngine::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides});
             return MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensorDesc);
         };
 
-        auto node = input->second;
+        auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
         const auto& outDims = node->getOutputShapeAtPort(0);
 
-        const void* ext_data_ptr = in->data();
+        const void* ext_data_ptr = input->data();
         void* inter_data_ptr = childEdge->getMemory().getData();
 
         // Convert data if precision mismatch
         auto& inter_mem_desc = childEdge->getMemory().getDesc();
         auto inter_precision = inter_mem_desc.getPrecision();
-        auto ext_precision = ie::details::convertPrecision(in->get_element_type());
-        auto ext_tensor_desc = create_mem_desc(in);
+        auto ext_precision = InferenceEngine::details::convertPrecision(input->get_element_type());
         if (ext_precision != inter_precision) {
             if ((inter_data_ptr == nullptr) || (ext_data_ptr == nullptr)) {
                 OPENVINO_THROW("Get tensor has no allocated memory");
             }
-            cpu_convert(ext_data_ptr, inter_data_ptr, ext_precision, inter_precision, in->get_size());
+            cpu_convert(ext_data_ptr, inter_data_ptr, ext_precision, inter_precision, input->get_size());
             DEBUG_LOG("push_input: convert data ", ext_precision, " to ", inter_precision);
 
             Memory mem(getEngine(), inter_mem_desc, inter_data_ptr, false);
             childEdge->getMemory().load(mem, false);
         } else if (ext_data_ptr != inter_data_ptr) {
+            auto ext_tensor_desc = create_mem_desc(input);
             Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
             childEdge->getMemory().load(ext_mem, false);
         }
 
         // todo: make sure 'name' exists in this map...
         if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
-            if (ext_tensor_desc.getPrecision() == InferenceEngine::Precision::FP32) {
+            if (input->get_element_type() == ov::element::f32) {
                 _normalizePreprocMap[name].NormalizeImage(outDims,
                                                           reinterpret_cast<float*>(inter_data_ptr),
-                                                          TensorDesc::getLayoutByDims(in->get_shape()));
+                                                          TensorDesc::getLayoutByDims(input->get_shape()));
             } else {
-                OPENVINO_THROW("Mean image of type ", ext_tensor_desc.getPrecision().name(), " is unsupported");
+                OPENVINO_THROW("Mean image of type ", input->get_element_type().get_type_name(), " is unsupported");
             }
         }
     } else {
@@ -933,7 +948,7 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &in)
 }
 
 // suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
-void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& out) {
+void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output) {
     if (!IsReady())
         OPENVINO_THROW("Wrong state. Topology not ready.");
 
@@ -943,9 +958,9 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         auto parentEdge = node->getParentEdgeAt(0);
         const auto& intr_blob = parentEdge->getMemory();
 
-        const auto ext_blob_map = out.find(name);
+        const auto ext_blob_map = output.find(name);
         const auto ext_blob = ext_blob_map->second;
-        if (ext_blob_map == out.end()) {
+        if (ext_blob_map == output.end()) {
             OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name.c_str());
         }
 
@@ -953,7 +968,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             InferenceEngine::details::convertPrecision(ext_blob->get_element_type()),
             ext_blob->get_shape(),
             InferenceEngine::TensorDesc::getLayoutByRank(ext_blob->get_shape().size()));
-        DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(out[name]->data()));
+        DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()));
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
 
@@ -977,12 +992,12 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(out[name]->data()),
-            " dims ", PartialShape(out[name]->get_shape()), " -> ", PartialShape(outDims),
+            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
+            " dims ", PartialShape(output[name]->get_shape()), " -> ", PartialShape(outDims),
             ", intr ptr ", intr_blob.getData(), " , parentedge's memory object ", parentEdge->getMemoryPtr().get());
             ext_blob->set_shape(outDims);
-            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(out[name]->data()),
-            " dims ", PartialShape(out[name]->get_shape()), ", intr ptr ", intr_blob.getData());
+            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
+            " dims ", PartialShape(output[name]->get_shape()), ", intr ptr ", intr_blob.getData());
             expectedDesc =
                 InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(ext_blob->get_element_type()),
                                             ext_blob->get_shape(),

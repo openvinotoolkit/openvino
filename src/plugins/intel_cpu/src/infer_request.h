@@ -46,7 +46,7 @@ public:
 
     void throw_if_canceled() const;
 
-protected:
+private:
     class OutputControlBlock {
     public:
         using MemMngrPtr = std::shared_ptr<MemoryMngrWithReuse>;
@@ -92,7 +92,6 @@ protected:
     };
     std::unordered_map<std::string, OutputControlBlock> outputControlBlocks;
 
-private:
     void create_infer_request();
 
     void pushInput(const std::string& inputName, ov::SoPtr<ov::ITensor>& inputBlob, InferenceEngine::Precision dataType);
@@ -115,8 +114,8 @@ private:
     std::vector<ov::SoPtr<ov::IVariableState>> m_memory_states;
     AsyncInferRequest* m_asyncRequest = nullptr;
 
-    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> m_input_ports_map;
-    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> m_output_ports_map;
+    std::unordered_map<std::string, ov::Output<const ov::Node>> m_input_ports_map;
+    std::unordered_map<std::string, ov::Output<const ov::Node>> m_output_ports_map;
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_outputs;
 
     void change_default_ptr();

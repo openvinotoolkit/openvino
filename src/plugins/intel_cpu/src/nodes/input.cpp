@@ -120,9 +120,6 @@ protected:
         uni_vtestps(b, c);                   // if ((!b & c) == 0) CF = 1 else CF = 0
     }
 
-    template<cpu_isa_t isa>
-    struct reg;
-
 protected:
     Label exit, has_subnormals, no_subnormals;
 
@@ -146,31 +143,22 @@ const uint32_t jit_has_subnormals_base::mantissa_mask_data[8] = {
     0x007fffff, 0x007fffff, 0x007fffff, 0x007fffff
 };
 
-template<>
-struct jit_has_subnormals_base::reg<cpu_isa_t::avx2> {
-    constexpr static uint32_t length = 8;
-    constexpr static const Xbyak::Ymm & rmm4 = Xbyak::util::ymm4;
-    constexpr static const Xbyak::Ymm & rmm5 = Xbyak::util::ymm5;
-    constexpr static const Xbyak::Ymm & rmm6 = Xbyak::util::ymm6;
-};
-
-template<>
-struct jit_has_subnormals_base::reg<cpu_isa_t::sse41> {
-    constexpr static uint32_t length = 4;
-    constexpr static const Xbyak::Xmm & rmm4 = Xbyak::util::xmm4;
-    constexpr static const Xbyak::Xmm & rmm5 = Xbyak::util::xmm5;
-    constexpr static const Xbyak::Xmm & rmm6 = Xbyak::util::xmm6;
-};
-
 template<cpu_isa_t isa>
 struct jit_has_subnormals : public jit_has_subnormals_base {
+    using Vmm = typename dnnl::impl::utils::conditional<isa == sse41, Xbyak::Xmm, Xbyak::Ymm>::type;
+
+    const Vmm rmm4 = Vmm(4);
+    const Vmm rmm5 = Vmm(5);
+    const Vmm rmm6 = Vmm(6);
+    const int length = isa == sse41 ? 4 : 8;
+
     void generate() override final { // NOLINT
-        size_t const vlen = reg<isa>::length;
+        size_t const vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
-        auto zero = reg<isa>::rmm4;
-        auto exponent_mask = reg<isa>::rmm5;
-        auto mantissa_mask = reg<isa>::rmm6;
+        auto zero = rmm4;
+        auto exponent_mask = rmm5;
+        auto mantissa_mask = rmm6;
 
         preamble();
 
@@ -268,7 +256,7 @@ void Input::cloneBlobIfRequired() {
     Shape shape(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
     const auto prec = convertPrecision(constOp->get_element_type());
     const size_t size = shape.getElementsCount();
-    DnnlBlockedMemoryDesc memDesc(prec, shape);
+    CpuBlockedMemoryDesc memDesc(prec, shape);
 
     bool needFlushDenormalsToZero = true;
     if (context->getConfig().DAZOn) {
@@ -420,10 +408,6 @@ Input::Input(MemoryDescPtr memDesc, const std::string& name, const std::string& 
     extMemDesc = memDesc;
 }
 
-void Input::withMeanImage() {
-    isMeanImage = true;
-}
-
 MemoryCPtr Input::getMemoryPtr() const {
     return memoryPtr;
 }
@@ -482,9 +466,6 @@ void Input::initSupportedPdDefault() {
 
     if (getType() == Type::Input || getType() == Type::MemoryInput) {
         auto precision = getOriginalOutputPrecisionAtPort(0);
-        if (precision == Precision::U16 || isMeanImage) {
-            precision = Precision::FP32;
-        }
 
         outPortConfs.push_back({LayoutType::ncsp, precision});
         if (!getParentEdges().empty()) {
@@ -492,7 +473,6 @@ void Input::initSupportedPdDefault() {
         }
     } else if (getType() == Type::Output) {
         auto precision = getOriginalInputPrecisionAtPort(0);
-        if (precision == Precision::U16) precision = Precision::FP32;
 
         inPortConfs.push_back({LayoutType::ncsp, precision});
     }

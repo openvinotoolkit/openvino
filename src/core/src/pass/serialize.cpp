@@ -51,14 +51,17 @@ struct Edge {
 // convention. Most of them are the same, but there are exceptions, e.g
 // Constant (OpenVINO Model name) and Const (IR name). If there will be more
 // discrepancies discovered, translations needs to be added here.
-const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Constant", "Const"},
-                                                                                     {"PRelu", "PReLU"},
-                                                                                     {"Relu", "ReLU"},
-                                                                                     {"Softmax", "SoftMax"}};
+const std::unordered_map<std::string, std::string>& get_translate_type_name_translator() {
+    static const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Constant", "Const"},
+                                                                                                {"PRelu", "PReLU"},
+                                                                                                {"Relu", "ReLU"},
+                                                                                                {"Softmax", "SoftMax"}};
+    return translate_type_name_translator;
+}
 
 std::string translate_type_name(const std::string& name) {
-    auto found = translate_type_name_translator.find(name);
-    if (found != end(translate_type_name_translator)) {
+    auto found = get_translate_type_name_translator().find(name);
+    if (found != end(get_translate_type_name_translator())) {
         return found->second;
     }
     return name;
@@ -738,6 +741,8 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "BIN";
     case ::ov::element::Type_t::boolean:
         return "BOOL";
+    case ::ov::element::Type_t::nf4:
+        return "NF4";
     default:
         OPENVINO_THROW("Unsupported precision: ", elem_type);
     }

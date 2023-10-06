@@ -401,9 +401,9 @@ static InferenceEngine::TensorDesc create_tensor_desc(const ov::SoPtr<ITensor>& 
                        });
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
-    return ie::TensorDesc{ie::details::convertPrecision(element_type),
+    return InferenceEngine::TensorDesc{InferenceEngine::details::convertPrecision(element_type),
                           shape,
-                          ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
+                          InferenceEngine::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
@@ -421,9 +421,9 @@ const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::
     auto name = get_port_name(port, m_is_legacy_api);
     bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
-        return m_input_ports_map[name];
+        return m_input_ports_map.at(name);
     } else {
-        return m_output_ports_map[name];
+        return m_output_ports_map.at(name);
     }
 }
 
@@ -448,17 +448,17 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         const auto netInPrc = port.get_element_type();
         if (netInPrc != tensor->get_element_type()) {
             IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << tensor->get_element_type()
-                                        << ", if model input tensor precision is: " << netInPrc;
+                                        << ", since the model input tensor precision is: " << netInPrc;
         }
 
         const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
         if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
-            OPENVINO_THROW("The tensor size is not equal to model, can't set input tensor with name: ",
+            OPENVINO_THROW("Can't set input tensor with name: ",
                            name,
-                           ", because model input (shape=",
+                           ", because the model input (shape=",
                            shape,
-                           ") and tensor (shape=",
+                           ") and the tensor (shape=",
                            vec2str(tensor->get_shape()),
                            ") are incompatible");
         }
@@ -466,9 +466,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         if (!isDynamic && ov::shape_size(shape.to_shape()) != tensor->get_size()) {
             OPENVINO_THROW("Can't set input tensor with name: ",
                            name,
-                           ", because model input size = ",
+                           ", because the model input size = ",
                            ov::shape_size(shape.to_shape()),
-                           " and tensor size = ",
+                           " and the tensor size = ",
                            tensor->get_size(),
                            " are different.");
         }
@@ -501,21 +501,21 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         const bool isDynamic = shape.is_dynamic();
 
         if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
-            OPENVINO_THROW("The tensor size is not equal to model, can't set output tensor with name: ",
+            OPENVINO_THROW("Can't set the output tensor with name: ",
                            name,
-                           ", because model output (shape=",
+                           ", because the model output tensor (shape=",
                            shape,
-                           ") and blob (shape=",
+                           ") and the current tensor (shape=",
                            vec2str(tensor->get_shape()),
                            ") are incompatible");
         }
 
         if (!isDynamic && ov::shape_size(shape.to_shape()) != tensor->get_size()) {
-            OPENVINO_THROW("Can't set output tensor with name: ",
+            OPENVINO_THROW("Can't set the output tensor with name: ",
                            name,
-                           ", because model output size = ",
+                           ", because the model output size = ",
                            ov::shape_size(shape.to_shape()),
-                           " and blob size = ",
+                           " and the currernt tensor size = ",
                            tensor->get_size(),
                            " are different.");
         }
@@ -549,41 +549,40 @@ void SyncInferRequest::init_tensor(const std::string& name) {
     if (!graph || !graph->IsReady())
         OPENVINO_THROW("Graph is not ready!");
 
-    if (name.empty())
-        OPENVINO_ASSERT("Can't prepare tensor for empty name! ");
+    OPENVINO_ASSERT(!name.empty(), "Can't prepare tensor for empty name! ");
 
     ov::SoPtr<ITensor> tensor;
     const auto& inMap = graph->inputNodesMap;
     auto input = inMap.find(name);
     if (input != inMap.end()) {
         auto input_port = m_input_ports_map.find(name);
-        if (input_port != m_input_ports_map.end()) {
-            auto& port = input_port->second;
-            tensor = ov::ISyncInferRequest::get_tensor(port);
+        OPENVINO_ASSERT(input_port != m_input_ports_map.end(),
+                        "Tensor with name: ",
+                        name,
+                        " exists in CPU plugin graph, but absents in network inputs");
+        auto& port = input_port->second;
+        tensor = ov::ISyncInferRequest::get_tensor(port);
 
-            if (!tensor) {
-                const auto& shape = port.get_partial_shape();
-                const bool isDynamic = shape.is_dynamic();
-                ov::Shape tensor_shape;
-                if (isDynamic) {
-                    tensor_shape = ov::Shape(shape.rank().get_length(), 0);
-                } else {
-                    tensor_shape = shape.to_shape();
-                }
-
-                tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
-                ov::ISyncInferRequest::set_tensor(port, tensor);
-
-                auto desc = create_tensor_desc(tensor);
-                if (!isDynamic &&
-                    desc == MemoryDescUtils::convertToTensorDesc(
-                                graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                    graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
-                    external_ptr[name] = tensor;
-                }
+        if (!tensor) {
+            const auto& shape = port.get_partial_shape();
+            const bool isDynamic = shape.is_dynamic();
+            ov::Shape tensor_shape;
+            if (isDynamic) {
+                tensor_shape = ov::Shape(shape.rank().get_length(), 0);
+            } else {
+                tensor_shape = shape.to_shape();
             }
-        } else {
-            OPENVINO_THROW("Tensor with name: ", name, " exists in CPU plugin graph, but absents in network inputs");
+
+            tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
+            ov::ISyncInferRequest::set_tensor(port, tensor);
+
+            auto desc = create_tensor_desc(tensor);
+            if (!isDynamic &&
+                desc == MemoryDescUtils::convertToTensorDesc(
+                            graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
+                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
+                external_ptr[name] = tensor;
+            }
         }
     }
 
@@ -597,7 +596,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                             name,
                             " exists in CPU plugin graph, but absents in network outputs");
             auto port = output_port->second;
-            const auto port_shape = port.get_partial_shape();
+            const auto& port_shape = port.get_partial_shape();
             const auto& graph_shape = output->second->getInputShapeAtPort(0);
 
             // WA, due to the transformations and constant folding, shape inference of the resulting model may
@@ -630,11 +629,6 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                         outputControlBlocks.emplace(std::make_pair(name, std::move(control_block)));
                 } else {
                     tensor_shape = shape.to_shape();
-
-                    InferenceEngine::TensorDesc desc(
-                        InferenceEngine::details::convertPrecision(port.get_element_type()),
-                        tensor_shape,
-                        InferenceEngine::TensorDesc::getLayoutByRank(tensor_shape.size()));
                     tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
                 }
                 ov::ISyncInferRequest::set_tensor(port, tensor);
@@ -660,7 +654,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                 if (netOutPrc != tensor->get_element_type()) {
                     IE_THROW(ParameterMismatch)
                         << "Network input and output use the same name: " << name
-                        << " but expect blobs with different precision: " << tensor->get_element_type()
+                        << " but expect tensor with different precision: " << tensor->get_element_type()
                         << " for input and " << netOutPrc << " for output.";
                 }
             }
