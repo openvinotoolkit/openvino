@@ -82,7 +82,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # Apple RPATH
 set_target_properties(${TARGET_NAME} PROPERTIES
-      INSTALL_RPATH "../../../../runtime/3rdparty/tbb/lib")
+      INSTALL_RPATH "@loader_path/../../../../runtime/3rdparty/tbb/lib")
 
 ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
 
