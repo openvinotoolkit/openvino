@@ -15,7 +15,10 @@ struct ModelInfo {
     std::set<std::string> model_paths;
     size_t this_op_cnt, total_op_cnt, model_priority;
 
-    ModelInfo(const std::string& model_path = "", size_t total_ops_in_model = 1, size_t this_ops_in_model = 1, size_t _model_priority = 1) :
+    ModelInfo(const std::string& model_path = "",
+              size_t total_ops_in_model = 1,
+              size_t this_ops_in_model = 1,
+              size_t _model_priority = 1) :
         total_op_cnt(total_ops_in_model), this_op_cnt(this_ops_in_model), model_priority(_model_priority) {
             model_paths = model_path.empty() ? std::set<std::string>() : std::set<std::string>({ model_path }) ;
     }

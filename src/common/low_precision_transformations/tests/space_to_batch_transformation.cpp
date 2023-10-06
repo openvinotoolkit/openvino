@@ -16,8 +16,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/space_to_batch_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/space_to_batch.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 
 using namespace testing;

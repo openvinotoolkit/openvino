@@ -11,10 +11,10 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/check.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
