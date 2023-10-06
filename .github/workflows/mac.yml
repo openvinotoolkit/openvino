@@ -160,11 +160,11 @@ jobs:
       - name: Pack Artifacts
         run: |
           pushd ${{ env.INSTALL_DIR }}
-            tar -czvf ${{ env.BUILD_DIR }}/openvino_package.tar.gz --exclude=tests *
+            tar -czvf ${{ env.BUILD_DIR }}/openvino_package.tar.gz *
           popd
 
           pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -czvf ${{ env.BUILD_DIR }}/openvino_tests.tar.gz tests/
+            tar -czvf ${{ env.BUILD_DIR }}/openvino_tests.tar.gz *
           popd
 
       - name: Cmake & Build - OpenVINO Contrib

@@ -29,6 +29,10 @@ if(ANDROID)
     set(CMAKE_DISABLE_FIND_PACKAGE_PkgConfig ON)
 endif()
 
+if(APPLE)
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+endif()
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if (NOT BIN_FOLDER)
