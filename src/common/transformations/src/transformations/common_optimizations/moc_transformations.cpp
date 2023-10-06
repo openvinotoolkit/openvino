@@ -160,7 +160,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, PullThroughReduce)
 
     // GRUCellFusion and SequenceFusion should be before NopElimination
-    REGISTER_PASS(manager, GRUCellFusion)
+    //REGISTER_PASS(manager, GRUCellFusion)
     REGISTER_PASS(manager, SequenceFusion)
 
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
