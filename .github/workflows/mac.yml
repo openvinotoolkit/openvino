@@ -71,6 +71,7 @@ jobs:
         run: |
           brew install ninja
           brew install coreutils
+          brew install scons
 
       - uses: actions/setup-python@v4
         with:
@@ -79,11 +80,8 @@ jobs:
       - name: Install python dependencies
         run: |
           # For Python API
-          python3 -m pip install --upgrade pip
-          python3 -m pip install Scons
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements_test.txt
 
           # For running Python API tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
@@ -96,15 +94,6 @@ jobs:
 
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
-
-      - name: Install MO dependencies
-        run: |
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
 
       #
       # Build
@@ -130,18 +119,10 @@ jobs:
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_PYTHON=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
-            -DBUILD_SHARED_LIBS=ON \
-            -DENABLE_ONEDNN_FOR_GPU=OFF \
-            -DENABLE_OV_ONNX_FRONTEND=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
-            -DENABLE_SYSTEM_SNAPPY=ON \
-            -DENABLE_SYSTEM_TBB=ON \
-            -DENABLE_DEBUG_CAPS=ON \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
 
@@ -209,9 +190,6 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/build
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-
       #
       # Initialize OpenVINO
       #
@@ -272,12 +250,6 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
           
           echo "DYLD_LIBRARY_PATH: ${DYLD_LIBRARY_PATH}"
-          echo "DYLD_LIBRARY_PATH: ${DYLD_LIBRARY_PATH}"
-          echo "DYLD_LIBRARY_PATH: ${DYLD_LIBRARY_PATH}"
-          
-          pushd ${INSTALL_DIR}/runtime/lib/intel64/Release
-            install_name_tool -id "@rpath/libopenvino.2320.dylib" libopenvino.2320.dylib
-          popd
 
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
             --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
@@ -302,10 +274,6 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
 
     steps:
-      - name: Create Directories
-        run: |
-          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-
       #
       # Dependencies
       #
@@ -487,18 +455,8 @@ jobs:
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
-      BUILD_DIR: ${{ github.workspace }}/build
-      DATA_PATH: ${{ github.workspace }}/testdata
-      MODELS_PATH: ${{ github.workspace }}/testdata
-      OV_TEMP: ${{ github.workspace }}/openvino_temp
-
     steps:
-      - name: Create Directories
-        run: |
-          mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
@@ -584,7 +542,8 @@ jobs:
         if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }}:${{ env.INSTALL_TEST_DIR }}/python/openvino:$PYTHONPATH
+          export DYLD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:${{ env.INSTALL_TEST_DIR }}/python/openvino:$DYLD_LIBRARY_PATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
         env:
