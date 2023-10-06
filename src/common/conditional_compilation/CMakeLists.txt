@@ -22,10 +22,14 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
     endif()
     find_host_package (Python3 REQUIRED COMPONENTS Interpreter)
 
-    file(GLOB STAT_FILES ${SELECTIVE_BUILD_STAT})
+    set(FIXED_SELECTIVE_BUILD_STAT ${SELECTIVE_BUILD_STAT})
+    if(WIN32)
+        string(REGEX REPLACE "\\\\" "/" FIXED_SELECTIVE_BUILD_STAT "${SELECTIVE_BUILD_STAT}")
+    endif()
+    file(GLOB STAT_FILES ${FIXED_SELECTIVE_BUILD_STAT})
 
     if(NOT STAT_FILES)
-        message(FATAL_ERROR "SELECTIVE_BUILD_STAT path doesn't contain valid csv files!")
+        message(FATAL_ERROR "SELECTIVE_BUILD_STAT (${SELECTIVE_BUILD_STAT}) path doesn't contain valid csv files!")
     endif()
 
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD)
