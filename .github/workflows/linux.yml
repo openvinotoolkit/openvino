@@ -929,7 +929,9 @@ jobs:
       - name: PyTorch Layer Tests
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+          export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
+
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml > TEST-pytorch.log &
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -937,9 +939,9 @@ jobs:
       - name: TensorFlow 1 Layer Tests - TF FE
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          # requires 'unit_tests' from 'tools/mo'
-          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
+
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml > TEST-tf_fe.log &
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -947,9 +949,9 @@ jobs:
       - name: TensorFlow 2 Layer Tests - TF FE
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          # requires 'unit_tests' from 'tools/mo'
-          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
+
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml > TEST-tf2_fe.log &
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -957,20 +959,24 @@ jobs:
       - name: JAX Layer Tests - TF FE
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
+          export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
+
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml > TEST-jax.log &
         env:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
+
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml > TEST-tf_Roll.log &
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
-              --ir_version=11 --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml -k "sigmoid"
+              --ir_version=11 --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml -k "sigmoid"  > TEST-tf2_Activation.log &
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -978,7 +984,9 @@ jobs:
       - name: TensorFlow Lite Layer Tests - TFL FE
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
+
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml > TEST-tfl_fe.log &
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -990,6 +998,16 @@ jobs:
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
             --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_zoo_models.py \
             --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_backend.py
+      - name: Wait test results
+        run: |
+          wait
+          cat TEST-tfl_fe.log
+          cat TEST-tf2_Activation.log
+          cat TEST-tf_Roll.log
+          cat TEST-jax.log
+          cat TEST-tf2_fe.log
+          cat TEST-tf_fe.log
+          cat TEST-pytorch.log
 
       - name: MO Python API Tests
         run: |
