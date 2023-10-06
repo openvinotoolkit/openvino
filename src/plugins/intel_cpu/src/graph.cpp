@@ -868,10 +868,10 @@ bool Graph::ProcessDynNodes() {
     return result;
 }
 
-void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &input) {
+void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input) {
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
-    auto _input = inputNodesMap.find(name);
-    if (_input != inputNodesMap.end()) {
+    auto input_itr = inputNodesMap.find(name);
+    if (input_itr != inputNodesMap.end()) {
         auto create_mem_desc = [&](const ov::SoPtr<ITensor>& tensor) -> CpuBlockedMemoryDesc {
             auto element_type = tensor->get_element_type();
             auto shape = tensor->get_shape();
@@ -899,13 +899,14 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &inp
                                    return byte_stride / element_type.size();
                                });
             }
-            InferenceEngine::TensorDesc tensorDesc(ie::details::convertPrecision(tensor->get_element_type()),
-                                                   shape,
-                                                   ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides});
+            InferenceEngine::TensorDesc tensorDesc(
+                InferenceEngine::details::convertPrecision(tensor->get_element_type()),
+                shape,
+                InferenceEngine::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides});
             return MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensorDesc);
         };
 
-        auto node = _input->second;
+        auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
         const auto& outDims = node->getOutputShapeAtPort(0);
 
@@ -915,7 +916,7 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &inp
         // Convert data if precision mismatch
         auto& inter_mem_desc = childEdge->getMemory().getDesc();
         auto inter_precision = inter_mem_desc.getPrecision();
-        auto ext_precision = ie::details::convertPrecision(input->get_element_type());
+        auto ext_precision = InferenceEngine::details::convertPrecision(input->get_element_type());
         if (ext_precision != inter_precision) {
             if ((inter_data_ptr == nullptr) || (ext_data_ptr == nullptr)) {
                 OPENVINO_THROW("Get tensor has no allocated memory");

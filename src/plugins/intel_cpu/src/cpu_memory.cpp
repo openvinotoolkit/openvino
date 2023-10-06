@@ -23,6 +23,16 @@ using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
+template <>
+DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
+    return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
+}
+
+template <>
+BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
+    return MemoryDescUtils::convertToBlockedMemoryDesc(getDescPtr());
+}
+
 namespace {
     inline void setSubnormalsToZero(float *data, size_t size) {
         uint32_t *u32data = reinterpret_cast<uint32_t *>(data);
@@ -35,29 +45,28 @@ namespace {
 
     void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
         node::Reorder::reorderData(src, dst);
-        try {
-            auto src_data_type = DnnlExtensionUtils::IEPrecisionToDataType(src.getDesc().getPrecision());
-            auto dst_data_type = DnnlExtensionUtils::IEPrecisionToDataType(dst.getDesc().getPrecision());
-            if (src_data_type != memory::data_type::f32 || dst_data_type == memory::data_type::bf16) {
-                return;
-            }
-        } catch (ov::Exception&) {
+
+        if (!ftz) {
             return;
         }
-
-        auto localPrim = dst.getPrimitive();
-        auto desc = localPrim.get_desc();
-        dnnl::impl::memory_desc_wrapper wrapper(desc.get());
-
-        if (ftz
-            && !wrapper.is_wino_desc()
-            // WA: to avoid zero filling auxiliary information
-            && !wrapper.is_rnn_packed_desc()) {
-            // Internal blobs don't have strides yet.
-            auto *memData = static_cast<float *>(dst.getData());
-            memData += wrapper.offset0();
-            setSubnormalsToZero(memData, dst.getSize() / sizeof(float));
+        if (src.getDesc().getPrecision() != Precision::FP32 || dst.getDesc().getPrecision() == Precision::BF16) {
+            return;
         }
+        size_t offset = 0;
+        if (dst.getDesc().getType() & MemoryDescType::Dnnl) {
+            // here we can safely cast to DnnlMemoryDesc
+            auto dnnl_desc = dst.getDescWithType<DnnlMemoryDesc>();
+            auto desc = dnnl_desc->getDnnlDesc();
+            dnnl::impl::memory_desc_wrapper wrapper(desc.get());
+            offset = wrapper.offset0();
+            if (wrapper.is_wino_desc() || wrapper.is_rnn_packed_desc()) {
+                return;
+            }
+        }
+        // actual FTZ
+        auto* memData = static_cast<float*>(dst.getData());
+        memData += offset;
+        setSubnormalsToZero(memData, dst.getSize() / sizeof(float));
     }
 
 }   // namespace
@@ -127,16 +136,6 @@ void Memory::redefineDesc(MemoryDescPtr desc) {
     }
 
     this->create(desc, nullptr, false);
-}
-
-template<>
-DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
-    return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
-}
-
-template<>
-BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
-    return MemoryDescUtils::convertToBlockedMemoryDesc(getDescPtr());
 }
 
 void Memory::update() {

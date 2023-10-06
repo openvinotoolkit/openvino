@@ -81,7 +81,6 @@ private:
      */
     GraphGuard::Lock get_graph() const;
 
-    ov::Any get_metric(const std::string& name) const;
     ov::Any get_metric_legacy(const std::string& name, const GraphGuard& graph) const;
 };
 

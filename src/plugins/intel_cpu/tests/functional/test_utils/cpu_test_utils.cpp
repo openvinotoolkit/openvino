@@ -219,10 +219,8 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
                 ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
             }
 
-            // CPU plugin API 2.0 requires input/output port preciosion not changes, which cause primType changes,
-            // disable primType checking temporarily.
-            // auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
-            // ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected : " << primType << " Expected : " << selectedType;
+            auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected : " << primType << " Expected : " << selectedType;
         }
     }
 }

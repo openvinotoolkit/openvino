@@ -128,8 +128,7 @@ void Convert::initSupportedPrimitiveDescriptors() {
         auto creators = BlockedDescCreator::getCommonCreators();
 
         // As long as convert is placed right before the output, only planar layout makes sense since the output tensor
-        // is always in a planar layout (ngraph limitation), so there is no reason to convert in nspc (per Chanel
-        // layout) and reorder to the planar one.
+        // is always in a planar layout (ngraph limitation), so there is no reason to convert in any other layout.
         bool hasOutputChild = false;
         for (auto& childEdge : getChildEdgesAtPort(0)) {
             if (Type::Output == childEdge->getChild()->getType()) {

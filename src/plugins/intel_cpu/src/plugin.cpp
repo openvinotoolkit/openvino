@@ -589,10 +589,12 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
 
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig._streams;
-        return decltype(ov::optimal_number_of_infer_requests)::value_type(streams); // ov::optimal_number_of_infer_requests has no negative values
+        return decltype(ov::optimal_number_of_infer_requests)::value_type(
+            streams);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
         const auto streams = engConfig.streamExecutorConfig._streams;
-        return decltype(ov::num_streams)::value_type(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+        return decltype(ov::num_streams)::value_type(
+            streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
         switch (affinity) {
@@ -634,7 +636,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
     }
-    return get_metric(name, options);
+    return get_ro_property(name, options);
 }
 
 ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& options) const {
@@ -693,7 +695,7 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-ov::Any Engine::get_metric(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
     if (is_legacy_api())
         return get_metric_legacy(name, options);
 
