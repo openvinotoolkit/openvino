@@ -24,6 +24,10 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
 
     file(GLOB STAT_FILES ${SELECTIVE_BUILD_STAT})
 
+    if(NOT STAT_FILES)
+        message(FATAL_ERROR "SELECTIVE_BUILD_STAT path doesn't contain valid csv files!")
+    endif()
+
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD)
 
     if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
