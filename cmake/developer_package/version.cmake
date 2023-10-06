@@ -166,6 +166,8 @@ endif()
 ov_parse_ci_build_number()
 
 macro (addVersionDefines FILE)
+    message(WARNING "'addVersionDefines' is deprecated. Please, use 'ov_add_version_defines'")
+
     set(__version_file ${FILE})
     if(NOT IS_ABSOLUTE ${__version_file})
         set(__version_file "${CMAKE_CURRENT_SOURCE_DIR}/${__version_file}")
@@ -173,7 +175,7 @@ macro (addVersionDefines FILE)
     if(NOT EXISTS ${__version_file})
         message(FATAL_ERROR "${FILE} does not exists in current source directory")
     endif()
-    foreach (VAR ${ARGN})
+    foreach (VAR IN LISTS ARGN)
         if (DEFINED ${VAR} AND NOT "${${VAR}}" STREQUAL "")
             set_property(
                 SOURCE ${__version_file}

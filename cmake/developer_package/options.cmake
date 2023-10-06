@@ -55,7 +55,7 @@ endfunction()
 
 # deprecated
 
-macro (ie_option variable description value)
+macro (ie_option)
     message(WARNING "'ie_option' is deprecated, please, use 'ov_option' instead")
     ov_option(${ARGN})
 endmacro()
