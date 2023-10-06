@@ -647,7 +647,7 @@ jobs:
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
-      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\run_parallel.py"
+      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
       PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache.lst"
 
     steps:
@@ -687,7 +687,7 @@ jobs:
         shell: cmd
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\requirements.txt
+          python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@v3
