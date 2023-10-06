@@ -4,16 +4,11 @@
 
 #pragma once
 
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <ngraph/runtime/host_tensor.hpp>
 #include <vector>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
 namespace ov {
 namespace reference {
@@ -32,7 +27,7 @@ void experimental_detectron_proposals_single_image(
 
 void experimental_detectron_proposals_single_image_postprocessing(void* prois,
                                                                   void* pscores,
-                                                                  const ngraph::element::Type output_type,
+                                                                  const element::Type output_type,
                                                                   const std::vector<float>& output_rois,
                                                                   const std::vector<float>& output_scores,
                                                                   const Shape& output_rois_shape,

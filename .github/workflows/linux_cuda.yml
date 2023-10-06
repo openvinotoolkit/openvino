@@ -57,13 +57,13 @@ jobs:
           apt install -y git curl git git-lfs unzip wget
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -115,7 +115,7 @@ jobs:
             -DENABLE_INTEL_GPU=OFF \
             -DENABLE_INTEL_GNA=OFF \
             -DENABLE_OV_TF_FRONTEND=OFF \
-            -DENABLE_OV_TF_LITE=OFF \
+            -DENABLE_OV_TF_LITE_FRONTEND=OFF \
             -DENABLE_OV_PADDLE_FRONTEND=OFF \
             -DENABLE_OV_PYTORCH_FRONTEND=OFF \
             -DENABLE_OV_ONNX_FRONTEND=OFF \

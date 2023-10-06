@@ -24,6 +24,7 @@ OpenVINO™ Runtime can infer deep learning models using the following device ty
 * :doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`
 * :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`
 * :doc:`GNA <openvino_docs_OV_UG_supported_plugins_GNA>`
+* :doc:`Arm® CPU <openvino_docs_OV_UG_supported_plugins_CPU>`
 
 For a more detailed list of hardware, see :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
 
