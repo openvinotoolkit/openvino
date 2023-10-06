@@ -60,11 +60,6 @@ void Squeeze::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-bool Squeeze::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_Squeeze_visit_attributes);
-    return true;
-}
-
 std::shared_ptr<Node> Squeeze::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Squeeze_clone_with_new_inputs);
     check_new_args_count(this, new_args);
