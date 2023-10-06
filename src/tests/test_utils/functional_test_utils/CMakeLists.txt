@@ -4,7 +4,7 @@
 
 set(TARGET_NAME func_test_utils)
 
-addIeTarget(
+ov_add_target(
     NAME ${TARGET_NAME}
     TYPE STATIC
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
