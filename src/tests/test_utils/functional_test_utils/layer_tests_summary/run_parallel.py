@@ -331,7 +331,7 @@ class TestParallelRunner:
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     elif test_unit == constants.TEST_UNIT_NAME:
-                        tests_dict[real_test_name] = -1
+                        tests_dict[real_test_name] = 1
                         self._total_test_cnt += 1
                     elif test_unit == constants.SUITE_UNIT_NAME:
                         tests_dict[test_suite] = tests_dict.get(test_suite, 0) + 1
