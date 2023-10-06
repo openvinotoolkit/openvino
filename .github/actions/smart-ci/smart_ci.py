@@ -14,41 +14,63 @@ class ComponentConfig:
 
     def __init__(self, config: dict, schema: dict, all_possible_components: set):
         self.config = config
+        self.log = logging.getLogger(self.__class__.__name__)
+        self.all_defined_components = set(self.config.keys())  # already defined in components.yml
+        self.all_possible_components = all_possible_components  # can be added to components.yml (based on labeler.yml)
+
         self.validate(schema, all_possible_components)
 
     def validate(self, schema: dict, all_possible_components: set) -> None:
         """Validates syntax of configuration file"""
         jsonschema.validate(self.config, schema)
 
-        all_defined_components = set(self.config.keys())
-        invalid_components = all_defined_components.difference(all_possible_components)
+        invalid_components = self.all_defined_components.difference(all_possible_components)
         if invalid_components:
             error_msg = f"components are invalid: " \
-                        f"{invalid_components} not listed in labeler config: {all_possible_components}"
+                        f"{invalid_components} are not listed in labeler config: {all_possible_components}"
             raise jsonschema.exceptions.ValidationError(error_msg)
 
         for component_name, data in self.config.items():
             dependent_components = set(data.get('dependent_components', dict()).keys()) if data else set()
+
             invalid_dependents = dependent_components.difference(all_possible_components)
             if invalid_dependents:
                 error_msg = f"dependent_components of {component_name} are invalid: " \
-                            f"{invalid_dependents} not listed in components config: {all_possible_components}"
+                            f"{invalid_dependents} are not listed in components config: {all_possible_components}"
                 raise jsonschema.exceptions.ValidationError(error_msg)
 
     def get_affected_components(self, changed_components_names: set) -> dict:
         """Returns changed components, their dependencies and validation scope for them"""
         affected_components = dict()
+
+        # If some changed components were not defined in config or no changed components detected at all,
+        # run full scope for everything (just in case)
+        changed_not_defined_components = changed_components_names.difference(self.all_defined_components)
+        if not changed_components_names or changed_not_defined_components:
+            self.log.info(f"Changed components {changed_not_defined_components} are not defined in smart ci config, "
+                          "run full scope")
+            affected_components.update({name: self.FullScope for name in self.all_possible_components})
+            return affected_components
+
+        # Else check changed components' dependencies and add them to affected
         for name in changed_components_names:
-            dependent_components = self.config.get(name, dict()).get('dependent_components', dict())
+            component_data = self.config.get(name, dict())
+            dependent_components = component_data.get('dependent_components', dict()) if component_data else dict()
             affected_components.update({dep_name: scope if scope else self.FullScope
                                         for dep_name, scope in dependent_components.items()})
-        # We want to run the full scope if the component was explicitly changed
-        # TODO: also run full scope for everything if "GHA CI" has changed
+
+        # If the component was explicitly changed, run full scope for it
         affected_components.update({name: self.FullScope for name in changed_components_names})
+        self.log.info(f"Changed components with dependencies: {affected_components}")
+
+        # For non-affected components that are not defined in config - run full scope
+        affected_components.update({name: self.FullScope for name in self.all_possible_components
+                                    if name not in self.all_defined_components})
+
         return affected_components
 
     def get_static_data(self, components_names: set, data_key: str, default: str = None) -> dict:
-        """Returns generic static data defined for each component, if any"""
+        """Returns requested generic static data defined for each component"""
         data = {name: self.config[name].get(data_key, default) for name in components_names}
         return data
 
@@ -92,7 +114,7 @@ def parse_args():
 
 def init_logger():
     logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                        format='%(asctime)s %(name)-15s %(levelname)-8s %(message)s',
                         datefmt='%m-%d-%Y %H:%M:%S')
 
 
@@ -135,18 +157,18 @@ def main():
 
     with open(Path(args.labeler_config), 'r') as labeler_file:
         labeler_config = yaml.safe_load(labeler_file)
-    all_possible_components = set([component_name_from_label(label, args.pattern) for label in labeler_config.keys()])
+
+    all_possible_components = set()
+    for label in labeler_config.keys():
+        component_name = component_name_from_label(label, args.pattern)
+        if component_name:
+            all_possible_components.add(component_name)
 
     cfg = ComponentConfig(components_config, schema, all_possible_components)
     affected_components = cfg.get_affected_components(changed_component_names)
 
     # Syntactic sugar for easier use in GHA pipeline
-    all_components_output = {component: True for component in all_defined_components}
     affected_components_output = {name: {s: True for s in scope} for name, scope in affected_components.items()}
-
-    # We need to know which components were defined in a config to be able to apply smart ci rules only to them.
-    # For those not defined we want to run everything by default
-    set_github_output("all_components", json.dumps(all_components_output))
     set_github_output("affected_components", json.dumps(affected_components_output))
 
 

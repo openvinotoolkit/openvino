@@ -33,7 +33,6 @@ jobs:
   Smart_CI:
     runs-on: ubuntu-latest
     outputs:
-      all_components: "${{ steps.smart_ci.outputs.all_components }}"
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
     steps:
       - name: checkout action
@@ -314,8 +313,7 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       BUILD_DIR: /__w/openvino/openvino/build
-    if: "!fromJSON(needs.smart_ci.outputs.all_components).samples || 
-         fromJSON(needs.smart_ci.outputs.affected_components).samples"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).samples
 
     steps:
       - name: Create Directories
@@ -698,8 +696,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).LP_transformations || 
-             fromJSON(needs.smart_ci.outputs.affected_components).LP_transformations.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).LP_transformations.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 \
@@ -712,8 +709,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ConditionalCompilation.xml
 
       - name: IR frontend tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).IR_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).IR_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).IR_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
@@ -727,8 +723,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).ONNX_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
@@ -736,32 +731,28 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).TF_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_common_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).TF_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).TFL_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).transformations || 
-             fromJSON(needs.smart_ci.outputs.affected_components).transformations.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).transformations.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
@@ -774,32 +765,28 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CommonUtilTests.xml
 
       - name: Snippets func tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).CPU || 
-             fromJSON(needs.smart_ci.outputs.affected_components).CPU.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).CPU || 
-             fromJSON(needs.smart_ci.outputs.affected_components).CPU.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
 
       - name: AUTO unit tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).AUTO || 
-             fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
 
       - name: Template plugin func tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).TEMPLATE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).TEMPLATE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TEMPLATE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
@@ -807,24 +794,21 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
       - name: Inference Engine C API tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).C_API || 
-             fromJSON(needs.smart_ci.outputs.affected_components).C_API.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/InferenceEngineCAPITests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceEngineCAPITests.xml
 
       - name: OpenVINO C API tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).C_API || 
-             fromJSON(needs.smart_ci.outputs.affected_components).C_API.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch func tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).AUTO_BATCH || 
-             fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml
@@ -835,15 +819,13 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).HETERO || 
-             fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero func tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).HETERO || 
-             fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml
@@ -947,8 +929,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).Python_API || 
-             fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
         run: |
           # For python imports to import 'pybind_mock_frontend'
           export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
@@ -970,8 +951,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Model Optimizer unit tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).MO || 
-             fromJSON(needs.smart_ci.outputs.affected_components).MO.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: |
           export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
           # required for MxNet
@@ -981,8 +961,7 @@ jobs:
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).PyTorch_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -993,8 +972,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 1 Layer Tests - TF FE
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).TF_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -1005,8 +983,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - TF FE
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).TF_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -1017,8 +994,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).TF_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -1028,8 +1004,7 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).TF_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -1037,8 +1012,7 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).TF_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -1050,8 +1024,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow Lite Layer Tests - TFL FE
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).TFL_FE || 
-             fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -1062,8 +1035,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: MO Python API Tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).MO || 
-             fromJSON(needs.smart_ci.outputs.affected_components).MO.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -1085,8 +1057,7 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: OVC unit tests
-        if: "!fromJSON(needs.smart_ci.outputs.all_components).MO || 
-             fromJSON(needs.smart_ci.outputs.affected_components).MO.test"
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: |
           # For python imports to import 'pybind_mock_frontend'
           export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
@@ -1116,8 +1087,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
-    if: "!fromJSON(needs.smart_ci.outputs.all_components).CPU || 
-         fromJSON(needs.smart_ci.outputs.affected_components).CPU.test"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Create Directories
         run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
@@ -1205,8 +1175,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-    if: "!fromJSON(needs.smart_ci.outputs.all_components).TF_FE || 
-         fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
 
     steps:
       - name: Create Directories
@@ -1284,8 +1253,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-    if: "!fromJSON(needs.smart_ci.outputs.all_components).PyTorch_FE || 
-         fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
 
     steps:
       - name: Check sudo

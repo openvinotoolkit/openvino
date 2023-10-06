@@ -1,3 +1,5 @@
+CI:  # TODO: remove
+
 CPU:
   dependent_components:
     Python_API: [build, test]
