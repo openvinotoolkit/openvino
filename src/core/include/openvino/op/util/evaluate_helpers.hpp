@@ -12,7 +12,7 @@ namespace op {
 namespace util {
 
 /**
- * @brief Get the tensors shapes as ov::PartialSHape
+ * @brief Get the tensors shapes as ov::PartialShape
  *
  * @param tensors  Input tensors vector to get its shapes.
  * @return Vector of partial shapes sam size as input tensor vector.
