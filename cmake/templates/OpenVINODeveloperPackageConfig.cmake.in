@@ -6,7 +6,12 @@
 
 include(CMakeFindDependencyMacro)
 
-set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@")
+set(OV_RELOCATABLE_DEVELOPER_PACKAGE "@OV_RELOCATABLE_DEVELOPER_PACKAGE@")
+
+if(NOT OV_RELOCATABLE_DEVELOPER_PACKAGE)
+    # OpenVINO_SOURCE_DIR is not available when we transter developer package to another machine
+    set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@")
+endif()
 
 # Variables to export in plugin's projects
 
@@ -45,15 +50,6 @@ message(" ")
 # activate generation of plugins.xml
 set(ENABLE_PLUGINS_XML ON)
 
-# for samples in 3rd party projects
-if(ENABLE_SAMPLES)
-    if("@gflags_FOUND@")
-        set_and_check(gflags_DIR "@gflags_DIR@")
-    else()
-        set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
-    endif()
-endif()
-
 # Disable warning as error for private components
 set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 
@@ -82,13 +78,24 @@ foreach(component @openvino_export_components@)
     # endif()
 endforeach()
 
-# inherit OpenCV from main OpenVINO project if enabled
-if("@OpenCV_FOUND@")
-    # Use OpenCV_DIR from cache only if user doesn't define OpenCV_DIR
-    if(NOT OpenCV_DIR)
-        load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+if(NOT OV_RELOCATABLE_DEVELOPER_PACKAGE)
+    # inherit OpenCV from main OpenVINO project if enabled
+    if("@OpenCV_FOUND@")
+        # Use OpenCV_DIR from cache only if user doesn't define OpenCV_DIR
+        if(NOT OpenCV_DIR)
+            load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+        endif()
+        find_dependency(OpenCV)
     endif()
-    find_dependency(OpenCV)
+
+    # for samples in 3rd party projects
+    if(ENABLE_SAMPLES)
+        if("@gflags_FOUND@")
+            set_and_check(gflags_DIR "@gflags_DIR@")
+        else()
+            set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
+        endif()
+    endif()
 endif()
 
 #

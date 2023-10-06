@@ -93,16 +93,16 @@ function(ov_generate_dev_package_config)
 
     # create and install main developer package config files
 
-    # TODO: handle
-    # - replace OpenVINODevScripts finding not relative to 'OpenVINO_SOURCE_DIR'
-
     function(_ov_generate_relocatable_openvino_developer_package_config)
-        set(_real_OpenVINO_SOURCE_DIR "${OpenVINO_SOURCE_DIR}")
+        # add a flag to denote developer package is relocable
+        set(OV_RELOCATABLE_DEVELOPER_PACKAGE ON)
 
-        # set OpenVINO source directory to cmake root of Developer Package to correctly find OpenVINODevScripts
-        set(OpenVINO_SOURCE_DIR "${DEV_PACKAGE_CMAKE_DIR}")
+        # overwrite OpenVINO_SOURCE_DIR to make it empty - it's not available for relocatable developer package
+        set(openvino_developer_package_config_template
+            "${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINODeveloperPackageConfig.cmake.in")
+        set(OpenVINO_SOURCE_DIR "")
 
-        configure_package_config_file("${_real_OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINODeveloperPackageConfig.cmake.in"
+        configure_package_config_file("${openvino_developer_package_config_template}"
                                       "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
                                       INSTALL_DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
                                       PATH_VARS ${PATH_VARS}
@@ -122,8 +122,8 @@ function(ov_generate_dev_package_config)
 
     # Install whole 'cmake/developer_package' folder
 
-    install(DIRECTORY "${OpenVINODeveloperPackage_DIR}"
-            DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
+    install(DIRECTORY "${OpenVINODevScripts_DIR}/"
+            DESTINATION "${DEV_PACKAGE_CMAKE_DIR}/cmake/developer_package"
             COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
 
     # Install CMakeLists.txt to read cache variables from
