@@ -4,7 +4,7 @@
 
 find_package(Git QUIET)
 
-function (branchName VAR)
+function (ov_branch_name VAR)
     if(NOT DEFINED repo_root)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
@@ -18,7 +18,7 @@ function (branchName VAR)
     endif()
 endfunction()
 
-function (commitHash VAR)
+function (ov_commit_hash VAR)
     if(NOT DEFINED repo_root)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
@@ -32,7 +32,7 @@ function (commitHash VAR)
     endif()
 endfunction()
 
-function (commitNumber VAR)
+function (ov_commit_number VAR)
     if(NOT DEFINED repo_root)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
@@ -47,7 +47,9 @@ function (commitNumber VAR)
 endfunction()
 
 macro(ov_parse_ci_build_number)
+    # default value
     set(OpenVINO_VERSION_BUILD 000)
+    set(CI_BUILD_NUMBER "2023.2.0-2112-fdvfdv")
 
     if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)\-.*")
         set(OpenVINO_VERSION_MAJOR ${CMAKE_MATCH_1})
@@ -67,8 +69,9 @@ macro(ov_parse_ci_build_number)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
 
-    macro(ov_get_hpp_version)
+    function(ov_compare_version_with_headers)
         if(NOT DEFINED OpenVINO_SOURCE_DIR)
+            # if we are not in OpenVINO source tree, let's ignore this comparison
             return()
         endif()
 
@@ -102,30 +105,27 @@ macro(ov_parse_ci_build_number)
         endforeach()
 
         # detect commit number
-        commitNumber(OpenVINO_VERSION_BUILD_HPP)
-        if(OpenVINO_VERSION_BUILD STREQUAL "000" AND DEFINED OpenVINO_VERSION_BUILD_HPP)
-            set(OpenVINO_VERSION_BUILD "${OpenVINO_VERSION_BUILD_HPP}")
-        else()
-            set(OpenVINO_VERSION_BUILD_HPP "${OpenVINO_VERSION_BUILD}")
+        ov_commit_number(OpenVINO_VERSION_BUILD_FROM_GIT)
+
+        if(OpenVINO_VERSION_BUILD STREQUAL "000" AND DEFINED OpenVINO_VERSION_BUILD_FROM_GIT)
+            set(OpenVINO_VERSION_BUILD "${OpenVINO_VERSION_BUILD_FROM_GIT}")
+            set(OpenVINO_VERSION_BUILD "${OpenVINO_VERSION_BUILD}" PARENT_SCOPE)
+            set(OpenVINO_VERSION_BUILD_HPP "${OpenVINO_VERSION_BUILD_FROM_GIT}")
         endif()
 
-        set(ov_hpp_version_is_found ON)
-    endmacro()
-
-    # detect OpenVINO version via openvino/core/version.hpp and ie_version.hpp
-    ov_get_hpp_version()
-
-    if(ov_hpp_version_is_found)
         foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH OpenVINO_VERSION_BUILD)
             if(DEFINED ${var} AND NOT ${var} EQUAL ${var}_HPP)
                 message(FATAL_ERROR "${var} parsed from CI_BUILD_NUMBER (${${var}}) \
                     and from openvino/core/version.hpp (${${var}_HPP}) are different")
             else()
                 # CI_BUILD_NUMBER is not defined well, take info from openvino/core/version.hpp as a baseline
-                set(${var} ${${var}_HPP})
+                set(${var} ${${var}_HPP} PARENT_SCOPE)
             endif()
         endforeach()
-    endif()
+    endfunction()
+
+    # detect OpenVINO version via openvino/core/version.hpp and ie_version.hpp
+    ov_compare_version_with_headers()
 
     set(OpenVINO_SOVERSION "${OpenVINO_VERSION_MAJOR}${OpenVINO_VERSION_MINOR}${OpenVINO_VERSION_PATCH}")
     string(REGEX REPLACE "^20" "" OpenVINO_SOVERSION "${OpenVINO_SOVERSION}")
@@ -140,8 +140,8 @@ macro(ov_parse_ci_build_number)
     if(NOT the_whole_version_is_defined_by_ci)
         # create CI_BUILD_NUMBER
 
-        branchName(GIT_BRANCH)
-        commitHash(GIT_COMMIT_HASH)
+        ov_branch_name(GIT_BRANCH)
+        ov_commit_hash(GIT_COMMIT_HASH)
 
         if(NOT GIT_BRANCH STREQUAL "master")
             set(GIT_BRANCH_POSTFIX "-${GIT_BRANCH}")

@@ -123,7 +123,7 @@ function(ov_generate_dev_package_config)
     # Install whole 'cmake/developer_package' folder
 
     install(DIRECTORY "${OpenVINODevScripts_DIR}/"
-            DESTINATION "${DEV_PACKAGE_CMAKE_DIR}/cmake/developer_package"
+            DESTINATION "${DEV_PACKAGE_CMAKE_DIR}/"
             COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
 
     # Install CMakeLists.txt to read cache variables from
@@ -134,18 +134,33 @@ function(ov_generate_dev_package_config)
 
     # export all sets of developer package targets
 
-    # foreach(component IN LISTS openvino_export_components)
-    #     # filter out targets which are installed by OpenVINOConfig.cmake static build case
-    #     set(exported_targets)
-    #     foreach(target IN LISTS ${component})
-    #         if(NOT target IN_LIST openvino_installed_targets)
-    #             list(APPEND exported_targets ${target})
-    #         endif()
-    #     endforeach()
-    #     # export all developer targets with prefix and use them during extra modules build
-    #     export(TARGETS ${exported_targets} NAMESPACE openvino::
-    #         APPEND FILE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
-    # endforeach()
+    foreach(component IN LISTS openvino_export_components)
+        if(component MATCHES ".*_legacy$")
+            continue()
+        endif()
+
+        # filter out targets which are installed by OpenVINOConfig.cmake static build case
+        set(install_targets)
+        foreach(target IN LISTS ${component})
+            if(NOT target IN_LIST openvino_installed_targets)
+                list(APPEND install_targets ${target})
+            endif()
+        endforeach()
+
+        # install all developer targets with prefix and use them during extra modules build
+        set(export_set ov_${component}_dev_targets)
+
+        install(TARGETS ${install_targets} EXPORT ${export_set}
+                RUNTIME DESTINATION ${DEV_PACKAGE_ROOT_DIR}/bin COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
+                ARCHIVE DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
+                LIBRARY DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+
+        install(EXPORT ${export_set}
+                FILE ${export_set}.cmake
+                NAMESPACE openvino::
+                DESTINATION ${DEV_PACKAGE_ROOT_DIR}/cmake
+                COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+    endforeach()
 
     # TODO: OpenCV
 

@@ -27,14 +27,14 @@ endmacro()
 set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
 set(CMAKE_MODULE_PATH "${OpenVINODevScripts_DIR}")
 
-function(set_ci_build_number)
+function(ov_set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
     foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_SOVERSION OpenVINO_VERSION_SUFFIX OpenVINO_VERSION_BUILD
                 OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
-        if(NOT DEFINED ${var})
-            message(FATAL_ERROR "${var} version component is not defined")
-        endif()
+        # if(NOT DEFINED ${var})
+        #     message(FATAL_ERROR "${var} version component is not defined")
+        # endif()
         set(${var} "${${var}}" PARENT_SCOPE)
     endforeach()
 endfunction()
@@ -44,7 +44,7 @@ ov_set_if_not_defined(Python3_FIND_STRATEGY LOCATION)
 
 include(features)
 
-set_ci_build_number()
+ov_set_ci_build_number()
 
 #
 # Detect target

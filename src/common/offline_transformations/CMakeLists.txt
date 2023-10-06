@@ -18,14 +18,15 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create static library
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(openvino::${TARGET_NAME} ALIAS ${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev openvino::itt openvino::pugixml openvino::reference
-                                             openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev openvino::itt openvino::pugixml
+                                             openvino::reference openvino::runtime)
 
 set_source_files_properties(INCLUDE_DIRECTORIES
     $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

@@ -50,4 +50,4 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     SOURCE_DIRECTORIES ${UTIL_INCLUDE_DIR})
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS ${TARGET_NAME})
