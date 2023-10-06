@@ -12,4 +12,8 @@ TEST_P(ScatterElementsUpdateLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(ScatterElementsUpdate12LayerTest, CompareWithRefs) {
+    Run();
+};
+
 }  // namespace LayerTestsDefinitions

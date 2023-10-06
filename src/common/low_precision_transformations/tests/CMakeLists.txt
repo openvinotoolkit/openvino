@@ -17,5 +17,5 @@ ov_add_test_target(
         gmock
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
     LABELS
-        LP_TRANSFORMATIONS
+        OV UNIT LP_TRANSFORMATIONS
 )
