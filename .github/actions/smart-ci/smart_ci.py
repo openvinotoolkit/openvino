@@ -10,7 +10,7 @@ from github import Github, PullRequest
 
 
 class ComponentConfig:
-    FullScope = ['build', 'test']
+    FullScope = {'build', 'test'}
 
     def __init__(self, config: dict, schema: dict, all_possible_components: set):
         self.config = config
@@ -56,8 +56,9 @@ class ComponentConfig:
         for name in changed_components_names:
             component_data = self.config.get(name, dict())
             dependent_components = component_data.get('dependent_components', dict()) if component_data else dict()
-            affected_components.update({dep_name: scope if scope else self.FullScope
-                                        for dep_name, scope in dependent_components.items()})
+            for dep_name, scope in dependent_components.items():
+                _scope = affected_components.get(dep_name, set()).union(scope)
+                affected_components.update({dep_name: _scope if scope else self.FullScope})
 
         # If the component was explicitly changed, run full scope for it
         affected_components.update({name: self.FullScope for name in changed_components_names})
