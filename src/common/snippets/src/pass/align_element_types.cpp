@@ -67,9 +67,9 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
             // Note: RankNormalization of is designed for shape-inference purposes only.
             // It does not process any data (nor does it emit any code), so it doesn't require Convert operations
             if (is_type<op::RankNormalization>(first_child)) {
-                OPENVINO_ASSERT(consumer_inputs.size() == 1 && first_child->get_output_size() == 1,
-                                "RankNormalization expression is supposed to be the only consumer and to have one output port");
+                OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
                 parent_output = first_child->output(0);
+                consumer_inputs = parent_output.get_target_inputs();
             }
 
             // Snippets supports Transpose only after Parameter or before Result nodes

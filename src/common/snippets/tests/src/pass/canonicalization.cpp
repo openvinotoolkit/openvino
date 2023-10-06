@@ -23,14 +23,6 @@ void normalizeParameter(const std::shared_ptr<ov::opset1::Parameter>& par, size_
 }
 } // namespace
 
-class SKIP_CanonicalizationTests : public CanonicalizationTests {
-public:
-    void SetUp() override {
-        GTEST_SKIP();
-    }
-    void TearDown() override{};
-};
-
 void CanonicalizationTests::prepare_functions(const std::vector<VectorDims>& shapes) {
     std::vector<PartialShape> pshapes;
     pshapes.reserve(shapes.size());

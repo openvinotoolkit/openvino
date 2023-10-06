@@ -34,8 +34,7 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
     auto consumer_inputs = data_expr->get_output_port_connector(0)->get_consumers();
     const auto& first_consumer = consumer_inputs.begin()->get_expr();
     if (is_type<op::RankNormalization>(first_consumer->get_node())) {
-        OPENVINO_ASSERT(consumer_inputs.size() == 1 && first_consumer->get_output_count() == 1,
-                        "RankNormalization expression is supposed to be the only consumer and to have one output port");
+        OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
         data_expr = first_consumer;
     }
     const auto& loop_manager = linear_ir.get_loop_manager();
