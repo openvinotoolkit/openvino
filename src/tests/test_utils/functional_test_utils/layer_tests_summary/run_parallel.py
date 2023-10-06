@@ -305,7 +305,7 @@ class TestParallelRunner:
                 os.remove(test_list_file_name)
             except Exception as err:
                 logger.warning(f"Imposible to remove {test_list_file_name}. Error: {err}")
-        command_to_get_test_list = self._command + f' --gtest_list_tests >> {test_list_file_name}'
+        command_to_get_test_list = self._command + f' --gtest_list_tests > {test_list_file_name}'
         logger.info(f"Get test list using command: {command_to_get_test_list}")
         run_res = run(command_to_get_test_list, check=True, shell=True)
         if run_res.stderr != "" and run_res.stderr != None:
@@ -331,7 +331,7 @@ class TestParallelRunner:
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     elif test_unit == constants.TEST_UNIT_NAME:
-                        tests_dict[real_test_name] = 1
+                        tests_dict[real_test_name] = -1
                         self._total_test_cnt += 1
                     elif test_unit == constants.SUITE_UNIT_NAME:
                         tests_dict[test_suite] = tests_dict.get(test_suite, 0) + 1
@@ -643,8 +643,8 @@ class TestParallelRunner:
                                     test_results[dir] += 1
                                 else:
                                     test_results[dir] = 1
-                                if dir != "passed" and ref_k != None:
-                                    fix_priority.append((ref_k, test_name))
+                                if dir != "passed":
+                                    fix_priority.append((ref_k or 0, test_name))
                                 ref_k = None
                                 test_cnt_real_saved_now += 1
                                 test_name = None
