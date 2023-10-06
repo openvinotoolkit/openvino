@@ -658,23 +658,23 @@ void ov::infer_auto_padding(const Shape& image_shape,
                             CoordinateDiff& padding_below) {
     const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
     // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
-    ngraph::try_apply_auto_padding(image_dims,
-                                   filter_shape,
-                                   filter_strides,
-                                   filter_dilations,
-                                   pad_type,
-                                   padding_above,
-                                   padding_below);
+    ov::util::try_apply_auto_padding(image_dims,
+                                     filter_shape,
+                                     filter_strides,
+                                     filter_dilations,
+                                     pad_type,
+                                     padding_above,
+                                     padding_below);
 }
 
-bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
-                                    const Shape& filter_shape,
-                                    const Strides& filter_strides,
-                                    const Strides& filter_dilations,
-                                    const op::PadType pad_type,
-                                    CoordinateDiff& padding_above,
-                                    CoordinateDiff& padding_below) {
-    NGRAPH_CHECK(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
+bool ov::util::try_apply_auto_padding(const PartialShape& image_shape,
+                                      const Shape& filter_shape,
+                                      const Strides& filter_strides,
+                                      const Strides& filter_dilations,
+                                      const op::PadType pad_type,
+                                      CoordinateDiff& padding_above,
+                                      CoordinateDiff& padding_below) {
+    OPENVINO_ASSERT(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
 
     if (image_shape.rank().is_dynamic()) {
         return false;
@@ -698,6 +698,22 @@ bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
         }
     }
     return true;
+}
+
+bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
+                                    const Shape& filter_shape,
+                                    const Strides& filter_strides,
+                                    const Strides& filter_dilations,
+                                    const op::PadType pad_type,
+                                    CoordinateDiff& padding_above,
+                                    CoordinateDiff& padding_below) {
+    return ov::util::try_apply_auto_padding(image_shape,
+                                            filter_shape,
+                                            filter_strides,
+                                            filter_dilations,
+                                            pad_type,
+                                            padding_above,
+                                            padding_below);
 }
 
 ngraph::PartialShape ngraph::infer_slice_shape(const Node* node,

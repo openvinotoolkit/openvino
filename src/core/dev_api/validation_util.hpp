@@ -4,10 +4,17 @@
 
 #pragma once
 
-#include "openvino/core/node.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace util {
+
 /// \brief Normalize value to the max if value is negative.
 ///
 /// \param value  Input value to normalize.
@@ -47,5 +54,29 @@ OPENVINO_API std::shared_ptr<op::v0::Constant> constantfold_subgraph(const Outpu
  * @return Shared pointer to constant data or nullptr.
  */
 OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
+
+/// \brief Apply auto padding to padding_above and padding_below inputs
+///        if all needed informations are known.
+///
+/// \param image_shape       The shape of input image.
+/// \param filter_shape      The shape of filter input.
+/// \param filter_strides    The strides of applied padding.
+/// \param filter_dilations  The dilations of applied padding.
+/// \param pad_type          The type of padding. Auto padding is applied only
+///                          for SAME_UPPER and SAME_LOWER mode.
+/// \param padding_above     The beginning of padding shape.
+/// \param end               The beginning of padding shape.
+///
+/// \return true if auto padding was applied successfully (all needed informations such as
+///         spatial dims are known), false otherwise.
+OPENVINO_API
+bool try_apply_auto_padding(const PartialShape& image_shape,
+                            const Shape& filter_shape,
+                            const Strides& filter_strides,
+                            const Strides& filter_dilations,
+                            const op::PadType pad_type,
+                            CoordinateDiff& padding_above,
+                            CoordinateDiff& padding_below);
+
 }  // namespace util
 }  // namespace ov
