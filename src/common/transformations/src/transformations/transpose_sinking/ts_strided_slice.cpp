@@ -122,7 +122,7 @@ bool align_inputs(const std::shared_ptr<ov::op::v1::StridedSlice>& strided_slice
         // of new axes (expected_size), then we have to extend it with stub values to successfully
         // execute Gather operation.
         // If this number more than the expected_size, then we have to cut the unnecessary masks/inputs values.
-        if (num_elements != expected_size) {
+        if (num_elements != static_cast<int64_t>(expected_size)) {
             auto input_const = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
             if (!input_const) {
                 return false;
