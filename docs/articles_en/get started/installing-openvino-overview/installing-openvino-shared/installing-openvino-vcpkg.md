@@ -60,7 +60,7 @@ Installing OpenVINO Runtime
 
    .. code-block:: sh
 
-      vcpkg install openvino:x64-windows-static
+      vcpkg install 'openvino:x64-windows-static'
 
 Note that the vcpkg installation means building all packages and dependencies from source, 
 which means the compiler stage will require additional time to complete the process. 
@@ -93,7 +93,7 @@ which means the compiler stage will require additional time to complete the proc
 
    .. code-block:: sh
 
-      vcpkg install openvino:x64-linux-release-dynamic
+      vcpkg install 'openvino:x64-linux-release-dynamic'
 
 
 After installation, you can use OpenVINO in your product's cmake scripts:
