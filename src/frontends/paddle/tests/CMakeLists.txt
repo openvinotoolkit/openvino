@@ -19,9 +19,8 @@ ov_add_test_target(
             gtest_main_manifest
             func_test_utils
         ADD_CLANG_FORMAT
-        LABELS
-            OV
-            PADDLE_FE
+        # LABELS
+        #     OV UNIT PADDLE_FE
 )
 
 # Test model generating
