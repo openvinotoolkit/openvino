@@ -18,6 +18,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4286")
 endif()
 
+set(CMAKE_SKIP_INSTALL_RPATH OFF)
+
 add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:ngraph_obj>
     $<TARGET_OBJECTS:ngraph_obj_version>
@@ -77,6 +79,10 @@ ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME} EXTRA ${TBB_IMPORTED_
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+# Apple RPATH
+set_target_properties(${TARGET_NAME} PROPERTIES
+      INSTALL_RPATH "../../../../runtime/3rdparty/tbb/lib")
 
 ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
 
