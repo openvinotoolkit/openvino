@@ -4,8 +4,6 @@
 
 #include "openvino/op/embedding_segments_sum.hpp"
 
-#include <ngraph/validation_util.hpp>
-
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "itt.hpp"
 

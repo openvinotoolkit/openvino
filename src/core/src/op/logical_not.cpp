@@ -46,13 +46,13 @@ bool evaluate_not(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_not, boolean, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, f32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_not, boolean, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_not, i32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_not, i64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_not, u32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_not, u64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_not, f16, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_not, f32, arg0, out, count);
     default:
         rc = false;
         break;

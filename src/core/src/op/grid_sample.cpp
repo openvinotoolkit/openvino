@@ -119,7 +119,7 @@ bool evaluate_grid_sample(const ngraph::HostTensorPtr& output,
                           const op::v9::GridSample::Attributes& attributes) {
     auto rc = true;
     switch (output->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_grid_sample, f32, output, data, grid, attributes);
+        OPENVINO_TYPE_CASE(evaluate_grid_sample, f32, output, data, grid, attributes);
     default:
         rc = false;
         break;

@@ -35,13 +35,13 @@ bool evaluate_less(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1, element::boolean);
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_less, boolean, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_less, i32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_less, i64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_less, u32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_less, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_less, f16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_less, f32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_less, boolean, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_less, i32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_less, i64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_less, u32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_less, u64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_less, f16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_less, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;

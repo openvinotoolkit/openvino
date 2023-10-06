@@ -94,12 +94,12 @@ bool evaluate_maxpool(const HostTensorPtr& arg,
     auto arg_shape = arg->get_shape();
 
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_maxpool, i32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, i64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, u32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, u64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, f16, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, f32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, i32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, i64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, u32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, u64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, f16, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, f32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
     default:
         rc = false;
         break;
@@ -185,20 +185,20 @@ bool evaluate_maxpool(const HostTensorPtr& data,
                       const ov::Shape& pads_begin,
                       const ov::Shape& pads_end,
                       const int64_t axis) {
-#define EVAL_MAX_POOL_8(data_et, index_et)            \
-    NGRAPH_2_TYPES_CASE(maxpool_v8::evaluate_maxpool, \
-                        data_et,                      \
-                        index_et,                     \
-                        data,                         \
-                        values,                       \
-                        indices,                      \
-                        out_shape,                    \
-                        kernel,                       \
-                        strides,                      \
-                        dilations,                    \
-                        pads_begin,                   \
-                        pads_end,                     \
-                        axis)
+#define EVAL_MAX_POOL_8(data_et, index_et)              \
+    OPENVINO_2_TYPES_CASE(maxpool_v8::evaluate_maxpool, \
+                          data_et,                      \
+                          index_et,                     \
+                          data,                         \
+                          values,                       \
+                          indices,                      \
+                          out_shape,                    \
+                          kernel,                       \
+                          strides,                      \
+                          dilations,                    \
+                          pads_begin,                   \
+                          pads_end,                     \
+                          axis)
 
     bool rc = true;
     switch (indices->get_element_type()) {

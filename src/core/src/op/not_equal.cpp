@@ -36,13 +36,13 @@ bool evaluate_not_equal(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1, element::boolean);
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_not_equal, boolean, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_not_equal, i32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_not_equal, i64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_not_equal, u32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_not_equal, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_not_equal, f16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_not_equal, f32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_not_equal, boolean, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_not_equal, i32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_not_equal, i64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_not_equal, u32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_not_equal, u64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_not_equal, f16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_not_equal, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;

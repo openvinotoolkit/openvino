@@ -24,7 +24,7 @@ void op::v0::HardSigmoid::validate_and_infer_types() {
     if (alpha_pshape.is_static()) {
         const auto alpha_shape = alpha_pshape.to_shape();
         NODE_VALIDATION_CHECK(this,
-                              ngraph::is_scalar(alpha_shape),
+                              ov::is_scalar(alpha_shape),
                               "A scalar is expected for the 'alpha' input. Got: ",
                               alpha_shape);
     }
@@ -32,7 +32,7 @@ void op::v0::HardSigmoid::validate_and_infer_types() {
     if (beta_pshape.is_static()) {
         const auto beta_shape = beta_pshape.to_shape();
         NODE_VALIDATION_CHECK(this,
-                              ngraph::is_scalar(beta_shape),
+                              ov::is_scalar(beta_shape),
                               "A scalar is expected for the 'beta' input. Got: ",
                               beta_shape);
     }

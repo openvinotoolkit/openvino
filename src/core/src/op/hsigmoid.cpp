@@ -45,9 +45,9 @@ bool evaluate_hsigmoid(const HostTensorPtr& arg, const HostTensorPtr& out) {
     out->set_unary(arg);
 
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_hsigmoid, bf16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_hsigmoid, f16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_hsigmoid, f32, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_hsigmoid, bf16, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_hsigmoid, f16, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_hsigmoid, f32, arg, out, count);
     default:
         rc = false;
         break;

@@ -114,12 +114,12 @@ bool evaluate_fakequantize(const HostTensorPtr& arg0,
                            const ngraph::op::FakeQuantize* parent) {
     bool rc = true;
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, i32, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, i64, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, u32, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, u64, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, f16, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, f32, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, i32, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, i64, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, u32, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, u64, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, f16, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, f32, arg0, arg1, arg2, arg3, arg4, out, parent);
     default:
         rc = false;
         break;

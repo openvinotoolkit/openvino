@@ -51,16 +51,16 @@ bool evaluate_floor(const HostTensorPtr& arg0, const HostTensorPtr& out, const s
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_COPY_TENSOR(evaluate_floor, i8, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_floor, i16, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_floor, i32, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_floor, i64, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_floor, u8, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_floor, u16, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_floor, u32, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_floor, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_floor, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_floor, f32, arg0, out, count);
+        OPENVINO_COPY_TENSOR(evaluate_floor, i8, arg0, out, count);
+        OPENVINO_COPY_TENSOR(evaluate_floor, i16, arg0, out, count);
+        OPENVINO_COPY_TENSOR(evaluate_floor, i32, arg0, out, count);
+        OPENVINO_COPY_TENSOR(evaluate_floor, i64, arg0, out, count);
+        OPENVINO_COPY_TENSOR(evaluate_floor, u8, arg0, out, count);
+        OPENVINO_COPY_TENSOR(evaluate_floor, u16, arg0, out, count);
+        OPENVINO_COPY_TENSOR(evaluate_floor, u32, arg0, out, count);
+        OPENVINO_COPY_TENSOR(evaluate_floor, u64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_floor, f16, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_floor, f32, arg0, out, count);
     default:
         rc = false;
         break;
