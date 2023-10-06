@@ -94,8 +94,8 @@ bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVect
     bool rc = true;
     const auto& indices = input_values[0];
     switch (indices->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_onehot, i32, output_values, input_values, axis);
-        NGRAPH_TYPE_CASE(evaluate_onehot, i64, output_values, input_values, axis);
+        OPENVINO_TYPE_CASE(evaluate_onehot, i32, output_values, input_values, axis);
+        OPENVINO_TYPE_CASE(evaluate_onehot, i64, output_values, input_values, axis);
     default:
         rc = false;
     }

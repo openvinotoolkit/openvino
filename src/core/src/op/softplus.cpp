@@ -58,9 +58,9 @@ bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out) {
     size_t count = shape_size(arg->get_shape());
 
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_softplus, bf16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_softplus, f16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_softplus, f32, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_softplus, bf16, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_softplus, f16, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_softplus, f32, arg, out, count);
     default:
         rc = false;
         break;

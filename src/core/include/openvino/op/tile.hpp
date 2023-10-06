@@ -28,17 +28,11 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool has_evaluate() const override;
     bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
-
-private:
-    bool evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v0
 }  // namespace op
