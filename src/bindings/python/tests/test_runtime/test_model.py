@@ -282,6 +282,16 @@ def test_evaluate():
     assert np.allclose(out_tensor.data, np.array([5, 8]).reshape(2, 1))
 
 
+def test_evaluate_invalid_input_shape():
+    model = generate_add_model()
+    with pytest.raises(RuntimeError) as e:
+        assert model.evaluate(
+            [Tensor("float32", Shape([2, 1]))],
+            [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
+        )
+    assert "must be compatible with the partial shape: [2,1]" in str(e.value)
+
+
 def test_get_batch():
     model = generate_add_model()
     param = model.get_parameters()[0]
