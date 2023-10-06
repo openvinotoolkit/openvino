@@ -685,6 +685,12 @@ void primitive_inst::do_runtime_skip_reorder() {
             GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
             u->update_shape();
             u->update_shape_done_by_other = true;
+
+            // Opt out reorder which has _needs_completion_event = true causes syncronization failed in dGPU.
+            if (_needs_completion_event == false && u->_needs_completion_event == true) {
+                _needs_completion_event = true;
+            }
+
             if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
                 std::function<void(std::vector<std::shared_ptr<primitive_inst>>)> update_memory_dependencies;
                 update_memory_dependencies = [&](std::vector<std::shared_ptr<primitive_inst>> users) {
@@ -858,6 +864,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         dependencies = events;
     } else {
         auto queue_type = get_network().get_stream().get_queue_type();
+        if (id() == "nonmaxsuppressionieinternal:4565")
+            std::cout << id() << std::endl;
         // Prepare dependencies events in case of OOO queue, CPU implementation,
         // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
         if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
@@ -866,6 +874,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                 if (input->is_input() && queue_type != QueueTypes::out_of_order)
                     continue;
                 auto id = input->id();
+                if (id == "nonmaxsuppressionieinternal:4565")
+                    std::cout << id << std::endl;
                 try {
                     // if the requested event does not exists it means that it has not been executed, so the processing_order is
                     // wrong or synchronization failed.
