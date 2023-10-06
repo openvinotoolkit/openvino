@@ -66,6 +66,11 @@ runs:
         update-setuptools: "false"
         update-wheel: "false"
 
+    - name: Test functionality
+      run: |
+        python ${{ github.action_path }}/smart_ci_test.py
+      shell: bash
+
     - name: Smart CI
       id: smart_ci
       run: |
