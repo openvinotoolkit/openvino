@@ -62,6 +62,5 @@ class TestTimmConvertModel(TestConvertModel):
         self.run(name, None, ie_device)
 
     @pytest.mark.parametrize("name", get_all_models())
-    @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)
