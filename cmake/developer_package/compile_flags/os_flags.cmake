@@ -299,7 +299,13 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
     else()
         set(CMAKE_CXX_STANDARD 11)
     endif()
+endif()
+
+if(NOT DEFINED CMAKE_CXX_EXTENSIONS)
     set(CMAKE_CXX_EXTENSIONS OFF)
+endif()
+
+if(NOT DEFINED CMAKE_CXX_STANDARD_REQUIRED)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
@@ -382,9 +388,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4275)
 
     # Enable __FILE__ trim, use path with forward and backward slash as directory separator
-    add_compile_options(
-        "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>"
-        "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OpenVINO_SOURCE_DIR}/>")
+    # github actions use sccache which doesn't support /d1trimfile compile option
+    if(NOT DEFINED ENV{GITHUB_ACTIONS})
+        add_compile_options(
+            "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>"
+            "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OpenVINO_SOURCE_DIR}/>")
+    endif()
 
     #
     # Debug information flags, by default CMake adds /Zi option

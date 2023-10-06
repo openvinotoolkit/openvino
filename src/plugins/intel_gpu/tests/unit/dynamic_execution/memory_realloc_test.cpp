@@ -27,7 +27,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
     layout weight_layout = layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx};
 
     auto weights = engine.allocate_memory(weight_layout);
-    set_values<FLOAT16>(weights, {
+    set_values<ov::float16>(weights, {
             1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
@@ -115,7 +115,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
     // 0, 0,"0","0","0","0", // !! check pad_after
     // 0, 0,"0","0","0","0", // !! check pad_after
     auto reorder_mem = network.get_primitive("reorder")->output_memory_ptr();
-    cldnn::mem_lock<FLOAT16, mem_lock_type::read> reorder_mem_ptr(reorder_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> reorder_mem_ptr(reorder_mem, get_test_stream());
     for (size_t i = 26; i < 29; ++i) {
         ASSERT_EQ((float)reorder_mem_ptr[i], 0.f);
     }

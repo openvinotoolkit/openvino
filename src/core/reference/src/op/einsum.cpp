@@ -10,8 +10,8 @@
 #include "openvino/reference/broadcast.hpp"
 #include "openvino/reference/matmul.hpp"
 #include "openvino/reference/multiply.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 #include "openvino/reference/reshape.hpp"
-#include "openvino/reference/sum.hpp"
 #include "openvino/reference/transpose.hpp"
 #include "openvino/reference/utils/span.hpp"
 
@@ -249,6 +249,14 @@ Shape compute_matmul_output_shape(const Shape& common_sub_shape,
     return matmul_output_shape;
 }
 
+/// @brief Prepares default order axis vector
+///
+AxisVector get_default_order(size_t rank) {
+    AxisVector default_order(rank);
+    std::iota(begin(default_order), end(default_order), 0);
+    return default_order;
+}
+
 /// \brief      Update a vector of inputs and subscripts by removing items for
 /// inputs with indices input_ind1 and input_ind2 and inserted new input and
 /// the corresponsing subscript in the tail
@@ -278,8 +286,8 @@ ov::Tensor unsqueeze_input(const ov::Tensor& input, std::vector<int64_t>& unsque
         return input;
     }
 
-    Shape input_shape = input.get_shape();
-    Shape output_shape = input_shape;
+    const auto& input_shape = input.get_shape();
+    auto output_shape = input_shape;
     std::sort(unsqueeze_axes.begin(), unsqueeze_axes.end());
     for (auto unsqueeze_axis : unsqueeze_axes) {
         OPENVINO_ASSERT(unsqueeze_axis >= 0);
@@ -288,9 +296,7 @@ ov::Tensor unsqueeze_input(const ov::Tensor& input, std::vector<int64_t>& unsque
     }
 
     auto output = ov::Tensor(input.get_element_type(), output_shape);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const AxisVector order = ngraph::get_default_order(input.get_shape());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto order = get_default_order(input_shape.size());
     const auto element_type = input.get_element_type();
 
     reference::reshape(reinterpret_cast<const char*>(input.data<T>()),
@@ -352,7 +358,7 @@ void reduce_input(ov::TensorVector& inputs,
 
     auto output_ptr = ov::Tensor(input_ptr.get_element_type(), output_shape);
 
-    reference::sum<T>(input_ptr.data<T>(), output_ptr.data<T>(), input_shape, reduced_axes);
+    reference::reduce_sum(input_ptr.data<T>(), output_ptr.data<T>(), input_shape, reduced_axes);
 
     // update a vector of inputs and input subscripts
     inputs[input_ind] = output_ptr;
@@ -595,7 +601,7 @@ void extract_diagonal(ov::TensorVector& inputs, std::vector<std::string>& input_
                            ov::op::AutoBroadcastType::NUMPY);
 
     auto result = ov::Tensor(input_ptr.get_element_type(), result_shape);
-    reference::sum<T>(mul_output.data<T>(), result.data<T>(), mul_output.get_shape(), reduced_axes);
+    reference::reduce_sum(mul_output.data<T>(), result.data<T>(), mul_output.get_shape(), reduced_axes);
     inputs[input_ind] = result;
     input_subscripts[input_ind] = resultant_subscript;
 }
@@ -645,11 +651,9 @@ ov::Tensor reshape_input_for_matmul(const ov::Tensor& input,
     }
 
     const auto element_type = input.get_element_type();
-    const auto input_shape = input.get_shape();
+    const auto& input_shape = input.get_shape();
     auto output = ov::Tensor(element_type, new_shape);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const AxisVector order = ngraph::get_default_order(input_shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto order = get_default_order(input_shape.size());
 
     reference::reshape(reinterpret_cast<const char*>(input.data<T>()),
                        reinterpret_cast<char*>(output.data<T>()),
@@ -871,7 +875,7 @@ void contract_two_inputs(ov::TensorVector& inputs,
     // broadcast both inputs to have common sub-shape broadcasted that is needed
     // in case of ellipsis among the common labels
     // reference::broadcast()
-    PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, ngraph::op::AutoBroadcastType::NUMPY);
+    PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, op::AutoBroadcastType::NUMPY);
     Shape common_sub_shape = common_sub_shape1.get_shape();
     broadcast_input<T>(inputs,
                        input_ind1,
@@ -926,9 +930,7 @@ void contract_two_inputs(ov::TensorVector& inputs,
     back_shape.insert(back_shape.end(), separate2_sub_shape.begin(), separate2_sub_shape.end());
 
     auto contract_output = ov::Tensor(matmul_output.get_element_type(), back_shape);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const AxisVector order = ngraph::get_default_order(matmul_output.get_shape());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto order = get_default_order(matmul_output.get_shape().size());
     reference::reshape(reinterpret_cast<const char*>(matmul_output.data<T>()),
                        reinterpret_cast<char*>(contract_output.data<T>()),
                        matmul_output.get_shape(),
