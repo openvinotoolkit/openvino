@@ -90,6 +90,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -232,9 +233,6 @@ jobs:
       DEBIAN_PACKAGES_DIR: /__w/openvino/packages/
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${DEBIAN_PACKAGES_DIR}
-
       - name: Download OpenVINO debian packages
         uses: actions/download-artifact@v3
         with:
@@ -290,13 +288,6 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/build
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
-      #
-      # Initialize OpenVINO
-      #
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -324,6 +315,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -615,13 +607,6 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
-      #
-      # Initialize OpenVINO
-      #
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -812,9 +797,6 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
       - name: Install git
         run: |
           apt update
@@ -832,6 +814,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -1033,9 +1016,6 @@ jobs:
       PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -1121,15 +1101,13 @@ jobs:
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
       - name: Install 'actions/setup-python@v4' dependencies
         run: apt-get update && apt-get install -y libssl1.1 ca-certificates
 
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -1208,9 +1186,6 @@ jobs:
           # install git (required to build pip deps from the sources)
           # install 'g++' to build 'detectron2' and 'natten' wheels
           sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
-
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3

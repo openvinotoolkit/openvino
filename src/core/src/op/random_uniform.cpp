@@ -24,7 +24,7 @@ inline bool out_et(const element::Type& et) {
 RandomUniform::RandomUniform(const Output<Node>& out_shape,
                              const Output<Node>& min_val,
                              const Output<Node>& max_val,
-                             const ngraph::element::Type& out_type,
+                             const ov::element::Type& out_type,
                              uint64_t global_seed,
                              uint64_t op_seed)
     : Op({out_shape, min_val, max_val}),
