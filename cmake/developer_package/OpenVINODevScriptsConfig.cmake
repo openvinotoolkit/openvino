@@ -8,6 +8,8 @@ if(NOT DEFINED OpenVINODevScripts_DIR)
     message(FATAL_ERROR "OpenVINODevScripts_DIR is not defined")
 endif()
 
+set(IEDevScripts_DIR "${OpenVINODevScripts_DIR}") # for BW compatibility
+
 # disable FindPkgConfig.cmake for Android
 if(ANDROID)
     # Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
@@ -67,7 +69,7 @@ endif()
 # Prepare temporary folder
 #
 
-function(set_temp_directory temp_variable source_tree_dir)
+function(ov_set_temp_directory temp_variable source_tree_dir)
     if(DEFINED OV_TEMP)
         message(STATUS "OV_TEMP cmake variable is set : ${OV_TEMP}")
         file(TO_CMAKE_PATH ${OV_TEMP} temp)
@@ -83,6 +85,11 @@ function(set_temp_directory temp_variable source_tree_dir)
         set(ALTERNATIVE_PATH "${ALTERNATIVE_PATH}" PARENT_SCOPE)
     endif()
 endfunction()
+
+macro(set_temp_directory)
+    message(WARNING "'set_temp_directory' is deprecated. Please, use 'ov_set_temp_directory'")
+    ov_set_temp_directory(${ARGV})
+endmacro()
 
 #
 # For cross-compilation
