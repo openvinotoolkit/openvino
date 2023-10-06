@@ -1,4 +1,4 @@
-from typing import List, Dict, Union, Tuple
+from typing import List, Dict, Union, Tuple, Callable
 
 import numpy as np
 from openvino._pyopenvino import Node
@@ -12,6 +12,7 @@ import openvino as ov
 ops_to_track_map = {
     'Convolution': convolution,
     'MatMul': matmul,
+    # todo: implement for some other ops
     # 'ReduceSum': reduce_sum,
     # 'ReduceMean': reduce_mean,
     # 'ReduceProd': reduce_prod,
@@ -20,25 +21,34 @@ ops_to_track_map = {
 }
 
 thresholds_per_op = {
-    'Convolution': (0.1, 0.02),
-    'MatMul': (0.1, 0.05),
+    'Convolution': (0.1, 0.003, 0.00),
+    'MatMul': (0.1, 0.04, 0.03),
 }
 
 
+def inject_to_partially_upcast_nodes_to_fp32(orig) -> Callable:  # orig type is OVModelForCausalLM
+    def new_start_async(inputs, shared_memory):
+        new_model = partially_upcast_nodes_to_fp32(orig.model, inputs)
+        orig.model = new_model
+        orig.request = None
+        orig.compile()  # compile will set orig.request for OVModelForCausalLM
+        orig.request.start_async(inputs, shared_memory=shared_memory)
+    return new_start_async
+
+
 def partially_upcast_nodes_to_fp32(orig_model: Model, example_input: Union[List, Dict]) -> Model:
-    model = orig_model.clone()  # todo: check if need to copy orig_models
+    model = orig_model.clone()  # todo: check if need to clone orig_models
     nodes_to_track, outs_to_track, _ = insert_results_for_tracked_ops(model)
     fp16_full_net_infer_values = infer_full_net_in_fp16(nodes_to_track, model, example_input)
     fp16_infer_values = infer_nodes_in_fp16(nodes_to_track, fp16_full_net_infer_values)
     fp32_infer_values = infer_nodes_in_fp32(nodes_to_track, fp16_full_net_infer_values)
-    # del model
+    del model
     new_model = orig_model.clone()
     mark_nodes_to_upcast_to_fp32(new_model, nodes_to_track, fp16_infer_values, fp32_infer_values)
-    # todo: if no copy then need to restore original outputs
     return new_model
 
 
-def insert_results_for_tracked_ops(model) -> (Dict, List, List):
+def insert_results_for_tracked_ops(model) -> (List, List, List):
     # additional outputs to track inputs and output values of operations of interest
     nodes_to_track = []
     outputs = []
@@ -116,11 +126,13 @@ def infer_nodes_in_fp32(nodes_to_track: List[Node], node_data_values: List[Tuple
         results.append(infer_tracked_op_on_gpu(node, value[1:]))
     return results
 
+
 def infer_nodes_in_fp16(nodes_to_track: List[Node], node_data_values: List[Tuple]) -> List:
     results = []
     for node, value in zip(nodes_to_track, node_data_values):
         results.append(infer_tracked_op_on_gpu(node, value[1:], precision='f16'))
     return results
+
 
 def infer_tracked_op_on_gpu(op: Node, input_vals: Tuple, precision='f32') -> np.ndarray:
     parameters = []
@@ -143,7 +155,7 @@ def infer_tracked_op_on_gpu(op: Node, input_vals: Tuple, precision='f32') -> np.
     return result[0]
 
 
-def mark_nodes_to_upcast_to_fp32(model: Model, nodes: List[Node], fp16_infer_vals: List, fp32_infer_vals: List) -> List[Node]:
+def mark_nodes_to_upcast_to_fp32(model: Model, nodes: List[Node], fp16_infer_vals: List, fp32_infer_vals: List) -> None:
     nodes_with_errors = []
     for node, fp16_val, fp32_val in zip(nodes, fp16_infer_vals, fp32_infer_vals):
         if compare_tensors(node, fp16_val, fp32_val):
@@ -151,13 +163,7 @@ def mark_nodes_to_upcast_to_fp32(model: Model, nodes: List[Node], fp16_infer_val
     
     for node in model.get_ordered_ops():
         if node.get_friendly_name() in nodes_with_errors:
-            # todo: for tiny SD this does not work because of xxx-122082
             node.get_rt_info()['disable_fp16_compression_0'] = ''
-
-    from openvino.runtime.passes import VisualizeTree, Manager
-    # manager = Manager()
-    # manager.register_pass(VisualizeTree("upcasted.svg"))
-    # manager.run_passes(model)
 
 
 def compare_tensors(node: Node, a: np.ndarray, b: np.ndarray) -> bool:
@@ -174,13 +180,15 @@ def compare_tensors(node: Node, a: np.ndarray, b: np.ndarray) -> bool:
         rel_error = np.abs(2 * (a_ - b_) / (np.abs(a_) + abs(b_)))
 
     mean_rel_error = np.mean(rel_error)
-    rel_tol = 0.03  # check if necessary to move to a threshold dict
+    
+    thresholds = thresholds_per_op[node.get_type_name()]
+    rel_threshold = thresholds[0]
+    rel_threshold_ratio = thresholds[1]
+    rel_tol = thresholds[2]
+
+    rel_diff_ratio = np.size(np.where(rel_error >= rel_threshold)) / out_size
     if mean_rel_error < rel_tol:
         return False
-
-    rel_threshold = thresholds_per_op[node.get_type_name()][0]
-    rel_threshold_ratio = thresholds_per_op[node.get_type_name()][1]
-    rel_diff_ratio = np.size(np.where(rel_error >= rel_threshold)) / out_size
     if rel_diff_ratio > rel_threshold_ratio:
-        print(f'upcasted node {node.get_friendly_name()} with 0.1 rel2_diff_ratio {rel_diff_ratio}')
+        print(f'upcasted node {node.get_friendly_name()} with 0.1 rel2_diff_ratio {rel_diff_ratio} and mean_rel_error {mean_rel_error}')
         return True
