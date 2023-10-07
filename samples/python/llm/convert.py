@@ -125,7 +125,7 @@ def convert_seq2seq(args):
             decoder_with_past_file_name = Path('decoder_with_past') / OV_DECODER_WITH_PAST_NAME
 
             output_names = [encoder_file_name, decoder_file_name, decoder_with_past_file_name]
-            save_dir_path = Path(args.output_dir) / 'pytorch/dldt'/ 'PT_compressed_weights'
+            save_dir_path = Path(args.output_dir) / 'pytorch/dldt' / 'PT_compressed_weights'
 
             export_models(
                 models_and_onnx_configs=models_and_onnx_configs,
@@ -149,7 +149,7 @@ def convert_seq2seq(args):
     log.info(f'Conversion total time {end - start}s')
 
     start1 = time.perf_counter()
-    ov_out_dir = Path(args.output_dir) / 'pytorch/dldt'/ args.precision
+    ov_out_dir = Path(args.output_dir) / 'pytorch/dldt' / args.precision
     model.save_pretrained(ov_out_dir)
     end1 = time.perf_counter()
     log.info(f'Serialization total time {end1 - start1}s')
@@ -233,7 +233,7 @@ def convert_sd(args):
     if args.precision == 'FP16':
         model.half()
     start1 = time.perf_counter()
-    model.save_pretrained(Path(args.output_dir) / 'pytorch/dldt'/ args.precision)
+    model.save_pretrained(Path(args.output_dir) / 'pytorch/dldt' / args.precision)
     end1 = time.perf_counter()
     log.info(f'Serialization total time {end1 - start1}s')
 
@@ -276,7 +276,7 @@ def convert_ldm_super_res(args):
         save_model(ov_compressed_unet, pt_out_dir / 'unet.xml', compress_to_fp16=compress_to_fp16)
         pipeline.scheduler.save_config(pt_out_dir)
         # Couldn't compress decoder weights (RuntimeError: cdist only supports floating-point dtypes, X2 got: Byte)
-        ov_decoder = convert_model(decoder, example_input=torch.zeros((1,3,128, 128)))
+        ov_decoder = convert_model(decoder, example_input=torch.zeros((1, 3, 128, 128)))
         save_model(ov_decoder, pt_out_dir / 'vqvae.xml', compress_to_fp16=compress_to_fp16)
 
     # convert model to OpenVINO IR
@@ -286,7 +286,7 @@ def convert_ldm_super_res(args):
     ov_unet.validate_nodes_and_infer_types()
     save_dir = Path(args.output_dir) / 'pytorch/dldt' / args.precision
     save_model(ov_unet, save_dir / 'unet.xml', compress_to_fp16=compress_to_fp16)
-    ov_decoder = convert_model(decoder, example_input=torch.zeros((1,3,128, 128)))
+    ov_decoder = convert_model(decoder, example_input=torch.zeros((1, 3, 128, 128)))
     save_model(ov_decoder, save_dir / 'vqvae.xml', compress_to_fp16=compress_to_fp16)
     pipeline.scheduler.save_config(save_dir)
 
@@ -316,14 +316,20 @@ def convert_mpt(args):
             outputs.extend([f'present.{idx}.key', f'present.{idx}.value'])
 
         inputs.append('attention_mask')
-        dummy_inputs = {'input_ids': torch.ones((1,2), dtype=torch.long), 'past_key_values': outs.past_key_values, 'attention_mask': torch.ones((1,12), dtype=torch.long)}
+        dummy_inputs = {
+            'input_ids': torch.ones((1, 2), dtype=torch.long),
+            'past_key_values': outs.past_key_values,
+            'attention_mask': torch.ones((1, 12), dtype=torch.long),
+        }
         pt_model.config.torchscript = True
         orig_forward = pt_model.forward
+
         @wraps(orig_forward)
         def ts_patched_forward(input_ids: torch.Tensor, past_key_values: Tuple[Tuple[torch.Tensor]], attention_mask: torch.Tensor):
             pkv_list = list(past_key_values)
             outs = orig_forward(input_ids=input_ids, past_key_values=pkv_list, attention_mask=attention_mask)
             return (outs.logits, tuple(outs.past_key_values))
+
         pt_model.forward = ts_patched_forward
         ov_model = convert_model(pt_model, example_input=dummy_inputs)
         pt_model.forward = orig_forward
@@ -378,7 +384,7 @@ def convert_chatglm2(args):
         pt_model.config.torchscript = True
         pt_model.config.use_cache = True
         outs = pt_model(input_ids=torch.ones((1, 10), dtype=torch.long),
-        position_ids=torch.arange(0, 10, dtype=torch.long))
+                        position_ids=torch.arange(0, 10, dtype=torch.long))
         inputs = ['input_ids', 'position_ids']
         outputs = ['logits']
         dynamic_shapes = {'input_ids': {1: 'seq_len'}, 'position_ids': {1: 'seq_len'}}
@@ -389,13 +395,13 @@ def convert_chatglm2(args):
             dynamic_shapes[inputs[-2]] = {0: 'past_sequence + 1'}
             outputs.extend([f'present.{idx}.key', f'present.{idx}.value'])
         dummy_inputs = {
-        'input_ids': torch.ones((1, 1), dtype=torch.long),
-        'position_ids': torch.tensor([[10]], dtype=torch.long),
-        'past_key_values': outs[1]
+            'input_ids': torch.ones((1, 1), dtype=torch.long),
+            'position_ids': torch.tensor([[10]], dtype=torch.long),
+            'past_key_values': outs[1],
         }
         ov_model = convert_model(pt_model, example_input=dummy_inputs)
-        for inp_name, m_input, input_data in zip(
-            inputs, ov_model.inputs, flattenize_inputs(dummy_inputs.values())):
+        for inp_name, m_input, input_data in zip(inputs, ov_model.inputs,
+                                                 flattenize_inputs(dummy_inputs.values())):
             input_node = m_input.get_node()
             if input_node.element_type == Type.dynamic:
                 m_input.get_node().set_element_type(Type.f32)
@@ -410,7 +416,7 @@ def convert_chatglm2(args):
             out.get_tensor().set_names({out_name})
         ov_model.validate_nodes_and_infer_types()
         save_ov_model_helper(ov_model, out_path, fp16=compress_to_fp16, tok=tok, config=pt_model.config)
-    
+
     pt_model = AutoModel.from_pretrained(
         args.model_id,
         trust_remote_code=True,
@@ -442,12 +448,13 @@ def convert_chatglm2(args):
         ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/INT8_compressed_weights'
         compress_ov_model_weights_helper(ov_model, tok, pt_model.config, ov_compressed_path, compress_to_fp16)
 
+
 def convert_chatglm(args):
     def convert_to_ov(pt_model, tok, out_path, compress_to_fp16=False):
         pt_model.config.torchscript = True
         last_token = torch.tensor([[130328]])
         past = torch.zeros(28, 2, 5, 1, 32, 128)
-        position_ids = torch.tensor([[[2],[4]]])
+        position_ids = torch.tensor([[[2], [4]]])
         dummy_input = {
             'input_ids': last_token,
             'past_key_values': past,
@@ -456,7 +463,7 @@ def convert_chatglm(args):
         ov_model = convert_model(pt_model, example_input=dummy_input)
         ov_model.outputs[0].get_tensor().set_names({'logits'})
         for i in range(1, len(ov_model.outputs), 2):
-            idx  = (i - 1) // 2
+            idx = (i - 1) // 2
             ov_model.outputs[i].get_tensor().set_names({f'present.{int(idx)}.key'})
             ov_model.outputs[i + 1].get_tensor().set_names({f'present.{int(idx)}.value'})
         save_ov_model_helper(ov_model, out_path, fp16=compress_to_fp16, tok=tok, config=pt_model.config)
@@ -492,6 +499,7 @@ def convert_chatglm(args):
         ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/INT8_compressed_weights'
         compress_ov_model_weights_helper(ov_model, tok, pt_model.config, ov_compressed_path, compress_to_fp16)
 
+
 def flattenize_inputs(inputs):
     flatten_inputs = []
     for input_data in inputs:
@@ -502,6 +510,7 @@ def flattenize_inputs(inputs):
         else:
             flatten_inputs.append(input_data)
     return flatten_inputs
+
 
 def convert_falcon(args):
     def convert_to_ov(pt_model, tok, out_path, compress_to_fp16=False):
@@ -517,11 +526,11 @@ def convert_falcon(args):
             dynamic_shapes[inputs[-2]] = {1: 'past_sequence + sequence'}
             outputs.extend([f'present.{idx}.key', f'present.{idx}.value'])
 
-        dummy_inputs = {'input_ids': torch.ones((1,2), dtype=torch.long), 'past_key_values': outs.past_key_values}
+        dummy_inputs = {'input_ids': torch.ones((1, 2), dtype=torch.long), 'past_key_values': outs.past_key_values}
         flatten_inputs = flattenize_inputs(dummy_inputs.values())
         pt_model.config.torchscript = True
         ov_model = convert_model(pt_model, example_input=dummy_inputs)
-        for input, input_data, input_name in zip(ov_model.inputs[1:],  flatten_inputs[1:], inputs[1:]):
+        for input, input_data, input_name in zip(ov_model.inputs[1:], flatten_inputs[1:], inputs[1:]):
             input.get_node().set_element_type(Type.f32)
             shape = list(input_data.shape)
             shape[2] = -1
@@ -541,8 +550,8 @@ def convert_falcon(args):
         save_tokenizer(tok, pt_out_dir)
 
     compress_to_fp16 = args.precision == 'FP16'
-    
-    ov_out_path = Path(args.output_dir) / 'pytorch/dldt' / args.precision 
+
+    ov_out_path = Path(args.output_dir) / 'pytorch/dldt' / args.precision
     convert_to_ov(pt_model, tok, ov_out_path, compress_to_fp16)
 
     if args.compress_weights and BackendType.PYTORCH.value in args.compress_weights_backends:
@@ -554,6 +563,7 @@ def convert_falcon(args):
         ov_model = Core().read_model(ov_out_path / 'openvino_model.xml')
         ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/INT8_compressed_weights'
         compress_ov_model_weights_helper(ov_model, tok, pt_model.config, ov_compressed_path, compress_to_fp16)
+
 
 converters = {
     'decoder': convert_causal_lm,
@@ -568,6 +578,7 @@ converters = {
     'falcon': convert_falcon,
 }
 
+
 def get_convert_model_type(model_id):
     default = 'decoder'
     for key in converters:
@@ -575,6 +586,7 @@ def get_convert_model_type(model_id):
             return key
 
     return default
+
 
 def main():
     parser = ArgumentParser()
