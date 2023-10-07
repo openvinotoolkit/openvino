@@ -110,29 +110,42 @@ struct loop_impl : typed_primitive_impl<loop> {
         _back_edges = node.get_back_edges();
     }
 
-    void set_memory_in_body_network(cldnn::network::ptr body_network, const std::shared_ptr<cldnn::primitive_inst>& inst, memory::ptr mem) const {
+    std::vector<event::ptr> set_memory_in_body_network(cldnn::network::ptr body_network,
+                    const std::shared_ptr<cldnn::primitive_inst>& inst, memory::ptr mem) const {
+        std::vector<event::ptr> event_vec;
         if (inst->is_input()) {
-            body_network->set_input_data(inst->id(), mem);
+            auto ev = body_network->set_input_data(inst->id(), mem);
+            if (ev) event_vec = {ev};
         } else if (inst->is_output()) {
-            body_network->set_output_memory(inst->id(), mem);
+            event_vec = body_network->set_output_memory(inst->id(), mem);
         } else {
-            inst->set_output_memory(mem, false);
+            auto ev = inst->set_output_memory(mem, false);
+            if (ev) event_vec = {ev};
         }
+        return event_vec;
     }
 
-    void handle_buffers_for_next_iteration(const loop_inst::backedge_memory_mapping& mapping, network::ptr body_network, int64_t iter, bool is_dynamic) const {
+    std::vector<event::ptr> handle_buffers_for_next_iteration(const loop_inst::backedge_memory_mapping& mapping,
+                                                    network::ptr body_network, int64_t iter, bool is_dynamic) const {
+        std::vector<event::ptr> event_vec;
         if (mapping.type == loop_inst::backedge_memory_mapping::CONCAT_OUTPUT) {
             if (iter == 0) {
-                set_memory_in_body_network(body_network, mapping.to_primitive, mapping.initial_mem);
+                event_vec = set_memory_in_body_network(body_network, mapping.to_primitive, mapping.initial_mem);
             } else if (iter > 0) {
                 if (is_dynamic) {
+                    auto from_id = mapping.from_primitive->id();
+                    if (body_network->has_event(from_id)) {
+                        auto ev = body_network->get_primitive_event(from_id);
+                        if (ev) ev->wait();
+                    }
                     // In dynamic model, just copy data from inner body output to inner body input in back_edges.
                     memory::ptr mem1 = mapping.to_primitive->output_memory_ptr();
                     memory::ptr mem2 = mapping.from_primitive->output_memory_ptr();
-                    mem1->copy_from(body_network->get_stream(), *(mem2));
+                    auto ev = mem1->copy_from(body_network->get_stream(), *(mem2));
+                    if (ev) event_vec = {ev};
                 } else {
                     auto mem = mapping.concat_mem_mapping->get_sliced_mems().at(iter - 1);
-                    set_memory_in_body_network(body_network, mapping.to_primitive, mem);
+                    event_vec = set_memory_in_body_network(body_network, mapping.to_primitive, mem);
                 }
             } else {
                 OPENVINO_THROW("Invalid iteration count", iter);
@@ -140,7 +153,8 @@ struct loop_impl : typed_primitive_impl<loop> {
         } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE_SHARED) {
             if (iter == 0) {
                 if (mapping.from_mem != nullptr) {
-                    mapping.from_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
+                    auto ev = mapping.from_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
+                    if (ev) event_vec = {ev};
                 }
             } else {
                 // In dynamic model, output memory is not defined before execution.
@@ -148,27 +162,38 @@ struct loop_impl : typed_primitive_impl<loop> {
                 if (mapping.from_mem == nullptr) {
                     mapping.from_mem = mapping.from_primitive->output_memory_ptr();
                     OPENVINO_ASSERT(mapping.from_mem != nullptr, "from_mem should not be null");
-                    set_memory_in_body_network(body_network, mapping.to_primitive, mapping.from_mem);
+                    event_vec = set_memory_in_body_network(body_network, mapping.to_primitive, mapping.from_mem);
                 }
             }
         } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE) {
             memory::ptr mem1 = mapping.to_primitive->output_memory_ptr();
             if (iter == 0) {
-                mem1->copy_from(body_network->get_stream(), *(mapping.initial_mem));
+                auto ev = mem1->copy_from(body_network->get_stream(), *(mapping.initial_mem));
+                if (ev) event_vec = {ev};
             } else {
                 if (is_dynamic) {
                     // In dynamic model, do not set memory buffer between input and output in inner body network.
                     // Just copy data from input buffer memory to output buffer memory.
+                    auto from_id = mapping.from_primitive->id();
+                    if (body_network->has_event(from_id)) {
+                        auto ev = body_network->get_primitive_event(from_id);
+                        if (ev) ev->wait();
+                    }
                     memory::ptr mem2 = mapping.from_primitive->output_memory_ptr();
-                    mem1->copy_from(body_network->get_stream(), *(mem2));
+                    auto ev = mem1->copy_from(body_network->get_stream(), *(mem2));
+                    if (ev) event_vec = {ev};
                 } else {
                     // In static model, swap memory buffer between output and input in inner body network
                     memory::ptr mem2 = mapping.from_primitive->output_memory_ptr();
-                    set_memory_in_body_network(body_network, mapping.to_primitive, std::move(mem2));
-                    set_memory_in_body_network(body_network, mapping.from_primitive, std::move(mem1));
+                    event_vec = set_memory_in_body_network(body_network, mapping.to_primitive, std::move(mem2));
+                    auto event2_vec = set_memory_in_body_network(body_network, mapping.from_primitive, std::move(mem1));
+                    for (auto ev : event2_vec) {
+                        event_vec.push_back(ev);
+                    }
                 }
             }
         }
+        return event_vec;
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, loop_inst& instance) override {
@@ -288,7 +313,10 @@ struct loop_impl : typed_primitive_impl<loop> {
 
             // Set backedges and output memory
             for (auto& backedge_memory_mapping : backedge_memory_mappings) {
-                handle_buffers_for_next_iteration(backedge_memory_mapping, body_network, current_iteration_idx, is_dynamic);
+                auto event_vec = handle_buffers_for_next_iteration(backedge_memory_mapping, body_network, current_iteration_idx, is_dynamic);
+                for (auto ev : event_vec) {
+                    loop_carried_dep.push_back(ev);
+                }
             }
 
             if (!is_dynamic) {
@@ -322,11 +350,13 @@ struct loop_impl : typed_primitive_impl<loop> {
                 }
             }
 
-            if (is_dynamic && !loop_carried_dep.empty())
-                stream.wait_for_events(loop_carried_dep);
-
             // execution condition is the result of body network execution
             if (body_execution_condition_mem != nullptr) {
+                auto execution_id = primitive->body_execution_condition_id;
+                if (body_network->has_event(execution_id)) {
+                    auto ev = body_network->get_primitive_event(execution_id);
+                    if (ev) ev->wait();
+                }
                 execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
             }
             GPU_DEBUG_IF(!execution_condition) {
@@ -340,13 +370,25 @@ struct loop_impl : typed_primitive_impl<loop> {
                 auto sliced_data_prim = concat_output_mem_mapping->sliced_data_prim;
                 auto output_mem_ptr = sliced_data_prim->output_memory_ptr();
                 if (is_dynamic) {
+                    auto sliced_id = sliced_data_prim->id();
+                    if (body_network->has_event(sliced_id)) {
+                        auto ev = body_network->get_primitive_event(sliced_id);
+                        if (ev) ev->wait();
+                    }
                     memory::ptr new_sliced_mem = concat_output_mem_mapping->get_or_create_sliced_mem(current_iteration_idx,
                                                                                                 output_mem_ptr->get_layout());
-                    new_sliced_mem->copy_from(body_network->get_stream(), *output_mem_ptr);
+                    auto ev = new_sliced_mem->copy_from(body_network->get_stream(), *output_mem_ptr);
+                    if (ev) {
+                        loop_carried_dep.push_back(ev);
+                        all_events.push_back(ev);
+                    }
                 } else {
                     memory::ptr new_sliced_mem = concat_output_mem_mapping->get_or_create_sliced_mem(current_iteration_idx,
                                                                                                 output_mem_ptr->get_layout());
-                    body_network->set_output_memory(sliced_data_prim->id(), new_sliced_mem);
+                    auto event_vec = body_network->set_output_memory(sliced_data_prim->id(), new_sliced_mem);
+                    for (auto ev : event_vec) {
+                        loop_carried_dep.push_back(ev);
+                    }
                 }
             }
 
