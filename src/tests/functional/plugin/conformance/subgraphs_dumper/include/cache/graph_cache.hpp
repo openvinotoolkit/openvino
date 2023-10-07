@@ -42,7 +42,7 @@ public:
 
 protected:
     std::map<std::shared_ptr<ov::Model>, MetaInfo> m_graph_cache;
-    ExtractorsManager m_manager = ExtractorsManager();
+    ExtractorsManager m_manager;
     static std::shared_ptr<GraphCache> m_cache_instance;
     // cache byte size
     uint64_t m_graph_cache_bytesize = 0;

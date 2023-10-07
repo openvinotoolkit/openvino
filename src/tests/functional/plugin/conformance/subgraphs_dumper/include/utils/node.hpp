@@ -111,6 +111,12 @@ inline size_t get_node_priority_by_version(const std::shared_ptr<ov::Node>& node
 
     return priority;
 }
+                                
+inline bool is_node_to_skip(const std::shared_ptr<ov::Node>& node) {
+    return ov::op::util::is_parameter(node) ||
+           ov::op::util::is_constant(node) ||
+           ov::op::util::is_output(node);
+}
 
 }  // namespace subgraph_dumper
 }  // namespace tools
