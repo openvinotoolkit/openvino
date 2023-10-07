@@ -6,9 +6,11 @@
 #include <thread>
 
 #include "include/auto_unit_test.hpp"
-using DynamicOutputConfigParams = std::tuple<ov::Any,  // priority device list
-                                             ov::Any   // expected device to run inference on
-                                             >;
+
+using DynamicOutputConfigParams = std::tuple<
+        ov::Any,                  // priority device list
+        ov::Any                   // expected device to run inference on
+        >;
 
 class DynamicOutputInferenceTest : public tests::AutoTest, public ::testing::TestWithParam<DynamicOutputConfigParams> {
 public:

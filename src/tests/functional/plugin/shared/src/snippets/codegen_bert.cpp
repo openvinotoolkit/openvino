@@ -15,7 +15,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
+#include "ov_models/pass/convert_prc.hpp"
 
 #include "snippets/codegen_bert.hpp"
 //  todo: Rewrite this test using Snippets test infrastructure. See add_convert or conv_eltwise for example

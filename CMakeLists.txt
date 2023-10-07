@@ -13,8 +13,14 @@ else()
         # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
         cmake_minimum_required(VERSION 3.20)
     else()
-        # default choice
-        cmake_minimum_required(VERSION 3.13)
+        if(WIN32)
+            # 3.16: FindPython3.cmake can find Python via -DPython3_EXECUTABLE
+            # 3.18: FindPython3.cmake can find Python automatically from virtualenv
+            cmake_minimum_required(VERSION 3.16)
+        else()
+            # 3.13: default choice
+            cmake_minimum_required(VERSION 3.13)
+        endif()
     endif()
 endif()
 
@@ -29,7 +35,6 @@ find_package(IEDevScripts REQUIRED
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
-include(CTest)
 include(cmake/features.cmake)
 
 # These options are shared with 3rdparty plugins by means of developer package

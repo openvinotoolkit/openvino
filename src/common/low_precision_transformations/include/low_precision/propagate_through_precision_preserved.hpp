@@ -38,7 +38,7 @@ class PropagateThroughPrecisionPreserved;
 template <typename AttributeType>
 class ov::pass::low_precision::PropagateThroughPrecisionPreserved : public ov::pass::MatcherPass {
 public:
-    PropagateThroughPrecisionPreserved(const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support) {
+    PropagateThroughPrecisionPreserved(const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support()) {
         ov::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {

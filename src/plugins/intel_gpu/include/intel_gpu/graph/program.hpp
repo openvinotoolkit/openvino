@@ -35,20 +35,22 @@ class ICompilationContext;
 struct program {
     using ptr = std::shared_ptr<program>;
     using cptr = std::shared_ptr<const program>;
-    friend class calculate_prior_boxes;      // to be removed when possible
-    friend class graph_initializations;      // to be removed when possible
-    friend class prepare_padding;            // to be removed when possible
-    friend class propagate_constants;        // to be removed when possible
-    friend class pre_replace_deconv;         // to be removed when possible
-    friend class prepare_primitive_fusing;   // to be removed when possible
-    friend class prepare_quantization;       // to be removed when possible
-    friend class prepare_conv_eltw_fusing;   // to be removed when possible
-    friend class reorder_inputs;             // to be removed when possible
-    friend class remove_redundant_reorders;  // to be removed when possible
-    friend class post_optimize_weights;      // to be removed when possible
-    friend class program_wrapper;            // this class is intended to extend the interface of program for
-                                             // the usage within tests_core_internal project only
-    friend class prepare_primitive_fusing_through;   // to be removed when possible
+    friend class calculate_prior_boxes;             // to be removed when possible
+    friend class graph_initializations;             // to be removed when possible
+    friend class prepare_padding;                   // to be removed when possible
+    friend class propagate_constants;               // to be removed when possible
+    friend class pre_replace_deconv;                // to be removed when possible
+    friend class prepare_primitive_fusing;          // to be removed when possible
+    friend class prepare_quantization;              // to be removed when possible
+    friend class prepare_conv_eltw_fusing;          // to be removed when possible
+    friend class reorder_inputs;                    // to be removed when possible
+    friend class remove_redundant_reorders;         // to be removed when possible
+    friend class post_optimize_weights;             // to be removed when possible
+    friend class prepare_primitive_fusing_through;  // to be removed when possible
+    friend class reorder_transfer;                  // to be removed when possible
+    friend class fuse_constant_transposes;          // to be removed when possible
+    friend class program_wrapper;                   // this class is intended to extend the interface of program for
+                                                    // the usage within tests_core_internal project only
 public:
     struct nodes_ordering {
     public:

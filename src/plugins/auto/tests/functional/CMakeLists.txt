@@ -4,13 +4,6 @@
 
 set(TARGET_NAME ov_auto_func_tests)
 
-set(DEPENDENCIES
-    mock_engine
-    openvino::runtime
-    func_test_utils
-    openvino_auto_plugin
-)
-
 if(ENABLE_AUTO_BATCH)
     list(APPEND DEPENDENCIES openvino_auto_batch_plugin)
     list(APPEND COMPILE_DEFINITIONS ENABLE_AUTO_BATCH)
@@ -23,8 +16,6 @@ endif()
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDENCIES
-            ${DEPENDENCIES}
         LINK_LIBRARIES
             openvino::runtime::dev
             gtest

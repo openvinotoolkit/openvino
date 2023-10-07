@@ -31,9 +31,13 @@ struct Configuration {
 
     ov::AnyMap get_device_properties() const;
 
-    bool dump_graph;
+    bool dump_dot_files() const;
+
     std::string device_priorities;
     ov::AnyMap device_properties;
+
+private:
+    bool dump_graph;
 };
 }  // namespace hetero
 }  // namespace ov

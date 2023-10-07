@@ -96,7 +96,7 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
                                   std::function<float(size_t)>& get_data) {
         using float_mem_lock = mem_lock<float, mem_lock_type::write>;
-        using uint16_t_mem_lock = mem_lock<uint16_t, mem_lock_type::write>;
+        using float16_mem_lock = mem_lock<ov::float16, mem_lock_type::write>;
         switch (memory->get_layout().data_type) {
             case data_types::f32: {
                 std::shared_ptr<float_mem_lock> data_lock_ptr = std::make_shared<float_mem_lock>(memory, stream);
@@ -107,18 +107,18 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                 get_data = [data] (size_t idx) {
                     return data[idx];
                 };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<uint16_t_mem_lock>>(data_lock_ptr, nullptr);
+                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(data_lock_ptr, nullptr);
             }
             case data_types::f16: {
-                std::shared_ptr<uint16_t_mem_lock> data_lock_ptr = std::make_shared<uint16_t_mem_lock>(memory, stream);
-                uint16_t* data = data_lock_ptr->data();
+                std::shared_ptr<float16_mem_lock> data_lock_ptr = std::make_shared<float16_mem_lock>(memory, stream);
+                ov::float16* data = data_lock_ptr->data();
                 set_data = [data] (size_t idx, float value) {
-                    data[idx] = float_to_half(value);
+                    data[idx] = ov::float16(value);
                 };
                 get_data = [data] (size_t idx) {
-                    return half_to_float(data[idx]);
+                    return static_cast<float>(data[idx]);
                 };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<uint16_t_mem_lock>>(nullptr, data_lock_ptr);
+                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(nullptr, data_lock_ptr);
             }
             default:
                 throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
@@ -358,7 +358,7 @@ void prepare_quantization::prepare_packed_quantize(program& p, quantize_node& qu
 
     auto output_dt = quantize_node.get_output_layout().data_type;
     if (is_binarization) {
-        output_dt = data_types::bin;
+        output_dt = data_types::u1;
     }
 
     quantize_node.typed_desc()->output_data_types = {optional_data_type{output_dt}};
