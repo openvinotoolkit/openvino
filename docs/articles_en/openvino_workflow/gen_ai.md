@@ -16,7 +16,7 @@ OpenVINO offers two main paths for Generative AI use cases:
 * Using OpenVINO native APIs (Python and C++) with custom pipeline code. 
 
  
-In both cases, OpenVINO runtime and tools will be used, difference is mostly in API that you prefer and footprint of final solution. Use of native APIs allows using generative models in C++ applications, having minimal runtime dependencies and minimizing application footprint. Approach with OpenVINO Native APIs will require implementation of glue code (generation loop, text tokenization or scheduler functions) which is hidden as implementation detail internally within Hugging Face libraries. 
+In both cases, OpenVINO runtime and tools are used, the difference is mostly in the preferred API and the final solution's footprint. Native APIs enable the use of generative models in C++ applications, ensure minimal runtime dependencies, and minimize application footprint. The Native APIs approach requires the implementation of glue code (generation loop, text tokenization, or scheduler functions), which is hidden as internal implementation details within Hugging Face libraries. 
 
 We recommend starting with use of Hugging Face frameworks, initially experimenting with different models and scenarios, ding your fit and then convert to OpenVINO native APIs if there is a demand.  
 
