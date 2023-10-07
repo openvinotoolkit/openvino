@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-OpenVINO toolkit could be used to accelerate Generative AI use cases as those mostly rely on model inference. When it comes to Generative Models, OpenVINO supports:
+Generative AI is an innovative technique that creates new data, such as text, images, video, or audio, using neural networks. OpenVINO accelerates Generative AI use cases as they mostly rely on model inference, allowing for faster development and better performance. When it comes to generative models, OpenVINO supports:
 
 * Conversion, optimization and inference for Text, Image and Audio generative models (for example, llama2, MPT, OPT, Stable Diffusion, Stable Diffusion XL, etc.) 
 * Int8 weights compression for text generation models 
