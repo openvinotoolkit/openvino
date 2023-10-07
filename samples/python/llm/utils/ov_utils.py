@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 from pathlib import Path
 from transformers import AutoConfig
 from openvino.tools import mo

@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 from transformers import AutoTokenizer
 from transformers import AutoModelForCausalLM, T5ForConditionalGeneration, BlenderbotForConditionalGeneration, AutoModel
 from diffusers.pipelines import DiffusionPipeline, LDMSuperResolutionPipeline

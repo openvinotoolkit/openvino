@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import argparse
 import time

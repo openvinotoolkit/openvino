@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 def print_metrics(iter_num, iter_data, tms=[], generated=None, warm_up=False, max_rss_mem=-1, max_shared_mem=-1):
         iter_str = str(iter_num)
         if warm_up:
