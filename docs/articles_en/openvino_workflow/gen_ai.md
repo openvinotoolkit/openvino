@@ -18,7 +18,7 @@ OpenVINO offers two main paths for Generative AI use cases:
  
 In both cases, OpenVINO runtime and tools are used, the difference is mostly in the preferred API and the final solution's footprint. Native APIs enable the use of generative models in C++ applications, ensure minimal runtime dependencies, and minimize application footprint. The Native APIs approach requires the implementation of glue code (generation loop, text tokenization, or scheduler functions), which is hidden as internal implementation details within Hugging Face libraries. 
 
-We recommend starting with use of Hugging Face frameworks, initially experimenting with different models and scenarios, ding your fit and then convert to OpenVINO native APIs if there is a demand.  
+It is recommended to start with Hugging Face frameworks. Experiment with different models and scenarios to find your fit, and then consider converting to OpenVINO native APIs based on your specific requirements. 
 
 Within Optimum-Intel product there are interfaces that allow to optimize (compress weights) model with use of `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__ and export model to OpenVINO model format to be used in native API applications. 
 
