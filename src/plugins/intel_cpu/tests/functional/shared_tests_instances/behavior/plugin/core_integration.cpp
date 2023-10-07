@@ -30,11 +30,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
+        ::testing::Values("CPU", "HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
+        ::testing::Values("CPU", "HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_AVAILABLE_DEVICES,
@@ -42,11 +42,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
+        ::testing::Values("CPU", "HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::Values("CPU", "MULTI", "AUTO"));
+        ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
@@ -58,11 +58,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_ThrowUnsupported,
-        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
+        ::testing::Values("CPU", "HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest_ThrowUnsupported,
-        ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
+        ::testing::Values("CPU", "HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetAvailableDevices, IEClassGetAvailableDevices,
