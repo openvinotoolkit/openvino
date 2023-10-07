@@ -3,7 +3,6 @@
 
 #include "pyopenvino/core/async_infer_queue.hpp"
 
-#include <ie_common.h>
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 

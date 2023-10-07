@@ -4,6 +4,15 @@
 
 include(GNUInstallDirs)
 
+if(APPLE)
+    # on macOS versions with SIP enabled, we need to use @rpath
+    # because DYLD_LIBRARY_PATH is ignored
+    set(CMAKE_SKIP_INSTALL_RPATH OFF)
+else()
+    # we don't need RPATHs, because setupvars.sh is used
+    set(CMAKE_SKIP_INSTALL_RPATH ON)
+endif()
+
 #
 # ov_archive_cpack_set_dirs()
 #

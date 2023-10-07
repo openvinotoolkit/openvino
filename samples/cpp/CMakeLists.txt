@@ -223,7 +223,9 @@ macro(ie_add_sample)
     endif()
 
     set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
-                                                       COMPILE_PDB_NAME ${IE_SAMPLE_NAME})
+                                                       COMPILE_PDB_NAME ${IE_SAMPLE_NAME}
+                                                       # to ensure out of box LC_RPATH on macOS with SIP
+                                                       INSTALL_RPATH_USE_LINK_PATH ON)
 
     if(IE_SAMPLE_INCLUDE_DIRECTORIES)
         target_include_directories(${IE_SAMPLE_NAME} PRIVATE ${IE_SAMPLE_INCLUDE_DIRECTORIES})
