@@ -24,7 +24,7 @@ using namespace ov::mock_auto_plugin;
 
 using ConfigParams = std::tuple<std::string,               // virtual device name to load network
                                 std::vector<std::string>,  // hardware device name to expect loading network on
-                                ov::AnyMap>;                   // secondary property setting to device
+                                ov::AnyMap>;               // secondary property setting to device
 
 static std::vector<ConfigParams> testConfigs;
 
@@ -52,51 +52,72 @@ public:
     static std::vector<ConfigParams> CreateConfigs() {
         testConfigs.clear();
         testConfigs.push_back(
-            ConfigParams{"AUTO", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+            ConfigParams{"AUTO",
+                         {"CPU"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(ConfigParams{"AUTO",
                                            {"CPU"},
                                            {{"NUM_STREAMS", "12"},
                                             {"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"},
                                             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO", {"CPU", "GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+            ConfigParams{"AUTO",
+                         {"CPU", "GPU"},
+                         {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
         testConfigs.push_back(ConfigParams{"AUTO",
                                            {"CPU", "GPU"},
                                            {{"NUM_STREAMS", "15"},
                                             {"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"},
                                             {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:CPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
+            ConfigParams{"AUTO:CPU",
+                         {"CPU"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:CPU,GPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+            ConfigParams{"AUTO:CPU,GPU",
+                         {"CPU"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:GPU", {"GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
-        testConfigs.push_back(ConfigParams{"AUTO:GPU,CPU",
-                                           {"CPU", "GPU"},
-                                           {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+            ConfigParams{"AUTO:GPU",
+                         {"GPU"},
+                         {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
+        testConfigs.push_back(
+            ConfigParams{"AUTO:GPU,CPU",
+                         {"CPU", "GPU"},
+                         {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
 
         testConfigs.push_back(
-            ConfigParams{"MULTI:CPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
-        testConfigs.push_back(ConfigParams{"MULTI:CPU,GPU",
-                                           {"CPU", "GPU"},
-                                           {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+            ConfigParams{"MULTI:CPU",
+                         {"CPU"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
         testConfigs.push_back(
-            ConfigParams{"MULTI:GPU", {"GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
-        testConfigs.push_back(ConfigParams{"MULTI:GPU,CPU",
-                                           {"CPU", "GPU"},
-                                           {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+            ConfigParams{"MULTI:CPU,GPU",
+                         {"CPU", "GPU"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+        testConfigs.push_back(
+            ConfigParams{"MULTI:GPU",
+                         {"GPU"},
+                         {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
+        testConfigs.push_back(
+            ConfigParams{"MULTI:GPU,CPU",
+                         {"CPU", "GPU"},
+                         {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
         return testConfigs;
     }
 
     void SetUp() override {
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
-        ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-            ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)), _))
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              _))
             .WillByDefault(Return(mockExeNetwork));
-        ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrNe(ov::test::utils::DEVICE_CPU)), _))
-                    .WillByDefault(Return(mockExeNetworkActual));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrNe(ov::test::utils::DEVICE_CPU)),
+                              _))
+            .WillByDefault(Return(mockExeNetworkActual));
     }
 };
 
@@ -123,11 +144,10 @@ TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsT
                 ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
             }
         }
-        EXPECT_CALL(
-            *core,
-           compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                        ::testing::Matcher<const std::string&>(deviceName),
-                        ::testing::Matcher<const ov::AnyMap&>(MapContains(deviceConfigs))))
+        EXPECT_CALL(*core,
+                    compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                                  ::testing::Matcher<const std::string&>(deviceName),
+                                  ::testing::Matcher<const ov::AnyMap&>(MapContains(deviceConfigs))))
             .Times(1);
     }
 
@@ -144,32 +164,40 @@ TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
     if (device.find("MULTI") != std::string::npos)
         plugin->set_device_name("MULTI");
 
-    ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
-                ::testing::Matcher<const ov::AnyMap&>(_)))
-                .WillByDefault(Throw(ov::Exception{"Mock GPU Load Failed"}));
-    ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
-                ::testing::Matcher<const ov::AnyMap&>(_)))
-                .WillByDefault(Throw(ov::Exception{"Mock CPU Load Failed"}));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
+                          ::testing::Matcher<const ov::AnyMap&>(_)))
+        .WillByDefault(Throw(ov::Exception{"Mock GPU Load Failed"}));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                          ::testing::Matcher<const ov::AnyMap&>(_)))
+        .WillByDefault(Throw(ov::Exception{"Mock CPU Load Failed"}));
     if (device == "AUTO") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config), ov::Exception,
-                                "[AUTO] compile model failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
+        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
+                                  ov::Exception,
+                                  "[AUTO] compile model failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
     } else if (device == "AUTO:CPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config), ov::Exception,
-                                "[AUTO] compile model failed, CPU:Mock CPU Load Failed");
+        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
+                                  ov::Exception,
+                                  "[AUTO] compile model failed, CPU:Mock CPU Load Failed");
     } else if (device == "AUTO:GPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config), ov::Exception,
-                                "[AUTO] compile model failed, GPU:Mock GPU Load Failed");
+        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
+                                  ov::Exception,
+                                  "[AUTO] compile model failed, GPU:Mock GPU Load Failed");
     } else if (device == "MULTI") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config), ov::Exception,
-                                "[MULTI] compile model failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
+        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
+                                  ov::Exception,
+                                  "[MULTI] compile model failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
     } else if (device == "MULTI:CPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config), ov::Exception,
-                                "[MULTI] compile model failed, CPU:Mock CPU Load Failed");
+        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
+                                  ov::Exception,
+                                  "[MULTI] compile model failed, CPU:Mock CPU Load Failed");
     } else if (device == "MULTI:GPU") {
-        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config), ov::Exception,
-                                "[MULTI] compile model failed, GPU:Mock GPU Load Failed");
+        EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config),
+                                  ov::Exception,
+                                  "[MULTI] compile model failed, GPU:Mock GPU Load Failed");
     }
 }
 
@@ -184,9 +212,9 @@ const std::vector<ConfigParams> testConfigsAutoLoadFailed = {
     ConfigParams{"AUTO:GPU", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}},
     ConfigParams{"MULTI", {"CPU", "GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}},
     ConfigParams{"MULTI:CPU", {"CPU"}, {{"MULTI_DEVICE_PRIORITIES", "CPU"}}},
-    ConfigParams{"MULTI:GPU", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}}
-    };
+    ConfigParams{"MULTI:GPU", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoLoadExeNetworkFailedTest, AutoLoadExeNetworkFailedTest,
-                ::testing::ValuesIn(testConfigsAutoLoadFailed),
-            AutoLoadExeNetworkFailedTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AutoLoadExeNetworkFailedTest,
+                         AutoLoadExeNetworkFailedTest,
+                         ::testing::ValuesIn(testConfigsAutoLoadFailed),
+                         AutoLoadExeNetworkFailedTest::getTestCaseName);

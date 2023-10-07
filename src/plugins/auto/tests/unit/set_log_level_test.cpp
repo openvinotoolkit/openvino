@@ -4,14 +4,14 @@
 
 #include "include/auto_unit_test.hpp"
 namespace {
-void custom_unsetenv(const char *name) {
+void custom_unsetenv(const char* name) {
 #ifdef _WIN32
     _putenv((std::string(name) + "=").c_str());
 #else
     ::unsetenv(name);
 #endif
 }
-} // namespace
+}  // namespace
 
 using ConfigParams = std::tuple<std::string, ov::AnyMap>;
 using namespace ov::mock_auto_plugin;
@@ -28,9 +28,10 @@ public:
     }
 
     void SetUp() override {
-        ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                            ::testing::Matcher<const std::string&>(_),
-                            ::testing::Matcher<const ov::AnyMap&>(_)))
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(_),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
             .WillByDefault(Return(mockExeNetwork));
 
         metaDevices = {{ov::test::utils::DEVICE_CPU, {}, -1}, {ov::test::utils::DEVICE_GPU, {}, -1}};
@@ -57,8 +58,12 @@ TEST_P(AutoSetLogLevel, setLogLevelFromConfig) {
     plugin->set_device_name("AUTO");
     plugin->compile_model(model, config);
     int a = 0;
-    DEBUG_RUN([&a](){a++;});
-    INFO_RUN([&a](){a++;});
+    DEBUG_RUN([&a]() {
+        a++;
+    });
+    INFO_RUN([&a]() {
+        a++;
+    });
     if (log_level == "LOG_DEBUG" || log_level == "LOG_TRACE") {
         EXPECT_EQ(a, 2);
     } else if (log_level == "LOG_INFO") {

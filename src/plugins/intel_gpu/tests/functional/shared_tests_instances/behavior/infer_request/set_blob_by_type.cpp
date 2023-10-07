@@ -17,9 +17,7 @@ const std::vector<FuncTestUtils::BlobType> BlobTypes = {
 auto gpuConfig = []() {
     return std::map<std::string, std::string>{};
 };  // nothing special
-auto multiConfig = []() {
-    return std::map<std::string, std::string>{{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_GPU}};
-};
+
 auto heteroConfig = []() {
     return std::map<std::string, std::string>{{"TARGET_FALLBACK", ov::test::utils::DEVICE_GPU}};
 };
@@ -28,18 +26,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior, InferRequestSetBlobByType,
     ::testing::Combine(::testing::ValuesIn(BlobTypes),
                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::Values(gpuConfig())),
-    InferRequestSetBlobByType::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Multi, InferRequestSetBlobByType,
-    ::testing::Combine(::testing::ValuesIn(BlobTypes),
-                       ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                       ::testing::Values(multiConfig())),
-    InferRequestSetBlobByType::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Auto, InferRequestSetBlobByType,
-    ::testing::Combine(::testing::ValuesIn(BlobTypes),
-                       ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                       ::testing::Values(multiConfig())),
     InferRequestSetBlobByType::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Hetero, InferRequestSetBlobByType,

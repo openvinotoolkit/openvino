@@ -5,9 +5,6 @@
 #include <behavior/plugin/core_threading.hpp>
 #ifdef __GLIBC__
 #include <gnu/libc-version.h>
-#if __GLIBC_MINOR__  >= 34
-    #define ENABLETESTMULTI
-#endif
 #endif
 
 namespace {
@@ -15,10 +12,6 @@ namespace {
 const Params params[] = {
     std::tuple<Device, Config>{ ov::test::utils::DEVICE_CPU, {{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
     std::tuple<Device, Config>{ ov::test::utils::DEVICE_HETERO, {{ "TARGET_FALLBACK", ov::test::utils::DEVICE_CPU }}},
-#ifdef ENABLETESTMULTI
-    std::tuple<Device, Config>{ ov::test::utils::DEVICE_MULTI, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , ov::test::utils::DEVICE_CPU }}},
-    std::tuple<Device, Config>{ ov::test::utils::DEVICE_AUTO, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , ov::test::utils::DEVICE_CPU }}},
-#endif
 };
 
 const Params paramsStreams[] = {
