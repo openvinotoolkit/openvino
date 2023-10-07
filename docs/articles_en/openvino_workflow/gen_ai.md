@@ -142,7 +142,7 @@ To convert model from Hugging Face you can use Optimum-Intel export feature that
 
 Model optimization could be performed within Hugging Face or directly using NNCF as described :doc:`here <weight_compression>`.
 
-Inference code that uses native API cannot benefit from Hugging Face pipelines, hence you need to write your own or take it from the examples available. Below are few examples of popular Generative AI scenarios:
+Inference code that uses native API cannot benefit from Hugging Face pipelines. You need to write your custom code or take it from the available examples. Below are some examples of popular Generative AI scenarios:
 
 * In case of text Large Language Models (LLMs), this includes tokenization, inference and token selection loop, and de-tokenization. In case if token selection involves beam search, this also needs to be written.  
 * For Image generation models you need make a pipeline that includes several model: inference for source (e.g. text) encoder models, inference loop for diffusion process and inference for decoding part. Scheduler code is also required. 
