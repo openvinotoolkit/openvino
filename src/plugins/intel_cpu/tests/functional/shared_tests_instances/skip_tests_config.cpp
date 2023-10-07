@@ -186,6 +186,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Basic/FuseTransposeAndReorderTest.CompareWithRefs.*)",
         // Issue: 113703, 114763
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
+        // Issue: 114765
+        R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*BF16.*)",
+        R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*BF16.*)",
         // TODO: for 22.2 (CVS-68949)
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
         // Issue: 117837
