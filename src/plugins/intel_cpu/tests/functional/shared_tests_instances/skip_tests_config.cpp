@@ -108,12 +108,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_AutoMultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
         // supports only '' as device id
         R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)",
-
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
         // TODO: 67255
         R"(smoke_If.*SimpleIf2OutTest.*)",
-
         // Issue: 69086
         // need to add support convert BIN -> FP32
         // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
@@ -201,15 +199,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Basic/FuseTransposeAndReorderTest.CompareWithRefs.*)",
         // Issue: 113703, 114763
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
-        // Issue: 114765
-        R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*)",
-        R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*)",
         // TODO: for 22.2 (CVS-68949)
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
         // Issue: 117837
         R"(.*smoke_4D_out_of_range/GatherInPlaceLayerTestCPU.*_indices=\(\-15\).*)",
         // Issue: 120279
-        R"(.*OVCompiledGraphImportExportTest.*elementType=(i16|u16|u32|u64).*)",
+        R"(.*OVCompiledGraphImportExportTest.*elementType=(i16|u16|u32|u64|i64).*)",
         // Issue: 120222
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=1_axis=3_.*_modelType=f16_trgDev=CPU.*)",
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=7_axis=3_.*_modelType=f16_trgDev=CPU.*)",

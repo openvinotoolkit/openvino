@@ -13,6 +13,19 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 
+static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
+    pugi::xml_node outputs = root.child("outputs");
+    auto nodes_it = outputs.children("out").begin();
+    size_t size = model->outputs().size();
+    for (size_t i = 0; i < size; ++nodes_it, i++) {
+        std::string name = nodes_it->attribute("name").value();
+        if (name.empty())
+            continue;
+        auto result = model->output(i).get_node_shared_ptr();
+        ov::descriptor::set_ov_tensor_legacy_name(result->input_value(0).get_tensor(), name);
+    }
+}
+
 ModelSerializer::ModelSerializer(std::ostream & ostream, ExtensionManager::Ptr extensionManager)
     : _ostream(ostream)
     , _extensionManager(extensionManager) {
@@ -34,8 +47,21 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         return custom_opsets;
     };
 
+    auto serializeInfo = [&](std::ostream& stream) {
+        const std::string name = "cnndata";
+        pugi::xml_document xml_doc;
+        pugi::xml_node root = xml_doc.append_child(name.c_str());
+        pugi::xml_node outputs = root.append_child("outputs");
+        for (const auto& out : model->get_results()) {
+            auto out_node = outputs.append_child("out");
+            const std::string name = ov::descriptor::get_ov_tensor_legacy_name(out->input_value(0).get_tensor());
+            out_node.append_attribute("name").set_value(name.c_str());
+        }
+        xml_doc.save(stream);
+    };
+
     // Serialize to old representation in case of old API
-    ov::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), {});
+    ov::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInfo);
     OPENVINO_SUPPRESS_DEPRECATED_END
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
@@ -58,11 +84,11 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     _istream.seekg(hdr.custom_data_offset);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
+    pugi::xml_document xmlInOutDoc;
     if (hdr.custom_data_size > 0) {
         std::string xmlInOutString;
         xmlInOutString.resize(hdr.custom_data_size);
         _istream.read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
-        pugi::xml_document xmlInOutDoc;
         auto res = xmlInOutDoc.load_string(xmlInOutString.c_str());
         if (res.status != pugi::status_ok) {
             OPENVINO_THROW("NetworkNotRead: The inputs and outputs information is invalid.");
@@ -83,6 +109,10 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
 
     model = _model_builder(xmlString, std::move(dataBlob));
+
+    // Set Info
+    pugi::xml_node root = xmlInOutDoc.child("cnndata");
+    setInfo(root, model);
 }
 
 }   // namespace intel_cpu
