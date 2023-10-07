@@ -144,7 +144,7 @@ Model optimization could be performed within Hugging Face or directly using NNCF
 
 Inference code that uses native API cannot benefit from Hugging Face pipelines. You need to write your custom code or take it from the available examples. Below are some examples of popular Generative AI scenarios:
 
-* In case of text Large Language Models (LLMs), this includes tokenization, inference and token selection loop, and de-tokenization. In case if token selection involves beam search, this also needs to be written.  
+* In case of LLMs for text generation, you need to handle tokenization, inference and token selection loop, and de-tokenization. If token selection involves beam search, it also needs to be written.  
 * For Image generation models you need make a pipeline that includes several model: inference for source (e.g. text) encoder models, inference loop for diffusion process and inference for decoding part. Scheduler code is also required. 
 
 To write such pipelines, we recommend following examples that we have provided as a part of OpenVINO: 
