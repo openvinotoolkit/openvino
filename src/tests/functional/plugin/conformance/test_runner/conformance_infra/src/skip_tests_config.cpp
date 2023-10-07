@@ -29,11 +29,5 @@ ShapeMode shapeMode = ov::test::conformance::ShapeMode::BOTH;
 } // namespace ov
 
 std::vector<std::string> disabledTestPatterns() {
-    if (!ov::with_cpu_x86_avx512_core()) {
-        // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
-        // tests are useless on such platforms
-        ov::test::conformance::disabledTests.emplace_back(R"(.*(BF|bf)16.*)");
-        ov::test::conformance::disabledTests.emplace_back(R"(.*bfloat16.*)");
-    }
     return ov::test::conformance::disabledTests;
 }

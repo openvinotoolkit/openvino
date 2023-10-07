@@ -77,7 +77,10 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
         for (const auto& result : model->get_results()) {
             auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                       result->get_output_partial_shape(0));
-            const std::string res_name = ov::op::util::create_ie_output_name(result->input_value(0));
+            std::string res_name = result->get_input_node_ptr(0)->get_friendly_name();
+            if (res_name.empty()) {
+                res_name = ov::op::util::create_ie_output_name(result->input_value(0));
+            }
             fake_param->set_friendly_name(res_name);
             fake_param->set_element_type(result->get_element_type());
             fake_param->validate_and_infer_types();
