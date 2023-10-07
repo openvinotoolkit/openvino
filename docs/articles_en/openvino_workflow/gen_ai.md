@@ -147,7 +147,7 @@ Inference code that uses native API cannot benefit from Hugging Face pipelines. 
 * In case of LLMs for text generation, you need to handle tokenization, inference and token selection loop, and de-tokenization. If token selection involves beam search, it also needs to be written.  
 * For image generation models, you need to make a pipeline that includes several model inferences: inference for source (e.g., text) encoder models, inference loop for diffusion process and inference for decoding part. Scheduler code is also required. 
 
-To write such pipelines, we recommend following examples that we have provided as a part of OpenVINO: 
+To write such pipelines, you can follow the examples provided as part of OpenVINO: 
 
 * `llama2.openvino <https://github.com/OpenVINO-dev-contest/llama2.openvino>`__
 * `LLM optimization by custom operation embedding for OpenVINO <https://github.com/luo-cheng2021/ov.cpu.llm.experimental>`__
