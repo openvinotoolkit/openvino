@@ -156,8 +156,24 @@ def part5():
     core = ov.Core()
 
     # gpu_config and cpu_config will load during compile_model()
+    gpu_config = dict([
+        properties.hint.performance_mode(properties.hint.PerformanceMode.THROUGHPUT),
+        properties.streams.num(4)
+    ])
+    cpu_config = dict([
+        properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
+        properties.streams.num(8),
+        properties.enable_profiling(True)
+    ])
     compiled_model = core.compile_model(model=model)
-    compiled_model = core.compile_model(model=model, device_name="AUTO")
+    compiled_model = core.compile_model(
+        model=model,
+        device_name="AUTO",
+        config=dict([
+            properties.device.priorities("GPU,CPU"),
+            properties.device.properties({'CPU': cpu_config, 'GPU': gpu_config})
+        ])
+    )
     #! [part5]
 
 
