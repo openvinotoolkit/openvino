@@ -10,7 +10,7 @@ Generative AI is an innovative technique that creates new data, such as text, im
 * Inference on CPU and GPU platforms, including Intel integrated and discrete ARC GPUs. 
  
 
-There are two main paths how OpenVINO could be used to run Generative AI use cases:
+OpenVINO offers two main paths for Generative AI use cases:
 
 * As a backend for Hugging Face frameworks (transformers, diffusers) with use of `Optimum-Intel <https://huggingface.co/docs/optimum/intel/inference>`__ extension 
 * With use of OpenVINO native APIs (Python and C++) with use of custom pipeline code 
