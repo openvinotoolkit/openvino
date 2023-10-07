@@ -165,7 +165,6 @@ def part5():
         properties.streams.num(8),
         properties.enable_profiling(True)
     ])
-    compiled_model = core.compile_model(model=model)
     compiled_model = core.compile_model(
         model=model,
         device_name="AUTO",
