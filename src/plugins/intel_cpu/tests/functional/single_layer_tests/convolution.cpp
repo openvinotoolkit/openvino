@@ -6,8 +6,8 @@
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/core/visibility.hpp"
 #include <shared_test_classes/single_layer/convolution.hpp>
 #include "utils/general_utils.h"
@@ -199,7 +199,10 @@ protected:
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
-        auto inputParams = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
         auto convolutionNode = ngraph::builder::makeConvolution(paramOuts.front(), netType, kernel, stride, padBegin,

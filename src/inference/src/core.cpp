@@ -5,7 +5,6 @@
 #include "openvino/runtime/core.hpp"
 
 #include "any_copy.hpp"
-#include "cnn_network_ngraph_impl.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "itt.hpp"
@@ -161,7 +160,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
     });
 }
 
-void Core::add_extension(const ie::IExtensionPtr& extension) {
+void Core::add_extension(const InferenceEngine::IExtensionPtr& extension) {
     OV_CORE_CALL_STATEMENT(_impl->AddExtension(extension););
 }
 

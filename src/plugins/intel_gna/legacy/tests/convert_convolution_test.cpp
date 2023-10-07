@@ -9,23 +9,23 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/constant_folding.hpp>
+#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::opset1;
+using namespace ov;
+using namespace ov::opset1;
 
 using InputShape = PartialShape;
 using WeightsShape = PartialShape;
@@ -33,18 +33,18 @@ using WeightsShape = PartialShape;
 class ConvertConvolutionTest : public ov::test::TestsCommon,
                                public testing::WithParamInterface<std::tuple<InputShape, WeightsShape>> {
 public:
-    std::shared_ptr<Function> f, f_ref;
+    std::shared_ptr<Model> f, f_ref;
 
     void SetUp() override {
         const auto& input_shape = std::get<0>(GetParam());
         const auto& weights_shape = std::get<1>(GetParam());
 
-        f = get_initial_function(input_shape, weights_shape);
+        f = get_initial_model(input_shape, weights_shape);
         f_ref = get_reference_function(input_shape, weights_shape);
     }
 
 private:
-    std::shared_ptr<Function> get_initial_function(const PartialShape& input_shape, const PartialShape& weights_shape) {
+    std::shared_ptr<Model> get_initial_model(const PartialShape& input_shape, const PartialShape& weights_shape) {
         assert(weights_shape.is_static());
         auto spatial_dims = input_shape.rank().get_length() - 2;
         auto input = std::make_shared<Parameter>(element::f32, input_shape);
@@ -56,24 +56,23 @@ private:
                                                   CoordinateDiff(spatial_dims, 0),
                                                   Strides(spatial_dims, 1));
 
-        return std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
+        return std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
 
-    std::shared_ptr<Function> get_reference_function(const PartialShape& input_shape,
-                                                     const PartialShape& weights_shape) {
+    std::shared_ptr<Model> get_reference_function(const PartialShape& input_shape, const PartialShape& weights_shape) {
         assert(weights_shape.is_static());
         auto spatial_dims = input_shape.rank().get_length() - 2;
         auto input = std::make_shared<Parameter>(element::f32, input_shape);
         auto weights = Constant::create(element::f32, weights_shape.get_shape(), {1});
-        auto conv = std::make_shared<op::ConvolutionIE>(input,
-                                                        weights,
-                                                        Strides(spatial_dims, 1),
-                                                        Strides(spatial_dims, 1),
-                                                        CoordinateDiff(spatial_dims, 0),
-                                                        CoordinateDiff(spatial_dims, 0),
-                                                        element::f32);
+        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input,
+                                                                weights,
+                                                                Strides(spatial_dims, 1),
+                                                                Strides(spatial_dims, 1),
+                                                                CoordinateDiff(spatial_dims, 0),
+                                                                CoordinateDiff(spatial_dims, 0),
+                                                                element::f32);
 
-        return std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
+        return std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
 };
 
@@ -81,7 +80,7 @@ TEST_P(ConvertConvolutionTest, CompareFunctions) {
     const auto orig_shape = f->get_output_partial_shape(0);
     pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<pass::ConvertConvolutions>();
+    manager.register_pass<ngraph::pass::ConvertConvolutions>();
     manager.run_passes(f);
 
     ASSERT_NO_THROW(check_rt_info(f));
@@ -117,7 +116,7 @@ TEST(ConvertConvolutionTest, GroupConvolutionWithReshape) {
     PartialShape weights_shape_after{2, 3, 3, 5, 5};
     size_t group = 2;
 
-    std::shared_ptr<Function> f, f_ref;
+    std::shared_ptr<Model> f, f_ref;
     {
         auto spatial_dims = input_shape.rank().get_length() - 2;
         auto input = std::make_shared<Parameter>(element::f32, input_shape);
@@ -135,28 +134,28 @@ TEST(ConvertConvolutionTest, GroupConvolutionWithReshape) {
                                                        CoordinateDiff(spatial_dims, 0),
                                                        Strides(spatial_dims, 1));
 
-        f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input, weights});
+        f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input, weights});
     }
 
     {
         auto spatial_dims = input_shape.rank().get_length() - 2;
         auto input = std::make_shared<Parameter>(element::f32, input_shape);
         auto weights = std::make_shared<Parameter>(element::f32, weights_shape_before);
-        auto conv = std::make_shared<op::ConvolutionIE>(input,
-                                                        weights,
-                                                        Strides(spatial_dims, 1),
-                                                        Strides(spatial_dims, 1),
-                                                        CoordinateDiff(spatial_dims, 0),
-                                                        CoordinateDiff(spatial_dims, 0),
-                                                        element::f32,
-                                                        group);
+        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input,
+                                                                weights,
+                                                                Strides(spatial_dims, 1),
+                                                                Strides(spatial_dims, 1),
+                                                                CoordinateDiff(spatial_dims, 0),
+                                                                CoordinateDiff(spatial_dims, 0),
+                                                                element::f32,
+                                                                group);
 
-        f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input, weights});
+        f_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input, weights});
     }
 
     pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<pass::ConvertConvolutions>();
+    manager.register_pass<ngraph::pass::ConvertConvolutions>();
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
@@ -170,7 +169,7 @@ TEST(ConvertConvolutionTest, GroupConvolutionWithReshapeNeg) {
     PartialShape weights_shape_ref{2 * 3, 3, 5, 5};
     size_t group = 2;
 
-    std::shared_ptr<Function> f, f_ref;
+    std::shared_ptr<Model> f, f_ref;
     {
         auto spatial_dims = input_shape.rank().get_length() - 2;
         auto input = std::make_shared<Parameter>(element::f32, input_shape);
@@ -188,7 +187,7 @@ TEST(ConvertConvolutionTest, GroupConvolutionWithReshapeNeg) {
                                                        CoordinateDiff(spatial_dims, 0),
                                                        Strides(spatial_dims, 1));
 
-        f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input, weights});
+        f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input, weights});
     }
 
     {
@@ -207,21 +206,21 @@ TEST(ConvertConvolutionTest, GroupConvolutionWithReshapeNeg) {
                              Shape{static_cast<size_t>(weights_shape_ref.rank().get_length())},
                              weights_shape_ref.to_shape()),
             true);
-        auto conv = std::make_shared<op::ConvolutionIE>(input,
-                                                        weights,
-                                                        Strides(spatial_dims, 1),
-                                                        Strides(spatial_dims, 1),
-                                                        CoordinateDiff(spatial_dims, 0),
-                                                        CoordinateDiff(spatial_dims, 0),
-                                                        element::f32,
-                                                        group);
+        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input,
+                                                                weights,
+                                                                Strides(spatial_dims, 1),
+                                                                Strides(spatial_dims, 1),
+                                                                CoordinateDiff(spatial_dims, 0),
+                                                                CoordinateDiff(spatial_dims, 0),
+                                                                element::f32,
+                                                                group);
 
-        f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input, weights_param});
+        f_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input, weights_param});
     }
 
     pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<pass::ConvertConvolutions>();
+    manager.register_pass<ngraph::pass::ConvertConvolutions>();
     manager.run_passes(f);
     // FIXME: 42956
     // ASSERT_NO_THROW(check_rt_info(f));

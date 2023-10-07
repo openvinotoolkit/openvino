@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/unique.hpp"
+#include "openvino/reference/unique.hpp"
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/unique.hpp"
 #include "openvino/op/util/op_types.hpp"
 
@@ -17,16 +17,16 @@ int64_t extract_axis(const std::shared_ptr<op::v0::Constant>& axis_constant) {
     return axis_vec.at(0);
 }
 
-struct Evaluate : element::NotSupported<ngraph::runtime::reference::UniqueElements<int32_t, int32_t>> {
-    using NotSupported<ngraph::runtime::reference::UniqueElements<int32_t, int32_t>>::visit;
+struct Evaluate : element::NotSupported<ov::reference::UniqueElements<int32_t, int32_t>> {
+    using NotSupported<ov::reference::UniqueElements<int32_t, int32_t>>::visit;
 
     template <element::Type_t ET>
     static result_type visit(const Tensor& input, std::unique_ptr<int64_t> axis, const bool sorted) {
         using T = fundamental_type_for<ET>;
-        return ngraph::runtime::reference::find_unique_elements<T, int32_t, int32_t>(input.data<T>(),
-                                                                                     input.get_shape(),
-                                                                                     std::move(axis),
-                                                                                     sorted);
+        return ov::reference::find_unique_elements<T, int32_t, int32_t>(input.data<T>(),
+                                                                        input.get_shape(),
+                                                                        std::move(axis),
+                                                                        sorted);
     }
 };
 
@@ -51,9 +51,7 @@ std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& inp
                                                                                                       std::move(axis),
                                                                                                       op.get_sorted());
 
-    return ngraph::runtime::reference::make_tensor_shapes(unique_elements,
-                                                          input_data.get_shape(),
-                                                          maybe_extract_axis());
+    return ov::reference::make_tensor_shapes(unique_elements, input_data.get_shape(), maybe_extract_axis());
 }
 }  // namespace
 
@@ -144,7 +142,7 @@ void op::v10::Unique::validate_and_infer_types() {
 
             if (input_shape.rank().is_static()) {
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto normalized_axis = ngraph::normalize_axis(this, axis, input_shape.rank());
+                const auto normalized_axis = ov::normalize_axis(this, axis, input_shape.rank());
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 const auto dim_at_axis = input_shape[normalized_axis];
 

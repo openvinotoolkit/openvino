@@ -13,6 +13,7 @@
 #include "snippets/lowered/pass/validate_loops.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/insert_tail_loop.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 #include "snippets/op/loop.hpp"
 
@@ -26,7 +27,8 @@ constexpr static size_t vector_size = 16;
 
 static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, LinearIR& linear_ir, size_t block_size) {
     auto body = ov::test::snippets::AddFunction(in_shapes).getOriginal();
-    linear_ir = LinearIR(body);
+    auto shape_infer_factory = std::make_shared<ov::snippets::IShapeInferSnippetsFactory>();
+    linear_ir = LinearIR(body, shape_infer_factory);
     auto expr_it = std::find_if(linear_ir.cbegin(), linear_ir.cend(),
                                 [](const ExpressionPtr& expr) { return ov::is_type<ov::op::v1::Add>(expr->get_node()); });
     ASSERT_TRUE(expr_it != linear_ir.cend());

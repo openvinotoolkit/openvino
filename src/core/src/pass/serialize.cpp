@@ -12,7 +12,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "ngraph/runtime/reference/convert.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
@@ -21,6 +20,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
@@ -51,14 +51,17 @@ struct Edge {
 // convention. Most of them are the same, but there are exceptions, e.g
 // Constant (OpenVINO Model name) and Const (IR name). If there will be more
 // discrepancies discovered, translations needs to be added here.
-const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Constant", "Const"},
-                                                                                     {"PRelu", "PReLU"},
-                                                                                     {"Relu", "ReLU"},
-                                                                                     {"Softmax", "SoftMax"}};
+const std::unordered_map<std::string, std::string>& get_translate_type_name_translator() {
+    static const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Constant", "Const"},
+                                                                                                {"PRelu", "PReLU"},
+                                                                                                {"Relu", "ReLU"},
+                                                                                                {"Softmax", "SoftMax"}};
+    return translate_type_name_translator;
+}
 
 std::string translate_type_name(const std::string& name) {
-    auto found = translate_type_name_translator.find(name);
-    if (found != end(translate_type_name_translator)) {
+    auto found = get_translate_type_name_translator().find(name);
+    if (found != end(get_translate_type_name_translator())) {
         return found->second;
     }
     return name;
@@ -157,7 +160,7 @@ private:
             auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
             auto src_data = reinterpret_cast<const float*>(ptr);
-            ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, num_src_elements);
+            ov::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, num_src_elements);
             return new_ptr;
         } else if (src_type == ov::element::f64) {
             auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);
@@ -197,7 +200,7 @@ void ngfunction_2_ir(pugi::xml_node& node,
                      bool deterministic);
 
 namespace rt_info {
-const std::vector<std::string> list_of_names{
+static const std::vector<std::string> list_of_names{
     "PrimitivesPriority",
     "alt_width",
 };
@@ -738,6 +741,8 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "BIN";
     case ::ov::element::Type_t::boolean:
         return "BOOL";
+    case ::ov::element::Type_t::nf4:
+        return "NF4";
     default:
         OPENVINO_THROW("Unsupported precision: ", elem_type);
     }

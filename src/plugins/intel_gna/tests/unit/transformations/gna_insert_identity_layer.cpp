@@ -4,11 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/ngraph_test_utils.hpp>
+#include <common_test_utils/ov_test_utils.hpp>
 #include <legacy/ngraph_ops/eltwise.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 

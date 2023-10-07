@@ -11,7 +11,7 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        std::vector<ov::PartialShape>,   // Input shapes
+        std::vector<InputShape>,         // Input shapes
         std::vector<float>,              // FakeQuantize intervals
         size_t,                          // Expected num nodes
         size_t,                          // Expected num subgraphs

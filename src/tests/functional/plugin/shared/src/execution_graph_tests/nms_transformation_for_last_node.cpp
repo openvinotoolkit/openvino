@@ -12,7 +12,7 @@
 #include <inference_engine.hpp>
 
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 #include <memory>
 #include <string>

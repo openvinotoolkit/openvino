@@ -3,8 +3,8 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -156,8 +156,10 @@ protected:
         bool withBilinearInterpolationPad, withModulation;
         std::tie(withBilinearInterpolationPad, withModulation, offsetType) = dcSpecificParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto inputParams = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
-
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
+        }
         auto data = inputParams[0];
         data->set_friendly_name("a_data");
         auto offset_vals = inputParams[1];
@@ -630,5 +632,39 @@ INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest8, DefConvLayerCPUTest, params8, DefCo
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest9, DefConvLayerCPUTest, params9, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest10, DefConvLayerCPUTest, params10, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest11, DefConvLayerCPUTest, params11, DefConvLayerCPUTest::getTestCaseName);
+
+const std::vector<std::vector<size_t>> blockMultigroupChParam = {
+    {2}, // gr.
+    {1}, // def. gr.
+    {16}, // in. ch. per gr.
+    {16} // out. ch. per gr.
+};
+const std::vector<std::vector<size_t>> blockMultigroupSpatParam = {
+    {1}, // batch
+    {2, 2}, // in. spat. shape
+    {2, 2}, // off. spat. shape
+    {1, 1} // ker. spat. shape
+};
+const auto blockMultigroupAddParam = ::testing::Combine(
+    ::testing::Values(true),  // with_bilinear_interpolation_pad
+    ::testing::Values(false),  // with_modulation
+    ::testing::Values(OffsetType::ZERO)  // offset type
+);
+const auto blockMultigroupKernelParam = ::testing::Combine(
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),  // pad. type
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. begin
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. end
+        ::testing::Values(std::vector<size_t> {1, 1}),  // strides
+        ::testing::Values(std::vector<size_t> {1, 1})  // dilations
+);
+const auto blockMultigroupParam = ::testing::Combine(
+                        ::testing::Combine(
+                            blockMultigroupKernelParam,
+                            ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(blockMultigroupSpatParam, blockMultigroupChParam))),
+                            blockMultigroupAddParam,
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        ::testing::ValuesIn(filterCPUInfoForDevice(true)));
+INSTANTIATE_TEST_SUITE_P(blockMultigroupDefConvTest, DefConvLayerCPUTest, blockMultigroupParam, DefConvLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

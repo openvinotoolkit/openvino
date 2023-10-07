@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace ov;
@@ -74,11 +74,11 @@ class SelectWithOneValueConditionTest : public WithParamInterface<SelectWithOneV
 TEST_P(SelectWithOneValueConditionTest, SelectWithOneValueConditionTestPattern) {
     const auto& p = GetParam();
     {
-        function = gen_model(p);
+        model = gen_model(p);
         manager.register_pass<pass::SelectWithOneValueCondition>();
     }
 
-    function_ref = gen_reference(p);
+    model_ref = gen_reference(p);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);

@@ -3,7 +3,7 @@
 //
 
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <openvino/pass/serialize.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -21,7 +21,10 @@ class ReshapeChain : public SubgraphBaseTest {
         init_input_shapes({inputShapes});
         auto ngPrc = ngraph::element::f32;
         const auto secondInPrc = ngraph::element::Type_t::i32;
-        auto inputParams = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
+        }
         auto reshapeParam1 = ngraph::builder::makeConstant<int>(secondInPrc, {3}, {0, 0, -1});
         auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(inputParams.front(), reshapeParam1, true);
         auto reshapeParam2 = ngraph::builder::makeConstant<int>(secondInPrc, {2}, {0, -1});

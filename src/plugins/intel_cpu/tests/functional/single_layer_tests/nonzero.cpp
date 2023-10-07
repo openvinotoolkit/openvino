@@ -5,8 +5,8 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace InferenceEngine;
@@ -82,7 +82,10 @@ protected:
         std::tie(startFrom, range) = genData;
 
         init_input_shapes({inputShape});
-        auto inputParams = ngraph::builder::makeDynamicParams(netType, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+        }
 
         auto nonZero = std::make_shared<ngraph::opset3::NonZero>(inputParams[0]);
         // I8 was used as a special placeholder during calculating of primitive type if input was U8,

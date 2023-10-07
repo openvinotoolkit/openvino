@@ -4,7 +4,7 @@
 
 set(TARGET_NAME conformanceShared)
 
-addIeTarget(
+ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -26,4 +26,4 @@ if(ENABLE_CONFORMANCE_PGQL)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_CONFORMANCE_PGQL)
 endif()
 
-ie_faster_build(${TARGET_NAME} UNITY)
+ov_build_target_faster(${TARGET_NAME} UNITY)

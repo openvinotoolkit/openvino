@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -106,7 +106,10 @@ protected:
             rel_threshold = 1e-4;
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+            ov::ParameterVector params;
+            for (auto&& shape : inputDynamicShapes) {
+                params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+            }
         const size_t batchSize = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
             inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :
             inputDynamicShapes.size() > 2 && inputDynamicShapes[2][0].is_static() ? inputDynamicShapes[2][0].get_length() :

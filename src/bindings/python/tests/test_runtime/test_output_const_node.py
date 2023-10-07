@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import pytest
 from copy import copy, deepcopy
 
-from ..conftest import model_path
-import openvino.runtime.opset12 as ops
+import openvino.runtime.opset13 as ops
 from openvino import (
     Shape,
     PartialShape,
@@ -19,16 +19,12 @@ from openvino.runtime import (
     Output,
     RTMap,
 )
-
-import pytest
-
-
-test_net_xml, test_net_bin = model_path()
+from tests.utils.helpers import get_relu_model
 
 
 def test_const_output_type(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     node = compiled_model.input(0)
     assert isinstance(node, ConstOutput)
@@ -36,7 +32,7 @@ def test_const_output_type(device):
 
 def test_const_output_docs(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     node = compiled_model.input(0)
     exptected_string = "openvino.runtime.ConstOutput represents port/node output."
@@ -45,7 +41,7 @@ def test_const_output_docs(device):
 
 def test_const_output_get_index(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     node = compiled_model.input("data")
     assert node.get_index() == 0
@@ -54,7 +50,7 @@ def test_const_output_get_index(device):
 
 def test_const_output_get_element_type(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     node = compiled_model.input("data")
     assert node.get_element_type() == Type.f32
@@ -63,7 +59,7 @@ def test_const_output_get_element_type(device):
 
 def test_const_output_get_shape(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     node = compiled_model.input("data")
     expected_shape = Shape([1, 3, 32, 32])
@@ -73,7 +69,7 @@ def test_const_output_get_shape(device):
 
 def test_const_output_get_partial_shape(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     exec_net = core.compile_model(model, device)
     node = exec_net.input("data")
     expected_partial_shape = PartialShape([1, 3, 32, 32])
@@ -83,7 +79,7 @@ def test_const_output_get_partial_shape(device):
 
 def test_const_output_get_target_inputs(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     outputs = compiled_model.outputs
     for node in outputs:
@@ -93,7 +89,7 @@ def test_const_output_get_target_inputs(device):
 
 def test_const_output_get_names(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     input_name = "data"
     node = compiled_model.input(input_name)
@@ -107,7 +103,7 @@ def test_const_output_get_names(device):
 
 def test_const_get_rf_info(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     output_node = compiled_model.output(0)
     rt_info = output_node.get_rt_info()
@@ -116,7 +112,7 @@ def test_const_get_rf_info(device):
 
 def test_const_output_runtime_info(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     input_name = "data"
     output_node = compiled_model.input(input_name)

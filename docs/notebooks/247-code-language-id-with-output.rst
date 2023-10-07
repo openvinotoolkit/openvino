@@ -4,11 +4,11 @@ Programming Language Classification with OpenVINO
 Overview
 --------
 
-This tutorial will be divided in 2 parts: 1. Create a simple inference
-pipeline with a pre-trained model using the OpenVINO™ IR format. 2.
-Conduct `post-training quantization <https://docs.openvino.ai/latest/ptq_introduction.html>`__
-on a pre-trained model using Hugging Face Optimum and benchmark
-performance.
+This tutorial will be divided in 2 parts:
+
+1. Create a simple inference pipeline with a pre-trained model using the OpenVINO™ IR format.
+2. Conduct `post-training quantization <https://docs.openvino.ai/2023.1/ptq_introduction.html>`__ 
+   on a pre-trained model using Hugging Face Optimum and benchmark performance.
 
 Feel free to use the notebook outline in Jupyter or your IDE for easy
 navigation.
@@ -69,7 +69,7 @@ will allow to automatically convert models to the OpenVINO™ IR format.
 Install prerequisites
 ~~~~~~~~~~~~~~~~~~~~~
 
-First, complete the `repository installation steps <../../README.md>`__.
+First, complete the `repository installation steps <../notebooks_installation.html>`__.
 
 Then, the following cell will install: - HuggingFace Optimum with
 OpenVINO support - HuggingFace Evaluate to benchmark results
@@ -257,7 +257,7 @@ Part 2: OpenVINO post-training quantization with HuggingFace Optimum
 In this section, we will quantize a trained model. At a high-level, this
 process consists of using lower precision numbers in the model, which
 results in a smaller model size and faster inference at the cost of a
-potential marginal performance degradation. `Learn more <https://docs.openvino.ai/latest/ptq_introduction.html>`__.
+potential marginal performance degradation. `Learn more <https://docs.openvino.ai/2023.1/ptq_introduction.html>`__.
 
 The HuggingFace Optimum library supports post-training quantization for
 OpenVINO. `Learn more <https://huggingface.co/docs/optimum/main/en/intel/index>`__.
@@ -305,8 +305,10 @@ Define constants and functions
 Load resources
 ~~~~~~~~~~~~~~
 
-NOTE: the base model is loaded using
-``AutoModelForSequenceClassification`` from ``Transformers``
+.. note::
+
+   The base model is loaded using ``AutoModelForSequenceClassification`` from ``Transformers``.
+
 
 .. code:: ipython3
 
@@ -330,8 +332,10 @@ Load calibration dataset
 The ``get_dataset_sample()`` function will sample up to ``num_samples``,
 with an equal number of examples across the 6 programming languages.
 
-NOTE: Uncomment the method below to download and use the full dataset
-(5+ Gb).
+.. note::
+
+   Uncomment the method below to download and use the full dataset (5+ Gb).
+
 
 .. code:: ipython3
 
@@ -491,8 +495,9 @@ dataset to quantize and save the model
 Load quantized model
 ~~~~~~~~~~~~~~~~~~~~
 
-NOTE: the argument ``export=True`` is not required since the quantized
-model is already in the OpenVINO format.
+.. note::
+
+   The argument ``export=True`` is not required since the quantized model is already in the OpenVINO format.
 
 .. code:: ipython3
 
@@ -531,8 +536,10 @@ Inference on new input using quantized model
 Load evaluation set
 ~~~~~~~~~~~~~~~~~~~
 
-NOTE: Uncomment the method below to download and use the full dataset
-(5+ Gb).
+.. note::
+
+   Uncomment the method below to download and use the full dataset (5+ Gb).
+
 
 .. code:: ipython3
 

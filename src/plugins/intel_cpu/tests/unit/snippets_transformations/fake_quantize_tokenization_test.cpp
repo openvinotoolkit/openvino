@@ -4,14 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
-#include "fake_quantize_function.hpp"
+#include "fake_quantize_helper.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #include "function_helper.hpp"
+
 namespace ov {
 namespace test {
 namespace snippets {
@@ -30,10 +31,10 @@ public:
     void TearDown() override {
         TransformationTestsF::TearDown();
 
-        auto subgraph = FunctionHelper::getSubgraph(function);
+        auto subgraph = FunctionHelper::getSubgraph(model);
         auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ov::snippets::op::Subgraph>(subgraph)->body_ptr();
 
-        auto subgraph_ref = FunctionHelper::getSubgraph(function_ref);
+        auto subgraph_ref = FunctionHelper::getSubgraph(model_ref);
         auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ov::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
 
         if ((body != nullptr) && (body_ref != nullptr)) {
@@ -47,14 +48,14 @@ public:
 };
 
 TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_FakeQuantize_PerTensor) {
-    function = FakeQuantizeFunction::getOperationAndFakeQuantize(
+    model = FakeQuantizeFunction::getOperationAndFakeQuantize(
         { {1, 3, 16, 16} },
         element::f32,
         { {}, {}, {}, {} },
         true,
         FunctionHelper::makePrerequisitesOriginal());
 
-    function_ref = FakeQuantizeFunction::getSubgraphWithFakeQuantize(
+    model_ref = FakeQuantizeFunction::getSubgraphWithFakeQuantize(
         { {1, 3, 16, 16} },
         element::f32,
         { {}, {}, {}, {} },
@@ -65,14 +66,14 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_FakeQuantize_PerTensor) {
 }
 
 TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_FakeQuantize_PerChannels) {
-    function = FakeQuantizeFunction::getOperationAndFakeQuantize(
+    model = FakeQuantizeFunction::getOperationAndFakeQuantize(
         { {1, 3, 16, 16} },
         element::f32,
         { {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1} },
         true,
         FunctionHelper::makePrerequisitesOriginal());
 
-    function_ref = FakeQuantizeFunction::getSubgraphWithFakeQuantize(
+    model_ref = FakeQuantizeFunction::getSubgraphWithFakeQuantize(
         { {1, 3, 16, 16} },
         element::f32,
         { {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1} },
@@ -83,7 +84,7 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_FakeQuantize_PerChannels) {
 }
 
 TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_ConvolutionWithFakeQuantize) {
-    function = FakeQuantizeFunction::getOperationAndFakeQuantize(
+    model = FakeQuantizeFunction::getOperationAndFakeQuantize(
         {{1, 3, 16, 16}},
         element::f32,
         {{}, {}, {}, {}},
@@ -91,7 +92,7 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_ConvolutionWithFakeQuantize)
         FunctionHelper::makePrerequisitesOriginal(),
         std::make_shared<ov::op::v1::Convolution>());
 
-    function_ref = FakeQuantizeFunction::getOperationAndFakeQuantize(
+    model_ref = FakeQuantizeFunction::getOperationAndFakeQuantize(
         {{1, 3, 16, 16}},
         element::f32,
         {{}, {}, {}, {}},

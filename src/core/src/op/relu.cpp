@@ -9,7 +9,7 @@
 #include "itt.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/relu.hpp"
+#include "openvino/reference/relu.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -30,7 +30,7 @@ namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::relu<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::relu<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 
@@ -40,12 +40,12 @@ bool evaluate_relu(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_relu, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_relu, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_relu, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_relu, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_relu, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_relu, f32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_relu, i32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_relu, i64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_relu, u32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_relu, u64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_relu, f16, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_relu, f32, arg0, out, count);
     default:
         rc = false;
         break;
@@ -58,7 +58,7 @@ bool evaluate_relu(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Relu_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return relu::evaluate_relu(inputs[0], outputs[0]);
 }

@@ -1,9 +1,10 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace ov::opset10;

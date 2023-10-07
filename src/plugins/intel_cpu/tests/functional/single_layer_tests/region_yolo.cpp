@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -79,8 +79,10 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         selectedType = getPrimitiveType() + "_" + InferenceEngine::details::convertPrecision(inPrc).name();
-        auto paramRegionYolo = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
-
+        ov::ParameterVector paramRegionYolo;
+        for (auto&& shape : inputDynamicShapes) {
+            paramRegionYolo.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+        }
         const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
                                                                               attributes.coordinates, attributes.classes, attributes.num_regions,
                                                                               attributes.do_softmax, mask, attributes.start_axis, attributes.end_axis);

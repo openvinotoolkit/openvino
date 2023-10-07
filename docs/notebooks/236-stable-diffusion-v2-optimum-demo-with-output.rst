@@ -1,9 +1,11 @@
 Stable Diffusion v2.1 using Optimum-Intel OpenVINO
 ==================================================
 
-.. _top:
+
 
 |image0|
+
+.. _top:
 
 **Table of contents**:
 
@@ -20,16 +22,18 @@ accelerate end-to-end pipelines on Intel architectures. More details in
 this
 `repository <https://github.com/huggingface/optimum-intel#openvino>`__.
 
-``Note: We suggest you to create a different environment and run the following installation command there.``
+.. note::
+
+    We suggest you to create a different environment and run the following installation command there.
 
 .. code:: ipython3
 
     %pip install -q "optimum-intel[openvino,diffusers]" "ipywidgets"
 
 
-.. parsed-literal::
+.. hint::
 
-    Note: you may need to restart the kernel to use updated packages.
+    You may need to restart the kernel to use updated packages.
 
 
 Stable Diffusion pipeline should brings 6 elements together, a text
@@ -51,7 +55,7 @@ in this notebook is
 `helenai/stabilityai-stable-diffusion-2-1-base-ov <https://huggingface.co/helenai/stabilityai-stable-diffusion-2-1-base-ov>`__.
 Let’s download the pre-converted model Stable Diffusion 2.1
 `Intermediate Representation Format
-(IR) <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
+(IR) <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_IR_and_opsets.html>`__
 
 Showing Info Available Devices `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -65,11 +69,13 @@ you have integrated GPU (iGPU) and discrete GPU (dGPU), it will show
 If you just have either an iGPU or dGPU that will be assigned to
 ``"GPU"``
 
-Note: For more details about GPU with OpenVINO visit this
-`link <https://docs.openvino.ai/nightly/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__.
-If you have been facing any issue in Ubuntu 20.04 or Windows 11 read
-this
-`blog <https://blog.openvino.ai/blog-posts/install-gpu-drivers-windows-ubuntu>`__.
+.. note::
+
+   For more details about GPU with OpenVINO visit this
+   `link <https://docs.openvino.ai/nightly/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__.
+   If you have been facing any issue in Ubuntu 20.04 or Windows 11 read
+   this
+   `blog <https://blog.openvino.ai/blog-posts/install-gpu-drivers-windows-ubuntu>`__.
 
 .. code:: ipython3
 

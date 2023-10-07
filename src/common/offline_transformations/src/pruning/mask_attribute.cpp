@@ -5,10 +5,11 @@
 #include "mask_attribute.hpp"
 
 #include <functional>
-#include <ngraph/node.hpp>
 #include <ostream>
 
-namespace ngraph {
+#include "openvino/core/node.hpp"
+
+namespace ov {
 
 Mask::Ptr getMask(const Output<const Node>& output) {
     auto& rtInfo = output.get_rt_info();
@@ -78,4 +79,4 @@ std::ostream& operator<<(std::ostream& out, const Mask& mask) {
     return out;
 }
 
-}  // namespace ngraph
+}  // namespace ov

@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class DecomposeIntegerDivide: public ngraph::pass::MatcherPass {
+class DecomposeIntegerDivide: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DecomposeIntegerDivide", "0");
     DecomposeIntegerDivide();

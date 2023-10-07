@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <ngraph/validation_util.hpp>
-#include <openvino/op/grid_sample.hpp>
 #include <vector>
 
+#include "openvino/op/grid_sample.hpp"
 #include "utils.hpp"
 
 namespace ov {

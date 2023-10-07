@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
@@ -70,7 +70,7 @@ protected:
         init_input_shapes({dataInputShape, seqLengthsShape});
 
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto paramsIn = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes[0]});
+        ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes[0])};
 
         constexpr auto seqLengthsPrc = ngraph::element::Type_t::i32; //according to the specification
         std::shared_ptr<ngraph::Node> seqLengthsInput;

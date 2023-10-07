@@ -2,27 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset11.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "openvino/op/interpolate.hpp"
+
+#include <gtest/gtest.h>
+
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, interpolate_op1) {
-    NodeBuilder::get_ops().register_factory<opset1::Interpolate>();
-    auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
-    auto out_shape = make_shared<op::Parameter>(element::i32, Shape{2});
+    NodeBuilder::get_ops().register_factory<ov::op::v0::Interpolate>();
+    auto img = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 32, 32});
+    auto out_shape = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
-    op::v0::InterpolateAttrs interp_atrs;
+    op::v0::Interpolate::Attributes interp_atrs;
     interp_atrs.axes = AxisSet{1, 2};
     interp_atrs.mode = "cubic";
     interp_atrs.align_corners = true;
@@ -30,9 +27,9 @@ TEST(attributes, interpolate_op1) {
     interp_atrs.pads_begin = vector<size_t>{0, 0};
     interp_atrs.pads_end = vector<size_t>{0, 0};
 
-    auto interpolate = make_shared<opset1::Interpolate>(img, out_shape, interp_atrs);
+    auto interpolate = make_shared<ov::op::v0::Interpolate>(img, out_shape, interp_atrs);
     NodeBuilder builder(interpolate, {img, out_shape});
-    auto g_interpolate = ov::as_type_ptr<opset1::Interpolate>(builder.create());
+    auto g_interpolate = ov::as_type_ptr<ov::op::v0::Interpolate>(builder.create());
 
     const auto i_attrs = interpolate->get_attrs();
     const auto g_i_attrs = g_interpolate->get_attrs();
@@ -46,9 +43,9 @@ TEST(attributes, interpolate_op1) {
 }
 
 TEST(attributes, interpolate_op4) {
-    NodeBuilder::get_ops().register_factory<opset4::Interpolate>();
-    auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
-    auto out_shape = make_shared<op::Parameter>(element::i32, Shape{2});
+    NodeBuilder::get_ops().register_factory<ov::op::v4::Interpolate>();
+    auto img = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 32, 32});
+    auto out_shape = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     auto scales = op::v0::Constant::create(element::f32, {1}, {1.0});
 
     op::v4::Interpolate::InterpolateAttrs attrs;
@@ -61,9 +58,9 @@ TEST(attributes, interpolate_op4) {
     attrs.antialias = true;
     attrs.cube_coeff = -0.75;
 
-    auto interpolate = make_shared<opset4::Interpolate>(img, out_shape, scales, attrs);
+    auto interpolate = make_shared<ov::op::v4::Interpolate>(img, out_shape, scales, attrs);
     NodeBuilder builder(interpolate, {img, out_shape, scales});
-    auto g_interpolate = ov::as_type_ptr<opset4::Interpolate>(builder.create());
+    auto g_interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(builder.create());
 
     const auto i_attrs = interpolate->get_attrs();
     const auto g_i_attrs = g_interpolate->get_attrs();
@@ -79,8 +76,8 @@ TEST(attributes, interpolate_op4) {
 }
 
 TEST(attributes, interpolate_op11) {
-    NodeBuilder::get_ops().register_factory<opset11::Interpolate>();
-    const auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
+    NodeBuilder::get_ops().register_factory<ov::op::v11::Interpolate>();
+    const auto img = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 32, 32});
     const auto scales = op::v0::Constant::create(element::f32, {4}, {1.0, 1.0, 2.0, 2.0});
 
     op::v11::Interpolate::InterpolateAttrs attrs;
@@ -93,9 +90,9 @@ TEST(attributes, interpolate_op11) {
     attrs.antialias = true;
     attrs.cube_coeff = -0.75;
 
-    auto interpolate = make_shared<opset11::Interpolate>(img, scales, attrs);
+    auto interpolate = make_shared<ov::op::v11::Interpolate>(img, scales, attrs);
     NodeBuilder builder(interpolate, {img, scales});
-    auto g_interpolate = ov::as_type_ptr<opset11::Interpolate>(builder.create());
+    auto g_interpolate = ov::as_type_ptr<ov::op::v11::Interpolate>(builder.create());
 
     const auto i_attrs = interpolate->get_attrs();
     const auto g_i_attrs = g_interpolate->get_attrs();

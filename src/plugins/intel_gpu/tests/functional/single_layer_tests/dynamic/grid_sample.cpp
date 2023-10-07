@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/select.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -79,7 +79,8 @@ protected:
             rel_threshold = 0.01f;
         }
 
-        auto params = ngraph::builder::makeDynamicParams({dataPrecision, gridPrecision}, inputDynamicShapes);
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(dataPrecision, inputDynamicShapes[0]),
+                                   std::make_shared<ov::op::v0::Parameter>(gridPrecision, inputDynamicShapes[1])};
         params[0]->set_friendly_name("data");
         params[1]->set_friendly_name("grid");
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));

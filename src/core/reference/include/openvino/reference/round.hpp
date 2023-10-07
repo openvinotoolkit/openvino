@@ -9,15 +9,10 @@
 #include <type_traits>
 
 #include "openvino/op/round.hpp"
-#include "openvino/reference/round_guard.hpp"
+#include "openvino/reference/rounding_guard.hpp"
+#include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
-template <class T>
-constexpr bool is_floating_point() {
-    using U = typename std::decay<T>::type;
-    return std::is_floating_point<U>::value || std::is_same<float16, U>::value || std::is_same<bfloat16, U>::value;
-}
-
 namespace reference {
 /**
  * @brief Rounding algorithm for ov::op::v5::Round::RoundMode::HALF_TO_EVEN.
@@ -55,7 +50,7 @@ T round_half_away_zero(T value) {
  */
 template <typename T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 void round(const T* arg, T* out, const size_t count, const op::v5::Round::RoundMode mode) {
-    const ov::RoundGuard round_g{FE_TONEAREST};
+    const ov::RoundingGuard round_g{FE_TONEAREST};
     const auto round_algo =
         (mode == op::v5::Round::RoundMode::HALF_TO_EVEN) ? round_to_nearest_even<T> : round_half_away_zero<T>;
 

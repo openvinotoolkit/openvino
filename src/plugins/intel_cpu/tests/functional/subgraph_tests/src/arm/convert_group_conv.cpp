@@ -8,7 +8,7 @@
 #include <memory>
 #include <debug.h>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -58,7 +58,10 @@ protected:
         const size_t numOutChannels = 30;
         const op::PadType paddingType = op::PadType::EXPLICIT;
 
-        auto inputParams = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
         conv = builder::makeGroupConvolution(paramOuts.front(), element::f32, kernelSize, strides, padBegin, padEnd, dilation,
                                              paddingType, numOutChannels, numOfGroups);

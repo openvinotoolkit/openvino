@@ -8,11 +8,12 @@
 #include <memory>
 #include <debug.h>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include <openvino/opsets/opset1.hpp>
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -52,8 +53,11 @@ static std::shared_ptr<ov::Model> initNgram(std::vector<ov::PartialShape>& input
     const size_t mid_idx = left_pad;
 
     ov::element::TypeVector input_precisions{data_et, idces_et};
-    auto params = ngraph::builder::makeDynamicParams(input_precisions, input_shapes);
-
+    ov::ParameterVector params;
+    for (size_t i = 0; i < input_precisions.size(); i++) {
+        auto param_node = std::make_shared<ov::op::v0::Parameter>(input_precisions[i], input_shapes[i]);
+        params.push_back(param_node);
+    }
     auto shape_of = std::make_shared<ov::opset10::ShapeOf>(params[0], idces_et);
     auto shape_ss_begin = ov::opset1::Constant::create(idces_et, {1}, {0});
     auto shape_ss_end = ov::opset1::Constant::create(idces_et, {1}, {1});
@@ -202,6 +206,11 @@ protected:
         std::tie(inputShapes, data_et, idces_et, k) = this->GetParam();
         init_input_shapes(inputShapes);
         function = initNgram(inputDynamicShapes, data_et, idces_et, k);
+
+        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                                  InferenceEngine::PluginConfigInternalParams::DISABLE});
+        }
     }
 };
 

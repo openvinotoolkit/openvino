@@ -80,6 +80,7 @@ struct format {
         bfvuwzyx,                               ///< 8d tensor
         yxfb,                                   ///< batch first, feature and than spatials
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
+        fbyx,
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
         bzyxf,
         byfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
@@ -146,6 +147,8 @@ struct format {
         is_os_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D deconvolution
         is_os_yx_isv16_osv16,                         ///< format used for weights for blocked deconvolution
         is_os_yx_isv16_osv8,                          ///< format used for weights for blocked deconvolution
+        is_os_yx_isv16_osv4,                          ///< format used for weights for blocked deconvolution
+        is_os_yx_isv16_osv2,                          ///< format used for weights for blocked deconvolution
         os_is_yx_isv8_osv16_isv2,                     ///< format used for weights for blocked 2D convolution
         os_is_zyx_isv8_osv16_isv2,                    ///< format used for weights for blocked 3D convolution
                                                       ///< os - output feature maps slice, i - input feature maps,
@@ -188,6 +191,7 @@ struct format {
         os_is_yx_isa8_osv8_isv2,
         is_os_yx_isa8_osv8_isv2,
         is_os_yx_isa8_osv8_isv4,
+        is_os_yx_osa8_isv16_osv4,
         os_is_zyx_isa8_osv8_isv2,
         is_os_zyx_isa8_osv8_isv2,
         is_os_zyx_isa8_osv8_isv4,
@@ -338,8 +342,9 @@ struct format {
         return (fmt == yxfb || fmt == byxf ||
                 fmt == byfx || fmt == bxfy ||
                 fmt == bfyx || fmt == fyxb ||
-                fmt == bfzyx || fmt == bfwzyx ||
-                fmt == bfuwzyx || fmt == bfvuwzyx);
+                fmt == fbyx || fmt == bfzyx ||
+                fmt == bfwzyx || fmt == bfuwzyx ||
+                fmt == bfvuwzyx);
     }
 
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
@@ -348,6 +353,14 @@ struct format {
     static format adjust_to_rank(format fmt, size_t new_rank);
 
     static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
+
+    static format find_format(const std::vector<uint64_t>& order,
+                              const std::vector<std::pair<size_t, int>>& block_sizes,
+                              bool is_weights = false,
+                              bool is_grouped = false,
+                              bool is_image_2d = false,
+                              bool is_winograd = false,
+                              bool is_nv12 = false);
 
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
@@ -370,6 +383,8 @@ struct format {
     size_t spatial_num() const { return traits(value).spatial_num; }
     /// @brief Returns number of group dimensions.
     size_t group_num() const { return traits(value).group_num; }
+    /// @brief Returns an order of dimensions.
+    const std::vector<uint64_t>& dims_order() const { return traits(value)._order; }
     /// @brief Returns an order of dimensions in form of string.
     const std::string& order() const { return traits(value).order; }
     /// @brief Returns an internal orders of dimensions form of string.

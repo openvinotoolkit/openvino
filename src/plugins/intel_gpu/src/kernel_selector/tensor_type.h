@@ -32,6 +32,7 @@ enum DataLayout {
     yxfb,                   // 3D+batch
     byxf,                   // 3D+batch
     fyxb,                   // 3D+batch
+    fbyx,                   // 3D+batch
     bfxy,                   // 3D+batch
     byfx,
     bxfy,
@@ -100,6 +101,8 @@ enum WeightsLayout {
     is_os_zyx_isv16_osv16,
     is_os_yx_isv16_osv16,
     is_os_yx_isv16_osv8,
+    is_os_yx_isv16_osv4,
+    is_os_yx_isv16_osv2,
     os_is_zyx_isv8_osv16_isv2,
     os_is_yx_isv8_osv16_isv2,
     os_is_yx_isv16_osv16,
@@ -153,6 +156,7 @@ enum WeightsLayout {
     os_is_yx_isa8_osv8_isv2,
     is_os_yx_isa8_osv8_isv2,
     is_os_yx_isa8_osv8_isv4,
+    is_os_yx_osa8_isv16_osv4,
     is_os_yx_isa2_osa8_isv8_osv2,
     g_os_is_yx_osa2_isa8_osv16_isv4,
     g_os_is_yx_osa2_isa8_osv16_isv2,
@@ -315,6 +319,7 @@ inline bool SimpleLayout(DataLayout l) {
         case DataLayout::byxf:
         case DataLayout::byfx:
         case DataLayout::bxfy:
+        case DataLayout::fbyx:
         case DataLayout::fyxb:
         case DataLayout::bfxy:
         case DataLayout::bfzyx:

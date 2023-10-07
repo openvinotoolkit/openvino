@@ -8,20 +8,20 @@
 #include <sstream>
 #include <memory>
 
-#include <low_precision/low_precision.hpp>
+#include "low_precision/low_precision.hpp"
 
 #include <gtest/gtest.h>
-#include "lpt_ngraph_functions/common/builders.hpp"
+#include "ov_lpt_models/common/builders.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class IsFunctionQuantizedTransformationValues {
 public:
-    ngraph::Shape shape;
-    ngraph::element::Type precision;
-    builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize;
+    ov::Shape shape;
+    ov::element::Type precision;
+    ngraph:: builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize;
     bool constantSubgraphOnParameters;
     bool inputOnParameters;
 
@@ -33,7 +33,7 @@ public:
     void SetUp() override {
         const auto testValues = GetParam();
 
-        const auto input = std::make_shared<ov::op::v0::Parameter>(testValues.precision, ngraph::Shape(testValues.shape));
+        const auto input = std::make_shared<ov::op::v0::Parameter>(testValues.precision, ov::Shape(testValues.shape));
         const auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantize(
             input,
             testValues.precision,
@@ -45,8 +45,8 @@ public:
         }
 
         ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(fakeQuantize) };
-        function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "IsFunctionQuantizedFunction");
-        function->validate_nodes_and_infer_types();
+        model = std::make_shared<ov::Model>(results, ngraph::ParameterVector{ input }, "IsFunctionQuantizedFunction");
+        model->validate_nodes_and_infer_types();
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<IsFunctionQuantizedTransformationValues> obj) {
@@ -64,46 +64,46 @@ public:
     }
 
 protected:
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> model;
 };
 
 TEST_P(IsFunctionQuantizedTransformation, Run) {
-    const bool isQuantized = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(function);
+    const bool isQuantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(model);
 
     const auto testValues = GetParam();
     ASSERT_EQ(testValues.isQuantized, isQuantized);
 }
 
-const std::vector<ngraph::Shape> shapes = { ngraph::Shape({ 1, 3, 72, 48 }) };
+const std::vector<ov::Shape> shapes = { ov::Shape({ 1, 3, 72, 48 }) };
 
 const std::vector<IsFunctionQuantizedTransformationValues> testValues = {
     {
-        ngraph::Shape{1, 3, 9, 9},
-        ngraph::element::f32,
+        ov::Shape{1, 3, 9, 9},
+        ov::element::f32,
         { 255ul, {{ 1, 1, 1, 1 }}, { -1.28f }, { 1.27f }, { -128.f }, { 127.f }, element::i8 },
         false,
         false,
         true
     },
     {
-        ngraph::Shape{1, 3, 9, 9},
-        ngraph::element::f32,
+        ov::Shape{1, 3, 9, 9},
+        ov::element::f32,
         { 255ul, {{ 1, 1, 1, 1 }}, { -1.28f }, { 1.27f }, { -128.f }, { 127.f }, element::i8 },
         true,
         false,
         false
     },
     {
-        ngraph::Shape{1, 3, 9, 9},
-        ngraph::element::f32,
+        ov::Shape{1, 3, 9, 9},
+        ov::element::f32,
         { 255ul, {{ 1, 1, 1, 1 }}, { -1.28f }, { 1.27f }, { -128.f }, { 127.f }, element::i8 },
         false,
         true,
         false
     },
     {
-        ngraph::Shape{1, 3, 9, 9},
-        ngraph::element::f32,
+        ov::Shape{1, 3, 9, 9},
+        ov::element::f32,
         { 255ul, {{ 1, 1, 1, 1 }}, { -1.28f }, { 1.27f }, { -128.f }, { 127.f }, element::i8 },
         true,
         true,

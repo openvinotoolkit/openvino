@@ -4,15 +4,15 @@
 
 #include <vector>
 
-#include "single_layer_tests/concat.hpp"
+#include "single_op_tests/concat.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
 
 namespace {
+using ov::test::ConcatLayerTest;
 
 std::vector<int> axes = {-3, -2, -1, 0, 1, 2, 3};
-std::vector<std::vector<std::vector<size_t>>> inShapes = {
+std::vector<std::vector<ov::Shape>> shapes_static = {
         {{10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
@@ -21,19 +21,14 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
 };
 
 
-std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                         InferenceEngine::Precision::FP16};
+std::vector<ov::element::Type> netPrecisions = {ov::element::f32,
+                                                ov::element::f16};
 
 INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConcatLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(axes),
-                                ::testing::ValuesIn(inShapes),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes_static)),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConcatLayerTest::getTestCaseName);
-
 }  // namespace

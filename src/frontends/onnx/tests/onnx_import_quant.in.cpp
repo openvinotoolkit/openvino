@@ -16,11 +16,12 @@
 #include "common_test_utils/all_close.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ndarray.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
+#include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
@@ -28,7 +29,7 @@
 using namespace ngraph;
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 using Inputs = std::vector<std::vector<float>>;

@@ -16,7 +16,7 @@ namespace snippets {
 class SnippetsMarkSkippedTests : public TransformationTestsF {
 public:
     void run() {
-        ASSERT_TRUE(function);
+        ASSERT_TRUE(model);
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>();
@@ -39,9 +39,9 @@ public:
 
 TEST_F(SKIP_SnippetsMarkSkippedTests /* CVS-114336 */, smoke_Snippets_SkipAfterInputsMatMulEltwise) {
     const auto &f = MatMulEltwiseBranchesFunction(std::vector<PartialShape> {{1, 3, 4, 4}, {1, 3, 4, 4}});
-    function = f.getOriginal();
+    model = f.getOriginal();
     // Fully tokenizable, since inputs are followed by MatMul
-    function_ref = f.getReference();
+    model_ref = f.getReference();
     run();
 }
 
@@ -51,9 +51,9 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvMulActivation)
                                                    std::make_shared<ov::op::v0::Sqrt>()};
     std::vector<PartialShape> inputShapes {{1, 2, 16, 16}, {1, 2, 1, 16}};
     const auto &f = ConvMulActivationFunction(inputShapes, eltwiseOps);
-    function = f.getOriginal();
+    model = f.getOriginal();
     // Fully tokenizable, since Mul with 2 inputs isn't fused into Convolution
-    function_ref = f.getReference();
+    model_ref = f.getReference();
     run();
 }
 
@@ -63,9 +63,9 @@ TEST_F(SnippetsMarkSkippedTests, smoke_SkipConvFused_ConvSumActivation) {
                                                    std::make_shared<ov::op::v0::Sqrt>()};
     std::vector<PartialShape> inputShapes {{1, 2, 16, 16}, {1, 2, 1, 16}};
     const auto &f = ConvMulActivationFunction(inputShapes, eltwiseOps);
-    function = f.getOriginal();
+    model = f.getOriginal();
     // Not tokenizable, since Add + Eltwises can be fused into Convolution
-    function_ref = f.getOriginal();
+    model_ref = f.getOriginal();
     run();
 }
 

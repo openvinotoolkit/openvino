@@ -6,7 +6,7 @@
 #include "test_utils/cpu_test_utils.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace CPUTestUtils;
@@ -55,7 +55,10 @@ protected:
         init_input_shapes({ inputShapes });
         selectedType = makeSelectedTypeStr("ref_any", inputPrecision);
 
-        auto params = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes });
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
+        }
         auto axesNode = ngraph::opset1::Constant::create(ngraph::element::i32, { axes.size() }, axes);
         auto lrn = std::make_shared<ngraph::opset3::LRN>(params[0], axesNode, alpha, beta, bias, size);
         function = makeNgraphFunction(inputPrecision, params, lrn, "LRN");

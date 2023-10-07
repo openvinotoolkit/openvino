@@ -1,7 +1,7 @@
 Post-Training Quantization of OpenAI CLIP model with NNCF
 =========================================================
 
-.. _top:
+
 
 The goal of this tutorial is to demonstrate how to speed up the model by
 applying 8-bit post-training quantization from
@@ -16,12 +16,14 @@ The optimization process contains the following steps:
 3. Compare model size of converted and quantized models.
 4. Compare performance of converted and quantized models.
 
-..
+.. note::
 
-   **NOTE**: you should run
+   You should run
    `228-clip-zero-shot-convert <228-clip-zero-shot-convert.ipynb>`__
    notebook first to generate OpenVINO IR model that is used for
    quantization.
+
+.. _top:
 
 **Table of contents**:
 
@@ -180,8 +182,11 @@ model.
 
 Create a quantized model from the pre-trained ``FP16`` model.
 
-   **NOTE**: Quantization is time and memory consuming operation.
+.. note::
+
+   Quantization is time and memory consuming operation.
    Running quantization code below may take a long time.
+
 
 .. code:: ipython3
 
@@ -342,9 +347,12 @@ Compare inference time of the FP16 IR and quantized models
 we can approximately estimate the speed up of the dynamic quantized
 models.
 
-   **NOTE**: For the most accurate performance estimation, it is
+.. note::
+
+   For the most accurate performance estimation, it is
    recommended to run ``benchmark_app`` in a terminal/command prompt
    after closing other applications with static shapes.
+
 
 .. code:: ipython3
 

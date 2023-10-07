@@ -11,7 +11,7 @@
 
 #include "backend/gna_limitations.hpp"
 #include "common/gna_target.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 
 using namespace ov::intel_gna::limitations;

@@ -5,7 +5,7 @@
 set(TARGET_NAME ov_auto_batch_func_tests)
 
 set(SHARED_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/shared/include")
-addIeTargetTest(
+ov_add_test_target(
         NAME
             ${TARGET_NAME}
         ROOT
@@ -19,7 +19,7 @@ addIeTargetTest(
             openvino_auto_batch_plugin
         ADD_CPPLINT
         LABELS
-            Auto_Batch
+            OV UNIT AUTO_BATCH
 )
 
-set_ie_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})

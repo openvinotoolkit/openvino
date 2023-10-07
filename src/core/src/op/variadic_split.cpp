@@ -9,8 +9,8 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/slice.hpp"
 #include "variadic_split_shape_inference.hpp"
 
 using namespace std;
@@ -62,14 +62,14 @@ inline bool evaluate(const HostTensorPtr& in,
     const auto has_nonzero_dims = std::none_of(output_shape.begin(), output_shape.end(), ov::cmp::Equal<size_t>(0));
 
     if (has_nonzero_dims) {
-        runtime::reference::slice(in->get_data_ptr<const char>(),
-                                  out->get_data_ptr<char>(),
-                                  in->get_shape(),
-                                  lower_bounds,
-                                  upper_bounds,
-                                  Strides(lower_bounds.size(), 1),
-                                  out->get_shape(),
-                                  in->get_element_type().size());
+        ov::reference::slice(in->get_data_ptr<const char>(),
+                             out->get_data_ptr<char>(),
+                             in->get_shape(),
+                             lower_bounds,
+                             upper_bounds,
+                             Strides(lower_bounds.size(), 1),
+                             out->get_shape(),
+                             in->get_element_type().size());
         return true;
     }
     return false;
@@ -82,9 +82,10 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
     const auto& data_tensor = inputs[0];
     const auto& axis_tensor = inputs[1];
     const auto& split_lengths_tensor = inputs[2];
-    NGRAPH_CHECK(axis_tensor->get_element_type().is_integral_number(), "axis element type is not integral data type");
-    NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
-                 "split_lengths element type is not integral data type");
+    OPENVINO_ASSERT(axis_tensor->get_element_type().is_integral_number(),
+                    "axis element type is not integral data type");
+    OPENVINO_ASSERT(split_lengths_tensor->get_element_type().is_integral_number(),
+                    "split_lengths element type is not integral data type");
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];

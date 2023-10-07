@@ -123,6 +123,8 @@ std::string toCLType(WeightsType wType) {
             return "half";
         case WeightsType::F32:
             return GetTypeName<float>();
+        case WeightsType::INT32:
+            return GetTypeName<int32_t>();
         default:
             return "";
     }
@@ -358,7 +360,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     };
     if (_tensor.is_dynamic()) {
         if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
-            _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx) {
+            _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
+            _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", dims_padded.x()});
             definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x(), dims_padded.y()})});
@@ -660,6 +663,11 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             using args = std::initializer_list<std::string>;
             if (l == WeightsLayout::oiyx ||
                 l == WeightsLayout::ioyx ||
+                l == WeightsLayout::oyxi ||
+                l == WeightsLayout::oyix ||
+                l == WeightsLayout::oxiy ||
+                l == WeightsLayout::iyxo ||
+                l == WeightsLayout::yxio ||
                 l == WeightsLayout::iozyx ||
                 l == WeightsLayout::oizyx ||
                 l == WeightsLayout::goiyx ||
@@ -971,7 +979,10 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_common_4d_layout = is_common_nd_layout(base_4d_channels, layout);
             if (is_common_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, y, x)";
-                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx)
+                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx ||
+                    layout == WeightsLayout::oyxi || layout == WeightsLayout::oyix ||
+                    layout == WeightsLayout::oxiy || layout == WeightsLayout::iyxo ||
+                    layout == WeightsLayout::yxio)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::os_is_yx_isv16_osv16)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x, 16)";
@@ -1504,6 +1515,8 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::UINT8, macroName);
         case WeightsType::BINARY:
             return MakeTypeJitConstants(Datatype::UINT32, macroName);
+        case WeightsType::INT32:
+            return MakeTypeJitConstants(Datatype::INT32, macroName);
     }
     assert(false || "Unreachable!");
     // FIXME: Is there some builtin_unreachable available?
@@ -1540,11 +1553,11 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
         std::string nl_n = toCodeString(params[i].n);
         if (params[i].function == ActivationFunction::CLAMP) {
             if (out_dt == Datatype::INT8) {
-                nl_m = toCodeString(std::max(params[i].m, static_cast<float>(SCHAR_MIN)));
-                nl_n = toCodeString(std::min(params[i].n, static_cast<float>(SCHAR_MAX)));
+                nl_m = toCodeString(std::max<float>(params[i].m, std::numeric_limits<signed char>::min()));
+                nl_n = toCodeString(std::min<float>(params[i].n, std::numeric_limits<signed char>::max()));
             } else if (out_dt == Datatype::UINT8) {
                 nl_m = toCodeString(std::max(params[i].m, 0.0f));
-                nl_n = toCodeString(std::min(params[i].n, static_cast<float>(UCHAR_MAX)));
+                nl_n = toCodeString(std::min<float>(params[i].n, std::numeric_limits<unsigned char>::max()));
             }
         }
         auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, nl_m),
@@ -1949,11 +1962,11 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
                 if (activation_p.function == ActivationFunction::CLAMP) {
                     if (out_type == Datatype::INT8) {
-                        nl_m = toCodeString(std::max(activation_p.m, static_cast<float>(SCHAR_MIN)));
-                        nl_n = toCodeString(std::min(activation_p.n, static_cast<float>(SCHAR_MAX)));
+                        nl_m = toCodeString(std::max<float>(activation_p.m, std::numeric_limits<signed char>::min()));
+                        nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<signed char>::max()));
                     } else if (out_type == Datatype::UINT8) {
                         nl_m = toCodeString(std::max(activation_p.m, 0.0f));
-                        nl_n = toCodeString(std::min(activation_p.n, static_cast<float>(UCHAR_MAX)));
+                        nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<unsigned char>::max()));
                     }
                 }
 

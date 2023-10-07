@@ -49,10 +49,8 @@ static cldnn::mutable_data CreateAdditionalOutputData(ProgramBuilder &p, const s
 static void CreateTensorIteratorOp(ProgramBuilder &p, const std::shared_ptr<TensorIterator> &op) {
     auto inputs = p.GetInputInfo(op);
 
-    // get body topology from ngraph function
-    InferenceEngine::CNNNetwork body_network(op->get_body());
-    ProgramBuilder body_program(body_network, p.get_engine(), p.get_config(), true);
-    auto body_topology = *body_program.GetTopology();
+    ProgramBuilder body_program(op->get_body(), p.get_engine(), p.get_config(), true);
+    auto body_topology = *body_program.get_topology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges
     const auto& loop_input_descs = op->get_input_descriptions();

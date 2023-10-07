@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/space_to_batch.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
@@ -120,7 +120,7 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto params = ngraph::builder::makeDynamicParams(inType, {inputDynamicShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
         std::shared_ptr<ov::Node> blockInput, beginInput, endInput;
         if (restInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             auto blockNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{block.size()});

@@ -153,14 +153,30 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ASSERT_EQ(affinity, value);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
+    ov::Core ie;
+    ov::Affinity affinity = ov::Affinity::CORE;
+    bool value = false;
+
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(true, value);
+
+    affinity = ov::Affinity::HYBRID_AWARE;
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(true, value);
+
+    affinity = ov::Affinity::NUMA;
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(false, value);
+}
+
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
     ov::Core ie;
     auto value = ov::element::f32;
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-    const auto precision = ov::element::f16;
-#else
     const auto precision = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
-#endif
 
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(precision, value);
@@ -194,11 +210,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {
     ASSERT_EQ(enableProfiling, value);
 }
 
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-    const auto expected_precision_for_performance_mode = ov::element::f16;
-#else
-    const auto expected_precision_for_performance_mode = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
-#endif
+const auto expected_precision_for_performance_mode = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 
 const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 using ExpectedModeAndType = std::pair<ov::hint::ExecutionMode, ov::element::Type>;

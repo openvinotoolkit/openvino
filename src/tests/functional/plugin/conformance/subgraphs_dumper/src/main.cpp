@@ -7,6 +7,12 @@
 #include "cache/graph_cache.hpp"
 #include "utils/model.hpp"
 
+#include "openvino/util/file_util.hpp"
+
+#include "common_test_utils/file_utils.hpp"
+#include "utils/memory.hpp"
+
+
 using namespace ov::tools::subgraph_dumper;
 
 int main(int argc, char *argv[]) {
@@ -35,6 +41,9 @@ int main(int argc, char *argv[]) {
         std::cout << "[ INFO ] Try 'subgraphsDumper -h' for more information. \nException: " << e.what() << std::endl;
         return 1;
     }
+    size_t ram_size_gb = get_ram_size();
+    ram_size_gb >>= 30;
+    std::cout << "[ INFO ] RAM size is " << ram_size_gb << "GB" << std::endl;
 
     std::vector<std::shared_ptr<ICache>> caches;
     if (FLAGS_cache_type == "OP" || FLAGS_cache_type.empty()) {
@@ -43,39 +52,46 @@ int main(int argc, char *argv[]) {
     }
     if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
         std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
-        caches.push_back(GraphCache::get());
+        caches.push_back(GraphCache::get(FLAGS_device));
     }
 
     for (auto& cache : caches) {
         cache->set_serialization_dir(FLAGS_output_folder);
-    }
-    // Upload previously cached graphs to cache
-    if (!FLAGS_local_cache.empty()) {
-        auto cached_ops = find_models(local_cache_dirs);
-        // todo: add normal caching with meta info reading
-        auto this_cache_model_status = cache_models(caches, cached_ops.first, FLAGS_extract_body);
-        auto not_read_model = cached_ops.second;
-        for (auto& model_status : cache_model_status) {
-            auto& key = model_status.first;
-            auto& value = model_status.second;
-            if (not_read_model.first == key) {
-                value.insert(value.end(), not_read_model.second.begin(), not_read_model.second.end());
+        // Upload previously cached graphs to cache
+        if (!FLAGS_local_cache.empty()) {
+            std::vector<std::string> tmp_paths;
+            for (auto& dir : local_cache_dirs) {
+                tmp_paths.push_back(ov::util::path_join({dir, cache->m_cache_subdir}));
             }
-            if (this_cache_model_status.count(key)) {
-                value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
-            }
-        }
-    }
-    {
-        auto this_cache_model_status = cache_models(caches, models, FLAGS_extract_body);
-        for (auto& model_status : cache_model_status) {
-            auto& key = model_status.first;
-            auto& value = model_status.second;
-            if (this_cache_model_status.count(key)) {
-                value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
+            auto cached_ops = find_models(tmp_paths, FLAGS_path_regex);
+            auto this_cache_model_status = cache_models(cache, cached_ops.first, FLAGS_extract_body, true);
+            auto not_read_model = cached_ops.second;
+            for (auto& model_status : cache_model_status) {
+                auto& key = model_status.first;
+                auto& value = model_status.second;
+                if (not_read_model.first == key) {
+                    value.insert(value.end(), not_read_model.second.begin(), not_read_model.second.end());
+                }
+                if (this_cache_model_status.count(key)) {
+                    value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
+                }
             }
         }
+        {
+            auto this_cache_model_status = cache_models(cache, models, FLAGS_extract_body);
+            for (auto& model_status : cache_model_status) {
+                auto& key = model_status.first;
+                auto& value = model_status.second;
+                if (this_cache_model_status.count(key)) {
+                    value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
+                }
+            }
+        }
+
+        cache->serialize_cache();
+        cache->reset_cache();
     }
+
     save_model_status_to_file(cache_model_status, FLAGS_output_folder);
     return cache_model_status[ModelCacheStatus::NOT_FULLY_CACHED].empty() && cache_model_status[ModelCacheStatus::NOT_READ].empty();
 }

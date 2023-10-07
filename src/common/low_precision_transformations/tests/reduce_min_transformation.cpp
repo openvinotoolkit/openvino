@@ -11,20 +11,20 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-#include <low_precision/reduce_min.hpp>
-#include "lpt_ngraph_functions/reduce_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
+#include "low_precision/reduce_min.hpp"
+#include "ov_lpt_models/reduce.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/constant.hpp"
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class ReduceMinTransformation : public ReduceTransformation<ov::op::v1::ReduceMin> {
@@ -33,7 +33,7 @@ class ReduceMinTransformation : public ReduceTransformation<ov::op::v1::ReduceMi
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceMinTransformation, ov::op::v1::ReduceMin>(transformationParams);
+        transform.add<ov::pass::low_precision::ReduceMinTransformation, ov::op::v1::ReduceMin>(transformationParams);
         transform.transform(actualFunction);
     }
 };
@@ -47,7 +47,7 @@ TEST_P(ReduceMinTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 3, 16, 16},
     {4, 3, 16, 16},
     {-1, -1, -1, -1}
@@ -60,14 +60,14 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {0},
         true,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         }
     },
     // U8: keep dims, per-channel quantization with subtract, reduction by batch
@@ -76,21 +76,21 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {0},
         true,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
-                {{64.f, 128.f, 32.f}, ngraph::element::f32, {1, 3, 1, 1}},
-                {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}
+                {ov::element::f32},
+                {{64.f, 128.f, 32.f}, ov::element::f32, {1, 3, 1, 1}},
+                {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
-                {{64.f, 128.f, 32.f}, ngraph::element::f32, {1, 3, 1, 1}},
-                {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}
+                {ov::element::f32},
+                {{64.f, 128.f, 32.f}, ov::element::f32, {1, 3, 1, 1}},
+                {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
             }
         }
     },
@@ -100,13 +100,13 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {1},
         false,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
+            ov::element::f32,
             {}
         }
     },
@@ -116,13 +116,13 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {2, 3},
         false,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, -1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, -1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
+            ov::element::f32,
             {}
         }
     },
@@ -132,14 +132,14 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {-2},
         false,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
         }
     },
     // U8: keep dims, per-channel quantization, reduction by special dimensions
@@ -148,14 +148,14 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {2, 3},
         true,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         }
     },
     // U8: don't keep dims, per-channel quantization, reduction by special dimensions
@@ -164,14 +164,14 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {2, 3},
         false,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3}}}
         }
     },
     // I8: keep dims, per-channel quantization, reduction by batch
@@ -180,14 +180,14 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {0},
         true,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         }
     },
     // I8: don't keep dims, per-channel quantization, reduction by channel
@@ -196,13 +196,13 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {1},
         false,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-            ngraph::element::f32,
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
+            ov::element::f32,
             {}
         }
     },
@@ -212,14 +212,14 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {-2},
         false,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {64.f}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {64.f}, {0.1f}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {64.f}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {64.f}, {0.1f}}
         }
     },
     // I8: don't keep dims, per-channel quantization with negative values, reduction by special dimensions
@@ -228,13 +228,13 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {2, 3},
         false,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{0.1f, -1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{0.1f, -1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-            ngraph::element::f32,
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
+            ov::element::f32,
             {}
         }
     },
@@ -244,14 +244,14 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {2, 3},
         false,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3}}}
         }
     },
     // I8: keep dims, per-channel quantization, reduction by special dimensions
@@ -260,14 +260,14 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {2, 3},
         true,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         }
     },
     // not update precisions, keep dims, per-channel quantization, reduction by special dimensions
@@ -276,14 +276,14 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {2, 3},
         true,
         {
-            ngraph::element::f32,
-            {{}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::f32,
+            {{}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
-            ngraph::element::f32,
-            {{}, {}, {{0.1f, 1.f, 10.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+            ov::element::f32,
+            {{}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
         }
     },
     // I8: keep dims, no dequantization, reduction by special dimensions
@@ -292,13 +292,13 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {2, 3},
         true,
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         }
     },
@@ -314,7 +314,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
     PartialShape::dynamic()
 };
 
@@ -324,13 +324,13 @@ const std::vector<ReduceTransformationTestValues> reduceMinTransformationTestVal
         {-2},
         false,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.1f}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}},
+            ov::element::f32,
             {}
         }
     }

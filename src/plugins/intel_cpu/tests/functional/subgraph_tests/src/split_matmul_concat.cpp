@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace ngraph;
@@ -106,7 +106,7 @@ protected:
         const auto& inShapeA = inputDynamicShapes[0];
         const auto& inShapeB = inputDynamicShapes[1];
 
-        auto params = builder::makeDynamicParams(ElementType::f32, {inShapeA});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ElementType::f32, inShapeA)};
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputB = builder::makeConstant<float>(ElementType::f32, inShapeB.get_shape(), {}, true);
 

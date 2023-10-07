@@ -11,7 +11,7 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        std::vector<ov::PartialShape>,      // Input Shape All shapes
+        std::vector<InputShape>,     // Input Shape All shapes
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
         std::string                  // Target Device

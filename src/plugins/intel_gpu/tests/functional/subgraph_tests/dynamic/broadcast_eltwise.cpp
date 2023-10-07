@@ -5,8 +5,8 @@
 #include <openvino/opsets/opset1.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -50,7 +50,11 @@ protected:
         init_input_shapes(input_shapes);
 
         ov::element::TypeVector input_precisions{input_precision, ov::element::i64};
-        const auto params = ngraph::builder::makeDynamicParams(input_precisions, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (size_t i = 0; i < input_precisions.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(input_precisions[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
+        }
         const auto bcast_data = ov::opset10::Constant::create(input_precision, {}, {1.f});
         const auto bcast = std::make_shared<ov::opset10::Broadcast>(bcast_data, params[1]);
         const auto add = std::make_shared<ov::opset10::Add>(params[0], bcast);

@@ -16,13 +16,13 @@ function(add_common_utils ADD_TARGET_NAME)
     endif()
 
     # create target
-    addIeTarget(
+    ov_add_target(
             NAME ${ADD_TARGET_NAME}
             TYPE STATIC
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
             EXCLUDED_SOURCE_PATHS
                 ${TARGET_EXCLUDED_SOURCE_PATHS}
-            ADD_CPPLINT
+            ADD_CLANG_FORMAT
             DEVELOPER_PACKAGE
                 tests
             LINK_LIBRARIES
@@ -30,7 +30,7 @@ function(add_common_utils ADD_TARGET_NAME)
                     gtest
                     gtest_main
                     gmock
-                    ngraphFunctions
+                    ov_models
                     openvino::runtime
                     openvino::runtime::dev
                 PRIVATE
@@ -53,7 +53,7 @@ function(add_common_utils ADD_TARGET_NAME)
         target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
     endif()
 
-    ie_faster_build(${ADD_TARGET_NAME}
+    ov_build_target_faster(${ADD_TARGET_NAME}
         UNITY
         PCH PRIVATE "src/precomp.hpp"
     )

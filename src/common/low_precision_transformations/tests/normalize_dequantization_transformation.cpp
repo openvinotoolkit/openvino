@@ -9,33 +9,33 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <low_precision/network_helper.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "low_precision/network_helper.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/normalize_dequantization_function.hpp"
+#include "ov_lpt_models/normalize_dequantization.hpp"
 
 using namespace testing;
-using namespace ngraph::pass;
+using namespace ov::pass;
 
 class NormalizeDequantizationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
     TestTransformationParams params;
-    ngraph::Shape inputShape;
+    ov::Shape inputShape;
     Actual actual;
     Expected expected;
 };
@@ -51,8 +51,8 @@ public:
             testValues.actual.dequantization);
 
         const auto targetNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
-        const auto dequantization = low_precision::NetworkHelper::getDequantization(targetNode);
-        low_precision::NetworkHelper::normalizeDequantization(dequantization);
+        const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
+        ov::pass::low_precision::NetworkHelper::normalizeDequantization(dequantization);
 
         referenceFunction = ngraph::builder::subgraph::NormalizeDequantizationFunction::getOriginal(
             testValues.expected.precisionBeforeDequantization,
@@ -85,19 +85,19 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         { 1, 3, 16, 16 },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {
                 {},
-                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 0 },
-                { {10.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 0 }
+                { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 0 },
+                { {10.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 0 }
             },
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {
                 {},
-                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1},
-                {{10.0f}, ngraph::element::f32, {1, 3, 16, 16}, true, 1 }
+                { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1},
+                {{10.0f}, ov::element::f32, {1, 3, 16, 16}, true, 1 }
             }
         },
     },
@@ -105,19 +105,19 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         { 1, 3, 16, 16 },
         {
-            ngraph::element::i32,
+            ov::element::i32,
             {
-                {ngraph::element::f32},
-                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
-                { {10.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 0 }
+                {ov::element::f32},
+                { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                { {10.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 0 }
             },
         },
         {
-            ngraph::element::i32,
+            ov::element::i32,
             {
-                { ngraph::element::f32 },
-                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
-                {{10.0f}, ngraph::element::f32, {1, 3, 16, 16}, true, 1 }
+                { ov::element::f32 },
+                { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                {{10.0f}, ov::element::f32, {1, 3, 16, 16}, true, 1 }
             }
         },
     },
@@ -125,19 +125,19 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         { 1, 3, 16, 16 },
         {
-            ngraph::element::u32,
+            ov::element::u32,
             {
-                { ngraph::element::f32 },
-                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 0 },
-                { {10.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 }
+                { ov::element::f32 },
+                { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 0 },
+                { {10.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 }
             },
         },
         {
-            ngraph::element::u32,
+            ov::element::u32,
             {
-                { {ngraph::element::f32} },
-                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
-                {{10.0f}, ngraph::element::f32, {1, 3, 16, 16}, true, 1 }
+                { {ov::element::f32} },
+                { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                {{10.0f}, ov::element::f32, {1, 3, 16, 16}, true, 1 }
             }
         },
     },
@@ -145,19 +145,19 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(true),
         { 1, 3, 16, 16 },
         {
-            ngraph::element::u32,
+            ov::element::u32,
             {
-                { ngraph::element::f32 },
-                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
-                { {10.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 }
+                { ov::element::f32 },
+                { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                { {10.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 }
             },
         },
         {
-            ngraph::element::u32,
+            ov::element::u32,
             {
-                { ngraph::element::f32 },
-                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
-                {{10.0f}, ngraph::element::f32, {1, 3, 16, 16}, true, 1 }
+                { ov::element::f32 },
+                { {7.f}, ov::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                {{10.0f}, ov::element::f32, {1, 3, 16, 16}, true, 1 }
             }
         },
     },

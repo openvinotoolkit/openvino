@@ -7,21 +7,21 @@
 #include <sstream>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/round_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/round.hpp"
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class RoundTestValues {
 public:
-    ngraph::element::Type inputPrecision;
-    ngraph::Shape inputShape;
+    ov::element::Type inputPrecision;
+    ov::Shape inputShape;
     ngraph::builder::subgraph::DequantizationOperations actualDequantization;
     ngraph::builder::subgraph::DequantizationOperations referenceDequantization;
 };
@@ -36,16 +36,16 @@ public:
                                                                                testValues.inputShape,
                                                                                testValues.actualDequantization);
         const auto lastNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
-        const auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(lastNode);
+        const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(lastNode);
         const auto subtractConstant = dequantization.subtract->get_input_node_shared_ptr(1);
         const auto roundedConst =
-            ngraph::pass::low_precision::NetworkHelper::round(subtractConstant, testValues.inputPrecision);
+            ov::pass::low_precision::NetworkHelper::round(subtractConstant, testValues.inputPrecision);
 
         if (roundedConst->get_element_type() == testValues.inputPrecision) {
             const auto replacement =
                 std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(dequantization.data, roundedConst);
-            ngraph::pass::low_precision::NetworkHelper::copyInfo(dequantization.subtract, replacement);
-            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(
+            ov::pass::low_precision::NetworkHelper::copyInfo(dequantization.subtract, replacement);
+            ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(
                 replacement,
                 dequantization.convert->get_element_type());
             replace_node(dequantization.subtract, replacement);
@@ -68,22 +68,22 @@ public:
 };
 
 std::vector<RoundTestValues> testValues = {
-    {ngraph::element::u8,
-     ngraph::Shape{1, 3, 16, 16},
-     {{ngraph::element::f32}, {125.5f}, {0.1f}},
-     {{}, {{126.f}, ngraph::element::f32}, {0.1f}}},
-    {ngraph::element::u8,
-     ngraph::Shape{1, 3, 16, 16},
-     {{ngraph::element::f32}, {{128.3f, 64.5f, 31.7f}}, {{0.1f, 0.1f, 0.1f}}},
-     {{}, {{128.f, 65.f, 32.f}, ngraph::element::f32}, {{0.1f, 0.1f, 0.1f}}}},
-    {ngraph::element::i8,
-     ngraph::Shape{1, 3, 16, 16},
-     {{ngraph::element::f32}, {126.6f}, {0.1f}},
-     {{}, {{127.f}, ngraph::element::f32}, {0.1f}}},
-    {ngraph::element::i8,
-     ngraph::Shape{1, 3, 16, 16},
-     {{ngraph::element::f32}, {{126.5f, 32.25f, -127.5f}}, {{0.1f, 0.1f, 0.1f}}},
-     {{}, {{127.f, 32.f, -128.f}, ngraph::element::f32}, {{0.1f, 0.1f, 0.1f}}}},
+    {ov::element::u8,
+     ov::Shape{1, 3, 16, 16},
+     {{ov::element::f32}, {125.5f}, {0.1f}},
+     {{}, {{126.f}, ov::element::f32}, {0.1f}}},
+    {ov::element::u8,
+     ov::Shape{1, 3, 16, 16},
+     {{ov::element::f32}, {{128.3f, 64.5f, 31.7f}}, {{0.1f, 0.1f, 0.1f}}},
+     {{}, {{128.f, 65.f, 32.f}, ov::element::f32}, {{0.1f, 0.1f, 0.1f}}}},
+    {ov::element::i8,
+     ov::Shape{1, 3, 16, 16},
+     {{ov::element::f32}, {126.6f}, {0.1f}},
+     {{}, {{127.f}, ov::element::f32}, {0.1f}}},
+    {ov::element::i8,
+     ov::Shape{1, 3, 16, 16},
+     {{ov::element::f32}, {{126.5f, 32.25f, -127.5f}}, {{0.1f, 0.1f, 0.1f}}},
+     {{}, {{127.f, 32.f, -128.f}, ov::element::f32}, {{0.1f, 0.1f, 0.1f}}}},
 };
 
 TEST_P(RoundTransformation, CompareFunctions) {

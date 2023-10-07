@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/utils/span.hpp"
+#include "openvino/reference/utils/span.hpp"
 
 #include <algorithm>
 #include <array>
@@ -10,7 +10,7 @@
 
 #include "gtest/gtest.h"
 
-using namespace ngraph::runtime::reference;
+using namespace ov::reference;
 
 TEST(span_util, create_from_vector) {
     std::vector<int> data{1, 2, 3, 4};

@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reference.h"
-#include <ie_ngraph_utils.hpp>
-#include <shape_util.hpp>
 #include <dnnl_extension_utils.h>
-#include "openvino/runtime/tensor.hpp"
-#include "common/blocked_desc_creator.h"
+
+#include <ie_ngraph_utils.hpp>
 #include <ngraph/opsets/opset1.hpp>
+
+#include "common/blocked_desc_creator.h"
 #include "common/cpu_memcpy.h"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "reference.h"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -123,8 +125,9 @@ ov::TensorVector Reference::prepareInputs() const {
     ov::TensorVector inputs;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().getData();
-        inputs.push_back(ov::Tensor(ngraphOp->get_input_element_type(i),
-                                             getParentEdgesAtPort(i)[0]->getMemory().getStaticDims(), srcDataPtr));
+        ov::Shape shape = ngraphOp->get_input_partial_shape(i).rank().get_length() == 0 ?
+                ov::Shape{} : getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
+        inputs.push_back(ov::Tensor(ngraphOp->get_input_element_type(i), shape, srcDataPtr));
     }
     return inputs;
 }
@@ -133,8 +136,9 @@ ov::TensorVector Reference::prepareOutputs() const {
     ov::TensorVector outputs;
     for (size_t i = 0; i < outputShapes.size(); i++) {
         void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().getData();
-        outputs.push_back(ov::Tensor(ngraphOp->get_output_element_type(i),
-                                              getChildEdgesAtPort(i)[0]->getMemory().getStaticDims(), dstDataPtr));
+        ov::Shape shape = ngraphOp->get_output_partial_shape(i).rank().get_length() == 0 ?
+                ov::Shape{} : getChildEdgesAtPort(i)[0]->getMemory().getStaticDims();
+        outputs.push_back(ov::Tensor(ngraphOp->get_output_element_type(i), shape, dstDataPtr));
     }
     return outputs;
 }

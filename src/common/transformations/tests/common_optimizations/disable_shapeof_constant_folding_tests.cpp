@@ -5,18 +5,18 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 
 TEST_F(TransformationTestsF, DisableShapeOfConstantFolding) {
     {
@@ -24,7 +24,7 @@ TEST_F(TransformationTestsF, DisableShapeOfConstantFolding) {
         auto shape_of = std::make_shared<opset6::ShapeOf>(data);
         auto abs = std::make_shared<opset6::Abs>(shape_of);
         auto reshape = std::make_shared<opset6::Reshape>(data, abs, false);
-        function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
 
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -35,19 +35,19 @@ TEST_F(TransformationTestsF, DisableShapeOfConstantFolding) {
         auto shape_of = std::make_shared<opset6::ShapeOf>(data);
         auto abs = std::make_shared<opset6::Abs>(shape_of);
         auto reshape = std::make_shared<opset6::Reshape>(data, abs, false);
-        function_ref = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
     }
 }
 
 TEST_F(TransformationTestsF, ShapeOfShapeOfConstantFolding) {
-    std::shared_ptr<Function> f, f_ref;
+    std::shared_ptr<Model> f, f_ref;
     {
         auto data = std::make_shared<opset6::Parameter>(element::i64, Shape{1, 4, 10, 10});
         auto shape_of = std::make_shared<opset6::ShapeOf>(data);
         auto reshape = std::make_shared<opset6::Reshape>(data, shape_of, false);
         auto rank = std::make_shared<opset6::ShapeOf>(shape_of);
         auto mul = std::make_shared<opset6::Multiply>(reshape, rank);
-        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
 
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -58,6 +58,6 @@ TEST_F(TransformationTestsF, ShapeOfShapeOfConstantFolding) {
         auto shape_of = std::make_shared<opset6::ShapeOf>(data);
         auto reshape = std::make_shared<opset6::Reshape>(data, shape_of, false);
         auto mul = std::make_shared<opset6::Multiply>(reshape, opset6::Constant::create(element::i64, Shape{1}, {4}));
-        function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
     }
 }
