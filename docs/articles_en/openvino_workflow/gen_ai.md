@@ -12,8 +12,8 @@ Generative AI is an innovative technique that creates new data, such as text, im
 
 OpenVINO offers two main paths for Generative AI use cases:
 
-* As a backend for Hugging Face frameworks (transformers, diffusers) with use of `Optimum-Intel <https://huggingface.co/docs/optimum/intel/inference>`__ extension 
-* With use of OpenVINO native APIs (Python and C++) with use of custom pipeline code 
+* Using OpenVINO as a backend for Hugging Face frameworks (transformers, diffusers) through the `Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ extension.
+* Using OpenVINO native APIs (Python and C++) with custom pipeline code. 
 
  
 In both cases, OpenVINO runtime and tools will be used, difference is mostly in API that you prefer and footprint of final solution. Use of native APIs allows using generative models in C++ applications, having minimal runtime dependencies and minimizing application footprint. Approach with OpenVINO Native APIs will require implementation of glue code (generation loop, text tokenization or scheduler functions) which is hidden as implementation detail internally within Hugging Face libraries. 
