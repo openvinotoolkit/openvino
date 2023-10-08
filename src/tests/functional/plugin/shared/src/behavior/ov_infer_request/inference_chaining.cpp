@@ -20,7 +20,7 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/core/model.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "behavior/ov_infer_request/inference_chaining.hpp"

@@ -5,6 +5,10 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
@@ -28,12 +32,27 @@ OutputVector translate_cat_common(const NodeContext& context,
         attrs["axis"] = std::to_string(axis);
         fw_node->set_attrs(attrs);
         return {context.mark_node(fw_node)};
-    } else {
-        auto first_elem = list_elems.front().get_node_shared_ptr();
-        FRONT_END_OP_CONVERSION_CHECK(
-            list_elems.size() > 1 || !ov::as_type_ptr<v0::Parameter>(first_elem),
-            "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
-            "This case is not supported.");
+    }
+    auto first_node = list_elems.front().get_node_shared_ptr();
+    FRONT_END_OP_CONVERSION_CHECK(
+        list_elems.size() > 1 || !ov::as_type_ptr<v0::Parameter>(first_node),
+        "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
+        "This case is not supported.");
+    if (list_elems.size() == 1 &&
+        !std::dynamic_pointer_cast<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr())) {
+        // Case when list was merged into tensor
+        auto tensor = list_elems[0];
+        auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
+        auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+        auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+        auto axis_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {axis}));
+        auto one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+        auto int_max =
+            context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>().max()}));
+        auto shape_sliced = context.mark_node(std::make_shared<v8::Slice>(shape, one, int_max, one));
+        auto new_shape =
+            context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_sliced, axis_const, neg_1, zero));
+        return {context.mark_node(std::make_shared<v1::Reshape>(tensor, new_shape, false))};
     }
     auto concat = std::make_shared<v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), axis);
     return {context.mark_node(concat)};

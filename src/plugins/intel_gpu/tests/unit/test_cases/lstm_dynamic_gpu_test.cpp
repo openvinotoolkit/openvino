@@ -160,7 +160,7 @@ VVVVF<T> lstm_dynamic_input_ref(VVVVF<T>& input, VVVVF<T>& weights, VVVVF<T>& bi
                 }
 
                 // Convert back to output data type before storing it into the output buffer. Currently, the output
-                // data type may be float or FLOAT16 (half)
+                // data type may be float or ov::float16 (half)
                 tempOut[b][0][0][h] = (T)(std::tanh(val) * sigmoid(fp32_ot));
                 tempOut[b][1][0][h] = (T)val;
             }
@@ -207,7 +207,7 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
     void SetUp() override {
         rg.set_seed(GET_SUITE_NAME);
     }
-    
+
     void input_single_layer_generic_test(int32_t direction, int32_t batch_size, int32_t max_sequence_len, int32_t input_size, int32_t hidden_size, std::vector<float> dynamic_lengths,
         bool has_bias = false)
     {
@@ -539,7 +539,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
     }
 
 };
-typedef ::testing::Types<float, FLOAT16> lstm_dynamic_test_types;
+typedef ::testing::Types<float, ov::float16> lstm_dynamic_test_types;
 TYPED_TEST_SUITE(lstm_dynamic_single_layer_test, lstm_dynamic_test_types);
 TYPED_TEST_SUITE(lstm_dynamic_input_layer_test, lstm_dynamic_test_types);
 

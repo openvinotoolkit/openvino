@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/shape_util.hpp"
 #include "openvino/reference/broadcast.hpp"
 
 namespace ov {
