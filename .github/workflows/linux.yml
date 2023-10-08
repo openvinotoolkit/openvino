@@ -10,16 +10,12 @@ on:
       - 'docs/**'
       - '**/**.md'
       - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
   push:
     paths-ignore:
       - '**/docs/**'
       - 'docs/**'
       - '**/**.md'
       - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
     branches:
       - master
       - 'releases/**'
@@ -94,6 +90,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -158,12 +155,12 @@ jobs:
 
       - name: Pack Artifacts
         run: |
-          
-          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job 
+
+          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job
           # w/o the need to checkout repository
-          
+
           cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
-          
+
           pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
@@ -236,9 +233,6 @@ jobs:
       DEBIAN_PACKAGES_DIR: /__w/openvino/packages/
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${DEBIAN_PACKAGES_DIR}
-
       - name: Download OpenVINO debian packages
         uses: actions/download-artifact@v3
         with:
@@ -294,13 +288,6 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/build
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
-      #
-      # Initialize OpenVINO
-      #
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -328,6 +315,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -382,6 +370,101 @@ jobs:
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'
+
+  Conformance:
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-20.04-8-cores
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          # 'OP' for Opset, 'API' for API
+          - TEST_TYPE: 'OP'
+          - TEST_TYPE: 'API'
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
+      CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts
+      TEST_DEVICE: 'CPU'
+
+    steps:
+
+      - name: Create Directories
+        run: |
+          mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
+
+      #
+      # Dependencies
+      #
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+          popd
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
+          popd
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Dependencies
+        run: |
+          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
+
+          # Needed for downloading IRs from storage.openvinotoolkit with Python urllib
+          sudo apt-get update && sudo apt-get install --assume-yes --no-install-recommends ca-certificates
+
+          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
+
+      #
+      # Tests
+      #
+
+      - name: Conformance Tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          python3 ${CONFORMANCE_TOOLS_DIR}/run_conformance.py -ov=${INSTALL_DIR}/tests \
+            -d=${TEST_DEVICE} \
+            -t=${{ matrix.TEST_TYPE }} \
+            -w=${CONFORMANCE_ARTIFACTS_DIR} \
+            -f=${CONFORMANCE_TOOLS_DIR}/skip_configs/${TEST_DEVICE}/expected_failures_${{ matrix.TEST_TYPE }}.csv
+
+      - name: Pack Conformance Artifacts
+        if: ${{ always() }}
+        run: |
+          pushd ${CONFORMANCE_ARTIFACTS_DIR}
+            tar -czvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
+          popd
+
+      - name: Upload Conformance Artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
+          path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
           if-no-files-found: 'error'
 
   ONNX_Runtime:
@@ -477,7 +560,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
-          
+
           ./onnxruntime_test_all --gtest_filter=-$skip_tests
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
@@ -524,13 +607,6 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
-      #
-      # Initialize OpenVINO
-      #
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -656,6 +732,12 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
 
+      - name: AUTO func Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
+
       - name: Template plugin func tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -720,9 +802,6 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
       - name: Install git
         run: |
           apt update
@@ -734,12 +813,13 @@ jobs:
           path: 'openvino'
 
       #
-      # Initilaize OpenVINO
+      # Initialize OpenVINO
       #
 
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -937,13 +1017,10 @@ jobs:
     env:
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
-      PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/functional_test_utils/run_parallel.py
+      PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -976,7 +1053,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install python dependencies for run_parallel.py
-        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/requirements.txt
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@v3
@@ -1018,26 +1095,28 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores-16gb'}}
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount/caches:/mount/caches
+    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
+    # TODO: Switch back to self-hosted runners
+    # container:
+    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    #   volumes:
+    #     - /mount/caches:/mount/caches
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
+      - name: Check sudo
+        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
       - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
+        run: sudo apt-get update && sudo apt-get install -y libssl1.1 ca-certificates
 
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -1095,11 +1174,12 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-8-cores'}}
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount/caches:/mount/caches
+    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
+    # TODO: Switch back to self-hosted runners
+    # container:
+    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    #   volumes:
+    #     - /mount/caches:/mount/caches
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -1116,9 +1196,6 @@ jobs:
           # install git (required to build pip deps from the sources)
           # install 'g++' to build 'detectron2' and 'natten' wheels
           sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
-
-      - name: Create Directories
-        run: mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3

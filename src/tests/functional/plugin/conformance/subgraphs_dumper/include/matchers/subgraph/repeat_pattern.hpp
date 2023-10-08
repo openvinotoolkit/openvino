@@ -25,7 +25,8 @@ public:
     }
 
     std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
-                                        bool is_extract_body = true) override;
+                                        bool is_extract_body = true,
+                                        bool is_copy_constants = true) override;
 
 private:
     MatchersManager manager;
