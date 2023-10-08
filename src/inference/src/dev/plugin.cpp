@@ -52,7 +52,7 @@ const ov::Version ov::Plugin::get_version() const {
     OV_PLUGIN_CALL_STATEMENT(return m_ptr->get_version());
 }
 
-void ov::Plugin::add_extension(const ie::IExtensionPtr& extension) {
+void ov::Plugin::add_extension(const InferenceEngine::IExtensionPtr& extension) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     OV_PLUGIN_CALL_STATEMENT(m_ptr->add_extension(extension));
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -116,7 +116,7 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
         if (ov::supported_properties == name) {
             try {
                 return {m_ptr->get_property(name, arguments), {m_so}};
-            } catch (const ie::Exception&) {
+            } catch (const InferenceEngine::Exception&) {
                 std::vector<ov::PropertyName> supported_properties;
                 try {
                     auto ro_properties =
@@ -128,7 +128,7 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
                         }
                     }
                 } catch (const ov::Exception&) {
-                } catch (const ie::Exception&) {
+                } catch (const InferenceEngine::Exception&) {
                 }
                 try {
                     auto rw_properties = m_ptr->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
@@ -137,7 +137,7 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
                         supported_properties.emplace_back(rw_property, PropertyMutability::RW);
                     }
                 } catch (const ov::Exception&) {
-                } catch (const ie::Exception&) {
+                } catch (const InferenceEngine::Exception&) {
                 }
                 supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
                 return supported_properties;

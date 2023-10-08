@@ -18,10 +18,10 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/move_fake_quantize.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/move_fake_quantize_function.hpp"
-#include "lpt_ngraph_functions/relu_function.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/move_fake_quantize.hpp"
+#include "ov_lpt_models/relu.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;

@@ -8,6 +8,14 @@ if(NOT DEFINED IEDevScripts_DIR)
     message(FATAL_ERROR "IEDevScripts_DIR is not defined")
 endif()
 
+# disable FindPkgConfig.cmake for Android
+if(ANDROID)
+    # Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
+    # build system pkg-config executable, which finds packages on build system. Such
+    # libraries cannot be linked into Android binaries.
+    set(CMAKE_DISABLE_FIND_PACKAGE_PkgConfig ON)
+endif()
+
 macro(ov_set_if_not_defined var value)
     if(NOT DEFINED ${var})
         set(${var} ${value})
@@ -28,6 +36,9 @@ function(set_ci_build_number)
         set(${var} "${${var}}" PARENT_SCOPE)
     endforeach()
 endfunction()
+
+# explicitly configure FindPython3.cmake to find python3 in virtual environment first
+ov_set_if_not_defined(Python3_FIND_STRATEGY LOCATION)
 
 include(features)
 
@@ -107,7 +118,11 @@ if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
     # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
     set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
 elseif(NOT OV_GENERATOR_MULTI_CONFIG)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+    if(NOT CMAKE_BUILD_TYPE)
+        # default value
+        set(CMAKE_BUILD_TYPE "Release")
+    endif()
+    set(CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}" CACHE STRING "CMake build type")
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
 endif()
 

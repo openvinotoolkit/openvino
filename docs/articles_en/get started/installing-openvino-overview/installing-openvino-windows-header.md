@@ -17,6 +17,7 @@
    Use Conda Forge <openvino_docs_install_guides_installing_openvino_conda>
    Use vcpkg <openvino_docs_install_guides_installing_openvino_vcpkg>
    Use Docker <openvino_docs_install_guides_installing_openvino_docker>
+   Use Conan <openvino_docs_install_guides_installing_openvino_conan>
 
 
 
@@ -27,6 +28,7 @@ If you want to install OpenVINO™ Runtime on Windows, you have the following op
 * :doc:`Install OpenVINO using Conda Forge <openvino_docs_install_guides_installing_openvino_conda>`
 * :doc:`Install OpenVINO using vcpkg <openvino_docs_install_guides_installing_openvino_vcpkg>`
 * :doc:`Install OpenVINO using Docker <openvino_docs_install_guides_installing_openvino_docker>`
+* :doc:`Install OpenVINO using Conan Package Manager <openvino_docs_install_guides_installing_openvino_conan>`
 
 
 @endsphinxdirective

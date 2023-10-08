@@ -89,6 +89,7 @@ OP_CONVERTER(translate_linspace);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_list_unpack);
 OP_CONVERTER(translate_log);
+OP_CONVERTER(translate_log1p);
 OP_CONVERTER(translate_log_softmax);
 OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_logsumexp);
@@ -301,6 +302,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::eye", op::translate_eye},
         {"aten::fake_quantize_per_channel_affine", op::translate_fake_quantize_per_channel_affine},
         {"aten::fake_quantize_per_tensor_affine", op::translate_fake_quantize_per_tensor_affine},
+        {"aten::feature_dropout", op::skip_node},
         {"aten::fill_", op::inplace_op<op::translate_fill_>},
         {"aten::flatten", op::quantizable_op<op::translate_flatten>},
         {"aten::flip", op::translate_flip},
@@ -352,6 +354,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::logical_not", op::translate_not},
         {"aten::logical_xor", op::translate_xor},
         {"aten::log_softmax", op::translate_log_softmax},
+        {"aten::log1p", op::translate_log1p},
+        {"aten::log1p_", op::inplace_op<op::translate_log1p>},
         {"aten::log2", op::translate_log2},
         {"aten::log2_", op::inplace_op<op::translate_log2>},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
@@ -384,6 +388,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::nonzero", op::translate_nonzero},
         {"aten::norm", op::translate_norm},
         {"aten::numel", op::translate_numel},
+        {"aten::numpy_T", op::translate_t},
         {"aten::one_hot", op::translate_one_hot},
         {"aten::ones", op::translate_ones},
         {"aten::ones_like", op::translate_ones_like},

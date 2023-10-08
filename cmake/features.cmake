@@ -21,6 +21,11 @@ ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmak
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
+if(ENABLE_TESTS)
+    include(CTest)
+    enable_testing()
+endif()
+
 if(X86_64)
     set(ENABLE_INTEL_GPU_DEFAULT ON)
 else()
@@ -60,11 +65,7 @@ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
 
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
-if(NOT ANDROID)
-    # on Android build FindPkgConfig.cmake finds host system pkg-config, which is not appropriate
-    find_package(PkgConfig QUIET)
-endif()
-
+find_package(PkgConfig QUIET)
 ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX OR APPLE;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
 
 #

@@ -9,8 +9,8 @@
 #include "gna_infer_request.hpp"
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "ov_models/builders.hpp"
 
 using ov::intel_gna::GNAPlugin;
 using namespace ov::op;
