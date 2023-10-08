@@ -6,6 +6,8 @@ import openvino as ov
 import openvino.properties as properties
 import openvino.properties.device as device
 import openvino.properties.hint as hints
+import openvino.properties.streams as streams
+import properties.enable_profiling as enable_profiling
 import openvino.properties.log as log
 
 from openvino.inference_engine import IECore
@@ -157,20 +159,20 @@ def part5():
 
     # gpu_config and cpu_config will load during compile_model()
     gpu_config = {
-        properties.hint.performance_mode: properties.hint.PerformanceMode.THROUGHPUT,
-        properties.streams.num: 4
+        hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
+        streams.num: 4
     }
     cpu_config = {
-        properties.hint.performance_mode: properties.hint.PerformanceMode.LATENCY,
-        properties.streams.num: 8,
-        properties.enable_profiling: True
+        hints.performance_mode: hints.PerformanceMode.LATENCY,
+        streams.num: 8,
+        enable_profiling: True
     }
     compiled_model = core.compile_model(
         model=model,
         device_name="AUTO",
         config={
-            properties.device.priorities: "GPU,CPU",
-            properties.device.properties: {'CPU': cpu_config, 'GPU': gpu_config}
+            device.priorities: "GPU,CPU",
+            device.properties: {'CPU': cpu_config, 'GPU': gpu_config}
         }
     )
     #! [part5]
