@@ -74,7 +74,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         const auto& val = kvp.second;
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
-            streamExecutorConfig.set_property(key, val);
+            streamExecutorConfig.set_property(key, val.as<std::string>());
             if (key == ov::affinity.name()) {
                 const auto affinity_val = ov::util::from_string(val.as<std::string>(), ov::affinity);
                 if (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) {
@@ -86,19 +86,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 }
             }
         } else if (key == ov::hint::performance_mode.name()) {
-            if (val.is<ov::hint::PerformanceMode>()) {
-                hintPerfMode = val.as<ov::hint::PerformanceMode>();
-            } else {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               "for property key ",
-                               ov::hint::performance_mode.name(),
-                               ". Expected only LATENCY/THROUGHPUT/CUMULATIVE_THROUGHPUT.");
-            }
+            hintPerfMode = ov::util::from_string(val.as<std::string>(), ov::hint::performance_mode);
         } else if (key == ov::hint::num_requests.name()) {
-            if (val.is<uint32_t>()) {
-                hintNumRequests = val.as<uint32_t>();
-            } else {
+            int val_i = -1;
+            try {
+                val_i = std::stoi(val.as<std::string>().c_str());
+                if (val_i < 0) {
+                    throw std::logic_error("wrong val");
+                }
+                hintNumRequests = static_cast<uint32_t>(val_i);
+            } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
@@ -106,18 +103,20 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ". Expected only >0.");
             }
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
-            if (!val.is<bool>()) {
+            try {
+                if (val.as<bool>()) {
+                    enableCpuPinning = true;
+                    changedCpuPinning = true;
+                } else {
+                    enableCpuPinning = false;
+                    changedCpuPinning = true;
+                }
+            } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::enable_cpu_pinning.name(),
                                ". Expected only true/false.");
-            } else if (val.as<bool>()) {
-                enableCpuPinning = true;
-                changedCpuPinning = true;
-            } else {
-                enableCpuPinning = false;
-                changedCpuPinning = true;
             }
         } else if (key == ov::hint::scheduling_core_type.name()) {
             const auto core_type = ov::util::from_string(val.as<std::string>(), ov::hint::scheduling_core_type);
@@ -138,18 +137,20 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::SchedulingCoreType::ECORE_ONLY);
             }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
-            if (!val.is<bool>()) {
+            try {
+                if (val.as<bool>()) {
+                    enableHyperThreading = true;
+                    changedHyperThreading = true;
+                } else {
+                    enableHyperThreading = false;
+                    changedHyperThreading = true;
+                }
+            } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::enable_hyper_threading.name(),
                                ". Expected only true/false.");
-            } else if (val.as<bool>()) {
-                enableHyperThreading = true;
-                changedHyperThreading = true;
-            } else {
-                enableHyperThreading = false;
-                changedHyperThreading = true;
             }
         } else if (key == ov::intel_cpu::sparse_weights_decompression_rate.name()) {
             float val_f = 0.0f;
@@ -168,24 +169,24 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 fcSparseWeiDecompressionRate = val_f;
             }
         } else if (key == ov::enable_profiling.name()) {
-            if (!val.is<bool>()) {
+            try {
+                collectPerfCounters = val.as<bool>();
+            } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
                                ov::enable_profiling.name(),
                                ". Expected only YES/NO");
-            } else {
-                collectPerfCounters = val.as<bool>();
             }
         } else if (key == ov::internal::exclusive_async_requests.name()) {
-            if (!val.is<bool>()) {
+            try {
+                exclusiveAsyncRequests = val.as<bool>();
+            } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
                                ov::internal::exclusive_async_requests.name(),
                                ". Expected only YES/NO");
-            } else {
-                exclusiveAsyncRequests = val.as<bool>();
             }
             OPENVINO_SUPPRESS_DEPRECATED_START
         } else if (key.compare(InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
@@ -193,15 +194,17 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             dumpToDot = val.as<std::string>();
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key.compare(ov::internal::lp_transforms_mode.name()) == 0) {
-            if (!val.is<bool>()) {
+            try {
+                if (val.as<bool>()) {
+                    lpTransformsMode = LPTransformsMode::On;
+                } else {
+                    lpTransformsMode = LPTransformsMode::Off;
+                }
+            } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
                                ov::internal::lp_transforms_mode.name());
-            } else if (val.as<bool>()) {
-                lpTransformsMode = LPTransformsMode::On;
-            } else {
-                lpTransformsMode = LPTransformsMode::Off;
             }
         } else if (key == ov::device::id.name()) {
             device_id = val.as<std::string>();
@@ -209,13 +212,17 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 OPENVINO_THROW("CPU plugin supports only '' as device id");
             }
         } else if (key == ov::enforce_bf16.name()) {
-            if (!val.is<bool>()) {
+            bool enable;
+            try {
+                enable = val.as<bool>();
+            } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
                                ov::enforce_bf16.name(),
                                ". Expected only YES/NO");
-            } else if (val.as<bool>()) {
+            }
+            if (enable) {
                 if (mayiuse(avx512_core)) {
                     inferencePrecision = ov::element::bf16;
                 } else {
@@ -268,17 +275,19 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             // as zero that means disabling the cache
             rtCacheCapacity = std::max(val_i, 0);
         } else if (ov::intel_cpu::denormals_optimization.name() == key) {
-            if (!val.is<bool>()) {
+            try {
+                if (val.as<bool>()) {
+                    denormalsOptMode = DenormalsOptMode::DO_On;
+                } else {
+                    denormalsOptMode = DenormalsOptMode::DO_Off;
+                }
+            } catch (ov::Exception&) {
                 denormalsOptMode = DenormalsOptMode::DO_Keep;
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
                                ov::intel_cpu::denormals_optimization.name(),
                                ". Expected only YES/NO");
-            } else if (val.as<bool>()) {
-                denormalsOptMode = DenormalsOptMode::DO_On;
-            } else {
-                denormalsOptMode = DenormalsOptMode::DO_Off;
             }
         } else if (key == ov::snippets_mode.name()) {
             auto mode = val.as<std::string>();

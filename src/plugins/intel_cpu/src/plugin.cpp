@@ -428,9 +428,9 @@ static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineC
     if (enableLPT == modelConfig.end()) // model config has higher priority
         return engineConfig.lpTransformsMode == Config::LPTransformsMode::On;
 
-    if (enableLPT->second.is<bool>()) {
+    try {
         return enableLPT->second.as<bool>();
-    } else {
+    } catch (ov::Exception&) {
         OPENVINO_THROW("Wrong value ",
                        enableLPT->second.as<std::string>(),
                        " for property key LP_TRANSFORMS_MODE. Expected values: YES/NO");
