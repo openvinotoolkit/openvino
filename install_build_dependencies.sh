@@ -26,6 +26,8 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
 
     apt update
     apt-get install -y --no-install-recommends \
+        `# for python3-pip` \
+        ca-certificates \
         file \
         `# build tools` \
         build-essential \
@@ -206,6 +208,9 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
 else
     echo "Unknown OS, please install build dependencies manually"
 fi
+
+# update pip
+python3 -m pip install -U pip
 
 # cmake 3.20.0 or higher is required to build OpenVINO
 

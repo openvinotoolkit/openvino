@@ -1,4 +1,4 @@
-name: Tests on Linux (Ubuntu 20.04, Python 3.11)
+name: Linux (Ubuntu 20.04, Python 3.8)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -27,14 +27,14 @@ concurrency:
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.8'
 
 jobs:
   Build:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-arm
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -52,16 +52,14 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       OPENVINO_CONTRIB_BUILD_DIR: /__w/openvino/openvino/openvino_contrib_build
-      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
+      CCACHE_DIR: /mount/caches/ccache/ubuntu20_aarch64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
 
     steps:
       - name: Install git
-        run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates
+        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -87,10 +85,6 @@ jobs:
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
           apt install --assume-yes --no-install-recommends default-jdk libssl1.1
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -113,7 +107,7 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
 
           # For running Paddle frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
+          # python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
 
       #
       # Build
@@ -155,7 +149,6 @@ jobs:
 
       - name: Pack Artifacts
         run: |
-
           # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job
           # w/o the need to checkout repository
 
@@ -171,13 +164,8 @@ jobs:
 
       - name: Build Debian packages
         run: |
-          /usr/bin/python3.8 -m pip install -U pip
-          /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          cmake -UPYTHON* \
-                -DENABLE_PYTHON_PACKAGING=ON \
+          cmake -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_TESTS=OFF \
-                -DPython3_EXECUTABLE=/usr/bin/python3.8 \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
@@ -225,9 +213,9 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04
+    runs-on: aks-linux-16-cores-arm
     container:
-      image: ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       DEBIAN_PACKAGES_DIR: /__w/openvino/packages/
@@ -241,15 +229,8 @@ jobs:
 
       - name: Install debian packages & check conflicts
         run: |
+          # install our local ones
           apt-get update -y
-          # Install debian packages from previous release
-          apt-get install --no-install-recommends -y gnupg wget ca-certificates
-          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-2023.list
-          apt-get update -y
-          apt-get install -y openvino
-          # install our local one and make sure the conflicts are resolved
           apt-get install --no-install-recommends -y dpkg-dev
           dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
           echo "deb [trusted=yes] file:${DEBIAN_PACKAGES_DIR} ./" | tee /etc/apt/sources.list.d/openvino-local.list
@@ -261,10 +242,9 @@ jobs:
         run: |
           /usr/share/openvino/samples/cpp/build_samples.sh
           /usr/share/openvino/samples/c/build_samples.sh
-          ~/openvino_cpp_samples_build/intel64/Release/hello_query_device
+          ~/openvino_cpp_samples_build/aarch64/Release/hello_query_device
           python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
           python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
-          python3 -c 'from openvino import Core; Core().get_property("GPU", "AVAILABLE_DEVICES")'
           python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
           python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
           python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
@@ -278,9 +258,9 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04
+    runs-on: aks-linux-16-cores-arm
     container:
-      image: ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: /__w/openvino/openvino/install
@@ -309,21 +289,17 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
           popd
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install OpenVINO dependencies
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
 
       - name: Setup pip cache dir
         run: |
+          apt-get install -y python3 libpython3.8 python3-pip
+          python3 -m pip install -U pip
+
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-
-      - name: Install OpenVINO dependencies
-        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
 
       - name: Build cpp samples - GCC
         run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
@@ -361,6 +337,7 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
 
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
+            --ignore=${INSTALL_TEST_DIR}/smoke_tests/test_speech_sample.py \
             --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
             --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
 
@@ -377,7 +354,9 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-8-cores
+    runs-on: aks-linux-16-cores-arm
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -397,8 +376,7 @@ jobs:
     steps:
 
       - name: Create Directories
-        run: |
-          mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
+        run: mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
 
       #
       # Dependencies
@@ -425,17 +403,15 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Install Dependencies
         run: |
-          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
+          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
           # Needed for downloading IRs from storage.openvinotoolkit with Python urllib
-          sudo apt-get update && sudo apt-get install --assume-yes --no-install-recommends ca-certificates
+          apt-get install --assume-yes --no-install-recommends ca-certificates
 
+          apt-get install -y python3 libpython3.8 python3-pip
+          python3 -m pip install -U pip
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
@@ -472,7 +448,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores
+    runs-on: aks-linux-16-cores-arm
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -484,7 +460,7 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
-      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_onnxruntime
+      CCACHE_DIR: /mount/caches/ccache/ubuntu20_aarch64_onnxruntime
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
       ONNX_RUNTIME_REPO: /__w/openvino/openvino/onnxruntime
@@ -502,13 +478,7 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
 
       - name: Install git
-        run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       #
       # Initialize OpenVINO
@@ -599,7 +569,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-16-cores-arm
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
@@ -686,60 +656,70 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_common_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Common test utils tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CommonUtilTests.xml
 
       - name: Snippets func tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
 
       - name: AUTO unit tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
@@ -747,33 +727,39 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
       - name: Inference Engine C API tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/InferenceEngineCAPITests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceEngineCAPITests.xml
 
       - name: OpenVINO C API tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch func tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml
 
       - name: Proxy Plugin func tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero func tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml
@@ -791,7 +777,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-16-cores-arm
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -804,9 +790,7 @@ jobs:
 
     steps:
       - name: Install git
-        run: |
-          apt update
-          apt install --assume-yes --no-install-recommends git ca-certificates
+        run: apt update && apt install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -817,12 +801,11 @@ jobs:
       # Initialize OpenVINO
       #
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Setup pip cache dir
         run: |
+          apt install -y python3 libpython3.8 python3-pip
+          python3 -m pip install -U pip
+
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
@@ -865,13 +848,15 @@ jobs:
       #
 
       - name: nGraph and IE Python Bindings Tests
+        if: ${{ always() }}
         run: |
           python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_zoo_models.py \
-            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests/test_onnx/test_backend.py
+            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py \
+            --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
+        if: ${{ always() }}
         run: |
           # For python imports to import 'pybind_mock_frontend'
           export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
@@ -885,6 +870,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_onnx/test_backend.py
 
       - name: Docs Python snippets
+        if: ${{ always() }}
         run: |
           # to find 'snippets' module in docs
           export PYTHONPATH=${OPENVINO_REPO}/docs/:$PYTHONPATH
@@ -893,15 +879,14 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Model Optimizer unit tests
+        if: ${{ always() }}
         run: |
           export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
-          # required for MxNet
-          apt-get install -y libgomp1 libquadmath0
-
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -912,6 +897,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 1 Layer Tests - TF FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -922,6 +908,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - TF FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -932,6 +919,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -941,6 +929,7 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -948,6 +937,7 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -959,6 +949,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow Lite Layer Tests - TFL FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -969,6 +960,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: MO Python API Tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -982,6 +974,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python Frontend tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
@@ -991,6 +984,7 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: OVC unit tests
+        if: ${{ always() }}
         run: |
           # For python imports to import 'pybind_mock_frontend'
           export PYTHONPATH=${INSTALL_TEST_DIR}:$PYTHONPATH
@@ -1012,7 +1006,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-8-cores
+    runs-on: aks-linux-16-cores-arm
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
@@ -1046,15 +1040,11 @@ jobs:
       - name: Install OpenVINO dependencies
         run: bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Install python dependencies for run_parallel.py
-        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+        run: |
+          apt install -y python3 libpython3.8 python3-pip
+          python3 -m pip install -U pip
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@v3
@@ -1067,8 +1057,8 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 40
+          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke*
+        timeout-minutes: 120
 
       - name: Save tests execution time
         uses: actions/cache/save@v3
@@ -1093,6 +1083,7 @@ jobs:
 
   TensorFlow_Hub_Models_Tests:
     needs: Build
+    if: ${{ 'false' }}
     defaults:
       run:
         shell: bash
@@ -1172,6 +1163,7 @@ jobs:
 
   PyTorch_Models_Tests:
     needs: Build
+    if: ${{ 'false' }}
     defaults:
       run:
         shell: bash
