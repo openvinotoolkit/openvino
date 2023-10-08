@@ -132,12 +132,12 @@ INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
                                 make_tuple(StaticShape({3}), StaticShape({3})),
                                 make_tuple(StaticShape({5, 2}), StaticShape({2, 6})),
                                 make_tuple(StaticShape({10, 8, 9, 2}), StaticShape({10, 8, 2, 8})),
-                                make_tuple(StaticShape({3, 1, 4, 3, 4}), StaticShape({3, 2, 1, 4, 1}))),
-                                // make_tuple(StaticShape({1}), StaticShape({1, 3})),
-                                // make_tuple(StaticShape({1}), StaticShape({1, 1, 3})),
-                                // make_tuple(StaticShape({3, 1}), StaticShape({1})),
-                                // make_tuple(StaticShape({3, 2, 1}), StaticShape({1})),
-                                // make_tuple(StaticShape({2, 1, 2}), StaticShape({2, 6})),
+                                make_tuple(StaticShape({3, 1, 4, 3, 4}), StaticShape({3, 2, 1, 4, 1})),
+                                make_tuple(StaticShape({1}), StaticShape({1, 3})),
+                                make_tuple(StaticShape({1}), StaticShape({1, 1, 3})),
+                                make_tuple(StaticShape({3, 1}), StaticShape({1})),
+                                make_tuple(StaticShape({3, 2, 1}), StaticShape({1})),
+                                make_tuple(StaticShape({2, 1, 2}), StaticShape({2, 6}))),
                          CPUMatMulTest::getTestCaseName);
 
 } // namespace cpu_shape_infer
