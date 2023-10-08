@@ -214,7 +214,9 @@ macro(ie_add_sample)
     find_package(Threads REQUIRED)
 
     find_package(OpenVINO REQUIRED COMPONENTS Runtime)
-    if(c_sample)
+
+    # Conan does not generate openvino::runtime::c target
+    if(c_sample AND TARGET openvino::runtime::c)
         set(ov_link_libraries openvino::runtime::c)
     else()
         set(ov_link_libraries openvino::runtime)

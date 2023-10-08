@@ -6,7 +6,7 @@
 
 #if defined(HAVE_GPU_DEVICE_MEM_SUPPORT)
 #    define HAVE_DEVICE_MEM_SUPPORT
-#    include <gpu/gpu_context_api_ocl.hpp>
+#    include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 #endif
 #include "utils.hpp"
 
