@@ -18,7 +18,7 @@ using namespace ov;
 using namespace testing;
 
 namespace {
-using type = ngraph::element::Type;
+using type = ov::element::Type;
 void type_check(const type& refType) {
     Shape ref_shape{2, 3, 4};
     Shape indices_shape{2, 1};

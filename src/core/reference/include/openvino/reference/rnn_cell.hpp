@@ -13,8 +13,7 @@
 #include "openvino/reference/sigmoid.hpp"
 #include "openvino/reference/tanh.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void rnn_cell(const T* X,
@@ -87,11 +86,10 @@ void rnn_cell(const T* X,
     } else if (activation_f == "sigmoid") {
         reference::sigmoid(i_t.data(), dst_data, i_t.size());
     } else if (activation_f == "tanh") {
-        reference::tanh(i_t.data(), dst_data, i_t.size());
+        ov::reference::tanh(i_t.data(), dst_data, i_t.size());
     } else {
         OPENVINO_THROW("Activation function " + activation_f + " is not supported.");
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

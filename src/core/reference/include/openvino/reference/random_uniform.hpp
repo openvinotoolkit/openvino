@@ -5,12 +5,11 @@
 #pragma once
 
 #include <ctime>
-#include <ngraph/type/element_type.hpp>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 
 // Helper struct for converting between types
@@ -29,7 +28,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              const char* max_val,
                                              char* out,
                                              const Shape& out_shape_shape,
-                                             const ngraph::element::Type& elem_type,
+                                             const element::Type& elem_type,
                                              uint64_t seed,
                                              uint64_t seed2,
                                              std::pair<uint64_t, uint64_t> prev_state);
@@ -47,5 +46,4 @@ const size_t rounds_number = 10;
 const uint64_t skip_const = 256;
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

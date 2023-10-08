@@ -366,19 +366,17 @@ TEST(constant, int4_vector_broadcast_positive_number) {
 
 TEST(constant, int4_input_value_validation) {
     Shape shape{2};
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, 8), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, -9), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, 8), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, -9), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{-9}), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{8}), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{-9}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{8}), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{-9, 1}), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{8, 2}), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{-9, 1}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{8, 2}), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<std::string>{"-9", "1"}),
-                 ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<std::string>{"8", "1"}),
-                 ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<std::string>{"-9", "1"}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<std::string>{"8", "1"}), ::ov::AssertFailure);
 }
 
 //
@@ -855,19 +853,17 @@ TEST(constant, uint4_vector_broadcast) {
 
 TEST(constant, uint4_input_value_validation) {
     Shape shape{2};
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, 16), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, -1), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, 16), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, -1), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{-1}), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{16}), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{-1}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{16}), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{-1, 1}), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{16, 2}), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{-1, 1}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{16, 2}), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"-1", "1"}),
-                 ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"16", "1"}),
-                 ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"-1", "1"}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"16", "1"}), ::ov::AssertFailure);
 }
 
 //
@@ -1782,4 +1778,44 @@ TEST(constant, lazy_bitwise_identical) {
     // Comparing getting comparison value from cache with first-time calculation
     // '10' times is guaranteed to be faster here (typical value is ~200'000)
     EXPECT_GT(bitwise_check_count_only, bitwise_check_count * 10);
+}
+
+TEST(constant, cast_vector) {
+    std::vector<element::Type_t> types = {element::boolean,
+                                          element::bf16,
+                                          element::f16,
+                                          element::f32,
+                                          element::f64,
+                                          element::i4,
+                                          element::i8,
+                                          element::i16,
+                                          element::i32,
+                                          element::i64,
+                                          element::u1,
+                                          element::u4,
+                                          element::u8,
+                                          element::u16,
+                                          element::u32,
+                                          element::u64};
+    std::vector<int64_t> data = {0, 1, 0, 0, 1, 1, 0, 1};
+    std::vector<int64_t> expected_partial_data = {0, 1, 0, 0, 1, 1};
+
+    for (const auto& type : types) {
+        const auto& constant = op::v0::Constant::create(type, Shape{data.size()}, data);
+
+        const auto& default_casted = constant->cast_vector<int64_t>();
+        EXPECT_EQ(default_casted, data) << "Constant::cast_vector failed default casting for type " << type;
+
+        int64_t num_elements_for_partial_casting = static_cast<int64_t>(expected_partial_data.size());
+        const auto& partially_casted = constant->cast_vector<int64_t>(num_elements_for_partial_casting);
+        EXPECT_EQ(partially_casted, expected_partial_data)
+            << "Constant::cast_vector failed partial casting for type " << type;
+
+        int64_t num_elements_for_over_casting = static_cast<int64_t>(data.size()) + 10;
+        const auto& over_casted = constant->cast_vector<int64_t>(num_elements_for_over_casting);
+        EXPECT_EQ(over_casted, data) << "Constant::cast_vector failed for partial casting for type " << type;
+
+        EXPECT_TRUE(constant->cast_vector<int64_t>(0).empty())
+            << "Constant::cast_vector failed empty casting for type " << type;
+    }
 }

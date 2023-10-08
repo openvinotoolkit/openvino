@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 void embeddingSegmentsSum(const T* embTable,
@@ -72,5 +71,4 @@ void embeddingSegmentsSum(const T* embTable,
 }  // embeddingSegmentsSum
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

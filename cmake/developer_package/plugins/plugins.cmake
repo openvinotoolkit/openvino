@@ -103,7 +103,7 @@ function(ov_add_plugin)
         endforeach()
 
         if (OV_PLUGIN_ADD_CLANG_FORMAT)
-            add_clang_format_target(${OV_PLUGIN_NAME}_clang FOR_SOURCES ${OV_PLUGIN_SOURCES})
+            ov_add_clang_format_target(${OV_PLUGIN_NAME}_clang FOR_SOURCES ${OV_PLUGIN_SOURCES})
         else()
             add_cpplint_target(${OV_PLUGIN_NAME}_cpplint FOR_TARGETS ${OV_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
@@ -117,6 +117,10 @@ function(ov_add_plugin)
         # install rules
         if(NOT OV_PLUGIN_SKIP_INSTALL OR NOT BUILD_SHARED_LIBS)
             string(TOLOWER "${OV_PLUGIN_DEVICE_NAME}" install_component)
+            if(NOT BUILD_SHARED_LIBS)
+                # in case of static libs everything is installed to 'core'
+                set(install_component ${OV_CPACK_COMP_CORE})
+            endif()
 
             if(OV_PLUGIN_PSEUDO_DEVICE)
                 set(plugin_hidden HIDDEN)
@@ -358,7 +362,7 @@ function(ov_generate_plugins_hpp)
                          "${plugins_hpp_in}"
                          "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
                        COMMENT
-                         "Generate ov_plugins.hpp for build"
+                         "Generate ov_plugins.hpp"
                        VERBATIM)
 
     # for some reason dependency on source files does not work

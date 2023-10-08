@@ -10,14 +10,14 @@
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/transformation_context.hpp"
 #include "low_precision/network_helper.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 using namespace ov;
 
 typedef std::tuple<
     element::Type,
     Shape,
-    ngraph::pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
+    ov::pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
 
 struct TestTransformationParams {
     TestTransformationParams(
@@ -36,7 +36,7 @@ struct TestTransformationParams {
     TestTransformationParams& setDeconvolutionSpecificChannelsRatio(const bool deconvolutionSpecificChannelsRatio);
     TestTransformationParams& setDefaultPrecisions(const std::vector<element::Type>& defaultPrecisions);
 
-    static ngraph::pass::low_precision::LayerTransformation::Params toParams(const TestTransformationParams& params);
+    static ov::pass::low_precision::LayerTransformation::Params toParams(const TestTransformationParams& params);
 
     bool updatePrecisions;
     std::vector<element::Type> precisionsOnActivations;
@@ -58,11 +58,11 @@ public:
 
     static std::string getTestCaseNameByParams(
         const ov::element::Type& type,
-        const ngraph::PartialShape& shape,
+        const ov::PartialShape& shape,
         const TestTransformationParams& params);
 
     static ngraph::builder::subgraph::DequantizationOperations toDequantizationOperations(
-        const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization);
+        const ov::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
     static bool allNamesAreUnique(const std::shared_ptr<ov::Model>& model);
 
@@ -72,7 +72,7 @@ public:
         NodeVector nodes = model->get_ordered_ops();
 
         for (auto& node : nodes) {
-            if (ngraph::is_type<Operation>(node)) {
+            if (ov::is_type<Operation>(node)) {
                 foundNodes.push_back(node);
             }
         }
@@ -83,7 +83,7 @@ public:
         for (size_t nodeIndex = 0ul; nodeIndex < nodes.size(); nodeIndex++) {
             auto& rt = nodes[nodeIndex]->get_rt_info();
             for (auto& it : rt) {
-                auto& reference = it.second.as<ngraph::IntervalsAlignmentAttribute>();
+                auto& reference = it.second.as<ov::IntervalsAlignmentAttribute>();
                 if ((reference.value().combinedInterval.low != intervalLow) &&
                     (reference.value().combinedInterval.high != intervalHigh)) {
                     return false;
@@ -95,8 +95,8 @@ public:
     }
 
     static bool compare(
-        const ngraph::IntervalsAlignmentAttribute& value1,
-        const ngraph::IntervalsAlignmentAttribute& value2) {
+        const ov::IntervalsAlignmentAttribute& value1,
+        const ov::IntervalsAlignmentAttribute& value2) {
         if ((value1.value().combinedInterval.low != value2.value().combinedInterval.low) ||
             (value1.value().combinedInterval.high != value2.value().combinedInterval.high)) {
             return false;
@@ -162,7 +162,7 @@ public:
         ov::Any first;
         for (auto node : nodes) {
             for (auto output : node->outputs()) {
-                auto value = ngraph::pass::low_precision::getAttributeFromOutput<Attribute>(output);
+                auto value = ov::pass::low_precision::getAttributeFromOutput<Attribute>(output);
                 if (first.empty()) {
                     first = value;
                 } else {
@@ -181,7 +181,7 @@ public:
     static bool checkIfAttributesSharedValuesAreTheSame(const NodeVector& nodes) {
         ov::Any first;
         for (auto node : nodes) {
-            auto value = ngraph::pass::low_precision::getAttribute<Attribute>(node);
+            auto value = ov::pass::low_precision::getAttribute<Attribute>(node);
             if (value.empty()) {
                 return false;
             }
@@ -203,7 +203,7 @@ public:
     static bool checkIfAttributesAreTheSame(const NodeVector& nodes) {
         ov::Any first;
         for (auto node : nodes) {
-            auto value = ngraph::pass::low_precision::getAttribute<Attribute>(node);
+            auto value = ov::pass::low_precision::getAttribute<Attribute>(node);
             if (value.empty()) {
                 return false;
             }

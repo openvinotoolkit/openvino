@@ -7,10 +7,13 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/op/parameter.hpp"
 
 using namespace std;
 using namespace ov;
+
+namespace {
 
 struct gru_sequence_parameters {
     Dimension batch_size = 8;
@@ -78,6 +81,8 @@ shared_ptr<ov::op::v5::GRUSequence> gru_seq_direction_initialization(const gru_s
 
     return gru_sequence;
 }
+
+}  // namespace
 
 TEST(type_prop, gru_sequence_forward) {
     const size_t batch_size = 8;
@@ -265,7 +270,7 @@ TEST(type_prop, gru_sequence_invalid_input_dimension) {
     for (size_t i = 0; i < gru_sequence->get_input_size(); i++) {
         gru_sequence = gru_seq_tensor_initialization(param);
         gru_sequence->set_argument(i, invalid_rank0_tensor);
-        ASSERT_THROW(gru_sequence->validate_and_infer_types(), ngraph::CheckFailure)
+        ASSERT_THROW(gru_sequence->validate_and_infer_types(), ov::AssertFailure)
             << "GRUSequence node was created with invalid data.";
     }
 }

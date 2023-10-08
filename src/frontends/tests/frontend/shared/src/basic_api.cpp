@@ -6,7 +6,6 @@
 
 #include "utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 std::string FrontEndBasicTest::getTestCaseName(const testing::TestParamInfo<BasicTestParam>& obj) {
@@ -32,9 +31,9 @@ void FrontEndBasicTest::doLoadFromFile() {
 TEST_P(FrontEndBasicTest, testLoadFromFile) {
     ASSERT_NO_THROW(doLoadFromFile());
     ASSERT_EQ(m_frontEnd->get_name(), m_feName);
-    std::shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
-    ASSERT_NE(function, nullptr);
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    ASSERT_NE(model, nullptr);
 }
 
 TEST_P(FrontEndBasicTest, testInputModel_getInputsOutputs) {

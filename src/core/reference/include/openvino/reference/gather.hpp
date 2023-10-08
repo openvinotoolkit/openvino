@@ -6,11 +6,10 @@
 
 #include <numeric>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "utils/span.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 void gather(const T* const data,
@@ -57,5 +56,4 @@ void gather(const T* const data,
 }
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

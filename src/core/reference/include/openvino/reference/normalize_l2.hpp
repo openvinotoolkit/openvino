@@ -4,13 +4,10 @@
 
 #pragma once
 
-#include <ngraph/op/normalize_l2.hpp>
+#include "openvino/reference/autobroadcast_binop.hpp"
+#include "openvino/reference/reduce_sum.hpp"
 
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
-#include "openvino/reference/sum.hpp"
-
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void normalize_l2(const T* data,
@@ -39,7 +36,7 @@ void normalize_l2(const T* data,
     }
 
     std::vector<T> sum_data(shape_size(reduce_shape));
-    sum(sqr_data.data(), sum_data.data(), data_shape, reduction_axes);
+    reduce_sum(sqr_data.data(), sum_data.data(), data_shape, reduction_axes);
     autobroadcast_binop(data,
                         sum_data.data(),
                         out,
@@ -53,5 +50,4 @@ void normalize_l2(const T* data,
                         });
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

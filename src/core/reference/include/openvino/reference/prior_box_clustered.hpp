@@ -6,24 +6,22 @@
 
 #include <cmath>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/op/prior_box_clustered.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void prior_box_clustered(const T* data,
                          const T* img,
                          float* dst_data,
                          const Shape& out_shape,
-                         const op::PriorBoxClusteredAttrs& attrs) {
+                         const op::v0::PriorBoxClustered::Attributes& attrs) {
     size_t num_priors_ = attrs.widths.size();
 
     auto variances = attrs.variances;
-    NGRAPH_CHECK(variances.size() == 1 || variances.size() == 4 || variances.empty());
+    OPENVINO_ASSERT(variances.size() == 1 || variances.size() == 4 || variances.empty());
     if (variances.empty())
         variances.push_back(0.1f);
 
@@ -91,5 +89,4 @@ void prior_box_clustered(const T* data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

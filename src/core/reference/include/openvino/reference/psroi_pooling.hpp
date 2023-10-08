@@ -7,10 +7,9 @@
 #include <cmath>
 #include <string>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 enum PSROIPoolingMode { AVG, BILINEAR };
 template <typename T>
@@ -30,7 +29,7 @@ void psroi_pooling(const T* input,
     } else if (mode_str == "bilinear") {
         mode = BILINEAR;
     } else {
-        NGRAPH_CHECK(false, "Invalid PS ROI pooling mode: " + mode_str);
+        OPENVINO_ASSERT(false, "Invalid PS ROI pooling mode: " + mode_str);
     }
     size_t channels_in = input_shape[1];
     size_t height = input_shape[2];
@@ -138,5 +137,4 @@ void psroi_pooling(const T* input,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

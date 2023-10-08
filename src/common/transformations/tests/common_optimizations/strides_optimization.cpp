@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/strides_optimization.hpp"
+
 #include <gtest/gtest.h>
 
-#include <openvino/opsets/opset7.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/strides_optimization.hpp>
-#include <transformations/init_node_info.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace ov;
 using namespace testing;

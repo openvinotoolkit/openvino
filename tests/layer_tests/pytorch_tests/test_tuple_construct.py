@@ -79,21 +79,21 @@ class TestTupleConstructTupleUnpack(PytorchLayerTest):
             def prepare_input(self, x):
                 return x, x + 2, None, x.reshape(-1), (x * 10).to(torch.int32)
 
-
         ref_net = None
 
         return prim_tuple_construct_tuple_unpack(), ref_net, ["prim::TupleConstruct", "prim::TupleUnpack"]
 
     @pytest.mark.nightly
     def test_tuple_construct_unpack(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, freeze_model=False)
+        self._test(*self.create_model(), ie_device,
+                   precision, ir_version, freeze_model=False)
 
 
 class TestTupleUnpackParameterSingle(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
             return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
-        return ( (tensor_gen(), tensor_gen()), )
+        return ((tensor_gen(), tensor_gen()), )
 
     def create_model(self):
         import torch
@@ -104,7 +104,6 @@ class TestTupleUnpackParameterSingle(PytorchLayerTest):
             def forward(self, x: Tuple[torch.Tensor, torch.Tensor]):
                 x1, x2 = x
                 return x1, x2
-
 
         return model(), None, ["prim::TupleUnpack"]
 
@@ -118,6 +117,7 @@ class TestTupleUnpackParameterSingleMixed(PytorchLayerTest):
         def tensor_gen():
             return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
         # generate tensor with a different shape for easier mismatch detection in case of mixed input order
+
         def tensor_gen_2():
             return np.random.uniform(0, 50, (2, 3)).astype(np.float32)
         return (tensor_gen_2(), (tensor_gen(), tensor_gen()), tensor_gen_2())
@@ -132,7 +132,6 @@ class TestTupleUnpackParameterSingleMixed(PytorchLayerTest):
                 x1, x2 = x
                 return x1, x2, y1, y2
 
-
         return model(), None, ["prim::TupleUnpack"]
 
     @pytest.mark.nightly
@@ -144,7 +143,7 @@ class TestTupleUnpackParameterNested(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
             return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
-        return ( ((tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen())), )
+        return (((tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen())), )
 
     def create_model(self):
         import torch
@@ -158,7 +157,6 @@ class TestTupleUnpackParameterNested(PytorchLayerTest):
                 y3, y4 = x2
                 return y1, y2, y3, y4
 
-
         return model(), None, ["prim::TupleUnpack"]
 
     @pytest.mark.nightly
@@ -170,7 +168,7 @@ class TestTupleUnpackParameterMultiple(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
             return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
-        return ( (tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen()) )
+        return ((tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen()))
 
     def create_model(self):
         import torch
@@ -183,9 +181,59 @@ class TestTupleUnpackParameterMultiple(PytorchLayerTest):
                 z3, z4 = y
                 return z1, z2, z3, z4
 
-
         return model(), None, ["prim::TupleUnpack"]
 
     @pytest.mark.nightly
     def test(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestTupleIndex(PytorchLayerTest):
+    def _prepare_input(self):
+        return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+
+    def create_model(self):
+        import torch
+        from typing import Tuple
+
+        class model(torch.nn.Module):
+            def forward(self, x):
+                return self.some_func((x, x))
+
+            def some_func(self, x: Tuple[torch.Tensor, torch.Tensor]):
+                return x[1] * 2, x[0] * 3
+
+        return model(), None, "prim::TupleIndex"
+
+    @pytest.mark.nightly
+    def test(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision,
+                   ir_version, trace_model=False, freeze_model=False)
+
+
+class TestTcOutsideTuInsideIfBody(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(1, 2, 10).astype(np.float32), np.random.randn(1, 2, 10).astype(np.float32))
+
+    def create_model(self):
+        import torch
+        from typing import Tuple
+
+        class model(torch.nn.Module):
+            def forward(self, x, y):
+                return self.some_func((x, y))
+
+            def some_func(self, x: Tuple[torch.Tensor, torch.Tensor]):
+                if x[0].numel() > 10:
+                    n, m = x
+                    return n * m
+                else:
+                    n, m = x
+                    return n - m
+
+        return model(), None, ["prim::TupleConstruct", "prim::TupleUnpack", "prim::If"]
+
+    @pytest.mark.nightly
+    def test(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision,
+                   ir_version, trace_model=False, freeze_model=False)

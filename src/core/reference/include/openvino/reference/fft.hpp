@@ -23,16 +23,11 @@
 #include <cstddef>
 #include <functional>
 #include <map>
-#include <ngraph/runtime/host_tensor.hpp>
 #include <vector>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/runtime/tensor.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 enum class FFTKind { Forward, Inverse };
 
@@ -44,13 +39,12 @@ void fft(const float* input_data,
          const Shape& output_shape,
          FFTKind fft_kind);
 
-void fft_postprocessing(const HostTensorVector& outputs,
-                        const ngraph::element::Type output_type,
+void fft_postprocessing(ov::TensorVector& outputs,
+                        const ov::element::Type output_type,
                         const std::vector<float>& fft_result);
 
 std::vector<int64_t> canonicalize_axes(const int64_t* axes_data,
                                        const Shape& axes_data_shape,
                                        int64_t complex_data_rank);
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

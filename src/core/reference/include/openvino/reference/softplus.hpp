@@ -7,8 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void softplus(const T* arg, T* out, size_t count) {
@@ -19,5 +18,4 @@ void softplus(const T* arg, T* out, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

@@ -55,7 +55,7 @@ public:
         register_pass(pass);
     }
 
-    void run(lowered::LinearIR& linear_ir);
+    void run(lowered::LinearIR& linear_ir) const;
 
 private:
     std::vector<std::shared_ptr<Pass>> m_passes;

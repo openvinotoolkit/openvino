@@ -18,14 +18,6 @@ auto configs = []() {
     };
 };
 
-auto Multiconfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(ov::test::utils::DEVICE_GPU)}};
-};
-
-auto Autoconfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(ov::test::utils::DEVICE_GPU)}};
-};
-
 auto AutoBatchConfigs = []() {
     return std::vector<ov::AnyMap>{
         // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
@@ -38,18 +30,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                 ::testing::ValuesIn(configs())),
-                            OVInferRequestWaitTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestWaitTests,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                ::testing::ValuesIn(Multiconfigs())),
-                            OVInferRequestWaitTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestWaitTests,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(Autoconfigs())),
                             OVInferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestWaitTests,

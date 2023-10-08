@@ -6,13 +6,11 @@
 
 #include <cassert>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/check.hpp"
-#include "ngraph/coordinate_index.hpp"
-#include "ngraph/coordinate_transform.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace impl {
 namespace {
 template <typename T>
@@ -154,9 +152,9 @@ struct SymmetricAndReflectPad : PadBase {
     void check_inputs() const override {
         for (size_t i = 0; i != padding_begin.size(); ++i) {
             const auto axis_size = static_cast<std::ptrdiff_t>(data_shape[i]);
-            NGRAPH_CHECK(padding_begin.at(i) - axis_correction < axis_size,
-                         "padding below should be less than data shape");
-            NGRAPH_CHECK(padding_end.at(i) - axis_correction < axis_size, "padding  should be less than data shape");
+            OPENVINO_ASSERT(padding_begin.at(i) - axis_correction < axis_size,
+                            "padding below should be less than data shape");
+            OPENVINO_ASSERT(padding_end.at(i) - axis_correction < axis_size, "padding  should be less than data shape");
         }
     }
 
@@ -209,5 +207,4 @@ void pad(const char* data,
     impl::pad(data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode);
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

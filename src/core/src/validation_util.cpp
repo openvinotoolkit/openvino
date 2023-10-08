@@ -658,23 +658,23 @@ void ov::infer_auto_padding(const Shape& image_shape,
                             CoordinateDiff& padding_below) {
     const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
     // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
-    ngraph::try_apply_auto_padding(image_dims,
-                                   filter_shape,
-                                   filter_strides,
-                                   filter_dilations,
-                                   pad_type,
-                                   padding_above,
-                                   padding_below);
+    ov::util::try_apply_auto_padding(image_dims,
+                                     filter_shape,
+                                     filter_strides,
+                                     filter_dilations,
+                                     pad_type,
+                                     padding_above,
+                                     padding_below);
 }
 
-bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
-                                    const Shape& filter_shape,
-                                    const Strides& filter_strides,
-                                    const Strides& filter_dilations,
-                                    const op::PadType pad_type,
-                                    CoordinateDiff& padding_above,
-                                    CoordinateDiff& padding_below) {
-    NGRAPH_CHECK(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
+bool ov::util::try_apply_auto_padding(const PartialShape& image_shape,
+                                      const Shape& filter_shape,
+                                      const Strides& filter_strides,
+                                      const Strides& filter_dilations,
+                                      const op::PadType pad_type,
+                                      CoordinateDiff& padding_above,
+                                      CoordinateDiff& padding_below) {
+    OPENVINO_ASSERT(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
 
     if (image_shape.rank().is_dynamic()) {
         return false;
@@ -698,6 +698,22 @@ bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
         }
     }
     return true;
+}
+
+bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
+                                    const Shape& filter_shape,
+                                    const Strides& filter_strides,
+                                    const Strides& filter_dilations,
+                                    const op::PadType pad_type,
+                                    CoordinateDiff& padding_above,
+                                    CoordinateDiff& padding_below) {
+    return ov::util::try_apply_auto_padding(image_shape,
+                                            filter_shape,
+                                            filter_strides,
+                                            filter_dilations,
+                                            pad_type,
+                                            padding_above,
+                                            padding_below);
 }
 
 ngraph::PartialShape ngraph::infer_slice_shape(const Node* node,
@@ -1295,13 +1311,7 @@ std::shared_ptr<ngraph::op::v0::Constant> ngraph::get_constant_lowest_of_type(el
 }
 
 shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const Output<Node>& source) {
-    if (!has_and_set_equal_bounds(source))
-        return nullptr;
-    if (const auto& c = ov::as_type_ptr<op::v0::Constant>(source.get_node_shared_ptr()))
-        return c;
-
-    const auto t = source.get_tensor().get_upper_value();
-    return std::make_shared<op::v0::Constant>(t.get_element_type(), t.get_shape(), t.data());
+    return ov::util::get_constant_from_source(source);
 }
 
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
@@ -1370,3 +1380,19 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
         return nullptr;
     return ov::as_type_ptr<op::v0::Constant>(outputs[subgraph_sink.get_index()].get_node_shared_ptr());
 }
+
+namespace ov {
+namespace util {
+using ov::op::v0::Constant;
+
+std::shared_ptr<Constant> get_constant_from_source(const Output<Node>& source) {
+    if (const auto& c = ov::as_type_ptr<Constant>(source.get_node_shared_ptr())) {
+        return c;
+    } else if (has_and_set_equal_bounds(source)) {
+        return std::make_shared<Constant>(source.get_tensor().get_upper_value());
+    } else {
+        return {};
+    }
+}
+}  // namespace util
+}  // namespace ov

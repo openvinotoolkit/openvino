@@ -73,7 +73,7 @@ public:
     }
 };
 
-std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr<Node>> get_test_function() {
+static std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr<Node>> get_test_function() {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
     auto relu = std::make_shared<ov::op::v0::Relu>(data);
     relu->set_friendly_name("relu");
@@ -259,7 +259,7 @@ TEST(PassConfig, EnableDisablePasses9) {
 
 class TestNestedMatcher : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TestNestedMatcher");
     TestNestedMatcher() : MatcherPass() {
         auto any_op = pattern::any_input();
         ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
@@ -282,17 +282,13 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(TestNestedMatcher, "TestNestedMatcher");
-
 class TestNestedGraphRewrite : public pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TestNestedGraphRewrite");
     TestNestedGraphRewrite() {
         add_matcher<TestNestedMatcher>();
     }
 };
-
-NGRAPH_RTTI_DEFINITION(TestNestedGraphRewrite, "TestNestedGraphRewrite");
 
 TEST(PassConfig, EnableDisablePasses10) {
     std::shared_ptr<Model> f;

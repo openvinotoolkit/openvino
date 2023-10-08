@@ -6,19 +6,19 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
-#include <ie_ngraph_utils.hpp>
 #include <map>
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "ie_ngraph_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -49,9 +49,9 @@ TEST(TransformationTests, ConvBiasFusion) {
     InferenceEngine::CNNNetwork network(f);
 
     // Set PrimitivesPriority to all Convolutions
-    auto nGraph = network.getFunction();
-    ASSERT_NE(nullptr, nGraph);
-    for (auto& op : nGraph->get_ops()) {
+    auto model = network.getFunction();
+    ASSERT_NE(nullptr, model);
+    for (auto& op : model->get_ops()) {
         if (auto conv = std::dynamic_pointer_cast<opset1::Convolution>(op)) {
             auto& rtInfo = conv->get_rt_info();
             rtInfo[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("test");

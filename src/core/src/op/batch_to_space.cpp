@@ -18,8 +18,8 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/slice_plan.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/op/util/slice_plan.hpp"
 #include "openvino/reference/strided_slice.hpp"
 
 using namespace std;
@@ -160,18 +160,16 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
     begins.assign(crops_begin_values, crops_begin_values + shape_size(inputs[2]->get_shape()));
 
     std::vector<int64_t> default_strides(begins.size(), 1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    SlicePlan slice_plan = make_slice_plan(data_shape,
-                                           begins,
-                                           upperbounds_values,
-                                           default_strides,
-                                           begin_mask,
-                                           end_mask,
-                                           AxisSet(),
-                                           AxisSet(),
-                                           AxisSet());
-    runtime::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto slice_plan = ov::op::util::make_slice_plan(data_shape,
+                                                          begins,
+                                                          upperbounds_values,
+                                                          default_strides,
+                                                          begin_mask,
+                                                          end_mask,
+                                                          AxisSet(),
+                                                          AxisSet(),
+                                                          AxisSet());
+    ov::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
     return true;
 }
 }  // namespace
@@ -179,8 +177,8 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
 bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_BatchToSpace_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 4));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, 4));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (outputs[0]->get_partial_shape().is_dynamic()) {

@@ -13,11 +13,10 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/log.hpp>
-#include <ngraph/node.hpp>
 #include <set>
 #include <string>
 
+#include "openvino/core/node.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov {
@@ -38,7 +37,7 @@ public:
 
     Mask() = default;
 
-    explicit Mask(const ngraph::PartialShape& shape) : std::vector<value_type>(shape.rank().get_length()) {}
+    explicit Mask(const ov::PartialShape& shape) : std::vector<value_type>(shape.rank().get_length()) {}
 
     explicit Mask(const size_t& size) : std::vector<value_type>(size) {}
 
@@ -183,7 +182,7 @@ public:
     }
 
     /*
-       Function copies values from mask,
+       ov::Model copies values from mask,
        except mask[axis], where it selects values from mask[axis] set
        that are within [split_start, split_end) range
        param: mask - input mask.

@@ -7,18 +7,18 @@
 #include <fstream>
 #include <map>
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/mod.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/manager.hpp>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_mod.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/op_conversions/convert_mod.hpp"
 using namespace ov;
 using namespace testing;
 

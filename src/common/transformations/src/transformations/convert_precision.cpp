@@ -26,7 +26,7 @@
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/rt_info/keep_fp16_const.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -201,6 +201,8 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     }
 
     for (const auto& param : f->get_parameters()) {
+        if (skip_precision_sensitive && fp16_compression_is_disabled(param) && has_fp16_compression)
+            continue;
         is_changed |= fuse_type_to_parameter(param, precisions, convert_input_output_precision);
     }
 
@@ -689,6 +691,8 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
     return res;
 }
 
+namespace {
+
 bool update_type(size_t idx,
                  const std::shared_ptr<ov::Node>& node,
                  const precisions_map& precisions,
@@ -703,6 +707,8 @@ bool update_type(size_t idx,
     }
     return false;
 }
+
+}  // namespace
 
 bool fuse_type_to_matrix_nms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto nms = ov::as_type_ptr<opset8::MatrixNms>(node);
@@ -907,7 +913,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::el
     if (dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
-    ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
+    ov::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
 
     return new_constant;
 }
@@ -927,7 +933,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::el
     if (dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
-    ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
+    ov::reference::convert<src_type, dst_type>(src_data, dst_data, size);
 
     return new_constant;
 }
@@ -1119,8 +1125,8 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
 bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
                            const precisions_map& precisions,
                            const std::vector<Input<Node>>& consumers) {
-    // Consts marked with disable_constant_folding should be kept in f16 until they reach the plugin
-    if (is_keep_fp16_const(node))
+    // Consts marked with is_keep_const_precision should be kept in their own precision until they reach the plugin
+    if (is_keep_const_precision(node))
         return false;
 
     auto from = node->get_element_type();

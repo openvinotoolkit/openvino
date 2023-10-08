@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include "ngraph/axis_set.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/axis_set.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void broadcast(const char* arg,
                char* out,
@@ -17,5 +16,4 @@ void broadcast(const char* arg,
                const AxisSet& broadcast_axes,
                size_t elem_size);
 }
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

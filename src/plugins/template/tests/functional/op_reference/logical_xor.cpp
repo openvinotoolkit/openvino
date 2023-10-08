@@ -2,39 +2,48 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/logical_xor.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/logical_xor.hpp"
 #include "logical.hpp"
 
 using namespace ov;
-using LogicalTypes = ngraph::helpers::LogicalTypes;
 
 namespace reference_tests {
 namespace LogicalOpsRefTestDefinitions {
 namespace {
 
 std::vector<RefLogicalParams> generateLogicalParams() {
-    std::vector<RefLogicalParams> logicalParams {
-        Builder {}
+    std::vector<RefLogicalParams> logicalParams{
+        Builder{}
             .opType(LogicalTypes::LOGICAL_XOR)
-            .inputs({{{2, 2}, element::boolean, std::vector<char> {true, false, true, false}},
-                     {{2, 2}, element::boolean, std::vector<char> {false, true, true, false}}})
-            .expected({{2, 2}, element::boolean, std::vector<char> {true, true, false, false}}),
-        Builder {}
+            .inputs({{{2, 2}, element::boolean, std::vector<char>{true, false, true, false}},
+                     {{2, 2}, element::boolean, std::vector<char>{false, true, true, false}}})
+            .expected({{2, 2}, element::boolean, std::vector<char>{true, true, false, false}}),
+        Builder{}
             .opType(LogicalTypes::LOGICAL_XOR)
-            .inputs({{{2, 1, 2, 1}, element::boolean, std::vector<char> {true, false, true, false}},
-                     {{1, 1, 2, 1}, element::boolean, std::vector<char> {true, false}}})
-            .expected({{2, 1, 2, 1}, element::boolean, std::vector<char> {false, false, false, false}}),
-        Builder {}
+            .inputs({{{2, 1, 2, 1}, element::boolean, std::vector<char>{true, false, true, false}},
+                     {{1, 1, 2, 1}, element::boolean, std::vector<char>{true, false}}})
+            .expected({{2, 1, 2, 1}, element::boolean, std::vector<char>{false, false, false, false}}),
+        Builder{}
             .opType(LogicalTypes::LOGICAL_XOR)
-            .inputs({{{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, true}},
-                     {{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, true, true, false, false, true, true, false}}})
-            .expected({{3, 4}, element::boolean, std::vector<char> {false, false, false, false, false, true, false, false, false, false, false, true}})};
+            .inputs({{{3, 4},
+                      element::boolean,
+                      std::vector<char>{true, true, true, true, true, false, true, false, false, true, true, true}},
+                     {{3, 4},
+                      element::boolean,
+                      std::vector<char>{true, true, true, true, true, true, true, false, false, true, true, false}}})
+            .expected(
+                {{3, 4},
+                 element::boolean,
+                 std::vector<char>{false, false, false, false, false, true, false, false, false, false, false, true}})};
     return logicalParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_LogicalOr_With_Hardcoded_Refs, ReferenceLogicalLayerTest, ::testing::ValuesIn(generateLogicalParams()),
+INSTANTIATE_TEST_SUITE_P(smoke_LogicalOr_With_Hardcoded_Refs,
+                         ReferenceLogicalLayerTest,
+                         ::testing::ValuesIn(generateLogicalParams()),
                          ReferenceLogicalLayerTest::getTestCaseName);
 
 }  // namespace

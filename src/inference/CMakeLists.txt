@@ -6,7 +6,7 @@ set (TARGET_NAME "inference_engine")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # TODO: Add IMPLEMENT_OPENVINO_API to inference_engine_obj
-    ie_add_compiler_flags(/wd4273)
+    ov_add_compiler_flags(/wd4273)
 endif()
 
 file (GLOB LIBRARY_SRC
@@ -23,7 +23,10 @@ file (GLOB LIBRARY_SRC
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
-if(ENABLE_IR_V7_READER)
+if(BUILD_SHARED_LIBS OR ENABLE_IR_V7_READER)
+    # TODO: remove together with GNA plugin
+    # we have unconditional adding of the ENABLE_IR_V7_READER compile definition for shared libs case
+    # to avoid rebuild, relink during work with build tree
     set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/ie_network_reader.cpp PROPERTIES
         COMPILE_DEFINITIONS "ENABLE_IR_V7_READER")
 endif()
@@ -101,12 +104,12 @@ target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE
 
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::pugixml openvino::itt openvino::util)
 
-set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
+ov_set_threading_interface_for(${TARGET_NAME}_plugin_api)
 
 file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
                                  "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.h")
 
-add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
+ov_add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
@@ -126,7 +129,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-ie_faster_build(${TARGET_NAME}_obj
+ov_build_target_faster(${TARGET_NAME}_obj
     UNITY PCH PRIVATE "src/precomp.hpp"
 )
 
@@ -149,18 +152,17 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     # for ov_plugins.hpp
     $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>
     # for ie_ir_version.hpp
-    $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
     "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy/include"
     $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
-ie_mark_target_as_cc(${TARGET_NAME}_obj)
+ov_mark_target_as_cc(${TARGET_NAME}_obj)
 
 # IE is public API => need to mark this library as important for ABI free
 ov_abi_free_target(${TARGET_NAME}_obj)
 
-set_ie_threading_interface_for(${TARGET_NAME}_obj)
+ov_set_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
@@ -172,7 +174,7 @@ target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                                     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
@@ -184,7 +186,7 @@ add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
             $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-set_ie_threading_interface_for(${TARGET_NAME}_s)
+ov_set_threading_interface_for(${TARGET_NAME}_s)
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()

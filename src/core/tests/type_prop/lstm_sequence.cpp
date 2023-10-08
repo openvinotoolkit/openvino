@@ -9,6 +9,8 @@
 using namespace std;
 using namespace ov;
 
+namespace {
+
 //
 // RNN sequence parameters
 //
@@ -18,7 +20,7 @@ struct recurrent_sequence_parameters {
     Dimension seq_length = 12;
     Dimension input_size = 8;
     Dimension hidden_size = 256;
-    ngraph::element::Type et = element::f32;
+    ov::element::Type et = element::f32;
 };
 
 //
@@ -120,6 +122,8 @@ shared_ptr<opset1::LSTMSequence> lstm_seq_v0_tensor_initialization(const recurre
 
     return lstm_sequence;
 }
+
+}  // namespace
 
 TEST(type_prop, lstm_sequence_forward) {
     const size_t batch_size = 8;
@@ -459,7 +463,7 @@ TEST(type_prop, lstm_sequence_invalid_input_dimension) {
     for (size_t i = 0; i < lstm_sequence->get_input_size(); i++) {
         lstm_sequence = lstm_seq_tensor_initialization(param);
         lstm_sequence->set_argument(i, invalid_rank0_tensor);
-        ASSERT_THROW(lstm_sequence->validate_and_infer_types(), ngraph::CheckFailure)
+        ASSERT_THROW(lstm_sequence->validate_and_infer_types(), ov::AssertFailure)
             << "LSTMSequence node was created with invalid data.";
     }
 }
@@ -673,7 +677,7 @@ TEST(type_prop, lstm_sequence_v0_invalid_input_dimension) {
     for (size_t i = 0; i < lstm_sequence->get_input_size(); i++) {
         lstm_sequence = lstm_seq_v0_tensor_initialization(param);
         lstm_sequence->set_argument(i, invalid_rank0_tensor);
-        ASSERT_THROW(lstm_sequence->validate_and_infer_types(), ngraph::CheckFailure)
+        ASSERT_THROW(lstm_sequence->validate_and_infer_types(), ov::AssertFailure)
             << "LSTMSequence node was created with invalid data.";
     }
 }

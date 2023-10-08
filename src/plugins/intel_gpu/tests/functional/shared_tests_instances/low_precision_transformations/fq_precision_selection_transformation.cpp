@@ -6,10 +6,10 @@
 
 #include "low_precision_transformations/fake_quantize_precision_selection_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "ov_lpt_models/fake_quantize.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {

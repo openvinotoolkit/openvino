@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"

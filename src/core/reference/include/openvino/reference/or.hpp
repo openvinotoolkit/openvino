@@ -6,12 +6,11 @@
 
 #include <cstddef>
 
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/reference/autobroadcast_binop.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void logical_or(const T* arg0, const T* arg1, T* out, size_t count) {
@@ -32,5 +31,4 @@ void logical_or(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

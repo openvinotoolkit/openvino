@@ -28,9 +28,9 @@ jobs:
           max-size: 50G
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: 'true'
 
       - name: Install dependencies
         run: |
@@ -58,7 +58,7 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
 
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: Build OpenVINO with CMake
@@ -108,7 +108,7 @@ jobs:
         run: ${{ github.workspace }}/bin/intel64/Release/ov_hetero_func_tests
 
       - name: Run IR frontend tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests # --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-IRFrontend.xml
+        run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests
 
       - name: Run ONNX frontend tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*
@@ -144,6 +144,6 @@ jobs:
           lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
           genhtml coverage.info --output-directory coverage-report
       - name: Collect coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           verbose: true

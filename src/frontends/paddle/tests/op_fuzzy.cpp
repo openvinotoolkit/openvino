@@ -6,13 +6,9 @@
 
 #include <fstream>
 
-#include "ngraph/ngraph.hpp"
-#include "paddle_utils.hpp"
 #include "common_test_utils/test_control.hpp"
+#include "paddle_utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ngraph;
 using namespace ov::frontend;
 
 using PaddleFuzzyOpTest = FrontEndFuzzyOpTest;
@@ -111,6 +107,7 @@ static const std::vector<std::string> models{
     std::string("conv2d_transpose_strides_padding/conv2d_transpose_strides_padding.pdmodel"),
     std::string("conv2d_transpose_VALID_padding/conv2d_transpose_VALID_padding.pdmodel"),
     std::string("conv2d_VALID_padding/conv2d_VALID_padding.pdmodel"),
+    std::string("cos"),
     std::string("cumsum"),
     std::string("cumsum_i32"),
     std::string("cumsum_i64"),
@@ -493,6 +490,7 @@ static const std::vector<std::string> models{
     std::string("silu_dynamic_test2"),
     std::string("silu_dynamic_test3"),
     std::string("silu_dynamic_test4"),
+    std::string("sin"),
     std::string("slice"),
     std::string("slice_1d"),
     std::string("slice_decrease_axis/slice_decrease_axis.pdmodel"),
