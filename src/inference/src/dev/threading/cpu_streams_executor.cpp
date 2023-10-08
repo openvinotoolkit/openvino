@@ -11,6 +11,8 @@
 #include <set>
 #include <thread>
 #include <vector>
+#include <unistd.h>
+#include <sys/types.h>
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
@@ -19,6 +21,7 @@
 #include "openvino/runtime/threading/cpu_streams_executor_internal.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 namespace ov {
 namespace threading {
@@ -34,6 +37,7 @@ struct CPUStreamsExecutor::Impl {
             int _offset = 0;
             int _cpuIdxOffset = 0;
             std::vector<int> _cpu_ids;
+            int _stream_id = 0;
             Observer(custom::task_arena& arena,
                      CpuSet mask,
                      int ncpus,
@@ -49,14 +53,16 @@ struct CPUStreamsExecutor::Impl {
                   _threadBindingStep(threadBindingStep),
                   _offset{streamId * threadsPerStream + threadBindingOffset},
                   _cpuIdxOffset(cpuIdxOffset),
-                  _cpu_ids(cpu_ids) {}
+                  _cpu_ids(cpu_ids) {
+                    _stream_id = cpuIdxOffset;
+                  }
             void on_scheduler_entry(bool) override {
                 pin_thread_to_vacant_core(_offset + tbb::this_task_arena::current_thread_index(),
                                           _threadBindingStep,
                                           _ncpus,
                                           _mask,
                                           _cpu_ids,
-                                          _cpuIdxOffset);
+                                          _stream_id);
             }
             void on_scheduler_exit(bool) override {
                 pin_current_thread_by_mask(_ncpus, _mask);
@@ -157,10 +163,20 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_concurrency(concurrency)
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else {
-                _taskArena.reset(new custom::task_arena{concurrency});
-                _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) == _impl->_config._streams
+                _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) >= _impl->_config._streams
                                ? _impl->_config._stream_processor_ids[stream_id]
                                : _cpu_ids;
+                _cpu_ids = _extra_stream ? _impl->_config._stream_processor_ids[_streamId - _impl->_config._streams] : _cpu_ids;
+                int concurrency_temp = _extra_stream ? concurrency / 2 : concurrency;
+                std::cout << "_impl->_config._name: " << _impl->_config._name << " _extra_stream: " << _extra_stream
+                          << " concurrency:"
+                          << " " << concurrency_temp << " " << _cpu_ids.size() << "\n";
+                _taskArena.reset(new custom::task_arena{concurrency_temp});
+                std::cout << "cpu ids: ";
+                for (auto i = 0; i < static_cast<int>(_cpu_ids.size()); i++) {
+                    std::cout << _cpu_ids[i] << " ";
+                }
+                std::cout << "\n";
                 if (_cpu_ids.size() > 0) {
                     CpuSet processMask;
                     int ncpus = 0;
@@ -170,7 +186,7 @@ struct CPUStreamsExecutor::Impl {
                                                      std::move(processMask),
                                                      ncpus,
                                                      0,
-                                                     concurrency,
+                                                     concurrency_temp,
                                                      0,
                                                      0,
                                                      0,
@@ -187,8 +203,11 @@ struct CPUStreamsExecutor::Impl {
             int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
-            const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
-
+            auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
+            _extra_stream = false;
+            if (_streamId >= _impl->_config._streams) {
+                _extra_stream = true;
+            }
             get_cur_stream_info(stream_id,
                                 _impl->_config._cpu_reservation,
                                 org_proc_type_table,
@@ -198,6 +217,7 @@ struct CPUStreamsExecutor::Impl {
                                 cpu_core_type,
                                 numa_node_id,
                                 max_threads_per_core);
+
             if (concurrency <= 0) {
                 return;
             }
@@ -321,6 +341,7 @@ struct CPUStreamsExecutor::Impl {
         int _numaNodeId = 0;
         int _socketId = 0;
         bool _execute = false;
+        bool _extra_stream = false;
         std::queue<Task> _taskQueue;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         std::unique_ptr<custom::task_arena> _taskArena;
@@ -432,6 +453,7 @@ struct CPUStreamsExecutor::Impl {
             }
         }
 #endif
+        _subTaskThread.assign(_config._sub_streams, std::make_shared<SubQueue>());
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
@@ -454,6 +476,23 @@ struct CPUStreamsExecutor::Impl {
             });
         }
         _streams.set_thread_ids_map(_threads);
+
+        for (auto subId = 0; subId < _config._sub_streams; ++subId) {
+            _subThreads.emplace_back([this, subId] {
+                // std::cout << "_subThreads " << subId << "\n";
+                openvino::itt::threadName(_config._name + "_subthreads" + "_" + std::to_string(subId));
+                for (bool stopped = false; !stopped;) {
+                    Task task;
+                    { _subTaskThread[subId]->que_pop(task, stopped); }
+                    if (task) {
+                        Execute(task, *(_streams.local()));
+                    }
+                }
+            });
+        }
+        if (_subThreads.size() > 0) {
+            _streams.set_thread_ids_map(_subThreads);
+        }
     }
 
     void Enqueue(Task task) {
@@ -464,7 +503,12 @@ struct CPUStreamsExecutor::Impl {
         _queueCondVar.notify_one();
     }
 
+    void Enqueue_sub(Task task, int id) {
+        _subTaskThread[id]->que_push(std::move(task));
+    }
+
     void Execute(const Task& task, Stream& stream) {
+        // std::cout << "[Execute] " << stream._impl->_config._name << " " << stream._streamId << "\n";
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         auto& arena = stream._taskArena;
         if (nullptr != arena) {
@@ -493,15 +537,47 @@ struct CPUStreamsExecutor::Impl {
         }
     }
 
+    struct SubQueue{
+        std::mutex _subMutex;
+        std::condition_variable _subQueueCondVar;
+        bool _isSubStopped = false;
+        std::queue<Task> _subTaskQueue;
+
+        SubQueue() {}
+
+        void que_push(Task task) {
+            {
+                std::lock_guard<std::mutex> lock(_subMutex);
+                _subTaskQueue.emplace(std::move(task));
+            }
+            _subQueueCondVar.notify_one();
+        }
+
+        void que_pop(Task &task, bool &stopped){
+            std::unique_lock<std::mutex> lock(_subMutex);
+            _subQueueCondVar.wait(lock, [&] {
+                return !_subTaskQueue.empty() || (stopped = _isSubStopped);
+            });
+            if (!_subTaskQueue.empty()) {
+                task = std::move(_subTaskQueue.front());
+                _subTaskQueue.pop();
+            }
+        }
+
+        ~SubQueue() {}
+    };
+
     Config _config;
     std::mutex _streamIdMutex;
     int _streamId = 0;
     std::queue<int> _streamIdQueue;
     std::vector<std::thread> _threads;
+    std::vector<std::thread> _subThreads;
     std::mutex _mutex;
     std::condition_variable _queueCondVar;
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
+    std::vector<std::shared_ptr<SubQueue>> _subTaskThread;
     std::vector<int> _usedNumaNodes;
     CustomThreadLocal _streams;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
@@ -544,6 +620,18 @@ CPUStreamsExecutor::~CPUStreamsExecutor() {
             thread.join();
         }
     }
+    for (size_t i = 0; i < _impl->_subTaskThread.size(); i++) {
+        {
+            std::lock_guard<std::mutex> lock(_impl->_subTaskThread[i]->_subMutex);
+            _impl->_subTaskThread[i]->_isSubStopped = true;
+        }
+        _impl->_subTaskThread[i]->_subQueueCondVar.notify_all();
+    }
+    for (auto& thread : _impl->_subThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
 }
 
 void CPUStreamsExecutor::execute(Task task) {
@@ -551,11 +639,17 @@ void CPUStreamsExecutor::execute(Task task) {
 }
 
 void CPUStreamsExecutor::run(Task task) {
+    // std::cout << "[CPUStreamsExecutor::run] " << _impl->_config._name << " "<< _impl->_config._streams << " id: " << id << "\n";
     if (0 == _impl->_config._streams) {
         _impl->Defer(std::move(task));
     } else {
         _impl->Enqueue(std::move(task));
     }
+}
+
+void CPUStreamsExecutor::run_id(Task task, int id) {
+    // std::cout << "[CPUStreamsExecutor::run_id] " << _impl->_config._name << " "<< _impl->_config._streams << " id: " << id << "\n";
+    _impl->Enqueue_sub(std::move(task), id);
 }
 
 }  // namespace threading

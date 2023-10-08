@@ -16,6 +16,7 @@
 #include "ie_parameter.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace InferenceEngine {
 
@@ -158,5 +159,57 @@ public:
         Execute(task);
     }
 };
+
+template <typename F>
+INFERENCE_ENGINE_API_CPP(void)
+parallel_mt_sockets(int nthr,
+                    const F& func,
+                    int nsockets,
+                    std::shared_ptr<InferenceEngine::IStreamsExecutor> executor) {
+#if OV_THREAD == OV_THREAD_SEQ
+    const bool serial = true;
+#else
+    const bool serial = false;
+#endif
+
+    if (serial || nthr == 1) {
+        func(0, 1);
+        return;
+    }
+
+    if (nthr == 0)
+        nthr = parallel_get_max_threads();
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+    if (nsockets == 1) {
+        parallel_for(nthr, [&](int ithr) {
+            func(ithr, nthr);
+        });
+    } else if (nsockets > 1) {
+        parallel_for(nsockets, [&](int ithr) {
+            int ntasks = nthr / nsockets;
+            // auto executor = context.get()->getConfig()._taskExecutor;
+            std::vector<Task> tasks;
+            tasks.resize(1);
+            for (auto&& task : tasks) {
+                task = [&] {
+                    parallel_for(ntasks, [&](int taskid) {
+                        int thread_id = ithr * ntasks + taskid;
+                        std::cout << "thread_id: " << thread_id << " ithr:" << ithr << " ntasks:" << ntasks
+                        << " taskid:" << taskid << "\n";
+                        func(thread_id, nthr);
+                    });
+                };
+            }
+            // std::cout << "run_and_wait: " << ithr << "\n";
+            executor->run_and_wait_id(tasks, ithr);
+        });
+    }
+
+#elif OV_THREAD == OV_THREAD_OMP
+
+#    pragma omp parallel num_threads(nthr)
+    { func(parallel_get_thread_num(), parallel_get_num_threads()); }
+#endif
+}
 
 }  // namespace InferenceEngine

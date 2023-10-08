@@ -18,6 +18,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
+#include "math.h"
 
 #include "onednn/dnnl.h"
 #include "oneapi/dnnl/dnnl.hpp"
@@ -28,8 +29,22 @@
 #include "common/cpu_convert.h"
 #include "shape_inference/custom/fullyconnected.hpp"
 
+#include "ie_parallel.hpp"
+#include "common/dnnl_thread.hpp"
+#include "tbb/blocked_range.h"
+#include "tbb/blocked_range2d.h"
+#include "tbb/blocked_range3d.h"
+#include "tbb/parallel_for.h"
+#include "tbb/parallel_reduce.h"
+#include "tbb/parallel_sort.h"
+#include "tbb/task_arena.h"
+#include "tbb/task_scheduler_observer.h"
+#include "tbb/task_group.h"
+
+
 #include <string>
 #include <vector>
+#include <chrono>
 
 #ifdef OV_CPU_WITH_MLAS
 #include "mlas/sgemm.hpp"
@@ -538,6 +553,57 @@ void FullyConnected::execute(dnnl::stream strm) {
         return;
     }
 #endif
+    auto thread_num = static_cast<size_t>(parallel_get_max_threads());
+    std::atomic<size_t> dummy_parallel_get_idx{0};
+    std::atomic<size_t> dummy_workload_idx{0};
+    // std::cout << "[FullyConnected] thread_num: " << getName() << " :" << thread_num << "\n";
+
+    //ov::parallel_nt_static(thread_num, [&](size_t workload_idx, size_t workload_total) {
+    /*tbb::parallel_for(0, static_cast<int>(thread_num), [&](int workload_idx) {
+        // std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        auto parallel_get_idx = parallel_get_thread_num();
+        // std::cout << "-----parallel_nt_static----parallel_get_idx: " << parallel_get_idx
+        //           << " workload_idx:" << workload_idx << "\n";
+        // pid_t cur_sys_tid = syscall(__NR_gettid);
+        // else if (cur_sys_tid != infos[idx].pid)
+        //     printf("idx %d cur_sys_tid pid %d, first pid %d\n", static_cast<int>(idx),
+        //     static_cast<int>(cur_sys_tid), static_cast<int>(infos[idx].pid));
+        // if (parallel_get_idx != workload_idx)
+        //     printf("workload_idx %d parallel_get_idx %d\n",
+        //            static_cast<int>(workload_idx),
+        //            static_cast<int>(parallel_get_idx));
+        // printf("workload_idx %d parallel_get_idx %d\n", static_cast<int>(workload_idx),
+        // static_cast<int>(parallel_get_idx));
+
+        cpu_set_t mask;
+        long nproc, i;
+
+        if (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1) {
+            perror("sched_getaffinity");
+            assert(false);
+        }
+        for (i = 0; i < 400; i++)
+            if (CPU_ISSET(i, &mask))
+                break;
+        if (infos[parallel_get_idx].core_id < 0)
+            infos[parallel_get_idx].core_id = i;
+        else if (infos[parallel_get_idx].core_id != i)
+            printf("parallel_get_idx %d actual core %d, first core %d\n",
+                   static_cast<int>(parallel_get_idx),
+                   static_cast<int>(i),
+                   static_cast<int>(infos[parallel_get_idx].core_id));
+        dummy_parallel_get_idx += parallel_get_idx;
+        dummy_workload_idx += workload_idx;
+        // std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    });
+
+    auto expected = (thread_num - 1) * thread_num / 2;
+    if (expected != dummy_parallel_get_idx) {
+        std::cout << getName() << " use default fc, thread: " << thread_num
+                  << " dummy_parallel_get_idx: " << dummy_parallel_get_idx
+                  << " dummy_workload_idx: " << dummy_workload_idx << " expected: " << expected << "\n";
+    }*/
+
     if (!execPtr) {
         IE_THROW() << "Can't execute FullyConnected node with name: " << getName() << ", because executor is not compiled";
     }
@@ -556,8 +622,230 @@ void FullyConnected::execute(dnnl::stream strm) {
         }
     };
 
-    updateMemoryPtr(DNNL_ARG_SRC);
-    updateMemoryPtr(DNNL_ARG_DST);
+    InferenceEngine::parallel_mt_sockets(
+        thread_num,
+        [&](size_t workload_idx, size_t workload_total) {
+#define PI 3.14159265
+            auto parallel_get_idx = parallel_get_thread_num();
+            auto param = 0.0;
+            auto res = 0.0;
+            for (auto i = 0; i < 1000; i++) {
+                param += 0.01;
+                auto s = sin(param * PI / 180.0);
+                auto c = cos(param * PI / 180.0);
+                auto t = tan(param * PI / 180.0);
+                res += s * c * t;
+            }
+            if (res > 10.0 && res < 10.1) {
+                std::cout << "xxx\n";
+            }
+            // updateMemoryPtr(DNNL_ARG_SRC);
+            // updateMemoryPtr(DNNL_ARG_DST);
+
+            cpu_set_t mask;
+            long nproc, i;
+            // int tid = gettid();
+            // std::cout << "current tid: " << tid << "\n";
+            // std::cout << "current parallel_get_idx: " << static_cast<int>(parallel_get_idx) << " tid: " << tid << "\n";
+
+            if (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1) {
+                perror("sched_getaffinity");
+                assert(false);
+            }
+            for (i = 0; i < 400; i++)
+                if (CPU_ISSET(i, &mask))
+                    break;
+            if (infos[parallel_get_idx].core_id < 0)
+                infos[parallel_get_idx].core_id = i;
+            else if (infos[parallel_get_idx].core_id != i)
+                // printf("parallel_get_idx %d actual core %d, first core %d\n",
+                //     static_cast<int>(parallel_get_idx),
+                //     static_cast<int>(i),
+                //     static_cast<int>(infos[parallel_get_idx].core_id));
+            // std::cout << "[cpu id] workload_idx: " << static_cast<int>(workload_idx) << " cpu: " << i << " tid: " << tid << "\n";
+            dummy_parallel_get_idx += parallel_get_idx;
+            dummy_workload_idx += workload_idx;
+        },
+        2,
+        context.get()->getConfig()._taskExecutor);
+    /*auto executor = context.get()->getConfig()._taskExecutor;
+    std::vector<Task> tasks;
+    tasks.resize(1);
+#define PI 3.14159265
+    for (auto&& task : tasks) {
+        task = [&] {
+            tbb::parallel_for(
+                0,
+                static_cast<int>(thread_num / 2),
+                [&](int workload_idx) {
+                    auto parallel_get_idx = parallel_get_thread_num();
+                    // std::cout << "-----parallel_nt_static----parallel_get_idx: " << parallel_get_idx
+                    //           << " workload_idx:" << workload_idx << "\n";
+                    // pid_t cur_sys_tid = syscall(__NR_gettid);
+                    // else if (cur_sys_tid != infos[idx].pid)
+                    //     printf("idx %d cur_sys_tid pid %d, first pid %d\n", static_cast<int>(idx),
+                    //     static_cast<int>(cur_sys_tid), static_cast<int>(infos[idx].pid));
+                    // if (parallel_get_idx != workload_idx)
+                    //     printf("workload_idx %d parallel_get_idx %d\n",
+                    //            static_cast<int>(workload_idx),
+                    //            static_cast<int>(parallel_get_idx));
+                    // printf("workload_idx %d parallel_get_idx %d\n", static_cast<int>(workload_idx),
+                    // static_cast<int>(parallel_get_idx));
+                    cpu_set_t mask;
+                    long nproc, i;
+                    int tid = gettid();
+                    // std::cout << "current tid: " << tid << "\n";
+                    // std::cout << "current parallel_get_idx: " << static_cast<int>(parallel_get_idx) << " tid: "
+                    // << tid << "\n";
+                    if (parallel_get_idx < 0 || parallel_get_idx > thread_num / 2) {
+                        std::cout << "current parallel_get_idx error: " << static_cast<int>(parallel_get_idx) << "\n";
+                    }
+
+                    auto param = 0.0;
+                    auto res = 0.0;
+                    for (auto i = 0; i < 1000; i++) {
+                        param += 0.01;
+                        auto s = sin(param * PI / 180.0);
+                        auto c = cos(param * PI / 180.0);
+                        auto t = tan(param * PI / 180.0);
+                        res += s * c * t;
+                    }
+                    if (res > 10.0 && res < 10.1) {
+                        std::cout << "xxx\n";
+                    }
+
+                    if (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1) {
+                        perror("sched_getaffinity");
+                        assert(false);
+                    }
+                    for (i = 0; i < 400; i++)
+                        if (CPU_ISSET(i, &mask))
+                            break;
+                    if (infos[parallel_get_idx].core_id < 0)
+                        infos[parallel_get_idx].core_id = i;
+                    else if (infos[parallel_get_idx].core_id != i)
+                        printf("parallel_get_idx %d actual core %d, first core %d\n",
+                               static_cast<int>(parallel_get_idx),
+                               static_cast<int>(i),
+                               static_cast<int>(infos[parallel_get_idx].core_id));
+                    dummy_parallel_get_idx += parallel_get_idx;
+                    dummy_workload_idx += workload_idx;
+                    // std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                },
+                tbb::static_partitioner{});
+            auto expected = (thread_num - 1) * thread_num / 2;
+            // if (expected != dummy_parallel_get_idx) {
+            //     std::cout << getName() << " use default fc, thread: " << thread_num
+            //               << " dummy_parallel_get_idx: " << dummy_parallel_get_idx
+            //               << " dummy_workload_idx: " << dummy_workload_idx << " expected: " << expected << "\n";
+            // }
+        };
+    }
+    // std::cout << "work_idx: 0\n";
+    executor->run_and_wait(tasks, 0);*/
+
+    /*tbb::parallel_for(0, 2, [&](int work_idx) {
+        auto executor = context.get()->getConfig()._taskExecutor;
+        std::vector<Task> tasks;
+        tasks.resize(1);
+#define PI 3.14159265
+        for (auto&& task : tasks) {
+            task = [&] {
+                tbb::parallel_for(
+                    0,
+                    static_cast<int>(thread_num / 2),
+                    [&](int workload_idx) {
+                        auto parallel_get_idx = parallel_get_thread_num();
+                        // std::cout << "-----parallel_nt_static----parallel_get_idx: " << parallel_get_idx
+                        //           << " workload_idx:" << workload_idx << "\n";
+                        // pid_t cur_sys_tid = syscall(__NR_gettid);
+                        // else if (cur_sys_tid != infos[idx].pid)
+                        //     printf("idx %d cur_sys_tid pid %d, first pid %d\n", static_cast<int>(idx),
+                        //     static_cast<int>(cur_sys_tid), static_cast<int>(infos[idx].pid));
+                        // if (parallel_get_idx != workload_idx)
+                        //     printf("workload_idx %d parallel_get_idx %d\n",
+                        //            static_cast<int>(workload_idx),
+                        //            static_cast<int>(parallel_get_idx));
+                        // printf("workload_idx %d parallel_get_idx %d\n", static_cast<int>(workload_idx),
+                        // static_cast<int>(parallel_get_idx));
+                        cpu_set_t mask;
+                        long nproc, i;
+                        int tid = gettid();
+                        // std::cout << "current tid: " << tid << "\n";
+                        // std::cout << "current parallel_get_idx: " << static_cast<int>(parallel_get_idx) << " tid: "
+                        // << tid << "\n";
+                        if (parallel_get_idx < 0 || parallel_get_idx > thread_num / 2) {
+                            std::cout << "current parallel_get_idx error: " << static_cast<int>(parallel_get_idx)
+                                      << "\n";
+                        }
+
+                        auto param = 0.0;
+                        auto res = 0.0;
+                        for (auto i = 0; i < 1000; i++) {
+                            param += 0.01;
+                            auto s = sin(param * PI / 180.0);
+                            auto c = cos(param * PI / 180.0);
+                            auto t = tan(param * PI / 180.0);
+                            res += s * c * t;
+                        }
+                        if (res > 10.0 && res < 10.1) {
+                            std::cout << "xxx\n";
+                        }
+
+                        if (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1) {
+                            perror("sched_getaffinity");
+                            assert(false);
+                        }
+                        for (i = 0; i < 400; i++)
+                            if (CPU_ISSET(i, &mask))
+                                break;
+                        if (infos[parallel_get_idx].core_id < 0)
+                            infos[parallel_get_idx].core_id = i;
+                        else if (infos[parallel_get_idx].core_id != i)
+                            printf("parallel_get_idx %d actual core %d, first core %d\n",
+                                   static_cast<int>(parallel_get_idx),
+                                   static_cast<int>(i),
+                                   static_cast<int>(infos[parallel_get_idx].core_id));
+                        dummy_parallel_get_idx += parallel_get_idx;
+                        dummy_workload_idx += workload_idx;
+                        // std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                    },
+                    tbb::static_partitioner{});
+                auto expected = (thread_num - 1) * thread_num / 2;
+                // if (expected != dummy_parallel_get_idx) {
+                //     std::cout << getName() << " use default fc, thread: " << thread_num
+                //               << " dummy_parallel_get_idx: " << dummy_parallel_get_idx
+                //               << " dummy_workload_idx: " << dummy_workload_idx << " expected: " << expected << "\n";
+                // }
+            };
+        }
+        std::cout << "work_idx: " << work_idx << "\n";
+        executor->run_and_wait(tasks, work_idx);
+    });*/
+
+    // tbb::task_group tg;
+    // for (std::size_t i = 0; i < 9; ++i) {
+    //     tg.run([&] {
+    //         std::size_t work_id = i;
+    //         auto parallel_get_idx = parallel_get_thread_num();
+    //         int tid = gettid();
+    //         // std::cout << "current tid: " << tid << "\n";
+    //         std::cout << "current" << work_id << " parallel_get_idx: " << static_cast<int>(parallel_get_idx) << "\n";
+    //         dummy_parallel_get_idx += parallel_get_idx;
+    //         dummy_workload_idx += work_id;
+    //     });
+    // }
+    // tg.wait();
+    // thread_num = 9;
+    // auto expected = (thread_num - 1) * thread_num / 2;
+    // if (expected != dummy_parallel_get_idx) {
+    //     std::cout << getName() << " use default fc, thread: " << thread_num
+    //               << " dummy_parallel_get_idx: " << dummy_parallel_get_idx
+    //               << " dummy_workload_idx: " << dummy_workload_idx << " expected: " << expected << "\n";
+    // }
+
+    // updateMemoryPtr(DNNL_ARG_SRC);
+    // updateMemoryPtr(DNNL_ARG_DST);
 
     execPtr->exec(primArgs, strm);
 }

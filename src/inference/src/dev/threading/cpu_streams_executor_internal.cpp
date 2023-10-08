@@ -77,6 +77,7 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
     std::vector<int> stream_pos;
     std::vector<int> stream_num;
     int num_streams = 0;
+    int num_sub_streams = 0;
     int num_conditions = 0;
     int condition_idx = 0;
     bool last_all_proc = false;
@@ -85,10 +86,10 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
         if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
             stream_pos.push_back(num_streams);
         }
-        num_streams += _streams_info_table[i][NUMBER_OF_STREAMS];
+        num_streams += std::max(0, _streams_info_table[i][NUMBER_OF_STREAMS]);
     }
     num_conditions = static_cast<int>(stream_pos.size());
-    _stream_processors.assign(num_streams, std::vector<int>());
+    // _stream_processors.assign(num_streams, std::vector<int>());
     stream_conditions.assign(num_conditions, std::vector<std::string>());
     stream_num.assign(num_conditions, 0);
 
@@ -98,6 +99,9 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
         std::vector<std::string> sockets;
         if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
             streams_table.push_back(_streams_info_table[i]);
+        }
+        if (_streams_info_table[i][NUMBER_OF_STREAMS] < 0) {
+            num_sub_streams++;
         }
         if (last_all_proc && _streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
             last_all_proc = false;
@@ -125,6 +129,7 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
             condition_idx++;
         }
     }
+    _stream_processors.assign(num_streams + num_sub_streams, std::vector<int>());
 
     for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
         std::string cpu_string = std::to_string(_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]) +
@@ -134,6 +139,10 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
             if (std::find(stream_conditions[j].begin(), stream_conditions[j].end(), cpu_string) !=
                 stream_conditions[j].end()) {
                 _stream_processors[stream_pos[j]].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                if (num_sub_streams > 0) {
+                    _stream_processors[num_streams + _cpu_mapping_table[i][CPU_MAP_SOCKET_ID]].push_back(
+                        _cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                }
                 _cpu_mapping_table[i][CPU_MAP_USED_FLAG] = _cpu_status;
                 if (static_cast<int>(_stream_processors[stream_pos[j]].size()) ==
                     streams_table[j][THREADS_PER_STREAM]) {

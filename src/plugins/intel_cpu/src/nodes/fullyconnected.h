@@ -11,6 +11,13 @@
 #include <string>
 #include <vector>
 #include "common/dnnl_executor.h"
+#include <chrono>
+#include <thread>
+
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include "threading/ie_istreams_executor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -65,6 +72,18 @@ public:
 
     void fuseDecompressionSubtract(const NodePtr& constData);
     const std::vector<float>& getDecompressionSubtract() const { return decompressionSubtract; }
+
+    struct pid_info {
+        // pid_t pid;
+        int core_id;
+        char pad[64 - sizeof(int)];
+        pid_info() {
+            core_id = -1;
+        }
+    } __attribute__((aligned(64)));
+
+    pid_info infos[400];
+    bool isFirst = true;
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,

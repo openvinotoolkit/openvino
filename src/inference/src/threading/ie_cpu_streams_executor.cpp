@@ -55,4 +55,8 @@ void CPUStreamsExecutor::run(Task task) {
     _impl->run(std::move(task));
 }
 
+void CPUStreamsExecutor::run_id(Task task, int id) {
+    _impl->run_id(std::move(task), id);
+}
+
 }  // namespace InferenceEngine

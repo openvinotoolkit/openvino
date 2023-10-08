@@ -11,6 +11,7 @@
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
 #include <openvino/core/type/element_type.hpp>
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
 #include <bitset>
 #include <string>
@@ -97,6 +98,7 @@ struct Config {
 
     int modelPreferThreads = -1;
 
+    std::shared_ptr<InferenceEngine::IStreamsExecutor> _taskExecutor = nullptr;
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
     void applyDebugCapsProperties();

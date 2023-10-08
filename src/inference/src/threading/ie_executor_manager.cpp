@@ -85,6 +85,10 @@ public:
     void Execute(Task task) override {
         m_executor->execute(task);
     }
+
+    void run_id(Task task, int id = -1) override {
+        m_executor->run_id(task, id);
+    }
 };
 
 }  // namespace
