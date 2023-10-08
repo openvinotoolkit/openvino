@@ -302,7 +302,7 @@ void Pooling::getSupportedDescriptors() {
 
     // WA: LPT transformation has WA which allows average pooling has I8/U8 output precision instead of FP32,
     // so we explicitly set output precision as FP32
-    if (outputPrecision != Precision::I8 && inputPrecision != Precision::BF16) {
+    if (outputPrecision != Precision::I8 && inputPrecision != Precision::BF16 && inputPrecision != Precision::FP16) {
         if (getAlgorithm() == Algorithm::PoolingMax) {
             // oneDNN supports only equal precisions for input and output
             outputPrecision = inputPrecision;
@@ -310,7 +310,7 @@ void Pooling::getSupportedDescriptors() {
             outputPrecision = Precision::FP32;
         }
     }
-    if (inputPrecision == Precision::BF16) {
+    if (inputPrecision == Precision::BF16 || inputPrecision == Precision::FP16) {
         outputPrecision = inputPrecision;
     }
 

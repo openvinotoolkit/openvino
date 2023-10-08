@@ -282,6 +282,46 @@ const std::vector<InputShape> inputShapes3D = {
         }
 };
 
+const std::vector<InputShape> inputShapes4D_FP16 = {
+        { {}, {{3, 4, 64, 64}} },
+        { {}, {{2, 8, 8, 12}} },
+        { {}, {{1, 16, 16, 12}} },
+        { {}, {{1, 21, 8, 4}} },
+        { {}, {{1, 32, 8, 8}} },
+        // dynamic can't pass for fp16 precision
+        // {
+        //     // dynamic
+        //     {-1, -1, -1, -1},
+        //     // target
+        //     {
+        //         {1, 32, 8, 8},
+        //         {1, 21, 8, 4},
+        //         {2, 8, 8, 12},
+        //         {1, 96, 125, 125}
+        //     }
+        // },
+        // {
+        //     // dynamic
+        //     {{1, 5}, {4, 32}, {1, 64}, {1, 64}},
+        //     // target
+        //     {
+        //         {3, 4, 64, 64},
+        //         {1, 16, 16, 12},
+        //         {1, 32, 8, 8}
+        //     }
+        // },
+        {
+            // dynamic
+            {{1, 10}, 16, 8, 8},
+            // target
+            {
+                {1, 16, 8, 8},
+                {2, 16, 8, 8},
+            }
+        }
+};
+
+
 const std::vector<InputShape> inputShapes4D = {
         { {}, {{3, 4, 64, 64}} },
         { {}, {{2, 8, 8, 12}} },
@@ -405,17 +445,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D_FP16, PoolingLayerCPUTest,
                                  ::testing::Values(cpuFP16PluginConfig)),
                          PoolingLayerCPUTest::getTestCaseName);
 
-//CVS 110112 test case failed
-// INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D_FP16, PoolingLayerCPUTest,
-//                          ::testing::Combine(
-//                                  ::testing::ValuesIn(paramsAvg3D),
-//                                  ::testing::ValuesIn(inputShapes3D),
-//                                  ::testing::ValuesIn(inpOutPrecision),
-//                                  ::testing::Values(false),
-//                                  ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsForFP16)),
-//                                  ::testing::Values(emptyFusingSpec),
-//                                  ::testing::Values(cpuFP16PluginConfig)),
-//                          PoolingLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D_FP16, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsAvg3D),
+                                 ::testing::ValuesIn(inputShapes3D),
+                                 ::testing::ValuesIn(inpOutPrecision),
+                                 ::testing::Values(false),
+                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsForFP16)),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuFP16PluginConfig)),
+                         PoolingLayerCPUTest::getTestCaseName);
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D_NotOptimized, PoolingLayerCPUTest,
@@ -540,17 +579,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
                             ::testing::Values(cpuEmptyPluginConfig)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-//CVS 110112 test case failed
-// INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_FP16, PoolingLayerCPUTest,
-//                         ::testing::Combine(
-//                             ::testing::ValuesIn(paramsAvg4D),
-//                             ::testing::ValuesIn(inputShapes4D),
-//                             ::testing::ValuesIn(inpOutPrecision),
-//                             ::testing::Values(false),
-//                             ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsForFP16)),
-//                             ::testing::Values(emptyFusingSpec),
-//                             ::testing::Values(cpuFP16PluginConfig)),
-//                         PoolingLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_FP16, PoolingLayerCPUTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(paramsAvg4D),
+                            ::testing::ValuesIn(inputShapes4D_FP16),
+                            ::testing::ValuesIn(inpOutPrecision),
+                            ::testing::Values(false),
+                            ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsForFP16)),
+                            ::testing::Values(emptyFusingSpec),
+                            ::testing::Values(cpuFP16PluginConfig)),
+                        PoolingLayerCPUTest::getTestCaseName);
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
@@ -592,17 +630,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large, PoolingLayerCPUTest,
                             ::testing::Values(emptyFusingSpec),
                             ::testing::Values(cpuEmptyPluginConfig)),
                         PoolingLayerCPUTest::getTestCaseName);
-// can't pass
-// INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large_FP16, PoolingLayerCPUTest,
-//                         ::testing::Combine(
-//                             ::testing::ValuesIn(paramsAvg4D_Large),
-//                             ::testing::ValuesIn(inputShapes4D_Large),
-//                             ::testing::ValuesIn(inpOutPrecision),
-//                             ::testing::Values(false),
-//                             ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsForFP16)),
-//                             ::testing::Values(emptyFusingSpec),
-//                             ::testing::Values(cpuFP16PluginConfig)),
-//                         PoolingLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large_FP16, PoolingLayerCPUTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(paramsAvg4D_Large),
+                            ::testing::ValuesIn(inputShapes4D_Large),
+                            ::testing::ValuesIn(inpOutPrecision),
+                            ::testing::Values(false),
+                            ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsForFP16)),
+                            ::testing::Values(emptyFusingSpec),
+                            ::testing::Values(cpuFP16PluginConfig)),
+                        PoolingLayerCPUTest::getTestCaseName);
 
 
 /* ============= Pooling (3D) ============= */
@@ -718,17 +755,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
                               ::testing::Values(cpuEmptyPluginConfig)),
                           PoolingLayerCPUTest::getTestCaseName);
 
-//CVS 110112 test case failed
-// INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_FP16, PoolingLayerCPUTest,
-//                          ::testing::Combine(
-//                               ::testing::ValuesIn(paramsAvg5D),
-//                               ::testing::ValuesIn(inputShapes5D),
-//                               ::testing::ValuesIn(inpOutPrecision),
-//                               ::testing::Values(false),
-//                               ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsForFP16)),
-//                               ::testing::Values(emptyFusingSpec),
-//                               ::testing::Values(cpuFP16PluginConfig)),
-//                           PoolingLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_FP16, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg5D),
+                              ::testing::ValuesIn(inputShapes5D),
+                              ::testing::ValuesIn(inpOutPrecision),
+                              ::testing::Values(false),
+                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsForFP16)),
+                              ::testing::Values(emptyFusingSpec),
+                              ::testing::Values(cpuFP16PluginConfig)),
+                          PoolingLayerCPUTest::getTestCaseName);
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_NotOptimized, PoolingLayerCPUTest,
@@ -757,7 +793,7 @@ const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_nhwc, avx2_
 const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D = {sse42_ndhwc, avx2_ndhwc, avx512_ndhwc};
 
 const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D_FP16 = {avx512_nhwc};
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D_FP16 = {avx512_nhwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D_FP16 = {avx512_ndhwc};
 
 std::vector<fusingSpecificParams> fusingParamsSet {
     emptyFusingSpec,
@@ -859,17 +895,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8, PoolingLayerCPUTest,
                               ::testing::Values(cpuEmptyPluginConfig)),
                           PoolingLayerCPUTest::getTestCaseName);
 
-//CVS 110112 test case failed
-// INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8_FP16, PoolingLayerCPUTest,
-//                          ::testing::Combine(
-//                               ::testing::ValuesIn(paramsAvg5D),
-//                               ::testing::ValuesIn(inputShapes5D_int8),
-//                               ::testing::Values(ElementType::f32),
-//                               ::testing::Values(true),
-//                               ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_5D_FP16)),
-//                               ::testing::ValuesIn(fusingParamsSet),
-//                               ::testing::Values(cpuFP16PluginConfig)),
-//                           PoolingLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8_FP16, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg5D),
+                              ::testing::ValuesIn(inputShapes5D_int8),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_5D_FP16)),
+                              ::testing::ValuesIn(fusingParamsSet),
+                              ::testing::Values(cpuFP16PluginConfig)),
+                          PoolingLayerCPUTest::getTestCaseName);
 
 } // namespace
 
