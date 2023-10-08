@@ -57,9 +57,7 @@ FusedNamesExtractor::~FusedNamesExtractor() {
 }
 
 std::list<ExtractedPattern>
-FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
-                             bool is_extract_body,
-                             bool is_copy_constants) {
+FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
     auto compiled_op_name = extract_compiled_model_names(model);
     std::list<ExtractedPattern> matched_patterns;
     std::unordered_set<std::string> checked_ops;
@@ -71,7 +69,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
         if (compiled_op_name.count(op_name)) {
             try {
-                auto extracted_pattern = generate_model(nodes, checked_ops, is_copy_constants);
+                auto extracted_pattern = generate_model(nodes, checked_ops, is_save_const);
                 matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
             } catch(std::exception& e) {
                 if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
@@ -105,7 +103,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
     }
     try {
-        auto extracted_pattern = generate_model(nodes, checked_ops, is_copy_constants);
+        auto extracted_pattern = generate_model(nodes, checked_ops, is_save_const);
         matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
     } catch(std::exception& e) {
         if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {

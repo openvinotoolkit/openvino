@@ -38,11 +38,17 @@ public:
     bool match(const std::shared_ptr<ov::Model> &model,
                const std::shared_ptr<ov::Model> &ref_model,
                std::map<std::string, InputInfo> &in_info,
-               const std::map<std::string, InputInfo> &in_info_ref,
-               float comparatio_coefficient = 1.f);
+               const std::map<std::string, InputInfo> &in_info_ref);
 
     IsSubgraphTuple is_subgraph(const std::shared_ptr<ov::Model> &model,
                                 const std::shared_ptr<ov::Model> &ref_model) const;
+                                
+    void set_match_coefficient(float _match_coefficient) {
+        if (_match_coefficient  < 0 || _match_coefficient > 1) {
+            throw std::runtime_error("[ ERROR ] Match coefficient should be from 0 to 1!");
+        }
+        match_coefficient = _match_coefficient; 
+    }
 
 private:
     FunctionsComparator m_comparator = FunctionsComparator::no_default()
@@ -50,6 +56,7 @@ private:
         .enable(FunctionsComparator::NODES)
         .enable(FunctionsComparator::PRECISIONS);
     MatchersManager m_manager = MatchersManager();
+    float match_coefficient = 0.9f;
     static std::shared_ptr<ModelComparator> m_instance;
   
 
@@ -63,8 +70,7 @@ private:
     
 
     bool match(const std::shared_ptr<ov::Model> &model,
-               const std::shared_ptr<ov::Model> &ref_model,
-               float comparatio_coefficient = 1.f) const;
+               const std::shared_ptr<ov::Model> &ref_model) const;
 };
 
 }  // namespace subgraph_dumper

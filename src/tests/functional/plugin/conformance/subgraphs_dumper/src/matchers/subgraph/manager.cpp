@@ -52,7 +52,9 @@ ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model,
         // extract patterns from original models
         auto start = std::chrono::high_resolution_clock::now();
         it.second->set_extractor_name(it.first);
-        auto extracted_patterns = it.second->extract(model, is_extract_body, is_copy_constants);
+        it.second->set_extract_body(is_extract_body);
+        it.second->set_save_const(is_copy_constants);
+        auto extracted_patterns = it.second->extract(model);
         result.insert(result.end(), extracted_patterns.begin(), extracted_patterns.end());
         auto end = std::chrono::high_resolution_clock::now();
         auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();

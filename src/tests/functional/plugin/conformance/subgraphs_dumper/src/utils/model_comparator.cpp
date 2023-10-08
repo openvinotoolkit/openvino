@@ -108,11 +108,7 @@ ModelComparator::match(const std::shared_ptr<ov::Node> &node,
 
 bool
 ModelComparator::match(const std::shared_ptr<ov::Model> &model,
-                       const std::shared_ptr<ov::Model> &ref_model,
-                       float comparatio_coefficient) const {
-    if (comparatio_coefficient < 0.f || comparatio_coefficient > 1.f) {
-        throw std::runtime_error("Comparation coefficient should be from 0 to 1!");
-    }
+                       const std::shared_ptr<ov::Model> &ref_model) const {
     bool res = m_comparator.compare(model, ref_model).valid;
     if (res) {
         return res;
@@ -123,7 +119,7 @@ ModelComparator::match(const std::shared_ptr<ov::Model> &model,
         return false;
     }
     size_t matched_op_cnt = 0, total_op_cnt = ordered_ops.size();
-    size_t matched_op_cnt_required = round(comparatio_coefficient * total_op_cnt);
+    size_t matched_op_cnt_required = round(match_coefficient * total_op_cnt);
     for (size_t i = 0; i < total_op_cnt; ++i) {
         if (is_node_to_skip(ordered_ops[i]) &&
             is_node_to_skip(ref_ordered_ops[i]) ||
@@ -141,9 +137,8 @@ bool
 ModelComparator::match(const std::shared_ptr<ov::Model> &model,
                        const std::shared_ptr<ov::Model> &ref,
                        std::map<std::string, InputInfo> &in_info,
-                       const std::map<std::string, InputInfo> &in_info_ref,
-                       float comparatio_coefficient) {
-    if (match(model, ref, comparatio_coefficient)) {
+                       const std::map<std::string, InputInfo> &in_info_ref) {
+    if (match(model, ref)) {
         try {
             in_info = align_input_info(model, ref, in_info, in_info_ref);
             return true;
