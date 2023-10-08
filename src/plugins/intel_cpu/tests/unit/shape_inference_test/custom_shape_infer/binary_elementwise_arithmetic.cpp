@@ -83,11 +83,7 @@ TYPED_TEST_P(CpuShapeInferenceTest_BEA, shape_inference_aubtob_none) {
 }
 
 TYPED_TEST_P(CpuShapeInferenceTest_BEA, shape_inference_aubtob_none_incompatible_shapes) {
-    GTEST_SKIP() << "Skipping test, eltwise only implemented numpy type boardcast";
-    // it's complicate for eltwise shape infer,
-    // origin ngraph op may already converted to cpu special op Powerstatic, Powerstatic op lost the autob type.
-    // op maybe fuse with other op, for example Tanh fuse with Add op, the Tanh's autob type is null, but
-    // Add's autob type is numpy
+    GTEST_SKIP() << "CVS-122351 Skipping test, eltwiseShapeInfer only implemented numpy type boardcast";
     auto A = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
