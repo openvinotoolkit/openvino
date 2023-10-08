@@ -51,8 +51,11 @@ inline bool isDynamicNgraphNode(const std::shared_ptr<const ngraph::Node>& op) {
 
 inline std::string get_port_name(const ov::Output<const ov::Node>& port, const bool is_legacy_api) {
     std::string name;
-    // TODO: Should use tensor name as the port name, but many legacy tests still use legacy name
+    // Should use tensor name as the port name, but many legacy tests still use legacy name
     // plus sometimes it will get empty tensor name.
+    if (!is_legacy_api) {
+        // TODO: To apply unified tensor name.
+    }
     if (name.empty()) {
         bool is_input = ov::op::util::is_parameter(port.get_node());
         if (is_input) {

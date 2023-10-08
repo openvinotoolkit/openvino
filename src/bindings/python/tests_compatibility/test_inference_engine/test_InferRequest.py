@@ -510,7 +510,7 @@ def test_set_blob_with_incorrect_size(device):
     blob = ie.Blob(tensor_desc)
     with pytest.raises(RuntimeError) as e:
         exec_net.requests[0].set_blob("data", blob)
-    assert f"tensor size is not equal to" in str(e.value)
+    assert f"Can't set the input tensor" in str(e.value)
     with pytest.raises(RuntimeError) as e:
         exec_net.requests[0].set_blob("out", blob)
-    assert f"tensor size is not equal to" in str(e.value)
+    assert f"Can't set the output tensor" in str(e.value)
