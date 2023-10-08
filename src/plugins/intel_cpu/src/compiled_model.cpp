@@ -1,22 +1,23 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "ie_metric_helpers.hpp"  // must be included first
 
 #include "compiled_model.h"
+
 #include "async_infer_request.h"
 #include "infer_request.h"
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
 #include "memory_state.h"
 #include "nodes/memory.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 #define FIX_62820 0
-#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#if FIX_62820 && ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
 #    include <threading/ie_tbb_streams_executor.hpp>
 #endif
 
@@ -72,14 +73,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 : IStreamsExecutor::Config::make_default_multi_threaded(m_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
         m_cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
-#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if FIX_62820 && (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
         m_task_executor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
 #endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if FIX_62820 && (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
         // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
         m_callback_executor = std::make_shared<ImmediateSerialExecutor>();
 #else
@@ -207,26 +208,28 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGuard& graph) const {
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME, graph.dump()->get_friendly_name());
+        auto name = graph.dump()->get_friendly_name();
+        return decltype(ov::model_name)::value_type(name);
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
+        return metrics;
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto&& key : graph.getConfig()._config) {
             configKeys.push_back(key.first);
         }
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
+        return configKeys;
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         Config engConfig = graph.getConfig();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(streams ? streams : 1));
+        auto ret = static_cast<unsigned int>(streams ? streams : 1);
+        return decltype(ov::optimal_number_of_infer_requests)::value_type(ret);
     } else {
         OPENVINO_THROW("Unsupported property: ", name);
     }
@@ -312,8 +315,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(config.inferencePrecision);
     } else if (name == ov::hint::performance_mode) {
-        const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
-        return perfHint;
+        return decltype(ov::hint::performance_mode)::value_type(config.hintPerfMode);
     } else if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
@@ -326,8 +328,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::execution_mode) {
         return config.executionMode;
     } else if (name == ov::hint::num_requests) {
-        const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
-        return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
+        return decltype(ov::hint::num_requests)::value_type(config.hintNumRequests);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_plugin->get_device_name()};
     } else if (name == ov::intel_cpu::denormals_optimization) {

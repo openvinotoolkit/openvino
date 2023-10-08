@@ -1171,14 +1171,6 @@ inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
 static constexpr Property<size_t, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
 
 /**
- * @brief The name for setting performance counters option.
- * @ingroup ov_runtime_cpp_prop_api
- *
- * It is passed to core::set_property(), this option should be used with values: true or false
- */
-static constexpr Property<bool> perf_count{"PERF_COUNT"};
-
-/**
  * @brief The devices that the inference task been executed.
  * @ingroup ov_runtime_cpp_prop_api
  */

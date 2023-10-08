@@ -12,7 +12,7 @@
 
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
-#include "ie_system_conf.h"
+// #include "ie_system_conf.h"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "performance_heuristics.hpp"
@@ -500,7 +500,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
 
     proc_type_table = apply_hyper_threading(config.enableHyperThreading,
                                             config.changedHyperThreading,
-                                            config.perfHintsConfig.ovPerfHint,
+                                            ov::util::to_string(config.hintPerfMode),
                                             proc_type_table);
     executor_config._cpu_reservation = get_cpu_pinning(config.enableCpuPinning,
                                                        config.changedCpuPinning,
@@ -514,9 +514,9 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     executor_config._streams_info_table = get_streams_info_table(executor_config._streams,
                                                                  executor_config._streams_changed,
                                                                  executor_config._threads,
-                                                                 config.perfHintsConfig.ovPerfHintNumRequests,
+                                                                 config.hintNumRequests,
                                                                  model_prefer_threads,
-                                                                 config.perfHintsConfig.ovPerfHint,
+                                                                 ov::util::to_string(config.hintPerfMode),
                                                                  config.latencyThreadingMode,
                                                                  proc_type_table);
     return proc_type_table;

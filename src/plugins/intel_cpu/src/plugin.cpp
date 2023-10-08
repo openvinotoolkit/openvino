@@ -2,20 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_metric_helpers.hpp"  // must be included first
-
 #include "plugin.h"
 
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "extension.h"
 #include "extension_mngr.h"
-
-#include "ie_ngraph_utils.hpp"
-#include "ie_plugin_config.hpp"
-#include "ie_system_conf.h"
 #include "itt.h"
-#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
@@ -209,12 +202,24 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
 
         auto num_requests = config.find(ov::hint::num_requests.name());
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-            auto val = InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second.as<std::string>());
+            int val = -1;
+            try {
+                val = std::stoi(num_requests->second.as<std::string>());
+                if (val < 0) {
+                    throw std::logic_error("wrong val");
+                }
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value of ",
+                               val,
+                               " for property key ",
+                               ov::hint::num_requests.name(),
+                               ". Expected only positive integer numbers");
+            }
+
             if (val > 0)
                 streams_info.num_streams = std::min(streams_info.num_streams, val);
-        } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
-            streams_info.num_streams =
-                std::min(streams_info.num_streams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
+        } else if (engConfig.hintNumRequests > 0) {  // set thru SetConfig to the plugin, 2nd priority
+            streams_info.num_streams = std::min(streams_info.num_streams, static_cast<int>(engConfig.hintNumRequests));
         }
         return std::pair<std::string, StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
@@ -227,15 +232,10 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
             return std::string();
 
         const auto& perf_hint = config.find(ov::hint::performance_mode.name());
-        // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
-        if (perf_hint == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
-            return std::string();
         /* performance hints set for network has higher pririty than engine ones.
          * This applies for all the configuration parameters */
         const auto perf_hint_name =
-            (perf_hint != config.end())
-                ? InferenceEngine::PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second.as<std::string>())
-                : engConfig.perfHintsConfig.ovPerfHint;
+            (perf_hint != config.end()) ? perf_hint->second.as<std::string>() : ov::util::to_string(engConfig.hintPerfMode);
         return perf_hint_name;
     };
 
@@ -275,14 +275,13 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
 }
 
 void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{
-    const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
     const int latency_streams = get_default_latency_streams(config.latencyThreadingMode);
     int streams;
     if (config.streamExecutorConfig._streams_changed) {
         streams = config.streamExecutorConfig._streams;
-    } else if (perf_hint_name == ov::util::to_string(ov::hint::PerformanceMode::LATENCY)) {
+    } else if (config.hintPerfMode == ov::hint::PerformanceMode::LATENCY) {
         streams = latency_streams;
-    } else if (perf_hint_name == ov::util::to_string(ov::hint::PerformanceMode::THROUGHPUT)) {
+    } else if (config.hintPerfMode == ov::hint::PerformanceMode::THROUGHPUT) {
         streams = 0;
     } else {
         streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
@@ -295,20 +294,21 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const{
+void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
     // import config props from caching model
     if (imported && !is_cpu_map_available()) {
-        if (model->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
-            const auto mode_name = conf.perfHintsConfig.ovPerfHint;
-            if (mode_name == ov::util::to_string(ov::hint::PerformanceMode::LATENCY) ||
-                mode_name == ov::util::to_string(ov::hint::PerformanceMode::THROUGHPUT)) {
+        if (model->has_rt_info("intel_cpu_hints_config")) {
+            const auto perf_mode = conf.hintPerfMode;
+            if (perf_mode == ov::hint::PerformanceMode::LATENCY || perf_mode == ov::hint::PerformanceMode::THROUGHPUT) {
                 const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
-                const auto hints_param_name = mode_name + "_" + std::string(ov::num_streams.name());
+                const auto hints_param_name =
+                    ov::util::to_string(perf_mode) + "_" + std::string(ov::num_streams.name());
                 const auto it = hints_config.find(hints_param_name);
                 if (it != hints_config.end()) {
                     conf.readProperties({{std::string(ov::num_streams.name()), it->second.as<std::string>()}});
                 } else {
-                    OPENVINO_THROW("Cache file doesn't contain precalculated number of streams for mode ", mode_name);
+                    OPENVINO_THROW("Cache file doesn't contain precalculated number of streams for mode ",
+                                   ov::util::to_string(perf_mode));
                 }
             }
         }
@@ -428,18 +428,13 @@ static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineC
     if (enableLPT == modelConfig.end()) // model config has higher priority
         return engineConfig.lpTransformsMode == Config::LPTransformsMode::On;
 
-    if (enableLPT->second.is<bool>())
+    if (enableLPT->second.is<bool>()) {
         return enableLPT->second.as<bool>();
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto& val = enableLPT->second.as<std::string>();
-    if (val == Config::YES)
-        return true;
-    else if (val == Config::NO)
-        return false;
-    else
-        OPENVINO_THROW("Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO");
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    } else {
+        OPENVINO_THROW("Wrong value ",
+                       enableLPT->second.as<std::string>(),
+                       " for property key LP_TRANSFORMS_MODE. Expected values: YES/NO");
+    }
 }
 
 static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
@@ -626,8 +621,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(engConfig.inferencePrecision);
     } else if (name == ov::hint::performance_mode) {
-        const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
-        return perfHint;
+        return engConfig.hintPerfMode;
     } else if (name == ov::hint::enable_cpu_pinning) {
         const bool pin_value = engConfig.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(pin_value);
@@ -638,8 +632,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
         const bool ht_value = engConfig.enableHyperThreading;
         return decltype(ov::hint::enable_hyper_threading)::value_type(ht_value);
     } else if (name == ov::hint::num_requests) {
-        const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
-        return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
+        return decltype(ov::hint::num_requests)::value_type(engConfig.hintNumRequests);
     } else if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
     }
@@ -659,13 +652,13 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
             METRIC_KEY(RANGE_FOR_STREAMS),
             METRIC_KEY(IMPORT_EXPORT_SUPPORT),
         };
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
-    } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, deviceFullName);
-    } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        std::vector<std::string> availableDevices = { "" };
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
-    } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
+        return metrics;
+    } else if (name == ov::device::full_name.name()) {
+        return decltype(ov::device::full_name)::value_type(deviceFullName);
+    } else if (name == ov::available_devices.name()) {
+        std::vector<std::string> availableDevices = {""};
+        return decltype(ov::available_devices)::value_type(availableDevices);
+    } else if (name == ov::device::capabilities.name()) {
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
@@ -675,26 +668,26 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
         capabilities.push_back(METRIC_VALUE(FP16));
         capabilities.push_back(METRIC_VALUE(INT8));
         capabilities.push_back(METRIC_VALUE(BIN));
-        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
+        return decltype(ov::device::capabilities)::value_type(capabilities);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && opt : engConfig._config)
+        for (auto&& opt : engConfig._config)
             configKeys.push_back(opt.first);
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
+        return configKeys;
+    } else if (name == ov::range_for_async_infer_requests.name()) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
-        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, range);
-    } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
+        return decltype(ov::range_for_async_infer_requests)::value_type(range);
+    } else if (name == ov::range_for_streams.name()) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
-        IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
+        return decltype(ov::range_for_streams)::value_type(range);
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
-        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    } else if (ov::internal::supported_properties == name) {
+        return true;
+    } else if (ov::internal::supported_properties.name() == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     } else if (name == ov::internal::caching_properties) {
-        std::vector<ov::PropertyName> cachingProperties = { METRIC_KEY(FULL_DEVICE_NAME) };
+        std::vector<ov::PropertyName> cachingProperties = {ov::device::full_name.name()};
         return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
     }
 
