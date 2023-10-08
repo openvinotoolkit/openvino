@@ -47,7 +47,9 @@ void SoftMaxLayerCPUTest::SetUp() {
     ElementType inType;
     SoftMaxConfig config;
     CPUSpecificParams cpuParams;
-    std::tie(inType, config, targetDevice, cpuParams) = this->GetParam();
+    std::map<std::string, std::string> additionalConfig;
+    std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     if (selectedType.empty()) {
