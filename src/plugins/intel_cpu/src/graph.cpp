@@ -304,13 +304,11 @@ void Graph::Replicate(const CNNNetwork &network) {
     // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
     for (auto &input : inputNodesMap) {
         const auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision());
-        DEBUG_LOG("input_precision", inputsInfo.at(input.first)->getPrecision());
         input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
     }
 
     for (auto &output : outputNodesMap) {
         const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
-        DEBUG_LOG("output_precision", outputsInfo.at(output.first)->getPrecision());
         output.second->setOriginalInputPrecisionAtPort(0, precToSet);
     }
     // enforce must be performed after inputs and outputs info are taken into account
@@ -319,7 +317,6 @@ void Graph::Replicate(const CNNNetwork &network) {
     for (auto &input : inputNodesMap) {
         const auto& inputNode = input.second;
         const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
-        DEBUG_LOG("precToSet", precToSet);
         const auto childEdges = inputNode->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
@@ -329,7 +326,6 @@ void Graph::Replicate(const CNNNetwork &network) {
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child)) {
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
-                DEBUG_LOG("input_precToSet", precToSet);
             }
         }
     }
@@ -337,8 +333,6 @@ void Graph::Replicate(const CNNNetwork &network) {
     for (auto &output : outputNodesMap) {
         const auto& outputNode = output.second;
         const auto precToSet = outputNode->getOriginalInputPrecisionAtPort(0);
-        DEBUG_LOG("output_precToSet", outputsInfo.at(output.first)->getPrecision());
-        DEBUG_LOG("output_precToSet", precToSet);
         const auto parentEdges = outputNode->getParentEdgesAtPort(0);
         for (size_t i = 0; i < parentEdges.size(); i++) {
             const auto parent = parentEdges[i]->getParent();
@@ -1717,7 +1711,6 @@ void Graph::EnforceInferencePrecision() {
 
     if (inferPrec == Precision::FP32)
         return; // nothing to do, only precision reduction is currently allowed
-    DEBUG_LOG("====================");
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
