@@ -4,7 +4,8 @@
 
 #include "shared_test_classes/subgraph/parameter_result.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 std::string ParameterResultSubgraphTestBase::getTestCaseName(const testing::TestParamInfo<parameterResultParams>& obj) {
     ov::test::InputShape inShape;
@@ -29,20 +30,24 @@ std::shared_ptr<ov::Model> ParameterResultSubgraphTestBase::createModel(const ov
     return model;
 }
 
-void ParameterResultSubgraphTestLegacyApi::SetUp() {
-    ov::test::InputShape inShape;
-    std::tie(inShape, targetDevice) = this->GetParam();
-
-    IE_ASSERT(inShape.first.is_static());
-
-    function = createModel(inShape.first);
-}
-
 void ParameterResultSubgraphTest::SetUp() {
     ov::test::InputShape inShape;
     std::tie(inShape, targetDevice) = this->GetParam();
 
     init_input_shapes({inShape});
+
+    function = createModel(inShape.first);
+}
+
+}  // namespace test
+}  // namespace ov
+
+namespace SubgraphTestsDefinitions {
+void ParameterResultSubgraphTestLegacyApi::SetUp() {
+    ov::test::InputShape inShape;
+    std::tie(inShape, targetDevice) = this->GetParam();
+
+    OPENVINO_ASSERT(inShape.first.is_static());
 
     function = createModel(inShape.first);
 }

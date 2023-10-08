@@ -11,4 +11,5 @@ namespace SubgraphTestsDefinitions {
 TEST_P(ConvEltwiseFusion, CompareWithRefs) {
     Run();
 }
-} // namespace SubgraphTestsDefinitions
+
+}  // namespace SubgraphTestsDefinitions

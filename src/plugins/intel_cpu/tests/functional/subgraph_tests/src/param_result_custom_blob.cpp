@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/parameter_result.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "shared_test_classes/subgraph/parameter_result.hpp"
 
 using namespace SubgraphTestsDefinitions;
+using namespace ov::test;
 using namespace InferenceEngine;
 
 namespace CPULayerTestsDefinitions {
 
 class ParameterResultCustomBlobTest : public ParameterResultSubgraphTestLegacyApi {
- protected:
+protected:
     void Infer() override {
         constexpr size_t inferIterations = 10lu;
 
@@ -25,7 +26,7 @@ class ParameterResultCustomBlobTest : public ParameterResultSubgraphTestLegacyAp
             std::string inputName = cnnNetwork.getInputsInfo().begin()->first;
 
             std::vector<float> customInpData(elementsCount);
-            auto inpBlobData = inputBlob->buffer().as<const float *>();
+            auto inpBlobData = inputBlob->buffer().as<const float*>();
             std::copy(inpBlobData, inpBlobData + elementsCount, customInpData.begin());
 
             auto& tensorDesc = inputsInfo->getTensorDesc();
@@ -38,7 +39,7 @@ class ParameterResultCustomBlobTest : public ParameterResultSubgraphTestLegacyAp
         }
     }
     void Validate() override {
-        //Do nothing. We call Validate() in the Infer() method
+        // Do nothing. We call Validate() in the Infer() method
     }
 };
 
@@ -51,12 +52,12 @@ TEST_P(ParameterResultCustomBlobTest, CompareWithRefs) {
     Run();
 }
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_Check_Custom_Blob, ParameterResultCustomBlobTest,
-                            ::testing::Combine(
-                                ::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {{}}}),
-                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                            ParameterResultSubgraphTestBase::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_Check_Custom_Blob,
+                         ParameterResultCustomBlobTest,
+                         ::testing::Combine(::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {{}}}),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ParameterResultSubgraphTestBase::getTestCaseName);
+}  // namespace
 
 class ParameterResultSameBlobTest : public ParameterResultSubgraphTestLegacyApi {
 protected:
@@ -69,7 +70,7 @@ protected:
         }
     }
     void Validate() override {
-        //Do nothing. We call Validate() in the Infer() method
+        // Do nothing. We call Validate() in the Infer() method
     }
 };
 
@@ -77,10 +78,10 @@ TEST_P(ParameterResultSameBlobTest, CompareWithRefs) {
     Run();
 }
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_Check_Same_Blob, ParameterResultSameBlobTest,
-                            ::testing::Combine(
-                                ::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {{}}}),
-                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                            ParameterResultSubgraphTestBase::getTestCaseName);
-} // namespace
-} // namespace CPULayerTestsDefinitions
+INSTANTIATE_TEST_SUITE_P(smoke_Check_Same_Blob,
+                         ParameterResultSameBlobTest,
+                         ::testing::Combine(::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {{}}}),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ParameterResultSubgraphTestBase::getTestCaseName);
+}  // namespace
+}  // namespace CPULayerTestsDefinitions
