@@ -2,27 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/conv_mul_fusion.hpp"
+#include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
+
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
+#include "ov_models/builders.hpp"
+#include "transformations/common_optimizations/conv_mul_fusion.hpp"
 
 using namespace ov;
 
-// #include <legacy/transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
-// #include <legacy/transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
-
 namespace SubgraphTestsDefinitions {
 
-std::string ConvEltwiseFusion::getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams> &obj) {
+std::string ConvEltwiseFusion::getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams>& obj) {
     std::tuple<NodeTypeInfo, size_t> conv_params;
     NodeTypeInfo conv_type, eltwise_type;
     bool negative;
     Shape input_shape, weights_shape, const_shape;
     element::Type precision;
     std::string targetName;
-    std::tie(conv_params, eltwise_type, negative, input_shape, weights_shape, const_shape, precision, targetName) = obj.param;
+    std::tie(conv_params, eltwise_type, negative, input_shape, weights_shape, const_shape, precision, targetName) =
+        obj.param;
     size_t num_inputs;
     std::tie(conv_type, num_inputs) = conv_params;
     std::ostringstream results;
@@ -46,7 +46,8 @@ void ConvEltwiseFusion::SetUp() {
     Shape input_shape, weights_shape, const_shape;
     element::Type precision;
     size_t num_inputs;
-    std::tie(conv_params, eltwise_type, negative, input_shape, weights_shape, const_shape, precision, targetDevice) = this->GetParam();
+    std::tie(conv_params, eltwise_type, negative, input_shape, weights_shape, const_shape, precision, targetDevice) =
+        this->GetParam();
     std::tie(conv_type, num_inputs) = conv_params;
     pass::Manager manager;
 
@@ -56,8 +57,12 @@ void ConvEltwiseFusion::SetUp() {
 
         Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-        auto weights = ngraph::builder::makeConstant<float>(precision, weights_shape, std::vector<float>(shape_size(weights_shape), 2));
-        auto eltwise_const = ngraph::builder::makeConstant<float>(precision, const_shape, std::vector<float>(shape_size(const_shape), 3));
+        auto weights = ngraph::builder::makeConstant<float>(precision,
+                                                            weights_shape,
+                                                            std::vector<float>(shape_size(weights_shape), 2));
+        auto eltwise_const = ngraph::builder::makeConstant<float>(precision,
+                                                                  const_shape,
+                                                                  std::vector<float>(shape_size(const_shape), 3));
         std::shared_ptr<Node> conv;
         if (conv_type == opset11::Convolution::get_type_info_static()) {
             conv = std::make_shared<opset11::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
@@ -65,19 +70,45 @@ void ConvEltwiseFusion::SetUp() {
             conv = std::make_shared<opset11::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
         } else if (conv_type == opset11::ConvolutionBackpropData::get_type_info_static()) {
             if (num_inputs == 3) {
-                auto output_shape = std::make_shared<opset11::Constant>(element::u64, Shape{spatial_dims},
-                        std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
-                conv = std::make_shared<opset11::ConvolutionBackpropData>(param, weights, output_shape, strides, pad_begin, pad_end, strides);
+                auto output_shape = std::make_shared<opset11::Constant>(
+                    element::u64,
+                    Shape{spatial_dims},
+                    std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
+                conv = std::make_shared<opset11::ConvolutionBackpropData>(param,
+                                                                          weights,
+                                                                          output_shape,
+                                                                          strides,
+                                                                          pad_begin,
+                                                                          pad_end,
+                                                                          strides);
             } else {
-                conv = std::make_shared<opset11::ConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+                conv = std::make_shared<opset11::ConvolutionBackpropData>(param,
+                                                                          weights,
+                                                                          strides,
+                                                                          pad_begin,
+                                                                          pad_end,
+                                                                          strides);
             }
         } else if (conv_type == opset11::GroupConvolutionBackpropData::get_type_info_static()) {
             if (num_inputs == 3) {
-                auto output_shape = std::make_shared<opset11::Constant>(element::u64, Shape{spatial_dims},
-                        std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
-                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param, weights, output_shape, strides, pad_begin, pad_end, strides);
+                auto output_shape = std::make_shared<opset11::Constant>(
+                    element::u64,
+                    Shape{spatial_dims},
+                    std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
+                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param,
+                                                                               weights,
+                                                                               output_shape,
+                                                                               strides,
+                                                                               pad_begin,
+                                                                               pad_end,
+                                                                               strides);
             } else {
-                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param,
+                                                                               weights,
+                                                                               strides,
+                                                                               pad_begin,
+                                                                               pad_end,
+                                                                               strides);
             }
         } else {
             OPENVINO_THROW("Unsupported type");
@@ -111,7 +142,9 @@ void ConvEltwiseFusion::SetUp() {
 
         Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-        auto weights = ngraph::builder::makeConstant<float>(precision, weights_shape, std::vector<float>(shape_size(weights_shape), 6));
+        auto weights = ngraph::builder::makeConstant<float>(precision,
+                                                            weights_shape,
+                                                            std::vector<float>(shape_size(weights_shape), 6));
         std::shared_ptr<Node> conv;
         if (conv_type == opset11::Convolution::get_type_info_static()) {
             conv = std::make_shared<opset11::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
@@ -119,19 +152,45 @@ void ConvEltwiseFusion::SetUp() {
             conv = std::make_shared<opset11::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
         } else if (conv_type == opset11::ConvolutionBackpropData::get_type_info_static()) {
             if (num_inputs == 3) {
-                auto output_shape = std::make_shared<opset11::Constant>(element::u64, Shape{spatial_dims},
-                        std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
-                conv = std::make_shared<opset11::ConvolutionBackpropData>(param, weights, output_shape, strides, pad_begin, pad_end, strides);
+                auto output_shape = std::make_shared<opset11::Constant>(
+                    element::u64,
+                    Shape{spatial_dims},
+                    std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
+                conv = std::make_shared<opset11::ConvolutionBackpropData>(param,
+                                                                          weights,
+                                                                          output_shape,
+                                                                          strides,
+                                                                          pad_begin,
+                                                                          pad_end,
+                                                                          strides);
             } else {
-                conv = std::make_shared<opset11::ConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+                conv = std::make_shared<opset11::ConvolutionBackpropData>(param,
+                                                                          weights,
+                                                                          strides,
+                                                                          pad_begin,
+                                                                          pad_end,
+                                                                          strides);
             }
         } else if (conv_type == opset11::GroupConvolutionBackpropData::get_type_info_static()) {
             if (num_inputs == 3) {
-                auto output_shape = std::make_shared<opset11::Constant>(element::u64, Shape{spatial_dims},
-                        std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
-                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param, weights, output_shape, strides, pad_begin, pad_end, strides);
+                auto output_shape = std::make_shared<opset11::Constant>(
+                    element::u64,
+                    Shape{spatial_dims},
+                    std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
+                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param,
+                                                                               weights,
+                                                                               output_shape,
+                                                                               strides,
+                                                                               pad_begin,
+                                                                               pad_end,
+                                                                               strides);
             } else {
-                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param,
+                                                                               weights,
+                                                                               strides,
+                                                                               pad_begin,
+                                                                               pad_end,
+                                                                               strides);
             }
         }
 
@@ -146,4 +205,4 @@ void ConvEltwiseFusion::SetUp() {
     auto res = compare_functions(cloned_function, function_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
-} // namespace SubgraphTestsDefinitions
+}  // namespace SubgraphTestsDefinitions
