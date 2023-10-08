@@ -88,6 +88,7 @@ public:
         switch (precision) {
             case element::i4:
             case element::u4:
+            case element::nf4:
                 return (levels == low_precision::levels::int4) || (levels == low_precision::levels::int4_narrow_range);
             case element::i8:
             case element::u8:
@@ -370,7 +371,7 @@ protected:
         const bool updatePrecision,
         const bool moveSubtract = true) const;
 
-    void updateOutput(
+    bool updateOutput(
         TransformationContext &context,
         std::shared_ptr<ov::Node> lastNode,
         std::shared_ptr<ov::Node> originalNode) const;

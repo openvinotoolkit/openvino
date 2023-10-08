@@ -8,8 +8,6 @@
 
 #include <cmath>
 
-#include "ngraph/check.hpp"
-
 using namespace ov;
 
 void reference::split(const char* data,

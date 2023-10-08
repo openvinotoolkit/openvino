@@ -15,22 +15,22 @@ namespace op {
 namespace eye {
 namespace {
 template <ov::element::Type_t ET>
-bool evaluate(const ov::HostTensorPtr& out, const int64_t diagonal_index) {
+bool evaluate(const ngraph::HostTensorPtr& out, const int64_t diagonal_index) {
     ov::reference::eye(out->get_data_ptr<ET>(), out->get_shape(), diagonal_index);
     return true;
 }
 
-bool evaluate_eye(const ov::HostTensorPtr& out, const int64_t diagonal_index) {
+bool evaluate_eye(const ngraph::HostTensorPtr& out, const int64_t diagonal_index) {
     bool rc = true;
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate, i8, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, u8, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, f16, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, bf16, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, i32, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, f32, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, f64, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, i64, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, i8, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, u8, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, f16, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, bf16, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, i32, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, f32, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, f64, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, i64, out, diagonal_index);
     default:
         rc = false;
         break;
@@ -113,7 +113,7 @@ bool ov::op::v9::Eye::has_evaluate() const {
     return false;
 }
 
-bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
+bool ov::op::v9::Eye::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
     OV_OP_SCOPE(v9_Eye_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, get_input_size()), "Invalid Eye input TensorVector.");

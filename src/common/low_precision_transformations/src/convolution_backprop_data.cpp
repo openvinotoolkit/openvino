@@ -13,6 +13,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "itt.hpp"
 
@@ -219,6 +220,11 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     const auto finalDequantization = NetworkHelper::optimizeMultipliesAfter(newMultiplyAfter);
     ov::copy_runtime_info({ convolutionBackpropData, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolutionBackpropData);
+
+    const auto onActiviation = convolutionBackpropData->get_input_node_shared_ptr(0);
+    if (ov::is_type<ov::opset1::Subtract>(onActiviation)) {
+        DisableCleanupAttribute::create(onActiviation);
+    }
 
     auto onWeights = convolutionBackpropData->get_input_node_shared_ptr(1);
     if (ov::is_type<ov::opset1::Reshape>(onWeights)) {
