@@ -58,6 +58,11 @@ jobs:
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
 
     steps:
+      - name: Print system info
+        run: |
+          lscpu || true
+          cat /proc/cpuinfo
+          exit 1
       - name: Install git
         run: |
           apt-get update
