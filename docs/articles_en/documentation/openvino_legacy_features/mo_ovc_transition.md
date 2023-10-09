@@ -636,7 +636,7 @@ For PyTorch, TensorFlow 2 Keras, and PaddlePaddle, we recommend changing the ori
 
 Model cut for PyTorch is not available in legacy API.  
 
-Example of input and output layer cut in original FW.
+When it is needed to remove a whole module from the model it is possible to replace such modules with `Identity`. Below is the example of removing `conv1` and `bn1` modules at the input and `fc` module at the output of the resnet50 model.
 
 .. code-block:: py
    :force:
@@ -660,7 +660,7 @@ Example of input and output layer cut in original FW.
    ov_model = ov.convert_model(model, input=([-1,64,-1,-1], torch.float32))
    compiled_model = ov.compile_model(ov_model)
 
-Example of cutting model outputs.
+When it is needed to remove one or more outputs from the model it is possible to create a wrapper for the model and only output the needed output. Below is the example of removing second output from the model.
 
 .. code-block:: py
    :force:
