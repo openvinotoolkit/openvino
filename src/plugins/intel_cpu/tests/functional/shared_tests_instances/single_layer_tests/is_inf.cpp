@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include "shared_test_classes/single_layer/is_inf.hpp"
-
-using namespace ov::test;
-using namespace ov::test::subgraph;
+#include "single_op_tests/is_inf.hpp"
 
 namespace {
-std::vector<std::vector<InputShape>> inShapesStatic = {
+using ov::test::IsInfLayerTest;
+
+std::vector<std::vector<ov::test::InputShape>> input_shapes_static = {
         { {{}, {{2}}} },
         { {{}, {{2, 200}}} },
         { {{}, {{10, 200}}} },
@@ -29,45 +27,40 @@ std::vector<std::vector<InputShape>> inShapesStatic = {
         { {{}, {{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}} }
 };
 
-std::vector<std::vector<InputShape>> inShapesDynamic = {
+std::vector<std::vector<ov::test::InputShape>> input_shapes_dynamic = {
         {{{ngraph::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}}}
 };
 
-std::vector<ElementType> netPrecisions = {
+std::vector<ov::element::Type> model_types = {
         ov::element::f32
 };
 
-std::vector<bool> detectNegative = {
+std::vector<bool> detect_negative = {
     true, false
 };
 
-std::vector<bool> detectPositive = {
+std::vector<bool> detect_positive = {
     true, false
 };
 
 std::map<std::string, std::string> additional_config = {};
 
-const auto isInfParams = ::testing::Combine(
-        ::testing::ValuesIn(inShapesStatic),
-        ::testing::ValuesIn(detectNegative),
-        ::testing::ValuesIn(detectPositive),
-        ::testing::ValuesIn(netPrecisions),
+const auto is_inf_params = ::testing::Combine(
+        ::testing::ValuesIn(input_shapes_static),
+        ::testing::ValuesIn(detect_negative),
+        ::testing::ValuesIn(detect_positive),
+        ::testing::ValuesIn(model_types),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
-const auto isInfParamsDyn = ::testing::Combine(
-        ::testing::ValuesIn(inShapesDynamic),
-        ::testing::ValuesIn(detectNegative),
-        ::testing::ValuesIn(detectPositive),
-        ::testing::ValuesIn(netPrecisions),
+const auto is_inf_params_dynamic = ::testing::Combine(
+        ::testing::ValuesIn(input_shapes_dynamic),
+        ::testing::ValuesIn(detect_negative),
+        ::testing::ValuesIn(detect_positive),
+        ::testing::ValuesIn(model_types),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
-
-TEST_P(IsInfLayerTest, CompareWithRefs) {
-    run();
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke_static, IsInfLayerTest, isInfParams, IsInfLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_dynamic, IsInfLayerTest, isInfParamsDyn, IsInfLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_static, IsInfLayerTest, is_inf_params, IsInfLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic, IsInfLayerTest, is_inf_params_dynamic, IsInfLayerTest::getTestCaseName);
 } // namespace
