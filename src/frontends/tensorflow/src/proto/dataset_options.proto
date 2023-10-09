@@ -12,7 +12,7 @@ limitations under the License.*/
 
 syntax = "proto3";
 
-package tensorflow.data;
+package ov_tensorflow.data;
 
 // Represents the type of auto-sharding we enable.
 enum AutoShardPolicy {
