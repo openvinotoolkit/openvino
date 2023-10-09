@@ -123,8 +123,6 @@ jobs:
             -DENABLE_PYTHON=ON `
             -DBUILD_nvidia_plugin=OFF `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
-            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}\modules `
             -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
@@ -156,6 +154,16 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
           Compress-Archive @compress
+
+      - name: Cmake & Build - OpenVINO Contrib
+        run: |
+          & {{ env.VCVARSPATH }} x64 && cmake `
+            -DBUILD_nvidia_plugin=OFF `
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules `
+            -S ${{ env.OPENVINO_REPO }} `
+            -B ${{ env.BUILD_DIR }}
+          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Upload openvino package
         uses: actions/upload-artifact@v3
