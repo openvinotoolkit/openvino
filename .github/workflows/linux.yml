@@ -944,15 +944,6 @@ jobs:
           # TensorFlow Lite Layer Tests - TFL FE
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml > TEST-tfl_fe.log &
 
-      - name: Python ONNX operators tests
-        run: |
-          # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest -sv ${OPENVINO_REPO}/src/frontends/onnx/tests -k 'not cuda' \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
-            --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_zoo_models.py \
-            --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_backend.py
-      - name: Wait test results
-        run: |
           wait
           cat TEST-tfl_fe.log
           cat TEST-tf2_Activation.log
@@ -961,9 +952,14 @@ jobs:
           cat TEST-tf2_fe.log
           cat TEST-tf_fe.log
           cat TEST-pytorch.log
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
+
+      - name: Python ONNX operators tests
+        run: |
+          # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
+          python3 -m pytest -sv ${OPENVINO_REPO}/src/frontends/onnx/tests -k 'not cuda' \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
+            --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_zoo_models.py \
+            --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_backend.py
 
       # - name: TensorFlow 1 Layer Tests - TF FE
       #   run: |
