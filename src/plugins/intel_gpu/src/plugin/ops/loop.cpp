@@ -16,8 +16,6 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/graph/topology.hpp"
 
-#include "ie_ngraph_utils.hpp"
-
 #include <vector>
 #include <algorithm>
 
@@ -54,9 +52,6 @@ static void CreateLoopOp(ProgramBuilder& p, const std::shared_ptr<Loop>& op) {
     const auto& body_inputs = op->get_function()->get_parameters();
     const auto& body_outputs = op->get_function()->get_results();
 
-    InferenceEngine::CNNNetwork body_network(op->get_function());
-    auto networkInputs = body_network.getInputsInfo();
-    auto networkOutputs = body_network.getOutputsInfo();
     // Set special body ports: current_iteration input , execution condition output
     auto special_body_ports = op->get_special_body_ports();
 
@@ -65,23 +60,17 @@ static void CreateLoopOp(ProgramBuilder& p, const std::shared_ptr<Loop>& op) {
         auto current_iteration_input = body_inputs.at(special_body_ports.current_iteration_input_idx);
         body_current_iteration_id = layer_type_name_ID(current_iteration_input);
         std::string input_name = ov::op::util::create_ie_output_name(current_iteration_input);
-        const auto networkInput = networkInputs.at(input_name);
-        auto precision = InferenceEngine::details::convertPrecision(current_iteration_input->get_element_type());
-        networkInput->setPrecision(precision);
     }
 
     cldnn::primitive_id body_execution_condition_id;
     if (special_body_ports.body_condition_output_idx >= 0) {
         auto body_condition_output = body_outputs.at(special_body_ports.body_condition_output_idx)->get_input_node_shared_ptr(0);
         body_execution_condition_id = layer_type_name_ID(body_condition_output);
-        std::string output_name = ov::op::util::create_ie_output_name(body_condition_output);
-        const auto networkOutput = networkOutputs.at(output_name);
-        networkOutput->setPrecision(InferenceEngine::Precision::I64);
     }
 
-    // get body topology from ngraph function
-    ProgramBuilder body_program(body_network, p.get_engine(), p.get_config(), true);
-    auto body_topology = *body_program.GetTopology();
+    // get body topology from ov::Model
+    ProgramBuilder body_program(op->get_function(), p.get_engine(), p.get_config(), true);
+    auto body_topology = *body_program.get_topology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges
     std::vector<cldnn::loop::io_primitive_map> input_primitive_maps;

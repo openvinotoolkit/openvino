@@ -32,27 +32,27 @@ void validate_convolution_backprop_data_parameters(const Shape& in_shape,
                                                    const CoordinateDiff& pads_begin,
                                                    const CoordinateDiff& pads_end) {
     // this implementation supports 1D, 2D and 3D convolutions
-    NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5, "Unsupported input rank: ", in_shape);
-    NGRAPH_CHECK(in_shape.size() == f_shape.size(),
-                 "Incompatible input ranks: ",
-                 in_shape.size(),
-                 " and ",
-                 f_shape.size());
-    NGRAPH_CHECK(in_shape[in_channel_axis] == f_shape[filter_in_ch_axis],
-                 "Incompatible input channels in data batch and filters shapes: ",
-                 in_shape[in_channel_axis],
-                 " and ",
-                 f_shape[filter_in_ch_axis]);
-    NGRAPH_CHECK(in_shape.size() == out_shape.size(),
-                 "Incompatible input and output ranks: ",
-                 in_shape.size(),
-                 " and ",
-                 out_shape.size());
+    OPENVINO_ASSERT(in_shape.size() >= 3 && in_shape.size() <= 5, "Unsupported input rank: ", in_shape);
+    OPENVINO_ASSERT(in_shape.size() == f_shape.size(),
+                    "Incompatible input ranks: ",
+                    in_shape.size(),
+                    " and ",
+                    f_shape.size());
+    OPENVINO_ASSERT(in_shape[in_channel_axis] == f_shape[filter_in_ch_axis],
+                    "Incompatible input channels in data batch and filters shapes: ",
+                    in_shape[in_channel_axis],
+                    " and ",
+                    f_shape[filter_in_ch_axis]);
+    OPENVINO_ASSERT(in_shape.size() == out_shape.size(),
+                    "Incompatible input and output ranks: ",
+                    in_shape.size(),
+                    " and ",
+                    out_shape.size());
     const auto spatial_dims = in_shape.size() - 2;
-    NGRAPH_CHECK(strides.size() == spatial_dims, "Strides not definied for all and only spatial dimensions");
-    NGRAPH_CHECK(dilations.size() == spatial_dims, "Dilations not defined for all and only spatial dimensions");
-    NGRAPH_CHECK((pads_begin.size() == pads_end.size()) && (pads_begin.size() == spatial_dims),
-                 "Pads not defined for all and only spatial dimensions");
+    OPENVINO_ASSERT(strides.size() == spatial_dims, "Strides not definied for all and only spatial dimensions");
+    OPENVINO_ASSERT(dilations.size() == spatial_dims, "Dilations not defined for all and only spatial dimensions");
+    OPENVINO_ASSERT((pads_begin.size() == pads_end.size()) && (pads_begin.size() == spatial_dims),
+                    "Pads not defined for all and only spatial dimensions");
 
     Shape out_spatial_shape{std::next(out_shape.begin(), 2), std::end(out_shape)};
     Shape infered_out_spatial_shape{};
@@ -63,7 +63,7 @@ void validate_convolution_backprop_data_parameters(const Shape& in_shape,
                                      dilations,
                                      pads_begin,
                                      pads_end);
-    NGRAPH_CHECK(out_spatial_shape == infered_out_spatial_shape, "Incorrect output shape provided");
+    OPENVINO_ASSERT(out_spatial_shape == infered_out_spatial_shape, "Incorrect output shape provided");
 }
 
 void validate_group_convolution_backprop_data_parameters(const Shape& in_shape,
@@ -74,19 +74,19 @@ void validate_group_convolution_backprop_data_parameters(const Shape& in_shape,
                                                          const CoordinateDiff& pads_begin,
                                                          const CoordinateDiff& pads_end) {
     // this implementation supports 1D, 2D and 3D convolutions
-    NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5, "Unsupported input rank: ", in_shape);
+    OPENVINO_ASSERT(in_shape.size() >= 3 && in_shape.size() <= 5, "Unsupported input rank: ", in_shape);
 
-    NGRAPH_CHECK(in_shape.size() + 1 == f_shape.size(), "Unsupported filter rank: ", f_shape.size());
+    OPENVINO_ASSERT(in_shape.size() + 1 == f_shape.size(), "Unsupported filter rank: ", f_shape.size());
 
-    NGRAPH_CHECK(in_shape.size() == out_shape.size(),
-                 "Incompatible input and output ranks: ",
-                 in_shape.size(),
-                 " and ",
-                 out_shape.size());
+    OPENVINO_ASSERT(in_shape.size() == out_shape.size(),
+                    "Incompatible input and output ranks: ",
+                    in_shape.size(),
+                    " and ",
+                    out_shape.size());
 
     const size_t groups = f_shape[filter_group_axis];
     const size_t in_channels = in_shape[in_channel_axis];
-    NGRAPH_CHECK(in_channels % groups == 0, "Input channels of data batch input must be multiple of groups");
+    OPENVINO_ASSERT(in_channels % groups == 0, "Input channels of data batch input must be multiple of groups");
     const Shape in_group_shape = [&]() {
         Shape new_shape{in_shape};
         new_shape[in_channel_axis] /= groups;
@@ -94,7 +94,7 @@ void validate_group_convolution_backprop_data_parameters(const Shape& in_shape,
     }();
 
     const size_t out_channels = out_shape[out_channel_axis];
-    NGRAPH_CHECK(out_channels % groups == 0, "Output channels of output must be multiple of groups");
+    OPENVINO_ASSERT(out_channels % groups == 0, "Output channels of output must be multiple of groups");
     const Shape out_group_shape = [&]() {
         Shape new_shape{out_shape};
         new_shape[out_channel_axis] /= groups;

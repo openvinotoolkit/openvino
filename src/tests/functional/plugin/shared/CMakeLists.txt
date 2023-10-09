@@ -40,12 +40,12 @@ else()
 endif()
 
 if (TARGET openvino::snippets)
-    list(APPEND LINK_LIBRARIES_PRIVATE snippetsNgraphFunctions)
+    list(APPEND LINK_LIBRARIES_PRIVATE ov_snippets_models)
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
 endif()
 
-addIeTarget(
+ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT ${PUBLIC_HEADERS_DIR}
@@ -64,8 +64,8 @@ addIeTarget(
                 openvino::pugixml
                 common_test_utils
                 func_test_utils
-                ngraphFunctions
-                lptNgraphFunctions
+                ov_models
+                ov_lpt_models
                 sharedTestClasses
             PRIVATE
                 ${LINK_LIBRARIES_PRIVATE}
@@ -77,7 +77,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
 endif()
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 

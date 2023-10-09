@@ -20,6 +20,7 @@
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
+#include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
@@ -28,7 +29,7 @@ using namespace ngraph;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_affine) {
@@ -36,8 +37,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_affine) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/affine.onnx"));
 
     // input/output shape (1, 3)
-    auto input = test::NDArray<float, 2>{{{0.f, 1.f, 2.f}}}.get_vector();
-    auto expected_output = test::NDArray<float, 2>{{{50.f, 50.5f, 51.f}}}.get_vector();
+    auto input = ov::test::NDArray<float, 2>{{{0.f, 1.f, 2.f}}}.get_vector();
+    auto expected_output = ov::test::NDArray<float, 2>{{{50.f, 50.5f, 51.f}}}.get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 3}, input);
@@ -50,14 +51,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_crop) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/crop.onnx"));
 
     // input shape (1, 1, 4, 4)
-    auto input = test::NDArray<float, 4>({{{{19.f, 20.f, 21.f, 22.f},
-                                            {23.f, 24.f, 25.f, 26.f},
-                                            {27.f, 28.f, 29.f, 30.f},
-                                            {31.f, 32.f, 33.f, 34.f}}}})
+    auto input = ov::test::NDArray<float, 4>({{{{19.f, 20.f, 21.f, 22.f},
+                                                {23.f, 24.f, 25.f, 26.f},
+                                                {27.f, 28.f, 29.f, 30.f},
+                                                {31.f, 32.f, 33.f, 34.f}}}})
                      .get_vector();
 
     // output shape (1, 1, 2, 2)
-    auto expected_output = test::NDArray<float, 4>{{{{24.f, 25.f}, {28.f, 29.f}}}}.get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>{{{{24.f, 25.f}, {28.f, 29.f}}}}.get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 1, 4, 4}, input);
@@ -70,14 +71,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_crop_with_scale) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/crop_with_scale.onnx"));
 
     // input shape (1, 1, 4, 4)
-    auto input = test::NDArray<float, 4>({{{{19.f, 20.f, 21.f, 22.f},
-                                            {23.f, 24.f, 25.f, 26.f},
-                                            {27.f, 28.f, 29.f, 30.f},
-                                            {31.f, 32.f, 33.f, 34.f}}}})
+    auto input = ov::test::NDArray<float, 4>({{{{19.f, 20.f, 21.f, 22.f},
+                                                {23.f, 24.f, 25.f, 26.f},
+                                                {27.f, 28.f, 29.f, 30.f},
+                                                {31.f, 32.f, 33.f, 34.f}}}})
                      .get_vector();
 
     // output shape (1, 1, 2, 3)
-    auto expected_output = test::NDArray<float, 4>{{{{24.f, 25.f, 26.f}, {28.f, 29.f, 30.f}}}}.get_vector();
+    auto expected_output = ov::test::NDArray<float, 4>{{{{24.f, 25.f, 26.f}, {28.f, 29.f, 30.f}}}}.get_vector();
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 1, 4, 4}, input);

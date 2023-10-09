@@ -22,8 +22,6 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
                             center_point_box(false),
                             sort_result_descending(false) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Creates non max suppression primitive.
     /// @param id This primitive id.
     /// @param boxes_positions Id of primitive with bounding boxes.

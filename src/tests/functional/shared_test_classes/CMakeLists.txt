@@ -4,7 +4,7 @@
 
 set(TARGET_NAME sharedTestClasses)
 
-addIeTarget(
+ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -19,9 +19,9 @@ addIeTarget(
         LINK_LIBRARIES
             PRIVATE
                 func_test_utils
-                ngraphFunctions
+                ov_models
 )
 
-ie_faster_build(${TARGET_NAME}
+ov_build_target_faster(${TARGET_NAME}
         PCH PRIVATE "src/precomp.hpp"
         )

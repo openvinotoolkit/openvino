@@ -25,7 +25,7 @@ struct augru_sequence_parameters {
     element::Type et = element::f32;
 };
 
-shared_ptr<op::internal::AUGRUSequence> augru_seq_init(const augru_sequence_parameters& params) {
+static shared_ptr<op::internal::AUGRUSequence> augru_seq_init(const augru_sequence_parameters& params) {
     auto batch_size = params.batch_size;
     auto seq_length = params.seq_length;
     auto input_size = params.input_size;

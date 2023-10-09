@@ -125,6 +125,9 @@ public:
     /// Returns the size of the larger of the GPU memory and CPU memory.
     uint64_t get_max_memory_size() const;
 
+    /// Returns the size of CPU memory.
+    uint64_t get_host_memory_size() const;
+
     /// Create stream object for current engine
     virtual stream_ptr create_stream(const ExecutionConfig& config) const = 0;
 

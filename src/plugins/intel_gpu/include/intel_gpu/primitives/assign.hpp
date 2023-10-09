@@ -17,8 +17,6 @@ struct assign : public primitive_base<assign> {
 
     assign() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs Assign primitive.
     /// @param id This primitive id
     /// @param inputs Input parameters ids

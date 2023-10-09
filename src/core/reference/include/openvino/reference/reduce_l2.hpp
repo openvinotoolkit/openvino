@@ -8,8 +8,8 @@
 #include <cmath>
 #include <numeric>
 
+#include "openvino/core/shape_util.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
-#include "shape_util.hpp"
 
 namespace ov {
 namespace reference {

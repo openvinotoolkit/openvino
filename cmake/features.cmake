@@ -5,15 +5,26 @@
 #
 # Common cmake options
 #
+
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
-ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
+if(WIN32 AND AARCH64 AND OV_COMPILER_IS_CLANG)
+    set(ENABLE_INTEL_CPU_DEFAULT OFF)
+else()
+    set(ENABLE_INTEL_CPU_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ${ENABLE_INTEL_CPU_DEFAULT}
+    "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
 
 ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
-ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
+if(ENABLE_TESTS)
+    include(CTest)
+    enable_testing()
+endif()
 
 if(X86_64)
     set(ENABLE_INTEL_GPU_DEFAULT ON)
@@ -23,7 +34,7 @@ endif()
 
 ie_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
-if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR NOT BUILD_SHARED_LIBS)
+if (ANDROID OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR (NOT BUILD_SHARED_LIBS AND ENABLE_INTEL_CPU))
     # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
     # also, in case of static build CPU's and GPU's oneDNNs will conflict, so we are disabling GPU's one in this case
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
@@ -54,11 +65,7 @@ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
 
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
-if(NOT ANDROID)
-    # on Android build FindPkgConfig.cmake finds host system pkg-config, which is not appropriate
-    find_package(PkgConfig QUIET)
-endif()
-
+find_package(PkgConfig QUIET)
 ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX OR APPLE;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
 
 #
@@ -66,7 +73,14 @@ ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 #
 
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-set(THREADING "TBB" CACHE STRING "Threading")
+if(RISCV64)
+    # oneDNN does not support non-SEQ for RISC-V architecture
+    set(THREADING_DEFAULT "SEQ")
+else()
+    set(THREADING_DEFAULT "TBB")
+endif()
+
+set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
 list (APPEND IE_OPTIONS THREADING)
 if (NOT THREADING STREQUAL "TBB" AND
@@ -107,14 +121,16 @@ ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performan
 
 ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
-ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
-
 ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
 
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
-find_host_package(PythonInterp 3 QUIET)
-ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
+find_host_package(Python3 QUIET COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ON)
+else()
+    ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" OFF)
+endif()
 ie_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
@@ -123,6 +139,8 @@ ie_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ie_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 ie_dependent_option(ENABLE_SNAPPY_COMPRESSION "Enables compression support for TF FE" ON
     "ENABLE_OV_TF_FRONTEND" OFF)
+
+ie_dependent_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON "ENABLE_TESTS;ENABLE_OV_ONNX_FRONTEND" OFF)
 
 if(CMAKE_HOST_LINUX AND LINUX)
     # Debian packages are enabled on Ubuntu systems

@@ -7,8 +7,8 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINODeveloperPackage REQUIRED)
 endif()
 
-# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
-set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+# Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined by FindPython3
+set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
 
 if(OpenVINO_SOURCE_DIR)
     if(OV_GENERATOR_MULTI_CONFIG)
@@ -60,7 +60,7 @@ endif()
 # create target
 
 file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*.cpp pyopenvino.cpp)
-list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle|pytorch/* )
+list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch))/*")
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
@@ -105,8 +105,8 @@ if(OpenVINO_SOURCE_DIR)
 endif()
 
 if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
-    ie_python_minimal_api(${PROJECT_NAME})
-    add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
+    ov_python_minimal_api(${PROJECT_NAME})
+    ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
     ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
                            HIDDEN)

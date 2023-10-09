@@ -8,15 +8,14 @@ import typing
 from functools import reduce
 
 import numpy as np
-from openvino.preprocess import PrePostProcessor
-from openvino.runtime import (Core, Layout, Model, Shape, Type, op, opset1,
-                              opset8, set_batch)
+import openvino as ov
+from openvino.runtime import op, opset1, opset8
 
 from data import digits
 
 
-def create_ngraph_function(model_path: str) -> Model:
-    """Create a model on the fly from the source code using ngraph."""
+def create_model(model_path: str) -> ov.Model:
+    """Create a model on the fly from the source code using openvino."""
 
     def shape_and_length(shape: list) -> typing.Tuple[list, int]:
         length = reduce(lambda x, y: x * y, shape)
@@ -28,17 +27,17 @@ def create_ngraph_function(model_path: str) -> Model:
 
     # input
     input_shape = [64, 1, 28, 28]
-    param_node = op.Parameter(Type.f32, Shape(input_shape))
+    param_node = op.Parameter(ov.Type.f32, ov.Shape(input_shape))
 
     # convolution 1
     conv_1_kernel_shape, conv_1_kernel_length = shape_and_length([20, 1, 5, 5])
-    conv_1_kernel = op.Constant(Type.f32, Shape(conv_1_kernel_shape), weights[0:conv_1_kernel_length].tolist())
+    conv_1_kernel = op.Constant(ov.Type.f32, ov.Shape(conv_1_kernel_shape), weights[0:conv_1_kernel_length].tolist())
     weights_offset += conv_1_kernel_length
     conv_1_node = opset8.convolution(param_node, conv_1_kernel, [1, 1], padding_begin, padding_end, [1, 1])
 
     # add 1
     add_1_kernel_shape, add_1_kernel_length = shape_and_length([1, 20, 1, 1])
-    add_1_kernel = op.Constant(Type.f32, Shape(add_1_kernel_shape),
+    add_1_kernel = op.Constant(ov.Type.f32, ov.Shape(add_1_kernel_shape),
                                weights[weights_offset : weights_offset + add_1_kernel_length])
     weights_offset += add_1_kernel_length
     add_1_node = opset8.add(conv_1_node, add_1_kernel)
@@ -48,7 +47,7 @@ def create_ngraph_function(model_path: str) -> Model:
 
     # convolution 2
     conv_2_kernel_shape, conv_2_kernel_length = shape_and_length([50, 20, 5, 5])
-    conv_2_kernel = op.Constant(Type.f32, Shape(conv_2_kernel_shape),
+    conv_2_kernel = op.Constant(ov.Type.f32, ov.Shape(conv_2_kernel_shape),
                                 weights[weights_offset : weights_offset + conv_2_kernel_length],
                                 )
     weights_offset += conv_2_kernel_length
@@ -56,7 +55,7 @@ def create_ngraph_function(model_path: str) -> Model:
 
     # add 2
     add_2_kernel_shape, add_2_kernel_length = shape_and_length([1, 50, 1, 1])
-    add_2_kernel = op.Constant(Type.f32, Shape(add_2_kernel_shape),
+    add_2_kernel = op.Constant(ov.Type.f32, ov.Shape(add_2_kernel_shape),
                                weights[weights_offset : weights_offset + add_2_kernel_length],
                                )
     weights_offset += add_2_kernel_length
@@ -72,13 +71,13 @@ def create_ngraph_function(model_path: str) -> Model:
         weights[weights_offset : weights_offset + 2 * reshape_1_length],
         dtype=np.int64,
     )
-    reshape_1_kernel = op.Constant(Type.i64, Shape(list(dtype_weights.shape)), dtype_weights)
+    reshape_1_kernel = op.Constant(ov.Type.i64, ov.Shape(list(dtype_weights.shape)), dtype_weights)
     weights_offset += 2 * reshape_1_length
     reshape_1_node = opset8.reshape(maxpool_2_node, reshape_1_kernel, True)
 
     # matmul 1
     matmul_1_kernel_shape, matmul_1_kernel_length = shape_and_length([500, 800])
-    matmul_1_kernel = op.Constant(Type.f32, Shape(matmul_1_kernel_shape),
+    matmul_1_kernel = op.Constant(ov.Type.f32, ov.Shape(matmul_1_kernel_shape),
                                   weights[weights_offset : weights_offset + matmul_1_kernel_length],
                                   )
     weights_offset += matmul_1_kernel_length
@@ -86,7 +85,7 @@ def create_ngraph_function(model_path: str) -> Model:
 
     # add 3
     add_3_kernel_shape, add_3_kernel_length = shape_and_length([1, 500])
-    add_3_kernel = op.Constant(Type.f32, Shape(add_3_kernel_shape),
+    add_3_kernel = op.Constant(ov.Type.f32, ov.Shape(add_3_kernel_shape),
                                weights[weights_offset : weights_offset + add_3_kernel_length],
                                )
     weights_offset += add_3_kernel_length
@@ -96,12 +95,12 @@ def create_ngraph_function(model_path: str) -> Model:
     relu_node = opset8.relu(add_3_node)
 
     # reshape 2
-    reshape_2_kernel = op.Constant(Type.i64, Shape(list(dtype_weights.shape)), dtype_weights)
+    reshape_2_kernel = op.Constant(ov.Type.i64, ov.Shape(list(dtype_weights.shape)), dtype_weights)
     reshape_2_node = opset8.reshape(relu_node, reshape_2_kernel, True)
 
     # matmul 2
     matmul_2_kernel_shape, matmul_2_kernel_length = shape_and_length([10, 500])
-    matmul_2_kernel = op.Constant(Type.f32, Shape(matmul_2_kernel_shape),
+    matmul_2_kernel = op.Constant(ov.Type.f32, ov.Shape(matmul_2_kernel_shape),
                                   weights[weights_offset : weights_offset + matmul_2_kernel_length],
                                   )
     weights_offset += matmul_2_kernel_length
@@ -109,7 +108,7 @@ def create_ngraph_function(model_path: str) -> Model:
 
     # add 4
     add_4_kernel_shape, add_4_kernel_length = shape_and_length([1, 10])
-    add_4_kernel = op.Constant(Type.f32, Shape(add_4_kernel_shape),
+    add_4_kernel = op.Constant(ov.Type.f32, ov.Shape(add_4_kernel_shape),
                                weights[weights_offset : weights_offset + add_4_kernel_length],
                                )
     weights_offset += add_4_kernel_length
@@ -119,7 +118,7 @@ def create_ngraph_function(model_path: str) -> Model:
     softmax_axis = 1
     softmax_node = opset8.softmax(add_4_node, softmax_axis)
 
-    return Model(softmax_node, [param_node], 'lenet')
+    return ov.Model(softmax_node, [param_node], 'lenet')
 
 
 def main():
@@ -135,35 +134,35 @@ def main():
     number_top = 1
     # ---------------------------Step 1. Initialize OpenVINO Runtime Core--------------------------------------------------
     log.info('Creating OpenVINO Runtime Core')
-    core = Core()
 
     # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation------------------------------
-    log.info(f'Loading the model using ngraph function with weights from {model_path}')
-    model = create_ngraph_function(model_path)
+    log.info(f'Loading the model using openvino with weights from {model_path}')
+    model = create_model(model_path)
     # ---------------------------Step 3. Apply preprocessing----------------------------------------------------------
     # Get names of input and output blobs
-    ppp = PrePostProcessor(model)
+    ppp = ov.preprocess.PrePostProcessor(model)
     # 1) Set input tensor information:
     # - input() provides information about a single model input
     # - precision of tensor is supposed to be 'u8'
     # - layout of data is 'NHWC'
     ppp.input().tensor() \
-        .set_element_type(Type.u8) \
-        .set_layout(Layout('NHWC'))  # noqa: N400
+        .set_element_type(ov.Type.u8) \
+        .set_layout(ov.Layout('NHWC'))  # noqa: N400
 
     # 2) Here we suppose model has 'NCHW' layout for input
-    ppp.input().model().set_layout(Layout('NCHW'))
+    ppp.input().model().set_layout(ov.Layout('NCHW'))
     # 3) Set output tensor information:
     # - precision of tensor is supposed to be 'f32'
-    ppp.output().tensor().set_element_type(Type.f32)
+    ppp.output().tensor().set_element_type(ov.Type.f32)
 
     # 4) Apply preprocessing modifing the original 'model'
     model = ppp.build()
 
     # Set a batch size equal to number of input images
-    set_batch(model, digits.shape[0])
+    ov.set_batch(model, digits.shape[0])
     # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
+    core = ov.Core()
     compiled_model = core.compile_model(model, device_name)
 
     # ---------------------------Step 5. Prepare input---------------------------------------------------------------------

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include "low_precision/layer_transformation.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -28,12 +28,12 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
 
     static bool canBeTransformed(
-        const ngraph::Shape& subtractShape,
-        const ngraph::Shape& multiplyShape,
-        const ngraph::PartialShape& inputShape,
-        const ngraph::PartialShape& outputShape);
+        const ov::Shape& subtractShape,
+        const ov::Shape& multiplyShape,
+        const ov::PartialShape& inputShape,
+        const ov::PartialShape& outputShape);
 };
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov
