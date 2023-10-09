@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset4.hpp"
 
@@ -84,12 +85,12 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const LSTMCellParams& params) {
-        const auto X = std::make_shared<opset1::Parameter>(params.X.type, params.X.shape);
-        const auto W = std::make_shared<opset1::Parameter>(params.W.type, params.W.shape);
-        const auto R = std::make_shared<opset1::Parameter>(params.R.type, params.R.shape);
-        const auto H_t = std::make_shared<opset1::Parameter>(params.H_t.type, params.H_t.shape);
-        const auto C_t = std::make_shared<opset1::Parameter>(params.C_t.type, params.C_t.shape);
-        const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
+        const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
+        const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
+        const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
+        const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
+        const auto C_t = std::make_shared<op::v0::Parameter>(params.C_t.type, params.C_t.shape);
+        const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto lstm_cell =
             std::make_shared<opset4::LSTMCell>(X,
@@ -117,12 +118,12 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const LSTMCellParams& params) {
-        const auto X = std::make_shared<opset1::Parameter>(params.X.type, params.X.shape);
-        const auto W = std::make_shared<opset1::Parameter>(params.W.type, params.W.shape);
-        const auto R = std::make_shared<opset1::Parameter>(params.R.type, params.R.shape);
-        const auto H_t = std::make_shared<opset1::Parameter>(params.H_t.type, params.H_t.shape);
-        const auto C_t = std::make_shared<opset1::Parameter>(params.C_t.type, params.C_t.shape);
-        const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
+        const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
+        const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
+        const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
+        const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
+        const auto C_t = std::make_shared<op::v0::Parameter>(params.C_t.type, params.C_t.shape);
+        const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto lstm_cell =
             std::make_shared<opset4::LSTMCell>(X,
@@ -152,12 +153,12 @@ private:
     static std::shared_ptr<Model> CreateFunction(const LSTMCellParams& params) {
         const float clip_threshold = 3.5f;
 
-        const auto X = std::make_shared<opset1::Parameter>(params.X.type, params.X.shape);
-        const auto W = std::make_shared<opset1::Parameter>(params.W.type, params.W.shape);
-        const auto R = std::make_shared<opset1::Parameter>(params.R.type, params.R.shape);
-        const auto H_t = std::make_shared<opset1::Parameter>(params.H_t.type, params.H_t.shape);
-        const auto C_t = std::make_shared<opset1::Parameter>(params.C_t.type, params.C_t.shape);
-        const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
+        const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
+        const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
+        const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
+        const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
+        const auto C_t = std::make_shared<op::v0::Parameter>(params.C_t.type, params.C_t.shape);
+        const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto lstm_cell = std::make_shared<opset4::LSTMCell>(X,
                                                                   H_t,
@@ -191,12 +192,12 @@ TEST_P(ReferenceLSTMCellTestBiasClip, CompareWithRefs) {
 class ReferenceLSTMCellV1Test : public ReferenceLSTMCellTest {
 private:
     static std::shared_ptr<Model> CreateFunction(const LSTMCellParams& params) {
-        const auto X = std::make_shared<opset1::Parameter>(params.X.type, params.X.shape);
-        const auto W = std::make_shared<opset1::Parameter>(params.W.type, params.W.shape);
-        const auto R = std::make_shared<opset1::Parameter>(params.R.type, params.R.shape);
-        const auto H_t = std::make_shared<opset1::Parameter>(params.H_t.type, params.H_t.shape);
-        const auto C_t = std::make_shared<opset1::Parameter>(params.C_t.type, params.C_t.shape);
-        const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
+        const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
+        const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
+        const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
+        const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
+        const auto C_t = std::make_shared<op::v0::Parameter>(params.C_t.type, params.C_t.shape);
+        const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto lstm_cell =
             std::make_shared<opset1::LSTMCell>(X,
@@ -215,12 +216,12 @@ private:
 class ReferenceLSTMCellV1TestBiasDefaultAttrs : public ReferenceLSTMCellTestBiasDefaultAttrs {
 private:
     static std::shared_ptr<Model> CreateFunction(const LSTMCellParams& params) {
-        const auto X = std::make_shared<opset1::Parameter>(params.X.type, params.X.shape);
-        const auto W = std::make_shared<opset1::Parameter>(params.W.type, params.W.shape);
-        const auto R = std::make_shared<opset1::Parameter>(params.R.type, params.R.shape);
-        const auto H_t = std::make_shared<opset1::Parameter>(params.H_t.type, params.H_t.shape);
-        const auto C_t = std::make_shared<opset1::Parameter>(params.C_t.type, params.C_t.shape);
-        const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
+        const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
+        const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
+        const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
+        const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
+        const auto C_t = std::make_shared<op::v0::Parameter>(params.C_t.type, params.C_t.shape);
+        const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto lstm_cell =
             std::make_shared<opset1::LSTMCell>(X,
@@ -256,13 +257,13 @@ private:
     static std::shared_ptr<Model> CreateFunction(const LSTMCellParams& params) {
         const float clip_threshold = 3.5f;
 
-        const auto X = std::make_shared<opset1::Parameter>(params.X.type, params.X.shape);
-        const auto W = std::make_shared<opset1::Parameter>(params.W.type, params.W.shape);
-        const auto R = std::make_shared<opset1::Parameter>(params.R.type, params.R.shape);
-        const auto H_t = std::make_shared<opset1::Parameter>(params.H_t.type, params.H_t.shape);
-        const auto C_t = std::make_shared<opset1::Parameter>(params.C_t.type, params.C_t.shape);
-        const auto B = std::make_shared<opset1::Parameter>(params.B.type, params.B.shape);
-        const auto P = std::make_shared<opset1::Parameter>(params.P.type, params.P.shape);
+        const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
+        const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
+        const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
+        const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
+        const auto C_t = std::make_shared<op::v0::Parameter>(params.C_t.type, params.C_t.shape);
+        const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
+        const auto P = std::make_shared<op::v0::Parameter>(params.P.type, params.P.shape);
 
         const auto lstm_cell = std::make_shared<opset1::LSTMCell>(X,
                                                                   H_t,

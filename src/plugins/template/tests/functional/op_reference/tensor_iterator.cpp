@@ -9,6 +9,7 @@
 
 #include "base_reference_test.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace {
 struct TIFunctionalBase {
@@ -23,15 +24,15 @@ struct TIFunctionalBase {
 struct TIDynamicInputs : public TIFunctionalBase {
     std::shared_ptr<ov::Model> create_function(const std::vector<reference_tests::Tensor>& ti_inputs,
                                                const std::vector<reference_tests::Tensor>& results) override {
-        auto X = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto Y = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto M = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto Xi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto Yi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto M_body = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Xi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Yi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M_body = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto body_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
 
         auto trip_count = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{1}, 3);

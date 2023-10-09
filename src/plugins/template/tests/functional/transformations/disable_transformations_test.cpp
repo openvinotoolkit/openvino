@@ -11,20 +11,21 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "template/properties.hpp"
 
 TEST(DisableTransformationsTests, TestTemplatePluginProperty) {
     std::shared_ptr<ov::Model> m(nullptr), m_ref(nullptr);
     {
-        auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
         auto like = ov::opset11::Constant::create(ov::element::i32, ov::Shape{1}, {1});
         auto cvtlike = std::make_shared<ov::opset11::ConvertLike>(data, like);
 
         m = std::make_shared<ov::Model>(ov::NodeVector{cvtlike}, ov::ParameterVector{data});
     }
     {
-        auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
         auto cvt = std::make_shared<ov::opset11::Convert>(data, ov::element::i32);
 
         m_ref = std::make_shared<ov::Model>(ov::NodeVector{cvt}, ov::ParameterVector{data});

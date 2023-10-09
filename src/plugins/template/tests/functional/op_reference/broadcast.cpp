@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 
@@ -56,7 +57,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const BroadcastParams& params) {
-        const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto A = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto f = std::make_shared<Model>(
             std::make_shared<opset1::Broadcast>(A,
                                                 opset1::Constant::create(params.targetShapeTensor.type,
@@ -74,7 +75,7 @@ TEST_P(ReferenceBroadcastTest, CompareWithRefs) {
 class ReferenceBroadcastTestV3 : public ReferenceBroadcastTest {
 private:
     static std::shared_ptr<Model> CreateFunction(const BroadcastParams& params) {
-        const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto A = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto f = std::make_shared<Model>(
             std::make_shared<opset3::Broadcast>(A,
                                                 opset1::Constant::create(params.targetShapeTensor.type,
@@ -132,7 +133,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const BroadcastParamsExplicitAxis& params) {
-        const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto A = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto f = std::make_shared<Model>(
             std::make_shared<opset1::Broadcast>(A,
                                                 opset1::Constant::create(params.targetShapeTensor.type,
@@ -203,7 +204,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const BroadcastParamsTestHelper& params) {
-        const auto A = std::make_shared<opset1::Parameter>(element::f32, params.shapeA);
+        const auto A = std::make_shared<op::v0::Parameter>(element::f32, params.shapeA);
         const auto shape_const = opset1::Constant::create(element::u64, Shape{params.shapeR.size()}, params.shapeR);
         std::shared_ptr<Node> broadcast;
         if (params.axes.size() > 0) {
@@ -239,7 +240,7 @@ TEST_P(ReferenceBroadcastTestTestHelper, CompareWithRefs) {
 class ReferenceBroadcastTestExplicitAxisReversed : public ReferenceBroadcastTestExplicitAxis {
 private:
     static std::shared_ptr<Model> CreateFunction(const BroadcastParamsExplicitAxis& params) {
-        const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto A = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         auto broadcast =
             std::make_shared<opset1::Broadcast>(A,
                                                 opset1::Constant::create(params.targetShapeTensor.type,

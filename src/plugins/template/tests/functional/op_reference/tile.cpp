@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 
 using namespace reference_tests;
@@ -55,7 +56,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const TileParams& params) {
-        const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
+        const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
         const auto repeats =
             std::make_shared<opset1::Constant>(params.repeats.type, params.repeats.shape, params.repeats.data.data());
         const auto tile = std::make_shared<opset1::Tile>(A, repeats);

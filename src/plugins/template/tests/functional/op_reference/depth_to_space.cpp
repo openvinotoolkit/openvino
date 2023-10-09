@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 
 using namespace reference_tests;
@@ -59,7 +60,7 @@ private:
         opset1::DepthToSpace::DepthToSpaceMode mode = params.mode == "DEPTH_FIRST"
                                                           ? opset1::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
                                                           : opset1::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
-        const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto depthToSpace = std::make_shared<opset1::DepthToSpace>(data, mode, params.blockSize);
         return std::make_shared<Model>(NodeVector{depthToSpace}, ParameterVector{data});
     }

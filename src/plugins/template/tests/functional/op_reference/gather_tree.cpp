@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 
 using namespace reference_tests;
@@ -59,10 +60,10 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const GatherTreeParams& params) {
-        const auto step_ids = std::make_shared<opset1::Parameter>(params.stepIds.type, params.stepIds.shape);
-        const auto parent_idx = std::make_shared<opset1::Parameter>(params.parentIdx.type, params.parentIdx.shape);
-        const auto max_seq_len = std::make_shared<opset1::Parameter>(params.maxSeqLen.type, params.maxSeqLen.shape);
-        const auto end_token = std::make_shared<opset1::Parameter>(params.endToken.type, params.endToken.shape);
+        const auto step_ids = std::make_shared<op::v0::Parameter>(params.stepIds.type, params.stepIds.shape);
+        const auto parent_idx = std::make_shared<op::v0::Parameter>(params.parentIdx.type, params.parentIdx.shape);
+        const auto max_seq_len = std::make_shared<op::v0::Parameter>(params.maxSeqLen.type, params.maxSeqLen.shape);
+        const auto end_token = std::make_shared<op::v0::Parameter>(params.endToken.type, params.endToken.shape);
         const auto gather_tree = std::make_shared<opset1::GatherTree>(step_ids, parent_idx, max_seq_len, end_token);
         const auto f =
             std::make_shared<Model>(gather_tree, ParameterVector{step_ids, parent_idx, max_seq_len, end_token});

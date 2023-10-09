@@ -10,6 +10,7 @@
 #include "base_reference_test.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace {
 enum LOOP_IN_TYPE { INVARIANT, MERGED };
@@ -30,15 +31,15 @@ struct LoopDynamicInputs : public LoopFunctionalBase {
                                                const int64_t& trip_count_value,
                                                const std::vector<LOOP_IN_TYPE>& loop_in_type,
                                                const ov::element::Type& net_type) override {
-        auto X = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto Y = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto M = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto Xi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto Yi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto M_body = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Xi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Yi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M_body = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto body_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
 
         auto trip_count = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{1}, 3);
@@ -131,7 +132,7 @@ struct LoopStaticInputs : public LoopFunctionalBase {
                                                const ov::element::Type& net_type) override {
         ov::ParameterVector loop_params;
         for (auto&& input : loop_inputs) {
-            loop_params.emplace_back(std::make_shared<ov::opset8::Parameter>(input.type, input.shape));
+            loop_params.emplace_back(std::make_shared<ov::op::v0::Parameter>(input.type, input.shape));
         }
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
@@ -139,7 +140,7 @@ struct LoopStaticInputs : public LoopFunctionalBase {
         const std::vector<ov::PartialShape> body_params_shapes(loop_inputs.size(), ov::PartialShape::dynamic());
         ov::ParameterVector body_params;
         for (const auto& pshape : body_params_shapes) {
-            body_params.emplace_back(std::make_shared<ov::opset8::Parameter>(net_type, pshape));
+            body_params.emplace_back(std::make_shared<ov::op::v0::Parameter>(net_type, pshape));
         }
 
         const auto body_condition_const =

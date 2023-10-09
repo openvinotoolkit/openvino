@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset7.hpp"
 
@@ -56,7 +57,7 @@ private:
         OutputVector output_vector;
         ParameterVector param_vector;
         for (const auto& input_tensor : params.inputs) {
-            auto param = std::make_shared<opset1::Parameter>(input_tensor.type, input_tensor.shape);
+            auto param = std::make_shared<op::v0::Parameter>(input_tensor.type, input_tensor.shape);
             output_vector.push_back(param);
             param_vector.push_back(param);
         }

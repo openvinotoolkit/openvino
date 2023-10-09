@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset7.hpp"
 
@@ -61,7 +62,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const RollParams& params) {
-        const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto shift = std::make_shared<opset1::Constant>(params.shiftTensor.type,
                                                               params.shiftTensor.shape,
                                                               params.shiftTensor.data.data());

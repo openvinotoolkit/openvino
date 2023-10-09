@@ -6,6 +6,7 @@
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset2.hpp"
 
@@ -70,10 +71,10 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const SpaceToBatchParams& params) {
-        const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto blockShape = std::make_shared<opset1::Parameter>(element::i64, params.blockShapeTensor.shape);
-        const auto padsBegin = std::make_shared<opset1::Parameter>(element::i64, params.padsBeginTensor.shape);
-        const auto padsEnd = std::make_shared<opset1::Parameter>(element::i64, params.padsEndTensor.shape);
+        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto blockShape = std::make_shared<op::v0::Parameter>(element::i64, params.blockShapeTensor.shape);
+        const auto padsBegin = std::make_shared<op::v0::Parameter>(element::i64, params.padsBeginTensor.shape);
+        const auto padsEnd = std::make_shared<op::v0::Parameter>(element::i64, params.padsEndTensor.shape);
         const auto batchToSpace = std::make_shared<opset2::SpaceToBatch>(data, blockShape, padsBegin, padsEnd);
         return std::make_shared<ov::Model>(NodeVector{batchToSpace},
                                            ParameterVector{data, blockShape, padsBegin, padsEnd});

@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 
@@ -61,7 +62,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateModel(const ExtractImagePatchesParams& params) {
-        const auto data = std::make_shared<opset1::Parameter>(params.data.type, params.data.shape);
+        const auto data = std::make_shared<op::v0::Parameter>(params.data.type, params.data.shape);
         const auto extrace_image_patches = std::make_shared<opset3::ExtractImagePatches>(data,
                                                                                          params.sizes,
                                                                                          params.strides,
