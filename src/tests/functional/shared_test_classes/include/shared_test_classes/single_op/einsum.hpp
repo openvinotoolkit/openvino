@@ -24,7 +24,7 @@ typedef std::tuple<
 > EinsumLayerTestParamsSet;
 
 class EinsumLayerTest : public testing::WithParamInterface<EinsumLayerTestParamsSet>,
-                              virtual public ov::test::SubgraphBaseTest {
+                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<EinsumLayerTestParamsSet>& obj);
 
