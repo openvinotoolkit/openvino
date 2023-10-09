@@ -20,7 +20,7 @@ ov_add_test_target(
             openvino::runtime::dev
             gtest
             gtest_main
-            openvino::funcSharedTests
+            funcSharedTests
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${TEST_COMMON_INCLUDE_DIR}
