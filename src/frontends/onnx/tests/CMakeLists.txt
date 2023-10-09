@@ -165,6 +165,16 @@ target_include_directories(ov_onnx_frontend_tests PRIVATE
 install(TARGETS ov_onnx_frontend_tests
         RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
+if(ENABLE_PYTHON)
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            DESTINATION tests/onnx
+            FILES_MATCHING
+            PATTERN "*.py"
+            PATTERN "*.txt"
+            PATTERN "models" EXCLUDE
+            COMPONENT tests)
+endif()
+
 add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
                                                     "${TEST_MODEL_ZOO_OUTPUT_DIR}/onnx/unit_test.manifest"

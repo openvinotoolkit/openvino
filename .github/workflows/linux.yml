@@ -965,9 +965,9 @@ jobs:
       - name: Python ONNX operators tests
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest -sv ${OPENVINO_REPO}/src/frontends/onnx/tests -k 'not cuda' \
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
-            --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_zoo_models.py
+            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py \
 
       - name: MO Python API Tests
         run: |
@@ -994,15 +994,13 @@ jobs:
 
       - name: Python Frontend tests
         run: |
-
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           source ${INSTALL_DIR}/setupvars.sh
 
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
-      # TODO: install to 'tests' component via cpack
       - name: OVC unit tests
-        run: python3 -m pytest -s ${INSTALL_TEST_DIR}/tools/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
+        run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
