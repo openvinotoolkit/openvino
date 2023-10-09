@@ -130,19 +130,19 @@ bool evaluate_nonzero(const HostTensorPtr& input, const HostTensorPtr& output) {
     bool rc = true;
 
     switch (input->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_nonzero, boolean, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, i8, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, i16, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, i32, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, i64, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, u8, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, u16, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, u32, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, u64, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, bf16, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, f16, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, f32, input, output);
-        NGRAPH_TYPE_CASE(evaluate_nonzero, f64, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, boolean, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, i8, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, i16, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, i32, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, i64, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, u8, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, u16, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, u32, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, u64, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, bf16, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, f16, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, f32, input, output);
+        OPENVINO_TYPE_CASE(evaluate_nonzero, f64, input, output);
     default:
         rc = false;
         break;

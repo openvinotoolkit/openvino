@@ -15,26 +15,9 @@ namespace {
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "0"}, {InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "1"}}
     };
 
-    const std::vector<std::map<std::string, std::string>> Multiconfigs = {
-            {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , ov::test::utils::DEVICE_CPU}}
-    };
-
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,
                             ::testing::Combine(
                                     ::testing::Values(ov::test::utils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                              InferRequestMultithreadingTests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestMultithreadingTests,
-                            ::testing::Combine(
-                                    ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(Multiconfigs)),
-                             InferRequestMultithreadingTests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestMultithreadingTests,
-                            ::testing::Combine(
-                                    ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(Multiconfigs)),
-                             InferRequestMultithreadingTests::getTestCaseName);
-
 }  // namespace

@@ -36,10 +36,7 @@ def _add_openvino_libs_to_search_path() -> None:
             lib_path = os.path.join(os.path.dirname(__file__), lib)
             if os.path.isdir(lib_path):
                 # On Windows, with Python >= 3.8, DLLs are no longer imported from the PATH.
-                if (3, 8) <= sys.version_info:
-                    os.add_dll_directory(os.path.abspath(lib_path))
-                else:
-                    os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
+                os.add_dll_directory(os.path.abspath(lib_path))
 
 
 def add_openvino_libs_to_path() -> None:
