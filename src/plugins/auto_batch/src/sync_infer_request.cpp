@@ -86,7 +86,9 @@ void SyncInferRequest::set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferR
         auto tensor = get_tensor(it);
         OPENVINO_ASSERT(tensor != nullptr, "The tensor is empty!");
         auto type = tensor->get_element_type();
-        if (req->get_tensor(it)->data(type) != tensor->data(type)) {
+        bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+                         std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
             req->set_tensor(it, tensor);
         }
     }
@@ -95,7 +97,9 @@ void SyncInferRequest::set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferR
         auto tensor = get_tensor(it);
         OPENVINO_ASSERT(tensor != nullptr, "The tensor is empty!");
         auto type = tensor->get_element_type();
-        if (req->get_tensor(it)->data(type) != tensor->data(type)) {
+        bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+                         std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
             req->set_tensor(it, tensor);
         }
     }
