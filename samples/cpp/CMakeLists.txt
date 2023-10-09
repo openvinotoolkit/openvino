@@ -21,6 +21,14 @@ elseif(NOT OV_GENERATOR_MULTI_CONFIG)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
 endif()
 
+# disable FindPkgConfig.cmake for Android
+if(ANDROID)
+    # Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
+    # build system pkg-config executable, which finds packages on build system. Such
+    # libraries cannot be linked into Android binaries.
+    set(CMAKE_DISABLE_FIND_PACKAGE_PkgConfig ON)
+endif()
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if (NOT BIN_FOLDER)
@@ -206,7 +214,9 @@ macro(ie_add_sample)
     find_package(Threads REQUIRED)
 
     find_package(OpenVINO REQUIRED COMPONENTS Runtime)
-    if(c_sample)
+
+    # Conan does not generate openvino::runtime::c target
+    if(c_sample AND TARGET openvino::runtime::c)
         set(ov_link_libraries openvino::runtime::c)
     else()
         set(ov_link_libraries openvino::runtime)

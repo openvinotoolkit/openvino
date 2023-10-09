@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/subtract_multiply_to_multiply_add_function.hpp"
+#include "ov_lpt_models/subtract_multiply_to_multiply_add.hpp"
 
 namespace LayerTestsDefinitions {
 

@@ -121,16 +121,16 @@ def get_numpy_ctype(openvino_type: Type) -> type:
 
 def get_ndarray(data: NumericData) -> np.ndarray:
     """Wrap data into a numpy ndarray."""
-    if type(data) == np.ndarray:
+    if isinstance(data, np.ndarray):
         return data  # type: ignore
     return np.array(data)
 
 
 def get_shape(data: NumericData) -> TensorShape:
     """Return a shape of NumericData."""
-    if type(data) == np.ndarray:
+    if isinstance(data, np.ndarray):
         return data.shape  # type: ignore
-    elif type(data) == list:
+    if isinstance(data, list):
         return [len(data)]  # type: ignore
     return []
 

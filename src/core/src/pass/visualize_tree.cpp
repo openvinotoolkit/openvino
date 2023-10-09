@@ -11,6 +11,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/env_util.hpp"
@@ -165,6 +166,19 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
     return ss.str();
 }
 
+static std::string name_of_subgraph_file(const std::shared_ptr<ov::Node> op,
+                                         const std::string& current_file_name,
+                                         const size_t& i) {
+    // friendly is never empty it is either friendly (set by user) or unique (auto-generated) name
+    auto node_name = op->get_friendly_name();
+    std::replace(node_name.begin(), node_name.end(), '/', '-');
+    auto postfix = "_node_" + node_name + "_subgraph_#" + std::to_string(i);
+    auto file_name = current_file_name;
+    auto insert_pos = file_name.find_last_of('.');
+    file_name.insert(insert_pos, postfix);
+    return file_name;
+}
+
 bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(VisualizeTree);
     std::unordered_map<Node*, HeightMap> height_maps;
@@ -181,6 +195,14 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
 
     for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
         auto& node = *it;
+        if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
+            for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i)
+                if (const auto& sub_graph = multi_subgraph_op->get_function(i))
+                    ov::pass::VisualizeTree(name_of_subgraph_file(multi_subgraph_op, m_name, i),
+                                            m_node_modifiers,
+                                            m_dot_only)
+                        .run_on_model(sub_graph);
+        }
         for (auto& output : node->outputs()) {
             for (auto& input : output.get_target_inputs()) {
                 auto target_node = input.get_node();
@@ -352,6 +374,7 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
     case ov::element::Type_t::dynamic:
     case ov::element::Type_t::u1:
     case ov::element::Type_t::u4:
+    case ov::element::Type_t::nf4:
     case ov::element::Type_t::i4:
         ss << constant->get_output_element_type(0).get_type_name() << " value";
         break;
