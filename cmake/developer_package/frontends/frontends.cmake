@@ -133,9 +133,13 @@ macro(ov_add_frontend)
         get_filename_component(FILE_WE ${proto_file} NAME_WE)
         set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.cc)
         set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.h)
+        set(google_proto_built_in "${OpenVINO_SOURCE_DIR}/thirdparty/protobuf/protobuf/src")
+        if(EXISTS "${google_proto_built_in}")
+            set(proto_extra_options -I "${google_proto_built_in}")
+        endif()
         add_custom_command(
                 OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
-                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
+                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${proto_extra_options} ${FILE_WE}.proto
                 DEPENDS ${PROTOC_DEPENDENCY} ${proto_file}
                 COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${proto_file_relative}"
                 VERBATIM

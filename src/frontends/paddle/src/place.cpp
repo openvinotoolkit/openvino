@@ -29,12 +29,12 @@ bool Place::is_output() const {
 }
 
 OpPlace::OpPlace(const ov::frontend::InputModel& input_model,
-                 const ::paddle::framework::proto::OpDesc& op_desc,
+                 const ::ov_paddle::framework::proto::OpDesc& op_desc,
                  const std::vector<std::string>& names)
     : Place(input_model, names),
       m_op_desc(op_desc) {}
 
-OpPlace::OpPlace(const ov::frontend::InputModel& input_model, const ::paddle::framework::proto::OpDesc& op_desc)
+OpPlace::OpPlace(const ov::frontend::InputModel& input_model, const ::ov_paddle::framework::proto::OpDesc& op_desc)
     : OpPlace(input_model, op_desc, {}) {}
 
 const std::map<std::string, std::vector<std::shared_ptr<OutPortPlace>>>& OpPlace::get_output_ports() const {
@@ -58,7 +58,7 @@ std::shared_ptr<InPortPlace> OpPlace::get_input_port_paddle(const std::string& i
     return m_input_ports.at(inputName)[inputPortIndex];
 }
 
-const ::paddle::framework::proto::OpDesc& OpPlace::get_desc() const {
+const ::ov_paddle::framework::proto::OpDesc& OpPlace::get_desc() const {
     return m_op_desc;
 }
 
@@ -207,11 +207,11 @@ Place::Ptr OpPlace::get_target_tensor(int outputPortIndex) const {
 
 TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
                          const std::vector<std::string>& names,
-                         const ::paddle::framework::proto::VarDesc& var_desc)
+                         const ::ov_paddle::framework::proto::VarDesc& var_desc)
     : Place(input_model, names),
       m_var_desc(var_desc) {
     const auto& var_type = var_desc.type();
-    if (var_type.type() == ::paddle::framework::proto::VarType::LOD_TENSOR) {
+    if (var_type.type() == ::ov_paddle::framework::proto::VarType::LOD_TENSOR) {
         const auto& tensor_desc = var_type.lod_tensor().tensor();
         m_type = get_ov_type(tensor_desc.data_type());
         m_pshape = PartialShape(std::vector<Dimension>(tensor_desc.dims().begin(), tensor_desc.dims().end()));
@@ -219,7 +219,7 @@ TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
 }
 
 TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
-                         const ::paddle::framework::proto::VarDesc& var_desc)
+                         const ::ov_paddle::framework::proto::VarDesc& var_desc)
     : TensorPlace(input_model, {var_desc.name()}, var_desc) {}
 
 std::vector<Place::Ptr> TensorPlace::get_consuming_ports() const {
@@ -250,7 +250,7 @@ void TensorPlace::add_consuming_port(const std::shared_ptr<InPortPlace>& in_port
     m_consuming_ports.push_back(in_port);
 }
 
-const ::paddle::framework::proto::VarDesc& TensorPlace::get_desc() const {
+const ::ov_paddle::framework::proto::VarDesc& TensorPlace::get_desc() const {
     return m_var_desc;
 }
 
