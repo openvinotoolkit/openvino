@@ -5,6 +5,7 @@ import os
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
 import openvino.runtime.opset11 as opset11
 from openvino.runtime import Model
@@ -13,6 +14,7 @@ from openvino.tools.mo.convert import convert_model
 from openvino.tools.mo.utils.error import Error
 
 
+@generator
 class TestConversionWithBatchAndLayout(unittest.TestCase):
     def basic_check(self, model_name: str, batch: int, layout: str, refs_shapes: dict):
         path = os.path.dirname(__file__)
@@ -43,28 +45,27 @@ class TestConversionWithBatchAndLayout(unittest.TestCase):
         flag, msg = compare_functions(ov_model, ref_model, compare_tensor_names=False)
         assert flag, msg
 
-    def test_basic_model_with_layout(self):
-        test_cases = [
+    @generate(
+        *[
             (
-                "model_fp32.pbtxt", 5, "in1(cn),in2(cn)",
-                {"in1": PartialShape([2, 5]), "in2": PartialShape([2, 5])},
+                    "model_fp32.pbtxt", 5, "in1(cn),in2(cn)",
+                    {"in1": PartialShape([2, 5]), "in2": PartialShape([2, 5])},
             ),
             (
-                "model_fp32.pbtxt", 9, "in1(nc),in2(nc)",
-                {"in1": PartialShape([9, 2]), "in2": PartialShape([9, 2])},
+                    "model_fp32.pbtxt", 9, "in1(nc),in2(nc)",
+                    {"in1": PartialShape([9, 2]), "in2": PartialShape([9, 2])},
             ),
             (
-                "model_fp32.pbtxt", 7, "in1(?c),in2(?c)",
-                {"in1": PartialShape([2, 2]), "in2": PartialShape([2, 2])},
+                    "model_fp32.pbtxt", 7, "in1(?c),in2(?c)",
+                    {"in1": PartialShape([2, 2]), "in2": PartialShape([2, 2])},
             ),
-        ]
+        ],
+    )
+    def test_basic_model_with_layout(self, model_name: str, batch: int, layout: str, refs_shapes: dict):
+        self.basic_check(model_name, batch, layout, refs_shapes)
 
-        for idx, (model_name, batch, layout, refs_shapes) in enumerate(test_cases):
-            with self.subTest(idx=idx, model_name=model_name, batch=batch, layout=layout, refs_shapes=refs_shapes):
-                self.basic_check(model_name, batch, layout, refs_shapes)
-
-    def test_model_with_convolution_dynamic_rank(self):
-        test_cases=[
+    @generate(
+        *[
             (
                     "model_with_convolution_dynamic_rank.pbtxt", 7, "x(n???),kernel(????)",
                     {"x": PartialShape([7, Dimension.dynamic(), Dimension.dynamic(), 3]),
@@ -75,22 +76,22 @@ class TestConversionWithBatchAndLayout(unittest.TestCase):
                     {"x": PartialShape([Dimension.dynamic(), Dimension.dynamic(), Dimension.dynamic(), 3]),
                      "kernel": PartialShape([2, 2, 3, 1])},
             ),
-        ]
-        for idx,  (model_name, batch, layout, refs_shapes) in enumerate(test_cases):
-            with self.subTest(idx=idx, model_name=model_name, batch=batch, layout=layout, refs_shapes=refs_shapes):
-                self.basic_check(model_name, batch, layout, refs_shapes)
+        ],
+    )
+    def test_model_with_convolution_dynamic_rank(self, model_name: str, batch: int, layout: str, refs_shapes: dict):
+        self.basic_check(model_name, batch, layout, refs_shapes)
 
-    def test_model_expected_failure(self):
-        test_cases=[
+    @generate(
+        *[
             (
                     "model_fp32.pbtxt", 17, "",
                     {},
             ),
-        ]
-        for idx, (model_name, batch, layout, refs_shapes) in enumerate(test_cases):
-            with self.subTest(idx=idx, model_name=model_name, batch=batch, layout=layout, refs_shapes=refs_shapes):
-                # try to override batch size by default index (without specifying layout)
-                with self.assertRaisesRegex(Error,
-                                            "When you use -b \(--batch\) option, Model Optimizer applies its value to the first "
-                                            "element of the shape if it is equal to -1, 0 or 1\."):
-                    self.basic_check(model_name, batch, layout, refs_shapes)
+        ],
+    )
+    def test_model_expected_failure(self, model_name: str, batch: int, layout: str, refs_shapes: dict):
+        # try to override batch size by default index (without specifying layout)
+        with self.assertRaisesRegex(Error,
+                                    "When you use -b \(--batch\) option, Model Optimizer applies its value to the first "
+                                    "element of the shape if it is equal to -1, 0 or 1\."):
+            self.basic_check(model_name, batch, layout, refs_shapes)
