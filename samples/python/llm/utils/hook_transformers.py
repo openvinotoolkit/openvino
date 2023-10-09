@@ -6,6 +6,7 @@ import torch
 import warnings
 import transformers
 import torch.distributed as dist
+import logging as log
 from packaging import version
 from typing import Optional, Tuple, Union, List
 from transformers.generation.stopping_criteria import (
@@ -16,11 +17,13 @@ from transformers.generation.logits_process import LogitsProcessorList
 from transformers.generation.streamers import BaseStreamer
 from transformers.utils import ModelOutput
 
+
 class GreedySearchDecoderOnlyOutput(ModelOutput):
     sequences: torch.LongTensor = None
     scores: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
     hidden_states: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
+
 
 class GreedySearchEncoderDecoderOutput(ModelOutput):
     sequences: torch.LongTensor = None
@@ -31,15 +34,17 @@ class GreedySearchEncoderDecoderOutput(ModelOutput):
     cross_attentions: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
     decoder_hidden_states: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
 
+
 GreedySearchOutput = Union[
     GreedySearchEncoderDecoderOutput, GreedySearchDecoderOnlyOutput
 ]
 
 tm_list = []
 
-# Copied from https://github.com/huggingface/transformers/blob/6da93f5580e109fad5f7b523cf2b6e8a5bafb623/src/transformers/generation/utils.py#L2282 
+
+# Copied from https://github.com/huggingface/transformers/blob/6da93f5580e109fad5f7b523cf2b6e8a5bafb623/src/transformers/generation/utils.py#L2282
 # Add the function of collecting latency
-def newGreedySearch(
+def new_greedy_search(
     self,
     input_ids: torch.LongTensor,
     logits_processor: Optional[LogitsProcessorList] = None,
@@ -299,25 +304,26 @@ def newGreedySearch(
     else:
         return input_ids
 
+
 class BenchHook:
     def __init__(self):
+        """clear the time list."""
         global tm_list
         tm_list.clear()
 
-    def clearTMList(self):
+    def clear_time_list(self):
         global tm_list
         tm_list.clear()
 
-    def getTMlist(self):
+    def get_time_list(self):
         global tm_list
         return tm_list
 
-    def newforward(self, model, model_type=None):
-        min_version = version.parse("4.28.0")
-        max_version = version.parse("4.33.2")
+    def new_forward(self, model, model_type=None):
+        min_version = version.parse('4.28.0')
         trans_version = version.parse(transformers.__version__)
-        if trans_version < min_version or trans_version > max_version:
-            print("The function of getting latency will not be available with current transformers version")
+        if trans_version < min_version:
+            log.warning('The function of getting latency will not be available with current transformers version')
         else:
-            bound_method = newGreedySearch.__get__(model, model.__class__)
-            setattr(model, "greedy_search", bound_method)
+            bound_method = new_greedy_search.__get__(model, model.__class__)
+            setattr(model, 'greedy_search', bound_method)

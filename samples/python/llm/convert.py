@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import sys
 import gc
 import time
 import logging as log
@@ -530,12 +531,12 @@ def convert_falcon(args):
         flatten_inputs = flattenize_inputs(dummy_inputs.values())
         pt_model.config.torchscript = True
         ov_model = convert_model(pt_model, example_input=dummy_inputs)
-        for input, input_data, input_name in zip(ov_model.inputs[1:], flatten_inputs[1:], inputs[1:]):
-            input.get_node().set_element_type(Type.f32)
+        for port, input_data, input_name in zip(ov_model.inputs[1:], flatten_inputs[1:], inputs[1:]):
+            port.get_node().set_element_type(Type.f32)
             shape = list(input_data.shape)
             shape[2] = -1
-            input.get_node().set_partial_shape(PartialShape(shape))
-            input.get_tensor().set_names({input_name})
+            port.get_node().set_partial_shape(PartialShape(shape))
+            port.get_tensor().set_names({input_name})
         for idx, out_name in enumerate(outputs):
             ov_model.outputs[idx].get_tensor().set_names({out_name})
         ov_model.validate_nodes_and_infer_types()
@@ -589,6 +590,7 @@ def get_convert_model_type(model_id):
 
 
 def main():
+    log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     parser = ArgumentParser()
     parser.add_argument('--model_id', required=True)
     parser.add_argument('--output_dir', required=True)

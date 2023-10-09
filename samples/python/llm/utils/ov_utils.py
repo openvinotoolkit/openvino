@@ -6,6 +6,7 @@ from transformers import AutoConfig
 from openvino.tools import mo
 from openvino.runtime import serialize, Core
 import openvino as ov
+import logging as log
 import torch
 import timm
 import time
@@ -22,8 +23,8 @@ import numpy as np
 def forward_simplified(
     self,
     input_ids: torch.LongTensor,
-    attention_mask = None,
-    past_key_values = None,
+    attention_mask=None,
+    past_key_values=None,
     **kwargs,
 ) -> CausalLMOutputWithPast:
     self.compile()
@@ -53,7 +54,7 @@ def forward_simplified(
         elif self.use_cache:
             shape_input_ids = input_ids.shape
             num_attention_heads = (
-                self.normalized_config.num_attention_heads if self.config.model_type == "bloom" else 1
+                self.normalized_config.num_attention_heads if self.config.model_type == 'bloom' else 1
             )
             for input_name in self.key_value_input_names:
                 model_inputs = self.model.input(input_name)
@@ -72,11 +73,11 @@ def forward_simplified(
             past_key_values = ()   # something that is not None to differentiate the first iteration in the first condition in this function
             # TODO: resent state?
 
-    inputs["input_ids"] = np.array(input_ids)
+    inputs['input_ids'] = np.array(input_ids)
 
     # Add the attention_mask inputs when needed
-    if "attention_mask" in self.input_names and attention_mask is not None:
-        inputs["attention_mask"] = np.array(attention_mask)
+    if 'attention_mask' in self.input_names and attention_mask is not None:
+        inputs['attention_mask'] = np.array(attention_mask)
 
     if hasattr(self, 'next_beam_idx'):
         inputs['beam_idx'] = np.array(self.next_beam_idx)
@@ -86,7 +87,7 @@ def forward_simplified(
     self.request.wait()
 
     # this is probably not real logits but already post-processed values depending on whether post-processing is fused into a model or not
-    logits = torch.from_numpy(self.request.get_tensor("logits").data).to(self.device)
+    logits = torch.from_numpy(self.request.get_tensor('logits').data).to(self.device)
 
     if not self.use_cache_as_state:
         if self.use_cache:
@@ -94,7 +95,7 @@ def forward_simplified(
             past_key_values = tuple(self.request.get_tensor(key).data for key in self.key_value_output_names)
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
             past_key_values = tuple(
-                past_key_values[i : i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv)
+                past_key_values[i:i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv)
             )
         else:
             past_key_values = None
@@ -107,7 +108,7 @@ def generate_simplified(self, *args, **kwargs):
         raise Exception(f'Not empty args is not supported in generate_simplified, given: {args}')
     # TODO: Check other ignored parameters and report about them
 
-    print('[ WARNING ] Termination criteria is not supported in overridden generate, max_new_tokens only matters')
+    log.warning('Termination criteria is not supported in overridden generate, max_new_tokens only matters')
 
     # TODO: Check if unsupported kwargs are provided
 
@@ -118,28 +119,29 @@ def generate_simplified(self, *args, **kwargs):
 
     past_key_values = None
 
-    for i in range(kwargs['max_new_tokens']):
+    for _i in range(kwargs['max_new_tokens']):
         outputs = self(input_ids=input_ids, attention_mask=attention_mask, past_key_values=past_key_values, use_cache=True)
 
         next_tokens = outputs.logits   # logits is an old name from original model, when interprocessing is fused it is a token
         # TODO: Apply termination criteria in addition to max_new_tokens
-        # TODO: Doing the cat with input_ids here, we will 'uncat' it later in the next forward, avoid doing it by passible next_tokens (without cat) directly to the next forward
+        # TODO: Doing the cat with input_ids here, we will 'uncat' it later in the next forward,
+        # avoid doing it by passible next_tokens (without cat) directly to the next forward
         input_ids = torch.cat([input_ids, next_tokens], dim=-1)
         attention_mask = torch.cat([attention_mask, attention_mask.new_ones((attention_mask.shape[0], 1))], dim=-1)
-        # Depending on whether we applied make_stateful, past_key_values may or may not represent meaningful values, need to pass them anyway to differentiate the first iteration
+        # Depending on whether we applied make_stateful, past_key_values may or may not represent meaningful values,
+        # need to pass them anyway to differentiate the first iteration
         past_key_values = outputs.past_key_values
 
     return input_ids
 
 
 def patch_inter_processing(hf_model, **kwargs):
-    '''Fuse post-processing as an extra ops into a model'''
-
+    """Fuse post-processing as an extra ops into a model."""
     ov_model = hf_model.model
 
     if kwargs['fuse_decoding_strategy']:
-        ppp = ov.preprocess.PrePostProcessor(ov_model)
         import openvino.runtime.opset12 as opset
+        ppp = ov.preprocess.PrePostProcessor(ov_model)
 
         assert kwargs['num_beams'] == 1, "Parameter fuse_decoding_strategy doesn't support beam_search, set num_beams to 1"
 
@@ -188,7 +190,7 @@ def patch_inter_processing(hf_model, **kwargs):
         input_output_map = {}
         # TODO: Can we derive the dimensions from the model topology?
         num_attention_heads = (
-            hf_model.normalized_config.num_attention_heads if hf_model.config.model_type == "bloom" else 1
+            hf_model.normalized_config.num_attention_heads if hf_model.config.model_type == 'bloom' else 1
         )
         num_beams = kwargs['num_beams'] if 'num_beams' in kwargs and kwargs['num_beams'] > 1 else 1
         beam_idx_exist = 'beam_idx' in [input.any_name for input in ov_model.inputs]
@@ -215,36 +217,40 @@ def patch_inter_processing(hf_model, **kwargs):
 
     xml_file_name = kwargs['save_prepared_model']
     if xml_file_name is not None:
-        print(f'Saving prepared OpenVINO model to {xml_file_name} ...')
+        log.info(f'Saving prepared OpenVINO model to {xml_file_name} ...')
         ov.save_model(ov_model, xml_file_name)
 
     hf_model.compile()
 
 
 def create_text_gen_model(model_path, device, **kwargs):
-    '''
+    """Create text generation model.
+
     - model_path: can be model_id, model_path or IR path
     - device: can be CPU or GPU
     - model_type:
-    '''
+    """
+
     default_model_type = DEFAULT_MODEL_CLASSES[kwargs['use_case']]
-    model_type = kwargs.get("model_type" , default_model_type)
+    model_type = kwargs.get('model_type', default_model_type)
     model_class = OV_MODEL_CLASSES_MAPPING.get(model_type, OV_MODEL_CLASSES_MAPPING[default_model_type])
     token_class = TOKENIZE_CLASSES_MAPPING.get(model_type, TOKENIZE_CLASSES_MAPPING[default_model_type])
     model_path = Path(model_path)
     # specify the model path
-    if model_path.name.endswith("xml"):
+    if model_path.name.endswith('xml'):
         model_path = model_path.parents[2]
 
-    ov_config = kwargs["config"]
+    ov_config = kwargs['config']
 
     model_path_existed = Path(model_path).exists()
     # load model
     if not model_path_existed:
-        if model_type in ["mpt", "falcon", "replit", "codegen2", "chatglm", "chatglm2"]:
+        if model_type in ['mpt', 'falcon', 'replit', 'codegen2', 'chatglm', 'chatglm2']:
             start = time.perf_counter()
-            ov_model = model_class.from_pretrained(kwargs['model_id'], device=device, export=True, ov_config=ov_config,
-            config=AutoConfig.from_pretrained(kwargs['model_id'], trust_remote_code=True))
+            ov_model = model_class.from_pretrained(
+                kwargs['model_id'], device=device, export=True, ov_config=ov_config,
+                config=AutoConfig.from_pretrained(kwargs['model_id'], trust_remote_code=True),
+            )
             end = time.perf_counter()
         else:
             start = time.perf_counter()
@@ -252,12 +258,12 @@ def create_text_gen_model(model_path, device, **kwargs):
             end = time.perf_counter()
         ov_model.save_pretrained(model_path)
     else:
-        if model_type in ["mpt", "falcon", "replit", "codegen2", "chatglm", 'chatglm2']:
+        if model_type in ['mpt', 'falcon', 'replit', 'codegen2', 'chatglm', 'chatglm2']:
             start = time.perf_counter()
             ov_model = model_class.from_pretrained(
                 model_path, device=device, ov_config=ov_config,
-                config=AutoConfig.from_pretrained(model_path, trust_remote_code=True)
-                )
+                config=AutoConfig.from_pretrained(model_path, trust_remote_code=True),
+            )
             end = time.perf_counter()
         else:
             start = time.perf_counter()
@@ -265,7 +271,7 @@ def create_text_gen_model(model_path, device, **kwargs):
             patch_inter_processing(ov_model, **kwargs)
             end = time.perf_counter()
     from_pretrained_time = end - start
-    print(f"from pretrained time: {from_pretrained_time:.2f}s")
+    log.info(f'from pretrained time: {from_pretrained_time:.2f}s')
     # load token
     if not model_path_existed:
         tokenizer = token_class.from_pretrained(kwargs['model_id'])
@@ -279,19 +285,19 @@ def create_image_gen_model(model_path, device, **kwargs):
     model_type = DEFAULT_MODEL_CLASSES[kwargs['use_case']]
     model_class = OV_MODEL_CLASSES_MAPPING[model_type]
     model_path = Path(model_path)
-    ov_config = kwargs["config"]
+    ov_config = kwargs['config']
     if not Path(model_path).exists():
         start = time.perf_counter()
         ov_model = model_class.from_pretrained(kwargs['model_id'], from_transformers=True, device=device, ov_config=ov_config)
         end = time.perf_counter()
         ov_model.save_pretrained(model_path)
     else:
-        print(f"model_path={model_path}")
+        log.info(f'model_path={model_path}')
         start = time.perf_counter()
         ov_model = model_class.from_pretrained(model_path, device=device, ov_config=ov_config)
         end = time.perf_counter()
     from_pretrained_time = end - start
-    print(f"from pretrained time: {from_pretrained_time:.2f}s")
+    log.info(f'from pretrained time: {from_pretrained_time:.2f}s')
     return ov_model, from_pretrained_time
 
 
@@ -304,44 +310,44 @@ def create_image_classification_model(model_path, device, config=None, **kwargs)
     model_file = None
     if model_path.exists():
         if model_path.is_dir():
-            model_file = list(model_path.rglob("*.xml"))
+            model_file = list(model_path.rglob('*.xml'))
             if model_file:
                 model_file = model_file[0]
         else:
             model_file = model_path
-    model_id =  model_path.name
+    model_id = model_path.name
     data_config = timm.data.resolve_data_config([], model=model_id, use_test_size=True)
-    input_size = data_config["input_size"]
+    input_size = data_config['input_size']
     input_size = (1, ) + input_size
     if model_file is None:
         pt_model = timm.create_model(model_id, pretrained=True)
         ov_model = mo.convert_model(pt_model, example_input=torch.randn(input_size))
-        serialize(ov_model, str(model_path / "dldt" / "FP32" / (model_path.name + ".xml")))
+        serialize(ov_model, str(model_path / 'dldt' / 'FP32' / (model_path.name + '.xml')))
     else:
         start = time.perf_counter()
         ov_model = core.read_model(model_file)
         end = time.perf_counter()
         load_model_time = end - start
-        print(f"load model time: {load_model_time:.2f}s")
+        log.info(f'load model time: {load_model_time:.2f}s')
     start = time.perf_counter()
     compiled_model = core.compile_model(ov_model, device.upper())
     end = time.perf_counter()
     compile_model_time = end - start
-    print(f"compile model time: {compile_model_time:.2f}s")
+    log.info(f'compile model time: {compile_model_time:.2f}s')
     return compiled_model, input_size
 
 
 def create_ldm_super_resolution_model(model_path, device, **kwargs):
     core = Core()
-    ov_config = kwargs["config"]
+    ov_config = kwargs['config']
     core.set_property(ov_config)
     default_model_type = DEFAULT_MODEL_CLASSES[kwargs['use_case']]
-    model_type = kwargs.get("model_type" , default_model_type)
+    model_type = kwargs.get('model_type', default_model_type)
     model_class = OV_MODEL_CLASSES_MAPPING[model_type]
     model_path = Path(model_path)
     start = time.perf_counter()
     ov_model = model_class(model_path, core, device.upper())
     end = time.perf_counter()
     from_pretrained_time = end - start
-    print(f"from pretrained time: {from_pretrained_time:.2f}s")
+    log.info(f'from pretrained time: {from_pretrained_time:.2f}s')
     return ov_model, from_pretrained_time

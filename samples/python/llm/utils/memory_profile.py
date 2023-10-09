@@ -6,6 +6,7 @@ import psutil
 import time
 import os
 
+
 class MemConsumption:
     def __init__(self):
         self.g_exitGetMemThread = False
@@ -14,33 +15,33 @@ class MemConsumption:
         self.g_maxSharedMemConsumption = -1
         self.g_event = Event()
         self.g_data_event = Event()
-    
+
     def collect_memory_consumption(self):
-        while self.g_exitGetMemThread == False:
+        while self.g_exitGetMemThread is False:
             self.g_event.wait()
             while True:
                 process = psutil.Process(os.getpid())
                 rss_mem_data = process.memory_info().rss / float(2 ** 20)
                 try:
                     shared_mem_data = process.memory_info().shared / float(2 ** 20)
-                except:
+                except Exception:
                     shared_mem_data = -1
                 if rss_mem_data > self.g_maxRssMemConsumption:
                     self.g_maxRssMemConsumption = rss_mem_data
                 if shared_mem_data > self.g_maxSharedMemConsumption:
                     self.g_maxSharedMemConsumption = shared_mem_data
                 self.g_data_event.set()
-                if self.g_EndCollectMem == True:
+                if self.g_EndCollectMem is True:
                     self.g_event.set()
                     self.g_event.clear()
                     self.g_EndCollectMem = False
                     break
-                time.sleep(500/1000)
+                time.sleep(500 / 1000)
 
     def start_collect_memory_consumption(self):
         self.g_EndCollectMem = False
         self.g_event.set()
-    
+
     def end_collect_momory_consumption(self):
         self.g_EndCollectMem = True
         self.g_event.wait()
@@ -49,7 +50,7 @@ class MemConsumption:
         self.g_data_event.wait()
         self.g_data_event.clear()
         return self.g_maxRssMemConsumption, self.g_maxSharedMemConsumption
-    
+
     def clear_max_memory_consumption(self):
         self.g_maxRssMemConsumption = -1
         self.g_maxSharedMemConsumption = -1

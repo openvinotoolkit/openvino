@@ -3,36 +3,37 @@
 # SPDX-License-Identifier: Apache-2.0
 import time
 import torch
+import logging as log
+
 
 class BenchHook:
     def __init__(self):
+        """Initialize a time list."""
         self.tm_list = []
 
-    def clearTMList(self):
+    def clear_time_list(self):
         self.tm_list.clear()
 
-    def getTMlist(self):
+    def get_time_list(self):
         return self.tm_list
 
-    def newforward(self, model, model_type):
+    def new_forward(self, model, model_type):
         org_forward = model.forward
-        if model_type == "decoder" or model_type == "codegen2" or model_type == "mpt" or model_type == "replit" or model_type == "chatglm" or model_type == "falcon":
-            def myforward(input_ids: torch.LongTensor, attention_mask = None, past_key_values = None, **kwargs):
+        if model_type in ['decoder', 'codegen2', 'mpt', 'replit', 'chatglm', 'falcon']:
+            def my_forward(input_ids: torch.LongTensor, attention_mask=None, past_key_values=None, **kwargs):
                 beg = time.time()
                 ret = org_forward(input_ids, attention_mask, past_key_values, **kwargs)
                 end = time.time()
-                self.tm_list.append(end-beg)
-                # print("TM=", end-beg)
+                self.tm_list.append(end - beg)
                 return ret
-            model.forward = myforward
-        elif model_type == "t5" or model_type == "blenderbot" or model_type == "codet5":
-            def myforward(input_ids = None, attention_mask = None, decoder_input_ids = None, encoder_outputs = None, past_key_values = None, **kwargs):
+            model.forward = my_forward
+        elif model_type in ['t5', 'blenderbot', 'codet5']:
+            def my_forward(input_ids=None, attention_mask=None, decoder_input_ids=None, encoder_outputs=None, past_key_values=None, **kwargs):
                 beg = time.time()
                 ret = org_forward(input_ids, attention_mask, decoder_input_ids, encoder_outputs, past_key_values, **kwargs)
                 end = time.time()
-                self.tm_list.append(end-beg)
-                # print("TM=", end-beg)
+                self.tm_list.append(end - beg)
                 return ret
-            model.forward = myforward
+            model.forward = my_forward
         else:
-            print("model_type:{}, does not support overloaded model forward".format(model_type))
+            log.warning('model_type:{}, does not support overloaded model forward'.format(model_type))
