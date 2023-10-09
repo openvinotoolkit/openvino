@@ -1207,6 +1207,9 @@ jobs:
         - /mount/caches:/mount/caches
 
     steps:
+      - name: Tracking resources
+        run: top > /mount/caches/aks-linux-4-cores.top &
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -1272,6 +1275,13 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
             if-no-files-found: 'error'
+
+      - name: Upload resources logs
+        uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          name: top-logs
+          path: /mount/caches/aks-linux-4-cores.top
 
   PyTorch_Models_Tests:
     name: PyTorch Models tests
