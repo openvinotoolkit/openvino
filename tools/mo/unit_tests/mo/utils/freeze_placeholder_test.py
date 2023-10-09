@@ -3,12 +3,11 @@
 
 import argparse
 import os
-import unittest
+import pytest
 from unittest.mock import patch, Mock
 
 import numpy as np
 import onnx
-from generator import generator, generate
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 
 from openvino.frontend import (
@@ -61,8 +60,7 @@ def get_test_default_frontends():
     return {"onnx": "new", "tf": "legacy"}
 
 
-@generator
-class TestMoFreezePlaceholder(unittest.TestCase):
+class TestMoFreezePlaceholder():
     def setUp(self):
         tm.Telemetry.__init__ = Mock(return_value=None)
         tm.Telemetry.send_event = Mock()
@@ -124,8 +122,8 @@ class TestMoFreezePlaceholder(unittest.TestCase):
         for name in self.models.keys():
             os.remove(name)
 
-    @generate(
-        *[
+    @pytest.mark.parametrize(
+        "input_freezing_value, use_new_fe, inputs, expected,dtype",[
             (
                     "in1[1 4]{f32}->[1.0 2.0 3.0 4.0],in2[1 4]{f32}->[1.0 2.0 3.0 4.0]",
                     True,
@@ -157,7 +155,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
         ],
     )
     def test_freeze_placeholder_with_value_onnx_fe(self, input_freezing_value, use_new_fe, inputs, expected,
-                                                   dtype=None):
+                                                   dtype):
         with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
@@ -175,8 +173,8 @@ class TestMoFreezePlaceholder(unittest.TestCase):
                 assert values.dtype == dtype
             assert np.allclose(values, expected)
 
-    @generate(
-        *[
+    @pytest.mark.parametrize(
+        "input_freezing_value, use_new_fe, inputs, expected, dtype",[
             (
                     "in1{f32}->[1.0 15.0 1.0]",
                     True,
@@ -224,7 +222,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             ),
         ],
     )
-    def test_freeze_placeholder_with_value_mul(self, input_freezing_value, use_new_fe, inputs, expected, dtype=None):
+    def test_freeze_placeholder_with_value_mul(self, input_freezing_value, use_new_fe, inputs, expected, dtype):
         with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
@@ -242,8 +240,8 @@ class TestMoFreezePlaceholder(unittest.TestCase):
                 assert values.dtype == dtype
             assert np.allclose(values, expected)
 
-    @generate(
-        *[
+    @pytest.mark.parametrize(
+        "input_freezing_value, use_new_fe, inputs, expected,dtype",[
             (
                     "in1->[1.0 15.0 1.0]",
                     True,
@@ -254,7 +252,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
         ],
     )
     def test_value_without_type(self, input_freezing_value, use_new_fe, inputs, expected,
-                                dtype=None):
+                                dtype):
         with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
@@ -272,8 +270,8 @@ class TestMoFreezePlaceholder(unittest.TestCase):
                 assert values.dtype == dtype
             assert np.allclose(values, expected)
 
-    @generate(
-        *[
+    @pytest.mark.parametrize(
+        "input_freezing_value, use_new_fe, inputs, expected,dtype",[
             (
                     "in2->[3 2 5]",
                     True,
@@ -284,7 +282,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
         ],
     )
     def test_value_without_type_int32(self, input_freezing_value, use_new_fe, inputs, expected,
-                                      dtype=None):
+                                      dtype):
         with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
