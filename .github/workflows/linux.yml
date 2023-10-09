@@ -216,7 +216,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: openvino_developer_package
-          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar
+          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
           if-no-files-found: 'error'
 
       - name: Upload openvino debian packages
@@ -1339,7 +1339,7 @@ jobs:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
-      - name: Download OpenVINO package
+      - name: Download OpenVINO Developer package
         uses: actions/download-artifact@v3
         with:
           name: openvino_developer_package
@@ -1410,6 +1410,7 @@ jobs:
 
       - name: Cmake & Build - NVIDIA Plugin
         run: |
+          source ${INSTALL_DIR}/setupvars.sh
           cmake \
             -DOpenVINODeveloperPackage_DIR=${OPENVINO_DEVELOPER_PACKAGE}/cmake \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \

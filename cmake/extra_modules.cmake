@@ -142,9 +142,10 @@ function(ov_generate_dev_package_config)
         # filter out targets which are installed by OpenVINOConfig.cmake static build case
         set(install_targets)
         foreach(target IN LISTS ${component})
-            if(NOT target IN_LIST openvino_installed_targets)
+            # if(NOT target IN_LIST openvino_installed_targets)
+                message("!! Adding ${target}")
                 list(APPEND install_targets ${target})
-            endif()
+            # endif()
         endforeach()
 
         # install all developer targets with prefix and use them during extra modules build
@@ -161,6 +162,8 @@ function(ov_generate_dev_package_config)
             NAMESPACE openvino::
             DESTINATION ${DEV_PACKAGE_ROOT_DIR}/cmake
             COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+
+    # message(FATAL_ERROR "${install_targets}")
 
     # TODO: OpenCV
 
