@@ -332,17 +332,17 @@ jobs:
         run: |
           python3 -m pip install openvino-dev --force-reinstall --find-links=${{ env.INSTALL_DIR }}\tools
 
-      - name: nGraph and IE Python Bindings Tests
+      - name: Python API 1.0 Tests
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_backend.py
+          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_backend.py
+          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Model Optimizer UT
         shell: cmd
