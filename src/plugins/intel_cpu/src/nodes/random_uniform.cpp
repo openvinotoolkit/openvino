@@ -73,7 +73,9 @@ void RandomUniform::initSupportedPrimitiveDescriptors() {
     }
 
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
-    if (out_prc.is_float() && !one_of(out_prc, InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16, InferenceEngine::Precision::BF16)) {
+    if (out_prc.is_float() && ((m_algo == PHILOX &&
+            !one_of(out_prc, InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16, InferenceEngine::Precision::BF16)) ||
+            (m_algo == STL && !one_of(out_prc, InferenceEngine::Precision::FP32)))) {
         out_prc = InferenceEngine::Precision::FP32;
     }
     if (!out_prc.is_float() && !one_of(out_prc, InferenceEngine::Precision::I32, InferenceEngine::Precision::I64)) {

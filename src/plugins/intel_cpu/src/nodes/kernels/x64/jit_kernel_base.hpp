@@ -224,9 +224,9 @@ public:
                 res.reset(new KernelT<ISA>(jcp));       \
             else
 
-                IF_ISA_CASE(dnnl::impl::cpu::x64::avx512_core)
-                IF_ISA_CASE(dnnl::impl::cpu::x64::avx2)
-                IF_ISA_CASE(dnnl::impl::cpu::x64::sse41);
+            IF_ISA_CASE(dnnl::impl::cpu::x64::avx512_core)
+            IF_ISA_CASE(dnnl::impl::cpu::x64::avx2)
+            IF_ISA_CASE(dnnl::impl::cpu::x64::sse41);
 
 #undef IF_ISA_CASE
 
