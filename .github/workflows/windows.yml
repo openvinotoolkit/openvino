@@ -199,10 +199,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}" -Verbose
           popd
           pushd ${{ env.INSTALL_TEST_DIR }}
-            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
+            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}" -Verbose
           popd
 
       - uses: actions/setup-python@v4
@@ -269,10 +269,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}" -Verbose
           popd
           pushd ${{ env.INSTALL_TEST_DIR }}
-            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
+            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}" -Verbose
           popd
 
       - name: Clone OpenVINO
@@ -462,10 +462,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}" -Verbose
           popd
           pushd ${{ env.INSTALL_TEST_DIR }}
-            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
+            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}" -Verbose
           popd
 
       - name: OpenVINO Core unit tests
@@ -646,10 +646,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}" -Verbose
           popd
           pushd ${{ env.INSTALL_TEST_DIR }}
-            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
+            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}" -Verbose
           popd
 
       - uses: actions/setup-python@v4
