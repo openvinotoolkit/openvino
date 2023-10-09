@@ -21,7 +21,10 @@ protected:
     JitConstants GetJitConstants(const concatenation_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
-            FusedOpType::REORDER
+            FusedOpType::REORDER,
+            FusedOpType::ACTIVATION,
+            FusedOpType::ELTWISE,
+            FusedOpType::QUANTIZE
         };
     }
 };
