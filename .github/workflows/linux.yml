@@ -1200,20 +1200,12 @@ jobs:
     defaults:
       run:
         shell: bash
-<<<<<<< HEAD
     runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
     # TODO: Switch back to self-hosted runners
     # container:
     #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     #   volumes:
     #     - /mount/caches:/mount/caches
-=======
-    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'aks-linux-8-cores'}}
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount/caches:/mount/caches
->>>>>>> added PR 20286: [GHA][HF] Switch python nightly tests to github runners
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
