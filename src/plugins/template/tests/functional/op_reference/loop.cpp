@@ -10,6 +10,7 @@
 #include "base_reference_test.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -47,7 +48,7 @@ struct LoopDynamicInputs : public LoopFunctionalBase {
         auto trip_count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 3);
         auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
         // Body
-        auto sum = std::make_shared<ov::opset8::Add>(Xi, Yi);
+        auto sum = std::make_shared<ov::op::v1::Add>(Xi, Yi);
         auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
         auto body =
             std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo}, ov::ParameterVector{Xi, Yi, M_body});
@@ -154,7 +155,7 @@ struct LoopStaticInputs : public LoopFunctionalBase {
         // Body
         std::shared_ptr<ov::Node> Zo = body_params[0];
         for (size_t i = 1; i < body_params.size(); ++i) {
-            Zo = std::make_shared<ov::opset8::Add>(body_params[i], Zo);
+            Zo = std::make_shared<ov::op::v1::Add>(body_params[i], Zo);
         }
 
         const auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition_const, Zo}, body_params);

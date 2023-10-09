@@ -9,6 +9,7 @@
 
 #include "base_reference_test.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -40,7 +41,7 @@ struct TIDynamicInputs : public TIFunctionalBase {
         auto trip_count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 3);
         auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
         // Body
-        auto sum = std::make_shared<ov::opset8::Add>(Xi, Yi);
+        auto sum = std::make_shared<ov::op::v1::Add>(Xi, Yi);
         auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
         auto body =
             std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo}, ov::ParameterVector{Xi, Yi, M_body});
