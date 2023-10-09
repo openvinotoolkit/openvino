@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset13.hpp"
@@ -76,13 +77,13 @@ private:
         const auto boxes = std::make_shared<op::v0::Parameter>(params.boxes.type, params.boxes.shape);
         const auto scores = std::make_shared<op::v0::Parameter>(params.scores.type, params.scores.shape);
         const auto max_output_boxes_per_class =
-            std::make_shared<opset1::Constant>(params.maxOutputBoxesPerClass.type,
+            std::make_shared<op::v0::Constant>(params.maxOutputBoxesPerClass.type,
                                                params.maxOutputBoxesPerClass.shape,
                                                params.maxOutputBoxesPerClass.data.data());
-        const auto iou_threshold = std::make_shared<opset1::Constant>(params.iouThreshold.type,
+        const auto iou_threshold = std::make_shared<op::v0::Constant>(params.iouThreshold.type,
                                                                       params.iouThreshold.shape,
                                                                       params.iouThreshold.data.data());
-        const auto score_threshold = std::make_shared<opset1::Constant>(params.scoreThreshold.type,
+        const auto score_threshold = std::make_shared<op::v0::Constant>(params.scoreThreshold.type,
                                                                         params.scoreThreshold.shape,
                                                                         params.scoreThreshold.data.data());
         const auto nms = std::make_shared<opset13::NMSRotated>(boxes,

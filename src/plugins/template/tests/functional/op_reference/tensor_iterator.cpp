@@ -9,6 +9,7 @@
 
 #include "base_reference_test.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 
 namespace {
@@ -33,10 +34,10 @@ struct TIDynamicInputs : public TIFunctionalBase {
         auto Xi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto Yi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto M_body = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto body_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        auto body_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
 
-        auto trip_count = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{1}, 3);
-        auto exec_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        auto trip_count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 3);
+        auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
         // Body
         auto sum = std::make_shared<ov::opset8::Add>(Xi, Yi);
         auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
@@ -265,7 +266,7 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
         // 2. Set PortMap
         // 3. Create outer function
         auto axis =
-            std::make_shared<ov::opset8::Constant>(ov::element::i64,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                    ov::Shape{1},
                                                    std::vector<int64_t>{static_cast<int64_t>(params.sequenceAxis)});
         switch (params.body_type) {
@@ -294,9 +295,9 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
             auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
             ov::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
 
-            auto W = std::make_shared<ov::opset8::Constant>(params.W.type, params.W.shape, params.W.data.data());
-            auto R = std::make_shared<ov::opset8::Constant>(params.R.type, params.R.shape, params.R.data.data());
-            auto B = std::make_shared<ov::opset8::Constant>(params.B.type, params.B.shape, params.B.data.data());
+            auto W = std::make_shared<ov::op::v0::Constant>(params.W.type, params.W.shape, params.W.data.data());
+            auto R = std::make_shared<ov::op::v0::Constant>(params.R.type, params.R.shape, params.R.data.data());
+            auto B = std::make_shared<ov::op::v0::Constant>(params.B.type, params.B.shape, params.B.data.data());
             auto lstm_cell = std::make_shared<ov::opset8::LSTMCell>(out_vector[0],
                                                                     out_vector[1],
                                                                     out_vector[2],
@@ -361,9 +362,9 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
             auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
             ov::OutputVector out_vector = {squeeze, body_params[1]};
 
-            auto W = std::make_shared<ov::opset8::Constant>(params.W.type, params.W.shape, params.W.data.data());
-            auto R = std::make_shared<ov::opset8::Constant>(params.R.type, params.R.shape, params.R.data.data());
-            auto B = std::make_shared<ov::opset8::Constant>(params.B.type, params.B.shape, params.B.data.data());
+            auto W = std::make_shared<ov::op::v0::Constant>(params.W.type, params.W.shape, params.W.data.data());
+            auto R = std::make_shared<ov::op::v0::Constant>(params.R.type, params.R.shape, params.R.data.data());
+            auto B = std::make_shared<ov::op::v0::Constant>(params.B.type, params.B.shape, params.B.data.data());
             auto gru_cell = std::make_shared<ov::opset8::GRUCell>(out_vector[0],
                                                                   out_vector[1],
                                                                   W,
@@ -424,9 +425,9 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
             auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
             ov::OutputVector out_vector = {squeeze, body_params[1]};
 
-            auto W = std::make_shared<ov::opset8::Constant>(params.W.type, params.W.shape, params.W.data.data());
-            auto R = std::make_shared<ov::opset8::Constant>(params.R.type, params.R.shape, params.R.data.data());
-            auto B = std::make_shared<ov::opset8::Constant>(params.B.type, params.B.shape, params.B.data.data());
+            auto W = std::make_shared<ov::op::v0::Constant>(params.W.type, params.W.shape, params.W.data.data());
+            auto R = std::make_shared<ov::op::v0::Constant>(params.R.type, params.R.shape, params.R.data.data());
+            auto B = std::make_shared<ov::op::v0::Constant>(params.B.type, params.B.shape, params.B.data.data());
             auto rnn_cell = std::make_shared<ov::opset8::RNNCell>(out_vector[0],
                                                                   out_vector[1],
                                                                   W,

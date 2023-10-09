@@ -10,6 +10,7 @@
 #include "base_reference_test.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 
 namespace {
@@ -40,10 +41,10 @@ struct LoopDynamicInputs : public LoopFunctionalBase {
         auto Xi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto Yi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto M_body = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto body_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        auto body_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
 
-        auto trip_count = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{1}, 3);
-        auto exec_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        auto trip_count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 3);
+        auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
         // Body
         auto sum = std::make_shared<ov::opset8::Add>(Xi, Yi);
         auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
@@ -144,10 +145,10 @@ struct LoopStaticInputs : public LoopFunctionalBase {
         }
 
         const auto body_condition_const =
-            std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
-        const auto exec_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
+            std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        const auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
         std::shared_ptr<ov::Node> trip_count_input;
-        trip_count_input = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{1}, trip_count);
+        trip_count_input = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, trip_count);
 
         // Body
         std::shared_ptr<ov::Node> Zo = body_params[0];

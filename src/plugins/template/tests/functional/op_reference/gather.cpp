@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset7.hpp"
@@ -66,7 +67,7 @@ private:
         const auto P = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A =
-            opset1::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
+            op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
         const auto G = std::make_shared<opset1::Gather>(P, I, A);
         const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
@@ -133,7 +134,7 @@ private:
         const auto P = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A =
-            opset1::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
+            op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
         const auto G = std::make_shared<opset7::Gather>(P, I, A, params.batchDims);
         const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
@@ -150,7 +151,7 @@ private:
         const auto P = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A =
-            opset1::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
+            op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
         const auto G = std::make_shared<opset8::Gather>(P, I, A, params.batchDims);
         const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;

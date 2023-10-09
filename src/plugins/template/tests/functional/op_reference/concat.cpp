@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 
@@ -1410,7 +1411,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ConcatParamsZeroZero& params) {
-        const auto constant_1 = std::make_shared<opset1::Constant>(params.A.type, params.A.shape, params.A.data.data());
+        const auto constant_1 = std::make_shared<op::v0::Constant>(params.A.type, params.A.shape, params.A.data.data());
         const auto concat_1 = std::make_shared<opset1::Concat>(NodeVector{constant_1, constant_1}, params.axis);
         const auto f = std::make_shared<Model>(concat_1, ParameterVector{});
         return f;

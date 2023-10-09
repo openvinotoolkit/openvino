@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
@@ -136,9 +137,9 @@ private:
     static std::shared_ptr<Model> CreateFunction(const ROIAlignParams& params) {
         const auto featureMap = std::make_shared<op::v0::Parameter>(params.iType, params.pShape);
         const auto coords =
-            std::make_shared<opset1::Constant>(params.coords.type, params.coords.shape, params.coords.data.data());
+            std::make_shared<op::v0::Constant>(params.coords.type, params.coords.shape, params.coords.data.data());
         const auto roisIdx =
-            std::make_shared<opset1::Constant>(params.roiIdx.type, params.roiIdx.shape, params.roiIdx.data.data());
+            std::make_shared<op::v0::Constant>(params.roiIdx.type, params.roiIdx.shape, params.roiIdx.data.data());
         const auto roi_align = std::make_shared<opset3::ROIAlign>(featureMap,
                                                                   coords,
                                                                   roisIdx,
@@ -188,9 +189,9 @@ private:
     static std::shared_ptr<Model> CreateFunction(const ROIAlignV9Params& params) {
         const auto featureMap = std::make_shared<op::v0::Parameter>(params.iType, params.pShape);
         const auto coords =
-            std::make_shared<opset1::Constant>(params.coords.type, params.coords.shape, params.coords.data.data());
+            std::make_shared<op::v0::Constant>(params.coords.type, params.coords.shape, params.coords.data.data());
         const auto roisIdx =
-            std::make_shared<opset1::Constant>(params.roiIdx.type, params.roiIdx.shape, params.roiIdx.data.data());
+            std::make_shared<op::v0::Constant>(params.roiIdx.type, params.roiIdx.shape, params.roiIdx.data.data());
         const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum(params.poolingMode);
         const auto aligned_mode = EnumNames<opset9::ROIAlign::AlignedMode>::as_enum(params.alignedMode);
         const auto roi_align = std::make_shared<opset9::ROIAlign>(featureMap,

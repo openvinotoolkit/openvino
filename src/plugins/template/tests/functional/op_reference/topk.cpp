@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset11.hpp"
@@ -119,12 +120,12 @@ private:
     static std::shared_ptr<Model> CreateFunction(const TopKParamsResnet50& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset1::TopK>(A,
-                                                      opset1::Constant::create(element::i64, {}, {5}),
+                                                      op::v0::Constant::create(element::i64, {}, {5}),
                                                       1,
                                                       opset1::TopK::Mode::MAX,
                                                       opset1::TopK::SortType::SORT_VALUES);
         const auto C = std::make_shared<opset1::TopK>(A,
-                                                      opset1::Constant::create(element::i64, {}, {1}),
+                                                      op::v0::Constant::create(element::i64, {}, {1}),
                                                       1,
                                                       opset1::TopK::Mode::MAX,
                                                       opset1::TopK::SortType::SORT_VALUES);
@@ -249,7 +250,7 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset1::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto B = std::make_shared<opset1::TopK>(A, k, params.axis, params.mode, params.sort);
         const auto f = std::make_shared<Model>(B->outputs(), ParameterVector{A});
         return f;
@@ -604,7 +605,7 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset1::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto B = std::make_shared<opset1::TopK>(A, k, params.axis, params.mode, params.sort);
         const auto f = std::make_shared<Model>(B->outputs(), ParameterVector{A});
         return f;
@@ -676,7 +677,7 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params, size_t out_idx) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset1::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto B = std::make_shared<opset1::TopK>(A, k, params.axis, params.mode, params.sort);
         const auto f = std::make_shared<Model>(OutputVector{B->output(out_idx)}, ParameterVector{A});
         return f;
@@ -1192,7 +1193,7 @@ class ReferenceTopKTestInt64 : public ReferenceTopKTest1dMaxMin {
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params, size_t out_idx) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset1::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto B = std::make_shared<opset1::TopK>(A, k, params.axis, params.mode, params.sort, element::i64);
         const auto f = std::make_shared<Model>(OutputVector{B->output(out_idx)}, ParameterVector{A});
         return f;
@@ -1260,7 +1261,7 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset1::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto B = std::make_shared<opset1::TopK>(A, k, params.axis, params.mode, params.sort);
         const auto f = std::make_shared<Model>(OutputVector{B->output(1)}, ParameterVector{A});
         return f;
@@ -1320,18 +1321,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs,
 
 TEST(ReferenceTopKTestInvalid, topk_v1_invalid_strings) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
-    const auto k = opset1::Constant::create(element::i64, Shape{}, {1});
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {1});
     EXPECT_THROW(opset1::TopK(data, k, 0, "max", "invalid_mode"), ov::AssertFailure);
     EXPECT_THROW(opset1::TopK(data, k, 0, "invalid_sort", "index"), ov::AssertFailure);
 }
 
 TEST(ReferenceTopKTestInvalid, topk_v1_invalid_k) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
-    const auto k_non_scalar = opset1::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto k_non_scalar = op::v0::Constant::create(element::i64, Shape{2}, {1, 2});
     EXPECT_THROW(opset1::TopK(data, k_non_scalar, 0, "max", "index"), ov::NodeValidationFailure);
-    const auto k_float = opset1::Constant::create(element::f32, Shape{}, {1.0f});
+    const auto k_float = op::v0::Constant::create(element::f32, Shape{}, {1.0f});
     EXPECT_THROW(opset1::TopK(data, k_float, 0, "max", "index"), ov::NodeValidationFailure);
-    const auto k_negative = opset1::Constant::create(element::i8, Shape{}, {-1});
+    const auto k_negative = op::v0::Constant::create(element::i8, Shape{}, {-1});
     EXPECT_THROW(opset1::TopK(data, k_negative, 0, "max", "index"), ov::NodeValidationFailure);
 }
 
@@ -1340,12 +1341,12 @@ private:
     static std::shared_ptr<Model> CreateFunction(const TopKParamsResnet50& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
         const auto B = std::make_shared<opset3::TopK>(A,
-                                                      opset1::Constant::create(element::i64, {}, {5}),
+                                                      op::v0::Constant::create(element::i64, {}, {5}),
                                                       1,
                                                       opset1::TopK::Mode::MAX,
                                                       opset1::TopK::SortType::SORT_VALUES);
         const auto C = std::make_shared<opset3::TopK>(A,
-                                                      opset1::Constant::create(element::i64, {}, {1}),
+                                                      op::v0::Constant::create(element::i64, {}, {1}),
                                                       1,
                                                       opset1::TopK::Mode::MAX,
                                                       opset1::TopK::SortType::SORT_VALUES);
@@ -1373,7 +1374,7 @@ class ReferenceTopKTestMaxMinSortV3 : public ReferenceTopKTestMaxMinSort {
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset1::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto B = std::make_shared<opset3::TopK>(A, k, params.axis, params.mode, params.sort);
         const auto f = std::make_shared<Model>(B->outputs(), ParameterVector{A});
         return f;
@@ -1393,7 +1394,7 @@ class ReferenceTopKTestBackendV3 : public ReferenceTopKTestBackend {
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset1::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto B = std::make_shared<opset3::TopK>(A, k, params.axis, params.mode, params.sort);
         const auto f = std::make_shared<Model>(B->outputs(), ParameterVector{A});
         return f;
@@ -1413,7 +1414,7 @@ class ReferenceTopKTest1dMaxMinV3 : public ReferenceTopKTest1dMaxMin {
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params, size_t out_idx) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset1::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto B = std::make_shared<opset3::TopK>(A, k, params.axis, params.mode, params.sort);
         const auto f = std::make_shared<Model>(OutputVector{B->output(out_idx)}, ParameterVector{A});
         return f;
@@ -1433,7 +1434,7 @@ class ReferenceTopKTestInt64V3 : public ReferenceTopKTestInt64 {
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params, size_t out_idx) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset1::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto B = std::make_shared<opset3::TopK>(A, k, params.axis, params.mode, params.sort, element::i64);
         const auto f = std::make_shared<Model>(OutputVector{B->output(out_idx)}, ParameterVector{A});
         return f;
@@ -1453,7 +1454,7 @@ class ReferenceTopKTestSingleOutputV3 : public ReferenceTopKTestSingleOutput {
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset1::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto B = std::make_shared<opset3::TopK>(A, k, params.axis, params.mode, params.sort);
         const auto f = std::make_shared<Model>(OutputVector{B->output(1)}, ParameterVector{A});
         return f;
@@ -1471,18 +1472,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs,
 
 TEST(ReferenceTopKTestInvalidV3, topk_v3_invalid_strings) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
-    const auto k = opset1::Constant::create(element::i64, Shape{}, {1});
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {1});
     EXPECT_THROW(opset3::TopK(data, k, 0, "max", "invalid_mode"), ov::AssertFailure);
     EXPECT_THROW(opset3::TopK(data, k, 0, "invalid_sort", "index"), ov::AssertFailure);
 }
 
 TEST(ReferenceTopKTestInvalidV3, topk_v3_invalid_k) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
-    const auto k_non_scalar = opset1::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto k_non_scalar = op::v0::Constant::create(element::i64, Shape{2}, {1, 2});
     EXPECT_THROW(opset3::TopK(data, k_non_scalar, 0, "max", "index"), ov::NodeValidationFailure);
-    const auto k_float = opset1::Constant::create(element::f32, Shape{}, {1.0f});
+    const auto k_float = op::v0::Constant::create(element::f32, Shape{}, {1.0f});
     EXPECT_THROW(opset3::TopK(data, k_float, 0, "max", "index"), ov::NodeValidationFailure);
-    const auto k_negative = opset1::Constant::create(element::i8, Shape{}, {-1});
+    const auto k_negative = op::v0::Constant::create(element::i8, Shape{}, {-1});
     EXPECT_THROW(opset3::TopK(data, k_negative, 0, "max", "index"), ov::NodeValidationFailure);
 }
 
@@ -1504,7 +1505,7 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
-        const auto k = opset11::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto k = op::v0::Constant::create(params.k.type, params.k.shape, params.k.data.data());
         const auto topk_stable =
             std::make_shared<opset11::TopK>(A, k, params.axis, params.mode, params.sort, params.result1.type, true);
         const auto topk_unstable =
