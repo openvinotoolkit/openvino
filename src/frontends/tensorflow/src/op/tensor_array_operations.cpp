@@ -184,7 +184,7 @@ OutputVector translate_tensor_array_read_v3_op(const NodeContext& node) {
 OutputVector translate_tensor_array_close_v3_op(const NodeContext& node) {
     // TensorArrayCloseV3 deletes the TensorArray from its resource container
     // it outputs nothing
-    default_op_checks(node, 4, {"TensorArrayCloseV3"});
+    default_op_checks(node, 1, {"TensorArrayCloseV3"});
     return {};
 }
 
