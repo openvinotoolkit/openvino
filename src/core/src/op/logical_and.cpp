@@ -54,7 +54,7 @@ bool evaluate_logand(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1);
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_logand, boolean, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_logand, boolean, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;
