@@ -50,8 +50,8 @@ TEST_P(ReshapeOptKernel, reshape_opt_kernel) {
     for (size_t i = 0; i < out_shape.size(); i++)
         out_shape[i] = in_shape[axis_order[i]];
 
-    ov::reference::reshape((const char*)p.input.data(),
-                           (char*)output_buff.data(),
+    ov::reference::reshape(static_cast<const char*>(p.input.data()),
+                           reinterpret_cast<char*>(output_buff.data()),
                            in_shape,
                            axis_order,
                            out_shape,
