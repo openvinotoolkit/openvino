@@ -553,8 +553,71 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_9 = {
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{24, MAIN_CORE_PROC, 1, 0, 0}, {24, MAIN_CORE_PROC, 1, 1, 1}},
 };
+StreamGenerateionTestCase generation_latency_1sockets_96cores = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    false,
+    true,
+    true,
+    ov::hint::PerformanceMode::LATENCY,
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    {{96, 0, 96, 0, 0, 0}},
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    true,
+    ov::hint::PerformanceMode::LATENCY,
+    {{96, 0, 96, 0, 0, 0}},
+    {{1, EFFICIENT_CORE_PROC, 96, 0, 0}},
+};
+StreamGenerateionTestCase generation_tput_1sockets_96cores = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    false,
+    true,
+    true,
+    ov::hint::PerformanceMode::THROUGHPUT,
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    {{96, 0, 96, 0, 0, 0}},
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    true,
+    ov::hint::PerformanceMode::THROUGHPUT,
+    {{96, 0, 96, 0, 0, 0}},
+    {{24, EFFICIENT_CORE_PROC, 4, 0, 0}},
+};
+StreamGenerateionTestCase generation_tput_1sockets_96cores_2 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    true,
+    true,
+    true,
+    true,
+    ov::hint::PerformanceMode::THROUGHPUT,
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    {{96, 0, 96, 0, 0, 0}},
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    true,
+    ov::hint::PerformanceMode::THROUGHPUT,
+    {{96, 0, 96, 0, 0, 0}},
+    {{24, EFFICIENT_CORE_PROC, 4, 0, 0}},
+};
 
-#if defined (__linux__) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 INSTANTIATE_TEST_SUITE_P(smoke_StreamsGeneration,
                          StreamGenerationTests,
                          ::testing::Values(generation_latency_1sockets_14cores_3,
@@ -574,7 +637,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_StreamsGeneration,
                                            generation_tput_2sockets_48cores_6,
                                            generation_tput_2sockets_48cores_7,
                                            generation_tput_2sockets_48cores_8,
-                                           generation_tput_2sockets_48cores_9));
+                                           generation_tput_2sockets_48cores_9,
+                                           generation_latency_1sockets_96cores,
+                                           generation_tput_1sockets_96cores,
+                                           generation_tput_1sockets_96cores_2));
 #else
 INSTANTIATE_TEST_SUITE_P(smoke_StreamsGeneration,
                          StreamGenerationTests,
@@ -595,7 +661,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_StreamsGeneration,
                                            generation_tput_2sockets_48cores_6,
                                            generation_tput_2sockets_48cores_7,
                                            generation_tput_2sockets_48cores_8,
-                                           generation_tput_2sockets_48cores_9));
+                                           generation_tput_2sockets_48cores_9,
+                                           generation_latency_1sockets_96cores,
+                                           generation_tput_1sockets_96cores,
+                                           generation_tput_1sockets_96cores_2));
 
 #endif
 }  // namespace
