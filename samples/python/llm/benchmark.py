@@ -70,7 +70,7 @@ def run_text_generation(input_text, num, model, tokenizer, args, iter_data_list,
         log.info(f"All input token size after padding:{input_token_size} * {args['batch_size']}")
         log.info(f"All max_output_token_size:{max_output_token_size} * {args['batch_size']}")
     else:
-        log.info(f'input token size:{input_token_size}, max_output_token_size:{max_output_token_size}')
+        log.info(f'Input token size:{input_token_size}, max_output_token_size:{max_output_token_size}')
 
     max_rss_mem_consumption = ''
     max_shared_mem_consumption = ''
@@ -232,7 +232,7 @@ def run_ldm_super_resolution(img, num, nsteps, pipe, args, framework, iter_data_
         rslt_img_fn = args['model_name'] + '_warmup_' + img.name
     else:
         rslt_img_fn = args['model_name'] + '_iter' + str(num) + '_' + img.name
-    log.info(f'result will be saved to {rslt_img_fn}')
+    log.info(f'Result will be saved to {rslt_img_fn}')
     if framework == 'ov':
         res[0].save(rslt_img_fn)
         md5hash = hashlib.md5(Image.open(rslt_img_fn).tobytes())
@@ -310,9 +310,11 @@ def get_argprser():
     parser.add_argument('-mc', '--memory_consumption', default=0, required=False, type=int, help='if the value is 1, output the maximum memory consumption'
                         'in warm-up iterations. If the value is 2, output the maximum memory consumption in all iterations.')
     parser.add_argument('-bs', '--batch_size', type=int, default=1, required=False, help='Batch size value')
-    parser.add_argument('--fuse_decoding_strategy', action='store_true', help='Add decoding postprocessing for next token selection to the model as an extra ops.'
+    parser.add_argument('--fuse_decoding_strategy', action='store_true', help='Add decoding postprocessing for'
+                        'next token selection to the model as an extra ops.'
                         'Original hf_model.generate function will be patched.')
-    parser.add_argument('--make_stateful', action='store_true', help='Replace kv-cache inputs and outputs in the model by internal variables making a stateful model.'
+    parser.add_argument('--make_stateful', action='store_true', help='Replace kv-cache inputs and outputs in the model by internal variables'
+                        'making a stateful model.'
                         'Original hf_model.forward function will be patched.')
     parser.add_argument('--save_prepared_model', default=None, help='Path to .xml file to save IR used for inference with all pre-/post processing included')
     parser.add_argument('--num_beams', type=int, default=1, help='Number of beams in the decoding strategy, activates beam_search if greater than 1')
@@ -335,9 +337,9 @@ def main():
     args = get_argprser()
     model_path, framework, model_args, model_name = utils.model_utils.analyze_args(args)
     if framework == 'ov':
-        print(f'model_path={model_path}, openvino runtime version:{get_version()}')
+        log.info(f'model_path={model_path}, openvino runtime version:{get_version()}')
         if model_args['config'].get('PREC_BF16') and model_args['config']['PREC_BF16'] is True:
-            print('[Warning] Param bf16/prec_bf16 only work for framework pt. It will be disabled.')
+            log.warning('[Warning] Param bf16/prec_bf16 only work for framework pt. It will be disabled.')
     if args.memory_consumption:
         mem_consumption.start_collect_mem_consumption_thread()
     try:
@@ -349,10 +351,13 @@ def main():
                 if ir_conversion_frontend != '':
                     framework = framework + '(' + ir_conversion_frontend + ')'
                 model_precision = utils.model_utils.get_model_precision(model_path.parents._parts)
-            utils.output_csv.write_result(args.report, model_name, framework, args.device, model_args['use_case'], iter_data_list, pretrain_time, model_precision)
+            utils.output_csv.write_result(args.report, model_name, framework,
+                                          args.device, model_args['use_case'],
+                                          iter_data_list, pretrain_time,
+                                          model_precision)
     except Exception:
-        print('An exception occurred')
-        print(traceback.format_exc())
+        log.error('An exception occurred')
+        log.info(traceback.format_exc())
     finally:
         if args.memory_consumption:
             mem_consumption.end_collect_mem_consumption_thread()

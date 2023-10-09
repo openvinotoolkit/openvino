@@ -46,7 +46,8 @@ USE_CASES = {
     'text2speech': ['whisper'],
     'image_cls': ['vit'],
     'code_gen': ['replit', 'codegen2', 'codegen', 'codet5'],
-    'text_gen': ['decoder', 't5', 'falcon', 'gpt', 'aquila', 'mpt', 'open-llama', 'llama', 'opt-', 'pythia-', 'stablelm-', 'blenderbot', 'vicuna', 'dolly', 'bloom', 'red-pajama', 'chatglm', 'xgen', 'longchat'],
+    'text_gen': ['decoder', 't5', 'falcon', 'gpt', 'aquila', 'mpt', 'open-llama', 'llama', 'opt-', 'pythia-', 'stablelm-',
+                 'blenderbot', 'vicuna', 'dolly', 'bloom', 'red-pajama', 'chatglm', 'xgen', 'longchat'],
     'ldm_super_resolution': ['ldm-super-resolution'],
 }
 

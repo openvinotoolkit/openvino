@@ -276,7 +276,6 @@ class OVLDMSuperResolutionPipeline(DiffusionPipeline):
         latents_shape = (batch_size, 3, height, width)
         latents = randn_tensor(latents_shape, generator=generator)
         # set timesteps and move to the correct device
-        # self.scheduler.set_timesteps(num_inference_steps, device=self.device)
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps_tensor = self.scheduler.timesteps
         # scale the initial noise by the standard deviation required by the scheduler
@@ -358,12 +357,12 @@ class OVChatGLM2Model(OVModelForCausalLM):
             past = past_key_values if past_key_values is not None else past
 
         return {
-                'input_ids': input_ids,
-                'past_key_values': past,
-                'position_ids': position_ids,
-                'attention_mask': attention_mask,
-                'use_cache': self.use_cache,
-                'token_type_ids': None,
+            'input_ids': input_ids,
+            'past_key_values': past,
+            'position_ids': position_ids,
+            'attention_mask': attention_mask,
+            'use_cache': self.use_cache,
+            'token_type_ids': None,
         }
 
     def forward(
@@ -397,10 +396,6 @@ class OVChatGLM2Model(OVModelForCausalLM):
 
         # Create empty past_key_values for decoder_with_past first generation step
         elif self.use_cache:
-            # shape_input_ids = input_ids.shape
-            # num_attention_heads = (
-            #     self.normalized_config.num_attention_heads if self.config.model_type == 'bloom' else 1
-            # )
             for input_name in self.key_value_input_names:
                 model_inputs = self.model.input(input_name)
                 shape = model_inputs.get_partial_shape()

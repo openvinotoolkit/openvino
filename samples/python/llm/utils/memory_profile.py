@@ -55,11 +55,11 @@ class MemConsumption:
         self.g_maxRssMemConsumption = -1
         self.g_maxSharedMemConsumption = -1
 
-    def start_collect_memConsumption_thread(self):
+    def start_collect_mem_consumption_thread(self):
         self.t_mem_thread = Thread(target=self.collect_memory_consumption)
         self.t_mem_thread.start()
 
-    def end_collect_memConsumption_thread(self):
+    def end_collect_mem_consumption_thread(self):
         self.g_event.set()
         self.g_data_event.set()
         self.g_EndCollectMem = True

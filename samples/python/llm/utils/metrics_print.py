@@ -28,9 +28,9 @@ def print_metrics(iter_num, iter_data, tms=[], generated=None, warm_up=False, ma
         log.info(f"[{iter_str}] First token time: {iter_data['first_token_latency']:.2f} ms,"
                  f"other tokens average time: {iter_data['other_tokens_avg_latency']:.2f} ms/token")
     if max_rss_mem != '' and max_rss_mem > -1:
-        log.info(f'[{iter_str}] max rss memory cost:\n{max_rss_mem}')
+        log.info(f'[{iter_str}] Max rss memory cost:\n{max_rss_mem}')
     if max_shared_mem != '' and max_shared_mem > -1:
-        log.info(f'[{iter_str}] max shared memory cost:\n{max_shared_mem}')
+        log.info(f'[{iter_str}] Max shared memory cost:\n{max_shared_mem}')
 
 
 def print_average(iter_data_list):

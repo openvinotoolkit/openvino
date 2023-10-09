@@ -230,7 +230,6 @@ def create_text_gen_model(model_path, device, **kwargs):
     - device: can be CPU or GPU
     - model_type:
     """
-
     default_model_type = DEFAULT_MODEL_CLASSES[kwargs['use_case']]
     model_type = kwargs.get('model_type', default_model_type)
     model_class = OV_MODEL_CLASSES_MAPPING.get(model_type, OV_MODEL_CLASSES_MAPPING[default_model_type])
@@ -271,7 +270,7 @@ def create_text_gen_model(model_path, device, **kwargs):
             patch_inter_processing(ov_model, **kwargs)
             end = time.perf_counter()
     from_pretrained_time = end - start
-    log.info(f'from pretrained time: {from_pretrained_time:.2f}s')
+    log.info(f'From pretrained time: {from_pretrained_time:.2f}s')
     # load token
     if not model_path_existed:
         tokenizer = token_class.from_pretrained(kwargs['model_id'])
@@ -297,7 +296,7 @@ def create_image_gen_model(model_path, device, **kwargs):
         ov_model = model_class.from_pretrained(model_path, device=device, ov_config=ov_config)
         end = time.perf_counter()
     from_pretrained_time = end - start
-    log.info(f'from pretrained time: {from_pretrained_time:.2f}s')
+    log.info(f'From pretrained time: {from_pretrained_time:.2f}s')
     return ov_model, from_pretrained_time
 
 
@@ -328,12 +327,12 @@ def create_image_classification_model(model_path, device, config=None, **kwargs)
         ov_model = core.read_model(model_file)
         end = time.perf_counter()
         load_model_time = end - start
-        log.info(f'load model time: {load_model_time:.2f}s')
+        log.info(f'Load model time: {load_model_time:.2f}s')
     start = time.perf_counter()
     compiled_model = core.compile_model(ov_model, device.upper())
     end = time.perf_counter()
     compile_model_time = end - start
-    log.info(f'compile model time: {compile_model_time:.2f}s')
+    log.info(f'Compile model time: {compile_model_time:.2f}s')
     return compiled_model, input_size
 
 
@@ -349,5 +348,5 @@ def create_ldm_super_resolution_model(model_path, device, **kwargs):
     ov_model = model_class(model_path, core, device.upper())
     end = time.perf_counter()
     from_pretrained_time = end - start
-    log.info(f'from pretrained time: {from_pretrained_time:.2f}s')
+    log.info(f'From pretrained time: {from_pretrained_time:.2f}s')
     return ov_model, from_pretrained_time

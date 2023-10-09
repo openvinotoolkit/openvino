@@ -34,11 +34,11 @@ def get_text_model_from_huggingface(model_path, connect_times, **kwargs):
         model = model_class.from_pretrained(kwargs['model_id'])
         end = time.perf_counter()
         from_pretrain_time = end - start
-        log.info('get tokenizer and model from huggingface success')
+        log.info('Get tokenizer and model from huggingface success')
         tokenizer.save_pretrained(model_path)
         model.save_pretrained(model_path)
     except Exception:
-        log.info('try to connect huggingface times: {connect_times}....')
+        log.info('Try to connect huggingface times: {connect_times}....')
         if connect_times > MAX_CONNECT_TIME:
             raise RuntimeError(f'==Failure ==: connect times {MAX_CONNECT_TIME}, connect huggingface failed')
         time.sleep(3)
@@ -55,14 +55,14 @@ def create_text_gen_model(model_path, device, **kwargs):
             # Checking if the list is empty or not
             if len(os.listdir(model_path)) == 0:
                 if kwargs['model_id'] != '':
-                    log.info('get text model from huggingface...')
+                    log.info('Get text model from huggingface...')
                     connect_times = 1
                     model, tokenizer, from_pretrain_time = get_text_model_from_huggingface(model_path, connect_times, **kwargs)
                 else:
                     raise RuntimeError('==Failure ==: the model id of huggingface should not be empty!')
             else:
 
-                log.info(f'load text model from model path:{model_path}')
+                log.info(f'Load text model from model path:{model_path}')
                 default_model_type = DEFAULT_MODEL_CLASSES[kwargs['use_case']]
                 model_type = kwargs.get('model_type', default_model_type)
                 model_class = PT_MODEL_CLASSES_MAPPING.get(model_type, PT_MODEL_CLASSES_MAPPING[default_model_type])
@@ -80,7 +80,7 @@ def create_text_gen_model(model_path, device, **kwargs):
     else:
         raise RuntimeError(f'==Failure ==: model path:{model_path} is not exist')
 
-    log.info(f'model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
+    log.info(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
 
     if device is not None:
         GPTJFCLM = 'transformers.models.gptj.modeling_gptj.GPTJForCausalLM'
@@ -113,9 +113,9 @@ def get_image_model_from_huggingface(model_path, connect_times, **kwargs):
         pipe.save_pretrained(model_path)
         end = time.perf_counter()
         from_pretrain_time = end - start
-        log.info('get image model from huggingface success')
+        log.info('Get image model from huggingface success')
     except Exception:
-        log.info(f'try to connect huggingface times: {connect_times}....')
+        log.info(f'Try to connect huggingface times: {connect_times}....')
         if connect_times > MAX_CONNECT_TIME:
             raise RuntimeError(f'==Failure ==: connect times {MAX_CONNECT_TIME}, connect huggingface failed')
         time.sleep(3)
@@ -132,13 +132,13 @@ def create_image_gen_model(model_path, device, **kwargs):
             # Checking if the list is empty or not
             if len(os.listdir(model_path)) == 0:
                 if kwargs['model_id'] != '':
-                    log.info('get image model from huggingface...')
+                    log.info('Get image model from huggingface...')
                     connect_times = 1
                     pipe, from_pretrain_time = get_image_model_from_huggingface(model_path, connect_times, **kwargs)
                 else:
                     raise RuntimeError('==Failure ==: the model id of huggingface should not be empty!')
             else:
-                log.info(f'load image model from model path:{model_path}')
+                log.info(f'Load image model from model path:{model_path}')
                 model_type = DEFAULT_MODEL_CLASSES[kwargs['use_case']]
                 model_class = PT_MODEL_CLASSES_MAPPING[model_type]
                 start = time.perf_counter()
@@ -150,7 +150,7 @@ def create_image_gen_model(model_path, device, **kwargs):
     else:
         raise RuntimeError(f'==Failure ==: model path:{model_path} is not exist')
 
-    log.info(f'model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
+    log.info(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
 
     if device is not None:
         pipe.to(device)
@@ -200,13 +200,13 @@ def create_ldm_super_resolution_model(model_path, device, **kwargs):
             # Checking if the list is empty or not
             if len(os.listdir(model_path)) == 0:
                 if kwargs['model_id'] != '':
-                    log.info('get super resolution model from huggingface...')
+                    log.info('Get super resolution model from huggingface...')
                     connect_times = 1
                     pipe, from_pretrain_time = get_image_model_from_huggingface(model_path, connect_times, **kwargs)
                 else:
                     raise RuntimeError('==Failure ==: the model id of huggingface should not be empty!')
             else:
-                log.info(f'load image model from model path:{model_path}')
+                log.info(f'Load image model from model path:{model_path}')
                 model_type = DEFAULT_MODEL_CLASSES[kwargs['use_case']]
                 model_class = PT_MODEL_CLASSES_MAPPING[model_type]
                 start = time.perf_counter()
@@ -218,7 +218,7 @@ def create_ldm_super_resolution_model(model_path, device, **kwargs):
     else:
         raise RuntimeError(f'==Failure ==: model path:{model_path} is not exist')
 
-    log.info(f'model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
+    log.info(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
 
     if device is not None:
         pipe.to(device)
