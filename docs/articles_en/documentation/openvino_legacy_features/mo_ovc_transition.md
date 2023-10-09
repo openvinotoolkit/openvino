@@ -631,153 +631,186 @@ Performing surgery by cutting model inputs and outputs from a model is no longer
 Below are examples of model cutting of TensorFlow protobuf, TensorFlow SavedModel, and ONNX formats with the legacy conversion API, compared to achieving the same cut with tools provided by the Tensorflow and ONNX frameworks.
 For PyTorch, TensorFlow 2 Keras, and PaddlePaddle, we recommend changing the original model code to perform the model cut.
 
+``PyTorch``
+###########
+
+Model cut for PyTorch is not available in legacy API.  
+
+Example of model cut in original FW.
+
+.. code-block:: py
+   :force:
+
+   import torch
+   import torchvision
+   import openvino as ov
+     
+     
+   # Helper Identity class
+   class Identity(torch.nn.Module):
+       def __init__(self):
+           super(Identity, self).__init__()
+     
+       def forward(self, x):
+           return x
+     
+   # Load pretrained model
+   model = torchvision.models.resnet50(weights='DEFAULT')
+     
+   # input cut
+   model.conv1 = Identity()
+   model.bn1 = Identity()
+     
+   # output cut
+   model.fc = Identity()
+     
+   # convert and compile the model
+   ov_model = ov.convert_model(model, input=([-1,64,-1,-1], torch.float32))
+   compiled_model = ov.compile_model(ov_model)
+
+
 ``TensorFlow protobuf format / tf.Graph / tf.GraphDef``
 #######################################################
 
-.. list-table::
-   :header-rows: 1
+Legacy API.
 
-   * - Legacy API
-     - New API
-   * - .. code-block:: py
-          :force:
+.. code-block:: py
+   :force:
 
-          import openvino as ov
-          import openvino.tools.mo as mo
-               
-          import tensorflow as tf
-
-          def load_graph(model_path):
-              graph_def = tf.compat.v1.GraphDef()
-              with open(model_path, "rb") as f:
-                  graph_def.ParseFromString(f.read())
-              with tf.compat.v1.Graph().as_default() as graph:
-                  tf.graph_util.import_graph_def(graph_def, name="")
-                  return graph
-                
-          # Load TF model
-          graph = load_graph("/path_to_model/HugeCTR.pb")
-          
-          # Convert the model with input and output cut
-          input_name = "concat"
-          output_name = "MatVec_3/Squeeze"
-          ov_model = mo.convert_model(graph, input=(input_name, [-1, -1]), output=output_name)
-          
-          # Compile the model
-          compiled_model = ov.compile_model(ov_model)
-
-     - .. code-block:: py
-          :force:
-
-          import openvino as ov
-          import tensorflow as tf
-          
-          from tensorflow.python.tools.strip_unused_lib import strip_unused
-          
-          def load_graph(model_path):
-              graph_def = tf.compat.v1.GraphDef()
-              with open(model_path, "rb") as f:
-                  graph_def.ParseFromString(f.read())
-              with tf.compat.v1.Graph().as_default() as graph:
-                  tf.graph_util.import_graph_def(graph_def, name="")
-                  return graph
-          
-          # Load TF model
-          graph = load_graph("/path_to_model/HugeCTR.pb")
+   import openvino as ov
+   import openvino.tools.mo as mo
          
-          # Cut the model
-          input_name = "concat"
-          output_name = "MatVec_3/Squeeze"
-          graph_def = graph.as_graph_def()
-          new_graph_def = strip_unused(graph_def, [input_name], [output_name], tf.float32.as_datatype_enum)
-          
-          # Convert and compile model
-          ov_model = ov.convert_model(new_graph_def, input=[-1, -1])
-          cmp_model = ov.compile_model(ov_model)
+   import tensorflow as tf
+    
+   def load_graph(model_path):
+       graph_def = tf.compat.v1.GraphDef()
+       with open(model_path, "rb") as f:
+           graph_def.ParseFromString(f.read())
+       with tf.compat.v1.Graph().as_default() as graph:
+           tf.graph_util.import_graph_def(graph_def, name="")
+           return graph
+           
+   # Load TF model
+   graph = load_graph("/path_to_model/HugeCTR.pb")
+     
+   # Convert the model with input and output cut
+   input_name = "concat"
+   output_name = "MatVec_3/Squeeze"
+   ov_model = mo.convert_model(graph, input=(input_name, [-1, -1]), output=output_name)
+     
+   # Compile the model
+   compiled_model = ov.compile_model(ov_model)
+
+Model cut in original FW.
+
+.. code-block:: py
+   :force:
+
+   import openvino as ov
+   import tensorflow as tf
+     
+   from tensorflow.python.tools.strip_unused_lib import strip_unused
+     
+   def load_graph(model_path):
+       graph_def = tf.compat.v1.GraphDef()
+       with open(model_path, "rb") as f:
+           graph_def.ParseFromString(f.read())
+       with tf.compat.v1.Graph().as_default() as graph:
+           tf.graph_util.import_graph_def(graph_def, name="")
+           return graph
+     
+   # Load TF model
+   graph = load_graph("/path_to_model/HugeCTR.pb")
+     
+   # Cut the model
+   input_name = "concat"
+   output_name = "MatVec_3/Squeeze"
+   graph_def = graph.as_graph_def()
+   new_graph_def = strip_unused(graph_def, [input_name], [output_name], tf.float32.as_datatype_enum)
+     
+   # Convert and compile model
+   ov_model = ov.convert_model(new_graph_def, input=[-1, -1])
+   cmp_model = ov.compile_model(ov_model)
 
 
 ``TensorFlow SavedModel format``
 ################################
 
-.. list-table::
-   :header-rows: 1
+Model cut for SavedModel format is not available in legacy API.  
 
-   * - Legacy API
-     - New API
-   * - Not available in legacy API
+Example of model cut in original FW.
 
-     - .. code-block:: py
-          :force:
+.. code-block:: py
+   :force:
 
-          import openvino as ov
-          import tensorflow_hub as hub
-         
-          import tensorflow as tf
-          from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
-          from tensorflow.python.tools.strip_unused_lib import strip_unused
-
-          # Load TF model
-          model = hub.load("https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed")
-          
-          # Convert model to GraphDef
-          model_func = model.signatures["default"]
-          frozen_func = convert_variables_to_constants_v2(model_func)
-          graph_def = frozen_func.graph.as_graph_def()
-          
-          # Cut the model
-          input_name = 'InceptionV4/InceptionV4/Conv2d_2b_3x3/Relu'
-          output_name = 'InceptionV4/InceptionV4/Mixed_7c/concat'
-          new_graph_def = strip_unused(graph_def, [input_name], [output_name], tf.float32.as_datatype_enum)
-          
-          # Convert and compile the model
-          ov_model = ov.convert_model(new_graph_def)
-          compiled_model = ov.compile_model(ov_model)
+   import openvino as ov
+   import tensorflow_hub as hub
+     
+   import tensorflow as tf
+   from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+   from tensorflow.python.tools.strip_unused_lib import strip_unused
+     
+   # Load TF model
+   model = hub.load("https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed")
+     
+   # Convert model to GraphDef
+   model_func = model.signatures["default"]
+   frozen_func = convert_variables_to_constants_v2(model_func)
+   graph_def = frozen_func.graph.as_graph_def()
+     
+   # Cut the model
+   input_name = 'InceptionV4/InceptionV4/Conv2d_2b_3x3/Relu'
+   output_name = 'InceptionV4/InceptionV4/Mixed_7c/concat'
+   new_graph_def = strip_unused(graph_def, [input_name], [output_name], tf.float32.as_datatype_enum)
+     
+   # Convert and compile the model
+   ov_model = ov.convert_model(new_graph_def)
+   compiled_model = ov.compile_model(ov_model)
 
 
 ``ONNX``
 ########
 
 
-.. list-table::
-   :header-rows: 1
+Legacy API.
 
-   * - Legacy API
-     - New API
-   * - .. code-block:: py
-          :force:
+.. code-block:: py
+   :force:
 
-          import openvino as ov
-          import openvino.tools.mo as mo
-               
-          input_path = "/path_to_model/yolov8x.onnx"
-               
-          # Convert model and perform input and output cut
-          input_name = "/model.2/Concat_output_0"
-          output_name = "/model.22/Concat_3_output_0"
-          ov_model = mo.convert_model(input_path, input=input_name, output=output_name)
-               
-          # Compile model
-          ov.compile_model(ov_model)
+   import openvino as ov
+   import openvino.tools.mo as mo
+          
+   input_path = "/path_to_model/yolov8x.onnx"
+          
+   # Convert model and perform input and output cut
+   input_name = "/model.2/Concat_output_0"
+   output_name = "/model.22/Concat_3_output_0"
+   ov_model = mo.convert_model(input_path, input=input_name, output=output_name)
+          
+   # Compile model
+   ov.compile_model(ov_model)
 
-     - .. code-block:: py
-          :force:
+Model cut in original FW.
 
-          import onnx
-          import openvino as ov
-               
-          input_path = "/path_to_model/yolov8x.onnx"
-               
-          # Cut the model
-          input_name = "/model.2/Concat_output_0"
-          output_name = "/model.22/Concat_3_output_0"
-          cut_model_path = "/path_to_model/yolov8x_cut.onnx"
-          onnx.utils.extract_model(input_path, cut_model_path, [input_name], [output_name])
-               
-          # Convert model
-          ov_model = ov.convert_model(cut_model_path)
-               
-          # Compile model
-          ov.compile_model(ov_model)
+.. code-block:: py
+   :force:
+
+   import onnx
+   import openvino as ov
+          
+   input_path = "/path_to_model/yolov8x.onnx"
+          
+   # Cut the model
+   input_name = "/model.2/Concat_output_0"
+   output_name = "/model.22/Concat_3_output_0"
+   cut_model_path = "/path_to_model/yolov8x_cut.onnx"
+   onnx.utils.extract_model(input_path, cut_model_path, [input_name], [output_name])
+          
+   # Convert model
+   ov_model = ov.convert_model(cut_model_path)
+          
+   # Compile model
+   ov.compile_model(ov_model)
 
 
 Supported Frameworks in MO vs OVC
