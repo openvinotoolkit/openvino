@@ -49,7 +49,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}
         ADD_CLANG_FORMAT
         LABELS
-            OV
+            OV UNIT RUNTIME
 )
 
 add_compile_definitions(${TARGET_NAME} ${COMPILE_DEFINITIONS})
