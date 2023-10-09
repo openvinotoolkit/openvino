@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/lstm_cell.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -93,7 +93,7 @@ private:
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto lstm_cell =
-            std::make_shared<opset4::LSTMCell>(X,
+            std::make_shared<op::v4::LSTMCell>(X,
                                                H_t,
                                                C_t,
                                                op::util::convert_lstm_node_format(W, op::util::LSTMWeightsFormat::IOFC),
@@ -126,7 +126,7 @@ private:
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto lstm_cell =
-            std::make_shared<opset4::LSTMCell>(X,
+            std::make_shared<op::v4::LSTMCell>(X,
                                                H_t,
                                                C_t,
                                                op::util::convert_lstm_node_format(W, op::util::LSTMWeightsFormat::IOFC),
@@ -160,7 +160,7 @@ private:
         const auto C_t = std::make_shared<op::v0::Parameter>(params.C_t.type, params.C_t.shape);
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
-        const auto lstm_cell = std::make_shared<opset4::LSTMCell>(X,
+        const auto lstm_cell = std::make_shared<op::v4::LSTMCell>(X,
                                                                   H_t,
                                                                   C_t,
                                                                   W,
@@ -200,7 +200,7 @@ private:
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto lstm_cell =
-            std::make_shared<opset1::LSTMCell>(X,
+            std::make_shared<op::v0::LSTMCell>(X,
                                                H_t,
                                                C_t,
                                                op::util::convert_lstm_node_format(W, op::util::LSTMWeightsFormat::IOFC),
@@ -224,7 +224,7 @@ private:
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto lstm_cell =
-            std::make_shared<opset1::LSTMCell>(X,
+            std::make_shared<op::v0::LSTMCell>(X,
                                                H_t,
                                                C_t,
                                                op::util::convert_lstm_node_format(W, op::util::LSTMWeightsFormat::IOFC),
@@ -265,7 +265,7 @@ private:
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
         const auto P = std::make_shared<op::v0::Parameter>(params.P.type, params.P.shape);
 
-        const auto lstm_cell = std::make_shared<opset1::LSTMCell>(X,
+        const auto lstm_cell = std::make_shared<op::v0::LSTMCell>(X,
                                                                   H_t,
                                                                   C_t,
                                                                   W,
