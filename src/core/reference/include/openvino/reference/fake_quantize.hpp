@@ -121,33 +121,38 @@ void fake_quantize(const T* arg,
         return;
     }
 
+    // clang-format off
     /*
      * ---------------------------------------------------
      * Overview:
-     * 	Numpy broadcasted input tensors can be partitioned into two: outer and inner part (which also defines inner stride as a product of inner part),
-     * 	so N-dimensional tensors can be processed using two loops.
+     *  Numpy broadcasted input tensors can be partitioned into two: outer and inner part (which also defines inner
+     *  stride as a product of inner part), so N-dimensional tensors can be processed using two loops.
      *
-     *	For example with two inputs [2, 2, 3, 4] and [1, 1, 3, 4] we can have:
-     *		input 1 with shape [2, 2, 3, 4] can be divided into outer part [2, 2] and inner part [4, 5] with inner stride = 12 (3 * 4)
-     *		input 2 with shape [1, 1, 3, 4] can be divided into outer part [1, 1] and inner part [4, 5] with inner stride = 12 (3 * 4)
+     *  For example with two inputs [2, 2, 3, 4] and [1, 1, 3, 4] we can have:
+     *      input 1 with shape [2, 2, 3, 4] can be divided into outer part [2, 2] and inner part [4, 5]
+     *      with inner stride = 12 (3 * 4) input 2 with shape [1, 1, 3, 4] can be divided into outer part [1, 1]
+     *      and inner part [4, 5] with inner stride = 12 (3 * 4)
      *
-     *		Having that, those inputs can be processed by the following:
+     *      Having that, those inputs can be processed by the following:
      *
      *      output_shape = {2, 2, 3, 4};
      *      output_inner_stride = 12;
-     *		for (i = 0; i < shape_size(shape); i += output_inner_stride) {
-     *		    first_input_stride = i;
-     *		    second_input_stride = 0;
-     *		    for (j = 0; j < 12; j++) {
-     *		        *out++ = f(first_input[first_input_stride + j], second_input[second_input_stride + j]);
-     *		    }
-     *		}
+     *      for (i = 0; i < shape_size(shape); i += output_inner_stride) {
+     *          first_input_stride = i;
+     *          second_input_stride = 0;
+     *          for (j = 0; j < 12; j++) {
+     *              *out++ = f(first_input[first_input_stride + j], second_input[second_input_stride + j]);
+     *          }
+     *      }
      *
      * ---------------------------------------------------
      * How the partitioning is done:
-     *  Partitioning process starts with the last dimension of input tensor shape and it stops when either one of below occurs:
-     *      - if the last dimension is equal to 1, partitioning stops at the dimension that is greater than 1 (this dimension is not included in the inner part),
-     *      - if the last dimension is greater than 1, partitioning stops at the dimension that is equal to 1 (this dimension is not included in the inner part).
+     *  Partitioning process starts with the last dimension of input tensor shape and it stops when either one of below
+     *  occurs:
+     *      - if the last dimension is equal to 1, partitioning stops at the dimension that is greater than 1 (this
+     *        dimension is not included in the inner part),
+     *      - if the last dimension is greater than 1, partitioning stops at the dimension that is equal to 1 (this
+     *        dimension is not included in the inner part).
      *
      *  Examples:
      *      tensor_shape=[2, 3, 4, 5], inner_part = [2, 3, 4, 5], inner_stride = 120
@@ -157,7 +162,8 @@ void fake_quantize(const T* arg,
      *
      * ---------------------------------------------------
      * How the output inner stride is calculated:
-     *  Inner part (and inner stride) for every input tensor is determined. Then the size of output inner part is the size of inner part with the fewest number of dimensions.
+     *  Inner part (and inner stride) for every input tensor is determined. Then the size of output inner part is the
+     *  size of inner part with the fewest number of dimensions.
      *
      *  Example with 5 inputs:
      *      input 1 shape [2, 3, 4, 5], inner_part = [2, 3, 4, 5], inner_stride = 120
@@ -168,8 +174,10 @@ void fake_quantize(const T* arg,
      *
      *      output shape [2, 3, 4, 5], inner_part = [4, 5], inner_stride = 20
      *
-     *      Inner part with fewest number of elements is [1, 1] for input 2. So the inner part for output shape is [4, 5] and output inner stride is 20.
+     *      Inner part with fewest number of elements is [1, 1] for input 2. So the inner part for output shape is [4, 5]
+     *      and output inner stride is 20.
      */
+    // clang-format on
 
     std::vector<size_t> output_strides = compute_strides(arg_shape, arg_shape);
     std::vector<size_t> in_low_strides = compute_strides(arg_shape, in_low_shape);
@@ -310,15 +318,17 @@ std::tuple<size_t, size_t> get_inner_stride(size_t num_output_elements,
     });
     if (it == shape.rend()) {
         const size_t num_elements = shape_size(shape);
-        return std::tuple<size_t, size_t>{num_elements, last == 1 ? current_output_inner_stride : std::min(current_output_inner_stride, num_elements)};
+        return std::tuple<size_t, size_t>{
+            num_elements,
+            last == 1 ? current_output_inner_stride : std::min(current_output_inner_stride, num_elements)};
     }
     const size_t idx = std::distance(it, shape.rbegin()) + static_cast<int64_t>(shape.size());
     const size_t inner_stride =
         std::accumulate(shape.begin() + idx, shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
     const size_t output_inner_stride = std::accumulate(output_shape.begin() + output_shape.size() - shape.size() + idx,
-                                                  output_shape.end(),
-                                                  static_cast<size_t>(1),
-                                                  std::multiplies<size_t>());
+                                                       output_shape.end(),
+                                                       static_cast<size_t>(1),
+                                                       std::multiplies<size_t>());
     return std::tuple<size_t, size_t>{inner_stride, std::min(current_output_inner_stride, output_inner_stride)};
 }
 
