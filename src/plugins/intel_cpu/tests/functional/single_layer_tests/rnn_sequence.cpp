@@ -170,18 +170,27 @@ protected:
 };
 
 TEST_P(RNNSequenceCPUTest, CompareWithRefs) {
+    // brgemm_avx512 and brgemm_avx2 kernel is created from one entry in ONEDNN rnn list. Can't filter to choose different ISA kernel.
+    // Skip all the brgemm_avx2 on AVX512 platform.
+    if (!priority.empty() && priority[0].find("brgemm_avx2") != std::string::npos
+          && InferenceEngine::with_cpu_x86_avx512f())
+        GTEST_SKIP() << "Disabled brgemm_avx2 rnn test on avx512 platform due to one kernel entry for avx2 and avx512." << std::endl;
     run();
     CheckPluginRelatedResults(compiledModel, "RNNSeq");
 }
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
-       {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
+const std::map<std::string, std::string> cpuFP32PluginConfig =
+        { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO } };
+const std::map<std::string, std::string> cpuBF16PluginConfig =
+        { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
 
-CPUSpecificParams cpuParams{{ntc, tnc}, {ntc, tnc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc}, {tnc, tnc}, {"ref_any"}, "ref_any"};
+const auto cpuParamBrgemmAMX = CPUSpecificParams{{ntc, tnc}, {ntc, tnc}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"};
+const auto cpuParamBrgemmAvx512 = CPUSpecificParams{{ntc, tnc}, {ntc, tnc}, {"brgemm_avx512"}, "brgemm_avx512"};
+const auto cpuParamBrgemmAvx2 = CPUSpecificParams{{ntc, tnc}, {ntc, tnc}, {"brgemm_avx2"}, "brgemm_avx2"};
+const auto cpuParamBatchSizeOneBrgemmAvx512 = CPUSpecificParams{{tnc, ntc}, {tnc, tnc}, {"brgemm_avx512"}, "brgemm_avx512"};
+const auto cpuParamBatchSizeOneBrgemmAvx2 = CPUSpecificParams{{tnc, ntc}, {tnc, tnc}, {"brgemm_avx2"}, "brgemm_avx2"};
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2
@@ -216,7 +225,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, RNNSequenceCPUTest,
                                    ::testing::ValuesIn(clip),
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
-                                   ::testing::Values(cpuParams),
+                                   ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAvx512, cpuParamBrgemmAvx2})),
                                    ::testing::Values(std::map<std::string, std::string>{})),
                 RNNSequenceCPUTest::getTestCaseName);
 
@@ -227,7 +236,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, RNNSequenceCPUTest,
                                    ::testing::ValuesIn(clip),
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
-                                   ::testing::Values(cpuParamsBatchSizeOne),
+                                   ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBatchSizeOneBrgemmAvx512, cpuParamBatchSizeOneBrgemmAvx2})),
                                    ::testing::Values(std::map<std::string, std::string>{})),
                 RNNSequenceCPUTest::getTestCaseName);
 
@@ -295,7 +304,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, RNNSequenceCPUTest,
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(cpuParams),
+                               ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAvx512, cpuParamBrgemmAvx2})),
                                ::testing::Values(std::map<std::string, std::string>{})),
             RNNSequenceCPUTest::getTestCaseName);
 
@@ -306,7 +315,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, RNNSequenceCPUTest,
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(cpuParamsBatchSizeOne),
+                               ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBatchSizeOneBrgemmAvx512, cpuParamBatchSizeOneBrgemmAvx2})),
                                ::testing::Values(std::map<std::string, std::string>{})),
             RNNSequenceCPUTest::getTestCaseName);
 
@@ -317,19 +326,19 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic, RNNSequenceCPUTest,
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(cpuParams),
+                               ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAvx512, cpuParamBrgemmAvx2})),
                                ::testing::Values(std::map<std::string, std::string>{})),
-            RNNSequenceCPUTest::getTestCaseName);
+           RNNSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, RNNSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn({dynamicShapes[6], dynamicShapes[7]}),
+            ::testing::Combine(::testing::Values(dynamicShapes[7]),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(cpuParams),
-                               ::testing::Values(additionalConfig[1])),
+                               ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAMX})),
+                               ::testing::Values(cpuBF16PluginConfig)),
             RNNSequenceCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

@@ -105,17 +105,25 @@ protected:
 };
 
 TEST_P(LSTMCellLayerCPUTest, CompareWithRefs) {
+    // brgemm_avx512 and brgemm_avx2 kernel is created from one entry in ONEDNN rnn list. Can't filter to choose different ISA kernel.
+    // Skip all the brgemm_avx2 on AVX512 platform.
+    if (!priority.empty() && priority[0].find("brgemm_avx2") != std::string::npos
+          && InferenceEngine::with_cpu_x86_avx512f())
+        GTEST_SKIP() << "Disabled brgemm_avx2 rnn test on avx512 platform due to one kernel entry for avx2 and avx512." << std::endl;
     run();
     CheckPluginRelatedResults(compiledModel, "RNNCell");
 }
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}},
-       {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}}};
+std::map<std::string, std::string> additionalConfigBF16 =
+    {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}};
+std::map<std::string, std::string> additionalConfigFP32 =
+    {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}};
 
-CPUSpecificParams cpuParams{{nc, nc, nc}, {nc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsAVX512{{nc, nc, nc}, {nc}, {"brgemm_avx512"}, "brgemm_avx512"};
+CPUSpecificParams cpuParamsAVX2{{nc, nc, nc}, {nc}, {"brgemm_avx2"}, "brgemm_avx2"};
+CPUSpecificParams cpuParamBrgemmAMX{{nc, nc, nc}, {nc}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"};
 
 std::vector<bool> should_decompose{false};
 // oneDNN supports only sigmoid-tanh-tanh
@@ -139,14 +147,24 @@ const std::vector<std::vector<ov::test::InputShape>> staticShapes = {
       { {}, { {5, 10} } } }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_static, LSTMCellLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_static_fp32, LSTMCellLayerCPUTest,
                 ::testing::Combine(::testing::ValuesIn(staticShapes),
                                    ::testing::ValuesIn(should_decompose),
                                    ::testing::ValuesIn(activations),
                                    ::testing::ValuesIn(clip),
                                    ::testing::ValuesIn(netPrecisions),
-                                   ::testing::Values(cpuParams),
-                                   ::testing::ValuesIn(additionalConfig)),
+                                   ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamsAVX512, cpuParamsAVX2})),
+                                   ::testing::Values(additionalConfigFP32)),
+                LSTMCellLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_bf16, LSTMCellLayerCPUTest,
+                ::testing::Combine(::testing::ValuesIn({staticShapes[1], staticShapes[3]}),
+                                   ::testing::ValuesIn(should_decompose),
+                                   ::testing::ValuesIn(activations),
+                                   ::testing::ValuesIn(clip),
+                                   ::testing::ValuesIn(netPrecisions),
+                                   ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAMX})),
+                                   ::testing::Values(additionalConfigBF16)),
                 LSTMCellLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
@@ -188,14 +206,24 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
         { {37, 128}, {15, 128} } } },       // Target shapes
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMCellLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_fp32, LSTMCellLayerCPUTest,
                 ::testing::Combine(::testing::ValuesIn(dynamicShapes),
                                    ::testing::ValuesIn(should_decompose),
                                    ::testing::ValuesIn(activations),
                                    ::testing::ValuesIn(clip),
                                    ::testing::ValuesIn(netPrecisions),
-                                   ::testing::Values(cpuParams),
-                                   ::testing::ValuesIn(additionalConfig)),
+                                   ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamsAVX512, cpuParamsAVX2})),
+                                   ::testing::Values(additionalConfigFP32)),
+                LSTMCellLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_bf16, LSTMCellLayerCPUTest,
+                ::testing::Combine(::testing::ValuesIn({dynamicShapes[2], dynamicShapes[3], dynamicShapes[4]}),
+                                   ::testing::ValuesIn(should_decompose),
+                                   ::testing::ValuesIn(activations),
+                                   ::testing::ValuesIn(clip),
+                                   ::testing::ValuesIn(netPrecisions),
+                                   ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAMX})),
+                                   ::testing::Values(additionalConfigBF16)),
                 LSTMCellLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

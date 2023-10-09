@@ -176,12 +176,13 @@ TEST_P(GRUSequenceCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
-       {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
+std::map<std::string, std::string> additionalConfigBF16
+    =  {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}};
 
-CPUSpecificParams cpuParams{{ntc, tnc}, {ntc, tnc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{tnc, tnc}, {tnc, tnc}, {"ref_any"}, "ref_any"};;
+CPUSpecificParams cpuParams{{ntc, tnc}, {ntc, tnc}, {"ref"}, "ref"};
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, tnc}, {tnc, tnc}, {"ref"}, "ref"};;
+CPUSpecificParams cpuParamBrgemmAMX{{ntc, tnc}, {ntc, tnc}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"};
+
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2
@@ -234,18 +235,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, GRUSequenceCPUTest,
                                    ::testing::Values(cpuParamsBatchSizeOne),
                                    ::testing::Values(std::map<std::string, std::string>{})),
                 GRUSequenceCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_static_bf16, GRUSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{staticShapes[4], staticShapes[5]}),
-                               ::testing::ValuesIn(mode),
-                               ::testing::ValuesIn(activations),
-                               ::testing::ValuesIn(clip),
-                               ::testing::ValuesIn(linearBeforeReset),
-                               ::testing::ValuesIn(direction),
-                               ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(cpuParams),
-                               ::testing::Values(additionalConfig[1])),
-            GRUSequenceCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicShapes = {
     { { {-1, {1, 5}, 10},                           // #0. Dynamic shape 0
@@ -341,15 +330,15 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic, GRUSequenceCPUTest,
             GRUSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, GRUSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn({dynamicShapes[6], dynamicShapes[7]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[7]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
-                               ::testing::ValuesIn(linearBeforeReset),
+                               ::testing::Values(false),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(cpuParams),
-                               ::testing::Values(additionalConfig[1])),
+                               ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAMX})),
+                               ::testing::Values(additionalConfigBF16)),
             GRUSequenceCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

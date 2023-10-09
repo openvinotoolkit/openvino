@@ -101,18 +101,26 @@ protected:
 };
 
 TEST_P(RNNCellCPUTest, CompareWithRefs) {
+    // brgemm_avx512 and brgemm_avx2 kernel is created from one entry in ONEDNN rnn list. Can't filter to choose different ISA kernel.
+    // Skip all the brgemm_avx2 on AVX512 platform.
+    if (!priority.empty() && priority[0].find("brgemm_avx2") != std::string::npos
+          && InferenceEngine::with_cpu_x86_avx512f())
+        GTEST_SKIP() << "Disabled brgemm_avx2 rnn test on avx512 platform due to one kernel entry for avx2 and avx512." << std::endl;
     run();
     CheckPluginRelatedResults(compiledModel, "RNNCell");
 }
 
 namespace {
-/* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig = {
-    {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
-    {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}
-};
+// /* CPU PARAMS */
+std::map<std::string, std::string> additionalConfigBF16 =
+    {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}};
+std::map<std::string, std::string> additionalConfigFP32 =
+    {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}};
 
-CPUSpecificParams cpuParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsAVX512{{nc, nc}, {nc}, {"brgemm_avx512"}, "brgemm_avx512"};
+CPUSpecificParams cpuParamsAVX2{{nc, nc}, {nc}, {"brgemm_avx2"}, "brgemm_avx2"};
+const auto cpuParamBrgemmAMX = CPUSpecificParams{{nc, nc}, {nc}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"};
+
 std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"tanh"}};
 // oneDNN supports only zero clip
 std::vector<float> clip = {0.f};
@@ -129,13 +137,22 @@ const std::vector<std::vector<ov::test::InputShape>> staticShapes = {
       { {}, { {5, 10} } } }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_static, RNNCellCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_static_fp32, RNNCellCPUTest,
         ::testing::Combine(::testing::ValuesIn(staticShapes),
                            ::testing::ValuesIn(activations),
                            ::testing::ValuesIn(clip),
                            ::testing::ValuesIn(netPrecisions),
-                           ::testing::Values(cpuParams),
-                           ::testing::ValuesIn(additionalConfig)),
+                           ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamsAVX512, cpuParamsAVX2})),
+                           ::testing::Values(additionalConfigFP32)),
+        RNNCellCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_bf16, RNNCellCPUTest,
+        ::testing::Combine(::testing::ValuesIn(staticShapes),
+                           ::testing::ValuesIn(activations),
+                           ::testing::ValuesIn(clip),
+                           ::testing::ValuesIn(netPrecisions),
+                           ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAMX})),
+                           ::testing::Values(additionalConfigBF16)),
         RNNCellCPUTest::getTestCaseName);
 
 const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
@@ -157,13 +174,22 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
         { {2, 10}, {5, 10}, {2, 10}, {8, 10}, {5, 10}, {8, 10} } } } // Target shapes
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_dynamic, RNNCellCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_fp32, RNNCellCPUTest,
         ::testing::Combine(::testing::ValuesIn(dynamicShapes),
                            ::testing::ValuesIn(activations),
                            ::testing::ValuesIn(clip),
                            ::testing::ValuesIn(netPrecisions),
-                           ::testing::Values(cpuParams),
-                           ::testing::ValuesIn(additionalConfig)),
+                           ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamsAVX512, cpuParamsAVX2})),
+                           ::testing::Values(additionalConfigFP32)),
+        RNNCellCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_bf16, RNNCellCPUTest,
+        ::testing::Combine(::testing::ValuesIn(dynamicShapes),
+                           ::testing::ValuesIn(activations),
+                           ::testing::ValuesIn(clip),
+                           ::testing::ValuesIn(netPrecisions),
+                           ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAMX})),
+                           ::testing::Values(additionalConfigBF16)),
         RNNCellCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

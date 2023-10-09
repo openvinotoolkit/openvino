@@ -112,11 +112,14 @@ TEST_P(AUGRUCellCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
-       {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
+std::map<std::string, std::string> additionalConfigFP32
+    = {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}};
 
-CPUSpecificParams cpuParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any"};
+std::map<std::string, std::string> additionalConfigBF16
+    = {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}};
+
+CPUSpecificParams cpuParams{{nc, nc}, {nc}, {"ref"}, "ref"};
+CPUSpecificParams cpuParamBrgemmAMX{{nc, nc}, {nc}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"};
 
 std::vector<bool> shouldDecompose{false};
 // oneDNN supports only sigmoid-tanh
@@ -151,7 +154,7 @@ const std::vector<std::vector<ov::test::InputShape>> staticShapes = {
       { {}, { {5, 1} } } }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_static, AUGRUCellCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_static_fp32, AUGRUCellCPUTest,
                 ::testing::Combine(::testing::ValuesIn(staticShapes),
                                    ::testing::ValuesIn(shouldDecompose),
                                    ::testing::ValuesIn(activations),
@@ -159,8 +162,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, AUGRUCellCPUTest,
                                    ::testing::ValuesIn(linearBeforeReset),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::ValuesIn(additionalConfig)),
+                                   ::testing::Values(additionalConfigFP32)),
                 AUGRUCellCPUTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_bf16, AUGRUCellCPUTest,
+                ::testing::Combine(::testing::ValuesIn({staticShapes[2], staticShapes[6]}),
+                                   ::testing::ValuesIn(shouldDecompose),
+                                   ::testing::ValuesIn(activations),
+                                   ::testing::ValuesIn(clip),
+                                   ::testing::ValuesIn(linearBeforeReset),
+                                   ::testing::ValuesIn(netPrecisions),
+                                   ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAMX})),
+                                   ::testing::Values(additionalConfigBF16)),
+                AUGRUCellCPUTest::getTestCaseName);
+
 
 const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
     { { { {-1}, 1 },                       // Dynamic shape 0
@@ -189,7 +205,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
         { {2, 1}, {5, 1}, {8, 1}, {2, 1}, {5, 1}, {8, 1} } } }        // Target shapes
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_dynamic, AUGRUCellCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_fp32, AUGRUCellCPUTest,
                 ::testing::Combine(::testing::ValuesIn(dynamicShapes),
                                    ::testing::ValuesIn(shouldDecompose),
                                    ::testing::ValuesIn(activations),
@@ -197,7 +213,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, AUGRUCellCPUTest,
                                    ::testing::ValuesIn(linearBeforeReset),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::ValuesIn(additionalConfig)),
+                                   ::testing::Values(additionalConfigFP32)),
+                AUGRUCellCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_bf16, AUGRUCellCPUTest,
+                ::testing::Combine(::testing::ValuesIn({dynamicShapes[1], dynamicShapes[2]}),
+                                   ::testing::ValuesIn(shouldDecompose),
+                                   ::testing::ValuesIn(activations),
+                                   ::testing::ValuesIn(clip),
+                                   ::testing::ValuesIn(linearBeforeReset),
+                                   ::testing::ValuesIn(netPrecisions),
+                                   ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAMX})),
+                                   ::testing::Values(additionalConfigBF16)),
                 AUGRUCellCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

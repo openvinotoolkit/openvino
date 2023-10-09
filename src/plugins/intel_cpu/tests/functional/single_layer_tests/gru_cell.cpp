@@ -112,11 +112,14 @@ TEST_P(GRUCellCPUTest, CompareWithRefs) {
 
 namespace {
 /* CPU PARAMS */
-std::vector<std::map<std::string, std::string>> additionalConfig
-    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
-       {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
+std::map<std::string, std::string> additionalConfigFP32 = {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}};
+std::map<std::string, std::string> additionalConfigBF16 = {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}};
 
-CPUSpecificParams cpuParams{{nc, nc}, {nc}, {"ref_any"}, "ref_any"};
+// std::vector<std::map<std::string, std::string>> additionalConfig
+//     = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}}};
+
+CPUSpecificParams cpuParams{{nc, nc}, {nc}, {"ref"}, "ref"};
+CPUSpecificParams cpuParamBrgemmAMX{{nc, nc}, {nc}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"};
 
 std::vector<bool> shouldDecompose{false};
 // oneDNN supports only sigmoid-tanh
@@ -143,7 +146,7 @@ const std::vector<std::vector<ov::test::InputShape>> staticShapes = {
       { {}, { {5, 10} } } }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_static, GRUCellCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_static_fp32, GRUCellCPUTest,
                 ::testing::Combine(::testing::ValuesIn(staticShapes),
                                    ::testing::ValuesIn(shouldDecompose),
                                    ::testing::ValuesIn(activations),
@@ -151,7 +154,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, GRUCellCPUTest,
                                    ::testing::ValuesIn(linearBeforeReset),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::ValuesIn(additionalConfig)),
+                                   ::testing::Values(additionalConfigFP32)),
+                GRUCellCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_bf16, GRUCellCPUTest,
+                ::testing::Combine(::testing::Values(staticShapes[6]),
+                                   ::testing::ValuesIn(shouldDecompose),
+                                   ::testing::ValuesIn(activations),
+                                   ::testing::ValuesIn(clip),
+                                   ::testing::Values(false),
+                                   ::testing::ValuesIn(netPrecisions),
+                                   ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAMX})),
+                                   ::testing::Values(additionalConfigBF16)),
                 GRUCellCPUTest::getTestCaseName);
 
 const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
@@ -173,7 +187,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
         { {2, 10}, {5, 10}, {8, 10}, {2, 10}, {5, 10}, {8, 10} } } }  // Target shapes
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_dynamic, GRUCellCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_fp32, GRUCellCPUTest,
                 ::testing::Combine(::testing::ValuesIn(dynamicShapes),
                                    ::testing::ValuesIn(shouldDecompose),
                                    ::testing::ValuesIn(activations),
@@ -181,7 +195,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, GRUCellCPUTest,
                                    ::testing::ValuesIn(linearBeforeReset),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::ValuesIn(additionalConfig)),
+                                   ::testing::Values(additionalConfigFP32)),
                 GRUCellCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_bf16, GRUCellCPUTest,
+                ::testing::Combine(::testing::Values(dynamicShapes[1]),
+                                   ::testing::ValuesIn(shouldDecompose),
+                                   ::testing::ValuesIn(activations),
+                                   ::testing::ValuesIn(clip),
+                                   ::testing::Values(false),
+                                   ::testing::ValuesIn(netPrecisions),
+                                   ::testing::ValuesIn(filterCPUInfoForDevice({cpuParamBrgemmAMX})),
+                                   ::testing::Values(additionalConfigBF16)),
+                GRUCellCPUTest::getTestCaseName);
+
 } // namespace
 } // namespace CPULayerTestsDefinitions
