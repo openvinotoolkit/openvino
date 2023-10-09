@@ -1,4 +1,4 @@
-name: Tests on Windows (VS 2022, Python 3.11)
+name: Windows (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
   pull_request:
@@ -44,7 +44,6 @@ jobs:
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
-      OV_TEMP: "${{ github.workspace }}\\openvino_temp"
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -111,12 +110,12 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DENABLE_CPPLINT=OFF `
+            -DCMAKE_CXX_STANDARD=14 `
             -DBUILD_SHARED_LIBS=OFF `
             -DENABLE_TESTS=ON `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
             -DENABLE_STRICT_DEPENDENCIES=OFF `
             -DENABLE_PYTHON=ON `
-            -DBUILD_nvidia_plugin=OFF `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
@@ -154,7 +153,8 @@ jobs:
             -DBUILD_nvidia_plugin=OFF `
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules `
-            ${{ env.BUILD_DIR }}
+            -S ${{ env.OPENVINO_REPO }} `
+            -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
       - name: Upload openvino package
@@ -180,6 +180,7 @@ jobs:
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+      SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
       BUILD_DIR: "${{ github.workspace }}\\build"
 
     steps:
@@ -249,9 +250,7 @@ jobs:
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
-      SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
       LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
-      BUILD_DIR: "${{ github.workspace }}\\build"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
 
     steps:
@@ -315,25 +314,18 @@ jobs:
 
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests --ignore=${{ env.INSTALL_TEST_DIR }}/mo/unit_tests/mo/front/mxnet --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
 
-# Ticket - 115085
-#      - name: PyTorch Layer Tests
-#        shell: cmd
-#        run: |
-#
-#          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt ^
-#          -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt ^
-#          -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt ^
-#          -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt ^
-#          -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt ^
-#          -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
-#
-#          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-#
-#          set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
-#
-#          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
-#        env:
-#          TEST_DEVICE: CPU
+      # Ticket - 115085
+      - name: PyTorch Layer Tests
+        if: ${{ 'false' }}
+        shell: cmd
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+
+          set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
+
+          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - TF FE
         shell: cmd
