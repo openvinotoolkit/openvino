@@ -11,6 +11,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace {
 struct TIFunctionalBase {
@@ -311,9 +312,9 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                                                                     params.clip);
 
             auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(lstm_cell->output(0), axis);
-            ov::ResultVector results{std::make_shared<ov::opset8::Result>(unsqueeze),
-                                     std::make_shared<ov::opset8::Result>(lstm_cell->output(0)),
-                                     std::make_shared<ov::opset8::Result>(lstm_cell->output(1))};
+            ov::ResultVector results{std::make_shared<ov::op::v0::Result>(unsqueeze),
+                                     std::make_shared<ov::op::v0::Result>(lstm_cell->output(0)),
+                                     std::make_shared<ov::op::v0::Result>(lstm_cell->output(1))};
             auto body = std::make_shared<ov::Model>(results, body_params, "lstm_cell");
             tensor_iterator->set_function(body);
 
@@ -378,8 +379,8 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                                                                   false);
 
             auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(gru_cell->output(0), axis);
-            ov::ResultVector results{std::make_shared<ov::opset8::Result>(gru_cell->output(0)),
-                                     std::make_shared<ov::opset8::Result>(unsqueeze)};
+            ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0)),
+                                     std::make_shared<ov::op::v0::Result>(unsqueeze)};
             auto body = std::make_shared<ov::Model>(results, body_params, "gru_cell");
             tensor_iterator->set_function(body);
 
@@ -440,8 +441,8 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                                                                   params.clip);
 
             auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(rnn_cell->output(0), axis);
-            ov::ResultVector results{std::make_shared<ov::opset8::Result>(rnn_cell),
-                                     std::make_shared<ov::opset8::Result>(unsqueeze)};
+            ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rnn_cell),
+                                     std::make_shared<ov::op::v0::Result>(unsqueeze)};
             auto body = std::make_shared<ov::Model>(results, body_params, "rnn_cell");
             tensor_iterator->set_function(body);
 

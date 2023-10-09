@@ -12,6 +12,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace {
 enum LOOP_IN_TYPE { INVARIANT, MERGED };
@@ -61,7 +62,7 @@ struct LoopDynamicInputs : public LoopFunctionalBase {
         loop->set_special_body_ports(ov::opset8::Loop::SpecialBodyPorts{-1, 0});
 
         // Output is last Zo
-        auto result = std::make_shared<ov::opset8::Result>(loop->get_iter_value(Zo, -1));
+        auto result = std::make_shared<ov::op::v0::Result>(loop->get_iter_value(Zo, -1));
         return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{X, Y, M});
     }
 };
@@ -179,9 +180,9 @@ struct LoopStaticInputs : public LoopFunctionalBase {
         // start=0, stride=1, part_size=1, end=-1, axis=1
         const auto out2 = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, 1);
 
-        const auto result0 = std::make_shared<ov::opset8::Result>(out0);
-        const auto result1 = std::make_shared<ov::opset8::Result>(out1);
-        const auto result2 = std::make_shared<ov::opset8::Result>(out2);
+        const auto result0 = std::make_shared<ov::op::v0::Result>(out0);
+        const auto result1 = std::make_shared<ov::op::v0::Result>(out1);
+        const auto result2 = std::make_shared<ov::op::v0::Result>(out2);
         const auto function =
             std::make_shared<ov::Model>(ov::ResultVector{result0, result1, result2}, loop_params, "loop");
         return function;
