@@ -882,7 +882,7 @@ jobs:
           python3 -m pip install -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt
 
           # TODO: replace with Python API tests requirements
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/tools/mo/requirements_dev.txt
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt
 
       #
       # Tests
