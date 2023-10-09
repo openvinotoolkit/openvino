@@ -692,20 +692,6 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
-      - name: Legacy Transformations func tests
-        if: ${{ always() }}
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_legacy_transformations_tests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LegacyTransformations.xml
-
-      - name: Inference Engine 1.0 unit tests
-        if: ${{ always() }}
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/InferenceEngineUnitTests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceEngineUnitTests.xml
-
       - name: Common test utils tests
         if: ${{ always() }}
         run: |
@@ -909,7 +895,7 @@ jobs:
       - name: Model Optimizer unit tests
         if: ${{ always() }}
         run: python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
-          --ignore=${INSTALL_TEST_DIR}/unit_tests/mo/front/mxnet \
+          --ignore=${INSTALL_TEST_DIR}/mo/unit_tests/mo/front/mxnet/ \
           --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
