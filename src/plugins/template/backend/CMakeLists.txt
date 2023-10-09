@@ -36,7 +36,7 @@ ov_build_target_faster(interpreter_backend UNITY)
 target_compile_definitions(interpreter_backend
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
-        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        SHARED_LIB_SUFFIX="${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
 target_link_libraries(interpreter_backend PRIVATE openvino::builders openvino::reference openvino::util openvino::runtime::dev openvino::shape_inference)
 

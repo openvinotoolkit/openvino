@@ -87,7 +87,7 @@ inline InferenceEngine::Core createIECoreWithTemplate() {
     PluginCache::get().reset();
     InferenceEngine::Core ie;
 #ifndef OPENVINO_STATIC_LIBRARY
-    std::string pluginName = "openvino_template_plugin" IE_BUILD_POSTFIX;
+    std::string pluginName = "openvino_template_plugin" OV_BUILD_POSTFIX;
     ie.RegisterPlugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
         ov::test::utils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY

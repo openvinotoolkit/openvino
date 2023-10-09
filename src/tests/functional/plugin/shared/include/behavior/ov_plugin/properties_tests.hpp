@@ -123,8 +123,8 @@ public:
         std::tie(pluginName, target_device) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        pluginName += IE_BUILD_POSTFIX;
-        if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
+        pluginName += OV_BUILD_POSTFIX;
+        if (pluginName == (std::string("openvino_template_plugin") + OV_BUILD_POSTFIX)) {
             pluginName = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName);
         }
     }

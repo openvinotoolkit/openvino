@@ -31,7 +31,7 @@ void FrontendLibraryExtensionTest::initParamTest() {
 
 inline std::string get_lib_path(const std::string& lib_name) {
     return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
-                                                    lib_name + IE_BUILD_POSTFIX);
+                                                    lib_name + OV_BUILD_POSTFIX);
 }
 
 ///////////////////////////////////////////////////////////////////

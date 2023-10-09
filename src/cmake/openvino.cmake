@@ -157,7 +157,7 @@ install(EXPORT OpenVINOTargets
 
 # build tree
 
-list(APPEND PATH_VARS "IE_INCLUDE_DIR")
+list(APPEND PATH_VARS "OV_INCLUDE_DIR") # TODO: remove obsolete variable for API 1.0 before 2024.0
 if(ENABLE_INTEL_GNA)
     list(APPEND PATH_VARS "GNA_PATH")
 endif()
@@ -170,8 +170,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
 endif()
 
 set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
-set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
-set(IE_TBB_DIR "${TBB_DIR}")
+set(OV_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
+set(OV_TBB_DIR "${TBB_DIR}")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -190,9 +190,9 @@ list(APPEND INSTALL_PATH_VARS "OPENVINO_LIB_DIR")
 # will be done by inside OpenVINOConfig.cmak / ACLConfig.cmake
 string(REPLACE "$<CONFIG>" "" OPENVINO_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
 
-set(IE_INCLUDE_DIR "${OV_CPACK_INCLUDEDIR}/ie")
-set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
-set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
+set(OV_INCLUDE_DIR "${OV_CPACK_INCLUDEDIR}/ie")
+set(OV_TBB_DIR "${OV_TBB_DIR_INSTALL}")
+set(OV_TBBBIND_DIR "${OV_TBBBIND_DIR_INSTALL}")
 set(GNA_PATH "${OV_CPACK_RUNTIMEDIR}")
 if(WIN32)
     set(GNA_PATH "${OV_CPACK_LIBRARYDIR}/../Release")

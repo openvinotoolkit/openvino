@@ -88,10 +88,10 @@ function(ov_add_clang_format_target TARGET_NAME)
             -D "CLANG_FORMAT=${CLANG_FORMAT}"
             -D "INPUT_FILE=${source_file}"
             -D "OUTPUT_FILE=${output_file}"
-            -P "${IEDevScripts_DIR}/clang_format/clang_format_check.cmake"
+            -P "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_check.cmake"
             DEPENDS
             "${source_file}"
-            "${IEDevScripts_DIR}/clang_format/clang_format_check.cmake"
+            "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_check.cmake"
             COMMENT
             "[clang-format] ${source_file}"
             VERBATIM)
@@ -110,10 +110,10 @@ function(ov_add_clang_format_target TARGET_NAME)
         -D "CLANG_FORMAT=${CLANG_FORMAT}"
         -D "INPUT_FILES=${all_input_sources}"
         -D "EXCLUDE_PATTERNS=${CLANG_FORMAT_EXCLUDE_PATTERNS}"
-        -P "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
+        -P "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_fix.cmake"
         DEPENDS
         "${all_input_sources}"
-        "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
+        "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_fix.cmake"
         COMMENT
         "[clang-format] ${TARGET_NAME}_fix"
         VERBATIM)

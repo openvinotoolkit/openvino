@@ -69,17 +69,17 @@ function(add_cpplint_target TARGET_NAME)
             COMMAND
                 "${CMAKE_COMMAND}"
                 -D "Python3_EXECUTABLE=${Python3_EXECUTABLE}"
-                -D "CPPLINT_SCRIPT=${IEDevScripts_DIR}/cpplint/cpplint.py"
+                -D "CPPLINT_SCRIPT=${OpenVINODeveloperScripts_DIR}/cpplint/cpplint.py"
                 -D "INPUT_FILE=${source_file}"
                 -D "OUTPUT_FILE=${output_file}"
                 -D "WORKING_DIRECTORY=${CMAKE_CURRENT_SOURCE_DIR}"
                 -D "SKIP_RETURN_CODE=${ENABLE_CPPLINT_REPORT}"
                 -D "CUSTOM_FILTER=${custom_filter}"
-                -P "${IEDevScripts_DIR}/cpplint/cpplint_run.cmake"
+                -P "${OpenVINODeveloperScripts_DIR}/cpplint/cpplint_run.cmake"
             DEPENDS
                 "${source_file}"
-                "${IEDevScripts_DIR}/cpplint/cpplint.py"
-                "${IEDevScripts_DIR}/cpplint/cpplint_run.cmake"
+                "${OpenVINODeveloperScripts_DIR}/cpplint/cpplint.py"
+                "${OpenVINODeveloperScripts_DIR}/cpplint/cpplint_run.cmake"
             COMMENT
                 "[cpplint] ${source_file_relative_root}"
             VERBATIM)

@@ -65,8 +65,8 @@ public:
         std::tie(pluginName, target_device) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        pluginName += IE_BUILD_POSTFIX;
-        if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
+        pluginName += OV_BUILD_POSTFIX;
+        if (pluginName == (std::string("openvino_template_plugin") + OV_BUILD_POSTFIX)) {
             pluginName = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName);
         }
     }
@@ -197,7 +197,7 @@ inline std::string getPluginFile() {
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
     stream << ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-        std::string("mock_engine") + IE_BUILD_POSTFIX);
+        std::string("mock_engine") + OV_BUILD_POSTFIX);
     stream << "\"></plugin></plugins></ie>";
     ov::test::utils::createFile(filename, stream.str());
     return filename;

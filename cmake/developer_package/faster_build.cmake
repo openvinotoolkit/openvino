@@ -20,6 +20,8 @@ function(ov_build_target_faster TARGET_NAME)
     endif()
 endfunction()
 
+# deprecated
+
 function(ie_faster_build)
     message(WARNING "ie_faster_build is deprecated, use ov_build_target_faster instead")
     ov_build_target_faster(${ARGV})

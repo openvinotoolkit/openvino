@@ -7,7 +7,7 @@ if(NOT EXISTS "${OV_CONFIG_OUTPUT_FILE}")
 endif()
 
 # remove plugin file
-file(REMOVE "${OV_CONFIGS_DIR}/${IE_PLUGIN_NAME}.xml")
+file(REMOVE "${OV_CONFIGS_DIR}/${OV_PLUGIN_NAME}.xml")
 
 # remove plugin
 set(newContent "")
@@ -15,7 +15,7 @@ file(STRINGS "${OV_CONFIG_OUTPUT_FILE}" content)
 
 set(skip_plugin OFF)
 foreach(line IN LISTS content)
-    if("${line}" MATCHES "name=\"${IE_PLUGIN_NAME}\"")
+    if("${line}" MATCHES "name=\"${OV_PLUGIN_NAME}\"")
         set(skip_plugin ON)
     endif()
 

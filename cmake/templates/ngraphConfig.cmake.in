@@ -42,6 +42,8 @@
 
 include(CMakeFindDependencyMacro)
 
+message(WARNING "find_package(ngraph) is deprecated and will be removed in 2024.0 release. Please, use find_package(OpenVINO)")
+
 find_dependency(OpenVINO
                 PATHS "${CMAKE_CURRENT_LIST_DIR}"
                       "${CMAKE_CURRENT_LIST_DIR}/../openvino${ngraph_VERSION}"

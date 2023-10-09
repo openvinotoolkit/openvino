@@ -57,7 +57,7 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string& device
     // register template plugin if it is needed
     try {
         std::string pluginName = "openvino_template_plugin";
-        pluginName += IE_BUILD_POSTFIX;
+        pluginName += OV_BUILD_POSTFIX;
         ie_core->RegisterPlugin(
             ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
             "TEMPLATE");

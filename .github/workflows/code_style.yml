@@ -60,9 +60,9 @@ jobs:
         run: cmake -B build
 
       - name: Shellcheck cmake target
-        run: cmake --build build --target ie_shellcheck -j8
+        run: cmake --build build --target ov_shellcheck -j8
 
-      # always provide suggestions even for skipped scripts in ie_shellcheck tagret
+      # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
         if: always()
         uses: reviewdog/action-shellcheck@v1

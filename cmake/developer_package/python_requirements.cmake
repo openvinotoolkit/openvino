@@ -103,7 +103,7 @@ function(ov_check_pip_packages)
 from check_python_requirements import check_python_requirements ;
 check_python_requirements('${ARG_REQUIREMENTS_FILE}') ;
             "
-            WORKING_DIRECTORY "${IEDevScripts_DIR}"
+            WORKING_DIRECTORY "${OpenVINODeveloperScripts_DIR}"
             RESULT_VARIABLE EXIT_CODE
             OUTPUT_VARIABLE OUTPUT_TEXT
             ERROR_VARIABLE ERROR_TEXT)

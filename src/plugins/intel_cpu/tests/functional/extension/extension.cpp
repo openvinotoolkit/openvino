@@ -201,7 +201,7 @@ TEST(Extension, XmlModelWithCustomAbs) {
 
 static std::string get_extension_path() {
     return FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(),
-        std::string("template_extension") + IE_BUILD_POSTFIX);
+        std::string("template_extension") + OV_BUILD_POSTFIX);
 }
 
 

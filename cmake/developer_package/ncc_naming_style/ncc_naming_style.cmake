@@ -6,7 +6,7 @@ if(NOT COMMAND ov_check_pip_packages)
     message(FATAL_ERROR "Internal error: ncc_naming_style.cmake must be included after ov_check_pip_packages")
 endif()
 
-set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
+set(ncc_style_dir "${OpenVINODeveloperScripts_DIR}/ncc_naming_style")
 set(ncc_style_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style")
 
 # find python3

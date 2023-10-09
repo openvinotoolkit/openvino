@@ -47,11 +47,6 @@ macro(ov_common_libraries_cpack_set_dirs)
 
     # skipped during common libraries packaging
     set(OV_CPACK_WHEELSDIR "tools")
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
 ov_common_libraries_cpack_set_dirs()

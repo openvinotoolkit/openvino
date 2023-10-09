@@ -10,7 +10,7 @@ set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@")
 
 # Variables to export in plugin's projects
 
-set(ov_options "@IE_OPTIONS@")
+set(ov_options "@OV_OPTIONS@")
 list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
                        CMAKE_CXX_LINKER_LAUNCHER CMAKE_C_LINKER_LAUNCHER
                        CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX CPACK_GENERATOR)
@@ -20,7 +20,7 @@ if(APPLE)
 endif()
 
 get_property(_OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if(_IE_GENERATOR_MULTI_CONFIG)
+if(_OV_GENERATOR_MULTI_CONFIG)
     list(APPEND ov_options CMAKE_CONFIGURATION_TYPES)
     if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
         list(APPEND ov_options CMAKE_DEFAULT_BUILD_TYPE)
@@ -61,7 +61,7 @@ set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 # Content
 #
 
-find_dependency(IEDevScripts
+find_dependency(OpenVINODeveloperScripts
                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
