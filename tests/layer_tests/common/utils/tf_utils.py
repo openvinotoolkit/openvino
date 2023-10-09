@@ -98,7 +98,7 @@ def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
     variables = list()
     outputs = list()
     graph = load_graph(model_path, output_nodes_for_freeze)
-    unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Placeholder', 'Assert', 'switch_t', 'switch_f']
+    unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Placeholder', 'Assert', 'switch_t', 'switch_f', 'TensorArrayCloseV3']
     control_dependents_map = collect_control_dependencies(graph)
     for node in graph.as_graph_def().node:
         if node.op == 'Placeholder':
