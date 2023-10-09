@@ -260,82 +260,6 @@ void parse_version_string(std::string version, size_t& major, size_t& minor, siz
         OPENVINO_THROW("Error parsing version string '", version, "'");
     }
 }
-
-std::vector<int64_t> read_index_vector(std::shared_ptr<runtime::Tensor> tv) {
-    std::vector<int64_t> index_vec;
-    element::Type element_type = tv->get_element_type();
-
-    if (element_type == element::boolean) {
-        std::vector<char> vec = read_vector<char>(tv);
-        // Changed from vector ctor to explicit for loop to add static_cast
-        // This silences MSVC warnings
-        for (char value : vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else if (element_type == element::bf16) {
-        std::vector<bfloat16> vec = read_vector<bfloat16>(tv);
-        std::vector<float> float_vec = bfloat16::to_float_vector(vec);
-        for (float value : float_vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else if (element_type == element::f16) {
-        std::vector<float16> vec = read_vector<float16>(tv);
-        for (float16 value : vec) {
-            index_vec.push_back(static_cast<int64_t>(static_cast<float>(value)));
-        }
-    } else if (element_type == element::f32) {
-        std::vector<float> vec = read_vector<float>(tv);
-        for (float value : vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else if (element_type == element::f64) {
-        std::vector<double> vec = read_vector<double>(tv);
-        for (double value : vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else if (element_type == element::i8) {
-        std::vector<int8_t> vec = read_vector<int8_t>(tv);
-        for (int8_t value : vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else if (element_type == element::i16) {
-        std::vector<int16_t> vec = read_vector<int16_t>(tv);
-        for (int16_t value : vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else if (element_type == element::i32) {
-        std::vector<int32_t> vec = read_vector<int32_t>(tv);
-        for (int32_t value : vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else if (element_type == element::i64) {
-        index_vec = read_vector<int64_t>(tv);
-    } else if (element_type == element::u8) {
-        std::vector<uint8_t> vec = read_vector<uint8_t>(tv);
-        for (uint8_t value : vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else if (element_type == element::u16) {
-        std::vector<uint16_t> vec = read_vector<uint16_t>(tv);
-        for (uint16_t value : vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else if (element_type == element::u32) {
-        std::vector<uint32_t> vec = read_vector<uint32_t>(tv);
-        for (uint32_t value : vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else if (element_type == element::u64) {
-        std::vector<uint64_t> vec = read_vector<uint64_t>(tv);
-        for (uint64_t value : vec) {
-            index_vec.push_back(static_cast<int64_t>(value));
-        }
-    } else {
-        OPENVINO_THROW("Unsupported OpenVINO element type.");
-    }
-
-    return index_vec;
-}
 }  // namespace ngraph
 
 std::vector<float> read_float_vector(std::shared_ptr<ngraph::runtime::Tensor> tv) {
@@ -412,4 +336,80 @@ std::vector<float> read_float_vector(std::shared_ptr<ngraph::runtime::Tensor> tv
     }
 
     return float_vec;
+}
+
+std::vector<int64_t> read_index_vector(std::shared_ptr<ngraph::runtime::Tensor> tv) {
+    std::vector<int64_t> index_vec;
+    ov::element::Type element_type = tv->get_element_type();
+
+    if (element_type == ov::element::boolean) {
+        std::vector<char> vec = read_vector<char>(tv);
+        // Changed from vector ctor to explicit for loop to add static_cast
+        // This silences MSVC warnings
+        for (char value : vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else if (element_type == ov::element::bf16) {
+        std::vector<ov::bfloat16> vec = read_vector<ov::bfloat16>(tv);
+        std::vector<float> float_vec = ov::bfloat16::to_float_vector(vec);
+        for (float value : float_vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else if (element_type == ov::element::f16) {
+        std::vector<ov::float16> vec = read_vector<ov::float16>(tv);
+        for (ov::float16 value : vec) {
+            index_vec.push_back(static_cast<int64_t>(static_cast<float>(value)));
+        }
+    } else if (element_type == ov::element::f32) {
+        std::vector<float> vec = read_vector<float>(tv);
+        for (float value : vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else if (element_type == ov::element::f64) {
+        std::vector<double> vec = read_vector<double>(tv);
+        for (double value : vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else if (element_type == ov::element::i8) {
+        std::vector<int8_t> vec = read_vector<int8_t>(tv);
+        for (int8_t value : vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else if (element_type == ov::element::i16) {
+        std::vector<int16_t> vec = read_vector<int16_t>(tv);
+        for (int16_t value : vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else if (element_type == ov::element::i32) {
+        std::vector<int32_t> vec = read_vector<int32_t>(tv);
+        for (int32_t value : vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else if (element_type == ov::element::i64) {
+        index_vec = read_vector<int64_t>(tv);
+    } else if (element_type == ov::element::u8) {
+        std::vector<uint8_t> vec = read_vector<uint8_t>(tv);
+        for (uint8_t value : vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else if (element_type == ov::element::u16) {
+        std::vector<uint16_t> vec = read_vector<uint16_t>(tv);
+        for (uint16_t value : vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else if (element_type == ov::element::u32) {
+        std::vector<uint32_t> vec = read_vector<uint32_t>(tv);
+        for (uint32_t value : vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else if (element_type == ov::element::u64) {
+        std::vector<uint64_t> vec = read_vector<uint64_t>(tv);
+        for (uint64_t value : vec) {
+            index_vec.push_back(static_cast<int64_t>(value));
+        }
+    } else {
+        OPENVINO_THROW("Unsupported OpenVINO element type.");
+    }
+
+    return index_vec;
 }
