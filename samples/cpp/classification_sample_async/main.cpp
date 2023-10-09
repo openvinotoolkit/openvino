@@ -136,8 +136,7 @@ int main(int argc, char* argv[]) {
         if (images_data.empty() || valid_image_names.empty())
             throw std::logic_error("Valid input images were not found!");
 
-        // -------- Step 5. Loading model to the device --------
-        // Setting batch size using image count
+        // -------- Step 5. Setting batch size using image count --------
         const size_t batchSize = images_data.size();
         slog::info << "Set batch size " << std::to_string(batchSize) << slog::endl;
         ov::set_batch(model, batchSize);
