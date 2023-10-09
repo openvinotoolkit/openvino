@@ -30,7 +30,7 @@ endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
-find_package(OpenVINODevScripts REQUIRED
+find_package(OpenVINODeveloperScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)

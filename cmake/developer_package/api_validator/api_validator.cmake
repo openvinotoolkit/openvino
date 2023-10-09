@@ -171,7 +171,7 @@ function(_ov_add_api_validator_post_build_step)
                 -D ONECORE_API_VALIDATOR_EXCLUSION=${ONECORE_API_VALIDATOR_EXCLUSION}
                 -D ONECORE_API_VALIDATOR_OUTPUT=${output_file}
                 -D CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-                -P "${OpenVINODevScripts_DIR}/api_validator/api_validator_run.cmake")
+                -P "${OpenVINODeveloperScripts_DIR}/api_validator/api_validator_run.cmake")
         list(APPEND byproducts_files ${output_file})
 
         unset(target_name)

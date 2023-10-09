@@ -175,7 +175,7 @@ macro (addVersionDefines FILE)
     if(NOT EXISTS ${__version_file})
         message(FATAL_ERROR "${FILE} does not exists in current source directory")
     endif()
-    foreach (VAR IN LISTS ARGN)
+    foreach (VAR ${ARGN})
         if (DEFINED ${VAR} AND NOT "${${VAR}}" STREQUAL "")
             set_property(
                 SOURCE ${__version_file}

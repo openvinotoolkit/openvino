@@ -58,7 +58,7 @@ set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 # Content
 #
 
-find_dependency(OpenVINODevScripts
+find_dependency(OpenVINODeveloperScripts
                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)

@@ -4,11 +4,11 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-if(NOT DEFINED OpenVINODevScripts_DIR)
-    message(FATAL_ERROR "OpenVINODevScripts_DIR is not defined")
+if(NOT DEFINED OpenVINODeveloperScripts_DIR )
+    message(FATAL_ERROR "OpenVINODeveloperScripts_DIR  is not defined")
 endif()
 
-set(IEDevScripts_DIR "${OpenVINODevScripts_DIR}") # for BW compatibility
+set(IEDevScripts_DIR "${OpenVINODeveloperScripts_DIR}") # for BW compatibility
 
 # disable FindPkgConfig.cmake for Android
 if(ANDROID)
@@ -25,7 +25,7 @@ macro(ov_set_if_not_defined var value)
 endmacro()
 
 set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
-set(CMAKE_MODULE_PATH "${OpenVINODevScripts_DIR}")
+set(CMAKE_MODULE_PATH "${OpenVINODeveloperScripts_DIR}")
 
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")

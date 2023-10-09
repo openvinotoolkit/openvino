@@ -29,7 +29,7 @@ unset(TBB_DIR CACHE)
 find_package(TBB
     2017.0
     CONFIG
-    PATHS "${OpenVINODevScripts_DIR}/${_OV_OWN_TBB_CONFIG}"
+    PATHS "${OpenVINODeveloperScripts_DIR}/${_OV_OWN_TBB_CONFIG}"
     NO_DEFAULT_PATH
     NO_CMAKE_FIND_ROOT_PATH)
 

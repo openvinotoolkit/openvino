@@ -170,7 +170,7 @@ macro(ov_find_package_tbb)
                 # fallback variant for TBB 2018 and older where TBB have not had cmake interface
                 if(DEFINED TBBROOT OR DEFINED ENV{TBBROOT})
                     # note: if TBB older than 2017.0 is passed, cmake will skip it and THREADING=SEQ will be used
-                    set(_tbb_paths PATHS "${OpenVINODevScripts_DIR}/tbb")
+                    set(_tbb_paths PATHS "${OpenVINODeveloperScripts_DIR}/tbb")
                 endif()
 
                 # try to find one more time
