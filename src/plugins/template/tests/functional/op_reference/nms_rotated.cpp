@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/nms_rotated.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset13.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -86,7 +86,7 @@ private:
         const auto score_threshold = std::make_shared<op::v0::Constant>(params.scoreThreshold.type,
                                                                         params.scoreThreshold.shape,
                                                                         params.scoreThreshold.data.data());
-        const auto nms = std::make_shared<opset13::NMSRotated>(boxes,
+        const auto nms = std::make_shared<op::v13::NMSRotated>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
@@ -124,7 +124,7 @@ private:
             std::make_shared<op::v0::Parameter>(params.iouThreshold.type, params.iouThreshold.shape);
         const auto score_threshold =
             std::make_shared<op::v0::Parameter>(params.scoreThreshold.type, params.scoreThreshold.shape);
-        const auto nms = std::make_shared<opset13::NMSRotated>(boxes,
+        const auto nms = std::make_shared<op::v13::NMSRotated>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
