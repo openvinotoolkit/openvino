@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
  
+#! [py_ov_property_import_header]
 import openvino as ov
 import openvino.properties as properties
 import openvino.properties.device as device
@@ -9,6 +10,7 @@ import openvino.properties.hint as hints
 import openvino.properties.streams as streams
 import properties.enable_profiling as enable_profiling
 import openvino.properties.log as log
+#! [py_ov_property_import_header]
 
 from openvino.inference_engine import IECore
 from utils import get_model, get_ngraph_model

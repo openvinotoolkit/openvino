@@ -59,8 +59,7 @@ While the CPU is performing inference, AUTO continues to load the model to the d
 This way, the devices which are much slower in compiling models, GPU being the best example, do not impede inference at its initial stages.
 For example, if you use a CPU and a GPU, the first-inference latency of AUTO will be better than that of using GPU alone.
 
-Note that if you choose to exclude CPU from the priority list or disable the initial CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be unable to support the initial model compilation stage.
-
+Note that if you choose to exclude CPU from the priority list or disable the initial CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be unable to support the initial model compilation stage. The models with dynamic input/output will be loaded to the CPU if it is in the candidate list. Otherwise, these models will follow the normal flow and be loaded to the device based on priority.
 
 .. image:: _static/images/autoplugin_accelerate.svg
 
@@ -91,7 +90,7 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 
 
 +----------------------------------------------+--------------------------------------------------------------------+
-| Property                                     | Values and Description                                             |
+| Property(C++ version)                        | Values and Description                                             |
 +==============================================+====================================================================+
 | <device candidate list>                      | **Values**:                                                        |
 |                                              |                                                                    |
@@ -169,6 +168,25 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
+
+Following below code to import the OpenVINO property before setting property in your application.
+
+.. tab-set::
+
+    .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/snippets/ov_auto.py
+           :language: python
+           :fragment: [py_ov_property_import_header]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO0.cpp
+            :language: cpp
+            :fragment: [py_ov_property_import_header]
+
 
 
 Device Candidates and Priority
@@ -303,7 +321,7 @@ If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run 
 
         .. code-block:: sh
          
-           compiled_model = core.compile_model(model, "AUTO:GPU,CPU", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"}})
+           compiled_model = core.compile_model(model, "AUTO:GPU,CPU", {hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT})
 
     .. tab-item:: C++
         :sync: cpp
@@ -322,7 +340,7 @@ If AUTO is used without specifying any device names, and if there are multiple G
 
         .. code-block:: sh
          
-           compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"})
+           compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", {hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT})
 
     .. tab-item:: C++
         :sync: cpp
