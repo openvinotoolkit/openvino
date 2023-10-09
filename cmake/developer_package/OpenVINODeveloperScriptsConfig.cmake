@@ -4,11 +4,11 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-if(NOT DEFINED OpenVINODevScripts_DIR)
-    message(FATAL_ERROR "OpenVINODevScripts_DIR is not defined")
+if(NOT DEFINED OpenVINODeveloperScripts_DIR )
+    message(FATAL_ERROR "OpenVINODeveloperScripts_DIR  is not defined")
 endif()
 
-set(IEDevScripts_DIR "${OpenVINODevScripts_DIR}") # for BW compatibility
+set(IEDevScripts_DIR "${OpenVINODeveloperScripts_DIR}") # for BW compatibility
 
 # disable FindPkgConfig.cmake for Android
 if(ANDROID)
@@ -25,7 +25,7 @@ macro(ov_set_if_not_defined var value)
 endmacro()
 
 set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
-set(CMAKE_MODULE_PATH "${OpenVINODevScripts_DIR}")
+set(CMAKE_MODULE_PATH "${OpenVINODeveloperScripts_DIR}")
 
 function(ov_set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
@@ -174,8 +174,11 @@ else()
         set(OV_BUILD_POSTFIX ${OV_RELEASE_POSTFIX})
     endif()
 endif()
-set(IE_BUILD_POSTFIX ${OV_BUILD_POSTFIX}) # for BW compatibility; removed before 2024.0
 add_definitions(-DOV_BUILD_POSTFIX=\"${OV_BUILD_POSTFIX}\")
+
+# for BW compatibility; removed before 2024.0
+set(IE_BUILD_POSTFIX ${OV_BUILD_POSTFIX})
+add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
 
 ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})

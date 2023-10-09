@@ -25,7 +25,7 @@ function(ov_shellcheck_process)
 
     cmake_parse_arguments(SHELLCHECK "" "DIRECTORY" "SKIP" ${ARGN})
 
-    set(SHELLCHECK_SCRIPT "${OpenVINODevScripts_DIR}/shellcheck/shellcheck_process.cmake")
+    set(SHELLCHECK_SCRIPT "${OpenVINODeveloperScripts_DIR}/shellcheck/shellcheck_process.cmake")
     file(GLOB_RECURSE scripts "${SHELLCHECK_DIRECTORY}/*.sh")
     foreach(script IN LISTS scripts)
         # check if we need to skip scripts

@@ -16,7 +16,7 @@ endif()
 
 
 set(OV_COVERAGE_REPORTS "${CMAKE_BINARY_DIR}/coverage")
-set(OV_COVERAGE_SCRIPT_DIR "${OpenVINODevScripts_DIR}/coverage")
+set(OV_COVERAGE_SCRIPT_DIR "${OpenVINODeveloperScripts_DIR}/coverage")
 
 include(CMakeParseArguments)
 

@@ -71,7 +71,6 @@ function(add_common_utils ADD_TARGET_NAME)
     target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC "$<BUILD_INTERFACE:${OV_TESTS_ROOT}/test_utils>")
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
-
 endfunction()
 
 # Keep old name so that library can be used from NPU repo

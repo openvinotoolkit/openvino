@@ -191,12 +191,12 @@ endfunction()
 
 # deprecated
 
-macro(addIeTarget)
+function(addIeTarget)
     message(WARNING "'addIeTarget' is deprecated, please, use 'ov_add_target' instead")
-    ov_add_target(${ARGN})
-endmacro()
+    ov_add_target(${ARGV})
+endfunction()
 
-macro(addIeTargetTest)
+function(addIeTargetTest)
     message(WARNING "'addIeTargetTest' is deprecated, please, use 'ov_add_test_target' instead")
-    ov_add_test_target(${ARGN})
-endmacro()
+    ov_add_test_target(${ARGV})
+endfunction()

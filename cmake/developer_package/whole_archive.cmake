@@ -54,7 +54,7 @@ endfunction()
 
 # deprecated
 
-macro(ieTargetLinkWholeArchive)
+function(ieTargetLinkWholeArchive)
     message(WARNING "'ieTargetLinkWholeArchive' is deprecated, use 'ov_target_link_whole_archive' instead")
     ov_target_link_whole_archive(${ARGN})
-endmacro()
+endfunction()
