@@ -20,7 +20,7 @@ ov_add_target(
             PUBLIC
                 openvino::runtime
                 openvino::reference
-                interpreter_backend
+                openvino::interpreter_backend
                 openvino::runtime::dev
                 common_test_utils
         ADD_CLANG_FORMAT

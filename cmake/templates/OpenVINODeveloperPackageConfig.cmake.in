@@ -76,7 +76,7 @@ find_dependency(OpenVINO ${OpenVINO_FIND_PACKAGE_ARGS})
 _ov_find_tbb()
 _ov_find_pugixml()
 
-include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargetsTargets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/OpenVINODeveloperTargets.cmake")
 
 if(NOT OV_RELOCATABLE_DEVELOPER_PACKAGE)
     # inherit OpenCV from main OpenVINO project if enabled

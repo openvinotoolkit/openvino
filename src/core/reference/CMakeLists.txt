@@ -36,7 +36,8 @@ endif()
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${REF_IMPL_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${OV_CORE_DEV_API_PATH}>
-    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+    $<INSTALL_INTERFACE:developer_package/include/openvino_reference>)
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)
@@ -46,7 +47,12 @@ target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::core::de
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
+# install & export
+
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-# developer package
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::reference)
+
+install(DIRECTORY "${REF_IMPL_INCLUDE_DIR}/"
+        DESTINATION developer_package/include/openvino_reference
+        COMPONENT developer_package EXCLUDE_FROM_ALL)

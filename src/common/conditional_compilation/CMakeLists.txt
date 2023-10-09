@@ -2,16 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME conditional_compilation)
+set(TARGET_NAME openvino_conditional_compilation)
 
 add_library(${TARGET_NAME} INTERFACE)
 
 add_library(openvino::conditional_compilation ALIAS ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME conditional_compilation)
 
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::itt)
 
 target_include_directories(${TARGET_NAME} INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:developer_package/include/openvino_conditional_compilation>)
 
 if(SELECTIVE_BUILD STREQUAL "COLLECT")
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD_ANALYZER)
@@ -56,12 +58,19 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
     ov_force_include(${TARGET_NAME} INTERFACE ${GENERATED_HEADER})
 endif()
 
-ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
-
 file(GLOB_RECURSE hdrs ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${hdrs})
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::conditional_compilation)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
+
+# install & export
+
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::conditional_compilation)
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+        DESTINATION developer_package/include/openvino_conditional_compilation
+        COMPONENT developer_package EXCLUDE_FROM_ALL)
