@@ -62,4 +62,3 @@ def cleanup_dir(dir: str):
                 shutil.rmtree(file_path)
         except Exception as e:
             pass
-
