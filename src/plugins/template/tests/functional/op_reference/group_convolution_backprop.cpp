@@ -7,7 +7,6 @@
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace reference_tests;
 using namespace ov;

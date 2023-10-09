@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/prior_box_clustered.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/prior_box.hpp"
-#include "openvino/opsets/opset1.hpp"
 
 using namespace reference_tests;
 using namespace ov;
