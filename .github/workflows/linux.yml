@@ -914,7 +914,6 @@ jobs:
 
       - name: PyTorch Layer Tests
         run: |
-
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
@@ -922,7 +921,6 @@ jobs:
 
       - name: TensorFlow 1 Layer Tests - TF FE
         run: |
-
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -930,7 +928,6 @@ jobs:
 
       - name: TensorFlow 2 Layer Tests - TF FE
         run: |
-
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -938,19 +935,16 @@ jobs:
 
       - name: JAX Layer Tests - TF FE
         run: |
-
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
         run: |
-
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         run: |
-
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
               --ir_version=11 --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml -k "sigmoid"
         env:
@@ -959,7 +953,6 @@ jobs:
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         run: |
-
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -974,7 +967,6 @@ jobs:
 
       - name: MO Python API Tests
         run: |
-
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           source ${INSTALL_DIR}/setupvars.sh
           bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
