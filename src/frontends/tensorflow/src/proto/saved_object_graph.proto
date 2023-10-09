@@ -12,7 +12,7 @@ limitations under the License.*/
 
 syntax = "proto3";
 
-package tensorflow;
+package ov_tensorflow;
 
 import "any.proto";
 import "tensor_shape.proto";
@@ -109,7 +109,7 @@ message SavedObject {
   // The user-generated proto storing metadata for this object, to be passed to
   // the registered classes's _deserialize_from_proto method when this object is
   // loaded from the SavedModel.
-  google.protobuf.Any serialized_user_proto = 14;
+  ov_tensorflow.google.protobuf.Any serialized_user_proto = 14;
 
   // String name of the registered saver. At most one of `saveable_objects` or
   // `registered_saver` is defined for each SavedObject.

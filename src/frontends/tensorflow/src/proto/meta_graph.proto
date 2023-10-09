@@ -12,7 +12,7 @@ limitations under the License.*/
 
 syntax = "proto3";
 
-package tensorflow;
+package ov_tensorflow;
 
 import "any.proto";
 import "graph.proto";
@@ -54,7 +54,7 @@ message MetaGraphDef {
 
     // A serialized protobuf. Can be the time this meta graph is created, or
     // modified, or name of the model.
-    google.protobuf.Any any_info = 3;
+    ov_tensorflow.google.protobuf.Any any_info = 3;
 
     // User supplied tag(s) on the meta_graph and included graph_def.
     //
@@ -210,7 +210,7 @@ message CollectionDef {
 
   // AnyList is used for collecting Any protos.
   message AnyList {
-    repeated google.protobuf.Any value = 1;
+    repeated ov_tensorflow.google.protobuf.Any value = 1;
   }
 
   oneof kind {

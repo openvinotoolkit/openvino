@@ -16,6 +16,8 @@ namespace frontend {
 namespace tensorflow {
 namespace tests {
 
+const std::string TF_FE = "tf";
+
 shared_ptr<Model> convert_model(const string& model_path,
                                 const ConversionExtension::Ptr& conv_ext,
                                 const vector<string>& input_names,

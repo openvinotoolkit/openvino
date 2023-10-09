@@ -12,7 +12,7 @@ limitations under the License.*/
 
 syntax = "proto3";
 
-package tensorflow;
+package ov_tensorflow;
 
 import "wrappers.proto";
 
@@ -77,7 +77,7 @@ message TrackableObjectGraph {
     // values. This is computed at save time to avoid traversing the entire
     // object graph proto when restoring (which also has to traverse the live
     // object graph).
-    google.protobuf.BoolValue has_checkpoint_values = 5;
+    ov_tensorflow.google.protobuf.BoolValue has_checkpoint_values = 5;
   }
 
   repeated TrackableObject nodes = 1;
