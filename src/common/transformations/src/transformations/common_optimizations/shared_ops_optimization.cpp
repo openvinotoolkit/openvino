@@ -51,6 +51,10 @@ bool shared_node_optimization(const shared_ptr<Model>& model, const rules_t& rul
                     continue;
                 const auto& are_equal = rules.at(item.first);
 
+                std::sort(shared_nodes.begin(), shared_nodes.end(), [](Node* l_node, Node* r_node) {
+                    return l_node->get_instance_id() < r_node->get_instance_id();
+                });
+
                 std::vector<bool> visited_nodes(shared_nodes.size(), false);
                 for (size_t i = 0; i < visited_nodes.size(); ++i) {
                     if (visited_nodes[i])
