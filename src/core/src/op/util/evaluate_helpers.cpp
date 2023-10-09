@@ -21,7 +21,7 @@ AxisSet get_normalized_axes_from_tensor(const HostTensorPtr tensor,
 namespace ov {
 namespace op {
 namespace util {
-std::vector<PartialShape> get_tensors_shapes(const TensorVector& tensors) {
+std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors) {
     std::vector<PartialShape> shapes;
     shapes.reserve(tensors.size());
     for (const auto& t : tensors) {
