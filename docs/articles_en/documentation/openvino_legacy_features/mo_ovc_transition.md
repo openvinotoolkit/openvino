@@ -730,7 +730,7 @@ Model cut in original FW.
 
 Model cut for SavedModel format is not available in legacy API.  
 
-Example of model cut in original FW.
+Example of input or output layer cut in original FW.
 
 .. code-block:: py
    :force:
@@ -757,6 +757,50 @@ Example of model cut in original FW.
      
    # Convert and compile the model
    ov_model = ov.convert_model(new_graph_def)
+   compiled_model = ov.compile_model(ov_model)
+
+Example of cutting model outputs.
+
+.. code-block:: py
+   :force:
+
+   import openvino as ov
+   import torch
+
+   # Example of model with multiple outputs
+   class Model(torch.nn.Module):
+       def __init__(self):
+           super(Model, self).__init__() 
+           self.linear1 = torch.nn.Linear(100, 200)
+           self.activation1 = torch.nn.ReLU()
+           self.linear2 = torch.nn.Linear(200, 10)
+           self.activation2 = torch.nn.Sigmoid()
+
+       def forward(self, x):
+           x = self.linear1(x)
+           x = self.activation1(x)
+           y = self.linear2(x)
+           y = self.activation2(y)
+           return x, y
+     
+   # New model, where some outputs are cut
+   class CutModel(torch.nn.Module):
+       def __init__(self):
+           super(CutModel, self).__init__()
+           self.model = Model()
+
+       def forward(self, x): 
+
+           # get first output
+           x, _ = self.model(x)
+
+           return x
+     
+   # Model with output cut
+   cut_model = CutModel()
+     
+   # convert and compile the model
+   ov_model = ov.convert_model(cut_model, input=([-1,-1,-1], torch.float32))
    compiled_model = ov.compile_model(ov_model)
 
 
