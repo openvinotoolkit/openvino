@@ -8,6 +8,7 @@ import unittest
 from unittest import mock
 
 import numpy as np
+from generator import generator, generate
 
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, strict_compare_tensors
 from openvino.tools.mo.graph.graph import Node
@@ -16,6 +17,7 @@ from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 
 
+@generator
 class TestFunction(unittest.TestCase):
     def setUp(self):
         path, _ = os.path.split(os.path.dirname(__file__))
@@ -32,14 +34,12 @@ class TestFunction(unittest.TestCase):
         self.IR_ref = IREngine(path_to_xml=str(self.xml), path_to_bin=str(self.bin))
         self.IR_negative = IREngine(path_to_xml=str(self.xml_negative), path_to_bin=str(self.bin))
 
-    def test_is_float(self):
-        test_cases=[(4.4, True), ('aaaa', False)]
-        for idx, (test_data, result) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                test_data = test_data
-                self.assertEqual(IREngine._IREngine__isfloat(test_data), result,
-                                "Function __isfloat is not working with value: {}".format(test_data))
-                log.info('Test for function __is_float passed with value: {}, expected result: {}'.format(test_data, result))
+    @generate(*[(4.4, True), ('aaaa', False)])
+    def test_is_float(self, test_data, result):
+        test_data = test_data
+        self.assertEqual(IREngine._IREngine__isfloat(test_data), result,
+                         "Function __isfloat is not working with value: {}".format(test_data))
+        log.info('Test for function __is_float passed with value: {}, expected result: {}'.format(test_data, result))
 
     # TODO add comparison not for type IREngine
     def test_compare(self):
@@ -94,14 +94,12 @@ class TestFunction(unittest.TestCase):
         numpy_savez.assert_called_once()
         log.info('Test for function generate_bin_hashes_file with custom folder passed')
 
-    def test_normalize_attr(self):
-        test_cases=[({'order': '1,0,2'}, {'order': [1, 0, 2]}),
-                ({'order': '1'}, {'order': 1})]
-        for idx, (test_data, reference) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                result_dict = IREngine._IREngine__normalize_attrs(attrs=test_data)
-                self.assertTrue(reference == result_dict, 'Test on function normalize_attr failed')
-                log.info('Test for function normalize_attr passed')
+    @generate(*[({'order': '1,0,2'}, {'order': [1, 0, 2]}),
+                ({'order': '1'}, {'order': 1})])
+    def test_normalize_attr(self, test_data, reference):
+        result_dict = IREngine._IREngine__normalize_attrs(attrs=test_data)
+        self.assertTrue(reference == result_dict, 'Test on function normalize_attr failed')
+        log.info('Test for function normalize_attr passed')
 
     def test_load_bin_hashes(self):
         path_for_file = self.IR.generate_bin_hashes_file()
@@ -129,8 +127,7 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(is_ok, 'Test for function load_bin_hashes failed')
         os.remove(path_for_file)
 
-    def test_isint(self):
-        test_cases=[
+    @generate(*[
         ("0", True),
         ("1", True),
         ("-1", True),
@@ -142,7 +139,6 @@ class TestFunction(unittest.TestCase):
         ("1.5", False),
         ("+1.5", False),
         ("abracadabra", False),
-    ]
-        for idx, (value, result) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                self.assertEqual(IREngine._IREngine__isint(value), result)
+    ])
+    def test_isint(self, value, result):
+        self.assertEqual(IREngine._IREngine__isint(value), result)
