@@ -9,62 +9,69 @@ using namespace ov::tools::subgraph_dumper;
 
 std::shared_ptr<ModelComparator> ModelComparator::m_instance = nullptr;
 
+void ModelComparator::set_match_coefficient(float _match_coefficient) {
+    if (_match_coefficient  < 0 || _match_coefficient > 1) {
+        throw std::runtime_error("[ ERROR ] Match coefficient should be from 0 to 1!");
+    }
+    match_coefficient = _match_coefficient;
+}
+
+void ModelComparator::set_shape_strict_match(bool is_shape_strict_match) {
+    m_manager.set_shape_strict_match(is_shape_strict_match);
+}
+
 std::map<std::string, InputInfo>
 ModelComparator::align_input_info(const std::shared_ptr<ov::Model>& model,
                                   const std::shared_ptr<ov::Model>& model_ref,
                                   const std::map<std::string, InputInfo>& in_info,
                                   const std::map<std::string, InputInfo>& in_info_ref,
                                   const std::map<std::string, std::string> &matched_op) {
-    std::map<std::string, InputInfo> new_input_info = in_info;
     bool is_update_required = false;
-    for (const auto& in_info_item : in_info_ref) {
-        if (!in_info.count(in_info_item.first)) {
+    for (const auto& ref_item : in_info_ref) {
+        if (!in_info.count(ref_item.first)) {
             is_update_required = true;
             break;
-        } else if (in_info.at(in_info_item.first).is_const != in_info_item.second.is_const) {
+        } else if (in_info.at(ref_item.first).is_const != ref_item.second.is_const) {
             throw std::runtime_error("Impossible to update input info!!!");
         }
     }
+
+    std::map<std::string, InputInfo> updated_input_info = in_info_ref;
     if (is_update_required) {
         // align matched model names
-        auto ref_model_ops = model_ref->get_ordered_ops();
-        auto model_ops = model->get_ordered_ops();
+        const auto& ref_model_ops = model_ref->get_ordered_ops();
+        const auto& model_ops = model->get_ordered_ops();
         size_t ref_ordered_ops_size = ref_model_ops.size();
         size_t ordered_ops_size = model_ops.size();
         if (ref_ordered_ops_size != ordered_ops_size && matched_op.empty()) {
             throw std::runtime_error("Matched models can not be compared according different op numbers!");
         }
-        for (size_t i = 0; i < ref_ordered_ops_size; ++i) {
-            auto model_op_name = i < ordered_ops_size ? model_ops[i]->get_friendly_name() : "";
-            auto model_ref_op_name = ref_model_ops[i]->get_friendly_name();
+        for (size_t i = 0; i < ordered_ops_size; ++i) {
+            auto model_op_name = model_ops[i]->get_friendly_name();
+            auto model_ref_op_name = matched_op.empty() ? ref_model_ops[i]->get_friendly_name() : matched_op.at(model_op_name);
             if (!in_info_ref.count(model_ref_op_name) && !in_info.count(model_op_name)) {
                 continue;
             }
-            auto input_info = matched_op.empty() ? new_input_info[model_op_name] : in_info_ref.at(model_ref_op_name);
-            std::string input_name = matched_op.count(model_ref_op_name) ? matched_op.at(model_ref_op_name) : model_op_name;
-            if (new_input_info.count(input_name)) {
-                if (input_info.is_const != in_info_ref.at(model_ref_op_name).is_const) {
-                    throw std::runtime_error("Impossible to update input info!!!");
-                }
-                if (!matched_op.empty()) {
-                    input_info = new_input_info.at(input_name);
-                }
-                new_input_info.erase(input_name);
+
+            const auto& in_info_item = in_info.at(model_op_name);
+            const auto& ref_in_info_item = in_info_ref.at(model_ref_op_name);
+            if (in_info_item.is_const != ref_in_info_item.is_const) {
+                throw std::runtime_error("Impossible to update input info!!!");
             }
-            new_input_info.insert({ model_ref_op_name, input_info });
+            updated_input_info[model_ref_op_name] = in_info_item;
         }
     }
-    return new_input_info;
+    return updated_input_info;
 }
 
 
 inline ModelComparator::IsSubgraphTuple
 prepare_is_subgraph_result(bool is_subgraph,
-                           const std::shared_ptr<ov::Model>& graph,
                            const std::shared_ptr<ov::Model>& subgraph,
+                           const std::shared_ptr<ov::Model>& graph,
                            const std::map<std::string, std::string>& matched_ops) {
     return is_subgraph ?
-           std::make_tuple(is_subgraph, graph, subgraph, matched_ops) :
+           std::make_tuple(is_subgraph, subgraph, graph, matched_ops) :
            std::make_tuple(is_subgraph, nullptr, nullptr, std::map<std::string, std::string>());
 }
 
@@ -92,27 +99,23 @@ ModelComparator::is_subgraph(const std::shared_ptr<ov::Model> &model,
     auto graph_it = graph_to_check_ops.begin(), subgraph_it = subgraph_to_check_ops.begin();
     while (graph_it != graph_to_check_ops.end() && subgraph_it != subgraph_to_check_ops.end()) {
         if (m_manager.match(*graph_it, *subgraph_it)) {
-            matched_op_names.insert({ (*graph_it)->get_friendly_name(), (*subgraph_it)->get_friendly_name()});
+            matched_op_names.insert({ (*subgraph_it)->get_friendly_name(), (*graph_it)->get_friendly_name()});
             ++subgraph_it;
         }
         ++graph_it;
     }
-    return prepare_is_subgraph_result(subgraph_it == subgraph_to_check_ops.end(), graph, subgraph, matched_op_names);
+    return prepare_is_subgraph_result(subgraph_it == subgraph_to_check_ops.end(), subgraph, graph, matched_op_names);
 }
 
 bool
 ModelComparator::match(const std::shared_ptr<ov::Node> &node,
-                       const std::shared_ptr<ov::Node> &ref_node) {
+                       const std::shared_ptr<ov::Node> &ref_node) const {
     return m_manager.match(node, ref_node);
 }
 
 bool
 ModelComparator::match(const std::shared_ptr<ov::Model> &model,
                        const std::shared_ptr<ov::Model> &ref_model) const {
-    bool res = m_comparator.compare(model, ref_model).valid;
-    if (res) {
-        return res;
-    }
     std::vector<std::shared_ptr<ov::Node>> ordered_ops = model->get_ordered_ops(),
                                            ref_ordered_ops = ref_model->get_ordered_ops();
     if (ordered_ops.size() != ref_ordered_ops.size()) {
@@ -121,9 +124,7 @@ ModelComparator::match(const std::shared_ptr<ov::Model> &model,
     size_t matched_op_cnt = 0, total_op_cnt = ordered_ops.size();
     size_t matched_op_cnt_required = round(match_coefficient * total_op_cnt);
     for (size_t i = 0; i < total_op_cnt; ++i) {
-        if (is_node_to_skip(ordered_ops[i]) &&
-            is_node_to_skip(ref_ordered_ops[i]) ||
-            m_manager.match(ordered_ops[i], ref_ordered_ops[i])) {
+        if (m_manager.match(ordered_ops[i], ref_ordered_ops[i])) {
             ++matched_op_cnt;
         }
         if (matched_op_cnt >= matched_op_cnt_required) {
@@ -133,18 +134,48 @@ ModelComparator::match(const std::shared_ptr<ov::Model> &model,
     return false;
 }
 
-bool
-ModelComparator::match(const std::shared_ptr<ov::Model> &model,
-                       const std::shared_ptr<ov::Model> &ref,
-                       std::map<std::string, InputInfo> &in_info,
-                       const std::map<std::string, InputInfo> &in_info_ref) {
-    if (match(model, ref)) {
-        try {
-            in_info = align_input_info(model, ref, in_info, in_info_ref);
-            return true;
-        } catch (...) {
-            return false;
+ModelComparator::ExtractedSubgraphTuple
+ModelComparator::is_subgraph(const std::shared_ptr<ov::Model> &model,
+                             const std::shared_ptr<ov::Model> &ref_model,
+                             const std::map<std::string, InputInfo> &in_info,
+                             const std::map<std::string, InputInfo> &in_info_ref) {
+    auto extractor_res = is_subgraph(model, ref_model);
+    if (std::get<0>(extractor_res)) {
+        std::map<std::string, InputInfo> graph_in_info, subgraph_in_info;
+        std::shared_ptr<ov::Model> subgraph = nullptr, graph = nullptr;
+        // if (model == subgraph && ref_model == graph)
+        if (std::get<1>(extractor_res) == model && std::get<2>(extractor_res) == ref_model) {
+            subgraph = model;
+            subgraph_in_info = in_info;
+            graph = ref_model;
+            graph_in_info = in_info_ref;
+        // else if (subgraph == ref_model && graph = model)
+        } else if (std::get<1>(extractor_res) == ref_model && std::get<2>(extractor_res) == model) {
+            subgraph = ref_model;
+            subgraph_in_info = in_info_ref;
+            graph = model;
+            graph_in_info = in_info;
+        } else {
+            throw std::runtime_error("Generated models are incompatible with original ones!");
         }
+        try {
+            subgraph_in_info = align_input_info(subgraph, graph, subgraph_in_info, graph_in_info);
+            return { true, subgraph, graph, subgraph_in_info, graph_in_info };
+        } catch(std::exception) {}
     }
-    return false;
+    return { false, nullptr, nullptr, {}, {} };
+}
+
+std::pair<bool, std::map<std::string, InputInfo>>
+ModelComparator::match(const std::shared_ptr<ov::Model> &model,
+                       const std::shared_ptr<ov::Model> &model_ref,
+                       const std::map<std::string, InputInfo> &in_info,
+                       const std::map<std::string, InputInfo> &in_info_ref) {
+    try {
+        if (match(model, model_ref)) {
+            auto new_input_info = align_input_info(model, model_ref, in_info, in_info_ref);
+            return {true, new_input_info};
+        }
+    } catch (std::exception) {}
+    return {false, {}};
 }

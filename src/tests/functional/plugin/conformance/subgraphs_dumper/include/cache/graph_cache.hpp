@@ -6,6 +6,7 @@
 
 #include "cache/cache.hpp"
 #include "cache/meta/input_info.hpp"
+#include "utils/model_comparator.hpp"
 #include "matchers/subgraph/manager.hpp"
 #include "matchers/subgraph/subgraph.hpp"
 #include "matchers/subgraph/fused_names.hpp"
@@ -42,16 +43,17 @@ public:
 
 protected:
     std::map<std::shared_ptr<ov::Model>, MetaInfo> m_graph_cache;
-    ExtractorsManager m_manager;
-    static std::shared_ptr<GraphCache> m_cache_instance;
     // cache byte size
     uint64_t m_graph_cache_bytesize = 0;
+    ExtractorsManager m_manager;
+    ModelComparator::Ptr m_model_comparator = ModelComparator::get();
+    static std::shared_ptr<GraphCache> m_cache_instance;
 
     GraphCache(const std::string& device = "") {
         ExtractorsManager::ExtractorsMap matchers = {
             // temporary disabling according mem leaks in CI and not using swap mem
             // { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor(device)) },
-            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
+            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor()) },
         };
         m_manager.set_extractors(matchers);
         m_cache_subdir = "subgraph";

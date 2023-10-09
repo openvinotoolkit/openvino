@@ -18,8 +18,8 @@ class SubgraphExtractor {
 public:
     using Ptr = std::shared_ptr<SubgraphExtractor>;
 
-    virtual std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model) {
-        return std::list<ExtractedPattern>{};
+    virtual std::vector<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model) {
+        return std::vector<ExtractedPattern>{};
     }
 
     void set_extractor_name(const std::string& _extractor_name) { extractor_name = _extractor_name; }

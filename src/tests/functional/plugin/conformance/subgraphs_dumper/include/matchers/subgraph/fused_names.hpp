@@ -17,7 +17,7 @@ public:
     FusedNamesExtractor(const std::string& device = "");
     ~FusedNamesExtractor();
 
-    std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &modele) override;
+    std::vector<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &modele) override;
 
 protected:
     std::unordered_set<std::string> extract_compiled_model_names(const std::shared_ptr<ov::Model>& model);

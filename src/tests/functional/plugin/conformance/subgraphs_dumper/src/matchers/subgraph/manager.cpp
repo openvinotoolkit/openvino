@@ -9,45 +9,11 @@
 
 using namespace ov::tools::subgraph_dumper;
 
-ExtractorsManager::ExtractedSubgraphTuple
-ExtractorsManager::is_subgraph(const std::shared_ptr<ov::Model> &model,
-                               const std::shared_ptr<ov::Model> &ref_model,
-                               const std::map<std::string, InputInfo> &in_info,
-                               const std::map<std::string, InputInfo> &in_info_ref) {
-    auto extractor_res = model_comparator->is_subgraph(model, ref_model);
-    if (std::get<0>(extractor_res)) {
-        std::map<std::string, InputInfo> graph_in_info, subgraph_in_info;
-        if (std::get<1>(extractor_res) == model && std::get<2>(extractor_res) == ref_model) {
-            graph_in_info = in_info;
-            subgraph_in_info = in_info_ref;
-        } else if (std::get<1>(extractor_res) == ref_model && std::get<2>(extractor_res) == model) {
-            graph_in_info = in_info_ref;
-            subgraph_in_info = in_info;
-        } else {
-            throw std::runtime_error("Generated models are incompatible with original ones!");
-        }
-        try {
-            subgraph_in_info = model_comparator->align_input_info(std::get<2>(extractor_res), std::get<1>(extractor_res), subgraph_in_info, graph_in_info);
-        } catch(std::exception) {
-            return { false, nullptr, nullptr, {}, {} };
-        }
-        return { true, std::get<1>(extractor_res), std::get<2>(extractor_res), graph_in_info, subgraph_in_info };
-    }
-    return { false, nullptr, nullptr, {}, {} };
-}
-
-bool ExtractorsManager::match(const std::shared_ptr<ov::Model> &model,
-                              const std::shared_ptr<ov::Model> &model_ref,
-                              std::map<std::string, InputInfo> &in_info,
-                              const std::map<std::string, InputInfo> &in_info_ref) {
-    return model_comparator->match(model, model_ref, in_info, in_info_ref);
-}
-
-std::list<ExtractedPattern>
+std::vector<ExtractedPattern>
 ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model,
                            bool is_extract_body,
                            bool is_copy_constants) {
-    std::list<ExtractedPattern> result;
+    std::vector<ExtractedPattern> result;
     for (const auto &it : m_extractors) {
         // extract patterns from original models
         auto start = std::chrono::high_resolution_clock::now();

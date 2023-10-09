@@ -56,10 +56,10 @@ FusedNamesExtractor::~FusedNamesExtractor() {
     core.reset();
 }
 
-std::list<ExtractedPattern>
+std::vector<ExtractedPattern>
 FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
     auto compiled_op_name = extract_compiled_model_names(model);
-    std::list<ExtractedPattern> matched_patterns;
+    std::vector<ExtractedPattern> matched_patterns;
     std::unordered_set<std::string> checked_ops;
     ov::NodeVector nodes;
     for (const auto& op : model->get_ordered_ops()) {
