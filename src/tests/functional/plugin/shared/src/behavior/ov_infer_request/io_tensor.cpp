@@ -254,7 +254,7 @@ void OVInferRequestIOTensorSetPrecisionTest::TearDown() {
     APIBaseTest::TearDown();
 }
 
-TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
+TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecision) {
     for (auto&& output : execNet.outputs()) {
         auto output_tensor = utils::create_and_fill_tensor(element_type, output.get_shape());
         if (output.get_element_type() == element_type) {
@@ -265,7 +265,7 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetInBlobWithDifferentPrecisio
     }
 }
 
-TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecision) {
+TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
     for (auto&& input : execNet.inputs()) {
         auto input_tensor = utils::create_and_fill_tensor(element_type, input.get_shape());
         if (input.get_element_type() == element_type) {
