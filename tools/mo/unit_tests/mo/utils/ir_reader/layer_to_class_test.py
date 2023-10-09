@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
 
@@ -16,66 +16,64 @@ from unit_tests.utils.graph import connect_data,shaped_parameter, regular_op_wit
 from openvino.tools.mo.ops.op import Op
 
 
-class TestFunction(unittest.TestCase):
-    def test_groupconv_to_conv(self):
-        test_cases=[([1, 32, 112, 112], [32, 1, 1, 3], [32, 1, 1, 1, 3], 32),
+class TestFunction():
+    @pytest.mark.parametrize("shape, weights_shape, reshape_shape, group",[([1, 32, 112, 112], [32, 1, 1, 3], [32, 1, 1, 1, 3], 32),
                 ([1, 32, 112, 112], [32, 1, 1, 1, 3], None, 32),
-                ]
-        for idx, (shape, weights_shape, reshape_shape, group) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                weights_const = np.random.randn(*weights_shape).astype(np.float32)
+                ])
+    def test_groupconv_to_conv(self, shape, weights_shape, reshape_shape, group):
+        weights_const = np.random.randn(*weights_shape).astype(np.float32)
 
-                nodes_attributes = {
-                    **shaped_parameter('input', shape),
-                    **regular_op_with_shaped_data('group_conv', shape, {'type': 'GroupConvolution'}),
-                    **regular_op_with_shaped_data('conv', shape, {'type': 'Convolution'}),
-                    **valued_const_with_data('weights', weights_const, weights_shape, {'type': 'Const'}),
-                    **regular_op_with_shaped_data('reshape', reshape_shape, {'type': 'Reshape'}),
-                    **shaped_const_with_data('reshape_const', len(reshape_shape) if reshape_shape is not None else None, {'type': 'Const'}),
-                    **regular_op_with_shaped_data('add', shape, {'type': 'Add'}),
-                    **shaped_const_with_data('add_const', [1, 32, 1, 1], {'type': 'Const'}),
-                    **result("result")
-                }
+        nodes_attributes = {
+            **shaped_parameter('input', shape),
+            **regular_op_with_shaped_data('group_conv', shape, {'type': 'GroupConvolution'}),
+            **regular_op_with_shaped_data('conv', shape, {'type': 'Convolution'}),
+            **valued_const_with_data('weights', weights_const, weights_shape, {'type': 'Const'}),
+            **regular_op_with_shaped_data('reshape', reshape_shape, {'type': 'Reshape'}),
+            **shaped_const_with_data('reshape_const', len(reshape_shape) if reshape_shape is not None else None, {'type': 'Const'}),
+            **regular_op_with_shaped_data('add', shape, {'type': 'Add'}),
+            **shaped_const_with_data('add_const', [1, 32, 1, 1], {'type': 'Const'}),
+            **result("result")
+        }
 
-                edges = [*connect('input:0', 'group_conv:0'),
-                        *connect('group_conv:0', 'add:0'),
-                        *connect('add_const:0', 'add:1'),
-                        *connect('add:0', 'result:0'),
-                        ]
+        edges = [*connect('input:0', 'group_conv:0'),
+                 *connect('group_conv:0', 'add:0'),
+                 *connect('add_const:0', 'add:1'),
+                 *connect('add:0', 'result:0'),
+                 ]
 
-                if reshape_shape is not None:
+        if reshape_shape is not None:
 
-                    edges += [*connect('weights:0', 'reshape:0'),
-                            *connect('reshape_const:0', 'reshape:1'),
-                            *connect('reshape:0', 'group_conv:1')]
-                else:
-                    edges += [*connect('weights:0', 'group_conv:1')]
+            edges += [*connect('weights:0', 'reshape:0'),
+                      *connect('reshape_const:0', 'reshape:1'),
+                      *connect('reshape:0', 'group_conv:1')]
+        else:
+            edges += [*connect('weights:0', 'group_conv:1')]
 
-                graph = build_graph(nodes_attributes, edges)
-                reshape_node = None
-                if reshape_shape is None:
-                    reshape_node = Node(graph, 'reshape')
+        graph = build_graph(nodes_attributes, edges)
+        reshape_node = None
+        if reshape_shape is None:
+            reshape_node = Node(graph, 'reshape')
 
-                graph_ref = build_graph(nodes_attributes,
-                                        [*connect('input:0', 'conv:0'),
-                                        *connect('weights:0', 'conv:1'),
-                                        *connect('conv:0', 'add:0'),
-                                        *connect('add_const:0', 'add:1'),
-                                        *connect('add:0', 'result:0'),
-                                        ])
-                for op in graph.get_op_nodes(type='GroupConvolution'):
-                    groupconv_to_conv(op)
+        graph_ref = build_graph(nodes_attributes,
+                                [*connect('input:0', 'conv:0'),
+                                 *connect('weights:0', 'conv:1'),
+                                 *connect('conv:0', 'add:0'),
+                                 *connect('add_const:0', 'add:1'),
+                                 *connect('add:0', 'result:0'),
+                                 ])
+        for op in graph.get_op_nodes(type='GroupConvolution'):
+            groupconv_to_conv(op)
 
-                if reshape_shape is None:
-                    new_shape = [weights_shape[1] * group, *weights_shape[2:]]
-                    weights_const = np.reshape(weights_const, new_shape)
-                    node = Node(graph_ref, 'weights')
-                    node.value = weights_const
+        if reshape_shape is None:
+            new_shape = [weights_shape[1] * group, *weights_shape[2:]]
+            weights_const = np.reshape(weights_const, new_shape)
+            node = Node(graph_ref, 'weights')
+            node.value = weights_const
 
-                    assert len(reshape_node.in_nodes()) == 0 and len(reshape_node.out_nodes()) == 0
+            assert len(reshape_node.in_nodes()) == 0 and len(reshape_node.out_nodes()) == 0
 
-                (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-                self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        assert flag, resp
 
     def test_restore_tensor_names(self):
 
@@ -144,7 +142,7 @@ class TestFunction(unittest.TestCase):
 
         # Check that graph wasn't changed after shape infer
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_squeeze_no_axes(self):
         nodes_attributes = {
@@ -172,7 +170,7 @@ class TestFunction(unittest.TestCase):
 
         # Check that graph wasn't changed after shape infer
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_unsqueeze(self):
         nodes_attributes = {
@@ -205,4 +203,4 @@ class TestFunction(unittest.TestCase):
 
         # Check that graph wasn't changed after shape infer
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
