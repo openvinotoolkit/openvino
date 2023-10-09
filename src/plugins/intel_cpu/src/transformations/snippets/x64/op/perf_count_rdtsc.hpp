@@ -43,11 +43,10 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
     std::shared_ptr<PerfCountRdtscBegin> get_pc_begin();
-    // in each call, PerfCountRdtscBegin get start_time_stamp.
-    // in each call, PerfCountRdtscEnd get end_time_stamp, then total_duration += end_time_stamp - start_time_stamp, and iteration++.
+    // in each call, PerfCountRdtscBegin get start_count.
+    // in each call, PerfCountRdtscEnd get end_count, then total_duration += end_count - start_count, and iteration++.
     // in destructor of PerfCountRdtscEnd, output the perf info
-    // PerfCountRdtscBegin& perf_count_start;
-    // accumulation is time in nanosecond for chrono call, cycle count for rdtsc
+    // accumulation is cycle count
     uint64_t accumulation = 0ul;
     uint32_t iteration = 0u;
 };

@@ -39,6 +39,12 @@ struct Config {
         Disable,
     };
 
+    enum SnippetsPerfCountMode {
+        Disabled,
+        Chrono,
+        Rdtsc,
+    };
+
     enum class LatencyThreadingMode {
         PER_NUMA_NODE,
         PER_SOCKET,
@@ -53,6 +59,7 @@ struct Config {
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
+    SnippetsPerfCountMode snippetsPCMode = SnippetsPerfCountMode::Disabled;
     std::string dumpToDot = {};
     std::string device_id = {};
     float fcSparseWeiDecompressionRate = 1.0f;

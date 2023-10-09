@@ -58,11 +58,6 @@ public:
     void set_start_time();
     std::chrono::high_resolution_clock::time_point& get_start_time();
 
-    // ~PerfCountBegin() {
-    //     auto start_time_stamp_c = start_time_stamp.time_since_epoch().count();
-    //     std::cout << "start_time_stamp_c:" << start_time_stamp_c << "ns" << std::endl;
-    // }
-
 private:
     std::chrono::high_resolution_clock::time_point start_time_stamp = {};
 };
@@ -89,8 +84,6 @@ public:
 private:
     uint64_t accumulation = 0ul;
     uint32_t iteration = 0u;
-    // pc_begin as member for perf? no get for each get perf start?
-    // std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
 };
 
 } // namespace op

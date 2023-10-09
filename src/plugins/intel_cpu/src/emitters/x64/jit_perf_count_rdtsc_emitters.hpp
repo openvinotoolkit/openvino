@@ -8,10 +8,6 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 
-// if CHRONO_CALL is defined, use std::chrono::high_resolution_clock as timer
-// otherwise uncomment below line to read tsc as cycle counters
-#define CHRONO_CALL
-
 namespace ov {
 namespace intel_cpu {
 
@@ -33,7 +29,6 @@ public:
     size_t get_inputs_num() const override;
 
 private:
-    // use start in emit_impl
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
     mutable uint64_t* m_start_count = nullptr;
     mutable uint64_t* m_accumulation = nullptr;

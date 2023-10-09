@@ -110,6 +110,20 @@ INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(ENABLE);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(IGNORE_CALLBACK);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(DISABLE);
 
+/**
+ * @brief Defines Snippets performance count mode
+ *      @param DISABLED - default, w/o perf count for snippets
+ *      @param CHRONO - chrono call based perf count. This is a universal method for both arm and x86.
+ *      @param RDTSC - perf count via read rdtsc register. This is more light overhead.
+ * for example, test show that RDTSC take ~50ns while CHRONO take 260ns for a pair of perf count start and perf count
+ * end execution. RDTSC is only applicable on x86.
+ * @ingroup ie_dev_api_plugin_api
+ */
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(SNIPPETS_PERF_COUNT_MODE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(DISABLED);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(CHRONO);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(RDTSC);
+
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine
