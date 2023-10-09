@@ -8,16 +8,19 @@ import logging as log
 
 class BenchHook:
     def __init__(self):
-        """Initialize a time list."""
+        """Initialize the time list."""
         self.tm_list = []
 
     def clear_time_list(self):
+        """Clear the time list."""
         self.tm_list.clear()
 
     def get_time_list(self):
+        """Return the time list."""
         return self.tm_list
 
     def new_forward(self, model, model_type):
+        """Define a new forward function."""
         org_forward = model.forward
         if model_type in ['decoder', 'codegen2', 'mpt', 'replit', 'chatglm', 'falcon']:
             def my_forward(input_ids: torch.LongTensor, attention_mask=None, past_key_values=None, **kwargs):
@@ -36,4 +39,4 @@ class BenchHook:
                 return ret
             model.forward = my_forward
         else:
-            log.warning('model_type:{}, does not support overloaded model forward'.format(model_type))
+            log.warning(f'model_type:{model_type}, does not support overloaded model forward.')

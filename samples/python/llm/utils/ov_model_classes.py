@@ -281,9 +281,8 @@ class OVLDMSuperResolutionPipeline(DiffusionPipeline):
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * self.scheduler.init_noise_sigma
         latents = latents.numpy()
-        accepts_eta = 'eta' in set(inspect.signature(self.scheduler.step).parameters.keys())
         extra_kwargs = {}
-        if accepts_eta:
+        if 'eta' in set(inspect.signature(self.scheduler.step).parameters.keys()):
             extra_kwargs['eta'] = eta
 
         for t in self.progress_bar(timesteps_tensor):
