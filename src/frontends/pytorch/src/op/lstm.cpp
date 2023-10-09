@@ -76,10 +76,13 @@ OutputVector translate_lstm(const NodeContext& context) {
         context.mark_node(std::make_shared<opset10::Concat>(NodeVector{num_directions_1d, four_times_hidden_size}, 0));
     // TODO find a better way to cast hidden_size to int64_t
     // https://github.com/pytorch/pytorch/blob/main/torch/nn/modules/rnn.py#L835C43-L835C43
-    const auto hidden_size_from_c0 =
-        std::dynamic_pointer_cast<opset10::Constant>(c0.get_node_shared_ptr()->input_value(2).get_node_shared_ptr());
-    FRONT_END_GENERAL_CHECK(hidden_size_from_c0, "Could not extract hidden size from hx");
-    const int64_t hidden_size_i64 = hidden_size_from_c0->cast_vector<int64_t>()[0];
+    // const auto hidden_size_from_c0 =
+    //     std::dynamic_pointer_cast<opset10::Constant>(c0.get_node_shared_ptr()->input_value(2).get_node_shared_ptr());
+    // FRONT_END_GENERAL_CHECK(hidden_size_from_c0, "Could not extract hidden size from hx");
+    // const int64_t hidden_size_i64 = hidden_size_from_c0->cast_vector<int64_t>()[0];
+    auto c_0_pshape = h_c.get_node_shared_ptr()->get_input_partial_shape(1);
+    FRONT_END_GENERAL_CHECK(c_0_pshape.size() == 3 && c_0_pshape[2].is_static(), "some exception");
+    auto hidden_size_i64 = c_0_pshape[2].get_length();
 
     // https://github.com/pytorch/pytorch/blob/main/torch/nn/modules/rnn.py#L109
     for (int64_t i = 0; i <= num_layers; i++) {
@@ -106,7 +109,7 @@ OutputVector translate_lstm(const NodeContext& context) {
                                                                       wn,
                                                                       rn,
                                                                       bn,
-                                                                      /** hidden_size**/ hidden_size_i64,
+                                                                      hidden_size_i64,
                                                                       direction));
         data = packed_output->output(0).get_node_shared_ptr();
     }
