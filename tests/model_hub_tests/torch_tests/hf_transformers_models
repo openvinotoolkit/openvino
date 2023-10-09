@@ -3,7 +3,7 @@ abcp4/mymodel-test,mymodel,skip,Load problem
 abeja/gpt-neox-japanese-2.7b,gpt_neox_japanese
 acl-submission-anonym/EAM-spectral,examuse,skip,Load problem
 adalbertojunior/modular-test,modular,skip,Load problem
-aerner/lm-v2,open-llama,xfail,Example input proble
+aerner/lm-v2,open-llama,xfail,Example input problem
 afonsosamarques/ardt-vanilla-combo_train_hopper_v2-2508_1336-33,decision_transformer,xfail,Tracing problem
 aihijo/gec-zh-gector-bert-large,gector,skip,Load problem
 albert-base-v2,albert
