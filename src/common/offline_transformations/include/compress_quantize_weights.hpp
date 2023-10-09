@@ -56,6 +56,7 @@ class CompressQuantizeWeights;
     Transformation prepares quantized constant data for Low Precision pipeline.
     Such constant data packing reduces IR size (.bin file size) in offline transformations.
     With that we can skip same calculations in the runtime and make loading of such sub-graphs to the plugin faster.
+    Additionally zero point can be fused to weights if it doesn't affect accuracy.
 */
 class ov::pass::CompressQuantizeWeights : public ov::pass::MatcherPass {
 public:

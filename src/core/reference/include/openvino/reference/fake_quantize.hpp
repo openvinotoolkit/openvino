@@ -111,18 +111,65 @@ void fake_quantize(const T* arg,
     using namespace fake_quantize_details;
 
     T levels_minus_one = static_cast<T>(levels - 1);
+    const size_t arg_size = shape_size(arg_shape);
 
     if (shape_size(in_low_shape) == 1 && shape_size(in_high_shape) == 1 && shape_size(out_low_shape) == 1 &&
         shape_size(out_high_shape) == 1) {
-        const size_t arg_size = shape_size(arg_shape);
-        const auto q = [&](const T& a) {
-            return quantize(a, *in_low, *in_high, *out_low, *out_high, levels_minus_one);
-        };
         for (size_t i = 0; i < arg_size; ++i) {
-            out[i] = q(arg[i]);
+            out[i] = quantize(arg[i], *in_low, *in_high, *out_low, *out_high, levels_minus_one);
         }
         return;
     }
+
+    /*
+     * ---------------------------------------------------
+     * Overview:
+     * 	Numpy broadcasted input tensors can be partitioned into two: outer and inner part (which also defines inner stride as a product of inner part),
+     * 	so N-dimensional tensors can be processed using two loops.
+     *
+     *	For example with two inputs [2, 2, 3, 4] and [1, 1, 3, 4] we can have:
+     *		input 1 with shape [2, 2, 3, 4] can be divided into outer part [2, 2] and inner part [4, 5] with inner stride = 12 (3 * 4)
+     *		input 2 with shape [1, 1, 3, 4] can be divided into outer part [1, 1] and inner part [4, 5] with inner stride = 12 (3 * 4)
+     *
+     *		Having that, those inputs can be processed by the following:
+     *
+     *      output_shape = {2, 2, 3, 4};
+     *      output_inner_stride = 12;
+     *		for (i = 0; i < shape_size(shape); i += output_inner_stride) {
+     *		    first_input_stride = i;
+     *		    second_input_stride = 0;
+     *		    for (j = 0; j < 12; j++) {
+     *		        *out++ = f(first_input[first_input_stride + j], second_input[second_input_stride + j]);
+     *		    }
+     *		}
+     *
+     * ---------------------------------------------------
+     * How the partitioning is done:
+     *  Partitioning process starts with the last dimension of input tensor shape and it stops when either one of below occurs:
+     *      - if the last dimension is equal to 1, partitioning stops at the dimension that is greater than 1 (this dimension is not included in the inner part),
+     *      - if the last dimension is greater than 1, partitioning stops at the dimension that is equal to 1 (this dimension is not included in the inner part).
+     *
+     *  Examples:
+     *      tensor_shape=[2, 3, 4, 5], inner_part = [2, 3, 4, 5], inner_stride = 120
+     *      tensor_shape=[1, 1, 4, 5], inner_part = [4, 5], inner_stride = 20
+     *      tensor_shape=[2, 3, 1, 1], inner_part = [1, 1], inner_stride = 1
+     *
+     *
+     * ---------------------------------------------------
+     * How the output inner stride is calculated:
+     *  Inner part (and inner stride) for every input tensor is determined. Then the size of output inner part is the size of inner part with the fewest number of dimensions.
+     *
+     *  Example with 5 inputs:
+     *      input 1 shape [2, 3, 4, 5], inner_part = [2, 3, 4, 5], inner_stride = 120
+     *      input 2 shape [1, 3, 4, 5], inner_part = [3, 4, 5], inner_stride = 60
+     *      input 3 shape [2, 3, 1, 1], inner_part = [1, 1], inner_stride = 1
+     *      input 4 shape [2, 1, 1, 1], inner_part = [1, 1, 1], inner_stride = 1
+     *      input 5 shape [1, 1, 1, 1], inner_part = [1, 1, 1, 1], inner_stride = 1
+     *
+     *      output shape [2, 3, 4, 5], inner_part = [4, 5], inner_stride = 20
+     *
+     *      Inner part with fewest number of elements is [1, 1] for input 2. So the inner part for output shape is [4, 5] and output inner stride is 20.
+     */
 
     std::vector<size_t> output_strides = compute_strides(arg_shape, arg_shape);
     std::vector<size_t> in_low_strides = compute_strides(arg_shape, in_low_shape);
@@ -130,21 +177,20 @@ void fake_quantize(const T* arg,
     std::vector<size_t> out_low_strides = compute_strides(arg_shape, out_low_shape);
     std::vector<size_t> out_high_strides = compute_strides(arg_shape, out_high_shape);
 
-    size_t num_elements = shape_size(arg_shape);
-    size_t input_inner_stride = num_elements;
+    size_t input_inner_stride = arg_size;
     size_t in_low_inner_stride = 0;
     size_t in_high_inner_stride = 0;
     size_t out_low_inner_stride = 0;
     size_t out_high_inner_stride = 0;
 
     std::tie(in_low_inner_stride, input_inner_stride) =
-        get_inner_stride(num_elements, arg_shape, in_low_shape, input_inner_stride);
+        get_inner_stride(arg_size, arg_shape, in_low_shape, input_inner_stride);
     std::tie(in_high_inner_stride, input_inner_stride) =
-        get_inner_stride(num_elements, arg_shape, in_high_shape, input_inner_stride);
+        get_inner_stride(arg_size, arg_shape, in_high_shape, input_inner_stride);
     std::tie(out_low_inner_stride, input_inner_stride) =
-        get_inner_stride(num_elements, arg_shape, out_low_shape, input_inner_stride);
+        get_inner_stride(arg_size, arg_shape, out_low_shape, input_inner_stride);
     std::tie(out_high_inner_stride, input_inner_stride) =
-        get_inner_stride(num_elements, arg_shape, out_high_shape, input_inner_stride);
+        get_inner_stride(arg_size, arg_shape, out_high_shape, input_inner_stride);
 
     auto get_outer_strides =
         [&output_strides, &in_low_strides, &in_high_strides, &out_low_strides, &out_high_strides](size_t flat_index) {
@@ -167,11 +213,6 @@ void fake_quantize(const T* arg,
                                                               out_low_stride,
                                                               out_high_stride};
         };
-
-    size_t in_low_stride = 0;
-    size_t in_high_stride = 0;
-    size_t out_low_stride = 0;
-    size_t out_high_stride = 0;
 
     if (in_low_inner_stride > 1 && in_high_inner_stride > 1 && out_low_inner_stride > 1 && out_high_inner_stride > 1) {
         fake_quantize_non_unit_inner_stride(arg,
@@ -223,7 +264,12 @@ void fake_quantize(const T* arg,
                                                         input_inner_stride,
                                                         get_outer_strides);
     } else {
-        for (size_t i = 0; i < num_elements; i++) {
+        size_t in_low_stride = 0;
+        size_t in_high_stride = 0;
+        size_t out_low_stride = 0;
+        size_t out_high_stride = 0;
+
+        for (size_t i = 0; i < arg_size; i++) {
             std::tie(in_low_stride, in_high_stride, out_low_stride, out_high_stride) = get_outer_strides(i);
             *out++ = quantize(*arg++,
                               *(in_low + in_low_stride),
@@ -258,23 +304,22 @@ std::tuple<size_t, size_t> get_inner_stride(size_t num_output_elements,
                                             size_t current_output_inner_stride) {
     if (shape.size() == 0)
         return std::tuple<size_t, size_t>{1, std::min(current_output_inner_stride, num_output_elements)};
-    size_t last = shape.back();
+    const size_t last = shape.back();
     auto it = std::find_if(shape.rbegin(), shape.rend(), [last](size_t dim) {
         return (last == 1 && dim > 1) || (last > 1 && dim == 1);
     });
     if (it == shape.rend()) {
-        size_t num_elements = shape_size(shape);
-        return std::tuple<size_t, size_t>{last == 1 ? 1 : num_elements,
-                                          std::min(current_output_inner_stride, num_elements)};
+        const size_t num_elements = shape_size(shape);
+        return std::tuple<size_t, size_t>{num_elements, last == 1 ? current_output_inner_stride : std::min(current_output_inner_stride, num_elements)};
     }
-    size_t idx = std::distance(it, shape.rbegin()) + static_cast<int64_t>(shape.size());
-    size_t inner_stride =
+    const size_t idx = std::distance(it, shape.rbegin()) + static_cast<int64_t>(shape.size());
+    const size_t inner_stride =
         std::accumulate(shape.begin() + idx, shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-    size_t weights_inner_stride = std::accumulate(output_shape.begin() + output_shape.size() - shape.size() + idx,
+    const size_t output_inner_stride = std::accumulate(output_shape.begin() + output_shape.size() - shape.size() + idx,
                                                   output_shape.end(),
                                                   static_cast<size_t>(1),
                                                   std::multiplies<size_t>());
-    return std::tuple<size_t, size_t>{inner_stride, std::min(current_output_inner_stride, weights_inner_stride)};
+    return std::tuple<size_t, size_t>{inner_stride, std::min(current_output_inner_stride, output_inner_stride)};
 }
 
 template <typename T, typename F>
@@ -386,10 +431,10 @@ void fake_quantize_unit_inner_stride(const T* arg,
                                                              const T* out_low,
                                                              const T* out_high,
                                                              T* out) {
-        auto in_low_scalar = *in_low;
-        auto in_high_scalar = *in_high;
-        auto out_low_scalar = *out_low;
-        auto out_high_scalar = *out_high;
+        const auto in_low_scalar = *in_low;
+        const auto in_high_scalar = *in_high;
+        const auto out_low_scalar = *out_low;
+        const auto out_high_scalar = *out_high;
         std::transform(input,
                        input_end,
                        out,
@@ -433,8 +478,8 @@ void fake_quantize_unit_output_intervals_inner_stride(const T* arg,
                                                                     const T* out_low,
                                                                     const T* out_high,
                                                                     T* out) {
-        auto out_low_scalar = *out_low;
-        auto out_high_scalar = *out_high;
+        const auto out_low_scalar = *out_low;
+        const auto out_high_scalar = *out_high;
         transform(input,
                   input_end,
                   in_low,
@@ -475,8 +520,8 @@ void fake_quantize_unit_input_intervals_inner_stride(const T* arg,
                                                                    const T* out_low,
                                                                    const T* out_high,
                                                                    T* out) {
-        auto in_low_scalar = *in_low;
-        auto in_high_scalar = *in_high;
+        const auto in_low_scalar = *in_low;
+        const auto in_high_scalar = *in_high;
         transform(input,
                   input_end,
                   out_low,

@@ -291,20 +291,12 @@ bool has_dequantization_subgraph(const std::shared_ptr<ov::Node>& fq,
     if (!convert_to_high_precision)
         return false;
     auto subtract = get_single_consumer_of_type<ov::op::v1::Subtract>(convert_to_high_precision);
-    ov::Node* multiply;
     if (subtract) {
         zero_point = subtract->get_input_node_shared_ptr(1);
-        auto subtract_consumers = subtract->output(0).get_target_inputs();
-        if (subtract_consumers.size() != 1)
-            return false;
-        multiply = subtract_consumers.begin()->get_node();
+        return get_single_consumer_of_type<ov::op::v1::Multiply>(subtract) != nullptr;
     } else {
-        auto convert_to_high_precision_consumers = convert_to_high_precision->output(0).get_target_inputs();
-        if (convert_to_high_precision_consumers.size() != 1)
-            return false;
-        multiply = convert_to_high_precision_consumers.begin()->get_node();
+        return get_single_consumer_of_type<ov::op::v1::Multiply>(convert_to_high_precision) != nullptr;
     }
-    return ov::is_type<ov::op::v1::Multiply>(multiply);
 }
 
 static std::shared_ptr<ov::op::v0::Constant> evaluate_fake_quantize(const std::shared_ptr<ov::Node>& quantize,
@@ -329,9 +321,9 @@ void replace_with_dequantize_subgraph(const std::shared_ptr<ov::op::v0::FakeQuan
     auto convert = node_registry.make<ov::op::v0::Convert>(new_weights, high_precision_type);
     ov::pass::disable_constant_folding(convert);
     std::shared_ptr<ov::op::v1::Multiply> mul;
-    auto scale = std::make_shared<ov::op::v0::Constant>(scale_tensor);
+    auto scale = node_registry.make<ov::op::v0::Constant>(scale_tensor);
     if (!zero_point_is_zero) {
-        auto zero_point = std::make_shared<ov::op::v0::Constant>(zero_point_tensor);
+        auto zero_point = node_registry.make<ov::op::v0::Constant>(zero_point_tensor);
         auto sub = node_registry.make<ov::op::v1::Subtract>(convert, zero_point);
         mul = node_registry.make<ov::op::v1::Multiply>(sub, scale);
     } else {
