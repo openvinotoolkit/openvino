@@ -179,7 +179,6 @@ bool op::v1::Reshape::evaluate_reshape(ov::TensorVector& outputs, const ov::Tens
     ov::reference::reshape(static_cast<char*>(inputs[0].data()),
                            static_cast<char*>(outputs[0].data()),
                            inputs[0].get_shape(),
-                           outputs[0].get_shape(),
                            inputs[0].get_element_type().size());
     return true;
 }

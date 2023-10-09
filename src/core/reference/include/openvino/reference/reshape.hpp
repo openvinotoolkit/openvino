@@ -19,7 +19,7 @@ namespace reference {
  * @param out_shape  Output data shape.
  * @param elem_size  Single data element size im bytes.
  */
-inline void reshape(const char* in, char* out, const Shape& in_shape, const Shape& out_shape, size_t elem_size) {
+inline void reshape(const char* in, char* out, const Shape& in_shape, size_t elem_size) {
     std::memcpy(out, in, shape_size(in_shape) * elem_size);
 }
 

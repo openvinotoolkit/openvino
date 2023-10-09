@@ -42,11 +42,7 @@ void strided_slice(const char* arg,
           elem_type);
 
     ngraph::runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) * elem_type);
-    reshape(slice_out_buffer.get_ptr<char>(),
-            reshape_out_buffer.get_ptr<char>(),
-            sp.reshape_in_shape,
-            sp.reshape_out_shape,
-            elem_type);
+    reshape(slice_out_buffer.get_ptr<char>(), reshape_out_buffer.get_ptr<char>(), sp.reshape_in_shape, elem_type);
 
     reverse(reshape_out_buffer.get_ptr<char>(),
             out,
