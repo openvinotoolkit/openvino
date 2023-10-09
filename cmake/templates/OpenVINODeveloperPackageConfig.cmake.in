@@ -10,7 +10,7 @@ set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@")
 
 # Variables to export in plugin's projects
 
-set(ov_options "@IE_OPTIONS@")
+set(ov_options "@OV_OPTIONS@")
 list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
                        CMAKE_CXX_LINKER_LAUNCHER CMAKE_C_LINKER_LAUNCHER
                        CMAKE_INSTALL_PREFIX CPACK_GENERATOR)
@@ -64,7 +64,7 @@ set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 # Content
 #
 
-find_dependency(IEDevScripts
+find_dependency(OpenVINODeveloperScripts
                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
