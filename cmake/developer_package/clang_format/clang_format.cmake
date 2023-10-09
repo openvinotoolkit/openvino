@@ -110,7 +110,7 @@ function(ov_add_clang_format_target TARGET_NAME)
         -D "CLANG_FORMAT=${CLANG_FORMAT}"
         -D "INPUT_FILES=${all_input_sources}"
         -D "EXCLUDE_PATTERNS=${CLANG_FORMAT_EXCLUDE_PATTERNS}"
-        -P "${OpenVINODevgeloperScripts_DIR}/clang_format/clang_format_fix.cmake"
+        -P "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_fix.cmake"
         DEPENDS
         "${all_input_sources}"
         "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_fix.cmake"

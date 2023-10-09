@@ -216,7 +216,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: openvino_developer_package
-          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar
           if-no-files-found: 'error'
 
       - name: Upload openvino debian packages
@@ -509,7 +509,6 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
 
     steps:
-
       - name: Fetch install_build_dependencies.sh
         uses: actions/checkout@v4
         with:
@@ -1305,6 +1304,7 @@ jobs:
 
   NVIDIA_Plugin:
     name: NVIDIA plugin
+    needs: Build
     defaults:
       run:
         shell: bash
@@ -1355,14 +1355,20 @@ jobs:
             tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR} && rm openvino_developer_package.tar.gz
           popd
 
-      - name: Fetch install_build_dependencies.sh
+      # TODO: replace with sparse checkout below
+      - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
-          sparse-checkout: |
-            install_build_dependencies.sh
-          sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
-          ref: 'master'
+
+      # - name: Fetch install_build_dependencies.sh
+      #   uses: actions/checkout@v4
+      #   with:
+      #     sparse-checkout: |
+      #       install_build_dependencies.sh
+      #     sparse-checkout-cone-mode: false
+      #     path: ${{ env.OPENVINO_REPO }}
+      #     ref: 'master'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4

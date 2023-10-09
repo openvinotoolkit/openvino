@@ -5,7 +5,6 @@
 set(TARGET_NAME openvino_interpreter_backend)
 
 add_definitions(-DIN_OV_COMPONENT)
-ov_deprecated_no_errors()
 
 file(GLOB OPS_SRC "${CMAKE_CURRENT_SOURCE_DIR}/ops/*.cpp")
 

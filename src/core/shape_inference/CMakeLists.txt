@@ -24,7 +24,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME shape_inference)
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>>
+    $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
     $<INSTALL_INTERFACE:developer_package/include/openvino_shape_inference>)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

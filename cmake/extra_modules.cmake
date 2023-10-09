@@ -122,7 +122,7 @@ function(ov_generate_dev_package_config)
 
     # Install whole 'cmake/developer_package' folder
 
-    install(DIRECTORY "${OpenVINODevScripts_DIR}/"
+    install(DIRECTORY "${OpenVINODeveloperScripts_DIR}/"
             DESTINATION "${DEV_PACKAGE_CMAKE_DIR}/"
             COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
 

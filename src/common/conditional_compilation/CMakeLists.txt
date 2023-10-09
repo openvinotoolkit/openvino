@@ -25,9 +25,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
     find_host_package (Python3 REQUIRED COMPONENTS Interpreter)
 
     file(TO_CMAKE_PATH ${SELECTIVE_BUILD_STAT} CMAKE_SELECTIVE_BUILD_STAT)
-
     file(GLOB STAT_FILES ${CMAKE_SELECTIVE_BUILD_STAT})
-
     if(NOT STAT_FILES)
         message(FATAL_ERROR "SELECTIVE_BUILD_STAT (${SELECTIVE_BUILD_STAT}) path doesn't contain valid csv files!")
     endif()

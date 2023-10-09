@@ -4,10 +4,10 @@
 
 set(TARGET_NAME "openvino_reference")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-
 set(REF_IMPL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${REF_IMPL_INCLUDE_DIR}/*.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj

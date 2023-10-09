@@ -589,8 +589,11 @@ if(ENABLE_SAMPLES)
     else()
         add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 
-        # this is required only because of NPU plugin reused this
+        # this is required only because of NPU plugin reused this: export & install
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
+        install(DIRECTORY "${OpenVINO_SOURCE_DIR}/thirdparty/json/nlohmann_json/include"
+                DESTINATION developer_package/include/nlohmann_json
+                COMPONENT developer_package EXCLUDE_FROM_ALL)
 
         # for nlohmann library versions older than v3.0.0
         if(NOT TARGET nlohmann_json::nlohmann_json)
