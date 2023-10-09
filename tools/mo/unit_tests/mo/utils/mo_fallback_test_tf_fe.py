@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import Mock
 
 import pytest
+from generator import generator, generate
 
 from openvino.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.convert_impl import prepare_ir
@@ -53,6 +54,7 @@ def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):
     return args
 
 
+@generator
 class TestMoFallback(unittest.TestCase):
     test_directory = os.path.dirname(os.path.realpath(__file__))
 
@@ -94,8 +96,7 @@ class TestMoFallback(unittest.TestCase):
         tm.Telemetry.send_event = Mock()
         FrontEnd.add_extension = Mock()
 
-    def test_transform_config_fallback_tf_fe_pb(self):
-        test_cases=[
+    @generate(*[
         # transformation config fallback even for use_new_frontend in case TF FE
         # TODO: uncomment this case once TF FE is unbricked and obtains normal name openvino_tensorflow_frontend
         # (False, True, 'mo_legacy', 'transformations_config'),
@@ -103,29 +104,27 @@ class TestMoFallback(unittest.TestCase):
         (True, False, 'mo_legacy', None),
         # no fallback since legacy FE is default for TensorFlow
         (False, False, 'mo_legacy', None),
-    ]
-        for idx, (use_legacy_frontend, use_new_frontend, expected_frontend,
-                                                fallback_reason) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                import tempfile
-                with tempfile.TemporaryDirectory(dir=self.test_directory) as tmp_dir:
-                    args = base_args_config(use_legacy_frontend, use_new_frontend)
-                    model_path = self.create_tensorflow_model_pb(tmp_dir)
-                    args.input_model = model_path
-                    args.framework = 'tf'
-                    args.transformations_config = self.create_fake_json_file(tmp_dir)
+    ])
+    def test_transform_config_fallback_tf_fe_pb(self, use_legacy_frontend, use_new_frontend, expected_frontend,
+                                                fallback_reason):
+        import tempfile
+        with tempfile.TemporaryDirectory(dir=self.test_directory) as tmp_dir:
+            args = base_args_config(use_legacy_frontend, use_new_frontend)
+            model_path = self.create_tensorflow_model_pb(tmp_dir)
+            args.input_model = model_path
+            args.framework = 'tf'
+            args.transformations_config = self.create_fake_json_file(tmp_dir)
 
-                    prepare_ir(args)
+            prepare_ir(args)
 
-                    tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_frontend)
-                    if fallback_reason:
-                        tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-                    else:
-                        with pytest.raises(AssertionError):  # not called
-                            tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_frontend)
+            if fallback_reason:
+                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+            else:
+                with pytest.raises(AssertionError):  # not called
+                    tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
 
-    def test_transform_config_fallback_tf_fe_saved_model(self):
-        test_cases=[
+    @generate(*[
         # transformation config fallback even for use_new_frontend in case TF FE
         # TODO: uncomment this case once TF FE is unbricked and obtains normal name openvino_tensorflow_frontend
         # (False, True, 'mo_legacy', 'transformations_config'),
@@ -133,24 +132,23 @@ class TestMoFallback(unittest.TestCase):
         (True, False, 'mo_legacy', None),
         # no fallback since legacy FE is default for TensorFlow
         (False, False, 'mo_legacy', None),
-    ]
-        for idx, (use_legacy_frontend, use_new_frontend, expected_frontend,
-                                                         fallback_reason) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                import tempfile
-                with tempfile.TemporaryDirectory(dir=self.test_directory) as tmp_dir:
-                    args = base_args_config(use_legacy_frontend, use_new_frontend)
-                    model_path = self.create_tensorflow_saved_model(tmp_dir)
-                    args.saved_model_dir = model_path
-                    args.framework = 'tf'
-                    args.transformations_config = self.create_fake_json_file(tmp_dir)
+    ])
+    def test_transform_config_fallback_tf_fe_saved_model(self, use_legacy_frontend, use_new_frontend, expected_frontend,
+                                                         fallback_reason):
+        import tempfile
+        with tempfile.TemporaryDirectory(dir=self.test_directory) as tmp_dir:
+            args = base_args_config(use_legacy_frontend, use_new_frontend)
+            model_path = self.create_tensorflow_saved_model(tmp_dir)
+            args.saved_model_dir = model_path
+            args.framework = 'tf'
+            args.transformations_config = self.create_fake_json_file(tmp_dir)
 
-                    print("args = ", args)
-                    prepare_ir(args)
+            print("args = ", args)
+            prepare_ir(args)
 
-                    tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_frontend)
-                    if fallback_reason:
-                        tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-                    else:
-                        with pytest.raises(AssertionError):  # not called
-                            tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_frontend)
+            if fallback_reason:
+                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+            else:
+                with pytest.raises(AssertionError):  # not called
+                    tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
