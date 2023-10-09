@@ -5,9 +5,10 @@
 #[[
 function to create CMake target and setup its options in a declarative style.
 Example:
-addIeTarget(
+ov_add_target(
    NAME core_lib
    ADD_CPPLINT
+   ADD_CLANG_FORMAT
    DEVELOPER_PACKAGE <component>
    TYPE <SHARED / STATIC / EXECUTABLE>
    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -25,9 +26,15 @@ addIeTarget(
         ie::important_plugin
    OBJECT_FILES
         object libraries
+   DEFINES
+        DEF1 DEF2
+   LINK_LIBRARIES_WHOLE_ARCHIVE
+        lib1 lib2
+   LINK_FLAGS
+        flag1 flag2
 )
 #]]
-function(addIeTarget)
+function(ov_add_target)
     set(options
         ADD_CPPLINT                   # Enables code style checks for the target
         ADD_CLANG_FORMAT              # Enables code style checks for the target
@@ -54,7 +61,7 @@ function(addIeTarget)
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN} )
 
     # sanity checks
-    foreach(argName ${oneValueRequiredArgs})
+    foreach(argName IN LISTS oneValueRequiredArgs)
         if (NOT ARG_${argName})
             message(SEND_ERROR "Argument '${argName}' is required.")
         endif()
@@ -133,18 +140,19 @@ function(addIeTarget)
     endif()
 endfunction()
 
-function(ov_add_target)
-    addIeTarget(${ARGV})
+function(addIeTarget)
+    message(WARNING "'addIeTarget' is deprecated, please, use 'ov_add_target' instead")
+    ov_add_target(${ARGV})
 endfunction()
 
 #[[
 Wrapper function over addIeTarget, that also adds a test with the same name.
 You could use
-addIeTargetTest( ... LABELS labelOne labelTwo )
+ov_add_test_target( ... LABELS labelOne labelTwo )
 also to provide labels for that test.
 Important: you MUST pass LABELS as last argument, otherwise it will consume any parameters that come after.
 #]]
-function(addIeTargetTest)
+function(ov_add_test_target)
     set(options
         )
     set(oneValueRequiredArgs
@@ -161,7 +169,7 @@ function(addIeTargetTest)
         set(ARG_COMPONENT tests)
     endif()
 
-    addIeTarget(TYPE EXECUTABLE NAME ${ARG_NAME} ${ARG_UNPARSED_ARGUMENTS})
+    ov_add_target(TYPE EXECUTABLE NAME ${ARG_NAME} ${ARG_UNPARSED_ARGUMENTS})
 
     if(EMSCRIPTEN)
         set(JS_BIN_NAME "${ARG_NAME}.js")
@@ -187,6 +195,7 @@ function(addIeTargetTest)
             EXCLUDE_FROM_ALL)
 endfunction()
 
-function(ov_add_test_target)
-    addIeTargetTest(${ARGV})
+function(addIeTargetTest)
+    message(WARNING "'addIeTargetTest' is deprecated, please, use 'ov_add_test_target' instead")
+    ov_add_test_target(${ARGV})
 endfunction()
