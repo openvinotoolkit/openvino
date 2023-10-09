@@ -71,3 +71,10 @@ endif()
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
+
+# install
+
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
+        DESTINATION developer_package/include/openvino_core_dev
+        COMPONENT developer_package
+        EXCLUDE_FROM_ALL)

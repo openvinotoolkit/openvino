@@ -32,6 +32,7 @@ target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
                                      PRIVATE openvino::reference openvino::runtime::dev)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+                                                 $<INSTALL_INTERFACE:developer_package/include/openvino_snippets>
                                           PRIVATE $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
@@ -46,8 +47,12 @@ endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-# install
+# install & export
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
 openvino_developer_export_targets(COMPONENT ${OV_CPACK_COMP_CORE} TARGETS ${TARGET_NAME})
+
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
+        DESTINATION developer_package/include/openvino_snippets
+        COMPONENT developer_package EXCLUDE_FROM_ALL)

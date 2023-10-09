@@ -4,10 +4,10 @@
 
 set(TARGET_NAME openvino_util)
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-
 set(UTIL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${UTIL_INCLUDE_DIR}/*.hpp)
 
 if (WIN32)
     # Remove linux specific files
@@ -42,12 +42,19 @@ if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
 target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
-
-ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>
+    $<INSTALL_INTERFACE:developer_package/include/openvino_util>)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     SOURCE_DIRECTORIES ${UTIL_INCLUDE_DIR})
 
+# install & export
+
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS ${TARGET_NAME})
+
+install(DIRECTORY "${UTIL_INCLUDE_DIR}/"
+        DESTINATION developer_package/include/openvino_util
+        COMPONENT developer_package EXCLUDE_FROM_ALL)

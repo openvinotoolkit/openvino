@@ -51,9 +51,6 @@ if(X86_64 OR X86 OR UNIVERSAL2)
         # conan creates alias xbyak::xbyak, no extra steps are required
     else()
         add_subdirectory(thirdparty/xbyak EXCLUDE_FROM_ALL)
-        # export and install xbyak
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak::xbyak)
-        ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
     endif()
 endif()
 
@@ -391,8 +388,15 @@ if(ENABLE_TESTS)
         endforeach()
     else()
         add_subdirectory(thirdparty/gtest EXCLUDE_FROM_ALL)
+        # install & export
         openvino_developer_export_targets(COMPONENT tests
-                                          TARGETS gmock gmock_main gtest gtest_main)
+                                          TARGETS gmock gtest gtest_main)
+        install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gtest/gtest/googletest/include/"
+                DESTINATION developer_package/include/gtest
+                COMPONENT developer_package EXCLUDE_FROM_ALL)
+        install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gtest/gtest/googlemock/include/"
+                DESTINATION developer_package/include/gmock
+                COMPONENT developer_package EXCLUDE_FROM_ALL)
     endif()
 endif()
 

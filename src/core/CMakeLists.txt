@@ -36,25 +36,26 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 #
-# Create ov_core_dev library
+# Create openvino_core_dev library
 #
 
-add_library(ov_core_dev INTERFACE)
-add_library(openvino::core::dev ALIAS ov_core_dev)
+add_library(openvino_core_dev INTERFACE)
+add_library(openvino::core::dev ALIAS openvino_core_dev)
 
-target_include_directories(ov_core_dev INTERFACE
+target_include_directories(openvino_core_dev INTERFACE
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
+    $<INSTALL_INTERFACE:developer_package/include/openvino_core_dev>)
 
-target_link_libraries(ov_core_dev INTERFACE openvino::itt openvino::util)
+target_link_libraries(openvino_core_dev INTERFACE openvino::itt openvino::util)
 
-set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
+set_target_properties(openvino_core_dev PROPERTIES EXPORT_NAME core::dev)
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
 
 # Install interface libraries for case BUILD_SHARED_LIBS=OFF
-ov_install_static_lib(ov_core_dev ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(openvino_core_dev ${OV_CPACK_COMP_CORE})
 
 # Fix error LNK1248: image size (...) exceeds maximum allowable size (FFFFFFFF)
 # the symbolic debugging information will be stored in a separate .pdb file.
@@ -168,9 +169,6 @@ install(FILES ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
 # install developer package files
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dev_api/
-        DESTINATION developer_package/core_dev/include
-        COMPONENT developer_package
-        FILES_MATCHING
-            PATTERN "*.hpp"
-            PATTERN "*.h")
+install(DIRECTORY ${OV_CORE_DEV_API_PATH}/
+        DESTINATION developer_package/include/openvino_core_dev
+        COMPONENT developer_package)

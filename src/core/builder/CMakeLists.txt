@@ -4,10 +4,10 @@
 
 set(TARGET_NAME "openvino_builders")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-
 set(BUILDER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${BUILDER_INCLUDE_DIR}/*.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -27,7 +27,8 @@ ov_build_target_faster(${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${BUILDER_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+    $<INSTALL_INTERFACE:developer_package/include/openvino_builders>)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
@@ -35,8 +36,12 @@ endif()
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
+# install & export
+
 ov_install_static_lib(openvino_builders ${OV_CPACK_COMP_CORE})
 
-# developer package
-
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::builders)
+
+install(DIRECTORY "${BUILDER_INCLUDE_DIR}/"
+        DESTINATION developer_package/include/openvino_builders
+        COMPONENT developer_package EXCLUDE_FROM_ALL)
