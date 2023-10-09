@@ -1089,6 +1089,7 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
           if-no-files-found: 'error'
 
   TensorFlow_Hub_Models_Tests:
