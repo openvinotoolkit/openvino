@@ -129,9 +129,10 @@ void fake_quantize(const T* arg,
      *  stride as a product of inner part), so N-dimensional tensors can be processed using two loops.
      *
      *  For example with two inputs [2, 2, 3, 4] and [1, 1, 3, 4] we can have:
-     *      input 1 with shape [2, 2, 3, 4] can be divided into outer part [2, 2] and inner part [4, 5]
-     *      with inner stride = 12 (3 * 4) input 2 with shape [1, 1, 3, 4] can be divided into outer part [1, 1]
-     *      and inner part [4, 5] with inner stride = 12 (3 * 4)
+     *      input 1 with shape [2, 2, 3, 4] can be divided into outer part [2, 2] and inner part [3, 4]
+     *      with inner stride = 12 (3 * 4).
+     *      input 2 with shape [1, 1, 3, 4] can be divided into outer part [1, 1]
+     *      and inner part [3, 4] with inner stride = 12 (3 * 4)
      *
      *      Having that, those inputs can be processed by the following:
      *
@@ -174,7 +175,7 @@ void fake_quantize(const T* arg,
      *
      *      output shape [2, 3, 4, 5], inner_part = [4, 5], inner_stride = 20
      *
-     *      Inner part with fewest number of elements is [1, 1] for input 2. So the inner part for output shape is [4, 5]
+     *      Inner part with fewest number of elements is [1, 1] for input 3. So the inner part for output shape is [4, 5]
      *      and output inner stride is 20.
      */
     // clang-format on
