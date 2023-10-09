@@ -13,10 +13,6 @@
 
 namespace ov {
 namespace test {
-struct ShapeRelatedParams {
-    std::pair<InferenceEngine::SizeVector, bool> input1, input2;
-};
-
 typedef std::tuple<
         std::vector<InputShape>,            // Input Shapes
         std::pair<bool, bool>,              // Transpose inputs
