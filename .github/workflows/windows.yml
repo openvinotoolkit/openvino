@@ -153,9 +153,8 @@ jobs:
           cmake `
             -DBUILD_nvidia_plugin=OFF `
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
-            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules `
-            -S ${{ env.OPENVINO_REPO }} `
-            -B ${{ env.BUILD_DIR }}
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules
+          
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Upload openvino package
