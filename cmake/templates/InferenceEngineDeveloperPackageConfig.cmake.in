@@ -6,37 +6,39 @@
 
 include(CMakeFindDependencyMacro)
 
+message(WARNING "find_package(InferenceEngineDeveloperPackage) is deprecated and will be removed in 2024.0 release. Please, use find_package(OpenVINODeveloperPackage)")
+
 # TODO: remove after changing [private plugins]
 set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # NPU
 set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # NPU
 
 # Variables to export in plugin's projects
 
-set(ie_options "@IE_OPTIONS@")
-list(APPEND ie_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
+set(ov_options "@OV_OPTIONS@")
+list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
                        CMAKE_CXX_LINKER_LAUNCHER CMAKE_C_LINKER_LAUNCHER
                        CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX CPACK_GENERATOR)
 
 if(APPLE)
-    list(APPEND ie_options CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
+    list(APPEND ov_options CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
 endif()
 
-get_property(_IE_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if(_IE_GENERATOR_MULTI_CONFIG)
-    list(APPEND ie_options CMAKE_CONFIGURATION_TYPES)
+get_property(_OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(_OV_GENERATOR_MULTI_CONFIG)
+    list(APPEND ov_options CMAKE_CONFIGURATION_TYPES)
     if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
-        list(APPEND ie_options CMAKE_DEFAULT_BUILD_TYPE)
+        list(APPEND ov_options CMAKE_DEFAULT_BUILD_TYPE)
     endif()
 else()
-    list(APPEND ie_options CMAKE_BUILD_TYPE)
+    list(APPEND ov_options CMAKE_BUILD_TYPE)
 endif()
-unset(_IE_GENERATOR_MULTI_CONFIG)
+unset(_OV_GENERATOR_MULTI_CONFIG)
 
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 message(STATUS "The following CMake options are exported from Inference Engine Developer package")
 message(" ")
-foreach(option IN LISTS ie_options)
+foreach(option IN LISTS ov_options)
     if(NOT DEFINED "${option}")
         load_cache("${cache_path}" READ_WITH_PREFIX "" ${option})
     endif()
@@ -56,7 +58,7 @@ set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 # Content
 #
 
-find_dependency(IEDevScripts
+find_dependency(OpenVINODeveloperScripts
                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
@@ -160,13 +162,13 @@ if(ENABLE_SYSTEM_PUGIXML)
     endif()
 endif()
 
-set(_IE_nlohmann_json_FOUND "@nlohmann_json_FOUND@")
-if(_IE_nlohmann_json_FOUND)
+set(_ov_nlohmann_json_FOUND "@nlohmann_json_FOUND@")
+if(_ov_nlohmann_json_FOUND)
     find_dependency(nlohmann_json)
     set_target_properties(nlohmann_json::nlohmann_json PROPERTIES IMPORTED_GLOBAL ON)
     add_library(IE::nlohmann_json ALIAS nlohmann_json::nlohmann_json)
 endif()
-unset(_IE_nlohmann_json_FOUND)
+unset(_ov_nlohmann_json_FOUND)
 
 # inherit OpenCV from main IE project if enabled
 if("@OpenCV_FOUND@")

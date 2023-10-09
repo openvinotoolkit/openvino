@@ -4,9 +4,11 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-if(NOT DEFINED IEDevScripts_DIR)
-    message(FATAL_ERROR "IEDevScripts_DIR is not defined")
+if(NOT DEFINED OpenVINODeveloperScripts_DIR )
+    message(FATAL_ERROR "OpenVINODeveloperScripts_DIR  is not defined")
 endif()
+
+set(IEDevScripts_DIR "${OpenVINODeveloperScripts_DIR}") # for BW compatibility
 
 # disable FindPkgConfig.cmake for Android
 if(ANDROID)
@@ -23,7 +25,7 @@ macro(ov_set_if_not_defined var value)
 endmacro()
 
 set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
-set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
+set(CMAKE_MODULE_PATH "${OpenVINODeveloperScripts_DIR}")
 
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
@@ -67,7 +69,7 @@ endif()
 # Prepare temporary folder
 #
 
-function(set_temp_directory temp_variable source_tree_dir)
+function(ov_set_temp_directory temp_variable source_tree_dir)
     if(DEFINED OV_TEMP)
         message(STATUS "OV_TEMP cmake variable is set : ${OV_TEMP}")
         file(TO_CMAKE_PATH ${OV_TEMP} temp)
@@ -83,6 +85,11 @@ function(set_temp_directory temp_variable source_tree_dir)
         set(ALTERNATIVE_PATH "${ALTERNATIVE_PATH}" PARENT_SCOPE)
     endif()
 endfunction()
+
+macro(set_temp_directory)
+    message(WARNING "'set_temp_directory' is deprecated. Please, use 'ov_set_temp_directory'")
+    ov_set_temp_directory(${ARGV})
+endmacro()
 
 #
 # For cross-compilation
@@ -139,37 +146,41 @@ if(NOT DEFINED OUTPUT_ROOT)
 endif()
 
 # Enable postfixes for Debug/Release builds
-set(IE_DEBUG_POSTFIX_WIN "d")
-set(IE_RELEASE_POSTFIX_WIN "")
-set(IE_DEBUG_POSTFIX_LIN "")
-set(IE_RELEASE_POSTFIX_LIN "")
-set(IE_DEBUG_POSTFIX_MAC "d")
-set(IE_RELEASE_POSTFIX_MAC "")
+set(OV_DEBUG_POSTFIX_WIN "d")
+set(OV_RELEASE_POSTFIX_WIN "")
+set(OV_DEBUG_POSTFIX_LIN "")
+set(OV_RELEASE_POSTFIX_LIN "")
+set(OV_DEBUG_POSTFIX_MAC "d")
+set(OV_RELEASE_POSTFIX_MAC "")
 
 if(WIN32)
-    set(IE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX_WIN})
-    set(IE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX_WIN})
+    set(OV_DEBUG_POSTFIX ${OV_DEBUG_POSTFIX_WIN})
+    set(OV_RELEASE_POSTFIX ${OV_RELEASE_POSTFIX_WIN})
 elseif(APPLE)
-    set(IE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX_MAC})
-    set(IE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX_MAC})
+    set(OV_DEBUG_POSTFIX ${OV_DEBUG_POSTFIX_MAC})
+    set(OV_RELEASE_POSTFIX ${OV_RELEASE_POSTFIX_MAC})
 else()
-    set(IE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX_LIN})
-    set(IE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX_LIN})
+    set(OV_DEBUG_POSTFIX ${OV_DEBUG_POSTFIX_LIN})
+    set(OV_RELEASE_POSTFIX ${OV_RELEASE_POSTFIX_LIN})
 endif()
 
-set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
-set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
+set(CMAKE_DEBUG_POSTFIX ${OV_DEBUG_POSTFIX})
+set(CMAKE_RELEASE_POSTFIX ${OV_RELEASE_POSTFIX})
 
 # Support CMake multi-configuration for Visual Studio / Ninja or Xcode build
 if(OV_GENERATOR_MULTI_CONFIG)
-    set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
+    set(OV_BUILD_POSTFIX $<$<CONFIG:Debug>:${OV_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${OV_RELEASE_POSTFIX}>)
 else()
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(IE_BUILD_POSTFIX ${IE_DEBUG_POSTFIX})
+        set(OV_BUILD_POSTFIX ${OV_DEBUG_POSTFIX})
     else()
-        set(IE_BUILD_POSTFIX ${IE_RELEASE_POSTFIX})
+        set(OV_BUILD_POSTFIX ${OV_RELEASE_POSTFIX})
     endif()
 endif()
+add_definitions(-DOV_BUILD_POSTFIX=\"${OV_BUILD_POSTFIX}\")
+
+# for BW compatibility; removed before 2024.0
+set(IE_BUILD_POSTFIX ${OV_BUILD_POSTFIX})
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
 
 ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
@@ -177,11 +188,6 @@ ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER
 ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-
-if(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
-    # to make sure that lib/<multiarch-triplet> is created on Debian
-    set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
-endif()
 
 include(packaging/packaging)
 
@@ -261,7 +267,7 @@ include(api_validator/api_validator)
 include(vs_version/vs_version)
 include(plugins/plugins)
 include(frontends/frontends)
-include(add_ie_target)
+include(add_target_helpers)
 include(CMakePackageConfigHelpers)
 
 if(ENABLE_FUZZING)

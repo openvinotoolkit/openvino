@@ -23,7 +23,7 @@ ov_add_target(
         link_dependencies
    DEPENDENCIES
         dependencies
-        ie::important_plugin
+        openvino::important_plugin
    OBJECT_FILES
         object libraries
    DEFINES
@@ -90,8 +90,7 @@ function(ov_add_target)
     source_group("include" FILES ${includes})
     source_group("src"     FILES ${sources})
 
-    set(all_sources)
-    list(APPEND all_sources ${sources} ${includes} ${ARG_OBJECT_FILES})
+    set(all_sources ${sources} ${includes} ${ARG_OBJECT_FILES})
 
     # defining a target
     if (ARG_TYPE STREQUAL EXECUTABLE)
@@ -102,7 +101,7 @@ function(ov_add_target)
         message(SEND_ERROR "Invalid target type ${ARG_TYPE} specified for target name ${ARG_NAME}")
     endif()
 
-    ieTargetLinkWholeArchive(${ARG_NAME} ${ARG_LINK_LIBRARIES_WHOLE_ARCHIVE})
+    ov_target_link_whole_archive(${ARG_NAME} ${ARG_LINK_LIBRARIES_WHOLE_ARCHIVE})
 
     if (ARG_DEFINES)
         target_compile_definitions(${ARG_NAME} PRIVATE ${ARG_DEFINES})
@@ -138,11 +137,6 @@ function(ov_add_target)
         # Provide default compile pdb name equal to target name
         set_target_properties(${ARG_NAME} PROPERTIES COMPILE_PDB_NAME ${ARG_NAME})
     endif()
-endfunction()
-
-function(addIeTarget)
-    message(WARNING "'addIeTarget' is deprecated, please, use 'ov_add_target' instead")
-    ov_add_target(${ARGV})
 endfunction()
 
 #[[
@@ -193,6 +187,13 @@ function(ov_add_test_target)
             RUNTIME DESTINATION tests
             COMPONENT ${ARG_COMPONENT}
             EXCLUDE_FROM_ALL)
+endfunction()
+
+# deprecated
+
+function(addIeTarget)
+    message(WARNING "'addIeTarget' is deprecated, please, use 'ov_add_target' instead")
+    ov_add_target(${ARGV})
 endfunction()
 
 function(addIeTargetTest)
