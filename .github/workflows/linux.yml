@@ -1197,7 +1197,7 @@ jobs:
 
     steps:
       - name: Tracking resources
-        run: top > /mount/caches/aks-linux-4-cores.top &
+        run: top > while [ 1 ] ; do top -b -n 1 > aks-linux-2-cores.log; sleep 1; done &
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -1233,9 +1233,7 @@ jobs:
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install python dependencies
-        run: |
-          set +ex
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
 
       - name: Install Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-* ${INSTALL_DIR}/tools/openvino_dev-*
@@ -1270,7 +1268,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: top-logs
-          path: /mount/caches/aks-linux-4-cores.top
+          path: /mount/caches/aks-linux-2-cores.top
 
   PyTorch_Models_Tests:
     name: PyTorch Models tests
