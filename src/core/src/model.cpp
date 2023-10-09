@@ -516,8 +516,19 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
                          ov::EvaluationContext& evaluation_context) const {
     evaluation_context.emplace("VariableContext", ov::op::util::VariableContext());
     std::map<RawNodeOutput, ov::Tensor> value_map;
+    OPENVINO_ASSERT(input_tensors.size() == m_parameters.size(),
+                    "Cannot evaluate model! Number of tensors (",
+                    input_tensors.size(),
+                    ") is not equal to number of parameters (",
+                    m_parameters.size(),
+                    ").");
     for (size_t i = 0; i < m_parameters.size(); ++i) {
         value_map[m_parameters.at(i)->output(0)] = input_tensors.at(i);
+        OPENVINO_ASSERT(m_parameters.at(i)->get_partial_shape().is_dynamic() ||
+                            m_parameters.at(i)->get_partial_shape().to_shape() == input_tensors[i].get_shape(),
+                        "Cannot evaluate model! Tensor input shape and Parameter op with index ",
+                        i,
+                        " are mismatches.");
     }
     OutputVector outputs;
     std::map<RawNodeOutput, ov::Tensor> output_tensor_map;
@@ -554,7 +565,7 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
                 }
                 return output_tensors;
             } else {
-                OPENVINO_ASSERT(false, "Evaluation failed on ", node);
+                OPENVINO_THROW("Evaluation failed on ", node);
             }
         });
     for (const auto& value : outputs) {

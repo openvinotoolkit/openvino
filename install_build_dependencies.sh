@@ -26,6 +26,8 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
 
     apt update
     apt-get install -y --no-install-recommends \
+        `# for python3-pip` \
+        ca-certificates \
         file \
         `# build tools` \
         build-essential \
