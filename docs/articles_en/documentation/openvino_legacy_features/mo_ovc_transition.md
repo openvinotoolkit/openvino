@@ -641,18 +641,10 @@ Example of model cut in original FW.
 .. code-block:: py
    :force:
 
+   import openvino as ov
    import torch
    import torchvision
-   import openvino as ov
-     
-     
-   # Helper Identity class
-   class Identity(torch.nn.Module):
-       def __init__(self):
-           super(Identity, self).__init__()
-     
-       def forward(self, x):
-           return x
+   from torch.nn import Identity
      
    # Load pretrained model
    model = torchvision.models.resnet50(weights='DEFAULT')
