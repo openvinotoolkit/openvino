@@ -1040,13 +1040,12 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     }
 
     // Fill supported config
-    NodeConfig config;
     for (const auto &desc : inputDesc) {
         PortConfig dataConfig;
         dataConfig.inPlace(-1);
         dataConfig.constant(false);
         dataConfig.setMemDesc(desc);
-        config.inConfs.push_back(dataConfig);
+        rnn_config.inConfs.push_back(dataConfig);
     }
 
     for (const auto &desc : outputDesc) {
@@ -1054,10 +1053,32 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         dataConfig.inPlace(-1);
         dataConfig.constant(false);
         dataConfig.setMemDesc(desc);
-        config.outConfs.push_back(dataConfig);
+        rnn_config.outConfs.push_back(dataConfig);
     }
+}
 
-    supportedPrimitiveDescriptors.emplace_back(config, ref_any);
+const std::vector<impl_desc_type>& RNN::getDefaultImplPriority() {
+    static const std::vector<impl_desc_type> priorities = {
+        impl_desc_type::unknown,
+        impl_desc_type::brgemm_avx512_amx,
+        impl_desc_type::brgemm_avx512,
+        impl_desc_type::brgemm_avx2,
+        impl_desc_type::gemm_acl,
+        impl_desc_type::gemm_avx512,
+        impl_desc_type::gemm_avx2,
+        impl_desc_type::gemm_avx,
+        impl_desc_type::gemm_sse42,
+        impl_desc_type::gemm_any,
+        impl_desc_type::gemm,
+        impl_desc_type::jit_gemm,
+        impl_desc_type::jit_avx512,
+        impl_desc_type::jit_avx2,
+        impl_desc_type::jit_sse42,
+        impl_desc_type::ref_any,
+        impl_desc_type::ref,
+    };
+
+    return priorities;
 }
 
 Node::AttrPtr RNN::initPrimitiveAttr() {
@@ -1157,12 +1178,12 @@ void RNN::prepareParams() {
 
 std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     (void) prim_desc;
-    return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
+    return rnn_config.inConfs[idx].getMemDesc();
 }
 
 std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     (void) prim_desc;
-    return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
+    return rnn_config.outConfs[idx].getMemDesc();
 }
 
 void RNN::execute(dnnl::stream strm) {
