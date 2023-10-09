@@ -47,7 +47,6 @@ Config::Config() {
         streamExecutorConfig._threadBindingType = IStreamsExecutor::HYBRID_AWARE;
     }
 #endif
-
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
 
     updateProperties();
@@ -364,12 +363,10 @@ void Config::updateProperties() {
         _config.insert({ov::internal::cpu_bind_thread.name(), "YES"});
         break;
     case IStreamsExecutor::ThreadBindingType::NUMA:
-        _config.insert(
-            {ov::internal::cpu_bind_thread.name(), ov::util::to_string(IStreamsExecutor::ThreadBindingType::NUMA)});
+        _config.insert({ov::internal::cpu_bind_thread.name(), ov::util::to_string(ov::Affinity::NUMA)});
         break;
     case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-        _config.insert({ov::internal::cpu_bind_thread.name(),
-                        ov::util::to_string(IStreamsExecutor::ThreadBindingType::HYBRID_AWARE)});
+        _config.insert({ov::internal::cpu_bind_thread.name(), ov::util::to_string(ov::Affinity::HYBRID_AWARE)});
         break;
     }
     if (collectPerfCounters == true)
