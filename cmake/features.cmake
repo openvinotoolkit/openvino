@@ -21,6 +21,11 @@ ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmak
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
+if(ENABLE_TESTS)
+    include(CTest)
+    enable_testing()
+endif()
+
 if(X86_64)
     set(ENABLE_INTEL_GPU_DEFAULT ON)
 else()
@@ -68,7 +73,14 @@ ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 #
 
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-set(THREADING "TBB" CACHE STRING "Threading")
+if(RISCV64)
+    # oneDNN does not support non-SEQ for RISC-V architecture
+    set(THREADING_DEFAULT "SEQ")
+else()
+    set(THREADING_DEFAULT "TBB")
+endif()
+
+set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
 list (APPEND IE_OPTIONS THREADING)
 if (NOT THREADING STREQUAL "TBB" AND
