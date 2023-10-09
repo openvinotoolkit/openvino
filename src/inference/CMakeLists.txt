@@ -199,14 +199,19 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
-    frontend_common::static inference_engine_transformations openvino::pugixml)
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS}
+    openvino::runtime::dev openvino::pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES
     EXCLUDE_FROM_ALL ON
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+install(TARGETS ${TARGET_NAME}_s EXPORT OpenVINODeveloperTargets
+        RUNTIME DESTINATION developer_package/bin COMPONENT developer_package EXCLUDE_FROM_ALL
+        ARCHIVE DESTINATION developer_package/lib COMPONENT developer_package EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION developer_package/lib COMPONENT developer_package EXCLUDE_FROM_ALL)
 
 # LTO
 

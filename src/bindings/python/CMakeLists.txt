@@ -393,7 +393,7 @@ endif()
 
 if(OpenVINODeveloperPackage_FOUND)
     # provides a callback function to describe each component in repo
-    include("${OpenVINO_SOURCE_DIR}/cmake/packaging/packaging.cmake")
+    # include("${OpenVINO_SOURCE_DIR}/cmake/packaging/packaging.cmake")
 
     ov_cpack(${OV_CPACK_COMPONENTS_ALL})
 endif()

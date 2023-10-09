@@ -13,7 +13,8 @@ ov_add_target(
             tests
         INCLUDES
             PUBLIC
-                "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+                "$<INSTALL_INTERFACE:developer_package/include/sharedTestClasses>"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
@@ -25,3 +26,9 @@ ov_add_target(
 ov_build_target_faster(${TARGET_NAME}
         PCH PRIVATE "src/precomp.hpp"
         )
+
+# install
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+        DESTINATION developer_package/include/sharedTestClasses
+        COMPONENT developer_package EXCLUDE_FROM_ALL)

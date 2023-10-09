@@ -93,12 +93,9 @@ macro(ov_clean_dev_targets)
 endmacro()
 ov_clean_dev_targets()
 
-#
-# Build
-#
-
 function(openvino_developer_export_targets)
     cmake_parse_arguments(EXPORT "" "COMPONENT" "TARGETS" ${ARGN})
+    set(EXPORT_COMPONENT "openvino_dev")
 
     if(EXPORT_UNPARSED_ARGUMENTS)
         message(FATAL_ERROR "openvino_developer_export_targets has unparsed arguments: ${EXPORT_UNPARSED_ARGUMENTS}")
@@ -127,8 +124,12 @@ function(openvino_developer_export_targets)
         "A list of OpenVINO exported components" FORCE)
 endfunction()
 
-# add target with processed tests model zoo
+#
+# Build
+#
+
 if(ENABLE_TESTS)
+    # add target with processed tests model zoo
     include(cmake/test_model_zoo.cmake)
 endif()
 

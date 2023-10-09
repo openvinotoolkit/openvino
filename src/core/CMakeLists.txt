@@ -166,3 +166,11 @@ install(FILES ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
               ${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION ${OV_CPACK_NGRAPH_CMAKEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+
+# install developer package files
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dev_api/
+        DESTINATION developer_package/core_dev/include
+        COMPONENT developer_package
+        FILES_MATCHING
+            PATTERN "*.hpp"
+            PATTERN "*.h")

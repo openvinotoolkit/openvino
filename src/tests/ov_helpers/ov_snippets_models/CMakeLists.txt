@@ -5,8 +5,6 @@
 set(TARGET_NAME ov_snippets_models)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
-set(SNIPPETS_INCLUDES "$<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include")
-set(COMMON_TEST_UTILS_INCLUDES "$<TARGET_PROPERTY:common_test_utils,INTERFACE_INCLUDE_DIRECTORIES>")
 
 ov_add_target(
         NAME ${TARGET_NAME}
@@ -14,11 +12,9 @@ ov_add_target(
         ROOT ${PUBLIC_HEADERS_DIR}
         INCLUDES
             PUBLIC
-                ${PUBLIC_HEADERS_DIR}
-                ${COMMON_TEST_UTILS_INCLUDES}
-            PRIVATE
-                ${SNIPPETS_INCLUDES}
-
+                "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
+                "$<BUILD_INTERFACE:${COMMON_TEST_UTILS_INCLUDES}>"
+                "$<INSTALL_INTERFACE:developer_package/include/ov_snippets_models>"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
@@ -36,3 +32,9 @@ ov_build_target_faster(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp"
 )
+
+# install
+
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
+        DESTINATION developer_package/include/ov_snippets_models
+        COMPONENT developer_package EXCLUDE_FROM_ALL)

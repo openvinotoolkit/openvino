@@ -58,7 +58,8 @@ ov_add_target(
         DEFINES ${DEFINES}
         INCLUDES
             PUBLIC
-                ${PUBLIC_HEADERS_DIR}
+                "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
+                "$<INSTALL_INTERFACE:developer_package/include/funcSharedTests>"
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
@@ -86,3 +87,9 @@ if (ENABLE_INTEL_CPU)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/behavior/ov_executable_network/get_metric.cpp"
         PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
 endif()
+
+# install
+
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
+        DESTINATION developer_package/include/funcSharedTests
+        COMPONENT developer_package EXCLUDE_FROM_ALL)

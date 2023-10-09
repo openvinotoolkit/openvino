@@ -22,7 +22,16 @@ ov_add_target(
                 common_test_utils_s
                 inference_engine_s
                 gmock
+        DEPENDENCIES
+            mock_engine
         INCLUDES
             PUBLIC
-                "${CMAKE_CURRENT_SOURCE_DIR}/.."
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>"
+                "$<INSTALL_INTERFACE:developer_package/include/unit_test_utils>"
 )
+
+# install
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/"
+        DESTINATION developer_package/include/unit_test_utils/unit_test_utils
+        COMPONENT developer_package EXCLUDE_FROM_ALL)

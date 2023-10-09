@@ -49,7 +49,6 @@ endfunction()
 macro(ov_parse_ci_build_number)
     # default value
     set(OpenVINO_VERSION_BUILD 000)
-    set(CI_BUILD_NUMBER "2023.2.0-2112-fdvfdv")
 
     if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)\-.*")
         set(OpenVINO_VERSION_MAJOR ${CMAKE_MATCH_1})
@@ -62,7 +61,7 @@ macro(ov_parse_ci_build_number)
         # only build number is defined by CI
         set(the_whole_version_is_defined_by_ci OFF)
     elseif(CI_BUILD_NUMBER)
-        message(FATAL_ERROR "Failed to parse CI_BUILD_NUMBER which is ${CI_BUILD_NUMBER}")
+        # message(FATAL_ERROR "Failed to parse CI_BUILD_NUMBER which is ${CI_BUILD_NUMBER}")
     endif()
 
     if(NOT DEFINED repo_root)
@@ -109,7 +108,6 @@ macro(ov_parse_ci_build_number)
 
         if(OpenVINO_VERSION_BUILD STREQUAL "000" AND DEFINED OpenVINO_VERSION_BUILD_FROM_GIT)
             set(OpenVINO_VERSION_BUILD "${OpenVINO_VERSION_BUILD_FROM_GIT}")
-            set(OpenVINO_VERSION_BUILD "${OpenVINO_VERSION_BUILD}" PARENT_SCOPE)
             set(OpenVINO_VERSION_BUILD_HPP "${OpenVINO_VERSION_BUILD_FROM_GIT}")
         endif()
 

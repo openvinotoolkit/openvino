@@ -150,17 +150,17 @@ function(ov_generate_dev_package_config)
         # install all developer targets with prefix and use them during extra modules build
         set(export_set ov_${component}_dev_targets)
 
-        install(TARGETS ${install_targets} EXPORT ${export_set}
+        install(TARGETS ${install_targets} EXPORT OpenVINODeveloperTargets
                 RUNTIME DESTINATION ${DEV_PACKAGE_ROOT_DIR}/bin COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
                 ARCHIVE DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
                 LIBRARY DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
-
-        install(EXPORT ${export_set}
-                FILE ${export_set}.cmake
-                NAMESPACE openvino::
-                DESTINATION ${DEV_PACKAGE_ROOT_DIR}/cmake
-                COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
     endforeach()
+
+    install(EXPORT OpenVINODeveloperTargets
+            FILE OpenVINODeveloperTargets.cmake
+            NAMESPACE openvino::
+            DESTINATION ${DEV_PACKAGE_ROOT_DIR}/cmake
+            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
 
     # TODO: OpenCV
 
@@ -172,7 +172,7 @@ endfunction()
 # Add extra modules
 #
 
-function(register_extra_modules)
+function(_ov_register_extra_modules)
     set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/build-modules")
     set(OpenVINODeveloperPackage_DIR "${CMAKE_BINARY_DIR}/build-modules")
     set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
@@ -244,21 +244,18 @@ endfunction()
 # Extra modules support
 #
 
-# this InferenceEngineDeveloperPackageConfig.cmake is not used
-# during extra modules build since it's generated after modules
-# are configured
+# this OpenVINODeveloperPackageConfig.cmake is not used during extra modules build
+# since it's generated after modules are configured
 ie_generate_dev_package_config()
 ov_generate_dev_package_config()
 
 # extra modules must be registered after inference_engine library
 # and all other OpenVINO Core libraries are creared
-# because 'register_extra_modules' creates fake InferenceEngineDeveloperPackageConfig.cmake
+# because '_ov_register_extra_modules' creates fake InferenceEngineDeveloperPackageConfig.cmake
 # with all imported developer targets
-register_extra_modules()
+_ov_register_extra_modules()
 
-# for static libraries case we need to generate final ov_plugins.hpp
-# with all the information about plugins
+# we need to generate final ov_plugins.hpp with all the information about plugins
 ov_generate_plugins_hpp()
-
-# used for static build
+# we need to generate final ov_frontends.hpp with all the information about frontends
 ov_generate_frontends_hpp()
