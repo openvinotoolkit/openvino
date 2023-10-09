@@ -59,17 +59,15 @@ Output<Node> create_initial_tensor_array_constant(int64_t tensor_element_rank,
 
 // the function replaces internal operation TensorArrayV3 with the constant imitating initial tensor array container
 // since it gets info about elements shape at some moment
-void replace_tensor_array_v3_with_constant(shared_ptr<TensorArrayV3>& tensor_array_v3,
-                                           Output<Node> handle,
-                                           Output<Node> flow,
-                                           int64_t tensor_element_rank) {
+Output<Node> replace_tensor_array_v3_with_constant(shared_ptr<TensorArrayV3>& tensor_array_v3,
+                                                   Output<Node> handle,
+                                                   Output<Node> flow,
+                                                   int64_t tensor_element_rank) {
     auto new_output = create_initial_tensor_array_constant(tensor_element_rank,
                                                            tensor_array_v3->get_element_type(),
                                                            tensor_array_v3->input_value(0),
                                                            tensor_array_v3->get_friendly_name());
-
-    handle.replace(new_output);
-    flow.replace(new_output);
+    return new_output;
 }
 }  // namespace
 
@@ -115,13 +113,17 @@ OutputVector translate_tensor_array_scatter_v3_op(const NodeContext& node) {
             node,
             value.get_partial_shape().rank().is_static(),
             "[TensorFlow Frontend] internal error: only values of static rank for tensor array is supported");
-        int64_t tensor_element_rank = value.get_partial_shape().rank().get_length();
-        replace_tensor_array_v3_with_constant(tensor_array_v3,
-                                              node.get_input(0),
-                                              node.get_input(3),
-                                              tensor_element_rank);
+        TENSORFLOW_OP_VALIDATION(
+            node,
+            value.get_partial_shape().rank().get_length() > 0,
+            "[TensorFlow Frontend] internal error or inconsistent model: value to TensorArrayScatterV3 is a scalar");
+        int64_t tensor_element_rank = value.get_partial_shape().rank().get_length() - 1;
+        auto new_output = replace_tensor_array_v3_with_constant(tensor_array_v3,
+                                                                node.get_input(0),
+                                                                node.get_input(3),
+                                                                tensor_element_rank);
         // re-initialize Output since producer is changed
-        tensor_array = node.get_input(3);
+        tensor_array = new_output;
     }
 
     // compute element shape (shape of a tensor in the tensor array) using value
@@ -315,12 +317,12 @@ OutputVector translate_tensor_array_write_v3_op(const NodeContext& node) {
                 value.get_partial_shape().rank().is_static(),
                 "[TensorFlow Frontend] internal error: only values of static rank for tensor array is supported");
             int64_t tensor_element_rank = value.get_partial_shape().rank().get_length();
-            replace_tensor_array_v3_with_constant(tensor_array_v3,
-                                                  tensor_array_v3->output(0),
-                                                  tensor_array_v3->output(1),
-                                                  tensor_element_rank);
+            auto new_output = replace_tensor_array_v3_with_constant(tensor_array_v3,
+                                                                    tensor_array_v3->output(0),
+                                                                    tensor_array_v3->output(1),
+                                                                    tensor_element_rank);
             // re-initialize since the producer is replaced
-            tensor_array = node.get_input(3);
+            tensor_array = new_output;
         }
     }
 
