@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/roi_align.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset9.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -140,7 +137,7 @@ private:
             std::make_shared<op::v0::Constant>(params.coords.type, params.coords.shape, params.coords.data.data());
         const auto roisIdx =
             std::make_shared<op::v0::Constant>(params.roiIdx.type, params.roiIdx.shape, params.roiIdx.data.data());
-        const auto roi_align = std::make_shared<opset3::ROIAlign>(featureMap,
+        const auto roi_align = std::make_shared<op::v3::ROIAlign>(featureMap,
                                                                   coords,
                                                                   roisIdx,
                                                                   params.pooledH,
@@ -192,9 +189,9 @@ private:
             std::make_shared<op::v0::Constant>(params.coords.type, params.coords.shape, params.coords.data.data());
         const auto roisIdx =
             std::make_shared<op::v0::Constant>(params.roiIdx.type, params.roiIdx.shape, params.roiIdx.data.data());
-        const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum(params.poolingMode);
-        const auto aligned_mode = EnumNames<opset9::ROIAlign::AlignedMode>::as_enum(params.alignedMode);
-        const auto roi_align = std::make_shared<opset9::ROIAlign>(featureMap,
+        const auto pooling_mode = EnumNames<op::v9::ROIAlign::PoolingMode>::as_enum(params.poolingMode);
+        const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum(params.alignedMode);
+        const auto roi_align = std::make_shared<op::v9::ROIAlign>(featureMap,
                                                                   coords,
                                                                   roisIdx,
                                                                   params.pooledH,

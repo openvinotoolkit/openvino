@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/loop.hpp"
+
 #include <gtest/gtest.h>
 
 #include <openvino/core/model.hpp>
@@ -12,6 +14,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 
@@ -49,18 +52,18 @@ struct LoopDynamicInputs : public LoopFunctionalBase {
         auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
         // Body
         auto sum = std::make_shared<ov::op::v1::Add>(Xi, Yi);
-        auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
+        auto Zo = std::make_shared<ov::op::v1::Multiply>(sum, M_body);
         auto body =
             std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo}, ov::ParameterVector{Xi, Yi, M_body});
 
-        auto loop = std::make_shared<ov::opset8::Loop>(trip_count, exec_condition);
+        auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
         loop->set_function(body);
 
         loop->set_invariant_input(Xi, X);
         loop->set_invariant_input(Yi, Y);
         loop->set_merged_input(M_body, M, Zo);
 
-        loop->set_special_body_ports(ov::opset8::Loop::SpecialBodyPorts{-1, 0});
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
         // Output is last Zo
         auto result = std::make_shared<ov::op::v0::Result>(loop->get_iter_value(Zo, -1));
@@ -160,9 +163,9 @@ struct LoopStaticInputs : public LoopFunctionalBase {
 
         const auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition_const, Zo}, body_params);
 
-        const auto loop = std::make_shared<ov::opset8::Loop>(trip_count_input, exec_condition);
+        const auto loop = std::make_shared<ov::op::v5::Loop>(trip_count_input, exec_condition);
         loop->set_function(body);
-        loop->set_special_body_ports(ov::opset8::Loop::SpecialBodyPorts{-1, 0});
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
         for (size_t i = 0; i < body_params.size(); ++i) {
             if (loop_in_type[i] == LOOP_IN_TYPE::INVARIANT) {

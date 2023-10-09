@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/slice.hpp"
+
 #include <gtest/gtest.h>
 
 #include <limits>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace ov;
 
@@ -109,7 +110,7 @@ private:
         const auto step_param = std::make_shared<op::v0::Parameter>(step.type, step.shape);
         const auto axes_param = std::make_shared<op::v0::Parameter>(axes.type, axes.shape);
 
-        const auto slice = std::make_shared<opset8::Slice>(data_param, start_param, stop_param, step_param, axes_param);
+        const auto slice = std::make_shared<op::v8::Slice>(data_param, start_param, stop_param, step_param, axes_param);
         return std::make_shared<Model>(NodeVector{slice},
                                        ParameterVector{data_param, start_param, stop_param, step_param, axes_param});
     }
@@ -124,7 +125,7 @@ private:
         const auto stop_param = std::make_shared<op::v0::Parameter>(stop.type, stop.shape);
         const auto step_param = std::make_shared<op::v0::Parameter>(step.type, step.shape);
 
-        const auto slice = std::make_shared<opset8::Slice>(data_param, start_param, stop_param, step_param);
+        const auto slice = std::make_shared<op::v8::Slice>(data_param, start_param, stop_param, step_param);
         return std::make_shared<Model>(NodeVector{slice},
                                        ParameterVector{data_param, start_param, stop_param, step_param});
     }

@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gather.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -68,7 +67,7 @@ private:
         const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A =
             op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
-        const auto G = std::make_shared<opset1::Gather>(P, I, A);
+        const auto G = std::make_shared<op::v1::Gather>(P, I, A);
         const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
     }
@@ -135,7 +134,7 @@ private:
         const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A =
             op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
-        const auto G = std::make_shared<opset7::Gather>(P, I, A, params.batchDims);
+        const auto G = std::make_shared<op::v7::Gather>(P, I, A, params.batchDims);
         const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
     }
@@ -152,7 +151,7 @@ private:
         const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A =
             op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
-        const auto G = std::make_shared<opset8::Gather>(P, I, A, params.batchDims);
+        const auto G = std::make_shared<op::v8::Gather>(P, I, A, params.batchDims);
         const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
     }

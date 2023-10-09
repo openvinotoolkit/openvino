@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/space_to_batch.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -75,7 +75,7 @@ private:
         const auto blockShape = std::make_shared<op::v0::Parameter>(element::i64, params.blockShapeTensor.shape);
         const auto padsBegin = std::make_shared<op::v0::Parameter>(element::i64, params.padsBeginTensor.shape);
         const auto padsEnd = std::make_shared<op::v0::Parameter>(element::i64, params.padsEndTensor.shape);
-        const auto batchToSpace = std::make_shared<opset2::SpaceToBatch>(data, blockShape, padsBegin, padsEnd);
+        const auto batchToSpace = std::make_shared<op::v1::SpaceToBatch>(data, blockShape, padsBegin, padsEnd);
         return std::make_shared<ov::Model>(NodeVector{batchToSpace},
                                            ParameterVector{data, blockShape, padsBegin, padsEnd});
     }

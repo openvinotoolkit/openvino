@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/random_uniform.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace ov;
 
@@ -70,7 +71,7 @@ private:
         const auto max_val_param = std::make_shared<op::v0::Parameter>(max_val.type, max_val.shape);
         auto out_shape_ = std::make_shared<op::v0::Constant>(element::i64, Shape{out_shape.size()}, out_shape);
 
-        return std::make_shared<ov::Model>(NodeVector{std::make_shared<opset8::RandomUniform>(out_shape_,
+        return std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v8::RandomUniform>(out_shape_,
                                                                                               min_val_param,
                                                                                               max_val_param,
                                                                                               out_type,
