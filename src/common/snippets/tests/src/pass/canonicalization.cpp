@@ -67,7 +67,6 @@ namespace CanonicalizationTestsInstantiation {
 using ov::snippets::op::Subgraph;
 std::vector<Shape> input_shapes;
 Shape expected_output_shape;
-Subgraph::BlockedShapeVector input_blocked_shapes;
 
 using ov::Shape;
 ov::element::Type_t prec = ov::element::f32;

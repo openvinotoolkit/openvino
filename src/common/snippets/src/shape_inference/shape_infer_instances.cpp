@@ -7,7 +7,6 @@
 namespace ov {
 namespace snippets {
 using Result = IShapeInferSnippets::Result;
-namespace {
 /*
  * Merge SRC to DST with broadcasting rules defined by the Autobroadcast specifier
  */
@@ -87,7 +86,6 @@ bool merge_into(VectorDims& dst, const VectorDims& src) {
         success &= merge_dim(dst[i], dst[i], src[i]);
     return success;
 }
-} // namespace
 
 Result NumpyBroadcastShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
         OPENVINO_ASSERT(!input_shapes.empty(), "No input shapes were provided for NumpyBroadcastShapeInfer");

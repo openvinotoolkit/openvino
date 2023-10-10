@@ -55,6 +55,7 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::LoopEnd, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::Kernel, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Nop, EmptyShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(opset1::Select, SelectShapeInfer),
         // Note that Result has no output PortConnectors, so the shape must be empty

@@ -24,7 +24,7 @@ size_t InsertLoadStore::get_count(const PortDescriptorPtr& port_desc) const {
     const auto shape = port_desc->get_shape();
     // Find last dimension by layout
     const auto last_dim_idx = std::find(layout.begin(), layout.end(), layout.size() - 1);
-    OPENVINO_ASSERT(last_dim_idx != layout.end(), "Load/Store expression have incorrect layout");
+    OPENVINO_ASSERT(last_dim_idx != layout.end() && *last_dim_idx < shape.size(), "Load/Store expression have incorrect layout");
     const auto dim = shape[*last_dim_idx];
     return dim == 1 ? 1 : m_vector_size;
 }

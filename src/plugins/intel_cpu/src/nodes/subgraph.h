@@ -114,8 +114,6 @@ private:
             size_t numOutput = 0;
 
             ov::PartialShape canonicalizeBody(bool reshape);
-            // returns true if exec domain was modified
-            bool optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
 
             void generate(const jit_snippets_compile_args*);
             inline void update_ptrs(jit_snippets_call_args&, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
@@ -130,21 +128,13 @@ private:
 
             // Holds index of output used as in execution domain
             // it should be compatible with a schedule's work size
-            std::vector<size_t> exec_domain = {};
+            std::vector<size_t> parallel_exec_domain = {};
 
             /// scheduling info
             size_t tensorRank = 0;
-            size_t tileRank = 1;
-            size_t fullWorkAmount = 0;
             size_t harnessWorkAmount = 0;
-            const size_t maxTileRank = 2;
 
             std::vector<size_t> dataSize = {};
-
-            // master shape is mutable since we need to modify it inside const shapeInfer method
-            mutable VectorDims masterShape = {};
-            mutable std::vector<VectorDims> normInputShapes = {};
-            mutable std::vector<VectorDims> normOutputShapes = {};
 
             std::vector<ptrdiff_t> start_offset_in = {};
             std::vector<ptrdiff_t> start_offset_out = {};
