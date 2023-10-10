@@ -49,9 +49,9 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             if (io_expr->get_type() == IOExpression::io_type::INPUT) {
                 const auto& out_connector = expr->get_output_port_connector(0);
                 manually_assigned_gprs[out_connector] = io_expr->get_index();
-                // Note: get_consumers() returns by value, so can't really use const reference here.
                 const auto& consumer_inputs = out_connector->get_consumers();
                 const auto& first_consumer = consumer_inputs.begin()->get_expr();
+                // TODO [96434]: Support RankNormalization (Reshape) in arbitrary place in pipeline, not just after inputs
                 if (ov::is_type<op::RankNormalization>(first_consumer->get_node())) {
                     OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
                     manually_assigned_gprs[first_consumer->get_output_port_connector(0)] = io_expr->get_index();

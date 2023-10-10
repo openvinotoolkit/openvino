@@ -65,12 +65,11 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
             size_t num_append = base_is_blocked;
             OPENVINO_ASSERT(max_rank >= i_rank + num_append, "Unsupported blocked shapes combination in canonicalization");
             size_t num_prepend = max_rank - i_rank - num_append;
-            for (const auto& out : params[i]->outputs()) {
-                const auto& target_inputs = out.get_target_inputs();
-                auto rank_norm = std::make_shared<op::RankNormalization>(out, num_prepend, num_append);
-                for (auto& in : target_inputs)
-                    in.replace_source_output(rank_norm);
-            }
+            const auto& out = params[i]->output(0);
+            const auto& target_inputs = out.get_target_inputs();
+            auto rank_norm = std::make_shared<op::RankNormalization>(out, num_prepend, num_append);
+            for (auto& in : target_inputs)
+                in.replace_source_output(rank_norm);
             is_modified = true;
         } else {
             // todo: 4d blocked + 5d planar layouts are not supported: <N, C, H, W, c> + <N, C, D, H, W>

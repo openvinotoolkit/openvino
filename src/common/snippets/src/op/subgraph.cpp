@@ -315,7 +315,7 @@ IShapeInferSnippets::Result Subgraph::OVShapeInfer::infer(const std::vector<Vect
     return m_last_result;
 }
 
-VectorDims Subgraph::get_master_shape() {
+VectorDims Subgraph::infer_master_shape() {
     std::vector<VectorDims> output_dims;
     if (is_dynamic()) {
         // Note that in case of dynamic implementation shapeInfer() is called before PrepareParams,

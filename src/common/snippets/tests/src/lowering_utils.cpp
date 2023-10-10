@@ -110,7 +110,6 @@ std::shared_ptr<ov::snippets::op::Subgraph>
                                           const std::shared_ptr<IShapeInferSnippetsFactory>& factory) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
-    subgraph->set_master_shape(master_shape);
     subgraph->set_tile_rank(2);
     // Note: lowered_pipeline would have no effect on subgraph body, since it's applied on linear IR
     subgraph->generate({}, {}, {}, backend_passes, lowered_pre_common, lowered_post_common, factory);

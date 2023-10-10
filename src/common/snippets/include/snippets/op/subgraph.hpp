@@ -125,8 +125,7 @@ public:
     void print() const;
 
     void serialize() const;
-    void set_master_shape(ov::PartialShape new_shape) {master_shape = std::move(new_shape);}
-    VectorDims get_master_shape();
+    VectorDims infer_master_shape();
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<Subgraph>;
     static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
@@ -162,7 +161,6 @@ private:
     Shape exec_domain = {};
     std::shared_ptr<ov::snippets::Generator> m_generator = nullptr;
 
-    ov::PartialShape master_shape;
     size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
     std::vector<size_t> appendOnesForCanonical;
     std::shared_ptr<lowered::LinearIR> m_linear_ir = nullptr;
