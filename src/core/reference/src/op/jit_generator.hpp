@@ -11,12 +11,9 @@
 #include <functional>
 #include <xbyak/xbyak.h>
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace jit
-        {
+namespace ov {
+namespace runtime {
+namespace jit {
 #ifdef XBYAK64
             static const Xbyak::Operand::Code abi_save_gpr_regs[] = {
                 Xbyak::Operand::RBX,
@@ -94,4 +91,4 @@ namespace ngraph
             };
         }
     }
-}
+    }  // namespace ov

@@ -15,23 +15,23 @@ namespace {
 
 std::string getOVExtensionPath() {
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+                                              std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 }
 
 std::string getOldExtensionPath() {
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              std::string("template_extension") + IE_BUILD_POSTFIX);
+                                              std::string("template_extension") + OV_BUILD_POSTFIX);
 }
 
 std::string getIncorrectExtensionPath() {
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              std::string("incorrect") + IE_BUILD_POSTFIX);
+                                              std::string("incorrect") + OV_BUILD_POSTFIX);
 }
 
 std::string getRelativeOVExtensionPath() {
     std::string absolutePath =
         ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                           std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+                                           std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
     return ov::test::utils::getRelativePath(ov::test::utils::getCurrentWorkingDir(), absolutePath);
 }
 
