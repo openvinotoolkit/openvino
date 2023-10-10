@@ -669,7 +669,6 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    if: ${{ matrix.arhitecture == 'x86_64' && 'false' || 'true' }}
     needs: Build
     defaults:
       run:
@@ -685,6 +684,7 @@ jobs:
           - name: 'macOS ARM64 (M1)'
             arhitecture: 'arm64'
             machine: 'macos-13-xlarge'
+    if: ${{ matrix.arhitecture == 'x86_64' && 'false' || 'true' }}
     runs-on: ${{ matrix.machine }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
