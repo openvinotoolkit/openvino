@@ -24,7 +24,6 @@ ov_add_test_target(
             ov_models
         DEPENDENCIES
             mock_engine
-            ov_models
         ADD_CLANG_FORMAT
         LABELS
             OV UNIT HETERO
