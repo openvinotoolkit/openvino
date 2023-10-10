@@ -20,7 +20,7 @@ class TestDetectron2ConvertModel(TestConvertModel):
 
     def load_model(self, model_name, model_link):
         from detectron2 import model_zoo, export
-        from detectron2.modeling import build_model
+        from detectron2.modeling import build_model, PanopticFPN
         from detectron2.checkpoint import DetectionCheckpointer
         from detectron2.config import CfgNode
         import torchvision.transforms as transforms
@@ -32,13 +32,23 @@ class TestDetectron2ConvertModel(TestConvertModel):
         assert isinstance(cfg, CfgNode), "Unexpected config"
         cfg.MODEL.DEVICE = "cpu"
         model = build_model(cfg)
-        DetectionCheckpointer(model, save_to_disk=False).load(cfg.MODEL.WEIGHTS)
-        
+        DetectionCheckpointer(
+            model, save_to_disk=False).load(cfg.MODEL.WEIGHTS)
+
         model.eval()
         inputs = [{"image": image,
                    "height": torch.tensor(image.shape[1]),
                    "width": torch.tensor(image.shape[2])}]
-        adapter = export.TracingAdapter(model, inputs)
+        # https://github.com/facebookresearch/detectron2/blob/4e80df1e58901557e2824ce3b488d30209a9be33/tools/deploy/export_model.py#L123
+        # This is done only for Panoptic models, but it may be incorrect to do that, because one of outputs of panoptic model is getting lost
+        if isinstance(model, PanopticFPN):
+            def inference(model, inputs):
+                # use do_postprocess=False so it returns ROI mask
+                inst = model.inference(inputs, do_postprocess=False)[0]
+                return [{"instances": inst}]
+        else:
+            inference = None  # assume that we just call the model directly
+        adapter = export.TracingAdapter(model, inputs, inference)
 
         self.example = adapter.flattened_inputs
         return adapter
@@ -75,7 +85,8 @@ class TestDetectron2ConvertModel(TestConvertModel):
             cur_fw_res = fw_outputs[i]
             cur_ov_res = ov_outputs[i]
             l = min(len(cur_fw_res), len(cur_ov_res))
-            assert l > 0 or len(cur_fw_res) == len(cur_ov_res), "No boxes were selected."
+            assert l > 0 or len(cur_fw_res) == len(
+                cur_ov_res), "No boxes were selected."
             print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
             is_ok = compare_two_tensors(cur_ov_res[:l], cur_fw_res[:l], fw_eps)
         assert is_ok, "Accuracy validation failed"
@@ -86,8 +97,8 @@ class TestDetectron2ConvertModel(TestConvertModel):
     def test_detectron2_precommit(self, name, type, mark, reason, ie_device):
         self.run(name, None, ie_device)
 
-    @pytest.mark.parametrize("name,type,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_models")))
+    @pytest.mark.parametrize("name",
+                             [pytest.param(n, marks=pytest.mark.xfail(reason=r)) if m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_models"))])
     @pytest.mark.nightly
-    def test_detectron2_all_models(self, name, type, mark, reason, ie_device):
+    def test_detectron2_all_models(self, name, ie_device):
         self.run(name, None, ie_device)

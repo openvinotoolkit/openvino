@@ -3,7 +3,7 @@ abcp4/mymodel-test,mymodel,skip,Load problem
 abeja/gpt-neox-japanese-2.7b,gpt_neox_japanese
 acl-submission-anonym/EAM-spectral,examuse,skip,Load problem
 adalbertojunior/modular-test,modular,skip,Load problem
-aerner/lm-v2,open-llama
+aerner/lm-v2,open-llama,xfail,Example input problem
 afonsosamarques/ardt-vanilla-combo_train_hopper_v2-2508_1336-33,decision_transformer,xfail,Tracing problem
 aihijo/gec-zh-gector-bert-large,gector,skip,Load problem
 albert-base-v2,albert
@@ -21,7 +21,7 @@ ArthurZ/jukebox-vqvae,jukebox_vqvae,skip,Load problem
 ArthurZ/persimmon-8b-base,persimmon,skip,Load problem
 ashishpatel26/span-marker-bert-base-fewnerd-coarse-super,span-marker,skip,Load problem
 asi/albert-act-tiny,albert_act,skip,Load problem
-BAAI/AltCLIP,altclip,xfail,Unsupported op aten::numpy_T
+BAAI/AltCLIP,altclip
 BAAI/AquilaCode-py,aquila,skip,Load problem
 bana513/opennmt-translator-en-hu,opennmt-translator,skip,Load problem
 benjamin/wtp-bert-mini,bert-char,skip,Load problem
@@ -79,7 +79,7 @@ facebook/musicgen-small,musicgen,skip,Load problem
 facebook/opt-125m,opt
 facebook/rag-token-nq,rag,skip,Load problem
 facebook/sam-vit-large,sam,xfail,No node with name original_sizes
-facebook/timesformer-base-finetuned-k400,timesformer,xfail,Shape inference of Add node failed: Eltwise shape infer input shapes dim index: 1 mismatch
+facebook/timesformer-base-finetuned-k400,timesformer
 facebook/vit-mae-base,vit_mae,xfail,Accuracy validation failed
 facebook/wmt19-ru-en,fsmt,xfail,Tracing problem
 facebook/xlm-roberta-xl,xlm-roberta-xl
@@ -199,7 +199,7 @@ kiddothe2b/hierarchical-transformer-base-4096-v2,hat,skip,Load problem
 k-l-lambda/clip-text-generator,clip_text_generator,skip,Load problem
 k-l-lambda/stable-diffusion-v1-4-inv-embed,inv_word_embed,skip,Load problem
 KoboldAI/fairseq-dense-13B-Janeway,xglm,skip,Large Model
-konverner/qdq-camembert-apolliner,qdqbert
+konverner/qdq-camembert-apolliner,qdqbert,xfail,Repository not found
 krasserm/perceiver-ar-clm-base,perceiver-ar-causal-language-model,skip,Load problem
 krasserm/perceiver-ar-sam-giant-midi,perceiver-ar-symbolic-audio-model,skip,Load problem
 krasserm/perceiver-io-img-clf,perceiver-io-image-classifier,skip,Load problem
@@ -309,7 +309,7 @@ regisss/bridgetower-newyorker-a100-8x,bridgetower
 rinna/japanese-cloob-vit-b-16,cloob,skip,Load problem
 Rocketknight1/tiny-random-falcon-7b,falcon
 RUCAIBox/mass-base-uncased,mass,skip,Load problem
-RWKV/rwkv-4-169m-pile,rwkv,xfail,Unsupported op aten::maximum
+RWKV/rwkv-4-169m-pile,rwkv
 sahasrarjn/interbert,BERT,skip,Load problem
 saibo/genkalm-medium-gpt2,genkalm,skip,Load problem
 SajjadAyoubi/clip-fa-vision,clip_vision_model

@@ -114,7 +114,7 @@ class TestTorchHubConvertModel(TestConvertModel):
         self.run(model_name, None, ie_device)
 
     @pytest.mark.parametrize("name",
-                             [pytest.param(n, marks=pytest.mark.xfail) if m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models"))])
+                             [pytest.param(n, marks=pytest.mark.xfail(reason=r)) if m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models"))])
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)

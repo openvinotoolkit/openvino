@@ -1,4 +1,4 @@
-COCO-Detection/fast_rcnn_R_50_FPN_1x,none
+COCO-Detection/fast_rcnn_R_50_FPN_1x,none,xfail,Tracing problem
 COCO-Detection/faster_rcnn_R_101_C4_3x,none
 COCO-Detection/faster_rcnn_R_101_DC5_3x,none
 COCO-Detection/faster_rcnn_R_101_FPN_3x,none
