@@ -37,13 +37,14 @@ python3 -m venv openvino_env
 
 ### Step 2. Activate Virtual Environment
 
-On Linux and macOS:
-```sh
-source openvino_env/bin/activate
-```
 On Windows:
 ```sh
 openvino_env\Scripts\activate
+```
+
+On Linux and macOS:
+```sh
+source openvino_env/bin/activate
 ```
 
 ### Step 3. Set Up and Update PIP to the Highest Version
