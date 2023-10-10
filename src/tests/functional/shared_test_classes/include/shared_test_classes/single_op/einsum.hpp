@@ -27,7 +27,6 @@ class EinsumLayerTest : public testing::WithParamInterface<EinsumLayerTestParams
                         virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<EinsumLayerTestParamsSet>& obj);
-
 protected:
     void SetUp() override;
 };
