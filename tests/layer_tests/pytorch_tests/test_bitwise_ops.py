@@ -8,11 +8,11 @@ class TestBitwiseOp(PytorchLayerTest):
     def _prepare_input(self, out, unary, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape):
         x = np.random.randint(0, 25, lhs_shape).astype(lhs_dtype)
         if unary:
-            return (x,) if not out else (x, np.zeros_like([5, 5]).astype(lhs_dtype))
+            return (x,) if not out else (x, np.zeros_like(x, dtype=lhs_dtype))
         y = np.random.randint(0, 25, rhs_shape).astype(rhs_dtype)
         if not out:
             return x, y
-        return x, y, np.zeros_like([5, 5]).astype(lhs_dtype)
+        return x, y, np.zeros_like(x, dtype=lhs_dtype)
 
     def create_model(self, op_name, out):
         ops = {
