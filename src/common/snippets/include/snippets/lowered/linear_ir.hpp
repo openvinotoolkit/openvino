@@ -26,9 +26,9 @@ public:
     // Minimal advised work amount for parallel execution.
     // Set by a backend, typically equals to the number of threads available on the machine.
     size_t m_min_parallel_work_amount = 8;
-    // Minimal advised work amount every JIT kernel should process during one execution call
+    // Minimal advised work amount that should be processed during one call of the executable produced by Subgraph::generate
     // Set by a backend, should be large enough to compensate for the kernel call overheads
-    size_t m_min_jit_work_amount = 256;
+    size_t m_min_kernel_work_amount = 256;
 };
 
 /* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).

@@ -102,7 +102,7 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
                                               master_shape,
                                               total_work_amount,
                                               config.m_min_parallel_work_amount,
-                                              config.m_min_jit_work_amount);
+                                              config.m_min_kernel_work_amount);
     if (num_dims_collapsed > 0) {
         std::vector<VectorDimsRef> infer_shapes;
         infer_shapes.reserve(input_shapes.size());

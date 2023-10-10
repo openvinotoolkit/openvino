@@ -128,7 +128,7 @@ private:
 
             // Holds index of output used as in execution domain
             // it should be compatible with a schedule's work size
-            std::vector<size_t> exec_domain = {};
+            std::vector<size_t> parallel_exec_domain = {};
 
             /// scheduling info
             size_t tensorRank = 0;

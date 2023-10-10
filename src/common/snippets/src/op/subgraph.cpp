@@ -511,7 +511,7 @@ Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFac
     lowering_config.m_loop_depth = tileRank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
     lowering_config.m_min_parallel_work_amount = config.m_min_parallel_work_amount;
-    lowering_config.m_min_jit_work_amount = config.m_min_jit_work_amount;
+    lowering_config.m_min_kernel_work_amount = config.m_min_jit_work_amount;
 
     return std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
 }
@@ -714,12 +714,12 @@ snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::Positione
     const auto ptr = lowering_result.binary_code;
 
 
-    VectorDims work_domain = linear_ir.get_master_shape();
+    VectorDims parallel_exec_domain = linear_ir.get_master_shape();
     const size_t loop_depth = linear_ir.get_config().m_loop_depth;
     for (size_t i = 0; i < loop_depth; i++)
-        work_domain[work_domain.size() - 1 - i] = 1;
+        parallel_exec_domain[parallel_exec_domain.size() - 1 - i] = 1;
 
-    return {work_domain, ptr};
+    return {parallel_exec_domain, ptr};
 }
 
 void Subgraph::print() const {
