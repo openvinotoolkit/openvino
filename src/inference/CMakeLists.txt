@@ -20,10 +20,13 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
       )
 
-set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
-list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
+set(OV_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
+list(REMOVE_ITEM LIBRARY_SRC ${OV_STATIC_DEPENDENT_FILES})
 
-if(ENABLE_IR_V7_READER)
+if(BUILD_SHARED_LIBS OR ENABLE_IR_V7_READER)
+    # TODO: remove together with GNA plugin
+    # we have unconditional adding of the ENABLE_IR_V7_READER compile definition for shared libs case
+    # to avoid rebuild, relink during work with build tree
     set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/ie_network_reader.cpp PROPERTIES
         COMPILE_DEFINITIONS "ENABLE_IR_V7_READER")
 endif()
@@ -63,7 +66,7 @@ if(ENABLE_SSE42)
     list(APPEND LIBRARY_HEADERS ${SSE_HEADERS})
     list(APPEND LIBRARY_SRC ${SSE_SRC})
 
-    ie_sse42_optimization_flags(sse4_2_flags)
+    ov_sse42_optimization_flags(sse4_2_flags)
     set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_OPTIONS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
 
@@ -115,7 +118,7 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
 # Create object library
 
 add_library(${TARGET_NAME}_obj OBJECT
-            ${IE_STATIC_DEPENDENT_FILES}
+            ${OV_STATIC_DEPENDENT_FILES}
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
@@ -149,7 +152,6 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     # for ov_plugins.hpp
     $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>
     # for ie_ir_version.hpp
-    $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
     "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy/include"
     $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -172,7 +174,7 @@ target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                                     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
 
-ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${OV_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"

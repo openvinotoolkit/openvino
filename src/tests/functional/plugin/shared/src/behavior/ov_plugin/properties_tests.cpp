@@ -240,18 +240,6 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::configurePropert
 std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWMandatoryPropertiesValues(std::vector<std::string> props) {
     std::vector<ov::AnyMap> res;
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::hint::inference_precision.name()) != props.end()) {
-        const std::vector<ov::element::Type> ovElemTypes = {
-            ov::element::f64, ov::element::f32, ov::element::f16, ov::element::bf16,
-            ov::element::i64, ov::element::i32, ov::element::i16, ov::element::i8, ov::element::i4,
-            ov::element::u64, ov::element::u32, ov::element::u16, ov::element::u8, ov::element::u4,  ov::element::u1,
-            ov::element::boolean, ov::element::undefined, ov::element::dynamic
-        };
-        for (auto &precision : ovElemTypes) {
-            res.push_back({{ov::hint::inference_precision(precision)}});
-        }
-    }
-
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::performance_mode.name()) != props.end()) {
         ov::hint::PerformanceMode performance_modes[] = {ov::hint::PerformanceMode::LATENCY,
                 ov::hint::PerformanceMode::THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT};
@@ -379,6 +367,10 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, ChangeCorrectDeviceP
 
     auto device_ids = core->get_available_devices();
     for (auto&& device_name_with_id : device_ids) {
+        if (device_name_with_id.find(target_device) == std::string::npos) {
+            continue;
+        }
+
         std::string device_name = device_name_with_id;
         std::string device_id = "";
         auto pos = device_name_with_id.find('.');
@@ -399,6 +391,48 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, ChangeCorrectDeviceP
             EXPECT_EQ(device_id, actual_device_id) << "DeviceID is changed, but new value is not correct";
         }
     }
+}
+
+TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorrectProperties) {
+    std::vector<ov::PropertyName> supported_properties;
+    OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
+    auto supported = util::contains(supported_properties, ov::hint::inference_precision);
+    ASSERT_TRUE(supported) << "property is not supported: " << ov::hint::inference_precision;
+
+    ov::Any default_property;
+    OV_ASSERT_NO_THROW(default_property = core->get_property(target_device, ov::hint::inference_precision));
+    ASSERT_FALSE(default_property.empty());
+
+    const std::vector<ov::element::Type> ovElemTypes = {
+        ov::element::f64, ov::element::f32, ov::element::f16, ov::element::bf16,
+        ov::element::i64, ov::element::i32, ov::element::i16, ov::element::i8, ov::element::i4,
+        ov::element::u64, ov::element::u32, ov::element::u16, ov::element::u8, ov::element::u4,  ov::element::u1,
+        ov::element::boolean, ov::element::undefined, ov::element::dynamic
+    };
+
+    bool any_supported = false;
+    for (ov::element::Type type : ovElemTypes) {
+        try {
+            core->set_property(target_device, ov::hint::inference_precision(type));
+            core->compile_model(model, target_device, compileModelProperties);
+        } catch (const Exception& ex) {
+            std::string err_msg(ex.what());
+            ASSERT_TRUE(err_msg.find("Unsupported precision") != std::string::npos) <<
+                        "Fail to set and compile_model with precision: " << type << std::endl;
+            continue;
+        }
+
+        ov::Any actual_property_value;
+        OV_ASSERT_NO_THROW(actual_property_value = core->get_property(target_device, ov::hint::inference_precision));
+        ASSERT_FALSE(actual_property_value.empty());
+
+        ov::element::Type actual_value = actual_property_value.as<ov::element::Type>();
+        ASSERT_EQ(actual_value, type) << "Peoperty is changed in wrong way";
+
+        std::cout << "Supported precision: " << type << std::endl;
+        any_supported = true;
+    }
+    ASSERT_TRUE(any_supported) << "No one supported precision is found";
 }
 
 std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getModelDependcePropertiesValues() {

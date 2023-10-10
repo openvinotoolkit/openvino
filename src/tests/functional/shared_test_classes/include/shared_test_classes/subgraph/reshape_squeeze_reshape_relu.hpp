@@ -9,8 +9,8 @@
 #include <vector>
 #include <memory>
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace SubgraphTestsDefinitions {
 using ShapeAxesTuple = std::pair<std::vector<size_t>, std::vector<int>>;

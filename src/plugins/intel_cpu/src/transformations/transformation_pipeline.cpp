@@ -162,7 +162,7 @@ void Transformations::UpToLpt() {
         ov::pass::low_precision::LowPrecision::isFunctionQuantized(model) &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
 
-    auto defaultPrecisions = useLpt ? ov::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
+    auto defaultPrecisions = useLpt ? ov::pass::low_precision::precision_set::get_int8_support() : std::vector<ov::element::Type>{};
     bool hasINT16orINT32Levels = false;
 
     if (useLpt) {
@@ -172,7 +172,7 @@ void Transformations::UpToLpt() {
             {ov::pass::low_precision::levels::int16, ov::pass::low_precision::levels::int16_narrow_range,
              ov::pass::low_precision::levels::int32, ov::pass::low_precision::levels::int32_narrow_range});
         if (hasINT16orINT32Levels) {
-            defaultPrecisions = ov::pass::low_precision::precision_set::int8_int16_int32_support;
+            defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_int16_int32_support();
         }
     }
 

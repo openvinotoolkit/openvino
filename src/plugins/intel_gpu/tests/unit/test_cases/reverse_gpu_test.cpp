@@ -44,7 +44,7 @@ template <typename T, reverse_mode mode>
 struct reverse_gpu_test : public ::testing::TestWithParam<ReverseParams<T, mode>> {
 public:
     void test(bool is_caching_test = false) {
-        auto data_type = type_to_data_type<T>::value;
+        auto data_type = ov::element::from<T>();
         ReverseParams<T, mode> params = testing::TestWithParam<ReverseParams<T, mode>>::GetParam();
         auto& engine = get_test_engine();
 
@@ -67,11 +67,11 @@ public:
         if (reorder_needed) {
             const std::string r_reverse_input_id = "r_reverse_input";
             const std::string r_axes_id = "r_reverse_axes";
-            tp.add(reorder(r_reverse_input_id, input_info(reverse_input_id), params.input_format, type_to_data_type<T>::value));
-            tp.add(reorder(r_axes_id, input_info(axes_id), params.input_format, type_to_data_type<T>::value));
+            tp.add(reorder(r_reverse_input_id, input_info(reverse_input_id), params.input_format, ov::element::from<T>()));
+            tp.add(reorder(r_axes_id, input_info(axes_id), params.input_format, ov::element::from<T>()));
             tp.add(reverse(reverse_id, input_info(r_reverse_input_id), input_info(r_axes_id), mode));
             ouput_op_name = "reversed_result";
-            tp.add(reorder(ouput_op_name, input_info(reverse_id), fmt, type_to_data_type<T>::value));
+            tp.add(reorder(ouput_op_name, input_info(reverse_id), fmt, ov::element::from<T>()));
         } else {
             tp.add(reverse(reverse_id, input_info(reverse_input_id), input_info(axes_id), mode));
         }
@@ -115,8 +115,8 @@ using reverse_gpu_test_int8_mask = reverse_gpu_test<int8_t, reverse_mode::mask>;
 using reverse_gpu_test_int8_index = reverse_gpu_test<int8_t, reverse_mode::index>;
 using reverse_gpu_test_uint8_mask = reverse_gpu_test<uint8_t, reverse_mode::mask>;
 using reverse_gpu_test_uint8_index = reverse_gpu_test<uint8_t, reverse_mode::index>;
-using reverse_gpu_test_f16_mask = reverse_gpu_test<half_t, reverse_mode::mask>;
-using reverse_gpu_test_f16_index = reverse_gpu_test<half_t, reverse_mode::index>;
+using reverse_gpu_test_f16_mask = reverse_gpu_test<ov::float16, reverse_mode::mask>;
+using reverse_gpu_test_f16_index = reverse_gpu_test<ov::float16, reverse_mode::index>;
 
 TEST_P(reverse_gpu_test_int32_mask, reverse_i32_mask) {
     ASSERT_NO_FATAL_FAILURE(test());
@@ -291,74 +291,74 @@ std::vector<ReverseParams<T, reverse_mode::index>> generateIndexParams() {
 }
 
 template <>
-std::vector<ReverseParams<half_t, reverse_mode::mask>> generateMaskParams() {
-    std::vector<ReverseParams<half_t, reverse_mode::mask>> params;
+std::vector<ReverseParams<ov::float16, reverse_mode::mask>> generateMaskParams() {
+    std::vector<ReverseParams<ov::float16, reverse_mode::mask>> params;
     for (const auto fmt : four_d_formats) {
         // reverse_2d_1_mask
         params.push_back({tensor(batch(4), feature(3)),
                           fmt,
-                          std::vector<half_t>{half_t(0),
-                                              half_t(1),
-                                              half_t(2),
-                                              half_t(3),
-                                              half_t(4),
-                                              half_t(5),
-                                              half_t(6),
-                                              half_t(7),
-                                              half_t(8),
-                                              half_t(9),
-                                              half_t(10),
-                                              half_t(11)},
+                          std::vector<ov::float16>{ov::float16(0),
+                                              ov::float16(1),
+                                              ov::float16(2),
+                                              ov::float16(3),
+                                              ov::float16(4),
+                                              ov::float16(5),
+                                              ov::float16(6),
+                                              ov::float16(7),
+                                              ov::float16(8),
+                                              ov::float16(9),
+                                              ov::float16(10),
+                                              ov::float16(11)},
                           {false, true},
-                          std::vector<half_t>{half_t(2),
-                                              half_t(1),
-                                              half_t(0),
-                                              half_t(5),
-                                              half_t(4),
-                                              half_t(3),
-                                              half_t(8),
-                                              half_t(7),
-                                              half_t(6),
-                                              half_t(11),
-                                              half_t(10),
-                                              half_t(9)}});
+                          std::vector<ov::float16>{ov::float16(2),
+                                              ov::float16(1),
+                                              ov::float16(0),
+                                              ov::float16(5),
+                                              ov::float16(4),
+                                              ov::float16(3),
+                                              ov::float16(8),
+                                              ov::float16(7),
+                                              ov::float16(6),
+                                              ov::float16(11),
+                                              ov::float16(10),
+                                              ov::float16(9)}});
     }
 
     return params;
 }
 
 template <>
-std::vector<ReverseParams<half_t, reverse_mode::index>> generateIndexParams() {
-    std::vector<ReverseParams<half_t, reverse_mode::index>> params;
+std::vector<ReverseParams<ov::float16, reverse_mode::index>> generateIndexParams() {
+    std::vector<ReverseParams<ov::float16, reverse_mode::index>> params;
     for (const auto fmt : four_d_formats) {
         // reverse_2d_1_mask
         params.push_back({tensor(batch(4), feature(3)),
                           fmt,
-                          std::vector<half_t>{half_t(0),
-                                              half_t(1),
-                                              half_t(2),
-                                              half_t(3),
-                                              half_t(4),
-                                              half_t(5),
-                                              half_t(6),
-                                              half_t(7),
-                                              half_t(8),
-                                              half_t(9),
-                                              half_t(10),
-                                              half_t(11)},
+                          std::vector<ov::float16>{ov::float16(0),
+                                              ov::float16(1),
+                                              ov::float16(2),
+                                              ov::float16(3),
+                                              ov::float16(4),
+                                              ov::float16(5),
+                                              ov::float16(6),
+                                              ov::float16(7),
+                                              ov::float16(8),
+                                              ov::float16(9),
+                                              ov::float16(10),
+                                              ov::float16(11)},
                           {1},
-                          std::vector<half_t>{half_t(2),
-                                              half_t(1),
-                                              half_t(0),
-                                              half_t(5),
-                                              half_t(4),
-                                              half_t(3),
-                                              half_t(8),
-                                              half_t(7),
-                                              half_t(6),
-                                              half_t(11),
-                                              half_t(10),
-                                              half_t(9)}});
+                          std::vector<ov::float16>{ov::float16(2),
+                                              ov::float16(1),
+                                              ov::float16(0),
+                                              ov::float16(5),
+                                              ov::float16(4),
+                                              ov::float16(3),
+                                              ov::float16(8),
+                                              ov::float16(7),
+                                              ov::float16(6),
+                                              ov::float16(11),
+                                              ov::float16(10),
+                                              ov::float16(9)}});
     }
     return params;
 }
@@ -390,7 +390,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_reverse_uint8_mask,
 
 INSTANTIATE_TEST_SUITE_P(smoke_reverse_f16_mask,
                          reverse_gpu_test_f16_mask,
-                         ::testing::ValuesIn(generateMaskParams<half_t>()),
+                         ::testing::ValuesIn(generateMaskParams<ov::float16>()),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_reverse_i32_index,
@@ -420,7 +420,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_reverse_uint8_index,
 
 INSTANTIATE_TEST_SUITE_P(smoke_reverse_f16_index,
                          reverse_gpu_test_f16_index,
-                         ::testing::ValuesIn(generateIndexParams<half_t>()),
+                         ::testing::ValuesIn(generateIndexParams<ov::float16>()),
                          PrintToStringParamName());
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS

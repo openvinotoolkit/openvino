@@ -15,8 +15,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -66,10 +66,10 @@ public:
         const ov::PartialShape shape = std::get<1>(GetParam());
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizeTransformationTestValues fakeQuantizeOnData = std::get<3>(GetParam());
-        std::vector<element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::int8_support;
+        std::vector<element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
 
         if (fakeQuantizeOnData.actual.quantizationLevel != 256) {
-            defaultPrecisions = ov::pass::low_precision::precision_set::int8_int16_int32_support;
+            defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_int16_int32_support();
         }
 
         const auto params = TestTransformationParams(fakeQuantizeOnData.params)
