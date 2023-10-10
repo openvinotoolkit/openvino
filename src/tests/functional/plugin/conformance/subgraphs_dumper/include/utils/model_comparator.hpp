@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "common_test_utils/graph_comparator.hpp"
-
 #include "matchers/single_op/single_op.hpp"
 #include "matchers/single_op/convolutions.hpp"
 #include "matchers/single_op/manager.hpp"
@@ -29,12 +27,6 @@ public:
         return m_instance;
     }
 
-    std::map<std::string, InputInfo>
-    align_input_info(const std::shared_ptr<ov::Model>& model,
-                     const std::shared_ptr<ov::Model>& model_ref,
-                     const std::map<std::string, InputInfo> &in_info,
-                     const std::map<std::string, InputInfo> &in_info_ref,
-                     const std::map<std::string, std::string> &matched_op = {});
     IsSubgraphTuple is_subgraph(const std::shared_ptr<ov::Model> &model,
                                 const std::shared_ptr<ov::Model> &ref_model) const;
 
@@ -58,10 +50,6 @@ public:
     void set_shape_strict_match(bool is_shape_strict_match);
 
 protected:
-    FunctionsComparator m_comparator = FunctionsComparator::no_default()
-        .enable(FunctionsComparator::ATTRIBUTES)
-        .enable(FunctionsComparator::NODES)
-        .enable(FunctionsComparator::PRECISIONS);
     MatchersManager m_manager = MatchersManager();
     float match_coefficient = 0.9f;
     static std::shared_ptr<ModelComparator> m_instance;

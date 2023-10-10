@@ -35,9 +35,9 @@ static std::vector<std::regex> FROTEND_REGEXP = {
 #ifdef ENABLE_OV_TF_FRONTEND
     std::regex(R"(.*\model.pb)"),
 #endif
-// #ifdef ENABLE_OV_IR_FRONTEND
+#ifdef ENABLE_OV_IR_FRONTEND
     std::regex(R"(.*\.xml)"),
-// #endif
+#endif
 #ifdef ENABLE_OV_TF_LITE_FRONTEND
     std::regex(R"(.*\.tflite)"),
 #endif
@@ -76,6 +76,16 @@ void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std:
 
 bool is_dynamic_model(const std::shared_ptr<ov::Model>& model);
 std::string get_model_type(const std::shared_ptr<ov::Model>& model);
+
+std::map<std::string, InputInfo>
+get_input_info_by_model(const std::shared_ptr<ov::Model>& model);
+
+std::map<std::string, InputInfo>
+align_input_info(const std::shared_ptr<ov::Model>& model,
+                 const std::shared_ptr<ov::Model>& model_ref,
+                 const std::map<std::string, InputInfo> &in_info,
+                 const std::map<std::string, InputInfo> &in_info_ref,
+                 const std::map<std::string, std::string> &matched_op = {});
 
 inline std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>
 generate_model(ov::NodeVector& nodes,

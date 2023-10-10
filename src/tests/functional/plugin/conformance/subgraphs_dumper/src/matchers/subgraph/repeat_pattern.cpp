@@ -8,6 +8,7 @@
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/if.hpp"
+#include "openvino/op/loop.hpp"
 
 #include "matchers/subgraph/repeat_pattern.hpp"
 #include "utils/model.hpp"
@@ -85,7 +86,7 @@ RepeatPatternExtractor::update_extractor_cache(
         if (model_comparator->match(pattern, cached_pattern)) {
             try {
                 const auto& cached_in_info = std::get<2>(pattern_structure);
-                model_comparator->align_input_info(pattern, cached_pattern, pattern_in_info, cached_in_info);
+                align_input_info(pattern, cached_pattern, pattern_in_info, cached_in_info);
                 extracted_pattern.push_back({ pattern, pattern_node_vector, pattern_in_info });
                 return;
             } catch(std::exception) {}

@@ -5,6 +5,7 @@
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/if.hpp"
+#include "openvino/op/loop.hpp"
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"

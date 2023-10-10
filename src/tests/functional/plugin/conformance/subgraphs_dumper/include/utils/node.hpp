@@ -26,6 +26,9 @@ inline InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Const
     return InputInfo::Range(static_cast<double>(min), static_cast<double>(max));
 }
 
+InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& const_node,
+                                  ov::element::Type elem_type);
+
 std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov::Node>& node);
 
 // replace all input node by parameters and constants instead of non input mode types

@@ -60,7 +60,7 @@ struct InputInfo {
 
     InputInfo operator=(const InputInfo& input_info) {
         if (this->is_const != input_info.is_const) {
-            throw std::runtime_error("Cast const to Parameter! Impossible to update Input Info!");
+            throw std::runtime_error("Cast Const to Parameter! Impossible to update Input Info!");
         }
         this->ranges = input_info.ranges;
         if (ov::shape_size(this->max_shape.get_max_shape()) < ov::shape_size(input_info.max_shape.get_max_shape())) {

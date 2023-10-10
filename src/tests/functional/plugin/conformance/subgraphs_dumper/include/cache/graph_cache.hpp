@@ -53,7 +53,7 @@ protected:
         ExtractorsManager::ExtractorsMap matchers = {
             // temporary disabling according mem leaks in CI and not using swap mem
             // { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor(device)) },
-            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor()) },
+            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
         m_manager.set_extractors(matchers);
         m_cache_subdir = "subgraph";

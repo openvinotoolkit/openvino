@@ -69,16 +69,6 @@ TEST_F(ModelComparatorTest, get) {
     ASSERT_EQ(model_comparator, ModelComparator::get());
 }
 
-TEST_F(ModelComparatorTest, align_input_info) {
-    ModelComparator::Ptr model_comparator = ModelComparator::get();
-    std::map<std::string, InputInfo> test_in_info({{"test_parameter_0", InputInfo()}}), test_in_info_ref({{"test_parameter_1", InputInfo()}});
-    ASSERT_NE(test_in_info, test_in_info_ref);
-    ASSERT_NO_THROW(model_comparator->align_input_info(test_model_0_0, test_model_0_1, test_in_info, test_in_info_ref));
-    auto c = model_comparator->align_input_info(test_model_0_0, test_model_0_1, test_in_info, test_in_info_ref);
-    ASSERT_EQ(c, test_in_info_ref);
-}
-
-
 TEST_F(ModelComparatorTest, match) {
     ModelComparator::Ptr model_comparator = ModelComparator::get();
     ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1));
@@ -142,17 +132,6 @@ TEST_F(ModelComparatorTest, is_subgraph) {
     ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_0, test_model_1)));
     ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_1, test_model_1));
     ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_1, test_model_1)));
-}
-
-TEST_F(ModelComparatorTest, align_input_info_for_subgraphs) {
-    ModelComparator::Ptr model_comparator = ModelComparator::get();
-    std::map<std::string, InputInfo> test_in_info({{"test_parameter_0", InputInfo()}}),
-                                     test_in_info_ref({{"test_parameter_1", InputInfo()}});
-    ASSERT_NE(test_in_info, test_in_info_ref);
-    /*ASSERT_NO_THROW(*/model_comparator->align_input_info(test_model_0_0, test_model_0_1,
-                                                       test_in_info, test_in_info_ref, {{"test_parameter_0", "test_parameter_1"}})/*)*/;
-    auto c = model_comparator->align_input_info(test_model_0_0, test_model_0_1, test_in_info, test_in_info_ref);
-    ASSERT_EQ(c, test_in_info_ref);
 }
 
 }  // namespace
