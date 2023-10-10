@@ -169,10 +169,9 @@ std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> no
     return quant_node;
 }
 
-std::shared_ptr<Node> u4_compression_concat(const NodeContext* context,
+std::shared_ptr<Node> u4_compression_stack(const NodeContext* context,
                                             const std::deque<ov::Output<ov::Node>>& list_elems,
-                                            int64_t axis,
-                                            bool interleaved) {
+                                            int64_t axis) {
     // Part 1: Detect pattern
 
     if (list_elems.size() != 2)
@@ -205,55 +204,19 @@ std::shared_ptr<Node> u4_compression_concat(const NodeContext* context,
 
     auto u8_shape = weights_u8->get_shape();
     size_t full_size = shape_size(u8_shape);
-    size_t lane_size = u8_shape.back();
-    size_t outer_size = full_size / lane_size;
     auto src = weights_u8->get_data_ptr<uint8_t>();
 
     auto u4_shape = u8_shape;
-    u4_shape.back() *= 2;
+    u4_shape.push_back(2);
     auto new_const = std::make_shared<v0::Constant>(element::u4, u4_shape);
     auto dst = const_cast<uint8_t*>(
         reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));
 
-    auto pack_byte = [](uint8_t lo, uint8_t hi) { return (lo << 4) | hi; };  // swap halfs because Convert op assumes this layout
+    auto swap_nibbles = [](uint8_t byte) { return ((byte & 0x0F) << 4) | (byte >> 4); };  // swap halfs because Convert op assumes this layout
 
-    if (interleaved) {
-        for (size_t lane_start = 0; lane_start < full_size; lane_start += lane_size) {
-            auto src_lane = src + lane_start;
-            auto dst_lane = dst + lane_start;
-
-            size_t i = 0;
-            for (; i < lane_size - 1; i += 2) {
-                dst_lane[i / 2] = pack_byte(src_lane[i] & 0x0F, src_lane[i + 1] & 0x0F);
-            }
-
-            // Handle a byte in the middle if lane_size is odd
-            if (i < lane_size) {
-                OPENVINO_ASSERT(i == lane_size - 1);
-                dst_lane[i / 2] = pack_byte(src_lane[i] & 0x0F, src_lane[0] >> 4);
-                i = 1;
-            } else {
-                i = 0;
-            }
-
-            for (; i < lane_size; i += 2) {
-                dst_lane[(lane_size + i) / 2] = pack_byte(src_lane[i] >> 4, src_lane[i + 1] >> 4);
-            }
-
-            OPENVINO_ASSERT(i == lane_size);
-        }
-    } else {
-        // TODO: If pack_byte is implemented trivially (no exchange of the halfs of a byte) then the following loop is not needed and we can use the original constant as-is
-        for (size_t lane_start = 0; lane_start < full_size; lane_start += lane_size) {
-            auto src_lane = src + lane_start;
-            auto dst_lane = dst + lane_start;
-
-            for (size_t i = 0; i < lane_size; ++i) {
-                dst_lane[i] = pack_byte(src_lane[i] & 0x0F, (src_lane[i] & 0xF0) >> 4);
-            }
-        }
-    }
-
+    // TODO: If pack_byte is implemented trivially (no exchange of the halfs of a byte) then the following
+    // transform is not needed and we can use the original constant as-is
+    std::transform(src, src + full_size, dst, swap_nibbles);
     return new_const;
 }
 

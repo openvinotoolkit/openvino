@@ -169,16 +169,12 @@ OutputVector quantizable_op(const NodeContext& context) {
 
 
 /**
- * Captures RootOp(aten::bitwise_and(Constant(u8)), aten::bitwise_right_shift(Constant(u8))), where RootOp is Concat-like operation along `axis` dimension.
- * This pattern is transformed to a single Constant(u4) in assumption that RootOp-like op is a regular Concat op.
- * RootOp can be a modified Concat op like aten::stack, the transformation doesn't check the real type of RootOp, it just builds the result
- * assuming that this is Concat. If it is not exactly Concat, you need to add more operations as a post-processing. For example,
- * for aten::stack we need to add Reshape afterwards.
+ * Captures aten::stack([aten::bitwise_and(Constant(u8)), aten::bitwise_right_shift(Constant(u8))], dim=-1).
+ * This pattern is transformed to a single Constant with element_type=u4.
 */
-std::shared_ptr<Node> u4_compression_concat(const NodeContext* context,
+std::shared_ptr<Node> u4_compression_stack(const NodeContext* context,
                                             const std::deque<ov::Output<ov::Node>>& list_elems,
-                                            int64_t axis,
-                                            bool interleaved);
+                                            int64_t axis);
 
 }  // namespace pytorch
 }  // namespace frontend

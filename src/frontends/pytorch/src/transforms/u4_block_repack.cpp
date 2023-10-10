@@ -53,7 +53,6 @@ U4BlockRepack::U4BlockRepack() {
             // FIXME: Check reshape/transpose/reshape target shapes and axes permutation; now they are supposed to be always in expected form
 
             auto source_shape = reshape1->get_output_shape(0);
-            std::cerr << "Reshape shape: " << source_shape;
 
             if(source_shape.size() != 3)
                 return false;

@@ -55,9 +55,6 @@ OutputVector translate_cat_common(const NodeContext& context,
             context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_sliced, axis_const, neg_1, zero));
         return {context.mark_node(std::make_shared<v1::Reshape>(tensor, new_shape, false))};
     }
-    if (auto compression = u4_compression_concat(&context, list_elems, axis, true)) {    // TODO: Avoid using this interleaved format because it requires repacking
-        return compression->outputs();
-    }
     auto concat = std::make_shared<v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), axis);
     return {context.mark_node(concat)};
 }
