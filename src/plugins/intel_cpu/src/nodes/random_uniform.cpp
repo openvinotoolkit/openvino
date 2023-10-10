@@ -96,6 +96,7 @@ void RandomUniform::createPrimitive() {
     }
     if (m_const_inputs[MAX_VAL]) {
         initEdgeValues(m_max_val, getParentEdgeAt(MAX_VAL)->getMemoryPtr()->getData(), m_output_prc);
+        evalRange();
     }
 
     if (m_algo == PHILOX) {
@@ -151,12 +152,14 @@ void RandomUniform::prepareParams() {
             uint64_t start = 0lu, end = 0lu;
 
             if (m_jit_kernel) {
+#if defined(OPENVINO_ARCH_X86_64)
                 const auto block_size = (m_jit_kernel->getVectorLen() / m_output_prc.size()) * 2;
                 const auto blocks_num = (m_out_el_num + block_size - 1) / block_size;
                 const auto blocks_per_thr = (blocks_num + nthr - 1) / nthr;
 
                 start = ithr * blocks_per_thr * block_size;
                 end = (ithr + 1) * blocks_per_thr * block_size;
+#endif // OPENVINO_ARCH_X86_64
             } else {
                 const auto groups_num = (m_out_el_num + PHILOX_GROUP_SIZE - 1) / PHILOX_GROUP_SIZE;
                 const auto groups_per_thr = (groups_num + nthr - 1) / nthr;
@@ -165,7 +168,6 @@ void RandomUniform::prepareParams() {
                 end = (ithr + 1) * groups_per_thr * PHILOX_GROUP_SIZE;
 
                 p.step = m_output_prc.size() > 4 ? 2 : 4;
-                p.step_b = p.step * m_output_prc.size();
             }
 
             if (end > m_out_el_num) {
@@ -175,7 +177,6 @@ void RandomUniform::prepareParams() {
                 start = end;
             }
             p.work_amount = end - start;
-            p.work_amount_b = static_cast<int64_t>(p.work_amount * m_output_prc.size());
             p.n_shift = start / PHILOX_GROUP_SIZE;
             p.dst_shift = start * m_output_prc.size();
         });
@@ -185,9 +186,13 @@ void RandomUniform::prepareParams() {
 void RandomUniform::execute(dnnl::stream strm) {
     if (!m_const_inputs[MIN_VAL]) {
         initEdgeValues(m_min_val, getParentEdgeAt(MIN_VAL)->getMemoryPtr()->getData(), m_output_prc);
+        if (m_const_inputs[MAX_VAL]) {
+            evalRange();
+        }
     }
     if (!m_const_inputs[MAX_VAL]) {
         initEdgeValues(m_max_val, getParentEdgeAt(MAX_VAL)->getMemoryPtr()->getData(), m_output_prc);
+        evalRange();
     }
 
     auto data = getChildEdgeAt(0)->getMemoryPtr()->getData();
@@ -216,11 +221,7 @@ constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;
 constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
 constexpr uint64_t ROUNDS_NUMBER = 10llu;
 
-uint64_t uniteHighLow(uint32_t high, uint32_t low) {
-    return (static_cast<uint64_t>(high) << 32) + low;
-}
-
-void calculateRound(const uint32_t* key, uint32_t* counter, uint32_t* n) {
+inline void calculateRound(const uint32_t* key, uint32_t* counter, uint32_t* n) {
     uint64_t prod_0 = STATISTIC_MAXIMIZING_MULTIPLIER_N * n[0];
     uint64_t prod_1 = STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER * counter[0];
     n[0] = static_cast<uint32_t>(prod_1 >> 32) ^ n[1] ^ key[0];
@@ -229,37 +230,17 @@ void calculateRound(const uint32_t* key, uint32_t* counter, uint32_t* n) {
     counter[1] = static_cast<uint32_t>(prod_0);
 }
 
-void raiseKey(uint32_t* key) {
+inline void raiseKey(uint32_t* key) {
     key[0] += CRUSH_RESISTANCE_CONST_LOWER_VALUE;
     key[1] += CRUSH_RESISTANCE_CONST_UPPER_VALUE;
 }
 
-float uint32ToFloat(uint32_t x) {
-    RandomUniform::OutputType out_val;
-    out_val.u32 = (static_cast<uint32_t>(127) << 23) | (x & 0x7fffffu);
-    return out_val.f32 - 1.0f;
-}
-
-float16 uint32ToFloat16(uint32_t x) {
-    RandomUniform::OutputType out_val;
-    uint16_t x_uint16 = static_cast<uint16_t>(x);
-    out_val.u16 = (static_cast<uint16_t>(15) << 10) | (x_uint16 & 0x3ffu);
-    return out_val.f16 - static_cast<float16>(1);
-}
-
-bfloat16 uint32ToBfloat16(uint32_t x) {
-    RandomUniform::OutputType out_val;
-    uint16_t x_uint16 = static_cast<uint16_t>(x);
-    out_val.u16 = (static_cast<uint16_t>(127) << 7) | (x_uint16 & 0x7fu);
-    return out_val.bf16 - static_cast<bfloat16>(1);
-}
-
-void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res) {
+inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res) {
     uint32_t* key_32 = reinterpret_cast<uint32_t*>(&key);
     uint32_t* counter_32 = reinterpret_cast<uint32_t*>(&counter);
     uint32_t* n_32 = reinterpret_cast<uint32_t*>(&n);
 
-    for (size_t i = 0; i < ROUNDS_NUMBER; i++) {
+    for (size_t i = 0lu; i < ROUNDS_NUMBER; i++) {
         calculateRound(key_32, counter_32, n_32);
         if (i < ROUNDS_NUMBER - 1)
             raiseKey(key_32);
@@ -271,36 +252,65 @@ void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res) {
     res[3] = counter_32[1];
 }
 
-template <typename T>
-void convertToOutputType(const uint32_t* res,
-                         size_t step,
-                         const element::Type& elem_type,
-                         T min_val,
-                         T max_val,
-                         uint8_t* out,
-                         size_t num_to_copy,
-                         T (*convert_single_input)(uint32_t) = nullptr,
-                         T (*convert_two_inputs)(uint32_t, uint32_t, T, T) = nullptr,
-                         T (*mod_func)(uint32_t, T, T) = nullptr) {
-    std::vector<T> res_out_type(step);
+inline void convertToOutputType(const uint32_t* in,
+                                float min,
+                                float range,
+                                float* out,
+                                size_t el_to_copy) {
+    RandomUniform::OutputType out_val;
 
-    if (elem_type.size() > 4) {
-        res_out_type[0] = convert_two_inputs(res[0], res[1], min_val, max_val);
-        res_out_type[1] = convert_two_inputs(res[2], res[3], min_val, max_val);
-    } else {
-        std::transform(res,
-                       res + step,
-                       res_out_type.data(),
-                       [&min_val, &max_val, &convert_single_input, &mod_func](uint32_t elem) {
-                           if (convert_single_input != nullptr) {
-                               return convert_single_input(elem) * (max_val - min_val) + min_val;
-                           } else {
-                               return mod_func(elem, min_val, max_val);
-                           }
-                       });
+    for (size_t i = 0lu; i < el_to_copy; i++) {
+        out_val.u32 = 0x3f800000 | (in[i] & 0x7fffffu);
+        out[i] = (out_val.f32 - 1.f) * range + min;
     }
+}
 
-    memcpy(out, res_out_type.data(), num_to_copy);
+inline void convertToOutputType(const uint32_t* in,
+                                float16 min,
+                                float16 range,
+                                float16* out,
+                                size_t el_to_copy) {
+    RandomUniform::OutputType out_val;
+
+    for (size_t i = 0lu; i < el_to_copy; i++) {
+        uint16_t x_uint16 = static_cast<uint16_t>(in[i]);
+        out_val.u16 = 0x3c00 | (x_uint16 & 0x03ffu);
+        out[i] = (out_val.f16 - static_cast<float16>(1)) * range + min;
+    }
+}
+
+inline void convertToOutputType(const uint32_t* in,
+                                bfloat16 min,
+                                bfloat16 range,
+                                bfloat16* out,
+                                size_t el_to_copy) {
+    RandomUniform::OutputType out_val;
+
+    for (size_t i = 0lu; i < el_to_copy; i++) {
+        uint16_t x_uint16 = static_cast<uint16_t>(in[i]);
+        out_val.u16 = 0x3f80 | (x_uint16 & 0x7fu);
+        out[i] = (out_val.bf16 - static_cast<bfloat16>(1)) * range + min;
+    }
+}
+
+inline void convertToOutputType(const uint32_t* in,
+                                int32_t min,
+                                int32_t range,
+                                int32_t* out,
+                                size_t el_to_copy) {
+    for (size_t i = 0lu; i < el_to_copy; i++) {
+        out[i] = static_cast<int32_t>(in[i] % range + min);
+    }
+}
+
+inline void convertToOutputType(const uint32_t* in,
+                                int64_t min,
+                                int64_t range,
+                                int64_t* out,
+                                size_t el_to_copy) {
+    for (size_t i = 0lu; i < el_to_copy; i++) {
+        out[i] = static_cast<int64_t>(((static_cast<uint64_t>(in[i * 2]) << 32) + in[i * 2 + 1]) % range + min);
+    }
 }
 
 }  // namespace
@@ -320,6 +330,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
     auto out_u8 = reinterpret_cast<uint8_t*>(out);
 
     if (m_jit_kernel) {
+#if defined(OPENVINO_ARCH_X86_64)
         parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
                 auto& p = m_thread_params[ithr];
                 if (p.work_amount == 0lu) {
@@ -334,11 +345,12 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
                 args.counter_ptr = &counter;
                 args.n_ptr       = &n;
                 args.min_ptr     = &m_min_val;
-                args.max_ptr     = &m_max_val;
+                args.range_ptr   = &m_range_val;
                 args.work_amount = p.work_amount;
 
                 (*m_jit_kernel)(&args);
             });
+#endif // OPENVINO_ARCH_X86_64
     } else {
         auto threadBody = [&](const int ithr, const int nthr) {
             auto& p = m_thread_params[ithr];
@@ -347,42 +359,32 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
             }
             auto n = n_state + p.n_shift;
             auto out_cur = out_u8 + p.dst_shift;
-            auto work_rest = p.work_amount_b;
+            auto work_rest = static_cast<int64_t>(p.work_amount);
             uint32_t res[4];
 
-            for (; work_rest > 0; work_rest -= p.step_b, out_cur += p.step_b) {
-                runPhilox(m_global_seed, counter, n, res);
-                auto bytes_to_copy = std::min(p.step_b, static_cast<uint64_t>(work_rest));
+#define EXEC_CASE(P)                                                                                    \
+            case element::P: {                                                                          \
+                auto out_t = reinterpret_cast<element_type_traits<element::P>::value_type *>(out_cur);  \
+                for (; work_rest > 0l; work_rest -= p.step, out_t += p.step) {                          \
+                    runPhilox(m_global_seed, counter, n, res);                                          \
+                    auto el_to_copy = std::min(p.step, static_cast<uint64_t>(work_rest));               \
+                    convertToOutputType(res, m_min_val.P, m_range_val.P, out_t, el_to_copy);            \
+                    if (++n == 0) {                                                                     \
+                        counter++;                                                                      \
+                    }                                                                                   \
+                }                                                                                       \
+            } break;
 
-                switch (m_output_prc) {
-                    case element::f32: {
-                        convertToOutputType<float>(res, p.step, m_output_prc, m_min_val.f32, m_max_val.f32, out_cur, bytes_to_copy, uint32ToFloat);
-                    } break;
-                    case element::f16: {
-                        convertToOutputType<float16>(res, p.step, m_output_prc, m_min_val.f16, m_max_val.f16, out_cur, bytes_to_copy, uint32ToFloat16);
-                    } break;
-                    case element::bf16: {
-                        convertToOutputType<bfloat16>(res, p.step, m_output_prc, m_min_val.bf16, m_max_val.bf16, out_cur, bytes_to_copy, uint32ToBfloat16);
-                    } break;
-                    case element::i32: {
-                        convertToOutputType<int>(res, p.step, m_output_prc, m_min_val.i32, m_max_val.i32, out_cur, bytes_to_copy, nullptr, nullptr,
-                                                [](uint32_t x, int mn, int mx) {
-                                                    return static_cast<int>(x % (mx - mn) + mn);
-                                                });
-                    } break;
-                    case element::i64: {
-                        convertToOutputType<int64_t>(res, p.step, m_output_prc, m_min_val.i64, m_max_val.i64, out_cur, bytes_to_copy, nullptr,
-                                                [](uint32_t a, uint32_t b, int64_t mn, int64_t mx) {
-                                                    return static_cast<int64_t>(uniteHighLow(b, a) % (mx - mn) + mn);
-                                                });
-                    } break;
-                    default: THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
-                }
-
-                if (++n == 0) {
-                    counter++;
-                }
+            switch (m_output_prc) {
+                EXEC_CASE(f32)
+                EXEC_CASE(f16)
+                EXEC_CASE(bf16)
+                EXEC_CASE(i32)
+                EXEC_CASE(i64)
+                default: THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
             }
+
+#undef EXEC_CASE
         };
 
         parallel_nt(m_threads_num, threadBody);
@@ -446,6 +448,26 @@ void RandomUniform::initEdgeValues(OutputType& dst, const void* src, const eleme
         EL_CASE(f64)
         default:
             THROW_CPU_NODE_ERR("has unsupported output precision: ", output_type);
+    }
+
+#undef EL_CASE
+}
+
+void RandomUniform::evalRange() {
+#define EL_CASE(E) \
+    case element::E: \
+        m_range_val.E = m_max_val.E - m_min_val.E; \
+        break;
+
+    switch (m_output_prc) {
+        EL_CASE(f32)
+        EL_CASE(f16)
+        EL_CASE(bf16)
+        EL_CASE(i32)
+        EL_CASE(i64)
+        EL_CASE(f64)
+        default:
+            THROW_CPU_NODE_ERR("has unsupported output precision: ", m_output_prc);
     }
 
 #undef EL_CASE

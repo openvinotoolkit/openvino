@@ -75,17 +75,13 @@ void RandomUniform<x64::avx512_core>::initVectors() {
     if (m_jcp.out_data_type == element::f32) {
         BROADCAST_R(vpbroadcastd, v_convert_0, r32_aux, 0x3f800000)
         BROADCAST_R(vpbroadcastd, v_convert_1, r32_aux, 0x007fffff)
-        BROADCAST_P(vpbroadcastd, v_range,     r64_aux, max_ptr)
+        BROADCAST_P(vpbroadcastd, v_range,     r64_aux, range_ptr)
         BROADCAST_P(vpbroadcastd, v_min,       r64_aux, min_ptr)
-
-        uni_vsubps(v_range, v_range, v_min);
     } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
         BROADCAST_R(vpbroadcastw, v_convert_0, r16_aux, 0x3c00)
         BROADCAST_R(vpbroadcastw, v_convert_1, r16_aux, 0x03ff)
-        BROADCAST_P(vpbroadcastw, v_range,     r64_aux, max_ptr)
+        BROADCAST_P(vpbroadcastw, v_range,     r64_aux, range_ptr)
         BROADCAST_P(vpbroadcastw, v_min,       r64_aux, min_ptr)
-
-        vsubph(v_range, v_range, v_min);
     } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
         v_convert_2 = getVmm();
         const auto ymm_min = Xbyak::Ymm(v_min.getIdx());
@@ -95,22 +91,19 @@ void RandomUniform<x64::avx512_core>::initVectors() {
         BROADCAST_R(vpbroadcastw, v_convert_1, r16_aux, 0x007f)
         BROADCAST_R(vpbroadcastd, v_convert_2, r32_aux, 0x3f800000)
 
-        BROADCAST_P(vpbroadcastw, v_range, r64_aux, max_ptr)
+        BROADCAST_P(vpbroadcastw, v_range, r64_aux, range_ptr)
         vpmovzxwd(v_range, ymm_range);
         uni_vpslld(v_range, v_range, 16);
 
         BROADCAST_P(vpbroadcastw, v_min, r64_aux, min_ptr)
         vpmovzxwd(v_min, ymm_min);
         uni_vpslld(v_min, v_min, 16);
-
-        uni_vsubps(v_range, v_range, v_min);
     } else if (m_jcp.out_data_type == element::i32) {
         const auto ymm_range = Xbyak::Ymm(v_range.getIdx());
 
-        BROADCAST_P(vpbroadcastd, v_range, r64_aux, max_ptr)
+        BROADCAST_P(vpbroadcastd, v_range, r64_aux, range_ptr)
         BROADCAST_P(vpbroadcastd, v_min,   r64_aux, min_ptr)
 
-        uni_vpsubd(v_range, v_range, v_min);
         uni_vcvtdq2pd(v_range, ymm_range);
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
@@ -197,7 +190,7 @@ void RandomUniform<isa>::initVectors() {
         INIT_ARR(convert_0, 0x3f800000, r64_convert_0, uint32_t);
         INIT_ARR(convert_1, 0x007fffff, r64_convert_1, uint32_t);
 
-        mov(r64_aux, ptr[r64_params + GET_OFF(max_ptr)]);
+        mov(r64_aux, ptr[r64_params + GET_OFF(range_ptr)]);
         uni_vpbroadcastd(v_range, ptr[r64_aux]);
 
         auto v_aux = getVmm();
@@ -206,8 +199,6 @@ void RandomUniform<isa>::initVectors() {
         static uint32_t min_arr[8];
         mov(r64_min, reinterpret_cast<uintptr_t>(min_arr));
         uni_vmovups(ptr[r64_min], v_aux);
-
-        uni_vsubps(v_range, v_range, v_aux);
     } else if (m_jcp.out_data_type == element::i32) {
         r64_f64_pow_52 = getReg64();
         const auto v_aux = getVmm();
@@ -215,7 +206,7 @@ void RandomUniform<isa>::initVectors() {
 
         INIT_ARR(f64_pow_52, 0x4330000000000000, r64_f64_pow_52, uint64_t);
 
-        mov(r64_aux, ptr[r64_params + GET_OFF(max_ptr)]);
+        mov(r64_aux, ptr[r64_params + GET_OFF(range_ptr)]);
         uni_vpbroadcastd(v_range, ptr[r64_aux]);
 
         mov(r64_aux, ptr[r64_params + GET_OFF(min_ptr)]);
@@ -224,7 +215,6 @@ void RandomUniform<isa>::initVectors() {
         mov(r64_min, reinterpret_cast<uintptr_t>(min_arr));
         uni_vmovups(ptr[r64_min], v_aux);
 
-        uni_vpsubd(v_range, v_range, v_aux);
         uni_vcvtdq2pd(v_range, xmm_range);
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());

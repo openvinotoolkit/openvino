@@ -66,6 +66,8 @@ private:
 
     void initEdgeValues(OutputType& dst, const void* src, const element::Type& output_type);
 
+    void evalRange();
+
     enum { SHAPE = 0, MIN_VAL, MAX_VAL };
     enum AlgoType { STL, PHILOX };
 
@@ -80,6 +82,7 @@ private:
     uint64_t m_out_el_num = 1lu;
     OutputType m_min_val;
     OutputType m_max_val;
+    OutputType m_range_val;
     AlgoType m_algo = PHILOX;
 
     std::default_random_engine m_generator;
@@ -88,10 +91,7 @@ private:
         uint64_t work_amount = 0lu;
         uint64_t dst_shift = 0lu;
         uint64_t n_shift = 0lu;
-
         uint64_t step = 0lu;
-        uint64_t step_b = 0lu;
-        int64_t work_amount_b = 0;
     };
 
     uint64_t m_threads_num = 0lu;

@@ -20,7 +20,7 @@ struct RandomUniformCallArgs {
     const void* counter_ptr;
     const void* n_ptr;
     const void* min_ptr;
-    const void* max_ptr;
+    const void* range_ptr;
     uint64_t work_amount = 0lu;
 };
 
