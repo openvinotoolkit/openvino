@@ -12,7 +12,7 @@ std::vector<size_t> input_sizes = {80, 32, 64, 100};
 
 std::vector<midOutputType> midLayerTypes{midOutputType::Mul, midOutputType::Sub, midOutputType::Sum};
 
-std::map<std::string, std::string> additional_config = {};
+ov::AnyMap additional_config = {};
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(OutputBeforeActivation,

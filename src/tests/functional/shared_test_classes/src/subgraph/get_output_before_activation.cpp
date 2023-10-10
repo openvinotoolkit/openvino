@@ -28,7 +28,7 @@ std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo
     ov::element::Type element_type;
     size_t inputSize;
     midOutputType outputType;
-    std::map<std::string, std::string> config;
+    ov::AnyMap config;
     std::tie(targetDevice, element_type, inputSize, outputType, config) = obj.param;
     std::ostringstream result;
 
@@ -37,14 +37,14 @@ std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo
     result << "OutputType=" << outputType << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : config) {
-        result << "_configItem=" << configItem.first << "_" << configItem.second;
+        result << "_configItem=" << configItem.first << "_" << configItem.second.as<std::string>();
     }
     return result.str();
 }
 
 void OutputBeforeActivation::SetUp() {
     ov::element::Type element_type;
-    std::map<std::string, std::string> config;
+    ov::AnyMap config;
     size_t inputSize;
     midOutputType outputType;
     std::tie(targetDevice, element_type, inputSize, outputType, config) = this->GetParam();

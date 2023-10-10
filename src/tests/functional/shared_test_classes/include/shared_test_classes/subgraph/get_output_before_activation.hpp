@@ -13,11 +13,11 @@ enum class midOutputType {
     Mul,
 };
 
-typedef std::tuple<std::string,                        // Target device name
-                   ov::element::Type,                  // Network precision
-                   size_t,                             // Input size
-                   midOutputType,                      // Type of layer that will be an output
-                   std::map<std::string, std::string>  // Configuration
+typedef std::tuple<std::string,        // Target device name
+                   ov::element::Type,  // Network precision
+                   size_t,             // Input size
+                   midOutputType,      // Type of layer that will be an output
+                   ov::AnyMap          // Configuration
                    >
     outputBeforeActivationParams;
 
