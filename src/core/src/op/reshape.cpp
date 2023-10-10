@@ -10,7 +10,6 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -177,15 +176,10 @@ bool op::v1::Reshape::evaluate_reshape(ov::TensorVector& outputs, const ov::Tens
     OPENVINO_ASSERT(ov::PartialShape(output_shape).is_static());
     outputs[0].set_shape(ov::PartialShape(output_shape).to_shape());
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const AxisVector order = ngraph::get_default_order(inputs[0].get_shape());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    ngraph::runtime::opt_kernel::reshape(static_cast<char*>(inputs[0].data()),
-                                         static_cast<char*>(outputs[0].data()),
-                                         inputs[0].get_shape(),
-                                         order,
-                                         outputs[0].get_shape(),
-                                         inputs[0].get_element_type().size());
+    ov::reference::reshape(static_cast<char*>(inputs[0].data()),
+                           static_cast<char*>(outputs[0].data()),
+                           inputs[0].get_shape(),
+                           inputs[0].get_element_type().size());
     return true;
 }
 

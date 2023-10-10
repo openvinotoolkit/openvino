@@ -12,9 +12,9 @@
 #    include <xbyak/xbyak_util.h>
 
 #    include "jit_generator.hpp"
-#    include "ngraph/type/float16.hpp"
+#    include "openvino/core/type/float16.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace runtime {
 namespace jit {
 using namespace Xbyak;
@@ -186,6 +186,6 @@ void Generator::copy<float>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, co
 }
 }  // namespace jit
 }  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
 
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64

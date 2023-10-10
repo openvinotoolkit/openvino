@@ -6,8 +6,8 @@
 
 #include <vector>
 
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/reference/reshape.hpp"
 
 namespace ov {
 namespace reference {
@@ -84,7 +84,7 @@ void space_to_depth(const char* const in,
         post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
     }
 
-    ngraph::runtime::opt_kernel::reshape(in, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
+    reshape(in, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
 }
 }  // namespace reference
 }  // namespace ov
