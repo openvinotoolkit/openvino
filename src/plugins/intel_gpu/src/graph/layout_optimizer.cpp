@@ -1535,28 +1535,32 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         std::vector<format> onednn_optimized_formats = {
             format::byxf,
             format::bzyxf,
-            format::b_fs_zyx_fsv32,
-            format::b_fs_yx_fsv32,
-            format::b_fs_zyx_fsv16,
+            format::b_fs_yx_fsv8,
+            format::b_fs_zyx_fsv8,
             format::b_fs_yx_fsv16,
-            format::bs_fs_zyx_bsv16_fsv16,
-            format::bs_fs_yx_bsv16_fsv16,
-            format::bs_fs_zyx_bsv16_fsv32,
-            format::bs_fs_yx_bsv16_fsv32,
-            format::bs_fs_zyx_bsv32_fsv16,
-            format::bs_fs_yx_bsv32_fsv16,
-            format::bs_fs_zyx_bsv32_fsv32,
-            format::bs_fs_yx_bsv32_fsv32,
-            format::bs_fs_zyx_bsv8_fsv4,
+            format::b_fs_zyx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::b_fs_zyx_fsv32,
+            format::bs_fs_yx_bsv4_fsv2,
+            format::bs_fs_yx_bsv4_fsv4,
+            format::bs_fs_yx_bsv8_fsv2,
+            format::bs_fs_zyx_bsv8_fsv2,
             format::bs_fs_yx_bsv8_fsv4,
-            format::bs_fs_yx_bsv16_fsv4,
-            format::bs_fs_zyx_bsv16_fsv4,
+            format::bs_fs_zyx_bsv8_fsv4,
             format::bs_fs_yx_bsv16_fsv2,
             format::bs_fs_zyx_bsv16_fsv2,
-            format::bs_fs_zyx_bsv8_fsv2,
-            format::bs_fs_yx_bsv8_fsv2,
-            format::bs_fs_yx_bsv4_fsv4,
-            format::bs_fs_yx_bsv4_fsv2,
+            format::bs_fs_yx_bsv16_fsv4,
+            format::bs_fs_zyx_bsv16_fsv4,
+            format::bs_fs_yx_bsv16_fsv8,
+            format::bs_fs_zyx_bsv16_fsv8,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_zyx_bsv16_fsv16,
+            format::bs_fs_yx_bsv16_fsv32,
+            format::bs_fs_zyx_bsv16_fsv32,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_zyx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+            format::bs_fs_zyx_bsv32_fsv32,
         };
 
         impl_types impl_candidate = impl_types::onednn;
@@ -1715,9 +1719,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = get_expected_format(node.as<deconvolution>());
     } else if (node.is_type<mvn>()) {
         auto input_layout = node.get_input_layout(0);
-        if (input_layout.format.dimension() == 5 &&
-            (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16))
-            expected = format::bfzyx;
+        if (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) {
+            expected = format::get_default_format(input_layout.get_rank());
+        }
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.
