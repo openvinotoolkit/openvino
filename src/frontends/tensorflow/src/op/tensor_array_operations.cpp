@@ -253,7 +253,7 @@ OutputVector translate_tensor_array_concat_v3_op(const NodeContext& node) {
     // 1) flow_in A Tensor of type float32. A float scalar that enforces proper chaining of operations.
     // The operation has one output
     // 0) concatenated value by the first dimension
-    default_op_checks(node, 3, {"TensorArrayConcatV3"});
+    default_op_checks(node, 2, {"TensorArrayConcatV3"});
     // flow_in serves for transferring tensor array
     // handle input is ignored
     auto tensor_array = node.get_input(1);
