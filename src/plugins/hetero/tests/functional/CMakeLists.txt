@@ -8,7 +8,6 @@ ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            openvino::runtime
             mock_engine
             openvino_hetero_plugin
         LINK_LIBRARIES

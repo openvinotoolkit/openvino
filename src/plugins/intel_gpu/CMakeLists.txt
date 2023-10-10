@@ -65,6 +65,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
+ov_set_threading_interface_for(${TARGET_NAME})
+
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # Workaround to avoid warnings during LTO build

@@ -3,7 +3,6 @@
 
 #include "pyopenvino/core/infer_request.hpp"
 
-#include <ie_common.h>
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>

@@ -4,7 +4,6 @@
 
 #include "pyopenvino/core/core.hpp"
 
-#include <ie_extension.h>
 #include <pybind11/stl.h>
 
 #include <openvino/core/any.hpp>

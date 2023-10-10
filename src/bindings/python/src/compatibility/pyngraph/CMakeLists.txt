@@ -68,6 +68,8 @@ if(OpenVINO_SOURCE_DIR)
     )
 endif()
 
+ov_set_apple_rpath(_${PROJECT_NAME} ${OV_CPACK_PYTHONDIR} ${OV_CPACK_RUNTIMEDIR})
+
 # Install
 
 if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)

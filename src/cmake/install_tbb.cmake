@@ -128,7 +128,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             endforeach()
         endforeach()
 
-        set(pkg_config_tbb_lib_dir "runtime/3rdparty/tbb/lib")
+        set(TBB_LIB_INSTALL_DIR "runtime/3rdparty/tbb/lib" CACHE PATH "TBB library install directory" FORCE)
     elseif(tbb_custom)
         # for custom TBB we need to install it to our package
         # to simplify life for our customers
@@ -183,7 +183,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             endif()
         endforeach()
 
-        set(pkg_config_tbb_lib_dir "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}")
+        set(TBB_LIB_INSTALL_DIR "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}" CACHE PATH "TBB library install directory" FORCE)
     elseif(tbb_downloaded)
         set(OV_TBB_DIR_INSTALL "runtime/3rdparty/tbb")
 
@@ -234,13 +234,16 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     PATTERN "cmake" EXCLUDE)
         endif()
 
-        set(pkg_config_tbb_lib_dir "${OV_TBB_DIR_INSTALL}/lib")
+        set(TBB_LIB_INSTALL_DIR "${OV_TBB_DIR_INSTALL}/lib" CACHE PATH "TBB library install directory" FORCE)
     else()
+        unset(TBB_LIB_INSTALL_DIR CACHE)
         message(WARNING "TBB of unknown origin. TBB files are not installed")
     endif()
 
     unset(tbb_downloaded)
     unset(tbb_custom)
+else()
+    unset(TBB_LIB_INSTALL_DIR CACHE)
 endif()
 
 # install tbbbind for static OpenVINO case

@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "dict_attribute_visitor.hpp"
-#include "ngraph/check.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/op_extension.hpp"

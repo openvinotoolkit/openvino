@@ -72,6 +72,14 @@ endif()
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_mark_target_as_cc(${TARGET_NAME})
 
+if(TBB_FOUND)
+    if(NOT TBB_LIB_INSTALL_DIR)
+        message(FATAL_ERROR "Internal error: variable 'TBB_LIB_INSTALL_DIR' is not defined")
+    endif()
+    # set LC_RPATH to TBB library directory
+    ov_set_apple_rpath(${TARGET_NAME} ${OV_CPACK_RUNTIMEDIR} ${TBB_LIB_INSTALL_DIR})
+endif()
+
 # must be called after all target_link_libraries
 ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME} EXTRA ${TBB_IMPORTED_TARGETS})
 
@@ -96,7 +104,7 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
 # OpenVINO runtime library dev
 
 #
-# Add openvin::dev target
+# Add openvino::runtine::dev target
 #
 
 add_library(${TARGET_NAME}_dev INTERFACE)
@@ -112,6 +120,7 @@ target_compile_definitions(${TARGET_NAME}_dev INTERFACE
 
 target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} openvino::core::dev)
 
+# TODO: remove once NPU will use explicltly `ov_set_threading_interface_for`
 ov_set_threading_interface_for(${TARGET_NAME}_dev)
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
 
@@ -253,11 +262,11 @@ if(ENABLE_PKGCONFIG_GEN)
     if(ENABLE_SYSTEM_TBB)
         set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-ltbb")
     elseif(TBB_FOUND)
-        if(NOT pkg_config_tbb_lib_dir)
-            message(FATAL_ERROR "Internal error: variable 'pkg_config_tbb_lib_dir' is not defined")
+        if(NOT TBB_LIB_INSTALL_DIR)
+            message(FATAL_ERROR "Internal error: variable 'TBB_LIB_INSTALL_DIR' is not defined")
         endif()
 
-        set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-L\${prefix}/${pkg_config_tbb_lib_dir} -ltbb")
+        set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-L\${prefix}/${TBB_LIB_INSTALL_DIR} -ltbb")
     endif()
 
     if(ENABLE_SYSTEM_PUGIXML)
