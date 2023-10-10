@@ -10,8 +10,10 @@
 
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 typedef std::tuple<std::tuple<ov::NodeTypeInfo,  // Convolution type
                               size_t             // Number of inputs
@@ -27,7 +29,7 @@ typedef std::tuple<std::tuple<ov::NodeTypeInfo,  // Convolution type
     ConvEltwiseFusionParams;
 
 class ConvEltwiseFusion : public testing::WithParamInterface<ConvEltwiseFusionParams>,
-                          virtual public LayerTestsUtils::LayerTestsCommon {
+                          virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams>& obj);
 
@@ -35,4 +37,5 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
