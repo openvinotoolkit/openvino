@@ -112,9 +112,6 @@ std::vector<MultinomialParams> generateMultinomialParams() {
     reference_tests::Tensor output_1d_log_no_replacement(prob_1d_shape,
                                                          ov::element::Type_t::i64,
                                                          std::vector<int64_t>{1, 2, 3, 0});
-    reference_tests::Tensor output_1d_log_no_replacement(prob_1d_shape,
-                                                         ov::element::Type_t::i64,
-                                                         std::vector<int64_t>{1, 2, 3, 0});
     reference_tests::Tensor output_1d_expand(out_1d_shape_expand_big,
                                              ov::element::Type_t::i64,
                                              std::vector<int64_t>{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
