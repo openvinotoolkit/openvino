@@ -70,6 +70,8 @@ void op::Concat::validate_and_infer_types() {
 
     const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, inputs_et, output_shapes.front());
+
+    std::cout << "CN " << get_name() << " - " << output_shapes.front() << std::endl;
 }
 
 shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args) const {

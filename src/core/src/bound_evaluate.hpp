@@ -12,9 +12,6 @@ namespace ov {
 /// \brief Checks if all the elements of the bound Tensor are positive
 bool tensor_is_non_negative(const Tensor& bound);
 
-/// \brief Checks if any element in the bound Tensor has max possible value
-bool tensor_has_max_bound(const Tensor& bound);
-
 /// \brief Estimates upper bound for node output tensors using only upper bounds of the nodes
 /// inputs.
 /// \param node Operation to be performed

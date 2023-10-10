@@ -100,6 +100,12 @@ void op::v1::Reshape::validate_and_infer_types() {
         const TensorLabel& labels = get_input_source_output(1).get_tensor().get_value_label();
         OPENVINO_ASSERT(labels.empty() || lower_bound.size() == labels.size());
 
+        std::cout << "UB " << get_name() << " - " << input_pshape << ": ";
+        for (size_t i = 0; i < upper_bound.size(); ++i) {
+                std::cout << upper_bound[i] << ", ";
+        }
+        std::cout << std::endl;
+
         for (size_t i = 0; i < lower_bound.size(); ++i) {
             NODE_VALIDATION_CHECK(this,
                                   lower_bound[i] >= -1 && upper_bound[i] >= -1,
@@ -136,6 +142,7 @@ void op::v1::Reshape::validate_and_infer_types() {
         std::vector<Dimension> output_shape(output_rank.get_length());
         calculate_output_shape(reshape_pattern, minus_one_idx, input_pshape, output_shape);
         set_output_type(0, get_input_element_type(0), output_shape);
+        std::cout << "Shape " << get_name() << " - " << output_shape << std::endl;
     }
 }
 

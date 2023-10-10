@@ -34,8 +34,16 @@ void reduce_prod(const T* arg, T* out, const Shape& in_shape, const AxisSet& red
         const auto out_coord = util::reduce(in_coord, reduction_axes);
         const auto in_idx = coordinate_offset(in_coord, in_strides);
         const auto out_idx = coordinate_offset(out_coord, out_strides);
+        #if 1
+        uint64_t result = out[out_idx] * arg[in_idx];
 
+        if (result > 0x7FFFFFFFFFFFFFFF)
+            result = 0x7FFFFFFFFFFFFFFF;
+
+        out[out_idx] = result;
+        #else
         out[out_idx] *= arg[in_idx];
+        #endif
     }
 }
 }  // namespace reference

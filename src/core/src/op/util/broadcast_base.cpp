@@ -443,6 +443,8 @@ bool ov::op::util::BroadcastBase::evaluate(ov::TensorVector& outputs, const ov::
     std::pair<bool, AxisSet> pair_broadcast_axes;
     auto arg_shape = inputs[0].get_shape();
 
+    std::cout << "BC " << get_name() << " - " << arg_shape << std::endl;
+
     if (m_mode.m_type == BroadcastType::NONE) {
         AxisVector axes_mapping_val;
         // read from HT and save as AxisVector
