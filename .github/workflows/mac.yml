@@ -241,7 +241,6 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
 
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
-            --ignore=${INSTALL_TEST_DIR}/smoke_tests/test_speech_sample.py \
             --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
             --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
 
@@ -393,7 +392,6 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateFuncTests.xml
 
       - name: Inference Engine C API tests
-        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/InferenceEngineCAPITests --gtest_print_time=1 \
@@ -421,7 +419,6 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: Build
-    if: ${{ always() }}
     defaults:
       run:
         shell: bash
@@ -489,7 +486,6 @@ jobs:
           popd
 
       - name: nGraph and IE Python Bindings Tests
-        if: ${{ always() }}
         run: |
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
@@ -497,7 +493,6 @@ jobs:
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
-        if: ${{ always() }}
         run: |
           # For python imports to import pybind_mock_frontend
           export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
@@ -511,7 +506,6 @@ jobs:
             --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_backend.py
 
       - name: MO Python API Tests
-        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           export PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
@@ -524,14 +518,12 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Model Optimizer unit tests
-        if: ${{ always() }}
         run: |
           export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests \
               --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
-        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           export PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
@@ -542,7 +534,6 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 1 Layer Tests - TF FE
-        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
@@ -553,7 +544,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 2 Layer Tests - TF FE
-        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
@@ -563,7 +553,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
-        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
@@ -571,7 +560,6 @@ jobs:
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
-        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
@@ -582,7 +570,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow Lite Layer Tests - TFL FE
-        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
@@ -592,7 +579,6 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: Python Frontend tests
-        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
@@ -609,52 +595,52 @@ jobs:
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
-# Ticket: 122001
-#  CPU_Functional_Tests:
-#    needs: Build
-#    if: ${{ always() }}
-#    defaults:
-#      run:
-#        shell: bash
-#    runs-on: macos-12
-#    env:
-#      INSTALL_DIR: ${{ github.workspace }}/install
-#      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-#
-#    steps:
-#      - name: Create Directories
-#        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
-#
-#      - name: Download OpenVINO package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_package
-#          path: ${{ env.INSTALL_DIR }}
-#
-#      - name: Download OpenVINO tests package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_tests
-#          path: ${{ env.INSTALL_TEST_DIR }}
-#
-#      - name: Extract OpenVINO packages
-#        run: |
-#          pushd ${{ env.INSTALL_DIR }}
-#            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
-#          popd
-#          pushd ${{ env.INSTALL_TEST_DIR }}
-#            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
-#          popd
-#
-#      - name: Intel CPU plugin func tests
-#        run: |
-#          source ${{ env.INSTALL_DIR }}/setupvars.sh
-#          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
-#
-#      - name: Upload Test Results
-#        uses: actions/upload-artifact@v3
-#        if: ${{ always() }}
-#        with:
-#          name: test-results-functional-cpu
-#          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-#          if-no-files-found: 'error'
+  CPU_Functional_Tests:
+    name: CPU functional tests
+    if: ${{ 'false' }} # Ticket: 122001
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: macos-12
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+
+    steps:
+      - name: Create Directories
+        run: mkdir -p ${{ env.INSTALL_DIR }} ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+          popd
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+          popd
+
+      - name: Intel CPU plugin func tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: test-results-functional-cpu
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'

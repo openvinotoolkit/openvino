@@ -51,7 +51,6 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      OPENVINO_CONTRIB_BUILD_DIR: /__w/openvino/openvino/openvino_contrib_build
       CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
@@ -304,10 +303,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
           pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
       - name: Install 'actions/setup-python@v4' dependencies
@@ -525,7 +524,7 @@ jobs:
       - name: Extract OpenVINO package
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
 
       - name: Install OpenVINO dependencies
@@ -625,10 +624,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
           pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
       - name: Install OpenVINO dependencies
@@ -871,15 +870,23 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
 
           pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
       - name: Install OpenVINO Python wheels
-        run: python3 -m pip install openvino-dev[mxnet,caffe,kaldi,onnx,tensorflow2] --find-links=${INSTALL_DIR}/tools
+        run: |
+          # Install the core OV wheel
+          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
+
+          # Find and install OV dev wheel
+          pushd ${INSTALL_DIR}/tools
+            ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
+            python3 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2]
+          popd
 
       #
       # Tests
@@ -1059,10 +1066,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
           pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
       - name: Install OpenVINO dependencies
@@ -1163,11 +1170,11 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
 
           pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
       - name: Install OpenVINO Python wheels
@@ -1238,10 +1245,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
           pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
       - uses: actions/setup-python@v4
