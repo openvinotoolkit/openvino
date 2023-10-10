@@ -17,7 +17,7 @@ struct quantize_impl : typed_primitive_impl_ocl<quantize> {
     using kernel_selector_t = kernel_selector::quantize_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::quantize_params, kernel_selector::quantize_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::quantize_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<quantize_impl>(*this);
@@ -91,7 +91,7 @@ public:
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
         const auto& output_layout = impl_param.get_output_layout();
-        quantize_params.packed_binary_output = output_layout.data_type == data_types::bin;
+        quantize_params.packed_binary_output = output_layout.data_type == data_types::u1;
         (_kernel_data.update_dispatch_data_func)(quantize_params, _kernel_data);
     }
 };

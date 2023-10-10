@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/util/attr_types.hpp"  // for op::PadMode
-#include "ngraph/shape.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"  // for op::PadMode
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void pad(const char* data,
          const char* pad_value,
@@ -21,5 +20,4 @@ void pad(const char* data,
          const CoordinateDiff& padding_above,
          const op::PadMode pad_mode);
 }
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

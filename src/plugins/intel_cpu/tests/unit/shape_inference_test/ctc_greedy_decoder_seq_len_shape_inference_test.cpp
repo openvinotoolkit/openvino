@@ -26,7 +26,7 @@ TEST_F(CTCGreedyDecoderSeqLenV6StaticShapeInferenceTest, basic) {
 
     input_shapes = {StaticShape{4, 100, 1200}, StaticShape{4}};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({4, 100}));
     EXPECT_EQ(output_shapes[1], StaticShape({4}));
 }
@@ -36,13 +36,13 @@ TEST_F(CTCGreedyDecoderSeqLenV6StaticShapeInferenceTest, default_ctor) {
 
     // Two inputs
     input_shapes = {StaticShape{4, 100, 1200}, StaticShape{4}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({4, 100}));
     EXPECT_EQ(output_shapes[1], StaticShape({4}));
 
     // Three inputs (the last one is optional)
     input_shapes = {StaticShape{4, 100, 1200}, StaticShape{4}, {}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({4, 100}));
     EXPECT_EQ(output_shapes[1], StaticShape({4}));
 }
@@ -54,7 +54,7 @@ TEST_F(CTCGreedyDecoderSeqLenV6StaticShapeInferenceTest, incompatible_batch) {
 
     input_shapes = {StaticShape{4, 100, 1200}, StaticShape{6}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The first dimensions of input tensors must match"))
 }
@@ -66,7 +66,7 @@ TEST_F(CTCGreedyDecoderSeqLenV6StaticShapeInferenceTest, incompatible_seq_len_ra
 
     input_shapes = {StaticShape{4, 100, 1200}, StaticShape{4, 1}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The rank of sequence len tensor must be equal to 1"))
 }

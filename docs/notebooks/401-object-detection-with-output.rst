@@ -1,7 +1,7 @@
 Live Object Detection with OpenVINO™
 ====================================
 
-.. _top:
+
 
 This notebook demonstrates live object detection with OpenVINO, using
 the `SSDLite
@@ -16,6 +16,8 @@ Additionally, you can also upload a video file.
    To use this notebook with a webcam, you need to run the notebook on a computer 
    with a webcam. If you run the notebook on a server, the webcam will not work. 
    However, you can still do inference on a video.
+
+.. _top:
 
 **Table of contents**:
 
@@ -154,7 +156,7 @@ Convert the Model `⇑ <#top>`__
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format, using `model conversion Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
 (``mo.convert_model`` function). If the model has been already
 converted, this step is skipped.
 

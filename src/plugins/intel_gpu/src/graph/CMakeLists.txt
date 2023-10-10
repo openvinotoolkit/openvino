@@ -48,7 +48,7 @@ if(COMMAND add_cpplint_target)
   add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endif()
 
-set_ie_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -58,11 +58,11 @@ elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries(${TARGET_NAME} PRIVATE pthread)
 endif()
 
-ov_install_static_lib(${TARGET_NAME} gpu)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
 if(ENABLE_SSE42)
-  ie_sse42_optimization_flags(sse4_2_flags)
-  set_source_files_properties(impls/cpu/detection_output.cpp half.cpp PROPERTIES
+  ov_sse42_optimization_flags(sse4_2_flags)
+  set_source_files_properties(impls/cpu/detection_output.cpp PROPERTIES
     COMPILE_FLAGS "${sse4_2_flags}"
     COMPILE_DEFINITIONS "HAVE_SSE")
 endif()

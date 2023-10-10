@@ -6,11 +6,11 @@
 # Define proper package name
 #
 
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')"
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')"
                 OUTPUT_VARIABLE PYTHON_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')"
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')"
                 OUTPUT_VARIABLE ABI_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags.platform_tags())}')"
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags.platform_tags())}')"
                 OUTPUT_VARIABLE PLATFORM_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # defines wheel architecture part of `PLATFORM_TAG`
@@ -58,24 +58,19 @@ if(APPLE)
 elseif(LINUX)
     _ov_platform_arch()
 
-    if(CMAKE_CROSSCOMPILING)
-        # TODO: think which proper tag is needed for arm / aarch64
-        set(PLATFORM_TAG "linux_${_arch}")
-    else()
-        string(REPLACE "." "_" _ov_glibc_version "${OV_GLIBC_VERSION}")
-        set(manylinux "manylinux_${_ov_glibc_version}")
+    string(REPLACE "." "_" _ov_glibc_version "${OV_GLIBC_VERSION}")
+    set(manylinux "manylinux_${_ov_glibc_version}")
 
-        # convert to well-known formats according to PEP 600
-        if(manylinux STREQUAL "manylinux_2_5")
-            set(manylinux "manylinux1")
-        elseif(manylinux STREQUAL "manylinux_2_12")
-            set(manylinux "manylinux2010")
-        elseif(manylinux STREQUAL "manylinux_2_17")
-            set(manylinux "manylinux2014")
-        endif()
-
-        set(PLATFORM_TAG "${manylinux}_${_arch}")
+    # convert to well-known formats according to PEP 600
+    if(manylinux STREQUAL "manylinux_2_5")
+        set(manylinux "manylinux1")
+    elseif(manylinux STREQUAL "manylinux_2_12")
+        set(manylinux "manylinux2010")
+    elseif(manylinux STREQUAL "manylinux_2_17")
+        set(manylinux "manylinux2014")
     endif()
+
+    set(PLATFORM_TAG "${manylinux}_${_arch}")
 endif()
 
 set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${PYTHON_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl")
@@ -86,7 +81,7 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 # create target for openvino.wheel
 #
 
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip --version
+execute_process(COMMAND ${Python3_EXECUTABLE} -m pip --version
                 OUTPUT_VARIABLE pip_version OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 string(REGEX MATCH "pip[ ]+([\\.0-9]*)" pip_version "${pip_version}")
@@ -94,7 +89,7 @@ set(pip_version ${CMAKE_MATCH_1})
 
 if(pip_version VERSION_GREATER_EQUAL 22.0)
     set(wheel_build_command
-        ${PYTHON_EXECUTABLE} -m pip wheel
+        ${Python3_EXECUTABLE} -m pip wheel
             --no-deps
             --wheel-dir ${openvino_wheels_output_dir}
             # --verbose
@@ -103,7 +98,7 @@ if(pip_version VERSION_GREATER_EQUAL 22.0)
             "${CMAKE_CURRENT_SOURCE_DIR}")
 else()
     set(wheel_build_command
-        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
+        ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
             --quiet
             --no-user-cfg
             bdist_wheel
@@ -124,7 +119,7 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
 set(fdupes_report ${CMAKE_CURRENT_BINARY_DIR}/fdupes_report.txt)
 add_custom_command(OUTPUT "${fdupes_report}"
     COMMAND ${CMAKE_COMMAND}
-        -D PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}
+        -D Python3_EXECUTABLE=${Python3_EXECUTABLE}
         -D WORKING_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}
         -D WHEEL_VERSION=${WHEEL_VERSION}
         -D PACKAGE_FILE=${openvino_wheel_path}

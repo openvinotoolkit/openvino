@@ -7,18 +7,17 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/check.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/reference/reshape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void depth_to_space(const char* const in,
                     const Shape& in_shape,
                     char* const out,
                     const Shape& out_shape,
                     const size_t block_size,
-                    const op::DepthToSpace::DepthToSpaceMode mode,
+                    const op::v0::DepthToSpace::DepthToSpaceMode mode,
                     const size_t elem_size) {
     // DepthToSpace run in tree steps:
     // - disperse data from depth channel
@@ -36,16 +35,16 @@ void depth_to_space(const char* const in,
     const size_t spatial_dims = in_shape.size() - spatial_dim_index;
     const size_t c_dim_divider = static_cast<size_t>(std::pow(block_size, spatial_dims));
 
-    NGRAPH_CHECK(block_size > 0 && c_dim % c_dim_divider == 0,
-                 "DepthToSpace: The input data's 'channels' axis size: ",
-                 c_dim,
-                 " must be evenly divided by 'block_size'^'spatial_dims': (",
-                 c_dim_divider,
-                 ", ",
-                 block_size,
-                 "^",
-                 spatial_dims,
-                 ")");
+    OPENVINO_ASSERT(block_size > 0 && c_dim % c_dim_divider == 0,
+                    "DepthToSpace: The input data's 'channels' axis size: ",
+                    c_dim,
+                    " must be evenly divided by 'block_size'^'spatial_dims': (",
+                    c_dim_divider,
+                    ", ",
+                    block_size,
+                    "^",
+                    spatial_dims,
+                    ")");
 
     const size_t c_flat = c_dim / c_dim_divider;
 
@@ -65,7 +64,7 @@ void depth_to_space(const char* const in,
     // y = reshape(x'',
     //             [N, C / (block_size ^ K), D1 * block_size, D2 * block_size,
     //             D3 * block_size, ..., DK * block_size])
-    case op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST: {
+    case op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST: {
         dispersed_shape.insert(dispersed_shape.begin() + 1, c_flat);
         axes_order.push_back(1);
         for (size_t i = spatial_dim_index; i < in_shape.size(); ++i) {
@@ -81,7 +80,7 @@ void depth_to_space(const char* const in,
     //                 K + (K + 1), K])
     // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size,
     //             D3 * block_size, ..., DK * block_size])
-    case op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST: {
+    case op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST: {
         dispersed_shape.insert(dispersed_shape.begin() + spatial_dims + 1, c_flat);
         axes_order.push_back(spatial_dims + 1);
         for (size_t i = 2; i < in_shape.size(); ++i) {
@@ -97,9 +96,8 @@ void depth_to_space(const char* const in,
         post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
     }
 
-    runtime::opt_kernel::reshape(in, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
+    reshape(in, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
 }
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

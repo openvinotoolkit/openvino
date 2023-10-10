@@ -7,25 +7,26 @@
 #include <string>
 #include <vector>
 
-#include "inference_engine.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace FuncTestUtils {
-namespace TestModel {
+namespace ov {
+namespace test {
+namespace utils {
 
 /**
  * @brief generates IR files (XML and BIN files) with the test model.
- *        Passed reference vector is filled with CNN layers to validate after the network reading.
- * @param modelPath used to serialize the generated network
- * @param weightsPath used to serialize the generated weights
- * @param netPrc precision of the generated network
- * @param inputDims dims on the input layer of the generated network
+ *        Passed reference vector is filled with OpenVINO operations to validate after the network reading.
+ * @param model_path used to serialize the generated network
+ * @param weights_path used to serialize the generated weights
+ * @param input_type input element type of the generated model
+ * @param input_shape dims on the input layer of the generated model
  */
-void generateTestModel(const std::string &modelPath,
-                       const std::string &weightsPath,
-                       const InferenceEngine::Precision &netPrc = InferenceEngine::Precision::FP32,
-                       const InferenceEngine::SizeVector &inputDims = {1, 3, 227, 227});
+void generate_test_model(const std::string& model_path,
+                         const std::string& weights_path,
+                         const ov::element::Type& input_type = ov::element::f32,
+                         const ov::PartialShape& input_shape = {1, 3, 227, 227});
 
-const char incorrect_input_name[] = "incorrect_input_name";
-
-}  // namespace TestModel
-}  // namespace FuncTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

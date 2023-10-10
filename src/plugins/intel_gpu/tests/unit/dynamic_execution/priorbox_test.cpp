@@ -153,7 +153,7 @@ TEST(priorbox_constant_propagation_test, basic) {
     std::vector<float> ref(28800);
     std::vector<int32_t> output_size = {30, 30};
     std::vector<int32_t> image_size = {224, 224};
-    ngraph::runtime::reference::prior_box(output_size.data(), image_size.data(), ref.data(), ov::Shape{2,14400}, attrs);
+    ov::reference::prior_box(output_size.data(), image_size.data(), ref.data(), ov::Shape{2, 14400}, attrs);
     std::vector<float> ref_concat = ref;
     ref_concat.insert(ref_concat.end(), ref.begin(), ref.end());
 

@@ -29,7 +29,7 @@ ov::template_plugin::Plugin::Plugin() {
     // TODO: fill with actual device name, backend engine
     set_device_name("TEMPLATE");
 
-    // create ngraph backend which performs inference using ngraph reference implementations
+    // create backend which performs inference using openvino reference implementations
     m_backend = ov::runtime::Backend::create();
 
     // create default stream executor with a given name
@@ -177,9 +177,9 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
             // 1. It is needed to apply all transformations as it is done in compile_model
             transform_model(model);
         },
-        [&](std::shared_ptr<ngraph::Node> node) {
+        [&](std::shared_ptr<ov::Node> node) {
             // 2. Сheck whether node is supported
-            ngraph::OpSet op_super_set;
+            ov::OpSet op_super_set;
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) op_super_set.insert<NAMESPACE::NAME>();
         // clang-format off
 #include "openvino/opsets/opset1_tbl.hpp"
@@ -194,6 +194,7 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
 #include "openvino/opsets/opset10_tbl.hpp"
 #include "openvino/opsets/opset11_tbl.hpp"
 #include "openvino/opsets/opset12_tbl.hpp"
+#include "openvino/opsets/opset13_tbl.hpp"
         // clang-format on
 #undef _OPENVINO_OP_REG
             return op_super_set.contains_type(node->get_type_info());
@@ -217,31 +218,28 @@ void ov::template_plugin::Plugin::set_property(const ov::AnyMap& properties) {
 
 // ! [plugin:get_property]
 ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::available_devices,
                                                     ov::supported_properties,
                                                     ov::device::full_name,
                                                     ov::device::architecture,
                                                     ov::device::capabilities,
-                                                    ov::range_for_async_infer_requests};
+                                                    ov::device::type,
+                                                    ov::range_for_async_infer_requests,
+                                                    ov::execution_devices};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
-                                                    ov::template_plugin::disable_transformations};
+                                                    ov::hint::num_requests,
+                                                    ov::hint::inference_precision,
+                                                    ov::hint::execution_mode,
+                                                    ov::num_streams,
+                                                    ov::template_plugin::disable_transformations,
+                                                    ov::log::level};
         return rw_properties;
-    };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
     };
     if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
@@ -265,8 +263,10 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         return decltype(ov::device::full_name)::value_type(device_name);
     } else if (ov::device::architecture == name) {
         // TODO: return device architecture for device specified by DEVICE_ID config
-        std::string arch = "TEMPLATE";
+        std::string arch = get_device_name();
         return decltype(ov::device::architecture)::value_type(arch);
+    } else if (ov::device::type == name) {
+        return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
     } else if (ov::internal::caching_properties == name) {
         std::vector<ov::PropertyName> caching_properties = {ov::device::architecture};
         return decltype(ov::internal::caching_properties)::value_type(caching_properties);
@@ -274,6 +274,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
         std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};
         return decltype(ov::device::capabilities)::value_type(capabilities);
+    } else if (ov::execution_devices == name) {
+        std::string dev = get_device_name();
+        return decltype(ov::execution_devices)::value_type{dev};
     } else if (ov::range_for_async_infer_requests == name) {
         // TODO: fill with actual values
         using uint = unsigned int;

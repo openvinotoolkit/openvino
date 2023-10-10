@@ -10,10 +10,10 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/weightable_layer_transformation.hpp>
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/weightable_layer_transformation.hpp"
+#include "ov_lpt_models/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -30,7 +30,7 @@ public:
 
 typedef std::tuple<
     element::Type,
-    ngraph::PartialShape,
+    ov::PartialShape,
     IsAsymmetricOnWeightsFakeQuantizeTestValues,
     std::pair<std::vector<bool>, bool> > IsAsymmetricOnWeightsFakeQuantizeParams;
 
@@ -90,7 +90,7 @@ TEST_P(IsAsymmetricOnWeightsFakeQuantizeTransformation, CompareFunctions) {
     ASSERT_TRUE(convolutions.size() == 1ul) << "convolution was not found";
 
     auto defaultPrecisions = std::get<2>(GetParam()).params.defaultPrecisions;
-    const auto isAsymmetricOnWeights = ngraph::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(convolutions[0],
+    const auto isAsymmetricOnWeights = ov::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(convolutions[0],
         defaultPrecisions);
     std::pair<std::vector<bool>, bool> transposeAndIsAsymmetricOnWeights = std::get<3>(GetParam());
     ASSERT_EQ(transposeAndIsAsymmetricOnWeights.second, isAsymmetricOnWeights);
@@ -100,11 +100,11 @@ const std::vector<element::Type> netPrecisions = {
     element::f32
 };
 
-const std::vector<ngraph::PartialShape> suitablePartialShapes = {
-    ngraph::PartialShape({ 1, 3, 72, 48 }),
-    ngraph::PartialShape({ 4, 3, 72, 48 }),
-    ngraph::PartialShape({ Dimension::dynamic(), 3, 72, 48 }),
-    ngraph::PartialShape({ 1, 3, Dimension::dynamic(), Dimension::dynamic() }),
+const std::vector<ov::PartialShape> suitablePartialShapes = {
+    ov::PartialShape({ 1, 3, 72, 48 }),
+    ov::PartialShape({ 4, 3, 72, 48 }),
+    ov::PartialShape({ Dimension::dynamic(), 3, 72, 48 }),
+    ov::PartialShape({ 1, 3, Dimension::dynamic(), Dimension::dynamic() }),
 };
 
 const std::vector<IsAsymmetricOnWeightsFakeQuantizeTestValues> testValues = {

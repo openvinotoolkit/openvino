@@ -10,22 +10,22 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 
-#include <low_precision/align_quantization_intervals.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/markup_precisions.hpp>
-#include <low_precision/markup_avg_pool_precision_preserved.hpp>
-#include <low_precision/propagate_precisions.hpp>
+#include "low_precision/align_quantization_intervals.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/markup_precisions.hpp"
+#include "low_precision/markup_avg_pool_precision_preserved.hpp"
+#include "low_precision/propagate_precisions.hpp"
 
-#include <low_precision/concat.hpp>
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
+#include "low_precision/concat.hpp"
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/concat.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -82,7 +82,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationTes
 
 typedef std::tuple <
     ov::element::Type,
-    ngraph::PartialShape,
+    ov::PartialShape,
     ConcatTransformationTestValues
 > ConcatTransformationParams;
 
@@ -90,7 +90,7 @@ class ConcatWithNeighborsTransformation : public LayerTransformation, public tes
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
-        const ngraph::PartialShape shape = std::get<1>(GetParam());
+        const ov::PartialShape shape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithNeighbors(
@@ -102,23 +102,23 @@ public:
             testValues.neighborType,
             testValues.additionalLayer);
 
-        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
+        auto supportedPrecisionsOnActivation = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
                 {{0}, testValues.params.precisionsOnActivations},
                 {{1}, testValues.params.precisionsOnWeights}
             })
         });
 
         auto quantizationRestrictions = testValues.multiChannels ?
-            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
-            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>()
+            std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>() :
+            std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
+                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>()
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation, quantizationRestrictions);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithNeighbors(
@@ -138,7 +138,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
         const ov::element::Type precision = std::get<0>(obj.param);
-        const ngraph::PartialShape shape = std::get<1>(obj.param);
+        const ov::PartialShape shape = std::get<1>(obj.param);
         const ConcatTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
@@ -162,7 +162,7 @@ const std::vector<ov::element::Type> precisions = {
     // ov::element::f16
 };
 
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 9, 9 },
     { 4, 3, 9, 9 },
     { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }

@@ -6,10 +6,9 @@
 
 #include <vector>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void concat(const std::vector<const char*>& args,
             char* out,
@@ -18,5 +17,4 @@ void concat(const std::vector<const char*>& args,
             int64_t concatenation_axis,
             size_t elem_size);
 }
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

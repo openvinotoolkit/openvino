@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename INPUT_TYPE>
 void one_hot(const INPUT_TYPE* indices,
@@ -43,5 +42,4 @@ void one_hot(const INPUT_TYPE* indices,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

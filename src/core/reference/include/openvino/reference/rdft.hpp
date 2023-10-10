@@ -17,16 +17,11 @@
 #pragma once
 
 #include <cstddef>
-#include <ngraph/runtime/host_tensor.hpp>
 #include <vector>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void rdft(const std::vector<float>& input_data,
           const Shape& input_data_shape,
@@ -34,5 +29,4 @@ void rdft(const std::vector<float>& input_data,
           const Shape& output_fft_shape,
           float* rdft_result);
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

@@ -3,8 +3,8 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 
 
 /*This test runs the following subgraph:
@@ -122,13 +122,13 @@ TEST_P(ConcatReshapeConcatSubgraphTest, CompareWithRefs) {
 namespace {
 
 const std::vector<std::vector<InputShape>> inputShapes = {
-    // {
-    //     // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-    //     {{2, 64}, {{2, 64}}}, // input 0
-    //     {{2, 64}, {{2, 64}}}, // input 1
-    //     {{2, 64}, {{2, 64}}}, // input 2
-    //     {{2, 64}, {{2, 64}}}  // input 3
-    // },
+    {
+        // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+        {{2, 64}, {{2, 64}}}, // input 0
+        {{2, 64}, {{2, 64}}}, // input 1
+        {{2, 64}, {{2, 64}}}, // input 2
+        {{2, 64}, {{2, 64}}}  // input 3
+    },
     {
         // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
         {{2, -1}, {{2, 64}}}, // input 0

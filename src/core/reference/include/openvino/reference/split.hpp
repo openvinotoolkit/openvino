@@ -8,8 +8,7 @@
 
 #include "openvino/reference/slice.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void split(const char* data,
            const Shape& data_shape,
@@ -18,5 +17,4 @@ void split(const char* data,
            size_t num_splits,
            char** out_data);
 }
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

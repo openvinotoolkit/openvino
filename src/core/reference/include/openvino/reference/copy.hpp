@@ -4,17 +4,13 @@
 
 #pragma once
 
-#include <cstddef>
+#include <algorithm>
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void copy(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = arg[i];
-    }
+    std::copy_n(arg, count, out);
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

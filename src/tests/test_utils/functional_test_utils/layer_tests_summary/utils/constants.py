@@ -16,6 +16,9 @@ DISABLED_PREFIX = "DISABLED_"
 PG_ERR  = "PG ERROR"
 PG_WARN = "PG WARN"
 REF_COEF = "[ CONFORMANCE ] Influence coefficient: "
+TEST_UNIT_NAME = "test"
+SUITE_UNIT_NAME = "suite"
+UNIT_NAMES = [TEST_UNIT_NAME, SUITE_UNIT_NAME]
 
 IS_WIN = "windows" in platform or "win32" in platform
 IS_MACOS = "darwin" in platform
@@ -48,7 +51,7 @@ NOT_EXIST_DEVICE = "NOT_EXIST_DEVICE"
 
 MEM_USAGE = "MEM_USAGE="
 
-CONVERT_OP_NAME = "Convert-1"
+ENCODING = 'UTF-8'
 
 META_EXTENSION = ".meta"
 XML_EXTENSION = ".xml"

@@ -7,24 +7,19 @@
 #include <fstream>
 #include <random>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/file_util.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 namespace TestDataHelpers {
 
-static const std::string model_bin_name = "test_model.bin";
-static const std::string model_xml_name = "test_model.xml";
-static const std::string model_exported_name = "test_exported_model.blob";
+extern const std::string model_bin_name;
+extern const std::string model_xml_name;
+extern const std::string model_exported_name;
 
-inline void generate_test_model() {
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(model_xml_name, model_bin_name);
-    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
-    manager.run_passes(function);
-}
+void generate_test_model();
 
 inline std::string get_model_xml_file_name() {
     return model_xml_name;

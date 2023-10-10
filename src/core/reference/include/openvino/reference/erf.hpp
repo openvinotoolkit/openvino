@@ -8,11 +8,7 @@
 #include <cstddef>
 #include <type_traits>
 
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
-
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
 void erf(const T* arg, T* out, size_t count) {
@@ -28,5 +24,4 @@ void erf(const T* arg, T* out, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

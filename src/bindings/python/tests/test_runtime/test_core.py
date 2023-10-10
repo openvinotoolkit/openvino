@@ -19,6 +19,7 @@ from openvino import (
     serialize,
 )
 
+import openvino.properties.hint as hints
 from openvino.runtime import Extension
 from tests.utils.helpers import (
     generate_image,
@@ -38,15 +39,6 @@ def test_compact_api_xml():
     assert isinstance(compiled_model, CompiledModel)
     results = compiled_model.infer_new_request({"data": img})
     assert np.argmax(results[list(results)[0]]) == 531
-
-
-# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_compact_api_xml_posix_path(request, tmp_path):
-    xml_path, _ = create_filename_for_test(request.node.name, tmp_path, True)
-    model = get_relu_model()
-    serialize(model, xml_path)
-    compiled_model = compile_model(Path(xml_path))
-    assert isinstance(compiled_model, CompiledModel)
 
 
 def test_compact_api_wrong_path():
@@ -77,24 +69,58 @@ def test_core_class(device):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_compile_model(request, tmp_path, device):
+@pytest.mark.parametrize("device_name", [
+    None,
+    "CPU",
+])
+def test_compile_model(request, tmp_path, device_name):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     model = core.read_model(model=xml_path, weights=bin_path)
-    compiled_model = core.compile_model(model, device)
+    compiled_model = None
+    if device_name is None:
+        compiled_model = core.compile_model(model)
+    else:
+        compiled_model = core.compile_model(model, device_name)
+
     assert isinstance(compiled_model, CompiledModel)
 
 
-# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_compile_model_without_device(request, tmp_path):
-    core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
-    relu_model = get_relu_model()
-    serialize(relu_model, xml_path, bin_path)
-    model = core.read_model(model=xml_path, weights=bin_path)
-    compiled_model = core.compile_model(model)
+@pytest.fixture()
+def get_model():
+    return get_relu_model()
+
+
+@pytest.fixture()
+def get_model_path(request, tmp_path):
+    xml_path, _ = create_filename_for_test(request.node.name, tmp_path, True)
+    serialize(get_relu_model(), xml_path)
+    return Path(xml_path)
+
+
+@pytest.mark.parametrize("model_type", [
+    "get_model",
+    "get_model_path",
+])
+@pytest.mark.parametrize("device_name", [
+    None,
+    "CPU",
+])
+@pytest.mark.parametrize("config", [
+    None,
+    {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
+])
+def test_compact_api(model_type, device_name, config, request):
+    compiled_model = None
+
+    model = request.getfixturevalue(model_type)
+    if device_name is not None:
+        compiled_model = compile_model(model=model, device_name=device_name, config=config)
+    else:
+        compiled_model = compile_model(model=model, config=config)
+
     assert isinstance(compiled_model, CompiledModel)
 
 
@@ -318,6 +344,7 @@ def test_unload_plugin(device):
 
 
 @pytest.mark.template_extension()
+@pytest.mark.dynamic_library()
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
     assert isinstance(model, Model)

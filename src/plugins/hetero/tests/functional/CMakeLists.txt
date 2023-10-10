@@ -8,7 +8,6 @@ ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            openvino::runtime
             mock_engine
             openvino_hetero_plugin
         LINK_LIBRARIES
@@ -18,7 +17,7 @@ ov_add_test_target(
             common_test_utils
         ADD_CLANG_FORMAT
         LABELS
-            HETERO
+            OV UNIT HETERO
 )
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")

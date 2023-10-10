@@ -6,11 +6,10 @@
 
 #include <cmath>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "utils/span.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void eye(T* data, const Shape& out_shape, const int64_t diagonal_index) {
@@ -37,5 +36,4 @@ void eye(T* data, const Shape& out_shape, const int64_t diagonal_index) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

@@ -23,7 +23,7 @@ file(GLOB_RECURSE HEADERS
 
 # build avx2.cpp with AVX2 support, only for Windows
 if(ENABLE_AVX2 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_avx2_optimization_flags(avx2_flags)
+    ov_avx2_optimization_flags(avx2_flags)
     set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/pre_post_process/hw_accelerated_converter_avx2.cpp PROPERTIES COMPILE_OPTIONS "${avx2_flags}")
     add_compile_definitions(HAVE_AVX2=1)
 endif()
@@ -46,7 +46,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
-ie_mark_target_as_cc(${TARGET_NAME})
+ov_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy
         Threads::Threads libGNA)
@@ -58,7 +58,7 @@ target_compile_definitions(${TARGET_NAME}
     )
 
 # must be called after all target_link_libraries
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #
 # Static version for tests
