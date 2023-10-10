@@ -39,6 +39,8 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
 
         for (size_t i = 0; i < concat->get_input_size(); i++) {
             auto squeeze_node = concat->get_input_node_shared_ptr(i);
+            if (!ov::is_type<ov::op::v0::Squeeze>(squeeze_node) && !ov::is_type<ov::op::v1::Reshape>(squeeze_node))
+                return false;
             auto split_to_check =
                 std::dynamic_pointer_cast<ov::op::v1::Split>(squeeze_node->get_input_node_shared_ptr(0));
             if (!split_to_check)
@@ -107,9 +109,6 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
 }
 
 bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int64_t axis) {
-    if (!ov::is_type<ov::op::v0::Squeeze>(squeeze_node) && !ov::is_type<ov::op::v1::Reshape>(squeeze_node))
-        return false;
-
     const auto& input_shape = squeeze_node->get_input_partial_shape(0);
     const auto& output_shape = squeeze_node->get_output_partial_shape(0);
     if (input_shape.rank().is_dynamic() || output_shape.rank().is_dynamic())
