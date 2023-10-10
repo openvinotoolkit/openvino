@@ -686,11 +686,6 @@ void primitive_inst::do_runtime_skip_reorder() {
             u->update_shape();
             u->update_shape_done_by_other = true;
 
-            // Opt out reorder which has _needs_completion_event = true causes syncronization failed in dGPU.
-            if (_needs_completion_event == false && u->_needs_completion_event == true) {
-                _needs_completion_event = true;
-            }
-
             if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
                 std::function<void(std::vector<std::shared_ptr<primitive_inst>>)> update_memory_dependencies;
                 update_memory_dependencies = [&](std::vector<std::shared_ptr<primitive_inst>> users) {
@@ -705,6 +700,10 @@ void primitive_inst::do_runtime_skip_reorder() {
                 update_memory_dependencies(u->get_user_insts());
 
                 u->set_can_be_optimized(true);
+                // Opt out reorder which has _needs_completion_event = true causes syncronization failed in dGPU.
+                if (_needs_completion_event == false && u->_needs_completion_event == true) {
+                    _needs_completion_event = true;
+                }
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " cannot be optimized" << std::endl;
