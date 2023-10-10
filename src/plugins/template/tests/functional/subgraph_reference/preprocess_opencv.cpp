@@ -14,7 +14,7 @@
 #    include <shared_test_classes/single_layer/convert_color_nv12.hpp>
 
 #    include "base_reference_test.hpp"
-#    include "ngraph_functions/builders.hpp"
+#    include "ov_models/builders.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;

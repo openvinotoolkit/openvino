@@ -196,6 +196,7 @@ private:
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
+    void fuse_constant_transposes(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
     layout_optimizer& _lo;
@@ -403,6 +404,14 @@ public:
 class build_implementations : public base_pass {
 public:
     build_implementations() : base_pass("build_implementations") {}
+    void run(program& p) override;
+};
+
+class reorder_transfer : public base_pass {
+public:
+    reorder_transfer() : base_pass("reorder_transfer") {}
+
+private:
     void run(program& p) override;
 };
 

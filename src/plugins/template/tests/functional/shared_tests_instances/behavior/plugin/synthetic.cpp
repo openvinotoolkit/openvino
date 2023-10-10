@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "behavior/plugin/hetero_synthetic.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 namespace {
 using namespace HeteroTests;
@@ -43,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(HeteroTests::HeteroSyntheticTest::_randomMajorNodeFunctions)),
     HeteroSyntheticTest::getTestCaseName);
 
-static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> dynamicBuilders = {
+static std::vector<std::function<std::shared_ptr<ov::Model>()>> dynamicBuilders = {
     [] {
         return ngraph::builder::subgraph::makeConvPoolReluNonZero();
     },

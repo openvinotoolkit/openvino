@@ -9,6 +9,8 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
+#include "snippets/pass/transform_convert.hpp"
+#include "snippets/pass/validate.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/itt.hpp"
 
@@ -372,7 +374,7 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
 
         // Firstly, we should transform all original Converts inside body to ConvertTruncation to save original behavior.
         // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
-        ov::pass::Manager manager;
+        ov::pass::Manager manager(get_pass_config());
         manager.register_pass<ov::snippets::pass::TransformConvertToConvertTruncation>();
         manager.register_pass<ov::snippets::pass::ExplicitTransposeMatMulInputs>();
         if (is_quantized) {
@@ -392,6 +394,10 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
             if (config.split_m_dimension)
                 SplitDimensionM(subgraph, config.concurrency);
         }
+
+        // Validate the body after all common optimizations
+        ov::snippets::pass::Validate(get_pass_config()).run_on_model(body);
+
         return true;
     };
 

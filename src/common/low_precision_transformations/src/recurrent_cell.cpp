@@ -14,7 +14,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 
 #include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/skip_cleanup_attribute.hpp"
+#include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 
 namespace ov {
 namespace pass {
@@ -96,6 +96,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
     if (!canBeTransformed(context, lstm)) {
         return false;
     }
+
     for (size_t parentIndex = 0ul; parentIndex < lstm->get_input_size(); parentIndex++) {
         auto lstm_parent = lstm->get_input_node_shared_ptr(parentIndex);
         if (is_type<ov::opset1::FakeQuantize>(lstm_parent)) {
@@ -108,7 +109,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
                                             ? defaultPrecisions
                                             : precisionsAttribute.as<PrecisionsAttribute>().value();
                 const DataPrecision dataPrecision = getDataPrecision(lstm_parent, quantizationDetails, precisions);
-                if (dataPrecision.empty()) {
+                if (dataPrecision.empty() || dataPrecision.hasZeroPoint) {
                     return false;
                 }
 
@@ -148,6 +149,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
             continue;
         }
     }
+
     return true;
 }
 
@@ -172,12 +174,12 @@ bool RecurrentCellTransformation::isPrecisionPreserved(std::shared_ptr<Node>) co
 }
 
 void RecurrentCellTransformation::propagateSkipCleanupAttribute(std::shared_ptr<Node> multiply) {
-    SkipCleanupAttribute::create(multiply);
+    DisableCleanupAttribute::create(multiply);
     auto multiply_parent = multiply->get_input_node_shared_ptr(0);
-    SkipCleanupAttribute::create(multiply_parent);
+    DisableCleanupAttribute::create(multiply_parent);
     if (is_type<ov::opset1::Subtract>(multiply_parent)) {
         auto subtract_parent = multiply_parent->get_input_node_shared_ptr(0);
-        SkipCleanupAttribute::create(subtract_parent);
+        DisableCleanupAttribute::create(subtract_parent);
     }
 }
 
