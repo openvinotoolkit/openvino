@@ -596,6 +596,7 @@ jobs:
           if-no-files-found: 'error'
 
   CPU_Functional_Tests:
+    name: CPU functional tests
     if: ${{ 'false' }} # Ticket: 122001
     needs: Build
     defaults:
