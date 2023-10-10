@@ -360,10 +360,11 @@ struct loop_impl : typed_primitive_impl<loop> {
             // Store output of sliced_data_prim to sliced mems vector
             // After execution of body network, sliced_data_prim will has output memory buffer
             // current memory buffer move to sliced_mems and new memory buffer will be allocated in sliced_data_prim
-            for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
-                auto sliced_data_prim = concat_output_mem_mapping->sliced_data_prim;
-                auto output_mem_ptr = sliced_data_prim->output_memory_ptr();
-                if (is_dynamic) {
+            if (is_dynamic) {
+                for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
+                    auto sliced_data_prim = concat_output_mem_mapping->sliced_data_prim;
+                    auto output_mem_ptr = sliced_data_prim->output_memory_ptr();
+
                     auto sliced_id = sliced_data_prim->id();
                     if (body_network->has_event(sliced_id)) {
                         auto ev = body_network->get_primitive_event(sliced_id);
@@ -376,10 +377,6 @@ struct loop_impl : typed_primitive_impl<loop> {
                         loop_carried_dep.push_back(ev);
                         all_events.push_back(ev);
                     }
-                } else {
-                    memory::ptr new_sliced_mem = concat_output_mem_mapping->get_or_create_sliced_mem(current_iteration_idx,
-                                                                                                output_mem_ptr->get_layout());
-                    body_network->set_output_memory(sliced_data_prim->id(), new_sliced_mem);
                 }
             }
 
@@ -398,8 +395,9 @@ struct loop_impl : typed_primitive_impl<loop> {
         GPU_DEBUG_LOG << "current_iteration(" << primitive->num_iteration_id << ", "
                         << num_actual_iterations_mem << ")  : " << current_iteration_idx << std::endl;
 
-        instance.update_output_layout();
-        instance.postprocess_output_memory();
+        if (is_dynamic)
+            instance.update_output_layout();
+        instance.postprocess_output_memory(is_dynamic);
 
         ev->set();
         return ev;

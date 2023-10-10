@@ -417,7 +417,7 @@ public:
     void update_input_mapped_memory();
     void update_output_mapped_memory();
     void update_backedge_mapped_memory();
-    void postprocess_output_memory();
+    void postprocess_output_memory(bool is_dynamic);
     concatenated_memory_mapping::ptr create_concat_memory_map(const input_info& id,
                                                                 const cldnn::loop::io_primitive_map& io_prim_map,
                                                                 memory::ptr mem_ptr,
