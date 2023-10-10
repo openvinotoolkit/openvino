@@ -4,9 +4,9 @@
 
 import logging
 
-from sys import platform
-
 import onnx.backend.test
+from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
+
 from tests import (
     BACKEND_NAME,
     skip_rng_tests,
@@ -24,7 +24,6 @@ from tests import (
     xfail_issue_38724,
     xfail_issue_38734,
     xfail_issue_38735,
-    skip_issue_39658,
     skip_issue_39658,
     xfail_issue_44858,
     xfail_issue_44965,
@@ -74,7 +73,6 @@ from tests import (
     xfail_issue_119925,
     xfail_issue_119926,
 )
-from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None

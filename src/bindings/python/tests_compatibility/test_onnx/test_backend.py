@@ -3,8 +3,6 @@
 
 import logging
 
-from sys import platform
-
 import onnx.backend.test
 from tests_compatibility import (
     BACKEND_NAME,
