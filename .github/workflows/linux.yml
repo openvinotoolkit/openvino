@@ -899,7 +899,8 @@ jobs:
           --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
-        if: ${{ always() }}
+        if: ${{ 'false' }}
+        timeout-minutes: 40
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
@@ -909,6 +910,7 @@ jobs:
 
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ always() }}
+        timeout-minutes: 40
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # requires 'unit_tests' from 'tools/mo'
@@ -920,6 +922,7 @@ jobs:
 
       - name: TensorFlow 2 Layer Tests - TF FE
         if: ${{ always() }}
+        timeout-minutes: 40
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # requires 'unit_tests' from 'tools/mo'
@@ -931,6 +934,7 @@ jobs:
 
       - name: JAX Layer Tests - TF FE
         if: ${{ always() }}
+        timeout-minutes: 40
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
@@ -939,12 +943,14 @@ jobs:
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
         if: ${{ always() }}
+        timeout-minutes: 40
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         if: ${{ always() }}
+        timeout-minutes: 40
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
@@ -955,6 +961,7 @@ jobs:
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         if: ${{ always() }}
+        timeout-minutes: 40
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
@@ -964,6 +971,7 @@ jobs:
 
       - name: Python ONNX operators tests
         if: ${{ always() }}
+        timeout-minutes: 40
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${OPENVINO_REPO}/src/frontends/onnx/tests -k 'not cuda' \
@@ -973,6 +981,7 @@ jobs:
 
       - name: MO Python API Tests
         if: ${{ always() }}
+        timeout-minutes: 40
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
@@ -986,6 +995,7 @@ jobs:
 
       - name: OVC Python API Tests
         if: ${{ always() }}
+        timeout-minutes: 40
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
@@ -999,6 +1009,7 @@ jobs:
 
       - name: Python Frontend tests
         if: ${{ always() }}
+        timeout-minutes: 40
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
@@ -1008,6 +1019,7 @@ jobs:
 
       # TODO: install to 'tests' component via cpack
       - name: OVC unit tests
+        timeout-minutes: 40
         if: ${{ always() }}
         run: python3 -m pytest -s ${OPENVINO_REPO}/tools/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
@@ -1106,7 +1118,6 @@ jobs:
   TensorFlow_Hub_Models_Tests:
     name: TensorFlow Hub Models tests
     needs: Build
-    if: ${{ 'false' }}
     defaults:
       run:
         shell: bash
@@ -1168,6 +1179,7 @@ jobs:
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
 
       - name: TensorFlow Hub Tests - TF FE
+        timeout-minutes: 60
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
@@ -1187,7 +1199,6 @@ jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     needs: Build
-    if: ${{ 'false' }}
     defaults:
       run:
         shell: bash
@@ -1257,6 +1268,7 @@ jobs:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
       - name: PyTorch Models Tests
+        timeout-minutes: 60
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
