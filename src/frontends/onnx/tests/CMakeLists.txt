@@ -172,8 +172,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         PATTERN "*.py"
         PATTERN "requirements.txt"
         PATTERN "*.onnx"
-        PATTERN "*.data"
-        PATTERN "models" EXCLUDE)
+        PATTERN "*.data")
 
 add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"

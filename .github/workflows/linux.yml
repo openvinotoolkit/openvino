@@ -1224,8 +1224,15 @@ jobs:
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
           echo "Using pip version: ${PIP_VER}"
-          chown -hR ${USER} ${PIP_CACHE_PATH}/${PIP_VER}
+          chmod -R a +w ${PIP_CACHE_PATH}/${PIP_VER}
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+      - name: Get pip cache info
+        run: |
+          chmod -R a +w ${PIP_CACHE_PATH}/${PIP_VER}
+          echo "Cache size: "
+          du -h -d2 ${PIP_CACHE_PATH}
+          echo "Cache info: "
+          python -m pip cache info
 
       - name: Install python dependencies
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
