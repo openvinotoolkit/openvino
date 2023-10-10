@@ -11,11 +11,11 @@ class TestClamp(PytorchLayerTest):
         import numpy as np
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
 
-    def create_model(self, minimum, maximum, as_tensors=False):
+    def create_model(self, minimum, maximum, as_tensors=False, op_type='clamp'):
         import torch
 
         class aten_clamp(torch.nn.Module):
-            def __init__(self, minimum, maximum, as_tensors):
+            def __init__(self, minimum, maximum, as_tensors, op_type="clamp"):
                 super(aten_clamp, self).__init__()
                 if minimum is not None and as_tensors:
                     minimum = torch.tensor(minimum)
@@ -23,20 +23,31 @@ class TestClamp(PytorchLayerTest):
                 if maximum is not None and as_tensors:
                     maximum = torch.tensor(maximum)
                 self.max = maximum
+                self.forward = getattr(self, f"forward_{op_type}")
 
-            def forward(self, x):
+            def forward_clamp(self, x):
                 return torch.clamp(x, self.min, self.max)
 
+            def forward_clip(self, x):
+                return torch.clip(x, self.min, self.max)
+
+            def forward_clamp_(self, x):
+                return x.clamp_(self.min, self.max), x
+
+            def forward_clip_(self, x):
+                return x.clip_(self.min, self.max), x
+
         ref_net = None
-        op_name = "aten::clamp"
-        return aten_clamp(minimum, maximum, as_tensors), ref_net, op_name
+        op_name = f"aten::{op_type}"
+        return aten_clamp(minimum, maximum, as_tensors, op_type), ref_net, op_name
 
     @pytest.mark.parametrize("minimum,maximum",
                              [(0., 1.), (-0.5, 1.5), (None, 10.), (None, -10.), (10., None), (-10., None), (100, 200)])
     @pytest.mark.parametrize("as_tensors", [True, False])
+    @pytest.mark.parametrize("op_type", ["clamp", "clamp_"])
     @pytest.mark.nightly
-    def test_clamp(self, minimum, maximum, as_tensors, ie_device, precision, ir_version):
-        self._test(*self.create_model(minimum, maximum, as_tensors), ie_device, precision, ir_version)
+    def test_clamp(self, minimum, maximum, as_tensors, op_type, ie_device, precision, ir_version):
+        self._test(*self.create_model(minimum, maximum, as_tensors, op_type), ie_device, precision, ir_version)
 
     @pytest.mark.xfail(reason='OpenVINO clamp does not support min > max')
     def test_clamp_min_greater(self, ie_device, precision, ir_version):
