@@ -8,6 +8,11 @@
 
 namespace ov {
 namespace snippets {
+
+bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::AutoBroadcastSpec& autob = ov::op::AutoBroadcastType::NUMPY);
+
+bool merge_into(VectorDims& dst, const VectorDims& src);
+
 class NumpyBroadcastShapeInfer : public IShapeInferSnippets {
 public:
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
