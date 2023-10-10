@@ -1,14 +1,14 @@
 name: macOS (macOS 12, Python 3.11)
 on:
   workflow_dispatch:
-  pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
+#  pull_request:
+#    paths-ignore:
+#      - '**/docs/**'
+#      - 'docs/**'
+#      - '**/**.md'
+#      - '**.md'
+#      - '**/layer_tests_summary/**'
+#      - '**/conformance/**'
   push:
     paths-ignore:
       - '**/docs/**'
@@ -23,7 +23,7 @@ on:
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-mac
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-mac-main
   cancel-in-progress: true
 
 env:
@@ -98,7 +98,7 @@ jobs:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
-          # save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           verbose: 2
           key: ${{ runner.os }}-main
           restore-keys: |
