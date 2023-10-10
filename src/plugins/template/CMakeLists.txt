@@ -31,6 +31,6 @@ endif()
 # install
 
 if(OpenVINODeveloperPackage_FOUND)
-    ie_cpack(template)
+    ov_cpack(template)
 endif()
 # [cmake:main]
