@@ -171,6 +171,8 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         FILES_MATCHING
         PATTERN "*.py"
         PATTERN "requirements.txt"
+        PATTERN "*.onnx"
+        PATTERN "*.data"
         PATTERN "models" EXCLUDE)
 
 add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
