@@ -32,7 +32,6 @@ from tests_compatibility import (
     xfail_issue_48052,
     xfail_issue_52463,
     xfail_issue_58033,
-    xfail_issue_58676,
     xfail_issue_63033,
     xfail_issue_63036,
     xfail_issue_63043,
@@ -301,10 +300,6 @@ tests_expected_to_fail = [
         xfail_issue_91490,
         "OnnxBackendNodeModelTest.test_tril_zero_cpu",
         "OnnxBackendNodeModelTest.test_triu_zero_cpu",
-    ),
-    (
-        xfail_issue_58676,
-        "OnnxBackendNodeModelTest.test_div_uint8_cpu"
     ),
     (
         skip_dynamic_model,
