@@ -89,7 +89,7 @@ bool ReduceProd::evaluate_lower(ov::TensorVector& output_values) const {
     return reduce_prod::has_positive_bounds_on_data(this) && get_input_tensor(1).has_and_set_bound() &&
            default_lower_bound_evaluator(this, output_values);
 }
-#if 0
+#if 1
 bool ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
     if (!reduce_prod::has_positive_bounds_on_data(this) || !get_input_tensor(1).has_and_set_bound())
         return false;
