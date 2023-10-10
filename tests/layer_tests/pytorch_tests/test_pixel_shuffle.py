@@ -35,6 +35,34 @@ class TestPixelShuffle(PytorchLayerTest):
                    ie_device, precision, ir_version)
 
 
+class TestPixelUnshuffle(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(*self.shape).astype(np.float32),)
+
+    def create_model(self, upscale_factor):
+        import torch
+        import torch.nn.functional as F
+
+        class aten_pixel_unshuffle(torch.nn.Module):
+            def __init__(self, upscale_factor):
+                super(aten_pixel_unshuffle, self).__init__()
+                self.upscale_factor = upscale_factor
+
+            def forward(self, x):
+                return F.pixel_unshuffle(x, self.upscale_factor)
+
+        return aten_pixel_unshuffle(upscale_factor), None, "aten::pixel_unshuffle"
+
+    @pytest.mark.parametrize(("upscale_factor,shape"), [(3, [1, 1, 12, 12]),
+                                                        (2, [1, 2, 3, 2, 8, 8]),])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_pixel_unshuffle(self, upscale_factor, shape, ie_device, precision, ir_version):
+        self.shape = shape
+        self._test(*self.create_model(upscale_factor),
+                   ie_device, precision, ir_version)
+
+ 
 class TestChannelShuffle(PytorchLayerTest):
     def _prepare_input(self):
         return (np.random.randn(*self.shape).astype(np.float32),)
