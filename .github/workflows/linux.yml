@@ -96,6 +96,9 @@ jobs:
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
+      - name: SegFault test
+        run: python3 -c "import ctypes;ctypes.string_at(0)"
+
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
