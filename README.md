@@ -73,9 +73,9 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
             <td>Intel Xeon with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel Core Processors with Intel AVX2, Intel Atom Processors with Intel® Streaming SIMD Extensions (Intel® SSE)</td>
         </tr>
         <tr>
-            <td> <a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_CPU.html">ARM CPU</a></tb>
-            <td><b><i><a href="https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/arm_plugin">openvino_arm_cpu_plugin</a></i></b></td>
-            <td>Raspberry Pi™ 4 Model B, Apple® Mac mini with M1 chip, NVIDIA® Jetson Nano™, Android™ devices
+            <td> <a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_CPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-c-p-u">ARM CPU</a></tb>
+            <td><b><i><a href="./src/plugins/intel_cpu">openvino_arm_cpu_plugin</a></i></b></td>
+            <td>Raspberry Pi™ 4 Model B, Apple® Mac mini with Apple silicon
         </tr>
         <tr>
             <td>GPU</td>
@@ -128,6 +128,14 @@ OpenVINO™ Toolkit also contains several plugins which simplify loading models 
 ## License
 OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
 By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
+
+## Telemetry
+OpenVINO™ collects software performance and usage data for the purpose of improving OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4.
+You can opt-out at any time by running the command:
+
+opt_in_out --opt_out
+
+More Information is available at https://docs.openvino.ai/latest/openvino_docs_telemetry_information.html.
 
 ## Documentation
 

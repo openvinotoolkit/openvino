@@ -6,39 +6,39 @@
 
 #include <cmath>
 
-#include "ngraph/shape_util.hpp"
-#include "openvino/reference/max.hpp"
-#include "openvino/reference/sum.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/reference/reduce_max.hpp"
+#include "openvino/reference/reduce_sum.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
 namespace reference {
 template <typename T>
 void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    auto temp_shape = ngraph::reduce(shape, axes, true);
-    auto temp_elements = shape_size(temp_shape);
-    auto temp_ptr = new T[temp_elements];
+    const auto temp_shape = util::reduce_keep_dims(shape, axes);
+    const auto temp_elements = shape_size(temp_shape);
+    auto temp_storage = std::vector<T>(temp_elements);
+    const auto temp_ptr = temp_storage.data();
 
-    max(arg, temp_ptr, shape, axes);
+    reduce_max(arg, temp_ptr, shape, axes);
 
-    CoordinateTransform transform(shape);
-    CoordinateTransform temp_transform(temp_shape);
-    for (const Coordinate& coord : transform) {
-        Coordinate temp_coord = ngraph::reduce(coord, axes, true);
-        out[transform.index(coord)] =
-            std::exp(arg[transform.index(coord)] - temp_ptr[temp_transform.index(temp_coord)]);
+    const CoordinateTransformBasic transform{shape};
+    for (const auto& coord : transform) {
+        const Coordinate temp_coord = util::reduce_keep_dims(coord, axes);
+        const auto out_index = coordinate_index(coord, shape);
+        const auto temp_index = coordinate_index(temp_coord, temp_shape);
+        out[out_index] = std::exp(arg[out_index] - temp_ptr[temp_index]);
     }
 
-    sum(out, temp_ptr, shape, axes);
+    reduce_sum(out, temp_ptr, shape, axes);
 
-    for (const Coordinate& coord : transform) {
-        Coordinate temp_coord = ngraph::reduce(coord, axes, true);
-        out[transform.index(coord)] /= temp_ptr[temp_transform.index(temp_coord)];
+    for (const auto& coord : transform) {
+        const Coordinate temp_coord = util::reduce_keep_dims(coord, axes);
+        const auto out_index = coordinate_index(coord, shape);
+        const auto temp_index = coordinate_index(temp_coord, temp_shape);
+        out[out_index] /= temp_ptr[temp_index];
     }
-
-    delete[] temp_ptr;
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace ov

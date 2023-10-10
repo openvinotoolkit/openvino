@@ -110,7 +110,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
         // Most of the evaluate functions expect same data type for all inputs, so we need to convert params from float
         typename data_type_to_type<DT>::type param_a = static_cast<typename data_type_to_type<DT>::type>(additional_params.a);
 
-        auto input_dt = data_type_to_element_type(instance.get_input_layout().data_type);
+        auto input_dt = instance.get_input_layout().data_type;
 
         if (activation_function == activation_func::pow) {
             input_host_tensors.push_back(ov::Tensor(input_dt, {}, &param_a));
