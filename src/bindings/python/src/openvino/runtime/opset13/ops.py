@@ -8,7 +8,7 @@ from typing import Optional
 
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import nameable_op
+from openvino.runtime.utils.decorators import binary_op, nameable_op
 from openvino.runtime.utils.types import (
     NodeInput,
     as_nodes,
@@ -19,6 +19,76 @@ _get_node_factory_opset13 = partial(_get_node_factory, "opset13")
 
 
 # -------------------------------------------- ops ------------------------------------------------
+@binary_op
+def bitwise_and(
+    left_node: NodeInput,
+    right_node: NodeInput,
+    auto_broadcast: str = "NUMPY",
+    name: Optional[str] = None,
+) -> Node:
+    """Return node which performs bitwise AND operation on input nodes element-wise.
+
+    For boolean input tensors, operator is equivalent to logical_and.
+
+    :param left_node: Tensor of integer or boolean datatype providing data.
+    :param right_node: Tensor of integer or boolean datatype providing data.
+    :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to “NUMPY”.
+    :param name: The optional new name for output node.
+    :return: The node performing bitwise AND operation on input nodes corresponding elements.
+    """
+    return _get_node_factory_opset13().create(
+        "BitwiseAnd",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
+    )
+
+
+@binary_op
+def bitwise_or(
+    left_node: NodeInput,
+    right_node: NodeInput,
+    auto_broadcast: str = "NUMPY",
+    name: Optional[str] = None,
+) -> Node:
+    """Return node which performs bitwise OR operation on input nodes element-wise.
+
+    For boolean input tensors, operator is equivalent to logical_or.
+
+    :param left_node: Tensor of integer or boolean datatype providing data.
+    :param right_node: Tensor of integer or boolean datatype providing data.
+    :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to “NUMPY”.
+    :param name: The optional new name for output node.
+    :return: The node performing bitwise OR operation on input nodes corresponding elements.
+    """
+    return _get_node_factory_opset13().create(
+        "BitwiseOr",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
+    )
+
+
+@binary_op
+def bitwise_xor(
+    left_node: NodeInput,
+    right_node: NodeInput,
+    auto_broadcast: str = "NUMPY",
+    name: Optional[str] = None,
+) -> Node:
+    """Return node which performs bitwise XOR operation on input nodes element-wise.
+
+    For boolean input tensors, operator is equivalent to logical_xor.
+
+    :param left_node: Tensor of integer or boolean datatype providing data.
+    :param right_node: Tensor of integer or boolean datatype providing data.
+    :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to “NUMPY”.
+    :param name: The optional new name for output node.
+    :return: The node performing bitwise XOR operation on input nodes corresponding elements.
+    """
+    return _get_node_factory_opset13().create(
+        "BitwiseXor",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
+    )
 
 
 @nameable_op
