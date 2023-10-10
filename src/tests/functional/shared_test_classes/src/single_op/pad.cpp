@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/single_op/pad.hpp"
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
@@ -16,7 +15,7 @@ std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerT
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
     std::vector<int64_t> pads_begin, pads_end;
-    ov::test::utils::PadMode pad_mode;
+    ov::op::PadMode pad_mode;
     float arg_pad_value;
     std::string target_device;
     std::tie(pads_begin, pads_end, arg_pad_value, pad_mode, model_type, shapes, target_device) = obj.param;
@@ -36,7 +35,7 @@ std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerT
     }
     result << "PadsBegin=" << ov::test::utils::vec2str(pads_begin) << "_";
     result << "PadsEnd=" << ov::test::utils::vec2str(pads_end) << "_";
-    if (pad_mode == ov::test::utils::PadMode::CONSTANT) {
+    if (pad_mode == ov::op::PadMode::CONSTANT) {
         result << "Value=" << arg_pad_value << "_";
     }
     result << "PadMode=" << pad_mode << "_";
@@ -45,38 +44,42 @@ std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerT
     return result.str();
 }
 
-std::shared_ptr<ov::Node> PadLayerTest::create_pad_op(const ngraph::Output<ov::Node>& data,
-                                    const std::vector<int64_t>& pads_begin,
-                                    const std::vector<int64_t>& pads_end,
-                                    float arg_pad_value,
-                                    ov::test::utils::PadMode pad_mode) const {
-    return ngraph::builder::makePad(data, pads_begin, pads_end, arg_pad_value, pad_mode, false);
-}
-
 void PadLayerTest::SetUp() {
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
     std::vector<int64_t> pads_begin, pads_end;
-    ov::test::utils::PadMode pad_mode;
+    ov::op::PadMode pad_mode;
     float arg_pad_value;
     std::tie(pads_begin, pads_end, arg_pad_value, pad_mode, model_type, shapes, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto pad = create_pad_op(param, pads_begin, pads_end, arg_pad_value, pad_mode);
+    auto pads_begin_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{pads_begin.size()}, pads_begin.data());
+    auto pads_end_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{pads_end.size()}, pads_end.data());
+    auto arg_pad_value_const = std::make_shared<ov::op::v0::Constant>(model_type, ov::Shape{}, &arg_pad_value);
 
-    auto result = std::make_shared<ngraph::opset3::Result>(pad);
+    auto pad = create_pad_op(param, pads_begin_const, pads_end_const, arg_pad_value_const, pad_mode);
+
+    auto result = std::make_shared<ov::op::v0::Result>(pad);
 
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "pad");
 }
 
-std::shared_ptr<ov::Node> PadLayerTest12::create_pad_op(const ngraph::Output<ov::Node>& data,
-                                    const std::vector<int64_t>& pads_begin,
-                                    const std::vector<int64_t>& pads_end,
-                                    float arg_pad_value,
-                                    ov::test::utils::PadMode pad_mode) const {
-    return ngraph::builder::makePad(data, pads_begin, pads_end, arg_pad_value, pad_mode, true);
+std::shared_ptr<ov::Node> PadLayerTest::create_pad_op(const std::shared_ptr<ov::Node>& data,
+                                        const std::shared_ptr<ov::Node>& pads_begin,
+                                        const std::shared_ptr<ov::Node>& pads_end,
+                                        const std::shared_ptr<ov::Node>& arg_pad_value,
+                                        ov::op::PadMode pad_mode) const {
+    return std::make_shared<ov::op::v1::Pad>(data, pads_begin, pads_end, arg_pad_value, pad_mode);
+}
+
+std::shared_ptr<ov::Node> Pad12LayerTest::create_pad_op(const std::shared_ptr<ov::Node>& data,
+                                        const std::shared_ptr<ov::Node>& pads_begin,
+                                        const std::shared_ptr<ov::Node>& pads_end,
+                                        const std::shared_ptr<ov::Node>& arg_pad_value,
+                                        ov::op::PadMode pad_mode) const {
+    return std::make_shared<ov::op::v12::Pad>(data, pads_begin, pads_end, arg_pad_value, pad_mode);
 }
 }  // namespace test
 }  // namespace ov

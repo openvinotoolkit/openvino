@@ -25,7 +25,7 @@ typedef std::tuple<
 > oneHotLayerTestParamsSet;
 
 class OneHotLayerTest : public testing::WithParamInterface<oneHotLayerTestParamsSet>,
-                     virtual public ov::test::SubgraphBaseTest {
+                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<oneHotLayerTestParamsSet>& obj);
 

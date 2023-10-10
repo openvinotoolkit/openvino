@@ -9,7 +9,7 @@
 #include <string>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/test_enums.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace test {
@@ -17,7 +17,7 @@ typedef std::tuple<
         std::vector<int64_t>,      // padsBegin
         std::vector<int64_t>,      // padsEnd
         float,                     // argPadValue
-        ov::test::utils::PadMode,  // padMode
+        ov::op::PadMode,           // padMode
         ov::element::Type,         // Net precision
         std::vector<InputShape>,   // Input shapes
         std::string                // Target device name
@@ -30,20 +30,19 @@ public:
 
 protected:
     void SetUp() override;
-    virtual std::shared_ptr<ov::Node> create_pad_op(const ngraph::Output<ov::Node>& data,
-                                      const std::vector<int64_t>& padsBegin,
-                                      const std::vector<int64_t>& padsEnd,
-                                      float argPadValue,
-                                      ov::test::utils::PadMode padMode) const;
+    virtual std::shared_ptr<ov::Node> create_pad_op(const std::shared_ptr<ov::Node>&,
+                                                    const std::shared_ptr<ov::Node>&,
+                                                    const std::shared_ptr<ov::Node>&,
+                                                    const std::shared_ptr<ov::Node>&,
+                                                    ov::op::PadMode) const;
 };
 
-class PadLayerTest12 : public PadLayerTest {
-protected:
-        std::shared_ptr<ov::Node> create_pad_op(const ngraph::Output<ov::Node>& data,
-                                      const std::vector<int64_t>& padsBegin,
-                                      const std::vector<int64_t>& padsEnd,
-                                      float argPadValue,
-                                      ov::test::utils::PadMode padMode) const override;
+class Pad12LayerTest : public PadLayerTest {
+    std::shared_ptr<ov::Node> create_pad_op(const std::shared_ptr<ov::Node>&,
+                                            const std::shared_ptr<ov::Node>&,
+                                            const std::shared_ptr<ov::Node>&,
+                                            const std::shared_ptr<ov::Node>&,
+                                            ov::op::PadMode) const override;
 };
 }  // namespace test
 }  // namespace ov

@@ -12,7 +12,7 @@ TEST_P(PadLayerTest, Inference) {
     run();
 }
 
-TEST_P(PadLayerTest12, Inference) {
+TEST_P(Pad12LayerTest, Inference) {
     run();
 }
 }  // namespace test

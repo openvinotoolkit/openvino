@@ -8,8 +8,7 @@
 
 namespace {
 using ov::test::PadLayerTest;
-using ov::test::PadLayerTest12;
-using ov::test::utils::PadMode;
+using ov::op::PadMode;
 
 const std::vector<ov::element::Type> model_types = {
         ov::element::f32,
