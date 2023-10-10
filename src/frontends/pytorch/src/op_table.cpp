@@ -37,6 +37,7 @@ OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_bitwise_or);
 OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_cdist);
+OP_CONVERTER(translate_channel_shuffle);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
@@ -263,6 +264,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cdist", op::translate_cdist},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
+        {"aten::channel_shuffle", op::translate_channel_shuffle},
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset10::Minimum>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset10::Maximum>},
