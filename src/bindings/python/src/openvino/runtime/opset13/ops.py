@@ -41,7 +41,7 @@ def bitwise_and(
         [left_node, right_node],
         {"auto_broadcast": auto_broadcast.upper()},
     )
-  
+
 
 @unary_op
 def bitwise_not(
