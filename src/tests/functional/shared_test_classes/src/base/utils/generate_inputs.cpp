@@ -867,7 +867,7 @@ ov::runtime::Tensor generate(const
         const auto height = data_input_shape[2] / node->get_spatial_scale();
         const auto width  = data_input_shape[3] / node->get_spatial_scale();
 
-        ov::test::utils::fill_data_roi<ov::element::f32>(tensor, batch_distrib, height, width, 1.0f, true);
+        ov::test::utils::fill_data_roi(tensor, batch_distrib, height, width, 1.0f, true);
         return tensor;
     } else if (port == 2) {
         ov::Tensor tensor(elemType, targetShape);
