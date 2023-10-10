@@ -8,8 +8,6 @@
 #include "single_op_tests/adaptive_pooling.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace ngraph::element;
-
 namespace {
 using ov::test::AdaPoolLayerTest;
 const std::vector<std::string> poolingModes = {"max", "avg"};
