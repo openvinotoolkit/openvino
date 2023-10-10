@@ -37,6 +37,7 @@ OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_bitwise_or);
 OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_cdist);
+OP_CONVERTER(translate_channel_shuffle);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
@@ -89,6 +90,7 @@ OP_CONVERTER(translate_linspace);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_list_unpack);
 OP_CONVERTER(translate_log);
+OP_CONVERTER(translate_log1p);
 OP_CONVERTER(translate_log_softmax);
 OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_logsumexp);
@@ -262,6 +264,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cdist", op::translate_cdist},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
+        {"aten::channel_shuffle", op::translate_channel_shuffle},
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset10::Minimum>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset10::Maximum>},
@@ -353,6 +356,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::logical_not", op::translate_not},
         {"aten::logical_xor", op::translate_xor},
         {"aten::log_softmax", op::translate_log_softmax},
+        {"aten::log1p", op::translate_log1p},
+        {"aten::log1p_", op::inplace_op<op::translate_log1p>},
         {"aten::log2", op::translate_log2},
         {"aten::log2_", op::inplace_op<op::translate_log2>},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
@@ -364,8 +369,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::max", op::translate_max},
         {"aten::maximum", op::translate_maximum},
         {"aten::max_pool1d", op::quantizable_op<op::translate_max_poolnd>},
+        {"aten::max_pool1d_with_indices", op::quantizable_op<op::translate_max_poolnd>},
         {"aten::max_pool2d", op::quantizable_op<op::translate_max_poolnd>},
+        {"aten::max_pool2d_with_indices", op::quantizable_op<op::translate_max_poolnd>},
         {"aten::max_pool3d", op::quantizable_op<op::translate_max_poolnd>},
+        {"aten::max_pool3d_with_indices", op::quantizable_op<op::translate_max_poolnd>},
         {"aten::mean", op::quantizable_op<op::translate_mean>},
         {"aten::meshgrid", op::translate_meshgrid},
         {"aten::min", op::translate_min},
