@@ -14,6 +14,12 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
+enum PerfCountMode {
+    Disabled,
+    Chrono,
+    Rdtsc,
+};
+
 class Config {
 public:
     // True if the lowered Emitters need to be accessed during runtime. Normally they're destroyed after code emission.
@@ -21,6 +27,7 @@ public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
+    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
     // Some Subgraphs doesn't support domain optimization due to operations' semantics
     bool m_enable_domain_optimization = false;
     // Minimal advised work amount for parallel execution.

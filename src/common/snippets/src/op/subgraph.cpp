@@ -42,6 +42,7 @@
 #include "snippets/lowered/pass/validate_loops.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
+#include "snippets/lowered/pass/insert_perf_count.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -460,6 +461,15 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     final_pipeline.run(linear_ir);
 }
 
+void Subgraph::perf_count_transformations(lowered::LinearIR& linear_ir) {
+    INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::perf_count_transformations")
+
+    lowered::pass::PassPipeline perf_count_pipeline;
+    perf_count_pipeline.register_pass<lowered::pass::InsertPerfCount>();
+    perf_count_pipeline.run(linear_ir);
+}
+
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
                                       const std::vector<ov::element::Type>& input_precisions,
                                       const std::vector<ov::element::Type>& output_precisions,
@@ -467,6 +477,8 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_sh
                                       const lowered::pass::PassPipeline& backend_passes_pre_common,
                                       const lowered::pass::PassPipeline& backend_passes_post_common,
                                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
+}
+
                                       const void* compile_params) {
     data_flow_transformations(blocked_input_shapes, input_precisions, output_precisions, data_flow_backend_passes);
     convert_body_to_linear_ir(factory);
@@ -480,6 +492,7 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     OPENVINO_ASSERT(m_generator != nullptr, "generate is called while generator is not set");
 
+
     // actual code emission
     // Note: some transformations performed in the generator, e.g. tail insertion, can break shape propagation
     //  until we fix this behavior, we have to make a copy of LIR before giving it to the generator.
@@ -487,6 +500,9 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
     auto linear_ir {*m_linear_ir->clone()};
     LoweringResult lowering_result;
     control_flow_transformations(linear_ir, lowering_result, backend_passes_pre_common, backend_passes_post_common);
+    if (linear_ir.get_config().perf_count_mode == lowered::PerfCountMode::Chrono) {
+        perf_count_transformations(linear_ir);
+    }
     m_generator->generate(linear_ir, lowering_result, compile_params);
 
     VectorDims parallel_exec_domain = linear_ir.get_master_shape();
