@@ -33,7 +33,6 @@ public:
         ov::PartialShape output_data_shape = ov::PartialShape::dynamic();
 
         auto input_size = get_input_size();
-        bool merge_output_shape = true;
         for (size_t input_ind = 0; input_ind < input_size; ++input_ind) {
             auto input_type = get_input_element_type(input_ind);
             if (input_type.is_static()) {
