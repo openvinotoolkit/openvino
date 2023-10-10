@@ -4,7 +4,9 @@
 import logging as log
 
 
-def print_metrics(iter_num, iter_data, tms=[], generated=None, warm_up=False, max_rss_mem=-1, max_shared_mem=-1):
+def print_metrics(iter_num, iter_data, tms=None, generated=None, warm_up=False, max_rss_mem=-1, max_shared_mem=-1):
+    if tms is None:
+        tms = []
     iter_str = str(iter_num)
     if warm_up:
         iter_str = 'warm-up'
@@ -19,7 +21,7 @@ def print_metrics(iter_num, iter_data, tms=[], generated=None, warm_up=False, ma
     if iter_data['latency'] != '':
         log.info(f"[{iter_str}] Latency: {iter_data['latency']:.2f} ms/token")
     if generated is not None:
-        log.info(f"[{iter_str}] Generated:\n{generated}")
+        log.info(f'[{iter_str}] Generated:\n{generated}')
     if iter_data['result_md5'] != '':
         log.info(f"[{iter_str}] Result MD5:{iter_data['result_md5']}")
     if len(tms) > 0:
@@ -53,13 +55,13 @@ def print_average(iter_data_list):
     total_iters = len(iter_data_list) - warm_up_iters
 
     if total_iters > 0:
-        log.info("<<< Warm-up iteration is excluded. >>>")
-        log.info(f"[Total] Iterations: {total_iters}")
+        log.info('<<< Warm-up iteration is excluded. >>>')
+        log.info(f'[Total] Iterations: {total_iters}')
         if total_num_tokens > 0:
-            log.info(f"[Total] Output size: {total_num_tokens} tokens")
+            log.info(f'[Total] Output size: {total_num_tokens} tokens')
         if total_generation_time > 0:
             avg_per_iter_time = total_generation_time / total_iters
-            log.info(f"[Average] Iteration time: {avg_per_iter_time:.2f}s")
+            log.info(f'[Average] Iteration time: {avg_per_iter_time:.2f}s')
             if total_num_tokens > 0:
                 avg_per_token_time = total_generation_time * 1000 / total_num_tokens
-                log.info(f"[Average] Latency: {avg_per_token_time:.2f} ms/token")
+                log.info(f'[Average] Latency: {avg_per_token_time:.2f} ms/token')

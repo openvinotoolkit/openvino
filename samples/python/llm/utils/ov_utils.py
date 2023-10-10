@@ -139,14 +139,14 @@ def patch_inter_processing(hf_model, **kwargs):
     """Fuse post-processing as an extra ops into a model."""
     ov_model = hf_model.model
 
+    import openvino.runtime.opset12 as opset
     if kwargs['fuse_decoding_strategy']:
-        import openvino.runtime.opset12 as opset
         ppp = ov.preprocess.PrePostProcessor(ov_model)
 
         assert kwargs['num_beams'] == 1, "Parameter fuse_decoding_strategy doesn't support beam_search, set num_beams to 1"
 
-        def greedy_search(input):
-            next_token = opset.gather(input, opset.constant(-1), opset.constant(1))  # take last logits only (makes sense at the first iteration only)
+        def greedy_search(input_port):
+            next_token = opset.gather(input_port, opset.constant(-1), opset.constant(1))  # take last logits only (makes sense at the first iteration only)
             topk = opset.topk(next_token, opset.constant(1), axis=-1, mode='max', sort='none').output(1)
             return topk
         ppp.output(0).postprocess().custom(greedy_search)
@@ -161,7 +161,6 @@ def patch_inter_processing(hf_model, **kwargs):
     if kwargs['fuse_cache_reorder'] and num_beams > 1:
         # Should be run before make_stateful because of adding pre-processing on kv-cashe inputs
         # Make a new parameter for beam_idx
-        import openvino.runtime.opset12 as opset
         # Adding a new parameter to make _reorder_cache inside the model in the beginning of each iteration
         beam_idx = opset.parameter(name='beam_idx', dtype=ov.Type.i32, shape=ov.PartialShape([num_beams]))
         beam_idx.output(0).get_tensor().add_names({'beam_idx'})   # why list is not accepted?
@@ -193,20 +192,20 @@ def patch_inter_processing(hf_model, **kwargs):
             hf_model.normalized_config.num_attention_heads if hf_model.config.model_type == 'bloom' else 1
         )
         num_beams = kwargs['num_beams'] if 'num_beams' in kwargs and kwargs['num_beams'] > 1 else 1
-        beam_idx_exist = 'beam_idx' in [input.any_name for input in ov_model.inputs]
+        beam_idx_exist = 'beam_idx' in [port.any_name for port in ov_model.inputs]
         assert num_beams == 1 or beam_idx_exist, 'Requested to make_stateful with num_beams > 1 but there is no beam_idx parameter for cache reorder fused'
         left_num_parameters = 2 + int(beam_idx_exist)
         for i in range(len(ov_model.inputs) - left_num_parameters):
-            input = ov_model.inputs[2 + i]
+            port = ov_model.inputs[2 + i]
             output = ov_model.outputs[1 + i]
-            input_output_map[input.any_name] = output.any_name
-            shape = input.get_partial_shape()
+            input_output_map[port.any_name] = output.any_name
+            shape = port.get_partial_shape()
 
             # suppose 0-th dimension is a batch
             # TODO: Deduce from a model via ordinal reshape
             shape[0] = kwargs['batch_size'] * num_attention_heads * num_beams
 
-            input.get_node().set_partial_shape(shape)
+            port.get_node().set_partial_shape(shape)
 
         ov_model.validate_nodes_and_infer_types()
 

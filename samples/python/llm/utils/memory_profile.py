@@ -9,6 +9,7 @@ import os
 
 class MemConsumption:
     def __init__(self):
+        """Initialize MemConsumption."""
         self.g_exitGetMemThread = False
         self.g_EndCollectMem = False
         self.g_maxRssMemConsumption = -1
@@ -17,6 +18,7 @@ class MemConsumption:
         self.g_data_event = Event()
 
     def collect_memory_consumption(self):
+        """Collect the data."""
         while self.g_exitGetMemThread is False:
             self.g_event.wait()
             while True:
@@ -39,27 +41,33 @@ class MemConsumption:
                 time.sleep(500 / 1000)
 
     def start_collect_memory_consumption(self):
+        """Start collect."""
         self.g_EndCollectMem = False
         self.g_event.set()
 
     def end_collect_momory_consumption(self):
+        """Stop collect."""
         self.g_EndCollectMem = True
         self.g_event.wait()
 
     def get_max_memory_consumption(self):
+        """Return the data."""
         self.g_data_event.wait()
         self.g_data_event.clear()
         return self.g_maxRssMemConsumption, self.g_maxSharedMemConsumption
 
     def clear_max_memory_consumption(self):
+        """Clear MemConsumption."""
         self.g_maxRssMemConsumption = -1
         self.g_maxSharedMemConsumption = -1
 
     def start_collect_mem_consumption_thread(self):
+        """Start the thread."""
         self.t_mem_thread = Thread(target=self.collect_memory_consumption)
         self.t_mem_thread.start()
 
     def end_collect_mem_consumption_thread(self):
+        """End the thread."""
         self.g_event.set()
         self.g_data_event.set()
         self.g_EndCollectMem = True

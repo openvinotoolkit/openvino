@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+# flake8: noqa
 import time
 import torch
 import warnings
@@ -307,23 +308,26 @@ def new_greedy_search(
 
 class BenchHook:
     def __init__(self):
-        """clear the time list."""
+        """Clear the time list."""
         global tm_list
         tm_list.clear()
 
     def clear_time_list(self):
+        """Clear the time list."""
         global tm_list
         tm_list.clear()
 
     def get_time_list(self):
+        """Return the time list."""
         global tm_list
         return tm_list
 
     def new_forward(self, model, model_type=None):
+        """Define a new greedy search function."""
         min_version = version.parse('4.28.0')
         trans_version = version.parse(transformers.__version__)
         if trans_version < min_version:
             log.warning('The function of getting latency will not be available with current transformers version')
         else:
             bound_method = new_greedy_search.__get__(model, model.__class__)
-            setattr(model, 'greedy_search', bound_method)
+            model.greedy_search = bound_method
