@@ -8,7 +8,7 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"
+#include "ngraph/util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
@@ -76,10 +76,11 @@ bool Reshape::evaluate_reshape(TensorVector& outputs, const TensorVector& inputs
     auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs));
     outputs[0].set_shape(output_shapes[0].to_shape());
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const AxisVector order = ngraph::get_default_order(inputs[0].get_shape());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return ov::op::reshape::evaluate(inputs[0], outputs[0], order);
+    ov::reference::reshape(static_cast<char*>(inputs[0].data()),
+                           static_cast<char*>(outputs[0].data()),
+                           inputs[0].get_shape(),
+                           inputs[0].get_element_type().size());
+    return true;
 }
 
 bool Reshape::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
