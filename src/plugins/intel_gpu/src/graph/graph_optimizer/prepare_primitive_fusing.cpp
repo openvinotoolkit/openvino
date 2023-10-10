@@ -1221,8 +1221,9 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
         return format::find_format(new_order, fmt.block_sizes());
     };
 
-    auto itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
+    auto& proc_order = p.get_processing_order();
+    auto itr = proc_order.begin();
+    while (itr != proc_order.end()) {
         auto& node = *itr++;
 
         if (!node->is_type<permute>())
@@ -1286,6 +1287,7 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
                 auto& new_reorder_node = p.get_or_create(new_reorder);
                 p.replace(*next_node, new_reorder_node);
                 new_reorder_node.recalc_output_layout(false);
+                itr = std::find(proc_order.begin(), proc_order.end(), &new_reorder_node);
             } else {
                 layout reorder_layout = new_const_node.get_output_layout();
                 reorder_layout.format = format::bfyx;
