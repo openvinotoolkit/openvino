@@ -1022,6 +1022,7 @@ ov::runtime::Tensor generate(const
     comparison::fill_tensor(tensor);
     return tensor;
 }
+
 ov::runtime::Tensor generate(const
                              std::shared_ptr<ov::op::v10::IsNaN>& node,
                              size_t port,
@@ -1029,6 +1030,44 @@ ov::runtime::Tensor generate(const
                              const ov::Shape& targetShape) {
     ov::Tensor tensor{elemType, targetShape};
     comparison::fill_tensor(tensor);
+    return tensor;
+}
+
+namespace is_inf {
+template <typename T>
+void fill_tensor(ov::Tensor& tensor) {
+    int range = ov::shape_size(tensor.get_shape());
+    float startFrom = -static_cast<float>(range) / 2.f;
+
+    auto pointer = tensor.data<T>();
+    testing::internal::Random random(1);
+    for (size_t i = 0; i < range; i++) {
+        if (i % 7 == 0) {
+            pointer[i] = std::numeric_limits<T>::infinity();
+        } else if (i % 7 == 1) {
+            pointer[i] = std::numeric_limits<T>::quiet_NaN();
+        } else if (i % 7 == 3) {
+            pointer[i] = -std::numeric_limits<T>::infinity();
+        } else if (i % 7 == 5) {
+            pointer[i] = -std::numeric_limits<T>::quiet_NaN();
+        } else {
+            pointer[i] = static_cast<T>(startFrom + random.Generate(range));
+        }
+    }
+}
+} // namespace is_inf
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v10::IsInf>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    auto tensor = ov::Tensor(elemType, targetShape);
+    if (elemType == ov::element::f16) {
+        is_inf::fill_tensor<ov::float16>(tensor);
+    } else {
+        is_inf::fill_tensor<float>(tensor);
+    }
     return tensor;
 }
 
