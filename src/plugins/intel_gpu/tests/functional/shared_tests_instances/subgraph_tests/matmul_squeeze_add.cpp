@@ -6,8 +6,6 @@
 
 #include <vector>
 
-#include "common_test_utils/test_constants.hpp"
-
 using namespace ov::test;
 
 namespace {
@@ -15,7 +13,7 @@ const std::vector<ov::element::Type> netPrecisions = {ov::element::f32, ov::elem
 
 const std::vector<ov::AnyMap> configs = {{}};
 
-std::vector<std::vector<size_t>> input_shapes = {{1, 8}, {1, 42}, {1, 100}, {1, 128}, {1, 512}};
+std::vector<ov::Shape> input_shapes = {{1, 8}, {1, 42}, {1, 100}, {1, 128}, {1, 512}};
 
 std::vector<size_t> output_sizes = {1000, 512, 128, 42, 16, 8};
 
