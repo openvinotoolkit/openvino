@@ -83,7 +83,7 @@ jobs:
           # default-jdk - Java API
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
           apt install --assume-yes --no-install-recommends default-jdk libssl1.1
-          apt install libpython3.9 python3.9
+          apt install --assume-yes libpython3.9 python3.9 python3.9-dev
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
 
@@ -122,7 +122,10 @@ jobs:
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
-            -DPython3_EXECUTABLE=/usr/bin/python3.9\
+            -DPython3_EXECUTABLE=/usr/bin/python3.9 \
+            -DPython3_INCLUDE_DIR=/usr/include/python3.9 \
+            -DENABLE_WHEEL=ON \
+            -DENABLE_PYTHON=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
@@ -241,7 +244,7 @@ jobs:
           apt-get update -y
           apt-get install openvino -y
           # install python3.9
-          apt install libpython3.9 python3.9
+          apt install --assume-yes libpython3.9 python3.9
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
           python3.9 -m pip install numpy
@@ -303,7 +306,7 @@ jobs:
 
       - name: Setup pip cache dir
         run: |
-          apt install libpython3.9 python3.9
+          apt install --assume-yes libpython3.9 python3.9
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
 
@@ -420,7 +423,7 @@ jobs:
           # Needed for downloading IRs from storage.openvinotoolkit with Python urllib
           apt-get install --assume-yes --no-install-recommends ca-certificates
 
-          apt install libpython3.9 python3.9
+          apt install --assume-yes libpython3.9 python3.9
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
           python3.9 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
@@ -829,7 +832,7 @@ jobs:
 
       - name: Setup pip cache dir
         run: |
-          apt install libpython3.9 python3.9
+          apt install --assume-yes libpython3.9 python3.9
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
 
@@ -1094,7 +1097,7 @@ jobs:
 
       - name: Install python dependencies for run_parallel.py
         run: |
-          apt install libpython3.9 python3.9
+          apt install --assume-yes libpython3.9 python3.9
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
           python3.9 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
@@ -1159,7 +1162,7 @@ jobs:
 
       - name: Install python
         run: |
-          sudo apt install libpython3.9 python3.9
+          sudo apt install --assume-yes libpython3.9 python3.9
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
 
@@ -1240,7 +1243,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt install libpython3.9 python3.9 python3.9-dev
+          sudo apt install --assume-yes libpython3.9 python3.9 python3.9-dev
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
           # install git (required to build pip deps from the sources)

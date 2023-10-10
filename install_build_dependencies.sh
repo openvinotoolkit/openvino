@@ -209,9 +209,6 @@ else
     echo "Unknown OS, please install build dependencies manually"
 fi
 
-# update pip
-python3 -m pip install -U pip
-
 # cmake 3.20.0 or higher is required to build OpenVINO
 
 if command -v cmake &> /dev/null; then
