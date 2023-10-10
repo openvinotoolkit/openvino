@@ -1172,6 +1172,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
 
         new_const->validate_and_infer_types();
         new_const->set_friendly_name(constant->get_friendly_name());
+        ov::copy_runtime_info(constant, new_const);
         return true;
     }
     return false;
