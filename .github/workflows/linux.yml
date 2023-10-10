@@ -1191,7 +1191,7 @@ jobs:
 
     steps:
       - name: Tracking resources
-        run: while [ 1 ] ; do top -b -n 1 > aks-linux-2-cores.log; sleep 1; done &
+        run: while [ 1 ] ; do top -b -n 1 > /mount/caches/aks-linux-2-cores.log; sleep 1; done &
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
