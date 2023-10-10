@@ -22,6 +22,8 @@ OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_all);
+OP_CONVERTER(translate_amax);
+OP_CONVERTER(translate_amin);
 OP_CONVERTER(translate_and);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_argmax);
@@ -237,6 +239,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
         {"aten::all", op::translate_all},
+        {"aten::amax", op::translate_amax},
+        {"aten::amin", op::translate_amin},
         {"aten::arange", op::translate_arange},
         {"aten::argmax", op::translate_argmax},
         {"aten::argmin", op::translate_argmin},
@@ -266,8 +270,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::channel_shuffle", op::translate_channel_shuffle},
         {"aten::clamp", op::translate_clamp},
+        {"aten::clamp_", op::inplace_op<op::translate_clamp>},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset10::Minimum>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset10::Maximum>},
+        {"aten::clip", op::translate_clamp},
+        {"aten::clip_", op::inplace_op<op::translate_clamp>},
         {"aten::clone", op::skip_node},       // ignore clone operators that are inserted by PyTorch autograd
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
