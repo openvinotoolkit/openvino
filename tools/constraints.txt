@@ -18,4 +18,4 @@ pyenchant>=3.0.0
 test-generator==0.1.1
 py>=1.9.0
 urllib3>=1.26.4
-openvino-telemetry>=2023.1.0
+openvino-telemetry>=2023.2.0
