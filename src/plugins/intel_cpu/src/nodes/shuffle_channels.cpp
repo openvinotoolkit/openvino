@@ -4,12 +4,13 @@
 
 #include "shuffle_channels.h"
 
+#include <openvino/op/shuffle_channels.hpp>
+
 #include "openvino/core/parallel.hpp"
 #include "dnnl_extension_utils.h"
 #include "cpu/x64/jit_generator.hpp"
 #include "common/blocked_desc_creator.h"
 
-#include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
 
 #include <string>

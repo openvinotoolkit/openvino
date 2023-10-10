@@ -4,6 +4,8 @@
 
 #include "conv.h"
 
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "common/c_types_map.hpp"
 #include "common/cpu_convert.h"
 #include "common/primitive_desc.hpp"
@@ -627,7 +629,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     bool isINT8 = canBeExecutedInInt8();
     // Weight dims in NON-Group CONV: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM, weiScaleMaskPerChannel =  1 << 0
     // Weight dims in Group CONV:[Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM, weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
+    DnnlPostOpsComposerLegacy dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 

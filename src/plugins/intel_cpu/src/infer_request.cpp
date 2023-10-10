@@ -8,20 +8,16 @@
 #include "compiled_model.h"
 #include "dnnl_extension_utils.h"
 #include "itt.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_state.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
-#include "nodes/concat.h"
 #include "nodes/memory.hpp"
-#include "nodes/split.h"
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "proxy_mem_mgr.h"
-#include "transformations/utils/utils.hpp"
-#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
+#include "utils/ngraph_utils.hpp"
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
