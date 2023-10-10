@@ -23,7 +23,6 @@
 
 #include "itt.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 
 using namespace ov::pass;
 using namespace ov::symbol::util;
