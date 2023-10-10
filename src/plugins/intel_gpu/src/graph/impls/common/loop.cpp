@@ -124,6 +124,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     std::vector<event::ptr> handle_buffers_for_next_iteration(const loop_inst::backedge_memory_mapping& mapping,
                                                     network::ptr body_network, int64_t iter, bool is_dynamic) const {
         std::vector<event::ptr> event_vec;
+        OPENVINO_ASSERT(iter >= 0, "iteration should not be negative : ", iter);
         if (mapping.type == loop_inst::backedge_memory_mapping::CONCAT_OUTPUT) {
             if (iter == 0) {
                 set_memory_in_body_network(body_network, mapping.to_primitive, mapping.initial_mem);
@@ -143,8 +144,6 @@ struct loop_impl : typed_primitive_impl<loop> {
                     auto mem = mapping.concat_mem_mapping->get_sliced_mems().at(iter - 1);
                     set_memory_in_body_network(body_network, mapping.to_primitive, mem);
                 }
-            } else {
-                OPENVINO_THROW("Invalid iteration count", iter);
             }
         } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE_SHARED) {
             if (iter == 0) {
