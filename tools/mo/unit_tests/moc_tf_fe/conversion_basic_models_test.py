@@ -3,10 +3,10 @@
 
 import os
 import unittest
+from sys import platform
 
 import numpy as np
 from generator import generator, generate
-
 from openvino.runtime import Core
 from openvino.tools.mo.convert import convert_model
 
@@ -39,7 +39,6 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         if dtype is not None:
             assert values.dtype == dtype
         assert np.allclose(values, expected)
-
 
     @generate(
         *[
@@ -240,6 +239,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         self.basic("ctc_model_based.pbtxt", None, None, None, None,
                    None, None, True, True, False, False)
 
+    @unittest.skipIf(platform == 'darwin', reason="Ticket - 122182")
     def test_conversion_failure_fallback_use_new_frontend(self):
         with self.assertRaisesRegex(Exception,
                                     "\[TensorFlow Frontend\] Internal error, no translator found for operation\(s\)\: "
