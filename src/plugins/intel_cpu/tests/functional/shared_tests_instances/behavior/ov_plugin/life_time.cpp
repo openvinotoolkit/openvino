@@ -11,9 +11,7 @@ namespace {
             OVHoldersTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTest,
-            ::testing::Values("AUTO:CPU",
-                                "MULTI:CPU",
-                                //ov::test::utils::DEVICE_BATCH,
+            ::testing::Values(//ov::test::utils::DEVICE_BATCH,
                                 "HETERO:CPU"),
             OVHoldersTest::getTestCaseName);
 

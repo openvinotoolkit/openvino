@@ -4,7 +4,7 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attrs, get_edge_attribute_between_nodes, \
     set_edge_attribute_between_nodes
@@ -364,8 +364,7 @@ class TestGraphShapeChecker(unittest.TestCase):
             graph.check_shapes_consistency()
 
 
-@generator
-class TestGraphPortsChecker(unittest.TestCase):
+class TestGraphPortsChecker():
     nodes = {
         '0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
         '0_data': {'value': None, 'shape': None, 'kind': 'data'},
@@ -380,7 +379,7 @@ class TestGraphPortsChecker(unittest.TestCase):
         '3_data': {'value': None, 'shape': None, 'kind': 'data'},
     }
 
-    @generate(*[('0', 'in', 1), ('0', 'out', 2), ('1', 'in', 2), ('3', 'out', 2)])
+    @pytest.mark.parametrize("node_id, port_type, port_idx",[('0', 'in', 1), ('0', 'out', 2), ('1', 'in', 2), ('3', 'out', 2)])
     def test_check_shape_consistency_1(self, node_id: str, port_type: str, port_idx: int):
         #
         #               ,->2-->2_data---,->3-->3_data
@@ -404,7 +403,7 @@ class TestGraphPortsChecker(unittest.TestCase):
         else:
             node.add_output_port(idx=port_idx)
 
-        with self.assertRaisesRegex(Error, "Node {} has not consecutive {} ports indexes:.*".format(node_id,
+        with pytest.raises (Error, match= "Node {} has not consecutive {} ports indexes:.*".format(node_id,
                                                                                                     port_type)):
             graph.check_nodes_ports_are_consecutive()
 
@@ -1865,3 +1864,4 @@ class TestTopologicalSort(unittest.TestCase):
         nodes_names = [node.name for node in graph.pseudo_topological_sort_with_start_node(start_node=stat_node,
                                                                                            reverse=True)]
         assert nodes_names == ['E']
+        
