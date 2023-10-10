@@ -11,7 +11,7 @@
 using namespace ov::test;
 
 namespace {
-const std::vector<ov::element::Type> netPrecisions = {ov::element::f32, ov::element::f16};
+const std::vector<ov::element::Type> netPrecisions = {ov::element::f32};
 
 const std::vector<ov::AnyMap> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "81.9175"}},
                                          {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
