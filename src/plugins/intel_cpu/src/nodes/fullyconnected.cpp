@@ -1132,20 +1132,33 @@ bool FullyConnected::useSparseWeightsDecompression() {
     return true;
 }
 
-void FullyConnected::fuseDecompressionMultiplyPtr(const NodePtr& constData) {
-    fuseDecompressionConstantPtr(constData, decompressionMultiplyPtr);
+void FullyConnected::fuseDecompressionMultiply(const NodePtr& constData) {
+    fuseDecompressionConstant(constData, decompressionMultiplyPtr);
 }
 
-void FullyConnected::fuseDecompressionSubtractPtr(const NodePtr& constData) {
-    fuseDecompressionConstantPtr(constData, decompressionSubtractPtr);
+void FullyConnected::fuseDecompressionSubtract(const NodePtr& constData) {
+    fuseDecompressionConstant(constData, decompressionSubtractPtr);
 }
 
-void FullyConnected::fuseDecompressionConstantPtr(const NodePtr& constData, MemoryCPtr& decompressionValuesPtr) {
+void FullyConnected::fuseDecompressionConstant(const NodePtr& constData, MemoryCPtr& decompressionValuesPtr) {
     auto *constInputNode = dynamic_cast<node::Input *>(constData.get());
     if (!constInputNode) {
         IE_THROW() << "Cannot cast " << constData->getName() << " to Input";
     }
-    decompressionValuesPtr = constInputNode->getMemoryPtr();
+    const auto decompression_prc = InferenceEngine::Precision::FP32;
+    if (constInputNode->getOriginalOutputPrecisionAtPort(0) == decompression_prc) {
+        decompressionValuesPtr = constInputNode->getMemoryPtr();
+    } else {
+        const auto constBlob = constInputNode->getMemoryPtr();
+        DnnlBlockedMemoryDesc memoryDesc(decompression_prc, constBlob->getShape());
+        decompressionValuesPtr = std::make_shared<Memory>(getEngine(), memoryDesc, nullptr, false);
+        const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        cpu_convert(constBlob->getData(),
+                    decompressionValuesPtr->getData(),
+                    DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
+                    Precision::FP32,
+                    elementsCount);
+    }
 }
 
 DnnlMemoryDescPtr FullyConnected::makeTransposedWeightDescriptor(DnnlMemoryDescPtr desc) {

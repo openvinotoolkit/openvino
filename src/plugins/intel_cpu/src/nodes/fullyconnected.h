@@ -60,8 +60,8 @@ public:
         this->weightsNonTransposed = weightsNonTransposed;
     }
 
-    void fuseDecompressionMultiplyPtr(const NodePtr& constData);
-    void fuseDecompressionSubtractPtr(const NodePtr& constData);
+    void fuseDecompressionMultiply(const NodePtr& constData);
+    void fuseDecompressionSubtract(const NodePtr& constData);
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -99,7 +99,7 @@ private:
                                     const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
-    void fuseDecompressionConstantPtr(const NodePtr& constData, MemoryCPtr& decompressionValuesPtr);
+    void fuseDecompressionConstant(const NodePtr& constData, MemoryCPtr& decompressionValuesPtr);
 
     // sparse weights
     bool useSparseWeights = false;

@@ -34,14 +34,15 @@ namespace SubgraphTestsDefinitions {
 
 struct ShapeParams {
     ShapeParams() = default;
-    ShapeParams(InputShape data_shape, ov::Shape weights_shape, size_t weights_group_size = 1)
+    ShapeParams(InputShape data_shape, ov::Shape weights_shape, int weights_group_size = -1)
         : data_shape(std::move(data_shape)),
           weights_shape(std::move(weights_shape)),
           weights_group_size(weights_group_size) {}
 
     InputShape data_shape;
     ov::Shape weights_shape;
-    size_t weights_group_size;
+    // Decompression group size. If the value is equal to -1, ordinary decompression is used
+    int weights_group_size;
 };
 using MatmulWeightsDecompressionParams = std::tuple<ShapeParams,
                                                     ov::test::ElementType,  // weights precision
@@ -96,7 +97,7 @@ public:
 
 protected:
     std::shared_ptr<ov::Node> initDecompressionWeights(const ov::Shape& weights_shape,
-                                                       const size_t group_size,
+                                                       const int group_size,
                                                        const ov::element::Type data_precision,
                                                        const ov::element::Type weights_precision,
                                                        const bool transpose_weights,
@@ -109,23 +110,23 @@ protected:
             return result_shape;
         };
 
+        const bool group_decompression = group_size != -1;
         // Weights has shape [I, O], where
         // I - input channels
         // O - output channels
-        // If group size greater than 1, input channels dimension are split into 2: I -> [N, G], where
+        // In case of group decompression, input channels dimension is split into 2: I -> [N, G], where
         // N - number of groups
         // G - group size
         auto transformed_weights_shape = transpose_if_necessary(weights_shape);
-        OPENVINO_ASSERT(weights_shape[0] % group_size == 0,
-                        "Weights output channels count (",
-                        weights_shape[0],
-                        ") must be divisible by decompression group size (",
-                        group_size,
-                        ").");
-        const size_t number_of_groups = weights_shape[0] / group_size;
-        if (group_size > 1) {
+        if (group_decompression) {
+            OPENVINO_ASSERT(weights_shape[0] % group_size == 0,
+                            "Weights output channels count (",
+                            weights_shape[0],
+                            ") must be divisible by decompression group size (",
+                            group_size,
+                            ").");
             auto in_channel_idx = transpose_weights ? transformed_weights_shape.size() - 1 : transformed_weights_shape.size() - 2;
-            transformed_weights_shape[in_channel_idx] = number_of_groups;
+            transformed_weights_shape[in_channel_idx] = weights_shape[0] / group_size;
             transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
         }
         auto weights = ngraph::builder::makeConstant<uint8_t>(weights_precision, transformed_weights_shape, {}, true);
@@ -136,12 +137,12 @@ protected:
         auto output_channels = *weights_shape.rbegin();
 
         // Decompression constants shape:
-        // if group size = 1: [O, 1]
-        // otherwise: [O, N, 1]
+        // Ordinary decompression: [O, 1]
+        // Group decompression: [O, N, 1]
         ov::Shape scaleshift_target_shape{output_channels};
-        scaleshift_target_shape.insert(scaleshift_target_shape.begin(), group_size == 1 ? 1 : number_of_groups);
+        scaleshift_target_shape.insert(scaleshift_target_shape.begin(), group_decompression ? weights_shape[0] / group_size : 1);
         scaleshift_target_shape = transpose_if_necessary(scaleshift_target_shape);
-        if (group_size > 1) {
+        if (group_decompression) {
             auto in_channel_idx = transpose_weights ? scaleshift_target_shape.size() - 1 : scaleshift_target_shape.size() - 2;
             scaleshift_target_shape.insert(scaleshift_target_shape.begin() + in_channel_idx + 1, 1);
         }
@@ -168,7 +169,7 @@ protected:
         }
         std::shared_ptr<ov::Node> last_node = std::make_shared<ov::opset10::Multiply>(mul_parent, scale_const);
 
-        if (group_size > 1) {
+        if (group_decompression) {
             auto reshape_target_shape = transpose_weights ? std::vector<int>{-1, static_cast<int>(weights_shape[0])}
                                                           : std::vector<int>{static_cast<int>(weights_shape[0]), -1};
             auto target_shape_node = ov::opset10::Constant::create(ov::element::i32, {reshape_target_shape.size()}, reshape_target_shape);
@@ -187,7 +188,7 @@ protected:
 
     std::shared_ptr<ov::Model> initSubgraph(const ov::PartialShape& data_shape,
                                             const ov::Shape& weights_shape,
-                                            const size_t group_size,
+                                            const int group_size,
                                             const ov::element::Type data_precision,
                                             const ov::element::Type weights_precision,
                                             const bool transpose_weights,
@@ -247,7 +248,7 @@ protected:
         const auto& test_param = GetParam();
         const auto& weights_precision = std::get<1>(test_param);
         // TODO: remove this condition when group decompression is supported
-        if (weights_precision == ov::element::nf4 || std::get<0>(test_param).weights_group_size != 1) {
+        if (weights_precision == ov::element::nf4 || std::get<0>(test_param).weights_group_size != -1) {
             return;
         }
         bool weights_found = false;

@@ -310,8 +310,6 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         const bool withReshape = parent->getType() == Type::Reshape;
         const auto reshapeNode = withReshape ? parent : nullptr;
         if (reshapeNode) {
-            if (reshapeNode->getInputShapeAtPort(0).getRank() != 3 && reshapeNode->getOutputShapeAtPort(0).getRank() != 2)
-                continue;
             parent = reshapeNode->getParentEdgesAtPort(0)[0]->getParent();
         }
 
@@ -358,6 +356,8 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
         if (weightsShape != multiplyNode->getOutputShapeAtPort(0))
             continue;
+        if (reshapeNode && (reshapeNode->getInputShapeAtPort(0).getRank() != 3 || reshapeNode->getOutputShapeAtPort(0).getRank() != 2))
+            continue;
 
         VectorDims decompressionConstShape;
         const auto fcInputWeightsShape = fcNode->getInputShapeAtPort(1);
@@ -399,9 +399,9 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         }
 
         // Fusion processing
-        fcNode->fuseDecompressionMultiplyPtr(multiplyConstNode);
+        fcNode->fuseDecompressionMultiply(multiplyConstNode);
         if (withSubtract)
-            fcNode->fuseDecompressionSubtractPtr(subtractConstNode);
+            fcNode->fuseDecompressionSubtract(subtractConstNode);
 
         fcNode->addOriginalLayer(multiplyNode->getOriginalLayers());
         fcNode->addOriginalLayer(convertNode->getOriginalLayers());
