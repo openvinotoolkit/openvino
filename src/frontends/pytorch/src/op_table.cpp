@@ -19,7 +19,9 @@ namespace op {
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_avg_pool2d);
 OP_CONVERTER(translate_adaptive_avg_pool1d);
+OP_CONVERTER(translate_adaptive_max_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
+OP_CONVERTER(translate_adaptive_max_pool1d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
@@ -235,7 +237,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::adaptive_avg_pool1d", op::quantizable_op<op::translate_adaptive_avg_pool1d>},
         {"aten::adaptive_avg_pool2d", op::quantizable_op<op::translate_adaptive_avg_pool2d>},
         {"aten::adaptive_avg_pool3d", op::quantizable_op<op::translate_adaptive_avg_pool3d>},
+        {"aten::adaptive_max_pool1d", op::quantizable_op<op::translate_adaptive_max_pool1d>},
         {"aten::adaptive_max_pool2d", op::quantizable_op<op::translate_adaptive_max_pool2d>},
+        {"aten::adaptive_max_pool3d", op::quantizable_op<op::translate_adaptive_max_pool3d>},
         {"aten::add", op::translate_add},
         {"aten::add_", op::inplace_op<op::translate_add>},
         {"aten::addcmul", op::translate_addcmul},

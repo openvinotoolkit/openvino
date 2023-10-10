@@ -19,6 +19,7 @@ OutputVector translate_erf(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     auto x = context.get_input(0);
     auto xdtype = x.get_element_type();
+    // in torch, erf return always float dtype, while ov cast to input dtype
     if (xdtype.is_dynamic() || !xdtype.is_real()) {
         x = context.mark_node(std::make_shared<ov::op::v0::Convert>(x, element::f32));
     }
