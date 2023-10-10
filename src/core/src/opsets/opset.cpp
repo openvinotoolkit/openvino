@@ -228,7 +228,9 @@ const std::map<std::string, std::function<const OpSet&()>>& get_available_opsets
                                                                                    _REG_OPSET(opset8),
                                                                                    _REG_OPSET(opset9),
                                                                                    _REG_OPSET(opset10),
-                                                                                   _REG_OPSET(opset11)};
+                                                                                   _REG_OPSET(opset11),
+                                                                                   _REG_OPSET(opset12),
+                                                                                   _REG_OPSET(opset13)};
 #undef _REG_OPSET
     return opset_map;
 }
@@ -285,6 +287,16 @@ const OpSet& get_opset10() {
 
 const OpSet& get_opset11() {
     static OpSet opset(ov::get_opset11());
+    return opset;
+}
+
+const OpSet& get_opset12() {
+    static OpSet opset(ov::get_opset12());
+    return opset;
+}
+
+const OpSet& get_opset13() {
+    static OpSet opset(ov::get_opset13());
     return opset;
 }
 
