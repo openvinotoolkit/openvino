@@ -13,7 +13,7 @@ test_params = [
      'shape_shape': [1], 'shape_value': [8]},
     {'indices_shape': [4, 1], 'indices_value': [4, 3, 1, 7], 'updates_dtype': np.float32, 'updates_shape': [4],
      'shape_shape': [1], 'shape_value': [8]},
-    {'indices_shape': [4, 1], 'indices_value': [4, 3, 1, 7], 'updates_dtype': np.bool, 'updates_shape': [4],
+    {'indices_shape': [4, 1], 'indices_value': [4, 3, 1, 7], 'updates_dtype': bool, 'updates_shape': [4],
      'shape_shape': [1], 'shape_value': [8]},
 
     {'indices_shape': [4, 2], 'indices_value': [[0, 0], [1, 0], [0, 2], [1, 2]], 'updates_dtype': np.int32,
@@ -22,7 +22,7 @@ test_params = [
      'updates_shape': [4, 5], 'shape_shape': [3], 'shape_value': [2, 3, 5]},
     {'indices_shape': [4, 2], 'indices_value': [[0, 0], [1, 0], [0, 2], [1, 2]], 'updates_dtype': np.float32,
      'updates_shape': [4, 5], 'shape_shape': [3], 'shape_value': [2, 3, 5]},
-    {'indices_shape': [4, 2], 'indices_value': [[0, 0], [1, 0], [0, 2], [1, 2]], 'updates_dtype': np.bool,
+    {'indices_shape': [4, 2], 'indices_value': [[0, 0], [1, 0], [0, 2], [1, 2]], 'updates_dtype': bool,
      'updates_shape': [4, 5], 'shape_shape': [3], 'shape_value': [2, 3, 5]},
 ]
 
