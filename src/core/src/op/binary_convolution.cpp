@@ -50,7 +50,7 @@ void ov::op::v1::BinaryConvolution::validate_and_infer_types() {
                           "Data batch element type must be numeric. Got: ",
                           data_batch_et);
 
-    // TODO: Add NodeValidationCheck to filters et once u1 is supported in nGraph Python API
+    // TODO: Add NodeValidationCheck to filters et once u1 is supported in OpenVINO Python API
     // (#52715)
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);

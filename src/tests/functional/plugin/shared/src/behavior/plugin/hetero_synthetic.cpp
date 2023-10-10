@@ -119,11 +119,11 @@ void HeteroSyntheticTest::SetUp() {
         try {
             if (pluginParameter._location == "openvino_template_plugin") {
                 PluginCache::get().ie()->RegisterPlugin(ov::util::make_plugin_library_name(
-                    ov::test::utils::getExecutableDirectory(), pluginParameter._location + IE_BUILD_POSTFIX),
+                    ov::test::utils::getExecutableDirectory(), pluginParameter._location + OV_BUILD_POSTFIX),
                     pluginParameter._name);
             } else {
                 PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
-                    + IE_BUILD_POSTFIX, pluginParameter._name);
+                    + OV_BUILD_POSTFIX, pluginParameter._name);
             }
         } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
