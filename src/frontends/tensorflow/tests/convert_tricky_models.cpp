@@ -786,7 +786,12 @@ TEST_F(FrontEndConversionWithReferenceTestsF, GatherTreeModel) {
         auto parent_ids = make_shared<Parameter>(i32, Shape{20, 2, 30});
         auto max_seq_len = make_shared<Parameter>(i32, Shape{2});
         auto end_token = make_shared<Parameter>(i32, Shape{});
-        auto gather_tree = make_shared<GatherTree>(step_ids, parent_ids, max_seq_len, end_token);
+
+        // adjust end_token that must be a scalar
+        auto new_shape_end_token = make_shared<Constant>(element::i32, Shape{0}, vector<int32_t>{});
+        auto adjusted_end_token = make_shared<Reshape>(end_token, new_shape_end_token, false);
+
+        auto gather_tree = make_shared<GatherTree>(step_ids, parent_ids, max_seq_len, adjusted_end_token);
 
         model_ref = make_shared<Model>(OutputVector{gather_tree},
                                        ParameterVector{step_ids, parent_ids, max_seq_len, end_token});
