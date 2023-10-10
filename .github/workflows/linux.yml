@@ -1131,6 +1131,7 @@ jobs:
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+          sudo chown -R $USER $PIP_CACHE_DIR
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -1191,7 +1192,7 @@ jobs:
 
     steps:
       - name: Tracking resources
-        run: top > while [ 1 ] ; do top -b -n 1 > aks-linux-2-cores.log; sleep 1; done &
+        run: while [ 1 ] ; do top -b -n 1 > aks-linux-2-cores.log; sleep 1; done &
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3

@@ -168,11 +168,11 @@ install(TARGETS ov_onnx_frontend_tests
 if(ENABLE_PYTHON)
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             DESTINATION tests/onnx
+            COMPONENT tests EXCLUDE_FROM_ALL
             FILES_MATCHING
             PATTERN "*.py"
             PATTERN "*.txt"
-            PATTERN "models" EXCLUDE
-            COMPONENT tests)
+            PATTERN "models" EXCLUDE)
 endif()
 
 add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
