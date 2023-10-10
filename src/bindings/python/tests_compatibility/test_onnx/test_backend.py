@@ -3,6 +3,8 @@
 
 import logging
 
+from sys import platform
+
 import onnx.backend.test
 from tests_compatibility import (
     BACKEND_NAME,
@@ -301,10 +303,6 @@ tests_expected_to_fail = [
         xfail_issue_91490,
         "OnnxBackendNodeModelTest.test_tril_zero_cpu",
         "OnnxBackendNodeModelTest.test_triu_zero_cpu",
-    ),
-    (
-        xfail_issue_58676,
-        "OnnxBackendNodeModelTest.test_div_uint8_cpu"
     ),
     (
         skip_dynamic_model,
@@ -813,6 +811,12 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_roialign_mode_max_cpu",
     ),
 ]
+
+if platform == 'darwin':
+    tests_expected_to_fail.append((
+        xfail_issue_58676,
+        "OnnxBackendNodeModelTest.test_div_uint8_cpu"
+    ))
 
 for test_group in tests_expected_to_fail:
     for test_case in test_group[1:]:
