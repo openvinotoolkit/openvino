@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from openvino.runtime import Type
-import openvino.runtime.opset8 as ov
+import openvino.runtime.opset13 as ov
 
 
 @pytest.mark.parametrize(
@@ -183,3 +183,53 @@ def test_power_v1():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [8, 4, 6, 5]
     assert node.get_output_element_type(0) == Type.f32
+
+
+@pytest.mark.parametrize(
+    "graph_api_helper",
+    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor],
+)
+@pytest.mark.parametrize(
+    "dtype",
+    [bool, np.int32],
+)
+@pytest.mark.parametrize(
+    ("shape_a", "shape_b", "broadcast", "shape_out"),
+    [
+        ([2, 2], [2, 2], "NONE", [2, 2]),
+        ([2, 1, 5], [1, 4, 5], "NUMPY", [2, 4, 5]),
+        ([3, 2, 1, 4], [5, 4], "NUMPY", [3, 2, 5, 4]),
+        ([2, 3, 4, 5], [], "PDPD", [2, 3, 4, 5]),
+        ([2, 3, 4, 5], [2, 3, 1, 5], "PDPD", [2, 3, 4, 5]),
+    ],
+)
+def test_binary_bitwise_op(graph_api_helper, dtype, shape_a, shape_b, broadcast, shape_out):
+    parameter_a = ov.parameter(shape_a, name="A", dtype=dtype)
+    parameter_b = ov.parameter(shape_b, name="B", dtype=dtype)
+
+    model = graph_api_helper(parameter_a, parameter_b, broadcast)
+
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == shape_out
+    assert model.get_output_element_type(0) == Type(dtype)
+
+
+@pytest.mark.parametrize(
+    "graph_api_helper",
+    [ov.bitwise_and, ov.bitwise_or, ov.bitwise_xor],
+)
+@pytest.mark.parametrize(
+    "dtype",
+    [bool, np.int32],
+)
+def test_binary_bitwise_op_with_constant(graph_api_helper, dtype):
+    value_b = np.array([[3, 0], [-7, 21]], dtype=dtype)
+
+    shape = [2, 2]
+    parameter_a = ov.parameter(shape, name="A", dtype=dtype)
+
+    model = graph_api_helper(parameter_a, value_b)
+
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == shape
+    assert model.get_output_element_type(0) == Type(dtype)
