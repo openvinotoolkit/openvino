@@ -94,7 +94,6 @@ private:
 
     void create_infer_request();
 
-    void pushInput(const std::string& inputName, ov::SoPtr<ov::ITensor>& inputBlob, InferenceEngine::Precision dataType);
     void init_tensor(const std::string& name);
     void push_input_data();
 
