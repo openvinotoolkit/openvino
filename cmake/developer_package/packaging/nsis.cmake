@@ -83,11 +83,6 @@ macro(ov_archive_cpack_set_dirs)
         set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER})
     endif()
     set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR})
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
 ov_nsis_cpack_set_dirs()
