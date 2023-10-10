@@ -1022,7 +1022,21 @@ ov::OutputVector make_vsplit(const ov::Output<ov::Node>& out,
         ->outputs();
 }
 
-TEST_F(TransformationTestsF, GroupedSliceToVSplit) {
+class GroupedSliceToVSplitF : public TransformationTestsF {
+protected:
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+        for (auto& op : model->get_ordered_ops()) {
+            if (ov::is_type<ov::op::v1::VariadicSplit>(op)) {
+                ASSERT_EQ(3, ov::getFusedNamesVector(op).size());
+                ASSERT_EQ(3, ov::getFusedNamesVector(op->input(1).get_source_output().get_node_shared_ptr()).size());
+                ASSERT_EQ(3, ov::getFusedNamesVector(op->input(2).get_source_output().get_node_shared_ptr()).size());
+            }
+        }
+    }
+};
+
+TEST_F(GroupedSliceToVSplitF, GroupedSliceToVSplit) {
     {
         auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, -1, -1});
         auto relu = std::make_shared<ov::opset8::Relu>(data);

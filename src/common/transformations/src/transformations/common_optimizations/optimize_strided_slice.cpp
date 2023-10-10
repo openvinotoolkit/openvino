@@ -258,7 +258,7 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
             }
             ++i;
         }
-        copy_runtime_info(ops_to_replace, variadic_split);
+        copy_runtime_info(ops_to_replace, {variadic_split, axis_const, size_splits_const});
     }
     return graph_rewritten;
 }
@@ -405,12 +405,14 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
         auto variadic_split = std::make_shared<op::v1::VariadicSplit>(output, axis_const, split_lengths_const);
 
         auto i = 0;
+        NodeVector ops_to_replace;
         for (auto& slice_with_attrs : attributes) {
-            graph_rewritten |=
-                ov::replace_output_update_name(slice_with_attrs.slice->output(0), variadic_split->output(i));
-            ov::copy_runtime_info(slice_with_attrs.slice, variadic_split);
+            graph_rewritten = true;
+            slice_with_attrs.slice->output(0).replace(variadic_split->output(i));
+            ops_to_replace.push_back(slice_with_attrs.slice);
             ++i;
         }
+        ov::copy_runtime_info(ops_to_replace, {variadic_split, axis_const, split_lengths_const});
     }
     return graph_rewritten;
 }
