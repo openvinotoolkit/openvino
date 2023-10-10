@@ -448,3 +448,7 @@ ov_status_e ov_core_get_default_context(const ov_core_t* core, const char* devic
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
+
+void ov_shutdown() {
+    ov::shutdown();
+}

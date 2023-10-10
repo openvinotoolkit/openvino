@@ -23,10 +23,6 @@ namespace {
             {{ "TARGET_FALLBACK" , ov::test::utils::DEVICE_CPU}}
     };
 
-    const std::vector<std::map<std::string, std::string>> multiConfigs = {
-            {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , ov::test::utils::DEVICE_CPU}}
-    };
-
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
@@ -40,21 +36,6 @@ namespace {
                                     ::testing::Values(ov::test::utils::DEVICE_HETERO),
                                     ::testing::ValuesIn(heteroConfigs)),
                              InferRequestPreprocessTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessTest,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(multiConfigs)),
-                             InferRequestPreprocessTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessTest,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(multiConfigs)),
-                             InferRequestPreprocessTest::getTestCaseName);
-
 
     const std::vector<InferenceEngine::Precision> ioPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -125,63 +106,6 @@ namespace {
                                 ::testing::Values(ov::test::utils::DEVICE_HETERO),
                                 ::testing::ValuesIn(heteroConfigs)),
                         InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessConversionTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::ValuesIn(ioPrecisions),
-                                ::testing::ValuesIn(ioPrecisions),
-                                ::testing::ValuesIn(netLayouts),
-                                ::testing::ValuesIn(ioLayouts),
-                                ::testing::ValuesIn(ioLayouts),
-                                ::testing::Bool(),
-                                ::testing::Bool(),
-                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                ::testing::ValuesIn(multiConfigs)),
-                        InferRequestPreprocessConversionTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Bool(),
-                                ::testing::Bool(),
-                                ::testing::ValuesIn(netLayouts),
-                                ::testing::Bool(),
-                                ::testing::Bool(),
-                                ::testing::Values(true), // only SetBlob
-                                ::testing::Values(true), // only SetBlob
-                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                ::testing::ValuesIn(multiConfigs)),
-                        InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessConversionTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::ValuesIn(ioPrecisions),
-                                ::testing::ValuesIn(ioPrecisions),
-                                ::testing::ValuesIn(netLayouts),
-                                ::testing::ValuesIn(ioLayouts),
-                                ::testing::ValuesIn(ioLayouts),
-                                ::testing::Bool(),
-                                ::testing::Bool(),
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(multiConfigs)),
-                        InferRequestPreprocessConversionTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Bool(),
-                                ::testing::Bool(),
-                                ::testing::ValuesIn(netLayouts),
-                                ::testing::Bool(),
-                                ::testing::Bool(),
-                                ::testing::Values(true), // only SetBlob
-                                ::testing::Values(true), // only SetBlob
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(multiConfigs)),
-                        InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
-
 }  // namespace
 
 #endif // ENABLE_GAPI_PREPROCESSING
