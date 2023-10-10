@@ -632,13 +632,17 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::HSigmoid>& no
     return Activation::generate(elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::LSTMSequence>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::LSTMSequence>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     if (port == 2) {
         unsigned int m_max_seq_len = 10;
         return ov::test::utils::create_and_fill_tensor(elemType, targetShape, m_max_seq_len, 0);
+    }
+    if (port == 3 && node->input(0).get_partial_shape().is_static()) {
+        auto seq_len = node->input(0).get_shape()[1];
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, seq_len);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
