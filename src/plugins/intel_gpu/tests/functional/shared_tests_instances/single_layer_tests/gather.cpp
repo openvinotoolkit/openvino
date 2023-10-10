@@ -578,4 +578,32 @@ INSTANTIATE_TEST_SUITE_P(
         Gather8IndiceScalarLayerTest::getTestCaseName
 );
 
+gather7ParamsTuple dummyParams = {
+        std::vector<size_t>{2, 3},
+        std::vector<size_t>{2, 2},
+        std::tuple<int, int>{1, 1},
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::UNSPECIFIED,
+        InferenceEngine::Precision::UNSPECIFIED,
+        InferenceEngine::Layout::ANY,
+        InferenceEngine::Layout::ANY,
+        ov::test::utils::DEVICE_GPU,
+};
+
+std::vector<std::vector<int>> indicesData = {
+        {0, 1, 2, 0},           // positive in bound
+        {-1, -2, -3, -1},       // negative in bound
+        {-1, 0, 1, 2},          // positive and negative in bound
+        {0, 1, 2, 3},           // positive out of bound
+        {-1, -2, -3, -4},       // negative out of bound
+        {0, 4, -4, 0},          // positive and negative out of bound
+};
+
+const auto gatherWithIndicesParams = testing::Combine(
+        testing::Values(dummyParams),
+        testing::ValuesIn(indicesData)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke, Gather8withIndicesDataLayerTest, gatherWithIndicesParams, Gather8withIndicesDataLayerTest::getTestCaseName);
+
 }  // namespace

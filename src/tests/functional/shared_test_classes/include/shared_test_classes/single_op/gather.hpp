@@ -63,5 +63,20 @@ public:
 protected:
     void SetUp() override;
 };
+
+typedef std::tuple<
+    gather7ParamsTuple,
+    std::vector<int64_t> // indices data
+> gather8withIndicesDataParamsTuple;
+
+class Gather8withIndicesDataLayerTest : public testing::WithParamInterface<gather8withIndicesDataParamsTuple>,
+                         virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<gather8withIndicesDataParamsTuple>& obj);
+
+protected:
+    void SetUp() override;
+};
+
 }  // namespace test
 }  // namespace ov
