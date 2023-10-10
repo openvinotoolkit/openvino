@@ -6,6 +6,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -65,6 +67,35 @@ OutputVector translate_pixel_shuffle(const NodeContext& context) {
     auto shape_after =
         context.mark_node(std::make_shared<v0::Concat>(OutputVector{dims_before, neg_1, new_h, new_w}, 0));
     return {context.mark_node(std::make_shared<v1::Reshape>(transpose, shape_after, false))};
+};
+
+OutputVector translate_channel_shuffle(const NodeContext& context) {
+    // aten::channel_shuffle(Tensor self, int groups) -> Tensor
+    num_inputs_check(context, 2, 2);
+    auto x = context.get_input(0);
+    auto groups = context.get_input(1);
+    auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
+    // PyTorch realization uses assumption that channels dim is always 1
+    auto indices = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {0, 1}));
+    auto dims = context.mark_node(std::make_shared<v8::Gather>(shape, indices, zero));
+    auto dims_splitted = context.mark_node(std::make_shared<v1::Split>(dims, zero, 2));
+    auto c = dims_splitted->output(1);
+    auto n = dims_splitted->output(0);
+    groups = context.mark_node(std::make_shared<v0::Convert>(groups, element::i32));
+    auto k = context.mark_node(std::make_shared<v1::Divide>(c, groups, true));
+    auto g = context.mark_node(std::make_shared<v0::Unsqueeze>(groups, zero));
+    // 1. Reshape input [N, G, K=C/G, -1]
+    auto reshape_indices = context.mark_node(std::make_shared<v0::Concat>(OutputVector{n, g, k, neg_1}, 0));
+    x = context.mark_node(std::make_shared<v1::Reshape>(x, reshape_indices, false));
+    // 2. Transpose to [N, K, G, -1]
+    auto permute_indices = context.mark_node(v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
+    auto y = context.mark_node(std::make_shared<v1::Transpose>(x, permute_indices));
+    // 3. Reshape back to original shape
+    auto result = context.mark_node(std::make_shared<v1::Reshape>(y, shape, false));
+    return {result};
 };
 
 }  // namespace op
