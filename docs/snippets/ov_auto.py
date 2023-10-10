@@ -9,8 +9,8 @@ import openvino.properties.device as device
 import openvino.properties.hint as hints
 import openvino.properties.streams as streams
 import properties.enable_profiling as enable_profiling
-import openvino.properties.log as log
 #! [py_ov_property_import_header]
+import openvino.properties.log as log
 
 from openvino.inference_engine import IECore
 from utils import get_model, get_ngraph_model

@@ -169,7 +169,7 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
 
-Following below code to import the OpenVINO property before setting property in your application.
+Follow below code to import the OpenVINO property before setting it in your application.
 
 .. tab-set::
 
