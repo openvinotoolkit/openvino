@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.middle.passes.convert_data_type import packed_U4, packed_I4
@@ -19,8 +18,7 @@ nodes = lambda value, dst_type: {
 }
 
 
-@generator
-class CastTest(unittest.TestCase):
+class TestCastTest():
     """
     Example of checking:
         7 == 0111,           padded to 0111 0000, results in 112
@@ -29,7 +27,7 @@ class CastTest(unittest.TestCase):
         -8 == 1000,          padded to 1000 0000, results in 128
     """
 
-    @generate(*[
+    @pytest.mark.parametrize("value, expected, custom_dtype",[
         ([0], [0], packed_U4),
         ([1], [16], packed_U4),
         ([2], [32], packed_U4),
@@ -110,4 +108,4 @@ class CastTest(unittest.TestCase):
                                                'value': expected}})
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

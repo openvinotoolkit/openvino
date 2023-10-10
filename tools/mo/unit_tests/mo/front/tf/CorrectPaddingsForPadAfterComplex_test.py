@@ -5,7 +5,6 @@
 import unittest
 import numpy as np
 
-from generator import generator, generate
 
 from openvino.tools.mo.front.tf.CorrectPaddingsForPadAfterComplex import CorrectPaddingsForPadAfterComplex
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array

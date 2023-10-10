@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.middle.UpsampleToResample import UpsampleToResample
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
@@ -143,9 +142,8 @@ ref_graph_edges = [
 ]
 
 
-@generator
-class UpsampleToResampleTest(unittest.TestCase):
-    @generate(*[([2, 10, 20, 30], [1, 1, 5, 5], [2, 3]),
+class TestUpsampleToResampleTest():
+    @pytest.mark.parametrize("input_shape, scales, axes",[([2, 10, 20, 30], [1, 1, 5, 5], [2, 3]),
                 ([2, 20, 30, 40], [1, 1, 3, 3], [2, 3]),
                 ([2, 10, 20, 30], [1, 1, 6, 5], [2, 3]),
                 ([2, 20, 30, 40], [1, 1, 3, 4], [2, 3]),
@@ -193,9 +191,9 @@ class UpsampleToResampleTest(unittest.TestCase):
                                 })
         UpsampleToResample().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
-    @generate(*[([2, 10, 20, 30], [1, 2, 5, 5],),
+    @pytest.mark.parametrize("input_shape, scales",[([2, 10, 20, 30], [1, 2, 5, 5],),
                 ([2, 3, 20, 30, 40], [1, 2, 3, 3, 3],),
                 ])
     def test_pattern_does_not_satisfy(self, input_shape, scales):
@@ -214,4 +212,4 @@ class UpsampleToResampleTest(unittest.TestCase):
 
         UpsampleToResample().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-        self.assertTrue(flag, resp)
+        assert flag, resp
