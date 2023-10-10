@@ -105,6 +105,7 @@ enum class Type {
     NonMaxSuppression,
     MatrixNms,
     MulticlassNms,
+    Multinomial,
     Subgraph,
     PriorBox,
     PriorBoxClustered,

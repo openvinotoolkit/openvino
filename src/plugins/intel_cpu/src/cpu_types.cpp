@@ -199,6 +199,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "MatrixNms", Type::MatrixNms},
             { "MulticlassNms", Type::MulticlassNms},
             { "MulticlassNmsIEInternal", Type::MulticlassNms},
+            { "Multinomial", Type::Multinomial},
             { "Reference", Type::Reference},
             { "Subgraph", Type::Subgraph},
             { "PriorBox", Type::PriorBox},
@@ -428,6 +429,7 @@ std::string algToString(const Algorithm alg) {
         CASE(MathSoftPlus);
         CASE(MathSoftsign);
         CASE(MathTan);
+        CASE(Multinomial);
         CASE(TensorIteratorCommon);
         CASE(TensorIteratorLoop);
         CASE(ColorConvertNV12toRGB);
