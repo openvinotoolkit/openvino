@@ -1,14 +1,14 @@
-name: macOS (macOS 12, Python 3.11)
+name: macOS (macOS 13, Python 3.11, x86_64 and ARM64)
 on:
   workflow_dispatch:
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
   push:
     paths-ignore:
       - '**/docs/**'
@@ -34,11 +34,22 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: macos-12-large
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - name: 'macOS x86_64'
+            arhitecture: 'x86_64'
+            machine: 'macos-13-large'
+          - name: 'macOS ARM64 (M1)'
+            arhitecture: 'arm64'
+            machine: 'macos-13-xlarge'
+    runs-on: ${{ matrix.machine }}
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      MACOSX_DEPLOYMENT_TARGET: '10.12'
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.arhitecture == 'x86_64' && '10.12' || '11.0' }}
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: ${{ github.workspace }}/openvino
@@ -98,11 +109,12 @@ jobs:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
-          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          # TODO: Uncomment
+          # save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           verbose: 2
-          key: ${{ runner.os }}-main
+          key: ${{ runner.os }}-${{ matrix.arhitecture }}-main
           restore-keys: |
-            ${{ runner.os }}-main
+            ${{ runner.os }}-${{ matrix.arhitecture }}-main
 
       - name: CMake configure
         run: |
@@ -158,7 +170,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
@@ -166,7 +178,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
@@ -175,7 +187,18 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: macos-12
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - name: 'macOS x86_64'
+            arhitecture: 'x86_64'
+            machine: 'macos-13'
+          - name: 'macOS ARM64 (M1)'
+            arhitecture: 'arm64'
+            machine: 'macos-13-xlarge'
+    runs-on: ${{ matrix.machine }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -189,13 +212,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -248,7 +271,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
-          name: test-results-samples
+          name: test-results-samples-${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
@@ -258,7 +281,18 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: macos-12
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - name: 'macOS x86_64'
+            arhitecture: 'x86_64'
+            machine: 'macos-13'
+          - name: 'macOS ARM64 (M1)'
+            arhitecture: 'arm64'
+            machine: 'macos-13-xlarge'
+    runs-on: ${{ matrix.machine }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -271,13 +305,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -412,7 +446,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-cpp
+          name: test-results-cpp-${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
@@ -422,7 +456,18 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: macos-12
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - name: 'macOS x86_64'
+            arhitecture: 'x86_64'
+            machine: 'macos-13'
+          - name: 'macOS ARM64 (M1)'
+            arhitecture: 'arm64'
+            machine: 'macos-13-xlarge'
+    runs-on: ${{ matrix.machine }}
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
@@ -447,13 +492,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -591,7 +636,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-python
+          name: test-results-python-${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
@@ -602,7 +647,18 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: macos-12
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - name: 'macOS x86_64'
+            arhitecture: 'x86_64'
+            machine: 'macos-13'
+          - name: 'macOS ARM64 (M1)'
+            arhitecture: 'arm64'
+            machine: 'macos-13-xlarge'
+    runs-on: ${{ matrix.machine }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -614,13 +670,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -641,6 +697,6 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-functional-cpu
+          name: test-results-functional-cpu-${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
