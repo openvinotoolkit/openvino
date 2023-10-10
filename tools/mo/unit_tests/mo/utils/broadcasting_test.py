@@ -1,19 +1,17 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, shape_array, strict_compare_tensors
 from openvino.tools.mo.utils.broadcasting import uni_directional_broadcasting, uni_directional_shape_broadcasting, \
     bi_directional_shape_broadcasting
 
 
-@generator
-class TestingBroadcasting(unittest.TestCase):
-    @generate(*[([], [20, 30, 10], [20, 30, 10]),
+class TestingBroadcasting():
+    @pytest.mark.parametrize("input_shape, target_shape, expected_shape",[([], [20, 30, 10], [20, 30, 10]),
                 ([1], [20, 30, 10], [20, 30, 10]),
                 ([1, 1, 10], [20, 30, 10], [20, 30, 10]),
                 ([20, 1, 10], [20, 30, 10], [20, 30, 10]),
@@ -24,18 +22,18 @@ class TestingBroadcasting(unittest.TestCase):
                 ([5, 10], [1, 10], None),
                 ])
     def test_uni_directional_broadcasting(self, input_shape, target_shape, expected_shape):
-        self.assertTrue(np.array_equal(uni_directional_shape_broadcasting(input_shape, target_shape), expected_shape))
+        assert np.array_equal(uni_directional_shape_broadcasting(input_shape, target_shape), expected_shape)
 
         input_value = np.array(np.random.rand(*input_shape))
         if expected_shape is not None:
             expected_value = np.broadcast_to(input_value, int64_array(target_shape))
-            self.assertTrue(np.array_equal(uni_directional_broadcasting(input_value, int64_array(target_shape)),
-                                           expected_value))
+            assert np.array_equal(uni_directional_broadcasting(input_value, int64_array(target_shape)),
+                                           expected_value)
         else:
-            with self.assertRaisesRegex(Exception, '.*cannot be uni-directionally broadcasted.*'):
+            with pytest.raises(Exception,match = '.*cannot be uni-directionally broadcasted.*'):
                 uni_directional_broadcasting(input_value, int64_array(target_shape))
 
-    @generate(*[([], [20, 30, 10], [20, 30, 10]),
+    @pytest.mark.parametrize("input_shape, target_shape, expected_shape",[([], [20, 30, 10], [20, 30, 10]),
                 ([1], [20, 30, 10], [20, 30, 10]),
                 ([1, 1, 10], [20, 30, 10], [20, 30, 10]),
                 ([20, 1, 10], [20, 30, 10], [20, 30, 10]),
@@ -58,11 +56,11 @@ class TestingBroadcasting(unittest.TestCase):
     def test_uni_directional_shape_broadcasting(self, input_shape, target_shape, expected_shape):
         result = uni_directional_shape_broadcasting(input_shape, target_shape)
         if expected_shape is None:
-            self.assertIsNone(result)
+            assert result is None
         else:
-            self.assertTrue(strict_compare_tensors(result, expected_shape))
+            assert strict_compare_tensors(result, expected_shape)
 
-    @generate(*[([], [20, 30, 10], [20, 30, 10]),
+    @pytest.mark.parametrize("input_shape, target_shape, expected_shape",[([], [20, 30, 10], [20, 30, 10]),
                 ([1], [20, 30, 10], [20, 30, 10]),
                 ([1, 1, 10], [20, 30, 10], [20, 30, 10]),
                 ([20, 1, 10], [20, 30, 10], [20, 30, 10]),
@@ -85,6 +83,6 @@ class TestingBroadcasting(unittest.TestCase):
     def test_bi_directional_shape_broadcasting(self, input_shape, target_shape, expected_shape):
         result = bi_directional_shape_broadcasting(input_shape, target_shape)
         if expected_shape is None:
-            self.assertIsNone(result)
+            assert result is None
         else:
-            self.assertTrue(strict_compare_tensors(result, expected_shape))
+            assert strict_compare_tensors(result, expected_shape)

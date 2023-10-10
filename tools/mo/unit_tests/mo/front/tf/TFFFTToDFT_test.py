@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import unittest
-
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.TFFFTToDFT import TFFFTToDFT
@@ -83,9 +81,8 @@ ref_dft_graph_with_signal_size_edges = [
 ]
 
 
-@generator
-class TFFFTToDFTTest(unittest.TestCase):
-    @generate(*[(2, 'DFT', int64_array([-2, -1])),
+class TestTFFFTToDFTTest():
+    @pytest.mark.parametrize("num_of_dimensions, dft_type, fft_axes",[(2, 'DFT', int64_array([-2, -1])),
                 (2, 'IDFT', int64_array([-2, -1])),
                 (1, 'DFT', int64_array([-1])),
                 (1, 'IDFT', int64_array([-1])),
@@ -113,9 +110,9 @@ class TFFFTToDFTTest(unittest.TestCase):
                                     'fft_axes': {'value': fft_axes, 'shape': int64_array(fft_axes.shape)},
                                 })
         (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
-    @generate(*[
+    @pytest.mark.parametrize("num_of_dims, fft_kind, fft_axes, input_shape, signal_size",[
         (2, 'RDFT', int64_array([-2, -1]), int64_array([3, 100, 100]), int64_array([100, -1])),
         (2, 'IRDFT', int64_array([-2, -1]), int64_array([3, 100, 100, 2]), int64_array([100, -1])),
         (2, 'RDFT', int64_array([-2, -1]), int64_array([3, 100, 100]), int64_array([95, 116])),
@@ -159,4 +156,4 @@ class TFFFTToDFTTest(unittest.TestCase):
                                     'fft_axes': {'value': fft_axes, 'shape': int64_array(fft_axes.shape)},
                                 })
         (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

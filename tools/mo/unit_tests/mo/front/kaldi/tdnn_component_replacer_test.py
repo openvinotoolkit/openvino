@@ -1,20 +1,18 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 
 import numpy as np
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.front.kaldi.tdnn_component_replacer import TdnnComponentReplacer
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op, result, connect_front, const
 
 
-@generator
-class TdnnComponentReplacerTest(unittest.TestCase):
+class TestTdnnComponentReplacerTest():
 
-    @generate(*[
+    @pytest.mark.parametrize("weights, biases, time_offsets",[
         ([[1, 1, 1], [4, 4, 4]], [1, 2], [-1, 1],),
         ([[1, 1, 1], [4, 4, 4]], [1, 2], [-1, 1, 2, 10, 1000],),
         ([[1, 1, 1], [4, 4, 4]], [1, 2], [-1, 0]),
@@ -72,4 +70,4 @@ class TdnnComponentReplacerTest(unittest.TestCase):
         TdnnComponentReplacer().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, ref_graph, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

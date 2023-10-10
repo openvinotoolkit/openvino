@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 import openvino.tools.mo.graph.graph
 from openvino.tools.mo.graph.graph import Node
@@ -17,9 +16,8 @@ from unit_tests.utils.graph import connect_data,shaped_parameter, regular_op_wit
 from openvino.tools.mo.ops.op import Op
 
 
-@generator
-class TestFunction(unittest.TestCase):
-    @generate(*[([1, 32, 112, 112], [32, 1, 1, 3], [32, 1, 1, 1, 3], 32),
+class TestFunction():
+    @pytest.mark.parametrize("shape, weights_shape, reshape_shape, group",[([1, 32, 112, 112], [32, 1, 1, 3], [32, 1, 1, 1, 3], 32),
                 ([1, 32, 112, 112], [32, 1, 1, 1, 3], None, 32),
                 ])
     def test_groupconv_to_conv(self, shape, weights_shape, reshape_shape, group):
@@ -75,7 +73,7 @@ class TestFunction(unittest.TestCase):
             assert len(reshape_node.in_nodes()) == 0 and len(reshape_node.out_nodes()) == 0
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_restore_tensor_names(self):
 
@@ -144,7 +142,7 @@ class TestFunction(unittest.TestCase):
 
         # Check that graph wasn't changed after shape infer
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_squeeze_no_axes(self):
         nodes_attributes = {
@@ -172,7 +170,7 @@ class TestFunction(unittest.TestCase):
 
         # Check that graph wasn't changed after shape infer
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_unsqueeze(self):
         nodes_attributes = {
@@ -205,4 +203,4 @@ class TestFunction(unittest.TestCase):
 
         # Check that graph wasn't changed after shape infer
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

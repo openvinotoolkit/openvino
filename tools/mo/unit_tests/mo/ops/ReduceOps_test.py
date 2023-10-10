@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generate, generator
 
 from openvino.tools.mo.ops.ReduceOps import reduce_infer
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors, is_fully_defined
@@ -21,9 +20,8 @@ nodes_attributes = {
 }
 
 
-@generator
-class ReduceLpTest(unittest.TestCase):
-    @generate(*[
+class TestReduceLpTest():
+    @pytest.mark.parametrize("shape, axes, keepdims, p",[
         ([3, 2, 2], [0], True, 1),
         ([3, 2, 2], [0], True, 2),
         ([3, 2, 2], [1], True, 2),
@@ -53,9 +51,9 @@ class ReduceLpTest(unittest.TestCase):
         reduce_node = Node(graph, 'reduce_lp')
         reduce_node.op = reduce_node.type = 'ReduceL' + str(p)
         reduce_infer(reduce_node)
-        self.assertTrue(np.array_equal(reduce_node.out_port(0).data.get_value(), reduced))
+        assert np.array_equal(reduce_node.out_port(0).data.get_value(), reduced)
 
-    @generate(*[
+    @pytest.mark.parametrize("shape, axes, keepdims, p",[
         ([3, 2, 2], [0], True, 1),
         ([3, 2, 2], [2], False, 2),
         ([3, 2, 2], [0, 2], False, 2),
@@ -86,4 +84,4 @@ class ReduceLpTest(unittest.TestCase):
         reduce_node = Node(graph, 'reduce_lp')
         reduce_node.op = reduce_node.type = 'ReduceL' + str(p)
         reduce_infer(reduce_node)
-        self.assertTrue(strict_compare_tensors(reduce_node.out_port(0).data.get_value(), fully_undefined))
+        assert strict_compare_tensors(reduce_node.out_port(0).data.get_value(), fully_undefined)

@@ -3,9 +3,8 @@
 
 import itertools
 import unittest
-
+import pytest
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors, \
     dynamic_dimension_value
@@ -19,8 +18,7 @@ from unit_tests.utils.graph import valued_const_with_data, result, regular_op_wi
 input_shape = np.array([1, 3, 224, 224])
 
 
-@generator
-class TestTransposeOp(unittest.TestCase):
+class TestTransposeOp():
     nodes_attributes = {
         'parameter': {
             'kind': 'op',
@@ -71,7 +69,7 @@ class TestTransposeOp(unittest.TestCase):
         graph.graph['layout'] = 'NCHW'
         return graph
 
-    @generate(*[list(order) for order in list(itertools.permutations(np.arange(4)))])
+    @pytest.mark.parametrize("order",[list(order) for order in list(itertools.permutations(np.arange(4)))])
     def test_transpose_infer_1(self, order):
         graph = self._create_graph_with_transpose(order)
         transpose_node = Node(graph, 'transpose')
@@ -79,7 +77,7 @@ class TestTransposeOp(unittest.TestCase):
         Transpose.infer(transpose_node)
 
         ref = [transpose_node.in_node().shape[i] for i in order]
-        self.assertTrue(np.array_equal(transpose_node.out_node().shape, np.array(ref)))
+        assert np.array_equal(transpose_node.out_node().shape, np.array(ref))
 
     def test_transpose_infer_2(self):
         order = None
@@ -89,22 +87,24 @@ class TestTransposeOp(unittest.TestCase):
         Transpose.infer(transpose_node)
 
         ref = np.array([x for x in reversed(transpose_node.in_node().shape)])
-        self.assertTrue(np.array_equal(transpose_node.out_node().shape, ref),
-                        "Shapes are not the same: {} and {}".format(transpose_node.out_node().shape, ref))
+        assert np.array_equal(transpose_node.out_node().shape, ref),\
+                        "Shapes are not the same: {} and {}".format(transpose_node.out_node().shape, ref)
 
     def test_transpose_infer_neg_1(self):
         order = np.array([0, 1, 2, 3])
         graph = self._create_graph_with_transpose(order)
         transpose_node = Node(graph, 'transpose')
         transpose_node['reverse_order'] = True
-        self.assertRaises(AssertionError, Transpose.infer, transpose_node)
+        with pytest.raises(AssertionError):
+            Transpose.infer(transpose_node)
 
     def test_transpose_infer_neg_2(self):
         order = None
         graph = self._create_graph_with_transpose(order)
         transpose_node = Node(graph, 'transpose')
         transpose_node['reverse_order'] = False
-        self.assertRaises(AssertionError, Transpose.infer, transpose_node)
+        with pytest.raises(AssertionError):
+            Transpose.infer(transpose_node)
 
 
 dyn = dynamic_dimension_value

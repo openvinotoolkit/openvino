@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 
 import numpy as np
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.front.interpolate_reshape import InterpolateWithConcat
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -39,8 +38,7 @@ nodes = {
 }
 
 
-@generator
-class TestInterpolateConcat(unittest.TestCase):
+class TestInterpolateConcat():
     def test_interpolate_concat_reshape_graph_comparison(self):
         graph = build_graph(nodes, [
             *connect('placeholder', '0:interpolate'),
@@ -64,7 +62,7 @@ class TestInterpolateConcat(unittest.TestCase):
             *connect('concat', 'output'),
         ], nodes_with_edges_only=True)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_interpolate_identity_concat_reshape_graph_comparison(self):
         graph = build_graph(nodes, [
@@ -97,7 +95,7 @@ class TestInterpolateConcat(unittest.TestCase):
             *connect('concat', 'output'),
         ], nodes_with_edges_only=True)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_interpolate_concat_negate(self):
         graph = build_graph(nodes, [
@@ -120,9 +118,9 @@ class TestInterpolateConcat(unittest.TestCase):
             *connect('identity_01', 'output_1'),
         ], nodes_with_edges_only=True)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
-    @generate(*[
+    @pytest.mark.parametrize("update_attrs",[
         {'concat': {'axis': None}},
 
         {'concat': {'axis': -1}},
@@ -148,7 +146,7 @@ class TestInterpolateConcat(unittest.TestCase):
         ], update_attributes=update_attrs, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_interpolate_tf_style_concat(self):
         graph = build_graph(nodes, [
@@ -161,4 +159,4 @@ class TestInterpolateConcat(unittest.TestCase):
         graph_ref = graph.copy()
         InterpolateWithConcat().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

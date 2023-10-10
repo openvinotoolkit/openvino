@@ -1,10 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-
-import unittest
-
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.RFFTRealImagToRFFTSplit import RFFTRealImagToRDFTSplit
@@ -85,9 +82,8 @@ ref_graph_edges = [
 ]
 
 
-@generator
-class RFFTRealImagToRFFTSplitTest(unittest.TestCase):
-    @generate(*[1, 2, 3])
+class TestRFFTRealImagToRFFTSplitTest():
+    @pytest.mark.parametrize("num_of_dims",[1, 2, 3])
     def test_replacement(self, num_of_dims):
         graph = build_graph(nodes_attrs=graph_node_attrs,
                             edges=graph_edges,
@@ -102,4 +98,4 @@ class RFFTRealImagToRFFTSplitTest(unittest.TestCase):
                                     'rfft': {'num_of_dimensions': num_of_dims}
                                 })
         (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

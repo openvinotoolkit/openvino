@@ -4,7 +4,7 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.middle.ConvertGroupedStridedSlice import ConvertGroupedStridedSlice
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
@@ -108,8 +108,7 @@ one_strided_slice_case_edges = [
 ]
 
 
-@generator
-class ConvertGroupedStridedSliceTests(unittest.TestCase):
+class TestConvertGroupedStridedSliceTests():
     def test_1(self):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
@@ -172,7 +171,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         ConvertGroupedStridedSlice().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_2(self):
         graph = build_graph(nodes_attributes,
@@ -236,7 +235,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         pattern.find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     # Intersection of split ranges in feature dimension
     def test_3_neg(self):
@@ -307,7 +306,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         pattern.find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     # Split range overflow in feature dimension
     def test_4_neg(self):
@@ -377,7 +376,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         ConvertGroupedStridedSlice().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     # Split(1,H,W,54)--->Fake_data (1,H,W,1)
     #       |`---->Sslice1_out (1,H,W,18)
@@ -447,7 +446,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         ConvertGroupedStridedSlice().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     # Split(1,H,W,54)
     #       |`---->Sslice1_out (1,H,W,(0,18))
@@ -511,7 +510,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         ConvertGroupedStridedSlice().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_7_neg(self):
         graph = build_graph(nodes_attributes,
@@ -567,7 +566,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         pattern.find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     # Split(1,54,W,C)
     #       |`---->Sslice1_out (1,(0,18),W,C)
@@ -628,10 +627,10 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         pattern.find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     # Test for the case when there is only 1 StridedSlice.
-    @generate(*[(np.array([1, 227, 227, 54]),
+    @pytest.mark.parametrize("input_shape, slices, output_shape",[(np.array([1, 227, 227, 54]),
                  np.array([slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(0, 18, 1)]),
                  np.array([1, 227, 227, 18])),
                 (np.array([57, 16, 100, 23]),
@@ -659,7 +658,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         pattern = ConvertGroupedStridedSlice()
         pattern.find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'op_output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     # Test for case when
     # 1) There are 4 StridedSlice operations.
@@ -763,7 +762,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         pattern = ConvertGroupedStridedSlice()
         pattern.find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     # dynamic slice
     def test_11(self):
@@ -804,7 +803,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         pattern.find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     # one unuque StridedSlice
     def test_12(self):
@@ -841,9 +840,9 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         pattern.find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'sslice_1_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
         (flag, resp) = compare_graphs(graph, graph_ref, 'sslice_2_data', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
 
 class AddReshapeAfterStridedSliceTests(unittest.TestCase):

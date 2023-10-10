@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.one_hot import OneHot
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float_array
@@ -32,29 +31,28 @@ edges = [
 ]
 
 
-@generator
-class TestOneHotInfer(unittest.TestCase):
-    @generate(*[
+class TestOneHotInfer():
+    @pytest.mark.parametrize("input_value, exp_value, axis",[
         # 0d input
-        (1, [0, 1, 0, 0]),
+        (1, [0, 1, 0, 0], -1),
         # 1d input
-        ([1, 2], [[0, 1, 0, 0], [0, 0, 1, 0]]),
+        ([1, 2], [[0, 1, 0, 0], [0, 0, 1, 0]], -1),
         # 2D input
         ([[1, 2], [3, 4]], [[[0, 1, 0, 0], [0, 0, 1, 0]],
-                            [[0, 0, 0, 1], [0, 0, 0, 0]]]),
+                            [[0, 0, 0, 1], [0, 0, 0, 0]]], -1),
         # 3d input
         ([[[0, 2], [1, 2]], [[2, 1], [3, 0]]],
          [[[[1, 0, 0, 0], [0, 0, 1, 0]], [[0, 1, 0, 0], [0, 0, 1, 0]]],
-          [[[0, 0, 1, 0], [0, 1, 0, 0]], [[0, 0, 0, 1], [1, 0, 0, 0]]]]),
+          [[[0, 0, 1, 0], [0, 1, 0, 0]], [[0, 0, 0, 1], [1, 0, 0, 0]]]], -1),
         # 1d input with negative indices
-        ([-2, 2], [[0, 0, 1, 0], [0, 0, 1, 0]]),
+        ([-2, 2], [[0, 0, 1, 0], [0, 0, 1, 0]], -1),
         # check if axis is neither 0 nor -1
         ([[1, 2], [3, 4]], [[[0, 0], [1, 0], [0, 1], [0, 0]],
                             [[0, 0], [0, 0], [0, 0], [1, 0]]], 1)
     ])
-    def test_infer(self, input_value, exp_value, axis=-1):
+    def test_infer(self, input_value, exp_value, axis):
         graph = build_graph(generate_nodes(int64_array(input_value), axis), edges)
         onehot_node = Node(graph, 'one_hot')
         OneHot.infer(onehot_node)
         res_value = graph.node['one_hot_d']['value']
-        self.assertTrue(np.array_equal(exp_value, int64_array(res_value)))
+        assert np.array_equal(exp_value, int64_array(res_value))

@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.ONNXResize11 import ONNXResize11Op
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -68,9 +67,8 @@ graph_edges_scales = [
 ]
 
 
-@generator
-class TestONNXResize11Op(unittest.TestCase):
-    @generate(*[([1, 260, 100, 150], [1, 260, 200, 350], [1, 260, 200, 350], [1.0, 1.0, 1.0, 1.0]),
+class TestONNXResize11Op():
+    @pytest.mark.parametrize("input_shape, output_shape, sizes, scales",[([1, 260, 100, 150], [1, 260, 200, 350], [1, 260, 200, 350], [1.0, 1.0, 1.0, 1.0]),
                 ([1, 260, 100, 150], [1, 260, 200, 350], [1, 1, 200, 350], [1.0, 1.0, 1.0, 1.0]),
                 ([5, 14, 300, 40], [5, 14, 140, 280], [1, 1, 140, 280], [1.0, 1.0, 1.0, 1.0]),
                 ([5, 14, 300, 40], [5, 14, 140, 280], [5, 14, 140, 280], [1.0, 1.0, 1.0, 1.0]),
@@ -95,10 +93,11 @@ class TestONNXResize11Op(unittest.TestCase):
 
         msg = "ONNXResize11 infer failed for case: sizes={}, scales={}, expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['onnx_resize11_data']['shape'], int64_array(output_shape)),
-                        msg.format(sizes, scales, output_shape, graph.node['onnx_resize11_data']['shape']))
+        assert np.array_equal(graph.node['onnx_resize11_data']['shape'], int64_array(output_shape)),\
+                        msg.format(sizes, scales, output_shape, graph.node['onnx_resize11_data']['shape'])
 
-    @generate(*[([1, 260, 100, 150], [1, 260, 200, 350], [1.0, 1.0, 2.0, 350 / 150]),
+    @pytest.mark.parametrize("input_shape, output_shape, scales",
+                [([1, 260, 100, 150], [1, 260, 200, 350], [1.0, 1.0, 2.0, 350 / 150]),
                 ([1, 3, 100, 200], [1, 3, 350, 150], [1.0, 1.0, 3.5, 150 / 200]),
                 ([5, 14, 300, 40], [5, 14, 140, 280], [1.0, 1.0, 140 / 300, 7.0]),
                 ([5, 14, 300, 40], [5, 14, 140, 560], [1.0, 1.0, 140 / 300, 14.0]),
@@ -121,10 +120,11 @@ class TestONNXResize11Op(unittest.TestCase):
 
         msg = "ONNXResize11 infer failed for case: scales={}, expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['onnx_resize11_data']['shape'], int64_array(output_shape)),
-                        msg.format(scales, output_shape, graph.node['onnx_resize11_data']['shape']))
+        assert np.array_equal(graph.node['onnx_resize11_data']['shape'], int64_array(output_shape)),\
+                        msg.format(scales, output_shape, graph.node['onnx_resize11_data']['shape'])
 
-    @generate(*[([1, 260, 100, 150], [1, 260, 200, 350], [1, 260, 200, 350], [1.0, 1.0, 1.0, 1.0]),
+    @pytest.mark.parametrize("input_shape, output_shape, sizes, scales",
+                [([1, 260, 100, 150], [1, 260, 200, 350], [1, 260, 200, 350], [1.0, 1.0, 1.0, 1.0]),
                 ([1, 260, 100, 150], [1, 260, 200, 350], [1, 1, 200, 350], [1.0, 1.0, 1.0, 1.0]),
                 ([5, 14, 300, 40], [5, 14, 140, 280], [1, 1, 140, 280], [1.0, 1.0, 1.0, 1.0]),
                 ([5, 14, 300, 40], [5, 14, 140, 280], [5, 14, 140, 280], [1.0, 1.0, 1.0, 1.0]),
@@ -155,10 +155,11 @@ class TestONNXResize11Op(unittest.TestCase):
 
         msg = "ONNXResize11 infer failed for case: sizes={}, scales={}, expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['onnx_resize11_data']['shape'], int64_array(output_shape)),
-                        msg.format(sizes, scales, output_shape, graph.node['onnx_resize11_data']['shape']))
+        assert np.array_equal(graph.node['onnx_resize11_data']['shape'], int64_array(output_shape)),\
+                        msg.format(sizes, scales, output_shape, graph.node['onnx_resize11_data']['shape'])
 
-    @generate(*[([1, 260, 100, 150], [1, 260, 200, 350], [1.0, 1.0, 2.0, 350 / 150]),
+    @pytest.mark.parametrize("input_shape, output_shape, scales",
+                [([1, 260, 100, 150], [1, 260, 200, 350], [1.0, 1.0, 2.0, 350 / 150]),
                 ([1, 3, 100, 200], [1, 3, 350, 150], [1.0, 1.0, 3.5, 150 / 200]),
                 ([5, 14, 300, 40], [5, 14, 140, 280], [1.0, 1.0, 140 / 300, 7.0]),
                 ([5, 14, 300, 40], [5, 14, 140, 560], [1.0, 1.0, 140 / 300, 14.0]),
@@ -187,5 +188,5 @@ class TestONNXResize11Op(unittest.TestCase):
 
         msg = "ONNXResize11 infer failed for case: scales={}, expected_shape={}, actual_shape={}"
 
-        self.assertTrue(np.array_equal(graph.node['onnx_resize11_data']['shape'], int64_array(output_shape)),
-                        msg.format(scales, output_shape, graph.node['onnx_resize11_data']['shape']))
+        assert np.array_equal(graph.node['onnx_resize11_data']['shape'], int64_array(output_shape)),\
+                        msg.format(scales, output_shape, graph.node['onnx_resize11_data']['shape'])

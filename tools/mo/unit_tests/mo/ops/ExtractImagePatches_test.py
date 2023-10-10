@@ -1,10 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.ExtractImagePatches import ExtractImagePatches
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -26,9 +24,8 @@ edges = [
     ('EIP_data', 'output'),
 ]
 
-@generator
-class TestExtractImagePatchesPartialInfer(unittest.TestCase):
-    @generate(*[
+class TestExtractImagePatchesPartialInfer():
+    @pytest.mark.parametrize("input_shape, sizes, strides, rates, auto_pad, layout, output_shape",[
         ([1, 10, 10, 3], [1, 3, 3, 1], [1, 5, 5, 1], [1, 1, 1, 1], 'valid', 'NHWC', [1, 2, 2, 27]),
         ([1, 10, 10, 3], [1, 3, 3, 1], [1, 5, 5, 1], [1, 2, 2, 1], 'valid', 'NHWC', [1, 2, 2, 27]),
         ([1, 10, 10, 3], [1, 4, 4, 1], [1, 8, 8, 1], [1, 1, 1, 1], 'valid', 'NHWC', [1, 1, 1, 48]),
@@ -65,4 +62,4 @@ class TestExtractImagePatchesPartialInfer(unittest.TestCase):
         eip_node = Node(graph, 'EIP')
         ExtractImagePatches.infer(eip_node)
 
-        self.assertTrue(np.array_equal(eip_node.out_port(0).data.get_shape(), output_shape))
+        assert np.array_equal(eip_node.out_port(0).data.get_shape(), output_shape)
