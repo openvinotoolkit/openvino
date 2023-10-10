@@ -259,6 +259,7 @@ private:
 };
 
 TEST_P(DeconvolutionLayerCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     if (!fusedOps.empty()) {
         bool isSupportedParams = stride[stride.size() - 1] <= kernel[kernel.size() - 1];
         if (stride.size() > 1)
@@ -746,7 +747,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_FP16, DeconvolutionLayerCPUTest
         ::testing::ValuesIn(Blocked_3D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_2D_nspc_brgconv_amx})),
+        ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_3D_nspc_brgconv_amx})),
         ::testing::Values(cpuFP16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -757,7 +758,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_FP16_AMX_NO_FUSING, DeconvolutionL
         ::testing::ValuesIn(Blocked_3D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn({emptyFusingSpec}),
-        ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_2D_nspc_brgconv_amx})),
+        ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_3D_nspc_brgconv_amx})),
         ::testing::Values(cpuFP16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 

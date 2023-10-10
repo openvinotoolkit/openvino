@@ -176,6 +176,7 @@ protected:
 
 TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     // due to disabled BF16 fakequant fusing: src/plugins/intel_cpu/src/graph_optimizer.cpp#L755, skip this case
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     if (inType == ElementType::bf16) {
         if (cpuNodeType == "FullyConnected") {
             if (priority[0].find("amx") != std::string::npos || priority[0] == "brgemm_avx512") {
@@ -981,12 +982,12 @@ const auto fullyConnectedParams2D_FP16_Brgemm_Amx_smoke = ::testing::Combine(::t
                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
-const auto testParams2D_FP16_Brgemm_Amx_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_Amx_smoke,
+const auto testParams2D_FP16_Brgemm_Amx_smoke = ::testing::Combine(fullyConnectedParams2D_FP16_Brgemm_Amx_smoke,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
                                              ::testing::ValuesIn(filterSpecificParams_FP16_BrgemmAmx()));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_Brgemm_Amx, MatMulLayerCPUTest, testParams2D_Brgemm_Amx_smoke, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_Brgemm_Amx, MatMulLayerCPUTest, testParams2D_FP16_Brgemm_Amx_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 
 

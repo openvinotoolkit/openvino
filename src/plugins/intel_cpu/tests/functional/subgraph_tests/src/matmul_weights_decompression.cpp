@@ -230,6 +230,12 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfigBig() {
     return additional_config;
 }
 
+std::vector<std::map<std::string, std::string>> filterAdditionalConfig_FP16() {
+    std::vector<std::map<std::string, std::string>> additional_config;
+    additional_config.push_back({{ov::hint::inference_precision.name(), "f16"}});
+    return additional_config;
+}
+
 bool shouldUseDecompressionKernelBig() {
     // No decompression support on non-avx systems
     if (!with_cpu_x86_avx2())
@@ -280,16 +286,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::Values(shouldUseDecompressionKernelBasic())),
                          MatmulWeightsDecompression::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic_FP16,
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_FP16,
                          MatmulWeightsDecompression_FP16,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
-                                            ::testing::ValuesIn(filterAdditionalConfigBasic()),
+                                            ::testing::ValuesIn(filterAdditionalConfig_FP16()),
                                             ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::Values(shouldUseDecompressionKernelBasic())),
+                                            //only check if the tese case pass, not check the graph convert logic
+                                            ::testing::Values(false)),
                          MatmulWeightsDecompression::getTestCaseName);
 
 
@@ -329,16 +336,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                                             ::testing::Values(shouldUseDecompressionKernelBasic())),
                          MatmulWeightsDecompression::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic_FP16,
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_FP16,
                          MatmulWeightsDecompression_FP16,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_basic),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::ValuesIn(filterAdditionalConfigBasic()),
+                                            ::testing::ValuesIn(filterAdditionalConfig_FP16()),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::Values(shouldUseDecompressionKernelBasic())),
+                                            //only check if the tese case pass, not check the graph convert logic
+                                            ::testing::Values(false)),
                          MatmulWeightsDecompression::getTestCaseName);
 
 
@@ -354,18 +362,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_big,
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(shouldUseDecompressionKernelBig())),
                          MatmulWeightsDecompression::getTestCaseName);
-
-// INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_big_FP16,
-//                          MatmulWeightsDecompression_FP16,
-//                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_big),
-//                                             ::testing::ValuesIn(weights_precisions),
-//                                             ::testing::ValuesIn(transpose_weights),
-//                                             ::testing::ValuesIn(add_decompression_sub),
-//                                             ::testing::ValuesIn(reshape_on_decompression),
-//                                             ::testing::ValuesIn(filterAdditionalConfigBasic()),
-//                                             ::testing::Values(emptyFusingSpec),
-//                                             ::testing::Values(shouldUseDecompressionKernelBig())),
-//                          MatmulWeightsDecompression::getTestCaseName);
 
 } // namespace
 

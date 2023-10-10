@@ -58,7 +58,6 @@ protected:
             pooling = builder::makePooling(conv, strides, padBegin, padEnd, kernelSize, roundingType, paddingType, false, poolType);
         }
 
-        selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
 
         function = makeNgraphFunction(element::f32, inputParams, pooling, "ConvPoolActiv");
     }
@@ -74,6 +73,7 @@ protected:
 };
 
 TEST_P(ConvPoolActivTest, CompareWithRefs) {
+    selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
     Run();
     CheckPluginRelatedResults(executableNetwork, "Convolution");
 }
@@ -84,13 +84,18 @@ class ConvPoolActivTest_FP16 : public ConvPoolActivTest {
         if (isaType == "")
             return primType == "ref";
         else
-            return primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, element::f16);
+            return primType == selectedType;
     }
 };
 
 TEST_P(ConvPoolActivTest_FP16, CompareWithRefs_FP16) {
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
+        selectedType = makeSelectedTypeStr("brgconv_avx512_amx", element::f16);
+    } else {
+        selectedType = makeSelectedTypeStr("brgconv_avx512", element::f16);
     }
     configuration.insert({ov::hint::inference_precision.name(), "f16"});
     Run();

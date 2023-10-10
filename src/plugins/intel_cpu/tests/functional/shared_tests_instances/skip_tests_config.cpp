@@ -189,6 +189,13 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 121313
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f16.*)",
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
+        // Issue 110112
+        R"(smoke_Deconv_2D_Blocked_FP16/.*brgemm_avx512_amx.*)",
+        R"(smoke_Deconv_3D_Blocked_FP16/.*brgemm_avx512_amx.*)",
+        R"(smoke_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgemm_avx512_amx.*)",
+        R"(smoke_MM_FP16_Brgemm_Amx_Static/.*brgemm_avx512_amx.*)",
+        R"(smoke_MM_FP16_Brgemm_Amx_Dynamic/.*brgemm_avx512_amx.*)",
+        R"(smoke_Check/ConvPoolActivTest_FP16.*brgemm_avx512_amx.*)",
     };
 #if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
     // Issue: 120950

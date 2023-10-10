@@ -198,9 +198,14 @@ protected:
 
         ElementType netType = ElementType::f32;
         ElementType convertOutType = ElementType::f32;
-        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+        if (additionalConfig.find(PluginConfigParams::KEY_ENFORCE_BF16) != additionalConfig.end()
+                && additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
+        } else if (additionalConfig.find(ov::hint::inference_precision.name()) != additionalConfig.end()
+                && additionalConfig[ov::hint::inference_precision.name()] == "f16") {
+            convertOutType = inType = outType = netType = ElementType::f16;
+            weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::f16;
         } else {
             inType = outType = netType;
         }
@@ -211,7 +216,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputB = builder::makeConstant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
-        if (weiConstElemType == ElementType::f16) {
+        if (weiConstElemType == ElementType::f16 && weiConstElemType != convertOutType) {
             inputB = std::make_shared<opset1::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
         }
@@ -240,6 +245,17 @@ TEST_P(MatMulDecompressConvertTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     CheckExecutionGraph();
+}
+
+using MatMulDecompressConvertTest_FP16 = MatMulDecompressConvertTest;
+TEST_P(MatMulDecompressConvertTest_FP16, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    run();
+    // only check this test case can run successfully in FP16 precision
+    CheckPluginRelatedResults(compiledModel, "FullyConnected");
 }
 
 namespace {
@@ -287,6 +303,12 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig_BF16() {
     return additionalConfig;
 }
 
+std::vector<std::map<std::string, std::string>> filterAdditionalConfig_FP16() {
+    std::vector<std::map<std::string, std::string>> additionalConfig;
+    additionalConfig.push_back({{ov::hint::inference_precision.name(), "f16"}});
+    return additionalConfig;
+}
+
 std::vector<CPUSpecificParams> filterSpecificParams(bool trySetMlas) {
     std::vector<CPUSpecificParams> specificParams;
     if (trySetMlas) {
@@ -319,8 +341,6 @@ std::vector<CPUSpecificParams> filterSpecificParams_FP16() {
     return filterCPUInfoForDeviceWithFP16(specificParams);
 }
 
-
-
 const auto testParams2D_FP32_smoke = ::testing::Combine(
     ::testing::ValuesIn(inputShapes2D),
     ::testing::ValuesIn(transposeParams),
@@ -337,7 +357,7 @@ const auto testParams2D_FP16_smoke = ::testing::Combine(
     ::testing::ValuesIn(transposeParams),
     ::testing::Values(ElementType::f16),
     ::testing::Values(emptyConfig),
-    ::testing::ValuesIn(filterSpecificParams_FP16()));
+    ::testing::ValuesIn(filterSpecificParams(false)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16, MatMulDecompressConvertTest, testParams2D_FP16_smoke,
                         MatMulDecompressConvertTest::getTestCaseName);
@@ -351,6 +371,16 @@ const auto testParams2D_BF16_smoke = ::testing::Combine(
     ::testing::ValuesIn(filterSpecificParams_BF16()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_BF16, MatMulDecompressConvertTest, testParams2D_BF16_smoke,
+                        MatMulDecompressConvertTest::getTestCaseName);
+
+const auto testParams2D_runtime_FP16_smoke = ::testing::Combine(
+    ::testing::ValuesIn(inputShapes2D),
+    ::testing::ValuesIn(transposeParams),
+    ::testing::Values(ElementType::f32, ElementType::f16),
+    ::testing::ValuesIn(filterAdditionalConfig_FP16()),
+    ::testing::ValuesIn(filterSpecificParams_FP16()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_runtime_FP16, MatMulDecompressConvertTest_FP16, testParams2D_runtime_FP16_smoke,
                         MatMulDecompressConvertTest::getTestCaseName);
 
 
@@ -370,7 +400,7 @@ const auto testParams3D_FP16_smoke = ::testing::Combine(
     ::testing::ValuesIn(transposeParams),
     ::testing::Values(ElementType::f16),
     ::testing::Values(emptyConfig),
-    ::testing::ValuesIn(filterSpecificParams_FP16()));
+    ::testing::ValuesIn(filterSpecificParams(false)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP16, MatMulDecompressConvertTest, testParams3D_FP16_smoke,
                         MatMulDecompressConvertTest::getTestCaseName);
@@ -385,6 +415,17 @@ const auto testParams3D_BF16_smoke = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testParams3D_BF16_smoke,
                         MatMulDecompressConvertTest::getTestCaseName);
+
+const auto testParams3D_runtime_FP16_smoke = ::testing::Combine(
+    ::testing::ValuesIn(inputShapes3D),
+    ::testing::ValuesIn(transposeParams),
+    ::testing::Values(ElementType::f32, ElementType::f16),
+    ::testing::ValuesIn(filterAdditionalConfig_FP16()),
+    ::testing::ValuesIn(filterSpecificParams_FP16()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_runtime_FP16, MatMulDecompressConvertTest_FP16, testParams3D_runtime_FP16_smoke,
+                        MatMulDecompressConvertTest::getTestCaseName);
+
 
 } // namespace
 
@@ -488,12 +529,18 @@ protected:
 
         ElementType netType = ElementType::f32;
         ElementType convertOutType = ElementType::f32;
-        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+        if (additionalConfig.find(PluginConfigParams::KEY_ENFORCE_BF16) != additionalConfig.end()
+                && additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
+        } else if (additionalConfig.find(ov::hint::inference_precision.name()) != additionalConfig.end()
+                && additionalConfig[ov::hint::inference_precision.name()] == "f16") {
+            convertOutType = inType = outType = netType = ElementType::f16;
+            weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::f16;
         } else {
             inType = outType = netType;
         }
+
 
         std::string cpuNodeType = "FullyConnected";
         selectedType = makeSelectedTypeStr(selectedType, outType);
@@ -504,7 +551,7 @@ protected:
         }
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputWeights = builder::makeConstant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
-        if (weiConstElemType == ElementType::f16) {
+        if (weiConstElemType == ElementType::f16 && weiConstElemType != convertOutType) {
             inputWeights = std::make_shared<opset1::Convert>(inputWeights, convertOutType);
             mark_as_decompression(inputWeights);
         }

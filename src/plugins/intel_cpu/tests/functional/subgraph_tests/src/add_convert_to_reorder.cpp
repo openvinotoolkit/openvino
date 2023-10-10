@@ -73,6 +73,7 @@ TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU) {
 }
 
 TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU_FP16) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
