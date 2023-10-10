@@ -8,7 +8,7 @@ from typing import Optional
 
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op
+from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.types import (
     NodeInput,
     as_nodes,
@@ -40,6 +40,25 @@ def bitwise_and(
         "BitwiseAnd",
         [left_node, right_node],
         {"auto_broadcast": auto_broadcast.upper()},
+    )
+
+
+@unary_op
+def bitwise_not(
+    node: NodeInput,
+    name: Optional[str] = None,
+) -> Node:
+    """Return node which performs bitwise NOT operation on input node element-wise.
+
+    For boolean input tensors, operator is equivalent to logical_not.
+
+    :param node: Tensor of integer or boolean datatype providing data.
+    :param name: The optional new name for output node.
+    :return: The node performing bitwise NOT operation on the given tensor.
+    """
+    return _get_node_factory_opset13().create(
+        "BitwiseNot",
+        [node],
     )
 
 

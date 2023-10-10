@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 import openvino.runtime as ov_runtime
-import openvino.runtime.opset10 as ov
+import openvino.runtime.opset13 as ov
 from openvino.runtime import Shape, Type
 
 R_TOLERANCE = 1e-6  # global relative tolerance
@@ -203,3 +203,21 @@ def test_gelu_tanh_operator_with_array():
     assert model.get_type_name() == "Gelu"
     assert model.get_output_element_type(0) == ov_runtime.Type.f32
     assert list(model.get_output_shape(0)) == [2, 2]
+
+
+@pytest.mark.parametrize(
+    ("input_data", "dtype"),
+    [
+        (np.array([True, False, True, False]), ov_runtime.Type.boolean),
+        (np.array([True]), ov_runtime.Type.boolean),
+        (np.array([False]), ov_runtime.Type.boolean),
+        (np.array([0, 3, 7, 256], dtype=np.uint16), ov_runtime.Type.u16),
+        (np.array([[-7, 0], [256, 1]], dtype=np.int32), ov_runtime.Type.i32),
+    ],
+)
+def test_bitwise_not(input_data, dtype):
+    node = ov.bitwise_not(input_data)
+    assert node.get_output_size() == 1
+    assert node.get_type_name() == "BitwiseNot"
+    assert node.get_output_element_type(0) == dtype
+    assert list(node.get_output_shape(0)) == list(input_data.shape)
