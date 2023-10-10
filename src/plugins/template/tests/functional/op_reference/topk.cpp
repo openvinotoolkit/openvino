@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/topk.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/topk.hpp"
 
 using namespace reference_tests;
 using namespace ov;
