@@ -32,7 +32,7 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model) {
 
 std::vector<std::vector<RepeatPatternExtractor::PatternBorders>>
 RepeatPatternExtractor::get_repeat_pattern_borders(const std::shared_ptr<ov::Model> &model) {
-    std::vector<std::vector<std::pair<RepeatPatternExtractor::InputVector, RepeatPatternExtractor::OutputVector>>> extracted_patterns;
+    std::vector<std::vector<RepeatPatternExtractor::PatternBorders>> extracted_patterns;
     for (auto& pattern : find_repeat_patterns(model, true)) {
         std::vector<RepeatPatternExtractor::PatternBorders> same_pattern_borders;
         for (const auto& pattern_structure : pattern) {

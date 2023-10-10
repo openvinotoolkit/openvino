@@ -18,7 +18,7 @@ iMatcherConfig::Ptr MatchersManager::get_config(const std::shared_ptr<ov::Node> 
 }
 
 void MatchersManager::set_shape_strict_match(bool shape_strict_match) {
-    for (auto& matcher : m_matchers) {
+    for (const auto& matcher : m_matchers) {
         matcher.second->set_strict_shape_match(shape_strict_match);
     }
 }

@@ -4,6 +4,7 @@
 
 #include "openvino/op/util/op_types.hpp"
 #include "utils/model.hpp"
+#include "utils/model_comparator.hpp"
 #include "matchers/subgraph/subgraph.hpp"
 #include "test_models/model_0.hpp"
 #include "test_models/model_1.hpp"
@@ -16,11 +17,11 @@ using namespace ov::tools::subgraph_dumper;
 
 using ModelUtilsTest = SubgraphsDumperBaseTest;
 
-std::set<std::shared_ptr<ov::Node>>
+ov::NodeVector
 get_functional_ops(const std::shared_ptr<ov::Model>& model) {
-    std::set<std::shared_ptr<ov::Node>> nodes;
+    std::vector<std::shared_ptr<ov::Node>> nodes;
     for (const auto& op : model->get_ordered_ops()) {
-        nodes.insert(op);
+        nodes.push_back(op);
     }
     return nodes;
 }
@@ -31,12 +32,11 @@ TEST_F(ModelUtilsTest, generate_0) {
     {
         std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = generate_model(func_ops, checked_ops, "test_extractor");
+        auto model_with_in_info = generate_model(func_ops, checked_ops);
         recovered_model = std::get<0>(model_with_in_info);
     }
     {
-        SubgraphExtractor extractor;
-        ASSERT_TRUE(extractor.match(test_model, recovered_model));
+        ASSERT_TRUE(ModelComparator::get()->match(test_model, recovered_model));
     }
 }
 
@@ -46,12 +46,11 @@ TEST_F(ModelUtilsTest, generate_1) {
     {
         std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = generate_model(func_ops, checked_ops, "test_extractor");
+        auto model_with_in_info = generate_model(func_ops, checked_ops);
         recovered_model = std::get<0>(model_with_in_info);
     }
     {
-        SubgraphExtractor extractor;
-        ASSERT_TRUE(extractor.match(test_model, recovered_model));
+        ASSERT_TRUE(ModelComparator::get()->match(test_model, recovered_model));
     }
 }
 
@@ -61,13 +60,12 @@ TEST_F(ModelUtilsTest, generate_2) {
     {
         std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = generate_model(func_ops, checked_ops, "extract_model");
+        auto model_with_in_info = generate_model(func_ops, checked_ops);
         recovered_model = std::get<0>(model_with_in_info);
         auto in_info = std::get<1>(model_with_in_info);
     }
     {
-        SubgraphExtractor extractor;
-        ASSERT_TRUE(extractor.match(test_model, recovered_model));
+        ASSERT_TRUE(ModelComparator::get()->match(test_model, recovered_model));
     }
 }
 

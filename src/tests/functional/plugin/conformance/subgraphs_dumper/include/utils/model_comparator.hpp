@@ -26,7 +26,7 @@ public:
         if (m_instance == nullptr) {
             m_instance = std::shared_ptr<ModelComparator>(new ModelComparator);
         }
-        return std::shared_ptr<ModelComparator>(m_instance);
+        return m_instance;
     }
 
     std::map<std::string, InputInfo>
@@ -57,7 +57,7 @@ public:
     void set_match_coefficient(float _match_coefficient);
     void set_shape_strict_match(bool is_shape_strict_match);
 
-private:
+protected:
     FunctionsComparator m_comparator = FunctionsComparator::no_default()
         .enable(FunctionsComparator::ATTRIBUTES)
         .enable(FunctionsComparator::NODES)
