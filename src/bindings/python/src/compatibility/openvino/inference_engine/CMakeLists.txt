@@ -84,6 +84,10 @@ add_custom_command(TARGET ${TARGET_NAME}
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
 )
 
+foreach(target IN LISTS INSTALLED_TARGETS)
+    ov_set_apple_rpath(${target} ${OV_CPACK_PYTHONDIR}/openvino/inference_engine ${OV_CPACK_RUNTIMEDIR})
+endforeach()
+
 # install
 
 install(TARGETS ${INSTALLED_TARGETS}

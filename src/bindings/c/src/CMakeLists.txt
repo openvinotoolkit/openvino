@@ -32,6 +32,10 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 ov_add_vs_version_file(NAME ${TARGET_NAME}
     FILEDESCRIPTION "OpenVINO C API Core Runtime library")
 
+ov_set_apple_rpath(${TARGET_NAME}
+                   # openvino_c installed in the same directory as openvino
+                   ${OV_CPACK_RUNTIMEDIR} ${OV_CPACK_RUNTIMEDIR})
+
 # export
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c)
