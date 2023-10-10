@@ -8,6 +8,8 @@
 
 #include "openvino/runtime/properties.hpp"
 
+#include <locale.h>
+
 namespace ov {
 namespace test {
 namespace behavior {
@@ -362,19 +364,15 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
         ASSERT_FALSE(property.empty());
 }
 
-TEST_P(OVCompiledModelBaseTest, CanLoadNetworkWithCustomLocale) {
+TEST_P(OVClassCompiledModelPropertiesTests, CanLoadNetworkWithCustomLocale) {
     auto prev = std::locale().name();
-    setlocale(LC_ALL, localeName.c_str());
-    setlocale(LC_NUMERIC, localeName.c_str());
-    setlocale(LC_TIME, localeName.c_str());
+    setlocale(LC_ALL, "en_GB.UTF-8");
 
     ov::Core ie = createCoreWithTemplate();
 
     ASSERT_NO_THROW(auto compiled_model = ie.compile_model(simpleNetwork, target_device););
 
     setlocale(LC_ALL, prev.c_str());
-    setlocale(LC_NUMERIC, prev.c_str());
-    setlocale(LC_TIME, prev.c_str());
 }
 
 }  // namespace behavior
