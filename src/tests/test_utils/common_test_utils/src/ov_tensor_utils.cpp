@@ -245,10 +245,6 @@ void compare(const ov::Tensor& expected,
              const double rel_threshold_ = std::numeric_limits<double>::max()) {
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
-
-    if (expected_shape.size() == 0) {
-        return;
-    }
     if (expected_shape != actual_shape) {
         std::ostringstream out_stream;
         out_stream << "Expected and actual shape are different: " << expected_shape << " " << actual_shape;
