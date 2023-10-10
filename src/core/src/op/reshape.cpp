@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "openvino/op/reshape.hpp"
 
 #include <algorithm>
 
@@ -11,28 +11,14 @@
 #include "ngraph/util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/reshape.hpp"
 #include "reshape_shape_inference.hpp"
 
 namespace ov {
 namespace op {
-namespace reshape {
-namespace {
-bool evaluate(const Tensor& arg0, const Tensor& out, const AxisVector& order) {
-    ngraph::runtime::opt_kernel::reshape(static_cast<const char*>(arg0.data()),
-                                         static_cast<char*>(out.data()),
-                                         arg0.get_shape(),
-                                         order,
-                                         out.get_shape(),
-                                         arg0.get_element_type().size());
-    return true;
-}
-}  // namespace
-}  // namespace reshape
-
 namespace v1 {
+
 Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_pattern, bool zero_flag)
     : Op({arg, shape_pattern}),
       m_special_zero(zero_flag) {
@@ -73,10 +59,15 @@ bool Reshape::evaluate_reshape(TensorVector& outputs, const TensorVector& inputs
         input_shapes.push_back(in.get_shape());
     }
 
-    auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs));
-    outputs[0].set_shape(output_shapes[0].to_shape());
+    const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
+    if (outputs.empty()) {
+        outputs.emplace_back(inputs[0].get_element_type(), output_shape);
+    } else {
+        OPENVINO_ASSERT(outputs.size() == 1);
+        outputs[0].set_shape(output_shape);
+    }
 
-    ov::reference::reshape(static_cast<char*>(inputs[0].data()),
+    ov::reference::reshape(static_cast<const char*>(inputs[0].data()),
                            static_cast<char*>(outputs[0].data()),
                            inputs[0].get_shape(),
                            inputs[0].get_element_type().size());
@@ -85,11 +76,6 @@ bool Reshape::evaluate_reshape(TensorVector& outputs, const TensorVector& inputs
 
 bool Reshape::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Reshape_evaluate);
-    OPENVINO_ASSERT(inputs.size() == 2);
-    if (outputs.empty())
-        outputs.emplace_back(inputs[0].get_element_type(), Shape{0});
-    else
-        OPENVINO_ASSERT(outputs.size() == 1);
     return evaluate_reshape(outputs, inputs);
 }
 
