@@ -39,7 +39,7 @@ class TestAdaptiveAvgPool3D(PytorchLayerTest):
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)
 
 
-@pytest.mark.parametrize('input_tensor', [np.random.randn(2, 8, 9, 10).astype(np.float32)])
+@pytest.mark.parametrize('input_tensor', [np.random.randn(2, 8, 9, 10).astype(np.float32), np.random.randn(8, 9, 10).astype(np.float32)])
 @pytest.mark.parametrize('output_size', ([7, 9], 7))
 class TestAdaptiveAvgPool2D(PytorchLayerTest):
 
@@ -69,7 +69,7 @@ class TestAdaptiveAvgPool2D(PytorchLayerTest):
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)
 
 
-@pytest.mark.parametrize('input_tensor', [np.random.randn(8, 9, 10).astype(np.float32)] )
+@pytest.mark.parametrize('input_tensor', [np.random.randn(8, 9, 10).astype(np.float32), np.random.randn(9, 10).astype(np.float32)] )
 @pytest.mark.parametrize('output_size', ( 7, ))
 class TestAdaptiveAvgPool1D(PytorchLayerTest):
 

@@ -5,6 +5,7 @@
 #include "openvino/op/erf.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/convert.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -17,9 +18,13 @@ OutputVector translate_erf(const NodeContext& context) {
     // aten::erf.out(Tensor self, Tensor(!a) out) -> Tensor(!a)
     num_inputs_check(context, 1, 2);
     auto x = context.get_input(0);
-    
+    auto xdtype = x.get_element_type();
+    if (xdtype.is_dynamic() || !xdtype.is_real()) {
+        x = context.mark_node(std::make_shared<ov::op::v0::Convert>(x, element::f32));
+    }
+
     auto y = context.mark_node(std::make_shared<ov::op::v0::Erf>(x));
-    if (!context.input_is_none(1)){
+    if (!context.input_is_none(1)) {
         context.mutate_input(1, y);
     }
     return {y};
