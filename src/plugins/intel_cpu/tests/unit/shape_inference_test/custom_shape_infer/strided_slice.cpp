@@ -101,29 +101,11 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{1, 0, 0}, {0, 0, 0}, {1, 1, 1}},
                       std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>(3, 1), StaticShape({2, 2, 3})),
            make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 1, 0}, {2, 0, 0}, {1, 1, 2}},
-                      std::vector<int64_t>{1, 0, 1}, std::vector<int64_t>{0, 1, 1}, StaticShape({2, 1, 2}))),
-           // TODO  108946, can't pass;
-           // make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 0, 0}, {1, 0, 0}, {1, 1, -1}},
-           //            std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>{0, 1, 1}, StaticShape({1, 1, 3}))),
+                      std::vector<int64_t>{1, 0, 1}, std::vector<int64_t>{0, 1, 1}, StaticShape({2, 1, 2})),
+           make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 0, 0}, {1, 0, 0}, {1, 1, -1}},
+                      std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>{0, 1, 1}, StaticShape({1, 2, 3}))),
     StridedSliceCpuShapeInferenceTest::getTestCaseName);
 
-TEST(CpuShapeInfer, StridedSliceDefault_stride) {
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
-    const auto mask = std::vector<int64_t>{0, 1, 0};
-
-    const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    // only supprot i32
-    const auto begin = op::v0::Constant::create(element::i32, ov::Shape{3}, {0, 0, 0});
-    const auto end = op::v0::Constant::create(element::i32, ov::Shape{3}, {1, 0, 2});
-    const auto op = std::make_shared<op::v1::StridedSlice>(data, begin, end, mask, mask);
-
-    std::vector<StaticShape> static_input_shapes = {{3, 2, 3}, {3}, {3}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{1, 2, 2}};
-    //  implementation depends on some output information of the op
-    op->set_output_type(0, element::i32, {-1, -1, -1});
-    // TODO 108946,there is some issue in implementation, this test case can't pass
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
-}
 } // namespace cpu_shape_infer
 } // namespace unit_test
 } // namespace intel_cpu
