@@ -41,11 +41,6 @@ Slice::Slice(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-bool Slice::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v8_Slice_visit_attributes);
-    return true;
-}
-
 std::shared_ptr<Constant> Slice::get_default_const_axes(const Output<Node>& start) const {
     const auto& start_pshape = start.get_partial_shape();
     // Static case
