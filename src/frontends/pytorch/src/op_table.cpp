@@ -104,6 +104,7 @@ OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_minimum);
+OP_CONVERTER(translate_multinomial);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
 OP_CONVERTER(translate_neg);
@@ -383,6 +384,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
         {"aten::multiply", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::multiply_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
+        {"aten::multinomial", op::translate_multinomial},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
