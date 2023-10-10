@@ -5,6 +5,7 @@
 #include "openvino/core/rt_info.hpp"
 
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace {
 
@@ -94,6 +95,13 @@ void assign_runtime_info(const ov::Node::RTMap& from, ov::Node::RTMap& to) {
     }
 }
 
+static bool is_default_constant(const std::shared_ptr<ov::Node>& node) {
+    // If node is Constant and runtime information is absent
+    // Assume that it is default Constant from target node constructor
+    // which have to be added into target nodes for copying
+    return ov::op::util::is_constant(node) && (0 == node->get_rt_info().size());
+}
+
 ov::NodeVector list_with_constants(const ov::NodeVector& to) {
     ov::NodeVector ops = to;
     for (auto& node : to) {
@@ -101,11 +109,9 @@ ov::NodeVector list_with_constants(const ov::NodeVector& to) {
             continue;
         }
         for (auto& input : node->inputs()) {
-            auto source_node = input.get_source_output().get_node_shared_ptr();
-            if (ov::op::util::is_constant(source_node) && (0 == source_node->get_rt_info().size())) {
-                if (std::find(ops.begin(), ops.end(), source_node) == ops.end()) {
-                    ops.push_back(source_node);
-                }
+            const auto& source_node = input.get_source_output().get_node_shared_ptr();
+            if (!ov::util::contains(ops, source_node) && is_default_constant(source_node)) {
+                ops.push_back(source_node);
             }
         }
     }
@@ -116,12 +122,9 @@ ov::OutputVector list_with_constants(const ov::OutputVector& to) {
     ov::OutputVector ops = to;
     for (auto& node : to) {
         for (auto& input : node.get_node()->inputs()) {
-            auto source_node = input.get_source_output();
-            if (ov::op::util::is_constant(source_node.get_node_shared_ptr()) &&
-                (0 == source_node.get_rt_info().size())) {
-                if (std::find(ops.begin(), ops.end(), source_node) == ops.end()) {
-                    ops.push_back(source_node);
-                }
+            const auto& source_output = input.get_source_output();
+            if (!ov::util::contains(ops, source_output) && is_default_constant(source_output.get_node_shared_ptr())) {
+                ops.push_back(source_output);
             }
         }
     }
