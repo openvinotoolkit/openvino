@@ -169,7 +169,8 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_shape_for_value(self, value: torch.Value):
         if value.isCompleteTensor():
-            ps = PartialShape(value.type().sizes())
+            # We avoid static shapes, they don't generalize on other inputs
+            ps = PartialShape([-1] * len(value.type().sizes()))
             return ps
         else:
             # TODO: Recognize types that we can represent as a nested constructs with objects from DecoderType
