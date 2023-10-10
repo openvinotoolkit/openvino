@@ -261,18 +261,16 @@ function(ov_set_threading_interface_for TARGET_NAME)
     if(target_type STREQUAL "INTERFACE_LIBRARY")
         set(LINK_TYPE "INTERFACE")
         set(COMPILE_DEF_TYPE "INTERFACE")
-    elseif(target_type STREQUAL "EXECUTABLE" OR target_type STREQUAL "OBJECT_LIBRARY" OR
-           target_type STREQUAL "MODULE_LIBRARY")
+    elseif(target_type MATCHES "^(EXECUTABLE|OBJECT_LIBRARY|MODULE_LIBRARY)$")
         set(LINK_TYPE "PRIVATE")
-        set(COMPILE_DEF_TYPE "PUBLIC")
+        set(COMPILE_DEF_TYPE "PRIVATE")
     elseif(target_type STREQUAL "STATIC_LIBRARY")
         # Affected libraries: inference_engine_s, openvino_gapi_preproc_s
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
         set(COMPILE_DEF_TYPE "PUBLIC")
     elseif(target_type STREQUAL "SHARED_LIBRARY")
-        # Affected libraries: inference_engine only
-        # TODO: why TBB propogates its headers to inference_engine?
+        # Affected libraries: 'openvino' only
         set(LINK_TYPE "PRIVATE")
         set(COMPILE_DEF_TYPE "PUBLIC")
     else()
