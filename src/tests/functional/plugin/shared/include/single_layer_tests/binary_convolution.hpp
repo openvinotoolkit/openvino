@@ -7,7 +7,6 @@
 #include "shared_test_classes/single_layer/binary_convolution.hpp"
 
 namespace LayerTestsDefinitions {
-
 TEST_P(BinaryConvolutionLayerTest, CompareWithRefs) {
     Run();
 }
