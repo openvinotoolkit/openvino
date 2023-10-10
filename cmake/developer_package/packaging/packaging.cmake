@@ -49,22 +49,22 @@ endfunction()
 # Wraps original `cpack_add_component` and adds component to internal IE list
 #
 function(ov_cpack_add_component name)
-    if(NOT ${name} IN_LIST IE_CPACK_COMPONENTS_ALL)
+    if(NOT ${name} IN_LIST OV_CPACK_COMPONENTS_ALL)
         cpack_add_component(${name} ${ARGN})
 
         # need to store informarion about cpack_add_component arguments in CMakeCache.txt
         # to restore it later
         set(_${name}_cpack_component_args "${ARGN}" CACHE INTERNAL "Argument for cpack_add_component for ${name} cpack component" FORCE)
 
-        list(APPEND IE_CPACK_COMPONENTS_ALL ${name})
-        set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE INTERNAL "" FORCE)
+        list(APPEND OV_CPACK_COMPONENTS_ALL ${name})
+        set(OV_CPACK_COMPONENTS_ALL "${OV_CPACK_COMPONENTS_ALL}" CACHE INTERNAL "" FORCE)
     endif()
 endfunction()
 
-foreach(comp IN LISTS IE_CPACK_COMPONENTS_ALL)
+foreach(comp IN LISTS OV_CPACK_COMPONENTS_ALL)
     unset(_${comp}_cpack_component_args)
 endforeach()
-unset(IE_CPACK_COMPONENTS_ALL CACHE)
+unset(OV_CPACK_COMPONENTS_ALL CACHE)
 
 # create `tests` component
 if(ENABLE_TESTS)
@@ -164,7 +164,7 @@ elseif(CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|TZST|ZIP)$")
     include(packaging/archive)
 endif()
 
-macro(ie_cpack)
+macro(ov_cpack)
     set(CPACK_SOURCE_GENERATOR "") # not used
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO™ Toolkit")
     set(CPACK_COMPONENT_UNSPECIFIED_REQUIRED OFF)
@@ -222,4 +222,11 @@ macro(ie_cpack)
     endif()
 
     include(CPack)
+endmacro()
+
+# deprecated
+
+macro(ie_cpack)
+    message(WARNING "'ie_cpack' is deprecated. Please, use 'ov_cpack'")
+    ov_cpack(${ARGV})
 endmacro()

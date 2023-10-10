@@ -214,6 +214,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
         // Issue: 122321
         R"(.*smoke_ConvertCPULayerTest_BOOL.*)",
+        // Issue: 122094
+        R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
     };
 #if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
     // Issue: 120950
