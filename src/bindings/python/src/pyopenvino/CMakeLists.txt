@@ -72,7 +72,7 @@ endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+    openvino::core::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
 set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
     OUTPUT_NAME "_pyopenvino")
@@ -123,6 +123,13 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
             DESTINATION ${OV_CPACK_PYTHONDIR}/openvino
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
             ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+
+    ov_set_apple_rpath(${PROJECT_NAME} ${OV_CPACK_PYTHONDIR}/openvino
+        # path to OpenVINO C++ libraries
+        ${OV_CPACK_RUNTIMEDIR}
+        # pyopenvino also depends on TBB because of:
+        # pyopenvino => openvino::offline_transformations => TBB optimized openvino::reference
+        ${TBB_LIB_INSTALL_DIR})
 
     ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_REQ_FILES} HIDDEN)
 

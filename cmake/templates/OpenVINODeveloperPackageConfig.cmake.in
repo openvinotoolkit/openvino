@@ -13,7 +13,7 @@ set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@")
 set(ov_options "@OV_OPTIONS@")
 list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
                        CMAKE_CXX_LINKER_LAUNCHER CMAKE_C_LINKER_LAUNCHER
-                       CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX CPACK_GENERATOR)
+                       CMAKE_INSTALL_PREFIX CPACK_GENERATOR)
 
 if(APPLE)
     list(APPEND ov_options CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
@@ -41,6 +41,9 @@ foreach(option IN LISTS ov_options)
     message("    ${option}: ${${option}}")
 endforeach()
 message(" ")
+
+# Restore TBB installation directory (requires for proper LC_RPATH on macOS with SIP)
+load_cache("${cache_path}" READ_WITH_PREFIX "" TBB_INSTALL_DIR)
 
 # activate generation of plugins.xml
 set(ENABLE_PLUGINS_XML ON)

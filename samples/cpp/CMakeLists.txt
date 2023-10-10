@@ -223,7 +223,9 @@ macro(ov_add_sample)
     endif()
 
     set_target_properties(${SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
-                                                       COMPILE_PDB_NAME ${SAMPLE_NAME})
+                                                    COMPILE_PDB_NAME ${SAMPLE_NAME}
+                                                    # to ensure out of box LC_RPATH on macOS with SIP
+                                                    INSTALL_RPATH_USE_LINK_PATH ON)
 
     if(SAMPLE_INCLUDE_DIRECTORIES)
         target_include_directories(${SAMPLE_NAME} PRIVATE ${SAMPLE_INCLUDE_DIRECTORIES})

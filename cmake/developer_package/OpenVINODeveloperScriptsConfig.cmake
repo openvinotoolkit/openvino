@@ -192,14 +192,6 @@ ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER
 include(packaging/packaging)
 
 if(APPLE)
-    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
-
-    if(DEFINED OV_CPACK_LIBRARYDIR)
-        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${OV_CPACK_LIBRARYDIR}")
-    else()
-        message(FATAL_ERROR "Internal error: OV_CPACK_LIBRARYDIR is not defined, while it's required to initialize RPATH")
-    endif()
-
     # WA for Xcode generator + object libraries issue:
     # https://gitlab.kitware.com/cmake/cmake/issues/20260
     # http://cmake.3232098.n2.nabble.com/XCODE-DEPEND-HELPER-make-Deletes-Targets-Before-and-While-They-re-Built-td7598277.html

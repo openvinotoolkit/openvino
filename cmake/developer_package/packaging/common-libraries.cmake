@@ -4,6 +4,14 @@
 
 include(GNUInstallDirs)
 
+if(CPACK_GENERATOR STREQUAL "BREW")
+    # brew relies on RPATHs
+    # set(CMAKE_SKIP_INSTALL_RPATH OFF)
+else()
+    # we don't need RPATHs, because libraries are searched by standard paths
+    set(CMAKE_SKIP_INSTALL_RPATH ON)
+endif()
+
 #
 # ov_common_libraries_cpack_set_dirs()
 #
@@ -107,8 +115,3 @@ macro(ov_define_component_include_rules)
 endmacro()
 
 ov_define_component_include_rules()
-
-if(CPACK_GENERATOR STREQUAL "BREW")
-    # brew relies on RPATH
-    set(CMAKE_SKIP_INSTALL_RPATH OFF)
-endif()

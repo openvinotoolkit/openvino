@@ -8,9 +8,6 @@ set(TARGET_NAME InferenceEngineUnitTests)
 
 ov_disable_deprecated_warnings()
 
-# rpath enabled for unit tests only
-SET (CMAKE_SKIP_RPATH OFF)
-
 # collect sources
 
 file(GLOB
