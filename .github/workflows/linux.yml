@@ -1,4 +1,4 @@
-name: Linux (Ubuntu 20.04, Python 3.8)
+name: Linux (Ubuntu 20.04, Python 3.9)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -27,7 +27,7 @@ concurrency:
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.8'
+  PYTHON_VERSION: '3.9'
 
 jobs:
   Build:
@@ -83,30 +83,33 @@ jobs:
           # default-jdk - Java API
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
           apt install --assume-yes --no-install-recommends default-jdk libssl1.1
+          apt install libpython3.9 python3.9
+          wget https://bootstrap.pypa.io/get-pip.py
+          python3.9 get-pip.py
 
       - name: Setup pip cache dir
         run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          PIP_VER=$(python3.9 -c "import pip; print(pip.__version__)")
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+          python3.9 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          python3.9 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
           # For running ONNX frontend unit tests
-          python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+          python3.9 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
 
           # For running TensorFlow frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
+          python3.9 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
 
           # For running TensorFlow Lite frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
+          python3.9 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
 
           # For running Paddle frontend unit tests
-          # python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
+          # python3.9 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
 
       #
       # Build
@@ -119,6 +122,7 @@ jobs:
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
+            -DPython3_EXECUTABLE=/usr/bin/python3.9\
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
@@ -236,6 +240,11 @@ jobs:
           echo "deb [trusted=yes] file:${DEBIAN_PACKAGES_DIR} ./" | tee /etc/apt/sources.list.d/openvino-local.list
           apt-get update -y
           apt-get install openvino -y
+          # install python3.9
+          apt install libpython3.9 python3.9
+          wget https://bootstrap.pypa.io/get-pip.py
+          python3.9 get-pip.py
+          python3.9 -m pip install numpy
         working-directory: ${{ env.DEBIAN_PACKAGES_DIR }}
 
       - name: Test debian packages
@@ -243,13 +252,13 @@ jobs:
           /usr/share/openvino/samples/cpp/build_samples.sh
           /usr/share/openvino/samples/c/build_samples.sh
           ~/openvino_cpp_samples_build/aarch64/Release/hello_query_device
-          python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
-          python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
-          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
+          python3.9 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
+          python3.9 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
+          python3.9 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
+          python3.9 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
+          python3.9 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
+          python3.9 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
+          python3.9 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
           benchmark_app --help
           ovc --help
 
@@ -294,10 +303,11 @@ jobs:
 
       - name: Setup pip cache dir
         run: |
-          apt-get install -y python3 libpython3.8 python3-pip
-          python3 -m pip install -U pip
+          apt install libpython3.9 python3.9
+          wget https://bootstrap.pypa.io/get-pip.py
+          python3.9 get-pip.py
 
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          PIP_VER=$(python3.9 -c "import pip; print(pip.__version__)")
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
@@ -331,12 +341,12 @@ jobs:
           export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
           export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
 
-          python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
+          python3.9 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
+          python3.9 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
             --ignore=${INSTALL_TEST_DIR}/smoke_tests/test_speech_sample.py \
             --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
             --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
@@ -410,9 +420,10 @@ jobs:
           # Needed for downloading IRs from storage.openvinotoolkit with Python urllib
           apt-get install --assume-yes --no-install-recommends ca-certificates
 
-          apt-get install -y python3 libpython3.8 python3-pip
-          python3 -m pip install -U pip
-          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
+          apt install libpython3.9 python3.9
+          wget https://bootstrap.pypa.io/get-pip.py
+          python3.9 get-pip.py
+          python3.9 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
       # Tests
@@ -422,7 +433,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
-          python3 ${CONFORMANCE_TOOLS_DIR}/run_conformance.py -ov=${INSTALL_DIR}/tests \
+          python3.9 ${CONFORMANCE_TOOLS_DIR}/run_conformance.py -ov=${INSTALL_DIR}/tests \
             -d=${TEST_DEVICE} \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR} \
@@ -818,20 +829,21 @@ jobs:
 
       - name: Setup pip cache dir
         run: |
-          apt install -y python3 libpython3.8 python3-pip
-          python3 -m pip install -U pip
+          apt install libpython3.9 python3.9
+          wget https://bootstrap.pypa.io/get-pip.py
+          python3.9 get-pip.py
 
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          PIP_VER=$(python3.9 -c "import pip; print(pip.__version__)")
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install Python API tests dependencies
         run: |
           # For torchvision to OpenVINO preprocessing converter
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
+          python3.9 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
 
           # TODO: replace with Python API tests requirements
-          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
+          python3.9 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -858,12 +870,12 @@ jobs:
       - name: Install OpenVINO Python wheels
         run: |
           # Install the core OV wheel
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
+          python3.9 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
 
           # Find and install OV dev wheel
           pushd ${INSTALL_DIR}/tools
             ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-            python3 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2]
+            python3.9 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2]
           popd
 
       #
@@ -873,7 +885,7 @@ jobs:
       - name: Python API 1.0 Tests
         if: ${{ always() }}
         run: |
-          python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
+          python3.9 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py \
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
@@ -884,7 +896,7 @@ jobs:
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
 
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
+          python3.9 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
@@ -895,22 +907,21 @@ jobs:
           export PYTHONPATH=${OPENVINO_REPO}/docs/:$PYTHONPATH
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 ${OPENVINO_REPO}/docs/snippets/main.py
+          python3.9 ${OPENVINO_REPO}/docs/snippets/main.py
 
       # Note: arm64 fails with the following error on MxNet tests:
       # E   OSError: libarmpl_lp64_mp.so: cannot open shared object file: No such file or directory
       - name: Model Optimizer unit tests
         if: ${{ always() }}
-        run: python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
-          --ignore=${INSTALL_TEST_DIR}/mo/unit_tests/mo/front/mxnet/ \
+        run: python3.9 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
           --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
-        if: ${{ 'false' }}
         timeout-minutes: 40
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+          export LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -919,10 +930,10 @@ jobs:
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -931,10 +942,10 @@ jobs:
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -943,8 +954,8 @@ jobs:
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
 
@@ -952,15 +963,15 @@ jobs:
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
               --ir_version=11 --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml -k "sigmoid"
         env:
           TEST_DEVICE: CPU
@@ -970,8 +981,8 @@ jobs:
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -981,7 +992,7 @@ jobs:
         timeout-minutes: 40
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest -sv ${OPENVINO_REPO}/src/frontends/onnx/tests -k 'not cuda' \
+          python3.9 -m pytest -sv ${OPENVINO_REPO}/src/frontends/onnx/tests -k 'not cuda' \
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
             --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_zoo_models.py
 
@@ -989,12 +1000,13 @@ jobs:
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          export LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           source ${INSTALL_DIR}/setupvars.sh
           bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -1003,12 +1015,13 @@ jobs:
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          export LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           source ${INSTALL_DIR}/setupvars.sh
           bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -1017,17 +1030,17 @@ jobs:
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       # TODO: install to 'tests' component via cpack
       - name: OVC unit tests
         timeout-minutes: 40
         if: ${{ always() }}
-        run: python3 -m pytest -s ${OPENVINO_REPO}/tools/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
+        run: python3.9 -m pytest -s ${OPENVINO_REPO}/tools/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
@@ -1081,9 +1094,10 @@ jobs:
 
       - name: Install python dependencies for run_parallel.py
         run: |
-          apt install -y python3 libpython3.8 python3-pip
-          python3 -m pip install -U pip
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+          apt install libpython3.9 python3.9
+          wget https://bootstrap.pypa.io/get-pip.py
+          python3.9 get-pip.py
+          python3.9 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@v3
@@ -1143,16 +1157,15 @@ jobs:
       - name: Check sudo
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: sudo apt-get update && sudo apt-get install -y libssl1.1 ca-certificates
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install python
+        run: |
+          sudo apt install libpython3.9 python3.9
+          wget https://bootstrap.pypa.io/get-pip.py
+          python3.9 get-pip.py
 
       - name: Setup pip cache dir
         run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          PIP_VER=$(python3.9 -c "import pip; print(pip.__version__)")
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
@@ -1179,17 +1192,17 @@ jobs:
           popd
 
       - name: Install OpenVINO Python wheels
-        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
+        run: python3.9 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
       - name: Install TF Hub tests requirements
         run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
+          python3.9 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
 
       - name: TensorFlow Hub Tests - TF FE
         timeout-minutes: 60
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
+          python3.9 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
@@ -1227,8 +1240,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          sudo apt install --assume-yes --no-install-recommends libssl1.1
+          sudo apt install libpython3.9 python3.9 python3.9-dev
+          wget https://bootstrap.pypa.io/get-pip.py
+          python3.9 get-pip.py
           # install git (required to build pip deps from the sources)
           # install 'g++' to build 'detectron2' and 'natten' wheels
           sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
@@ -1254,32 +1268,29 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
       - name: Setup pip cache dir
         run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          PIP_VER=$(python3.9 -c "import pip; print(pip.__version__)")
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Install OpenVINO Python wheels
-        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
+        run: python3.9 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
       - name: Install PyTorch tests requirements
         run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
+          python3.9 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
+          python3.9 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
           echo "Available storage:"
           df -h
         env:
-          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
+          CPLUS_INCLUDE_PATH: /usr/include/python${{ env.PYTHON_VERSION }}
 
       - name: PyTorch Models Tests
         timeout-minutes: 60
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
+          python3.9 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
