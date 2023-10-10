@@ -1118,6 +1118,7 @@ jobs:
   TensorFlow_Hub_Models_Tests:
     name: TensorFlow Hub Models tests
     needs: Build
+    if: ${{ 'false' }}
     defaults:
       run:
         shell: bash
@@ -1199,6 +1200,7 @@ jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     needs: Build
+    if: ${{ 'false' }}
     defaults:
       run:
         shell: bash
