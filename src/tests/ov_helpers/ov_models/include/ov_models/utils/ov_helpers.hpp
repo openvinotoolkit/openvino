@@ -91,13 +91,7 @@ using ov::test::utils::DFTOpType;
 using ov::test::utils::InputLayerType;
 using ov::test::utils::PadMode;
 using ov::test::utils::SequenceTestsMode;
-
-enum class MemoryTransformation {
-    NONE,
-    LOW_LATENCY_V2,
-    LOW_LATENCY_V2_REGULAR_API,
-    LOW_LATENCY_V2_ORIGINAL_INIT
-};
+using ov::test::utils::MemoryTransformation;
 // clang-format on
 
 bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function>& func);
@@ -160,8 +154,6 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
                                                  const element::Type_t& fromPrecision,
                                                  const element::Type_t& toPrecision,
                                                  const size_t elementsCount);
-
-std::ostream& operator<<(std::ostream& os, MemoryTransformation type);
 
 void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes);
 
