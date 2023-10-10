@@ -15,7 +15,6 @@ def generate_input(op_type, size):
 
     bitwise_type = ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor']
 
-
     # usual function domain
     lower = -256
     upper = 256
@@ -87,7 +86,7 @@ class TestBinaryOps(CommonTFLayerTest):
             'BitwiseXor': tf.raw_ops.BitwiseXor,
         }
 
-        op_type_kw_args = ["AddV2", "BitwiseAnd", "BitwiseOr", "BitwiseXor"]
+        op_type_kw_args = ["AddV2", "Xdivy", "BitwiseAnd", "BitwiseOr", "BitwiseXor"]
 
         type = np.float32
         if op_type in ["LogicalAnd", "LogicalOr", "LogicalXor"]:
