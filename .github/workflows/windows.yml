@@ -402,8 +402,7 @@ jobs:
 
           python3 -m pytest ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests -k "not cuda" ^
           --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx_frontend.xml ^
-          --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_zoo_models.py ^
-          --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_backend.py
+          --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_zoo_models.py
 
       - name: MO Python API Tests
         shell: cmd

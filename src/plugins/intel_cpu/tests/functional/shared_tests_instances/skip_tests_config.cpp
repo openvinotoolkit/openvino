@@ -212,6 +212,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
         // Issue: 122321
         R"(.*smoke_ConvertCPULayerTest_BOOL.*)",
+        // Issue: 122177
+        R"(smoke_LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
         // Issue: 122094
         R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
     };
