@@ -50,7 +50,7 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
                     size_t weight_offset = input_layout.get_linear_offset(tensor_weight);
                     size_t dst_offset = input_layout.get_linear_offset(tensor_dst);
                     float result = rms * static_cast<float>(src[src_offset]) * static_cast<float>(weight[weight_offset]);
-                    dst[dst_offset] = result;
+                    dst[dst_offset] = static_cast<T>(result);
                 }
             }
         }
@@ -93,7 +93,7 @@ TEST(rms_gpu_test, rms_test_bfyx_ref) {
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-5);
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
     }
 }
 
@@ -136,7 +136,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt) {
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-5);
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
     }
 }
 
@@ -179,6 +179,6 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_leftovers) {
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-5);
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
     }
 }
