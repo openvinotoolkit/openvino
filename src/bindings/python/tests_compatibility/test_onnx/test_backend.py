@@ -812,11 +812,11 @@ tests_expected_to_fail = [
     ),
 ]
 
-if platform == 'darwin':
-    tests_expected_to_fail.append((
-        xfail_issue_58676,
-        "OnnxBackendNodeModelTest.test_div_uint8_cpu"
-    ))
+# if platform == 'darwin':
+#     tests_expected_to_fail.append((
+#         xfail_issue_58676,
+#         "OnnxBackendNodeModelTest.test_div_uint8_cpu"
+#     ))
 
 for test_group in tests_expected_to_fail:
     for test_case in test_group[1:]:
