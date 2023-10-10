@@ -22,8 +22,7 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(openvino::offline_transformations ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME offline_transformations)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev openvino::itt openvino::pugixml
-                                             openvino::reference openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::core::dev openvino::reference openvino::runtime)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                                  $<INSTALL_INTERFACE:developer_package/include/openvino_offline_transformations>

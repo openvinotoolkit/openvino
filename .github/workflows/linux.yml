@@ -1361,21 +1361,22 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
 
-      # - name: Fetch install_build_dependencies.sh
-      #   uses: actions/checkout@v4
-      #   with:
-      #     sparse-checkout: |
-      #       install_build_dependencies.sh
-      #     sparse-checkout-cone-mode: false
-      #     path: ${{ env.OPENVINO_REPO }}
-      #     ref: 'master'
+      - name: Fetch install_build_dependencies.sh
+        if: ${{ 'false' }}
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            install_build_dependencies.sh
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+          ref: 'master'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
         with:
-          repository: 'ilya-lavrenov/openvino_contrib'
+          repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          ref: 'compilation'
+          ref: 'master'
 
       #
       # Dependencies
