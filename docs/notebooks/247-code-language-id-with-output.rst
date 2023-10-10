@@ -69,7 +69,7 @@ will allow to automatically convert models to the OpenVINO™ IR format.
 Install prerequisites
 ~~~~~~~~~~~~~~~~~~~~~
 
-First, complete the `repository installation steps <../notebooks_installation.html>`__.
+First, complete the :doc:`repository installation steps <notebooks_installation>`.
 
 Then, the following cell will install: - HuggingFace Optimum with
 OpenVINO support - HuggingFace Evaluate to benchmark results
