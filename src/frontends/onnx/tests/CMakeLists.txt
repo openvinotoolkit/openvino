@@ -167,7 +167,7 @@ install(TARGETS ov_onnx_frontend_tests
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         DESTINATION tests/onnx
-        COMPONENT onnx_tests EXCLUDE_FROM_ALL
+        COMPONENT tests EXCLUDE_FROM_ALL
         FILES_MATCHING
         PATTERN "*.py"
         PATTERN "requirements.txt"
