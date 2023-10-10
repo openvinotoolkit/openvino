@@ -111,12 +111,15 @@ jobs:
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DENABLE_CPPLINT=OFF `
             -DCMAKE_CXX_STANDARD=14 `
+            -DBUILD_nvidia_plugin=OFF `
             -DBUILD_SHARED_LIBS=OFF `
             -DENABLE_TESTS=ON `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
             -DENABLE_STRICT_DEPENDENCIES=OFF `
             -DENABLE_PYTHON=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
@@ -148,6 +151,7 @@ jobs:
           Compress-Archive @compress
 
       - name: Cmake & Build - OpenVINO Contrib
+        if: ${{ 'false' }} # Ticket: 122441
         run: |
           cmake `
             -DBUILD_nvidia_plugin=OFF `
@@ -293,7 +297,14 @@ jobs:
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
 
       - name: Install OpenVINO Python wheels
-        run: python3 -m pip install openvino-dev[mxnet,caffe,kaldi,onnx,tensorflow2] --find-links=${{ env.INSTALL_DIR }}\tools
+        run: |
+          # Find and install the core OV wheel
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
+          
+          # Find and install the dev OV wheel
+          $ovDevWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino_dev*.whl | % { $_.FullName }
+          python3 -m pip install "$ovDevWheelPath[mxnet,caffe,kaldi,onnx,tensorflow2]"
 
       - name: Python API 1.0 Tests
         shell: cmd
