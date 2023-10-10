@@ -281,7 +281,7 @@ OutputVector translate_tensor_array_concat_v3_op(const NodeContext& node) {
     concatenated_array = make_shared<v0::Convert>(concatenated_array, dtype);
     concatenated_array.set_names({node.get_name() + ":0"});
     // 4. compute the second output with length of each tensor element for the concatenation
-    auto lengths = make_shared<v3::Broadcast>(k_by_n0, k)->output(0);
+    auto lengths = make_shared<v3::Broadcast>(n0, k)->output(0);
     lengths.set_names({node.get_name() + ":1"});
 
     return {concatenated_array, lengths};
