@@ -31,6 +31,9 @@ void select_preferred_formats::run(program& p) {
     if (!device_info.supports_immad)
         return;
 
+    if (!_lo.get_implementation_forcing().empty())
+        return;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     engine.create_onednn_engine(p.get_config());
     for (auto n : p.get_processing_order()) {

@@ -188,6 +188,7 @@ public:
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
 
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
+    const std::map<primitive_id, std::pair<format::type, impl_types>> get_implementation_forcing() const;
 
     void update_formats_map(const convolution_node& node);
     bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);

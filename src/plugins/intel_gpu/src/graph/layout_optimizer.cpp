@@ -2094,6 +2094,10 @@ void layout_optimizer::set_implementation_forcing(const ov::intel_gpu::ImplForci
     }
 }
 
+const std::map<primitive_id, std::pair<format::type, impl_types>> layout_optimizer::get_implementation_forcing() const {
+    return _forcing_map;
+}
+
 const std::vector<std::pair<format::type, bool>> layout_optimizer::optimized_formats = {
         {format::b_fs_yx_fsv16, true},
         {format::b_fs_yx_fsv16, false},
