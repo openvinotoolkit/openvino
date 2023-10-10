@@ -18,6 +18,8 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+static bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int64_t axis);
+
 ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
     MATCHER_SCOPE(SplitSqueezeConcatFusion);
     // Detect only concat, because we don't know how many inputs will go into concat
@@ -32,66 +34,49 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
 
         NodeVector nodes_to_delete{concat};
 
-        int64_t axis_value = 0;
         std::shared_ptr<ov::op::v1::Split> split;
+        int64_t split_axis = 0;
 
-        const auto& concat_inputs = concat->input_values();
-        if (concat_inputs.empty())
-            return false;
-        for (size_t i = 0; i < concat_inputs.size(); i++) {
-            auto squeeze = std::dynamic_pointer_cast<ov::op::v0::Squeeze>(concat_inputs[i].get_node_shared_ptr());
-            if (!squeeze)
-                return false;
-
-            nodes_to_delete.push_back(squeeze);
-
-            auto split_to_check = std::dynamic_pointer_cast<ov::op::v1::Split>(squeeze->get_input_node_shared_ptr(0));
+        for (size_t i = 0; i < concat->get_input_size(); i++) {
+            auto squeeze_node = concat->get_input_node_shared_ptr(i);
+            auto split_to_check =
+                std::dynamic_pointer_cast<ov::op::v1::Split>(squeeze_node->get_input_node_shared_ptr(0));
             if (!split_to_check)
-                return false;
-            std::vector<int64_t> squeeze_axes_vec;
-            if (squeeze->get_input_size() < 2) {
-                const auto& shape = squeeze->get_input_partial_shape(0);
-                if (shape.is_dynamic()) {
-                    return false;
-                }
-                for (size_t i = 0; i < shape.size(); i++) {
-                    if (shape[i].get_length() == 1)
-                        squeeze_axes_vec.push_back(static_cast<int64_t>(i));
-                }
-
-            } else {
-                auto squeeze_axes =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
-                if (!squeeze_axes)
-                    return false;
-                squeeze_axes_vec = squeeze_axes->cast_vector<int64_t>();
-            }
-
-            if (squeeze_axes_vec.size() != 1)
                 return false;
 
             if (i == 0) {
-                axis_value = squeeze_axes_vec[0];
                 nodes_to_delete.push_back(split_to_check);
                 split = split_to_check;
-            } else if (axis_value != squeeze_axes_vec[0] || split_to_check != split) {
+                auto split_axis_node =
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(split->get_input_node_shared_ptr(1));
+                if (!split_axis_node)
+                    return false;
+                auto axis_vec = split_axis_node->cast_vector<int64_t>();
+                if (axis_vec.size() != 1)
+                    return false;
+                split_axis = axis_vec[0];
+                if (split_axis < 0) {
+                    auto rank = split->get_output_partial_shape(0).rank();
+                    if (rank.is_dynamic())
+                        return false;
+                    split_axis += rank.get_length();
+                }
+            } else if (split_to_check != split) {
                 return false;
             }
 
-            auto split_output = squeeze->input_value(0);
+            if (!is_axis_squeezed_by_node(squeeze_node, split_axis)) {
+                return false;
+            }
+
+            nodes_to_delete.push_back(squeeze_node);
+
+            auto split_output = squeeze_node->input_value(0);
             if (split_output.get_target_inputs().size() != 1 || split_output.get_index() != i)
                 return false;
         }
 
-        if (split->get_num_splits() != concat_inputs.size())
-            return false;
-
-        auto split_axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
-        if (!split_axis)
-            return false;
-
-        auto axis_vec = split_axis->cast_vector<int64_t>();
-        if (axis_vec.size() != 1 || axis_value != axis_vec[0])
+        if (split->get_num_splits() != concat->get_input_size())
             return false;
 
         auto input = split->input_value(0);
@@ -102,8 +87,8 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
             return false;
         std::vector<int64_t> order(rank.get_length());
         std::iota(order.begin(), order.end(), 0);
-        order.erase(order.begin() + axis_value);
-        order.insert(order.begin() + concat_axis, axis_value);
+        order.erase(order.begin() + split_axis);
+        order.insert(order.begin() + concat_axis, split_axis);
 
         auto transpose_order = ov::op::v0::Constant::create(element::i64, {(size_t)rank.get_length()}, order);
         auto transpose = register_new_node<ov::op::v1::Transpose>(input, transpose_order);
@@ -119,4 +104,37 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, matcher_name);
     register_matcher(m, callback);
+}
+
+bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int64_t axis) {
+    if (!ov::is_type<ov::op::v0::Squeeze>(squeeze_node) && !ov::is_type<ov::op::v1::Reshape>(squeeze_node))
+        return false;
+
+    const auto& input_shape = squeeze_node->get_input_partial_shape(0);
+    const auto& output_shape = squeeze_node->get_output_partial_shape(0);
+    if (input_shape.rank().is_dynamic() || output_shape.rank().is_dynamic())
+        return false;
+
+    auto input_rank = input_shape.rank().get_length();
+    auto output_rank = output_shape.rank().get_length();
+    if (input_rank != output_rank + 1)
+        return false;
+
+    if (input_shape[axis].is_dynamic() || input_shape[axis] != 1)
+        return false;
+
+    if (axis > 0) {
+        const auto& input_dimension = input_shape[axis - 1];
+        const auto& output_dimension = output_shape[axis - 1];
+        if (input_dimension.is_dynamic() || output_dimension.is_dynamic() || input_dimension != output_dimension)
+            return false;
+    }
+
+    if (axis + 1 < input_rank) {
+        const auto& input_dimension = input_shape[axis + 1];
+        const auto& output_dimension = output_shape[axis];
+        if (input_dimension.is_dynamic() || output_dimension.is_dynamic() || input_dimension != output_dimension)
+            return false;
+    }
+    return true;
 }
