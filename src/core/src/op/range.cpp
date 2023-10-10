@@ -170,7 +170,7 @@ bool evaluate(const HostTensorPtr& out,
     }
     ov::Shape out_shape = ov::Shape({static_cast<size_t>(out_size)});
     out->set_shape(out_shape);
-    runtime::reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
+    ov::reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
     return true;
 }
 
@@ -182,18 +182,18 @@ bool evaluate_power(const HostTensorPtr& out,
                     int version) {
     bool rc = true;
     switch (output_type) {
-        NGRAPH_TYPE_CASE(evaluate_range, bf16, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, f16, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, f32, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, f64, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, i8, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, i16, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, i32, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, i64, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, u8, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, u16, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, u32, out, start, stop, step, version);
-        NGRAPH_TYPE_CASE(evaluate_range, u64, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, bf16, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, f16, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, f32, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, f64, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, i8, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, i16, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, i32, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, i64, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, u8, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, u16, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, u32, out, start, stop, step, version);
+        OPENVINO_TYPE_CASE(evaluate_range, u64, out, start, stop, step, version);
     default:
         rc = false;
         break;

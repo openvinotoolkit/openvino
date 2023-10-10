@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/pass/constant_folding.hpp>
 #include "common_test_utils/common_utils.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "snippets/codegen_gelu.hpp"
 #include "subgraph_simple.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
@@ -48,21 +50,21 @@ namespace snippets {
 
         init_input_shapes({inputShape0, inputShapes1});
 
-        auto input0 = std::make_shared<ngraph::opset1::Parameter>(netPrecision, inputDynamicShapes[0]);
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(netPrecision, inputDynamicShapes[1]);
-        auto add = std::make_shared<ngraph::opset1::Add>(input0, input1);
+        auto input0 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0]);
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[1]);
+        auto add = std::make_shared<ov::op::v1::Add>(input0, input1);
 
-        auto gelu = std::make_shared<ngraph::opset2::Gelu>(add);
-        auto result = std::make_shared<ngraph::opset1::Result>(gelu);
+        auto gelu = std::make_shared<ov::op::v0::Gelu>(add);
+        auto result = std::make_shared<ov::op::v0::Result>(gelu);
 
-        function = std::make_shared<ngraph::Function>(
-            ngraph::ResultVector{result},
-            ngraph::ParameterVector{input0, input1},
+        function = std::make_shared<ov::Model>(
+            ov::ResultVector{result},
+            ov::ParameterVector{input0, input1},
             "CodegenGelu");
 
         if (useSubgraph) {
             ov::pass::InitNodeInfo().run_on_model(function);
-            ngraph::pass::ConstantFolding().run_on_model(function);
+            ov::pass::ConstantFolding().run_on_model(function);
         }
         if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
             configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,

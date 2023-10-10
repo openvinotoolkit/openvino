@@ -5,10 +5,10 @@
 #include <memory>
 
 #include "mask_attribute.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "pruning.hpp"
 
 ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
@@ -43,7 +43,7 @@ ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
 
                 bool skip_dim_value = false;
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                ngraph::CoordinateTransform iter(shape, begin, end);
+                ov::CoordinateTransform iter(shape, begin, end);
                 for (const Coordinate& coord : iter) {
                     if (!condition(values.at(iter.index(coord)))) {
                         skip_dim_value = true;

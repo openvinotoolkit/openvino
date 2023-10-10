@@ -61,8 +61,8 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Squeeze_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, inputs.size()));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, inputs.size()));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (has_evaluate()) {
@@ -77,9 +77,9 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensor
         auto out_shape = output_shapes[0].get_shape();
         outputs[0]->set_shape(out_shape);
 
-        ngraph::runtime::reference::copy(inputs[0]->get_data_ptr<char>(),
-                                         outputs[0]->get_data_ptr<char>(),
-                                         shape_size(out_shape) * outputs[0]->get_element_type().size());
+        ov::reference::copy(inputs[0]->get_data_ptr<char>(),
+                            outputs[0]->get_data_ptr<char>(),
+                            shape_size(out_shape) * outputs[0]->get_element_type().size());
 
         return true;
     }

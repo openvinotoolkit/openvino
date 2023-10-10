@@ -77,9 +77,9 @@ hardware.
 
 First the Pytorch model is converted to the ONNX format and then the
 `Model
-Optimizer <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+Optimizer <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 tool will be used to convert to `OpenVINO IR
-format <https://docs.openvino.ai/latest/openvino_ir.html>`__. This
+format <https://docs.openvino.ai/2023.1/openvino_ir.html>`__. This
 method provides much more insight to how to set up a pipeline from model
 loading to model converting, compiling and running inference with
 OpenVINO, so that you could conveniently use OpenVINO to optimize and
@@ -379,14 +379,14 @@ Model Optimizer
 '''''''''''''''
 
 `Model
-Optimizer <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+Optimizer <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 is a cross-platform command-line tool that facilitates the transition
 between training and deployment environments, performs static model
 analysis, and adjusts deep learning models for optimal execution on
 end-point target devices. Model Optimizer converts the model to the
 OpenVINO Intermediate Representation format (IR), which you can infer
 later with `OpenVINO
-runtime <https://docs.openvino.ai/latest/openvino_docs_OV_UG_OV_Runtime_User_Guide.html#doxid-openvino-docs-o-v-u-g-o-v-runtime-user-guide>`__.
+runtime <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html#doxid-openvino-docs-o-v-u-g-o-v-runtime-user-guide>`__.
 
 .. code:: ipython3
 
@@ -399,7 +399,7 @@ Inference
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The
-`Core <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__
+`Core <https://docs.openvino.ai/2023.1/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__
 class from the ``openvino.runtime`` module is imported first. This class
 provides access to the OpenVINO Runtime API. The ``core`` object, which
 is an instance of the ``Core`` class, represents the API and it is used

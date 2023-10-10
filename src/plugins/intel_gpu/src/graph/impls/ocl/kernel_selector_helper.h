@@ -82,18 +82,21 @@ using params = kernel_selector::Params;
 using weights_reorder_params = kernel_selector::WeightsReorderParams;
 
 }  // namespace kernel_selector
-
+namespace ov {
+namespace element {
+enum class Type_t;
+}  // namespaec element
+}  // namespaec ov
 namespace cldnn {
-enum class data_types : size_t;
 struct format;
 struct layout;
 struct program;
 struct fused_primitive_desc;
 
-kernel_selector::data_type to_data_type(data_types dt);
-data_types from_data_type(kernel_selector::data_type dt);
-kernel_selector::weights_type to_weights_type(data_types dt);
-data_types from_weights_type(kernel_selector::weights_type dt);
+kernel_selector::data_type to_data_type(ov::element::Type_t dt);
+ov::element::Type_t from_data_type(kernel_selector::data_type dt);
+kernel_selector::weights_type to_weights_type(ov::element::Type_t dt);
+ov::element::Type_t from_weights_type(kernel_selector::weights_type dt);
 kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);

@@ -11,7 +11,7 @@
 
 #include <transformations/init_node_info.hpp>
 #include "openvino/util/common_util.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
+#include "ov_lpt_models/fuse_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
 

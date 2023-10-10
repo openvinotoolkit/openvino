@@ -4,19 +4,13 @@
 
 #pragma once
 
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <ngraph/runtime/host_tensor.hpp>
 #include <vector>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void experimental_detectron_topk_rois(const T* input_rois,
@@ -43,5 +37,4 @@ void experimental_detectron_topk_rois(const T* input_rois,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

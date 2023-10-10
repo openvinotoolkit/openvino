@@ -1,7 +1,7 @@
 Stable Diffusion Text-to-Image Demo
 ===================================
 
-.. _top:
+
 
 Stable Diffusion is an innovative generative AI technique that allows us
 to generate and manipulate images in interesting ways, including
@@ -25,6 +25,8 @@ promising results for selecting a wide range of input text prompts!
    image, please visit
    `236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__.
 
+
+.. _top:
 
 **Table of contents**:
 

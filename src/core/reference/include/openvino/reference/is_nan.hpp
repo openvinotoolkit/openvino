@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 typename std::enable_if<std::is_floating_point<T>::value, void>::type is_nan(const T* input, U* output, size_t count) {
@@ -25,5 +25,4 @@ typename std::enable_if<std::is_class<T>::value, void>::type is_nan(const T* inp
     });
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

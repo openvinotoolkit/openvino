@@ -10,12 +10,12 @@
 #include <cstring>
 #include <utility>
 
-#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/experimental_detectron_generate_proposals.hpp"
 #include "openvino/reference/proposal.hpp"
 
 namespace {
-using ProposalBox = ngraph::runtime::reference::details::ProposalBox<float>;
+using ProposalBox = ov::reference::details::ProposalBox<float>;
 
 void refine_anchors(const float* deltas,
                     const float* scores,
@@ -205,8 +205,7 @@ void fill_output_blobs(const float* proposals,
 }
 }  // namespace
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void experimental_detectron_proposals_single_image(
     const float* im_info,
@@ -296,7 +295,7 @@ void experimental_detectron_proposals_single_image(
 
 void experimental_detectron_proposals_single_image_postprocessing(void* prois,
                                                                   void* pscores,
-                                                                  const ngraph::element::Type output_type,
+                                                                  const element::Type output_type,
                                                                   const std::vector<float>& output_rois,
                                                                   const std::vector<float>& output_scores,
                                                                   const Shape& output_rois_shape,
@@ -339,5 +338,4 @@ void experimental_detectron_proposals_single_image_postprocessing(void* prois,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

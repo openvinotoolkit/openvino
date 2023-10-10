@@ -1,7 +1,7 @@
 Text-to-Image Generation with ControlNet Conditioning
 =====================================================
 
-.. _top:
+
 
 Diffusion models make a revolution in AI-generated art. This technology
 enables creation of high-quality images simply by writing a text prompt.
@@ -140,6 +140,8 @@ of the target in the image:
 
 This tutorial focuses mainly on conditioning by pose. However, the
 discussed steps are also applicable to other annotation modes.
+
+.. _top:
 
 **Table of contents**:
 
@@ -327,7 +329,7 @@ example, input and output names or dynamic shapes).
 While ONNX models are directly supported by OpenVINO™ runtime, it can be
 useful to convert them to IR format to take the advantage of advanced
 OpenVINO optimization tools and features. We will use `model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+API <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 to convert a model to IR format and compression weights to ``FP16``
 format.
 

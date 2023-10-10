@@ -64,7 +64,7 @@ repository <https://github.com/isl-org/VI-Depth>`__ for the
 pre-processing, model transformations and basic utility code. A part of
 it has already been kept as it is in the `utils <utils>`__ directory. At
 the same time we will learn how to perform `model
-conversion <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
+conversion <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
 for converting a model in a different format to the standard OpenVINO™
 IR model representation *via* another format.
 
@@ -312,7 +312,7 @@ Dummy input creation
 ^^^^^^^^^^^^^^^^^^^^
 
 Dummy inputs are necessary for `PyTorch to
-ONNX <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#exporting-a-pytorch-model-to-onnx-format>`__
+ONNX <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#exporting-a-pytorch-model-to-onnx-format>`__
 conversion. Although
 `torch.onnx.export <https://pytorch.org/docs/stable/onnx.html>`__
 accepts any dummy input for a single pass through the model and thereby

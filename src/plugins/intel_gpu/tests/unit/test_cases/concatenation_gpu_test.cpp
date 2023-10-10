@@ -35,10 +35,10 @@ TEST(concat_gpu, mixed_input_types) {
     set_values<float>(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values<int32_t>(input1, { 11, 12, 13, 14, 12, 12, 13, 14, 13, 13, 13, 15 });
     set_values<int8_t>(input2, { 21, 22, 23, 24, 22, 22, 23, 24, 23, 23, 23, 25 });
-    set_values(input3, { half_t(31.f), half_t(32.f), half_t(33.f),
-                         half_t(34.f), half_t(32.f), half_t(32.f),
-                         half_t(33.f), half_t(34.f), half_t(33.f),
-                         half_t(33.f), half_t(33.f), half_t(35.f) });
+    set_values(input3, { ov::float16(31.f), ov::float16(32.f), ov::float16(33.f),
+                         ov::float16(34.f), ov::float16(32.f), ov::float16(32.f),
+                         ov::float16(33.f), ov::float16(34.f), ov::float16(33.f),
+                         ov::float16(33.f), ov::float16(33.f), ov::float16(35.f) });
     set_values<int64_t>(input4, { 41, 42, 43, 44, 42, 42, 43, 44, 43, 43, 43, 45 });
 
     VF<float> output_vec = {
@@ -315,22 +315,22 @@ TEST(concat_gpu, mixed_input_types_5d) {
     auto input2 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
 
-    set_values(input0, { half_t(1.0f), half_t(2.0f), half_t(3.0f),
-                         half_t(4.0f), half_t(2.0f), half_t(2.0f),
-                         half_t(3.0f), half_t(4.0f), half_t(3.0f),
-                         half_t(3.0f), half_t(3.0f), half_t(5.0f) });
-    set_values(input1, { half_t(11), half_t(12), half_t(13),
-                         half_t(14), half_t(12), half_t(12),
-                         half_t(13), half_t(14), half_t(13),
-                         half_t(13), half_t(13), half_t(15) });
-    set_values(input2, { half_t(21), half_t(22), half_t(23),
-                         half_t(24), half_t(22), half_t(22),
-                         half_t(23), half_t(24), half_t(23),
-                         half_t(23), half_t(23), half_t(25) });
-    set_values(input3, { half_t(31.f), half_t(32.f), half_t(33.f),
-                         half_t(34.f), half_t(32.f), half_t(32.f),
-                         half_t(33.f), half_t(34.f), half_t(33.f),
-                         half_t(33.f), half_t(33.f), half_t(35.f) });
+    set_values(input0, { ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f),
+                         ov::float16(4.0f), ov::float16(2.0f), ov::float16(2.0f),
+                         ov::float16(3.0f), ov::float16(4.0f), ov::float16(3.0f),
+                         ov::float16(3.0f), ov::float16(3.0f), ov::float16(5.0f) });
+    set_values(input1, { ov::float16(11), ov::float16(12), ov::float16(13),
+                         ov::float16(14), ov::float16(12), ov::float16(12),
+                         ov::float16(13), ov::float16(14), ov::float16(13),
+                         ov::float16(13), ov::float16(13), ov::float16(15) });
+    set_values(input2, { ov::float16(21), ov::float16(22), ov::float16(23),
+                         ov::float16(24), ov::float16(22), ov::float16(22),
+                         ov::float16(23), ov::float16(24), ov::float16(23),
+                         ov::float16(23), ov::float16(23), ov::float16(25) });
+    set_values(input3, { ov::float16(31.f), ov::float16(32.f), ov::float16(33.f),
+                         ov::float16(34.f), ov::float16(32.f), ov::float16(32.f),
+                         ov::float16(33.f), ov::float16(34.f), ov::float16(33.f),
+                         ov::float16(33.f), ov::float16(33.f), ov::float16(35.f) });
 
     VF<float> output_vec = {
             1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f,
@@ -825,7 +825,7 @@ struct concat_gpu_4d : public concat_gpu {
 public:
 
     void test(format::type fmt) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
 
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
@@ -911,7 +911,7 @@ struct concat_gpu_4d_axis3 : public concat_axis3_gpu {
 public:
 
     void test(format::type fmt) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
 
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
@@ -992,7 +992,7 @@ public:
 };
 
 
-using concat_gpu_4d_f16 = concat_gpu_4d<FLOAT16>;
+using concat_gpu_4d_f16 = concat_gpu_4d<ov::float16>;
 using concat_gpu_4d_i8 = concat_gpu_4d<int8_t>;
 using concat_gpu_4d_u8 = concat_gpu_4d<uint8_t>;
 
@@ -1027,7 +1027,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
 
-using concat_gpu_4d_axis3_f16 = concat_gpu_4d_axis3<FLOAT16>;
+using concat_gpu_4d_axis3_f16 = concat_gpu_4d_axis3<ov::float16>;
 
 TEST_P(concat_gpu_4d_axis3_f16, fs_b_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::fs_b_yx_fsv32));
@@ -1056,7 +1056,7 @@ struct concat_id_conv_gpu_4d : public concat_gpu {
 public:
 
     void test(format::type fmt) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
 
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
@@ -1158,7 +1158,7 @@ public:
     }
 };
 
-using concat_id_conv_gpu_4d_f16 = concat_id_conv_gpu_4d<FLOAT16, FLOAT16>;
+using concat_id_conv_gpu_4d_f16 = concat_id_conv_gpu_4d<ov::float16, ov::float16>;
 using concat_id_conv_gpu_4d_i8 = concat_id_conv_gpu_4d<int8_t, float>;
 
 TEST_P(concat_id_conv_gpu_4d_f16, input_order_opt_b_fs_yx_fsv16) {
@@ -1195,7 +1195,7 @@ template <typename Type>
 struct concat_gpu_4d_implicit : public concat_gpu {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
@@ -1313,7 +1313,7 @@ public:
     }
 };
 
-using concat_implicit_gpu_4d_f16 = concat_gpu_4d_implicit<FLOAT16>;
+using concat_implicit_gpu_4d_f16 = concat_gpu_4d_implicit<ov::float16>;
 using concat_implicit_gpu_4d_i8 = concat_gpu_4d_implicit<int8_t>;
 
 TEST_P(concat_implicit_gpu_4d_f16, input_order_opt_b_fs_yx_fsv16) {
@@ -1417,7 +1417,7 @@ template <typename Type>
 struct concat_gpu_4d_implicit_onednn : public concat_gpu {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
@@ -1544,7 +1544,7 @@ public:
 };
 
 
-using concat_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_implicit_onednn<FLOAT16>;
+using concat_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_implicit_onednn<ov::float16>;
 using concat_implicit_gpu_onednn_4d_i8 = concat_gpu_4d_implicit_onednn<int8_t>;
 
 TEST_P(concat_implicit_gpu_onednn_4d_f16, input_order_opt_b_fs_yx_fsv16) {
@@ -1577,7 +1577,7 @@ template <typename Type>
 struct concat_gpu_4d_explict : public concat_gpu {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
         const std::vector<size_t> in_features = testing::get<1>(GetParam()); // only use first element.
@@ -1711,7 +1711,7 @@ public:
 };
 
 
-using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explict<FLOAT16>;
+using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explict<ov::float16>;
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16, input_order_opt_b_fs_yx_fsv16) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));

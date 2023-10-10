@@ -6,13 +6,11 @@
 
 #include <numeric>
 
-#include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
+#include "openvino/util/common_util.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 static const CoordinateTransformBasic get_target_shape(const Shape& data_shape,
                                                        const Coordinate& start_corner,
@@ -23,12 +21,10 @@ static const CoordinateTransformBasic get_target_shape(const Shape& data_shape,
     AxisVector axis_order(m_n_axes);
     std::iota(axis_order.begin(), axis_order.end(), 0);
     const Strides strides(m_n_axes, 1);
-    OPENVINO_SUPPRESS_DEPRECATED_START
     for (size_t axis = 0; axis < m_n_axes; axis++) {
         target_shape.push_back(
-            ceil_div(end_corner[axis_order[axis]] - start_corner[axis_order[axis]], strides[axis_order[axis]]));
+            util::ceil_div(end_corner[axis_order[axis]] - start_corner[axis_order[axis]], strides[axis_order[axis]]));
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return target_shape;
 }
 
@@ -144,5 +140,4 @@ static void scatter_update(const char* input_data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

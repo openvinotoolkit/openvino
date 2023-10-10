@@ -7,11 +7,10 @@
 #include <cmath>
 #include <vector>
 
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 static inline T norm(T val, T mean, T var, T eps) {
@@ -27,11 +26,10 @@ void batch_norm_inference(float eps,
                           const T* variance,
                           T* out,
                           const Shape& in_shape) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
     auto eps_casted = static_cast<T>(eps);
 
     size_t in_idx = 0;
-    CoordinateTransform in_transform(in_shape);
+    const CoordinateTransformBasic in_transform{in_shape};
     for (Coordinate in_coord : in_transform) {
         auto ch_num = in_coord[1];
         auto ch_gamma = gamma[ch_num];
@@ -43,8 +41,6 @@ void batch_norm_inference(float eps,
         out[in_idx] = normalized * ch_gamma + ch_beta;
         in_idx++;
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

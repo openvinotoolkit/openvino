@@ -7,10 +7,9 @@
 #include <algorithm>
 #include <cmath>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 static inline int
 entry_index(int width, int height, int coords, int classes, int outputs, int batch, int location, int entry) {
@@ -58,7 +57,7 @@ void region_yolo(const T* input,
                  const int regions,
                  const bool do_softmax,
                  const std::vector<int64_t>& mask) {
-    NGRAPH_CHECK(input_shape.size() == 4);
+    OPENVINO_ASSERT(input_shape.size() == 4);
 
     const int batches = static_cast<int>(input_shape[0]);
     const int height = static_cast<int>(input_shape[2]);
@@ -115,5 +114,4 @@ void region_yolo(const T* input,
 }
 
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

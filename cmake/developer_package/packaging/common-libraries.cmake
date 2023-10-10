@@ -4,6 +4,14 @@
 
 include(GNUInstallDirs)
 
+if(CPACK_GENERATOR STREQUAL "BREW")
+    # brew relies on RPATHs
+    # set(CMAKE_SKIP_INSTALL_RPATH OFF)
+else()
+    # we don't need RPATHs, because libraries are searched by standard paths
+    set(CMAKE_SKIP_INSTALL_RPATH ON)
+endif()
+
 #
 # ov_common_libraries_cpack_set_dirs()
 #
@@ -47,11 +55,6 @@ macro(ov_common_libraries_cpack_set_dirs)
 
     # skipped during common libraries packaging
     set(OV_CPACK_WHEELSDIR "tools")
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
 ov_common_libraries_cpack_set_dirs()
@@ -83,7 +86,11 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL)
     set(OV_CPACK_COMP_CORE_C_DEV_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
     # licensing
-    set(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    if(CPACK_GENERATOR STREQUAL "CONAN")
+        unset(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL)
+    else()
+        set(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    endif()
     # samples
     set(OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_C_SAMPLES_EXCLUDE_ALL ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
@@ -108,8 +115,3 @@ macro(ov_define_component_include_rules)
 endmacro()
 
 ov_define_component_include_rules()
-
-if(CPACK_GENERATOR STREQUAL "BREW")
-    # brew relies on RPATH
-    set(CMAKE_SKIP_INSTALL_RPATH OFF)
-endif()

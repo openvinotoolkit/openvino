@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include <cmath>
+#include "openvino/core/axis_set.hpp"
+#include "openvino/core/shape.hpp"
 
-#include "ngraph/coordinate_transform.hpp"
-
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 void reverse(const char* arg,
              char* out,
@@ -18,5 +16,4 @@ void reverse(const char* arg,
              const AxisSet& reversed_axes,
              size_t elem_size);
 }
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

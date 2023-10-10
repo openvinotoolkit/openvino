@@ -1,7 +1,7 @@
 Live 3D Human Pose Estimation with OpenVINO
 ===========================================
 
-.. _top:
+
 
 This notebook demonstrates live 3D Human Pose Estimation with OpenVINO
 via a webcam. We utilize the model
@@ -29,6 +29,8 @@ been using JupyterLab to run the demo as suggested in the
 To ensure that the results are displayed correctly, run the code in a
 recommended browser on one of the following operating systems: Ubuntu,
 Windows: Chrome, macOS: Safari.
+
+.. _top:
 
 **Table of contents**:
 
@@ -210,7 +212,7 @@ format.
     Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=/tmp/tmpgwxi10io --model_name=human-pose-estimation-3d-0001 --input=data '--mean_values=data[128.0,128.0,128.0]' '--scale_values=data[255.0,255.0,255.0]' --output=features,heatmaps,pafs --input_model=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.onnx '--layout=data(NCHW)' '--input_shape=[1, 3, 256, 448]' --compress_to_fp16=False
     
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /tmp/tmpgwxi10io/human-pose-estimation-3d-0001.xml
     [ SUCCESS ] BIN file: /tmp/tmpgwxi10io/human-pose-estimation-3d-0001.bin

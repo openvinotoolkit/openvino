@@ -9,18 +9,17 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 static size_t _asIndex(const char* source, const element::Type& element_type) {
     // According to the GatherTree op specification only I32 and FP32 precisions are supported.
     switch (element_type) {
     case element::Type_t::f16: {
-        ngraph::float16 tmpBuff = 0.f;
-        memcpy(&tmpBuff, source, sizeof(ngraph::float16));
+        ov::float16 tmpBuff = 0.f;
+        memcpy(&tmpBuff, source, sizeof(ov::float16));
         return static_cast<size_t>(tmpBuff);
     }
     case element::Type_t::f32: {
@@ -40,16 +39,16 @@ static size_t _asIndex(const char* source, const element::Type& element_type) {
 }
 
 // This is an implementation of the algorithm from the tensorflow 1.5 sources.
-void runtime::reference::gather_tree(const char* step_ids,
-                                     const char* parent_ids,
-                                     const char* max_seq_len,
-                                     const char* end_token,
-                                     char* out,
-                                     const Shape& step_ids_shape,
-                                     const Shape& parent_ids_shape,
-                                     const Shape& max_seq_len_shape,
-                                     const Shape& end_token_shape,
-                                     const element::Type& element_type) {
+void reference::gather_tree(const char* step_ids,
+                            const char* parent_ids,
+                            const char* max_seq_len,
+                            const char* end_token,
+                            char* out,
+                            const Shape& step_ids_shape,
+                            const Shape& parent_ids_shape,
+                            const Shape& max_seq_len_shape,
+                            const Shape& end_token_shape,
+                            const element::Type& element_type) {
     if (step_ids_shape != parent_ids_shape) {
         OPENVINO_THROW("step_ids shape and parent_ids shape must be the same");
     }
@@ -74,7 +73,7 @@ void runtime::reference::gather_tree(const char* step_ids,
     }
 
     const auto in_strides = row_major_strides(step_ids_shape);
-    ngraph::CoordinateTransformBasic cordinate_transform(step_ids_shape);
+    CoordinateTransformBasic cordinate_transform(step_ids_shape);
 
     for (const auto& coord : cordinate_transform) {
         const auto out_idx = std::inner_product(coord.begin(), coord.end(), in_strides.begin(), uint64_t(0));

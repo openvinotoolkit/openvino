@@ -229,11 +229,11 @@ TEST(handle_reshape, reshape_input_reorder) {
     auto in1_layout = layout{ ov::PartialShape{-1, 16, 64, 64}, data_types::f16, format::bfyx };
     auto in1_memory = engine.allocate_memory({ ov::PartialShape{2, 16, 64, 64}, data_types::f16, format::bfyx });
 
-    auto in0 = rg.generate_random_1d<FLOAT16>(in0_memory->count(), -10, 10);
-    auto in1 = rg.generate_random_1d<FLOAT16>(in1_memory->count(), -10, 10);
-    set_values<FLOAT16>(in0_memory, in0);
+    auto in0 = rg.generate_random_1d<ov::float16>(in0_memory->count(), -10, 10);
+    auto in1 = rg.generate_random_1d<ov::float16>(in1_memory->count(), -10, 10);
+    set_values<ov::float16>(in0_memory, in0);
     set_values<int32_t>(shape_memory, {1, 2, 16, 64, 64});
-    set_values<FLOAT16>(in1_memory, in1);
+    set_values<ov::float16>(in1_memory, in1);
 
     topology topology;
     topology.add(input_layout("input0", in0_layout));

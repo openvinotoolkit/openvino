@@ -293,7 +293,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
+        // --------------------------- Exporting gna model using OpenVINO API---------------------
         if (!FLAGS_wg.empty()) {
             slog::info << "Writing GNA Model to file " << FLAGS_wg << slog::endl;
             t0 = Time::now();

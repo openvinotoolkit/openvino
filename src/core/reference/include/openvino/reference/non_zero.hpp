@@ -6,10 +6,9 @@
 
 #include <cstddef>
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 /// \brief Return number of non-zero entries in the input argument.
 ///
@@ -115,5 +114,4 @@ void non_zero(const T* arg, U* out, const Shape& arg_shape) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov

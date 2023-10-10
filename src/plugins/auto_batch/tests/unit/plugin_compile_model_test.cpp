@@ -6,9 +6,9 @@
 #include <gtest/gtest.h>
 
 #include "mock_common.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/core/dimension_tracker.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -35,7 +35,7 @@ public:
     ov::AnyMap m_plugin_properities;
     int m_batch_size;
 
-    std::shared_ptr<NiceMock<MockICore>> m_core;
+    std::shared_ptr<NiceMock<ov::MockICore>> m_core;
     std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>> m_plugin;
     std::shared_ptr<ov::Model> m_model;
     ov::SoPtr<ov::IRemoteContext> m_remote_context;
@@ -73,7 +73,7 @@ public:
 
     void SetUp() override {
         std::tie(m_core_properities, m_plugin_properities, m_batch_size) = this->GetParam();
-        m_core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
+        m_core = std::shared_ptr<NiceMock<ov::MockICore>>(new NiceMock<ov::MockICore>());
         m_plugin =
             std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());
         m_plugin->set_core(m_core);

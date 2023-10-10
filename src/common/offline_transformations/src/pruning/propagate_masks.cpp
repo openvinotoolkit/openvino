@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "mask_attribute.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/gelu.hpp"
@@ -17,6 +16,7 @@
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
 
@@ -1015,14 +1015,14 @@ struct ChannelsMap {
  *  on unsquized_shape_dim dimension according to unsquized_shape shape.
  */
 OPENVINO_SUPPRESS_DEPRECATED_START
-static ngraph::CoordinateTransform get_channel_iter(const ov::Shape unsquized_shape,
-                                                    const size_t unsquized_shape_dim,
-                                                    const size_t channel) {
+static ov::CoordinateTransform get_channel_iter(const ov::Shape unsquized_shape,
+                                                const size_t unsquized_shape_dim,
+                                                const size_t channel) {
     auto begin = ov::Coordinate(unsquized_shape.size(), 0);
     auto end = ov::Coordinate(unsquized_shape);
     begin[unsquized_shape_dim] = channel;
     end[unsquized_shape_dim] = channel + 1;
-    ngraph::CoordinateTransform iter(unsquized_shape, begin, end);
+    ov::CoordinateTransform iter(unsquized_shape, begin, end);
     return iter;
 }
 OPENVINO_SUPPRESS_DEPRECATED_END

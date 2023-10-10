@@ -7,10 +7,10 @@
 #include <memory>
 #include <utility>
 
-#include <low_precision/lpt_visibility.hpp>
+#include "low_precision/lpt_visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -18,7 +18,7 @@ class LP_TRANSFORMATIONS_API ConvertSubtractConstant;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -29,8 +29,8 @@ class LP_TRANSFORMATIONS_API ConvertSubtractConstant;
  * [ConvertSubtractConstant](@ref openvino_docs_OV_UG_lpt_ConvertSubtractConstant) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::ConvertSubtractConstant : public ov::pass::MatcherPass {
+class ov::pass::low_precision::ConvertSubtractConstant : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertSubtractConstant", "0");
-    ConvertSubtractConstant(const std::vector<ngraph::element::Type>& constantPrecisions = {});
+    ConvertSubtractConstant(const std::vector<ov::element::Type>& constantPrecisions = {});
 };
