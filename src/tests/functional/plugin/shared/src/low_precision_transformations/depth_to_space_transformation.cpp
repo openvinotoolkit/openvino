@@ -15,8 +15,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/builders.hpp"
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -26,7 +26,7 @@
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <ngraph/op/depth_to_space.hpp>
 
-#include "lpt_ngraph_functions/depth_to_space_function.hpp"
+#include "ov_lpt_models/depth_to_space.hpp"
 
 using namespace ngraph::opset1;
 

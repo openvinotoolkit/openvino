@@ -6,6 +6,7 @@
 # Google Tests framework
 #
 
+set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
 set(gtest_force_shared_crt ON CACHE BOOL "disable static CRT for google test")
 
 set(BUILD_SHARED_LIBS OFF)

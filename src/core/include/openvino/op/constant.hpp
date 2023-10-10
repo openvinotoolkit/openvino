@@ -143,6 +143,9 @@ public:
         case Type_t::u64:
             fill_data<Type_t::u64>(value);
             break;
+        case Type_t::nf4:
+            fill_data<Type_t::nf4>(value);
+            break;
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -195,9 +198,7 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
@@ -408,7 +409,7 @@ private:
     template <element::Type_t Type,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
-                                          Type != element::Type_t::i4,
+                                          Type != element::Type_t::i4 && Type != element::Type_t::nf4,
                                       bool>::type = true>
     StorageDataType get_element_value(size_t index) const {
         return get_data_ptr<Type>()[index];
@@ -426,6 +427,13 @@ private:
               typename std::enable_if<Type == element::Type_t::u4, bool>::type = true>
     StorageDataType get_element_value(size_t index) const {
         return (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
+    }
+
+    template <element::Type_t Type,
+              typename StorageDataType = fundamental_type_for<Type>,
+              typename std::enable_if<Type == element::Type_t::nf4, bool>::type = true>
+    StorageDataType get_element_value(size_t index) const {
+        return (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 4 : 0)) & 0x0F;
     }
 
     template <element::Type_t Type,
@@ -554,7 +562,7 @@ private:
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
-                                          Type != element::Type_t::i4,
+                                          Type != element::Type_t::i4 && Type != element::Type_t::nf4,
                                       bool>::type = true>
     void fill_data(const T& value) {
 #ifdef __clang__
@@ -607,7 +615,9 @@ private:
     template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
-              typename std::enable_if<Type == element::Type_t::u4 || Type == element::Type_t::i4, bool>::type = true>
+              typename std::enable_if<Type == element::Type_t::u4 || Type == element::Type_t::i4 ||
+                                          Type == element::Type_t::nf4,
+                                      bool>::type = true>
     void fill_data(const T& value) {
         uint8_t v = value_in_range<Type>(value);
         v &= 0x0F;
@@ -640,8 +650,8 @@ private:
     template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
-              typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
-                                          Type != element::Type_t::i4,
+              typename std::enable_if<Type != element::Type_t::nf4 && Type != element::Type_t::u1 &&
+                                          Type != element::Type_t::u4 && Type != element::Type_t::i4,
                                       bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
@@ -666,6 +676,50 @@ private:
         if (source.size() % 2) {
             const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
             const auto v = v1 << 4;
+            p[i] = static_cast<StorageDataType>(v);
+        }
+    }
+
+    template <element::Type_t Type,
+              typename T,
+              typename StorageDataType = fundamental_type_for<Type>,
+              typename std::enable_if<Type == element::Type_t::nf4 && std::is_integral<T>::value, bool>::type = true>
+    void write_buffer(const std::vector<T>& source) {
+        auto p = get_data_ptr_nc<Type>();
+        size_t i = 0;
+        for (; i < source.size() / 2; i++) {
+            const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
+            const auto v2 = value_in_range<Type>(source[i * 2 + 1]) & 0x0F;
+            const auto v = (v2 << 4) | v1;
+            p[i] = static_cast<StorageDataType>(v);
+        }
+        if (source.size() % 2) {
+            const auto v = value_in_range<Type>(source[i * 2]) & 0x0F;
+            p[i] = static_cast<StorageDataType>(v);
+        }
+    }
+
+    template <element::Type_t Type,
+              typename T,
+              typename StorageDataType = fundamental_type_for<Type>,
+              typename std::enable_if<Type == element::Type_t::nf4 &&
+                                          (std::is_floating_point<T>::value || std::is_same<T, bfloat16>::value ||
+                                           std::is_same<T, float16>::value),
+                                      bool>::type = true>
+    void write_buffer(const std::vector<T>& source) {
+        auto p = get_data_ptr_nc<Type>();
+        size_t i = 0;
+        for (; i < source.size() / 2; i++) {
+            const auto idx1 = ConvertNF4::quantize(static_cast<float>(source[i * 2]));
+            const auto idx2 = ConvertNF4::quantize(static_cast<float>(source[i * 2 + 1]));
+            const auto v1 = value_in_range<Type>(idx1) & 0x0F;
+            const auto v2 = value_in_range<Type>(idx2) & 0x0F;
+            const auto v = (v2 << 4) | v1;
+            p[i] = static_cast<StorageDataType>(v);
+        }
+        if (source.size() % 2) {
+            const auto idx1 = ConvertNF4::quantize(static_cast<float>(source[i * 2]));
+            const auto v = value_in_range<Type>(idx1) & 0x0F;
             p[i] = static_cast<StorageDataType>(v);
         }
     }
@@ -755,6 +809,9 @@ private:
         case Type_t::u64:
             write_buffer<Type_t::u64>(source);
             break;
+        case Type_t::nf4:
+            write_buffer<Type_t::nf4>(source);
+            break;
         case element::Type_t::undefined:
         case element::Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -765,7 +822,9 @@ private:
     }
     template <ov::element::Type_t Type,
               typename ValueT,
-              typename std::enable_if<Type == ov::element::Type_t::u4, bool>::type = true>
+              typename std::enable_if<Type == ov::element::Type_t::u4 || Type == ov::element::Type_t::u4 ||
+                                          Type == ov::element::Type_t::nf4,
+                                      bool>::type = true>
     static ov::fundamental_type_for<Type> value_in_range(const ValueT& value) {
         const auto result = ov::fundamental_type_for<Type>(value);
         OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range u4 values");

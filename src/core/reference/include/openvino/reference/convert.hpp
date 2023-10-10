@@ -6,8 +6,8 @@
 
 #include <cstddef>
 
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 
 namespace ov {
 namespace reference {
@@ -70,6 +70,7 @@ TO get_value(const uint8_t* buf, size_t idx, element::Type from_type) {
     if (from_type == element::i4) {
         return detail::get_i4(buf, idx);
     }
+
     auto v = reinterpret_cast<const TI*>(buf);
     return static_cast<TO>(v[idx]);
 }
@@ -85,6 +86,8 @@ void lp_convert(const TI* arg, TO* out, size_t count, element::Type_t src_type, 
             detail::set_u4(output, i, detail::get_value<uint8_t, TI>(input, i, src_type));
         } else if (dst_type == element::i4) {
             detail::set_i4(output, i, detail::get_value<int8_t, TI>(input, i, src_type));
+        } else if (src_type == element::nf4) {
+            ConvertNF4::unpack(out, input, i);
         } else {
             out[i] = detail::get_value<TO, TI>(input, i, src_type);
         }
@@ -120,7 +123,7 @@ size_t count_out_of_f16_range(const float* arg, size_t count);
 // Convert values from f32 to f16 with claming to f16 min/max when value is out of normal finite numbers range
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count);
 
-// overload to handle ngraph::boolean (it is stored as char)
+// overload to handle ov::boolean (it is stored as char)
 template <typename TI, typename TO>
 typename std::enable_if<std::is_same<TO, char>::value>::type convert(const TI* arg, TO* out, size_t count) {
     for (size_t i = 0; i < count; ++i) {
