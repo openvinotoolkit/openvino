@@ -8,7 +8,7 @@
 namespace cldnn {
 
 /// @brief Root Mean Square Normalization primitive
-/// @details
+/// @details Performs re-scaling invariance and regularizes the summed input according to RMS statistics
 struct rms : public primitive_base<rms> {
     CLDNN_DECLARE_PRIMITIVE(rms);
 
@@ -17,7 +17,7 @@ struct rms : public primitive_base<rms> {
     /// @brief Constructs rms primitive
     /// @param id This primitive id
     /// @param input Input primitive id
-    /// @param gamma
+    /// @param gamma Gamma values for weight
     /// @param epsilon Epsilon for not dividing by zero while normalizing
     rms(const primitive_id& id,
         const input_info& input,
