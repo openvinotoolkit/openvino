@@ -27,12 +27,9 @@ RMSFusion::RMSFusion() {
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto x = any_input();
 
-    // decompress x
-    auto decomp = wrap_type<ov::op::v0::Convert>({x});
-
     // x^2
     auto const_2 = wrap_type<ov::op::v0::Constant>();
-    auto power = wrap_type<ov::op::v1::Power>({decomp, const_2});
+    auto power = wrap_type<ov::op::v1::Power>({x, const_2});
 
     // ReduceMean(x^2,axes)
     auto mean_axes = wrap_type<ov::op::v0::Constant>();
@@ -50,14 +47,11 @@ RMSFusion::RMSFusion() {
     auto div = wrap_type<ov::op::v1::Power>({sqrt, const_minus_1});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto mul1 = wrap_type<ov::op::v1::Multiply>({decomp, div});
+    auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto gamma = wrap_type<ov::op::v0::Constant>();
     auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma, mul1});
-
-    // compress RMS result
-    auto comp = wrap_type<ov::op::v0::Convert>({mul2});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -76,15 +70,13 @@ RMSFusion::RMSFusion() {
             return false;
         }
 
-        ov::NodeVector nodes_to_copy_info({pattern_map.at(decomp).get_node_shared_ptr(),
-                                           pattern_map.at(power).get_node_shared_ptr(),
+        ov::NodeVector nodes_to_copy_info({pattern_map.at(power).get_node_shared_ptr(),
                                            pattern_map.at(mean).get_node_shared_ptr(),
                                            pattern_map.at(add_eps).get_node_shared_ptr(),
                                            pattern_map.at(sqrt).get_node_shared_ptr(),
                                            pattern_map.at(div).get_node_shared_ptr(),
                                            pattern_map.at(mul1).get_node_shared_ptr(),
-                                           pattern_map.at(mul2).get_node_shared_ptr(),
-                                           pattern_map.at(comp).get_node_shared_ptr()});
+                                           pattern_map.at(mul2).get_node_shared_ptr()});
 
         auto rms = std::make_shared<op::RMS>(x_output,
                                              gamma_node,
@@ -96,7 +88,7 @@ RMSFusion::RMSFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(comp, "RMSFusion");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul2, "RMSFusion");
     this->register_matcher(m, callback);
 }
 
