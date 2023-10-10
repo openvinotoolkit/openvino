@@ -15,10 +15,10 @@
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/pad.hpp"
+#include "openvino/reference/reshape.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -169,32 +169,32 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
             }
         }
 
-        ngraph::runtime::opt_kernel::reshape(flat_data.data(),
-                                             dispersed_data.data(),
-                                             data_shape,
-                                             plain_axes_order,
-                                             dispersed_shape,
-                                             elem_size);
+        ov::reference::reshape(flat_data.data(),
+                               dispersed_data.data(),
+                               data_shape,
+                               plain_axes_order,
+                               dispersed_shape,
+                               elem_size);
         ov::Shape post_transpose_shape(axes_order.size());
         for (size_t i = 0; i < axes_order.size(); ++i) {
             post_transpose_shape[i] = dispersed_shape[axes_order[i]];
         }
 
-        ngraph::runtime::opt_kernel::reshape(dispersed_data.data(),
-                                             post_transpose_data.data(),
-                                             dispersed_shape,
-                                             axes_order,
-                                             post_transpose_shape,
-                                             elem_size);
+        ov::reference::reshape(dispersed_data.data(),
+                               post_transpose_data.data(),
+                               dispersed_shape,
+                               axes_order,
+                               post_transpose_shape,
+                               elem_size);
         squeezed_shape[0] *= block_values[block_idx];
         squeezed_shape[block_idx] /= block_values[block_idx];
 
-        ngraph::runtime::opt_kernel::reshape(post_transpose_data.data(),
-                                             flat_data.data(),
-                                             post_transpose_shape,
-                                             plain_axes_order,
-                                             squeezed_shape,
-                                             elem_size);
+        ov::reference::reshape(post_transpose_data.data(),
+                               flat_data.data(),
+                               post_transpose_shape,
+                               plain_axes_order,
+                               squeezed_shape,
+                               elem_size);
         data_shape = squeezed_shape;
     }
 
