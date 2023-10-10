@@ -1,18 +1,16 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.dft import FFTBase
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 
 
-@generator
-class DFTSignalSizeCanonicalizationTest(unittest.TestCase):
-    @generate(*[
+class TestDFTSignalSizeCanonicalizationTest():
+    @pytest.mark.parametrize("signal_size, axes, input_shape, expected_result",[
         (int64_array([-1, 77]), int64_array([1, 2]), int64_array([2, 180, 180, 2]), int64_array([180, 77])),
         (int64_array([390, 87]), int64_array([2, 0]), int64_array([2, 180, 180, 2]), int64_array([390, 87])),
         (int64_array([600, -1, 40]),
@@ -38,4 +36,4 @@ class DFTSignalSizeCanonicalizationTest(unittest.TestCase):
     ])
     def test_canonicalization(self, signal_size, axes, input_shape, expected_result):
         canonicalized_signal_size = FFTBase.canonicalize_signal_size(signal_size, axes, input_shape)
-        self.assertTrue(np.array_equal(canonicalized_signal_size, expected_result))
+        assert np.array_equal(canonicalized_signal_size, expected_result)
