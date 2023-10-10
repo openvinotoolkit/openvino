@@ -86,8 +86,11 @@ std::vector<MultinomialParams> generateMultinomialParams() {
     const ov::Shape prob_2d_shape{2, 4};
     const ov::Shape prob_1d_shape{4};
     const ov::Shape num_samples_shape{1};
+    const ov::Shape prob_1d_shape_expand_small{2};
+    const ov::Shape out_1d_shape_expand_big{16};
 
     reference_tests::Tensor num_samples(num_samples_shape, ov::element::Type_t::i32, std::vector<int32_t>{4});
+    reference_tests::Tensor num_samples_big(num_samples_shape, ov::element::Type_t::i32, std::vector<int32_t>{16});
 
     reference_tests::Tensor probabilities_2d_no_log(prob_2d_shape,
                                                     et,
@@ -95,50 +98,61 @@ std::vector<MultinomialParams> generateMultinomialParams() {
     reference_tests::Tensor probabilities_2d_log(prob_2d_shape, et, std::vector<vt>{1, 2, 3, 4, 2, 4, 6, 8});
     reference_tests::Tensor probabilities_1d_no_log(prob_1d_shape, et, std::vector<vt>{0.001, 0.01, 0.1, 0.899});
     reference_tests::Tensor probabilities_1d_log(prob_1d_shape, et, std::vector<vt>{1, 10, 7, 3});
+    reference_tests::Tensor probabilities_1d_expand(prob_1d_shape_expand_small, et, std::vector<vt>{0.00001, 0.99999});
 
-    reference_tests::Tensor output_2d_no_log_no_replacement(prob_2d_shape,
-                                                            ov::element::Type_t::i32,
-                                                            std::vector<int32_t>{3, 3, 3, 3, 0, 0, 0, 0});
-    reference_tests::Tensor output_2d_log_no_replacement(prob_2d_shape,
+    reference_tests::Tensor output_2d_no_log_replacement(prob_2d_shape,
                                                          ov::element::Type_t::i32,
-                                                         std::vector<int32_t>{3, 3, 2, 3, 3, 3, 3, 3});
-    reference_tests::Tensor output_1d_no_log_replacement(prob_1d_shape,
+                                                         std::vector<int32_t>{3, 3, 3, 3, 0, 0, 0, 0});
+    reference_tests::Tensor output_2d_log_replacement(prob_2d_shape,
+                                                      ov::element::Type_t::i32,
+                                                      std::vector<int32_t>{3, 3, 2, 3, 3, 3, 3, 3});
+    reference_tests::Tensor output_1d_no_log_no_replacement(prob_1d_shape,
+                                                            ov::element::Type_t::i64,
+                                                            std::vector<int64_t>{3, 2, 1, 0});
+    reference_tests::Tensor output_1d_log_no_replacement(prob_1d_shape,
                                                          ov::element::Type_t::i64,
-                                                         std::vector<int64_t>{3, 2, 1, 0});
-    reference_tests::Tensor output_1d_log_replacement(prob_1d_shape,
-                                                      ov::element::Type_t::i64,
-                                                      std::vector<int64_t>{1, 2, 3, 0});
+                                                         std::vector<int64_t>{1, 2, 3, 0});
+    reference_tests::Tensor output_1d_expand(out_1d_shape_expand_big,
+                                             ov::element::Type_t::i64,
+                                             std::vector<int64_t>{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
     std::vector<MultinomialParams> params;
     // probabilities, num_samples, output, convert_type, log_probs, with_replacement, name
     params.emplace_back(probabilities_2d_no_log,
                         num_samples,
-                        output_2d_no_log_no_replacement,
+                        output_2d_no_log_replacement,
                         ov::element::Type_t::i32,
                         false,
-                        false,
+                        true,
                         "input_2d");
     params.emplace_back(probabilities_2d_log,
                         num_samples,
-                        output_2d_log_no_replacement,
+                        output_2d_log_replacement,
                         ov::element::Type_t::i32,
                         true,
-                        false,
+                        true,
                         "input_2d");
     params.emplace_back(probabilities_1d_no_log,
                         num_samples,
-                        output_1d_no_log_replacement,
+                        output_1d_no_log_no_replacement,
                         ov::element::Type_t::i64,
                         false,
-                        true,
+                        false,
                         "input_1d");
     params.emplace_back(probabilities_1d_log,
                         num_samples,
-                        output_1d_log_replacement,
+                        output_1d_log_no_replacement,
                         ov::element::Type_t::i64,
                         true,
-                        true,
+                        false,
                         "input_1d");
+    params.emplace_back(probabilities_1d_expand,
+                        num_samples_big,
+                        output_1d_expand,
+                        ov::element::Type_t::i64,
+                        false,
+                        true,
+                        "input_1d_expand");
     return params;
 }
 

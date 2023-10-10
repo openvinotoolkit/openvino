@@ -116,12 +116,13 @@ namespace multinomial {
 namespace validate {
 void input_types(const Node* op) {
     NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(0).is_real(),
+                          op->get_input_element_type(0).is_real() || op->get_input_element_type(0).is_dynamic(),
                           "Expected floating point type as element type for the 'probs' input.");
 
-    NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(1).is_integral_number(),
-                          "Expected integer type as element type for the 'num_samples' input.");
+    NODE_VALIDATION_CHECK(
+        op,
+        op->get_input_element_type(1).is_integral_number() || op->get_input_element_type(1).is_dynamic(),
+        "Expected integer type as element type for the 'num_samples' input.");
 }
 }  // namespace validate
 }  // namespace multinomial
