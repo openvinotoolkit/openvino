@@ -22,6 +22,10 @@ std::vector<int64_t> default_axes(const size_t n) {
 bool slice_bound_check(const ov::Node* const node) {
     return ov::have_node_inputs_bounds_set(node, 1, node->get_input_size() - 1);
 }
+
+bool slice_no_axes(const Node* const node) {
+    return node->get_input_size() < 5;
+}
 }  // namespace
 
 namespace v8 {
@@ -56,42 +60,27 @@ std::shared_ptr<Constant> Slice::get_default_const_axes(const Output<Node>& star
 void Slice::validate_and_infer_types() {
     OV_OP_SCOPE(v8_Slice_validate_and_infer_types);
 
-    const auto inputs_size = get_input_size();
-    NODE_VALIDATION_CHECK(this,
-                          inputs_size == 4 || inputs_size == 5,
-                          "Slice has to have 4 or 5 inputs. Got: ",
-                          inputs_size);
-
-    const PartialShape& data_shape = get_input_partial_shape(0);
-    const auto& data_rank = data_shape.rank();
-
-    NODE_VALIDATION_CHECK(this,
-                          data_rank.is_dynamic() || data_rank.get_length() > 0,
-                          "Slice `data` input can't be a scalar.");
-
-    if (get_input_size() < 5) {
+    if (slice_no_axes(this)) {
         if (auto axes_const = get_default_const_axes(input_value(1))) {
             set_argument(4, axes_const);
         }
     }
 
-    for (size_t i = 0; i < get_input_size(); ++i) {
-        if (i > 0) {
-            NODE_VALIDATION_CHECK(this,
-                                  get_input_element_type(i).is_integral_number(),
-                                  "Slice `",
-                                  slice::shape_names[i - 1],
-                                  "` input type must be integer.");
-        }
-
-        set_input_is_relevant_to_shape(i);
-    }
-
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-
     const auto output_shapes = shape_infer(this, input_shapes);
+
+    set_input_is_relevant_to_shape(0);
+    for (size_t i = 1; i < get_input_size(); ++i) {
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(i).is_integral_number(),
+                              "Slice `",
+                              slice::shape_names[i - 1],
+                              "` input type must be integer.");
+        set_input_is_relevant_to_shape(i);
+    }
+
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
@@ -125,7 +114,7 @@ bool Slice::has_evaluate() const {
     };
 
     return valid_integral_type(get_input_element_type(1)) &&
-           (get_input_size() > 4 && valid_integral_type(get_input_element_type(4)));
+           (slice_no_axes(this) || valid_integral_type(get_input_element_type(4)));
 }
 
 bool Slice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
@@ -142,9 +131,8 @@ bool Slice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     outputs[0].set_shape(output_shapes.front().to_shape());
 
     const auto starts = ov::get_tensor_data_as<int64_t>(inputs[1]);
-    const auto stops = ov::get_tensor_data_as<int64_t>(inputs[2]);
     const auto steps = ov::get_tensor_data_as<int64_t>(inputs[3]);
-    const auto axes = (inputs.size() < 5) ? default_axes(starts.size()) : ov::get_tensor_data_as<int64_t>(inputs[4]);
+    const auto axes = slice_no_axes(this) ? default_axes(starts.size()) : ov::get_tensor_data_as<int64_t>(inputs[4]);
 
     reference::slice(static_cast<const char*>(inputs[0].data()),
                      inputs[0].get_shape(),
