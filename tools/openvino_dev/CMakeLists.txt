@@ -14,8 +14,8 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     get_filename_component(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." REALPATH)
 endif()
 
-if(NOT IEDevScripts_FOUND)
-    find_package(IEDevScripts REQUIRED
+if(NOT OpenVINODeveloperScripts_FOUND)
+    find_package(OpenVINODeveloperScripts REQUIRED
                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)

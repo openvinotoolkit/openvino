@@ -149,7 +149,7 @@ set(INIT_FILES_RUNTIME
 
 ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")
 
-ie_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
+ov_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
 
 #
 # Check for wheel package
@@ -193,7 +193,7 @@ endif()
 
 # this option should not be a part of OpenVINODeveloperPackage
 # since wheels can be built only together with main OV build
-ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON" OFF)
+ov_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON" OFF)
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
@@ -397,5 +397,5 @@ if(OpenVINODeveloperPackage_FOUND)
     # provides a callback function to describe each component in repo
     include("${OpenVINO_SOURCE_DIR}/cmake/packaging/packaging.cmake")
 
-    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+    ov_cpack(${OV_CPACK_COMPONENTS_ALL})
 endif()
