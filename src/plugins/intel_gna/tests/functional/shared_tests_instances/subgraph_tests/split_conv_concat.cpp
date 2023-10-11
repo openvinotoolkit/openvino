@@ -6,13 +6,10 @@
 
 #include <vector>
 
-#include "common_test_utils/test_constants.hpp"
+using namespace ov::test;
+const std::vector<ov::element::Type> netPrecisions = {ov::element::f32, ov::element::f16};
 
-using namespace SubgraphTestsDefinitions;
-const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                               InferenceEngine::Precision::FP16};
-
-std::vector<std::vector<size_t>> inputShapes = {{1, 32, 1, 130}, {1, 64, 1, 170}, {1, 32, 1, 1026}};
+std::vector<ov::Shape> inputShapes = {{1, 32, 1, 130}, {1, 64, 1, 170}, {1, 32, 1, 1026}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_SplitConvConcat,
                          SplitConvConcat,

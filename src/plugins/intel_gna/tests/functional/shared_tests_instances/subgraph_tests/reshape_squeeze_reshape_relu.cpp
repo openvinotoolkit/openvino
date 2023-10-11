@@ -6,9 +6,7 @@
 
 #include <vector>
 
-#include "common_test_utils/test_constants.hpp"
-
-using namespace SubgraphTestsDefinitions;
+using namespace ov::test;
 
 namespace {
 std::vector<ShapeAxesTuple> inputs{
@@ -31,18 +29,18 @@ std::vector<ShapeAxesTuple> inputs{
     {{1}, {0}},
 };
 
-std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16,
+std::vector<ov::element::Type> input_types = {
+    ov::element::f32,
+    ov::element::f16,
 };
 
-const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {ngraph::helpers::SqueezeOpType::SQUEEZE,
-                                                             ngraph::helpers::SqueezeOpType::UNSQUEEZE};
+const std::vector<ov::test::utils::SqueezeOpType> opTypes = {ov::test::utils::SqueezeOpType::SQUEEZE,
+                                                             ov::test::utils::SqueezeOpType::UNSQUEEZE};
 
 INSTANTIATE_TEST_SUITE_P(smoke_reshape_squeeze_reshape_relu,
                          ReshapeSqueezeReshapeRelu,
                          ::testing::Combine(::testing::ValuesIn(inputs),
-                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(input_types),
                                             ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(opTypes)),
                          ReshapeSqueezeReshapeRelu::getTestCaseName);
