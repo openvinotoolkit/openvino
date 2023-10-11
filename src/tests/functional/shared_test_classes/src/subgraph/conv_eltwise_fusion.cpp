@@ -4,9 +4,11 @@
 
 #include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"

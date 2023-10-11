@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/get_output_before_activation.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(OutputBeforeActivation, CompareWithRefs) {
-    Run();
+    run();
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
