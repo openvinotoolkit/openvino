@@ -598,8 +598,12 @@ void Transformations::MainSnippets(void) {
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
+    // - MHA has BRGEMM that is supported only on AVX512 platforms
+    // - CPU Plugin Subgraph supports only f32, bf16 (and quantized) BRGEMM
+    //   [122494] Need to add support of f16
     const bool isMHASupported =
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+            one_of(inferencePrecision, ov::element::bf16, ov::element::f32);
     if (!isMHASupported) {
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::TokenizeMHASnippets);
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
