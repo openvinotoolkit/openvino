@@ -270,10 +270,31 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
     bool is_input = ov::op::util::is_parameter(port.get_node());
 
+    auto update_tensors_maps = [](const std::string& name,
+                                  std::unordered_map<std::string, ov::intel_gpu::TensorWrapper>& user_tensors,
+                                  std::unordered_map<std::string, ov::intel_gpu::TensorWrapper>& plugin_tensors,
+                                  const ov::SoPtr<ov::ITensor>& tensor) {
+        auto current_tensor_owner = user_tensors[name].owner;
+        auto is_same_tensor = user_tensors[name].ptr == tensor._ptr;
+
+        // Keep PLUGIN as a tensor owner if current user's tensor owner is PLUGIN and underlying tensor pointer is not changed
+        auto new_tensor_owner = current_tensor_owner == TensorOwner::PLUGIN && is_same_tensor ? TensorOwner::PLUGIN
+                                                                                              : TensorOwner::USER;
+
+        user_tensors[name] = { tensor._ptr, new_tensor_owner };
+
+        // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer sharing,
+        // so remove plugin's tensor to reallocate it in prepare_input() mehtod
+        if (current_tensor_owner == TensorOwner::PLUGIN && new_tensor_owner == TensorOwner::USER) {
+            if (plugin_tensors.count(name) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[name].ptr)->is_shared())
+                plugin_tensors.erase(plugin_tensors.find(name));
+        }
+    };
+
     if (is_input) {
-        m_user_inputs[name] = { tensor._ptr, TensorOwner::USER };
+        update_tensors_maps(name, m_user_inputs, m_plugin_inputs, tensor);
     } else {
-        m_user_outputs[name] = { tensor._ptr, TensorOwner::USER };
+        update_tensors_maps(name, m_user_outputs, m_plugin_outputs, tensor);
     }
 
     ov::ISyncInferRequest::set_tensor(port, tensor);
