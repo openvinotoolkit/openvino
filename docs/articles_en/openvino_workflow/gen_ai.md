@@ -113,7 +113,7 @@ Optimum-Intel API also provides out-of-the-box model optimization through weight
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
 
 
-Wieght compression is applied by default to models larger than 1 billion parameters and also available for CLI interface as ``--int8`` option.
+Weight compression is applied by default to models larger than one billion parameters and is also available for CLI interface as the ``--int8`` option.
 
 Below are some examples of using Optimum-Intel for model conversion and inference:
 
