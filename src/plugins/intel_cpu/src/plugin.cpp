@@ -40,7 +40,6 @@
 
 #if defined(OV_CPU_WITH_ACL)
 #include "nodes/executors/acl/acl_ie_scheduler.hpp"
-#include "arm_compute/runtime/CPP/CPPScheduler.h"
 #endif
 
 using namespace InferenceEngine;
