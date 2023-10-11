@@ -20,7 +20,18 @@ project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINODeveloperPackage REQUIRED
                  PATHS "${InferenceEngineDeveloperPackage_DIR}")
+
+    # we assume that OpenVINODeveloperPackage is generated in OpenVINO build tree
     set(OpenVINO_BINARY_DIR "${OpenVINODeveloperPackage_DIR}")
+    # but this can be invalid for cases of OpenVINODeveloperPackage relocatable installation
+    # so, we need to disable wheen generation for this case
+    if(NOT EXISTS "${OpenVINO_BINARY_DIR}/cmake_install.cmake")
+        set(OpenVINODeveloperPackage_RELOCATABLE ON)
+    endif()
+endif()
+
+if(NOT DEFINED OpenVINODeveloperPackage_RELOCATABLE)
+    set(OpenVINODeveloperPackage_RELOCATABLE OFF)
 endif()
 
 #
@@ -192,7 +203,7 @@ endif()
 
 # this option should not be a part of OpenVINODeveloperPackage
 # since wheels can be built only together with main OV build
-ov_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON" OFF)
+ov_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON;NOT OpenVINODeveloperPackage_RELOCATABLE" OFF)
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
