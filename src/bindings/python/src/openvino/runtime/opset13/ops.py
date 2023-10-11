@@ -122,8 +122,9 @@ def multinomial(
 ) -> Node:
     """Return a node which generates a sequence of class indices sampled from the multinomial distribution.
 
-    :param probs: Tensor with probabilities of shape [class_size] or [batch_size, class_size].
-    :param num_samples: Tensor (scalar or 1D) with the lower bound on the range of random values to generate.
+    :param probs: Tensor with probabilities of floating-point type, and shape [class_size] or [batch_size, class_size].
+    :param num_samples: Tensor (scalar or 1D) a single element of type i32 or i64,
+                        specifying the number of samples to draw from the multinomial distribution.
     :param convert_type: Specifies the output tensor type, possible values: 'i64', 'i32'.
     :param with_replacement: Flag that specifies whether to sample with replacement.
     :param log_probs: Flag that specifies whether *probs* should be treated as unnormalized log probabilities.
