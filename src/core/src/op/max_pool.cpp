@@ -2,32 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/max_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 
 #include "itt.hpp"
 #include "max_pool_shape_inference.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/max_pool.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace op {
+namespace v1 {
 
-op::v1::MaxPool::MaxPool(const Output<Node>& arg,
-                         const Strides& strides,
-                         const ov::Shape& pads_begin,
-                         const ov::Shape& pads_end,
-                         const ov::Shape& kernel,
-                         const op::RoundingType rounding_type,
-                         const PadType auto_pad)
+MaxPool::MaxPool(const Output<Node>& arg,
+                 const Strides& strides,
+                 const ov::Shape& pads_begin,
+                 const ov::Shape& pads_end,
+                 const ov::Shape& kernel,
+                 const op::RoundingType rounding_type,
+                 const PadType auto_pad)
     : op::util::MaxPoolBase(arg, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad) {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor) {
+bool MaxPool::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_MaxPool_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -38,7 +37,7 @@ bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v1::MaxPool::validate_and_infer_types() {
+void MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -47,102 +46,78 @@ void op::v1::MaxPool::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
-shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> MaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_MaxPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::MaxPool>(new_args.at(0),
-                                    m_strides,
-                                    m_pads_begin,
-                                    m_pads_end,
-                                    m_kernel,
-                                    m_rounding_type,
-                                    m_auto_pad);
+    return std::make_shared<v1::MaxPool>(new_args.at(0),
+                                         m_strides,
+                                         m_pads_begin,
+                                         m_pads_end,
+                                         m_kernel,
+                                         m_rounding_type,
+                                         m_auto_pad);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace maxpool {
-namespace {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg,
-                     const HostTensorPtr& out,
-                     const ov::Shape& out_shape,
-                     const ov::Shape& window_shape,
-                     const Strides& window_movement_strides,
-                     const ov::Shape& padding_below,
-                     const ov::Shape& padding_above) {
-    using T = typename element_type_traits<ET>::value_type;
-    out->set_shape(out_shape);
-    ov::reference::max_pool<T>(arg->get_data_ptr<ET>(),
-                               out->get_data_ptr<ET>(),
-                               arg->get_shape(),
-                               out_shape,
-                               window_shape,
-                               window_movement_strides,
-                               padding_below,
-                               padding_above);
-    return true;
-}
+namespace maxpool_v1 {
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
 
-bool evaluate_maxpool(const HostTensorPtr& arg,
-                      const HostTensorPtr& out,
-                      const ov::Shape& out_shape,
-                      const ov::Shape& kernel,
-                      const Strides& strides,
-                      const ov::Shape& pad_begin,
-                      const ov::Shape& pad_end) {
-    bool rc = true;
-    auto arg_shape = arg->get_shape();
-
-    switch (out->get_element_type()) {
-        OPENVINO_TYPE_CASE(evaluate_maxpool, i32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        OPENVINO_TYPE_CASE(evaluate_maxpool, i64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        OPENVINO_TYPE_CASE(evaluate_maxpool, u32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        OPENVINO_TYPE_CASE(evaluate_maxpool, u64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        OPENVINO_TYPE_CASE(evaluate_maxpool, f16, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        OPENVINO_TYPE_CASE(evaluate_maxpool, f32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-    default:
-        rc = false;
-        break;
+    template <element::Type_t ET>
+    static result_type visit(const Tensor& in,
+                             Tensor& out,
+                             const ov::Shape& kernel,
+                             const Strides& strides,
+                             const ov::Shape& pads_begin,
+                             const ov::Shape& pads_end) {
+        using T = typename element_type_traits<ET>::value_type;
+        reference::max_pool(in.data<const T>(),
+                            out.data<T>(),
+                            in.get_shape(),
+                            out.get_shape(),
+                            kernel,
+                            strides,
+                            pads_begin,
+                            pads_end);
+        return true;
     }
-    return rc;
-}
-}  // namespace
-}  // namespace maxpool
+};
+}  // namespace maxpool_v1
 
-bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape()};
+bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v1_MaxPool_evaluate);
+    const auto input_shapes = std::vector<PartialShape>{inputs[0].get_shape()};
     auto pads_begin = m_pads_begin;
     auto pads_end = m_pads_end;
-    auto out_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
+    auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
-    return maxpool::evaluate_maxpool(inputs[0],
-                                     outputs[0],
-                                     out_shape.get_shape(),
-                                     get_kernel(),
-                                     get_strides(),
-                                     get_pads_begin(),
-                                     get_pads_end());
-}
-bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    OV_OP_SCOPE(v1_MaxPool_evaluate);
-    return evaluate_maxpool(outputs, inputs);
+    outputs[0].set_shape(output_shape.get_shape());
+    using namespace ov::element;
+    return IfTypeOf<f16, f32, i32, i64, u32, u64>::apply<maxpool_v1::Evaluate>(inputs[0].get_element_type(),
+                                                                               inputs[0],
+                                                                               outputs[0],
+                                                                               get_kernel(),
+                                                                               get_strides(),
+                                                                               get_pads_begin(),
+                                                                               get_pads_end());
 }
 
-bool op::v1::MaxPool::has_evaluate() const {
+bool MaxPool::has_evaluate() const {
     OV_OP_SCOPE(v1_MaxPool_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+}  // namespace v1
+}  // namespace op
+}  // namespace ov
 
 // ------------------------------ V8 ------------------------------
 
@@ -243,15 +218,15 @@ bool evaluate_maxpool(const HostTensorPtr& data,
 }  // namespace maxpool_v8
 
 op::v8::MaxPool::MaxPool(const Output<Node>& arg,
-                         const Strides& strides,
-                         const Strides& dilations,
-                         const ov::Shape& pads_begin,
-                         const ov::Shape& pads_end,
-                         const ov::Shape& kernel,
-                         const op::RoundingType rounding_type,
-                         const PadType auto_pad,
-                         const element::Type index_element_type,
-                         const int64_t axis)
+                 const Strides& strides,
+                 const Strides& dilations,
+                 const ov::Shape& pads_begin,
+                 const ov::Shape& pads_end,
+                 const ov::Shape& kernel,
+                 const op::RoundingType rounding_type,
+                 const PadType auto_pad,
+                 const element::Type index_element_type,
+                 const int64_t axis)
     : op::util::MaxPoolBase(arg, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad),
       m_dilations{dilations},
       m_index_element_type{index_element_type},
@@ -294,15 +269,15 @@ shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_
     OV_OP_SCOPE(v8_MaxPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v8::MaxPool>(new_args.at(0),
-                                    m_strides,
-                                    m_dilations,
-                                    m_pads_begin,
-                                    m_pads_end,
-                                    m_kernel,
-                                    m_rounding_type,
-                                    m_auto_pad,
-                                    m_index_element_type,
-                                    m_axis);
+                                         m_strides,
+                                         m_dilations,
+                                         m_pads_begin,
+                                         m_pads_end,
+                                         m_kernel,
+                                         m_rounding_type,
+                                         m_auto_pad,
+                                         m_index_element_type,
+                                         m_axis);
 }
 
 bool op::v8::MaxPool::has_evaluate() const {
