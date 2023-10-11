@@ -82,7 +82,7 @@ notes: **You can specify the installed openvino version through pip install**
 
    .. code-block:: sh
       # e.g. 
-      pip install openvino==2023.0.0 or pip install openvino-dev==2023.0.0
+      pip install openvino-dev==2023.0.0
 
 (4) Run the following command to test the performance of one LLM model
 
