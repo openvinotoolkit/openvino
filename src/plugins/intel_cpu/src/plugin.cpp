@@ -40,6 +40,11 @@
 
 #if defined(OV_CPU_WITH_ACL)
 #include "nodes/executors/acl/acl_ie_scheduler.hpp"
+
+static std::mutex & get_mtx_acl() {
+    static std::mutex mtx_acl;
+    return mtx_acl;
+}
 #endif
 
 using namespace InferenceEngine;
@@ -140,11 +145,6 @@ public:
     CPUSpecialSetup() = default;
 };
 #endif // __linux__
-
-static std::mutex & get_mtx_acl() {
-    static std::mutex mtx_acl;
-    return mtx_acl;
-}
 
 Engine::Engine() :
     deviceFullName(getDeviceFullName()),
