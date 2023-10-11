@@ -30,5 +30,9 @@ ov_build_target_faster(${TARGET_NAME}
 
 # install & export
 
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/layer_tests_summary"
+        DESTINATION tests/functional_test_utils
+        COMPONENT tests EXCLUDE_FROM_ALL)
+
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}
                                     INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")
