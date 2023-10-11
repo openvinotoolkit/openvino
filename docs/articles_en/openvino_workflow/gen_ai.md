@@ -7,7 +7,7 @@ Generative AI is an innovative technique that creates new data, such as text, im
 * Conversion, optimization and inference for text, image and audio generative models, for example, Llama 2, MPT, OPT, Stable Diffusion, Stable Diffusion XL, etc. 
 * Int8 weight compression for text generation models. 
 * Storage format reduction (fp16 precision for non-compressed models and int8 for compressed models). 
-* Inference on CPU and GPU platforms, including Intel integrated and discrete ARC GPUs. 
+* Inference on CPU and GPU platforms, including integrated Intel® Processor Graphics, discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series. 
  
 
 OpenVINO offers two main paths for Generative AI use cases:
