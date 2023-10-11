@@ -3,7 +3,6 @@
 //
 
 #pragma once
-
 #include <ie_common.h>
 #include <cpu/x64/jit_generator.hpp>
 
@@ -11,13 +10,17 @@
 #include "snippets/generator.hpp"
 #include <node.h>
 
+#include "openvino/runtime/threading/thread_local.hpp"
+
 #include <set>
+
+using namespace ov::threading;
 
 namespace ov {
 namespace intel_cpu {
 
 class jit_emitter;
-extern jit_emitter* g_debug_err_handler;
+extern std::shared_ptr<ThreadLocal<jit_emitter*>> g_debug_err_handler;
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -140,12 +143,15 @@ protected:
     }
 
     void build_debug_info() const;
+    static void set_local_handler(jit_emitter* emitter_address);
+
     void internal_call_preamble() const;
     void internal_call_postamble() const;
     // align stack on 16-byte as ABI reqiures
     // callee is responsible to save and restore rbx. rbx must not be changed after call callee.
     void internal_call_rsp_align() const;
     void internal_call_rsp_restore() const;
+    
 
 private:
     mutable std::vector<size_t> preserved_vec_idxs;
