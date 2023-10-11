@@ -11,9 +11,11 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
 
+telemetry_installed = False # debug
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
+    telemetry_installed = True # debug
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
@@ -422,6 +424,14 @@ def is_verbose(argv: argparse.Namespace):
 
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
+
+    # debug
+    if telemetry_installed:
+        from openvino_telemetry.utils.opt_in_checker import OptInChecker
+        assert os.path.exists(OptInChecker().consent_file())
+        with open(OptInChecker().consent_file(), 'r') as file:
+            assert file.readline().strip() == "0"
+
     telemetry = init_mo_telemetry()
     telemetry.start_session('ovc')
     telemetry.send_event('ovc', 'version', simplified_ie_version)

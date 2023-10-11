@@ -11,10 +11,11 @@ import traceback
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
-
+telemetry_installed = False # debug
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
+    telemetry_installed = True  # debug
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
@@ -825,6 +826,14 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         show_mo_convert_help()
         return None, None
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
+
+    # debug
+    if telemetry_installed:
+        from openvino_telemetry.utils.opt_in_checker import OptInChecker
+        assert os.path.exists(OptInChecker().consent_file())
+        with open(OptInChecker().consent_file(), 'r') as file:
+            assert file.readline().strip() == "0"
+
     telemetry = init_mo_telemetry()
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
