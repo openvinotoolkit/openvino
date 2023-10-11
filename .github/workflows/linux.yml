@@ -1004,7 +1004,7 @@ jobs:
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
-              --ir_version=11 --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml -k "sigmoid"
+          --ir_version=11 --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml -k "sigmoid"
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -1024,7 +1024,7 @@ jobs:
 
       - name: MO Python API Tests
         run: |
-          # # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
+          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           # source ${INSTALL_DIR}/setupvars.sh
           # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
@@ -1033,7 +1033,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: OVC Python API Tests
-        run:
+        run: |
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           # source ${INSTALL_DIR}/setupvars.sh
           # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
