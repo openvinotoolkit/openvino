@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/matmul_squeeze_add.hpp"
+#include "shared_test_classes/single_op/power.hpp"
 
 namespace ov {
 namespace test {
-
-TEST_P(MatmulSqueezeAddTest, CompareWithRefImpl) {
+TEST_P(PowerLayerTest, Inference){
     run();
 };
-
 }  // namespace test
 }  // namespace ov
