@@ -5,8 +5,8 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/extractimagepatches.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -61,8 +61,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateModel(const ExtractImagePatchesParams& params) {
-        const auto data = std::make_shared<opset1::Parameter>(params.data.type, params.data.shape);
-        const auto extrace_image_patches = std::make_shared<opset3::ExtractImagePatches>(data,
+        const auto data = std::make_shared<op::v0::Parameter>(params.data.type, params.data.shape);
+        const auto extrace_image_patches = std::make_shared<op::v3::ExtractImagePatches>(data,
                                                                                          params.sizes,
                                                                                          params.strides,
                                                                                          params.rates,
