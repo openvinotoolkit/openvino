@@ -32,3 +32,20 @@ bool ov::symbol::util::are_unique_and_equal_labels(const ov::TensorLabel& lhs, c
             return false;
     return true;
 }
+
+bool ov::symbol::util::dims_are_equal(const ov::Dimension& lhs, const ov::Dimension& rhs) {
+    bool labels_exist_and_equal = false;
+
+    auto lhs_label = ov::DimensionTracker::get_label(lhs);
+    auto rhs_label = ov::DimensionTracker::get_label(rhs);
+    auto table_l = ov::DimensionTracker::get_table_of_equivalence(lhs);
+    auto table_r = ov::DimensionTracker::get_table_of_equivalence(rhs);
+    if (table_l)
+        labels_exist_and_equal = lhs_label != ov::no_label && table_l->are_equal(lhs, rhs);
+    else if (table_r)
+        labels_exist_and_equal = lhs_label != ov::no_label && table_r->are_equal(lhs, rhs);
+    else
+        labels_exist_and_equal = lhs_label != ov::no_label && lhs_label == rhs_label;
+    bool dims_are_static_and_equal = lhs.is_static() && lhs == rhs;
+    return labels_exist_and_equal || dims_are_static_and_equal;
+}
