@@ -542,6 +542,7 @@ jobs:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
 
       - name: Run onnxruntime_test_all
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
@@ -550,30 +551,35 @@ jobs:
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_shared_lib_test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_shared_lib_test --gtest_filter=-CApiTest.test_custom_op_openvino_wrapper_library
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_global_thread_pools_test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_global_thread_pools_test
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run onnxruntime_api_tests_without_env
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnxruntime_api_tests_without_env
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run pytorch-converted tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
         working-directory: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/RelWithDebInfo/RelWithDebInfo
 
       - name: Run pytorch-operator tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ./onnx_test_runner "${ONNX_RUNTIME_REPO}/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
@@ -812,6 +818,7 @@ jobs:
       volumes:
         - /mount/caches:/mount/caches
     env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
@@ -1064,6 +1071,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
@@ -1150,6 +1158,7 @@ jobs:
     #   volumes:
     #     - /mount/caches:/mount/caches
     env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
@@ -1230,6 +1239,7 @@ jobs:
     #   volumes:
     #     - /mount/caches:/mount/caches
     env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
