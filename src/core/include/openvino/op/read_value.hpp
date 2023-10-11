@@ -48,6 +48,13 @@ public:
     OPENVINO_OP("ReadValue", "opset6", util::ReadValueBase);
     ReadValue() = default;
 
+
+    /// \brief Constructs a ReadValue operation.
+    ///
+    /// \param variable Class for storing and synchronizing element types, shapes and
+    /// identifiers between pairs of Assign/ReadValue nodes.
+    ReadValue(const std::shared_ptr<util::Variable>& variable);
+
     /// \brief Constructs a ReadValue operation.
     ///
     /// \param init_value Node that produces the input tensor.
