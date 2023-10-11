@@ -20,23 +20,27 @@ ops_to_track_map = {
     # 'Interpolate'
 }
 
-thresholds_per_op = {
-    'Convolution': (0.1, 0.003, 0.00),
-    'MatMul': (0.1, 0.04, 0.03),
-}
+
+def get_thresholds_per_op():
+    return {
+        'Convolution': (0.1, 0.003, 0.00),
+        'MatMul': (0.1, 0.04, 0.03),
+    }
 
 
-def inject_to_partially_upcast_nodes_to_fp32(orig) -> Callable:  # orig type is OVModelForCausalLM
+def inject_to_partially_upcast_nodes_to_fp32(orig, thresholds_per_op=None) -> Callable:  # orig type is OVModelForCausalLM
     def new_start_async(inputs, shared_memory):
-        new_model = partially_upcast_nodes_to_fp32(orig.model, inputs)
+        new_model = partially_upcast_nodes_to_fp32(orig.model, inputs, thresholds_per_op)
         orig.model = new_model
         orig.request = None
         orig.compile()  # compile will set orig.request for OVModelForCausalLM
         orig.request.start_async(inputs, shared_memory=shared_memory)
+
     return new_start_async
 
 
-def partially_upcast_nodes_to_fp32(orig_model: Model, example_input: Union[List, Dict]) -> Model:
+def partially_upcast_nodes_to_fp32(orig_model: Model, example_input: Union[List, Dict],
+                                   thresholds_per_op: Dict[str, Tuple] = None) -> Model:
     model = orig_model.clone()  # todo: check if need to clone orig_models
     nodes_to_track, outs_to_track, _ = insert_results_for_tracked_ops(model)
     fp16_full_net_infer_values = infer_full_net_in_fp16(nodes_to_track, model, example_input)
@@ -44,7 +48,7 @@ def partially_upcast_nodes_to_fp32(orig_model: Model, example_input: Union[List,
     fp32_infer_values = infer_nodes_in_fp32(nodes_to_track, fp16_full_net_infer_values)
     del model
     new_model = orig_model.clone()
-    mark_nodes_to_upcast_to_fp32(new_model, nodes_to_track, fp16_infer_values, fp32_infer_values)
+    mark_nodes_to_upcast_to_fp32(new_model, nodes_to_track, fp16_infer_values, fp32_infer_values, thresholds_per_op)
     return new_model
 
 
@@ -155,18 +159,19 @@ def infer_tracked_op_on_gpu(op: Node, input_vals: Tuple, precision='f32') -> np.
     return result[0]
 
 
-def mark_nodes_to_upcast_to_fp32(model: Model, nodes: List[Node], fp16_infer_vals: List, fp32_infer_vals: List) -> None:
+def mark_nodes_to_upcast_to_fp32(model: Model, nodes: List[Node], fp16_infer_vals: List, fp32_infer_vals: List,
+                                 thresholds: None) -> None:
     nodes_with_errors = []
     for node, fp16_val, fp32_val in zip(nodes, fp16_infer_vals, fp32_infer_vals):
-        if compare_tensors(node, fp16_val, fp32_val):
+        if compare_tensors(node, fp16_val, fp32_val, thresholds):
             nodes_with_errors.append(node.get_friendly_name())
-    
+
     for node in model.get_ordered_ops():
         if node.get_friendly_name() in nodes_with_errors:
             node.get_rt_info()['disable_fp16_compression_0'] = ''
 
 
-def compare_tensors(node: Node, a: np.ndarray, b: np.ndarray) -> bool:
+def compare_tensors(node: Node, a: np.ndarray, b: np.ndarray, new_thresholds_per_op) -> bool:
     """
     If values differ more than a certain metric then function returns True
     """
@@ -180,8 +185,10 @@ def compare_tensors(node: Node, a: np.ndarray, b: np.ndarray) -> bool:
         rel_error = np.abs(2 * (a_ - b_) / (np.abs(a_) + abs(b_)))
 
     mean_rel_error = np.mean(rel_error)
-    
-    thresholds = thresholds_per_op[node.get_type_name()]
+    thresholds_map = get_thresholds_per_op()
+    if new_thresholds_per_op is not None:
+        thresholds_map.update(new_thresholds_per_op)
+    thresholds = thresholds_map[node.get_type_name()]
     rel_threshold = thresholds[0]
     rel_threshold_ratio = thresholds[1]
     rel_tol = thresholds[2]
@@ -190,5 +197,5 @@ def compare_tensors(node: Node, a: np.ndarray, b: np.ndarray) -> bool:
     if mean_rel_error < rel_tol:
         return False
     if rel_diff_ratio > rel_threshold_ratio:
-        print(f'upcasted node {node.get_friendly_name()} with 0.1 rel2_diff_ratio {rel_diff_ratio} and mean_rel_error {mean_rel_error}')
+        # print(f'upcasted node {node.get_friendly_name()} with 0.1 rel2_diff_ratio {rel_diff_ratio} and mean_rel_error {mean_rel_error}')
         return True
