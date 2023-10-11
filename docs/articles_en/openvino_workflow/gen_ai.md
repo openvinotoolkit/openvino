@@ -125,7 +125,7 @@ Below are some examples of using Optimum-Intel for model conversion and inferenc
 Working with Models Tuned with LoRA
 ++++++++++++++++++++++++++++++++++++
 
-Low-ranking Adaptation (LoRA) is a popular method to tune Generative AI models to a downstream task or custom data. But it requires some extra steps to be done for efficient deployment using the Hugging Face API. Namely, the trained adapters should be fused into the baseline model to avoid extra computation. This is how it can be done for LLMs:
+Low-rank Adaptation (LoRA) is a popular method to tune Generative AI models to a downstream task or custom data. However, it requires some extra steps to be done for efficient deployment using the Hugging Face API. Namely, the trained adapters should be fused into the baseline model to avoid extra computation. This is how it can be done for Large Language Models (LLMs):
 
 .. code-block:: python
 
