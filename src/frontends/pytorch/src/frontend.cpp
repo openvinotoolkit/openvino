@@ -136,17 +136,8 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
         }
     }
     bool is_conversion_successful = unconverted_ops.size() == 0 && norm_err.empty();
-    #if 0
     FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops, norm_err));
-    #else
-    if(!is_conversion_successful) {
-        std::cerr << "*******************************************************************************\n";
-        std::cerr << "[ DEBUG ] Model cannot be converted completely by PyTorch FE.\n[ DEBUG ] Debug mode is active -- leaving model as-is with unsupported operations. Compilation of the model will fail.\n";
-        std::cerr << pack_detailed_failure_report(unconverted_ops, norm_err) << "\n";
-        std::cerr << "*******************************************************************************\n";
-    }
     return converted_model;
-    #endif
 }
 
 void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
