@@ -88,7 +88,8 @@ class TorchScriptPythonDecoder (Decoder):
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(example_inputs, input_params, pt_module)
                 try:
                     gptq.patch_model(pt_module)
-                    scripted = torch.jit.trace(pt_module, **input_parameters, strict=False)
+                    scripted = torch.jit.trace(
+                        pt_module, **input_parameters, strict=False)
                 except:
                     gptq.unpatch_model(pt_module)
             if not skip_freeze:

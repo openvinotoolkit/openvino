@@ -13,8 +13,8 @@ from functools import partial
 class KeepWeight(torch.nn.Module):
 
     def __init__(self, weight):
-      super().__init__()
-      self.weight = torch.nn.Parameter(weight, requires_grad=False)
+        super().__init__()
+        self.weight = torch.nn.Parameter(weight, requires_grad=False)
 
     def forward(self):
         return self.weight
@@ -37,9 +37,12 @@ def patched_forward(self, *args, **kwargs):
     groups = self.qzeros.shape[0]
     height = self.qweight.shape[0]
 
-    unpacked_weights = decompression_pattern(self._openvino_u4_compression_submodule_qweights()).contiguous().view(height, -1, 8)
-    unpacked_weights = torch.transpose(unpacked_weights, 1, 2).contiguous().view(-1, self.group_size, self.width)
-    unpacked_zp = decompression_pattern(self._openvino_u4_compression_submodule_qzeros()).contiguous().view(groups, 1, -1)
+    unpacked_weights = decompression_pattern(
+        self._openvino_u4_compression_submodule_qweights()).contiguous().view(height, -1, 8)
+    unpacked_weights = torch.transpose(
+        unpacked_weights, 1, 2).contiguous().view(-1, self.group_size, self.width)
+    unpacked_zp = decompression_pattern(
+        self._openvino_u4_compression_submodule_qzeros()).contiguous().view(groups, 1, -1)
 
     unpacked_zp = unpacked_zp.to(dtype) + 1
 
@@ -55,6 +58,7 @@ def patched_forward(self, *args, **kwargs):
     if hasattr(self, "_hf_hook"):
         out = self._hf_hook.post_forward(self, out)
     return out
+
 
 def patch_model(model):
     for name, m in model.named_modules():
@@ -83,8 +87,10 @@ def patch_model(model):
             m.qzeros = m.qzeros.view(dtype=torch.uint8)
 
             # TODO: Redundant tensor copy? Try to remove m.qweigh and m.qzeros after keeping modified values as submodules
-            m.add_module('_openvino_u4_compression_submodule_qweights', KeepWeight(m.qweight))
-            m.add_module('_openvino_u4_compression_submodule_qzeros', KeepWeight(m.qzeros))
+            m.add_module(
+                '_openvino_u4_compression_submodule_qweights', KeepWeight(m.qweight))
+            m.add_module('_openvino_u4_compression_submodule_qzeros',
+                         KeepWeight(m.qzeros))
 
             m.scales = m.scales.view(-1, 1, m.width)
 
@@ -96,10 +102,12 @@ def unpatch_model(model):
                 m.forward = m._openvino_patch_orig_forward
                 del m._openvino_patch_orig_forward
 
-                m.qweight = m.qweight.view(dtype=m._openvino_patch_orig_qweights_type)
+                m.qweight = m.qweight.view(
+                    dtype=m._openvino_patch_orig_qweights_type)
                 del m._openvino_patch_orig_qweights_type
 
-                m.qzeros = m.qzeros.view(dtype=m._openvino_patch_orig_qzeros_type)
+                m.qzeros = m.qzeros.view(
+                    dtype=m._openvino_patch_orig_qzeros_type)
                 del m._openvino_patch_orig_qzeros_type
 
                 m.scales = m.scales.view(m._openvino_patch_orig_scale_shape)
