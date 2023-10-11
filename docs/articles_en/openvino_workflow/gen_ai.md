@@ -44,7 +44,7 @@ The table below summarizes differences of both Hugging Face and Native approache
      - Hugging Face based
      - Custom inference pipelines
    * - Additional dependencies
-     - As much as Hugging Face has
+     - Many Hugging Face dependencies
      - Ligthweight (e.g. numpy, boost, etc.)
    * - Application footprint
      - Large
