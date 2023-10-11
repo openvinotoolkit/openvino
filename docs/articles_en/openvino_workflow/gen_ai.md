@@ -63,7 +63,7 @@ Running Generative AI Models using Hugging Face Optimum Intel
 Prerequisites
 +++++++++++++++++++++++++++
 
-* Create a Python environment
+* Create a Python environment.
 * Install Optimium-Intel running:
 
 .. code-block:: console
