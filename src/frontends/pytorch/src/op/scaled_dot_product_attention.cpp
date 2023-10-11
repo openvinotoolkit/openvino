@@ -174,29 +174,37 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
         }
         scaled_atten = context.mark_node(std::make_shared<v1::Add>(scaled_atten, atten_mask));
     }
-    std::vector<int> softmax_shape_v(3);
-    softmax_shape_v[0] = scaled_atten->get_shape()[0]*scaled_atten->get_shape()[1];
-    softmax_shape_v[1] = scaled_atten->get_shape()[2];
-    softmax_shape_v[2] = scaled_atten->get_shape()[3];
-    std::vector<int> matmul_shape_v(4);
-    matmul_shape_v[0] = scaled_atten->get_shape()[0];
-    matmul_shape_v[1] = scaled_atten->get_shape()[1];
-    matmul_shape_v[2] = scaled_atten->get_shape()[2];
-    matmul_shape_v[3] = scaled_atten->get_shape()[3];
-    auto softmax_shape = context.mark_node(v0::Constant::create(element::i32, Shape{3}, softmax_shape_v));
-    auto reshape_3d = context.mark_node(std::make_shared<v1::Reshape>(scaled_atten, softmax_shape, false));
-    scaled_atten = context.mark_node(std::make_shared<v8::Softmax>(reshape_3d, -1));
-    auto matmul_shape = context.mark_node(v0::Constant::create(element::i32, Shape{4}, matmul_shape_v));
-    auto reshape_4d = context.mark_node(std::make_shared<v1::Reshape>(scaled_atten, matmul_shape, true));
-    auto output = context.mark_node(std::make_shared<v0::MatMul>(reshape_4d, value));
-
-    //scaled_atten = context.mark_node(std::make_shared<v8::Softmax>(scaled_atten, -1));
-    //auto output = context.mark_node(std::make_shared<v0::MatMul>(scaled_atten, value));
-    ov::OutputVector out_vec;
-    for (int i=0; i<8; i++) {
-        out_vec.push_back(output);
+    if (scaled_atten->get_shape().size() == 4) {
+        std::vector<int> softmax_shape_v(3);
+        softmax_shape_v[0] = scaled_atten->get_shape()[0]*scaled_atten->get_shape()[1];
+        softmax_shape_v[1] = scaled_atten->get_shape()[2];
+        softmax_shape_v[2] = scaled_atten->get_shape()[3];
+        std::vector<int> matmul_shape_v(4);
+        matmul_shape_v[0] = scaled_atten->get_shape()[0];
+        matmul_shape_v[1] = scaled_atten->get_shape()[1];
+        matmul_shape_v[2] = scaled_atten->get_shape()[2];
+        matmul_shape_v[3] = scaled_atten->get_shape()[3];
+        auto softmax_shape = context.mark_node(v0::Constant::create(element::i32, Shape{3}, softmax_shape_v));
+        std::cout << "DEBUG - scaled_atten - shape: " << scaled_atten->get_shape() << std::endl;
+        auto reshape_3d = context.mark_node(std::make_shared<v1::Reshape>(scaled_atten, softmax_shape, false));
+        scaled_atten = context.mark_node(std::make_shared<v8::Softmax>(reshape_3d, -1));
+        auto matmul_shape = context.mark_node(v0::Constant::create(element::i32, Shape{4}, matmul_shape_v));
+        auto reshape_4d = context.mark_node(std::make_shared<v1::Reshape>(scaled_atten, matmul_shape, false));
+        auto output = context.mark_node(std::make_shared<v0::MatMul>(reshape_4d, value));
+        ov::OutputVector out_vec;
+        for (int i=0; i<8; i++) {
+            out_vec.push_back(output);
+        }
+        return {context.mark_node(make_list_construct(out_vec))};
+    } else {
+        scaled_atten = context.mark_node(std::make_shared<v8::Softmax>(scaled_atten, -1));
+        auto output = context.mark_node(std::make_shared<v0::MatMul>(scaled_atten, value));
+        ov::OutputVector out_vec;
+        for (int i=0; i<8; i++) {
+            out_vec.push_back(output);
+        }
+        return {context.mark_node(make_list_construct(out_vec))};
     }
-    return {context.mark_node(make_list_construct(out_vec))};
 };
 
 }  // namespace op
