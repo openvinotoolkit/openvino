@@ -163,10 +163,6 @@ std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
     return scheduler_guard_ptr;
 }
 
-Engine::SchedulerGuard::~SchedulerGuard() {
-    std::lock_guard<std::mutex> lock{this->dest_mutex};
-    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
-}
 #endif
 
 Engine::Engine() :
