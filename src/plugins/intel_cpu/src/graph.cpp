@@ -913,20 +913,7 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
         const void* ext_data_ptr = input->data();
         void* inter_data_ptr = childEdge->getMemory().getData();
 
-        // Convert data if precision mismatch
-        auto& inter_mem_desc = childEdge->getMemory().getDesc();
-        auto inter_precision = inter_mem_desc.getPrecision();
-        auto ext_precision = InferenceEngine::details::convertPrecision(input->get_element_type());
-        if (ext_precision != inter_precision) {
-            if ((inter_data_ptr == nullptr) || (ext_data_ptr == nullptr)) {
-                OPENVINO_THROW("Get tensor has no allocated memory");
-            }
-            cpu_convert(ext_data_ptr, inter_data_ptr, ext_precision, inter_precision, input->get_size());
-            DEBUG_LOG("push_input: convert data ", ext_precision, " to ", inter_precision);
-
-            Memory mem(getEngine(), inter_mem_desc, inter_data_ptr, false);
-            childEdge->getMemory().load(mem, false);
-        } else if (ext_data_ptr != inter_data_ptr) {
+        if (ext_data_ptr != inter_data_ptr) {
             auto ext_tensor_desc = create_mem_desc(input);
             Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
             childEdge->getMemory().load(ext_mem, false);
@@ -1025,12 +1012,12 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput && dstPrec == srcPrec) {
+        if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
             // User can initialize output via SetOutput API using tensorDesc with ANY layout.
             // For these cases we create planar memory descriptor.
             auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
-                                ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
-                                : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
+                                   ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
+                                   : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
             Memory outBloMem(getEngine(), outBlobDesc, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {

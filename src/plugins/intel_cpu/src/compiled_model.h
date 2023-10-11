@@ -42,7 +42,7 @@ public:
                                "",
                                false,
                                "Not Implemented",
-                               "CompiledModel::set_property is not supported by this plugin!");
+                               "CompiledModel::set_property is not supported by CPU plugin!");
     };
 
 private:

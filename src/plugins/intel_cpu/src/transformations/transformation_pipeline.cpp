@@ -128,7 +128,7 @@ namespace intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
+bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto convert = ov::as_type_ptr<ov::opset10::Convert>(node);
     if (!convert)
         return false;
@@ -143,7 +143,7 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& 
     // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
     // Convert node for this scenario.
     if (convert->input(0).get_element_type().is_real() &&
-        convert->get_convert_element_type() == ngraph::element::boolean && to.is_integral_number()) {
+        convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
         const auto& in_prec = node->get_input_element_type(0);
         auto item = precisions.find(in_prec);
         if (item != precisions.end()) {
@@ -596,7 +596,7 @@ void Transformations::MainSnippets(void) {
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     tokenization_config.split_m_dimension = snippetsMode != Config::SnippetsMode::IgnoreCallback;
 
-    ngraph::pass::Manager snippetsManager;
+    ov::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);

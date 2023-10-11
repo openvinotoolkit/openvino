@@ -191,8 +191,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*BF16.*)",
         // TODO: for 22.2 (CVS-68949)
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
-        // Issue: 117837
-        R"(.*smoke_4D_out_of_range/GatherInPlaceLayerTestCPU.*_indices=\(\-15\).*)",
         // Issue: 120279
         R"(.*OVCompiledGraphImportExportTest.*elementType=(i16|u16|u32|u64|i64).*)",
         // Issue: 120222
@@ -207,6 +205,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 121363
         R"(.*smoke_Constant/ConstantLayerTest.*_dataPRC=(u4|u16|u32|i4|i16|f64).*)",
         R"(.*smoke_Constant_with_negative_values/ConstantLayerTest.*_dataPRC=(u4|u16|u32|i4|i16|f64).*)",
+        R"(.*smoke_Check/ConstantResultSubgraphTest.CompareWithRefs/SubgraphType.*_IT=(u16|i16|u32|i64|u64).*)",
         // Issue: 121313
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f16.*)",
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
@@ -214,6 +213,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
         // Issue: 122321
         R"(.*smoke_ConvertCPULayerTest_BOOL.*)",
+        // Issue: 122177
+        R"(smoke_LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
+        // Issue: 122094
+        R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
     };
 #if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
     // Issue: 120950

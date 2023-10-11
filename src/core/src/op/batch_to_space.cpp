@@ -16,10 +16,10 @@
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/opsets/opset3.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/op/util/slice_plan.hpp"
+#include "openvino/reference/reshape.hpp"
 #include "openvino/reference/strided_slice.hpp"
 
 using namespace std;
@@ -110,12 +110,12 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
     for (size_t block_idx = 1; block_idx < block_values_size; ++block_idx) {
         dispersed_shape[0] = block_values[block_idx];
         dispersed_shape[1] /= block_values[block_idx];
-        runtime::opt_kernel::reshape(flat_data,
-                                     dispersed_data.data(),
-                                     data_shape,
-                                     plain_axes_order,
-                                     dispersed_shape,
-                                     elem_size);
+        ov::reference::reshape(flat_data,
+                               dispersed_data.data(),
+                               data_shape,
+                               plain_axes_order,
+                               dispersed_shape,
+                               elem_size);
 
         size_t val = 1;
         for (size_t axis_idx = 0; axis_idx <= block_values_size; ++axis_idx) {
@@ -130,21 +130,21 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
             post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
         }
 
-        runtime::opt_kernel::reshape(dispersed_data.data(),
-                                     post_transpose_data.data(),
-                                     dispersed_shape,
-                                     axes_order,
-                                     post_transpose_shape,
-                                     elem_size);
+        ov::reference::reshape(dispersed_data.data(),
+                               post_transpose_data.data(),
+                               dispersed_shape,
+                               axes_order,
+                               post_transpose_shape,
+                               elem_size);
         squeezed_shape[0] = dispersed_shape[1];
         squeezed_shape[block_idx] *= block_values[block_idx];
         dispersed_shape[block_idx + 1] = squeezed_shape[block_idx];
-        runtime::opt_kernel::reshape(post_transpose_data.data(),
-                                     flat_data,
-                                     post_transpose_shape,
-                                     plain_axes_order,
-                                     squeezed_shape,
-                                     elem_size);
+        ov::reference::reshape(post_transpose_data.data(),
+                               flat_data,
+                               post_transpose_shape,
+                               plain_axes_order,
+                               squeezed_shape,
+                               elem_size);
         data_shape = squeezed_shape;
     }
 
