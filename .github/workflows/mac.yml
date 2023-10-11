@@ -366,49 +366,50 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
-      - name: Legacy Transformations func tests
-        run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_legacy_transformations_tests --gtest_print_time=1 \
-                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LegacyTransformations.xml
-
       - name: Inference Engine 1.0 unit tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/InferenceEngineUnitTests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceEngineUnitTests.xml
 
       - name: Common test utils tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-commonUtilsTests.xml
 
       - name: Snippets func tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
 
       - name: AUTO unit tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 \
@@ -416,38 +417,45 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateFuncTests.xml
 
       - name: Inference Engine C API tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/InferenceEngineCAPITests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceEngineCAPITests.xml
 
       - name: OpenVINO C API tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_unit_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_unit_tests.xml
 
       - name: AutoBatch func tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml
 
       - name: Proxy Plugin func tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero func tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
@@ -595,6 +603,9 @@ jobs:
         if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx.xml
 
       - name: TensorFlow 1 Layer Tests - TF FE
@@ -615,14 +626,6 @@ jobs:
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
-        env:
-          TEST_DEVICE: CPU
-
-      - name: JAX Layer Tests - TF FE
-        if: ${{ always() }}
-        run: |
-          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
 

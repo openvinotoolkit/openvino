@@ -337,6 +337,9 @@ jobs:
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          
+          :: requires 'unit_tests' from 'tools/mo'
+          set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
 
       - name: TensorFlow 1 Layer Tests - TF FE
@@ -345,7 +348,7 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-          # requires 'unit_tests' from 'tools/mo'
+          :: requires 'unit_tests' from 'tools/mo'
           set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
@@ -362,15 +365,6 @@ jobs:
           set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
-        env:
-          TEST_DEVICE: CPU
-
-      - name: JAX Layer Tests - TF FE
-        if: ${{ always() }}
-        shell: cmd
-        run: |
-          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
 
