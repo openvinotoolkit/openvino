@@ -215,7 +215,8 @@ set_target_properties(${TARGET_NAME}_obj
 
 # Export for developer package
 
-ov_developer_package_export_targets(${TARGET_NAME}_s ${TARGET_NAME}_plugin_api)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}_s)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}_plugin_api)
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 

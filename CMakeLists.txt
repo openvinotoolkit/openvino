@@ -91,21 +91,29 @@ endmacro()
 ov_clean_developer_package_targets()
 
 function(ov_developer_package_export_targets)
-    
+    cmake_parse_arguments(EXPORT "" "TARGET;INSTALL_DESTIONATION" "INSTALL_INCLUDE_DIRECTORIES" ${ARGN})
 
     # to allow exporting of aliased targets with the original names
-    foreach(target_name IN LISTS ARGV)
-        if(TARGET "${target_name}")
-            get_target_property(original_name ${target_name} ALIASED_TARGET)
-            if(TARGET "${original_name}")
-                # replace target with its original name
-                set(target_name ${original_name})
-            endif()
-            list(APPEND _OPENVINO_DEVELOPER_PACKAGE_TARGETS ${target_name})
-        else()
-            message(FATAL_ERROR "Internal error: ${target_name} does not represent a cmake target")
+    if(TARGET "${EXPORT_TARGET}")
+        get_target_property(original_name ${EXPORT_TARGET} ALIASED_TARGET)
+        if(TARGET "${original_name}")
+            # replace target with its original name
+            set(EXPORT_TARGET ${original_name})
         endif()
-    endforeach()
+        list(APPEND _OPENVINO_DEVELOPER_PACKAGE_TARGETS ${EXPORT_TARGET})
+
+        if(NOT EXPORT_INSTALL_DESTIONATION)
+            set(EXPORT_INSTALL_DESTIONATION "developer_package/include/${EXPORT_TARGET}")
+        endif()
+
+        target_include_directories(${EXPORT_TARGET} INTERFACE "$<INSTALL_INTERFACE:${EXPORT_INSTALL_DESTIONATION}>")
+
+        install(DIRECTORY "${EXPORT_INCLUDE_DIRECTORIES}"
+                DESTINATION "developer_package/include/${EXPORT_TARGET}"
+                COMPONENT developer_package EXCLUDE_FROM_ALL)
+    else()
+        message(FATAL_ERROR "Internal error: ${target_name} does not represent a cmake target")
+    endif()
 
     list(REMOVE_DUPLICATES _OPENVINO_DEVELOPER_PACKAGE_TARGETS)
     set(_OPENVINO_DEVELOPER_PACKAGE_TARGETS "${_OPENVINO_DEVELOPER_PACKAGE_TARGETS}" CACHE INTERNAL

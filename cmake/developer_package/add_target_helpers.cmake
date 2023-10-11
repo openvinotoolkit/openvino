@@ -9,7 +9,6 @@ ov_add_target(
    NAME core_lib
    ADD_CPPLINT
    ADD_CLANG_FORMAT
-   DEVELOPER_PACKAGE
    TYPE <SHARED / STATIC / EXECUTABLE>
    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
    ADDITIONAL_SOURCE_DIRS
@@ -38,7 +37,6 @@ function(ov_add_target)
     set(options
         ADD_CPPLINT                   # Enables code style checks for the target
         ADD_CLANG_FORMAT              # Enables code style checks for the target
-        DEVELOPER_PACKAGE             # Enables exporting of the target through the developer package
         )
     set(oneValueRequiredArgs
         TYPE # type of target, SHARED|STATIC|EXECUTABLE. SHARED and STATIC correspond to add_library, EXECUTABLE to add_executable
@@ -125,10 +123,6 @@ function(ov_add_target)
     if (ARG_ADD_CLANG_FORMAT)
         # code style
         ov_add_clang_format_target(${ARG_NAME}_clang FOR_TARGETS ${ARG_NAME})
-    endif()
-    if (ARG_DEVELOPER_PACKAGE)
-        # developer package
-        ov_developer_package_export_targets(${ARG_NAME})
     endif()
     if(WIN32)
         # Provide default compile pdb name equal to target name

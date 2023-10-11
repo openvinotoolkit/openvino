@@ -23,8 +23,6 @@ function(add_common_utils ADD_TARGET_NAME)
             EXCLUDED_SOURCE_PATHS
                 ${TARGET_EXCLUDED_SOURCE_PATHS}
             ADD_CLANG_FORMAT
-            DEVELOPER_PACKAGE
-                tests
             LINK_LIBRARIES
                 PUBLIC
                     gtest
@@ -39,15 +37,12 @@ function(add_common_utils ADD_TARGET_NAME)
                 INCLUDES
                     PUBLIC
                         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-                        "$<INSTALL_INTERFACE:developer_package/include/${ADD_TARGET_NAME}>"
                     PRIVATE
                         "${CMAKE_CURRENT_SOURCE_DIR}/src"
     )
 
-    # install
-    install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
-            DESTINATION developer_package/include/${ADD_TARGET_NAME}
-            COMPONENT developer_package EXCLUDE_FROM_ALL)
+    ov_developer_package_export_targets(TARGET ${ADD_TARGET_NAME}
+                                        INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 
     if(ENABLE_CONFORMANCE_PGQL)
         target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ENABLE_CONFORMANCE_PGQL)

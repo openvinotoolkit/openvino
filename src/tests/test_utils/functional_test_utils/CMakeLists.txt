@@ -9,12 +9,9 @@ ov_add_target(
     TYPE STATIC
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     ADD_CLANG_FORMAT
-    DEVELOPER_PACKAGE
-        tests
     INCLUDES
         PUBLIC
             "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-            "$<INSTALL_INTERFACE:developer_package/include/func_test_utils>"
     ADDITIONAL_SOURCE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     LINK_LIBRARIES
@@ -31,11 +28,7 @@ ov_build_target_faster(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
-# installation
+# install & export
 
-install(DIRECTORY layer_tests_summary DESTINATION tests/functional_test_utils
-        COMPONENT tests EXCLUDE_FROM_ALL)
-
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
-        DESTINATION developer_package/include/func_test_utils
-        COMPONENT developer_package EXCLUDE_FROM_ALL)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")

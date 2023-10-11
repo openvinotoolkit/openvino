@@ -113,8 +113,7 @@ add_library(openvino::runtime::dev ALIAS openvino_runtime_dev)
 target_include_directories(openvino_runtime_dev INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>>
-    $<INSTALL_INTERFACE:developer_package/include/openvino_runtime_dev>)
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 target_compile_definitions(openvino_runtime_dev INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
@@ -124,15 +123,11 @@ target_link_libraries(openvino_runtime_dev INTERFACE ${TARGET_NAME} openvino::co
 ov_set_threading_interface_for(openvino_runtime_dev)
 set_target_properties(openvino_runtime_dev PROPERTIES EXPORT_NAME runtime::dev)
 
-ov_developer_package_export_targets(openvino::runtime::dev)
+ov_developer_package_export_targets(TARGET openvino::runtime::dev
+                                    INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/inference/dev_api/")
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(openvino_runtime_dev ${OV_CPACK_COMP_CORE})
-
-install(DIRECTORY "${OpenVINO_SOURCE_DIR}/src/inference/dev_api/"
-        DESTINATION developer_package/include/openvino_runtime_dev
-        COMPONENT developer_package
-        EXCLUDE_FROM_ALL)
 
 #
 # Install OpenVINO runtime

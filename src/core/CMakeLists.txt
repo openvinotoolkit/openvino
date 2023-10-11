@@ -46,13 +46,16 @@ target_include_directories(openvino_core_dev INTERFACE
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
-    $<INSTALL_INTERFACE:developer_package/include/openvino_core_dev>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>)
 
 target_link_libraries(openvino_core_dev INTERFACE openvino::itt openvino::util)
 
 set_target_properties(openvino_core_dev PROPERTIES EXPORT_NAME core::dev)
-ov_developer_package_export_targets(openvino::core::dev)
+ov_developer_package_export_targets(TARGET openvino::core::dev
+                                    INSTALL_INCLUDE_DIRECTORIES
+                                        "${OV_CORE_DEV_API_PATH}/"
+                                        "${OpenVINO_SOURCE_DIR}/src/common/transformations/include/"
+                                        "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include/")
 
 # Install interface libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(openvino_core_dev ${OV_CPACK_COMP_CORE})
@@ -167,8 +170,3 @@ install(FILES ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
               ${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION ${OV_CPACK_NGRAPH_CMAKEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
-
-# install developer package files
-install(DIRECTORY ${OV_CORE_DEV_API_PATH}/
-        DESTINATION developer_package/include/openvino_core_dev
-        COMPONENT developer_package)

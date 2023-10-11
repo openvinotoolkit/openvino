@@ -41,9 +41,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
 if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
-target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>
-    $<INSTALL_INTERFACE:developer_package/include/openvino_util>)
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
@@ -53,8 +51,5 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-ov_developer_package_export_targets(${TARGET_NAME})
-
-install(DIRECTORY "${UTIL_INCLUDE_DIR}/"
-        DESTINATION developer_package/include/openvino_util
-        COMPONENT developer_package EXCLUDE_FROM_ALL)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${UTIL_INCLUDE_DIR}/")

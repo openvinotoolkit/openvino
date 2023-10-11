@@ -25,7 +25,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME offline_transformati
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::core::dev openvino::reference openvino::runtime)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                                 $<INSTALL_INTERFACE:developer_package/include/openvino_offline_transformations>
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
                                                   $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -35,8 +34,5 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 # install & export
 
-ov_developer_package_export_targets(${TARGET_NAME})
-
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
-        DESTINATION developer_package/include/openvino_offline_transformations
-        COMPONENT developer_package EXCLUDE_FROM_ALL)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")

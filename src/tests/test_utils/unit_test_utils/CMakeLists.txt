@@ -15,8 +15,6 @@ ov_add_target(
         TYPE STATIC
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADD_CLANG_FORMAT
-        DEVELOPER_PACKAGE
-            tests
         LINK_LIBRARIES
             PUBLIC
                 common_test_utils_s
@@ -27,11 +25,10 @@ ov_add_target(
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>"
-                "$<INSTALL_INTERFACE:developer_package/include/unit_test_utils>"
 )
 
-# install
+# install & export
 
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/"
-        DESTINATION developer_package/include/unit_test_utils/unit_test_utils
-        COMPONENT developer_package EXCLUDE_FROM_ALL)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+                                    INSTALL_DESTIONATION "developer_package/include/unit_test_utils/unit_test_utils")

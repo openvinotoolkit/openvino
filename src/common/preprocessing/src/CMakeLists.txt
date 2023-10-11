@@ -211,7 +211,7 @@ endif()
 
 # developer package
 
-ov_developer_package_export_targets(${TARGET_NAME})
+ov_developer_package_export_targets(TARGET ${TARGET_NAME})
 
 # install
 

@@ -12,8 +12,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME conditional_compilat
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::itt)
 
 target_include_directories(${TARGET_NAME} INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:developer_package/include/openvino_conditional_compilation>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
 if(SELECTIVE_BUILD STREQUAL "COLLECT")
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD_ANALYZER)
@@ -67,8 +66,5 @@ endif()
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-ov_developer_package_export_targets(openvino::conditional_compilation)
-
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
-        DESTINATION developer_package/include/openvino_conditional_compilation
-        COMPONENT developer_package EXCLUDE_FROM_ALL)
+ov_developer_package_export_targets(TARGET openvino::conditional_compilation
+                                    INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")

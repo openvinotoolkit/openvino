@@ -13,7 +13,6 @@ ov_add_target(
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
-                "$<INSTALL_INTERFACE:developer_package/include/ov_lpt_models>"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
@@ -21,10 +20,6 @@ ov_add_target(
                 ov_models
                 openvino::runtime::dev
         ADD_CPPLINT
-        DEPENDENCIES
-            ov_models
-        DEVELOPER_PACKAGE
-            tests
 )
 
 ov_build_target_faster(${TARGET_NAME}
@@ -32,8 +27,7 @@ ov_build_target_faster(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
-# install
+# install & export
 
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
-        DESTINATION developer_package/include/ov_lpt_models
-        COMPONENT developer_package EXCLUDE_FROM_ALL)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${PUBLIC_HEADERS_DIR}/")

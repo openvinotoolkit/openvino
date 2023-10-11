@@ -14,7 +14,6 @@ ov_add_target(
             PUBLIC
                 "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
                 "$<BUILD_INTERFACE:${COMMON_TEST_UTILS_INCLUDES}>"
-                "$<INSTALL_INTERFACE:developer_package/include/ov_snippets_models>"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
@@ -24,8 +23,6 @@ ov_add_target(
                 openvino::snippets
                 ov_lpt_models
         ADD_CPPLINT
-        DEVELOPER_PACKAGE
-            tests
 )
 
 ov_build_target_faster(${TARGET_NAME}
@@ -33,8 +30,7 @@ ov_build_target_faster(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
-# install
+# install & export
 
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
-        DESTINATION developer_package/include/ov_snippets_models
-        COMPONENT developer_package EXCLUDE_FROM_ALL)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${PUBLIC_HEADERS_DIR}/")

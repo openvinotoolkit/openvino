@@ -52,14 +52,11 @@ ov_add_target(
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
-        DEVELOPER_PACKAGE
-            tests
         EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
         DEFINES ${DEFINES}
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
-                "$<INSTALL_INTERFACE:developer_package/include/funcSharedTests>"
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
@@ -88,8 +85,7 @@ if (ENABLE_INTEL_CPU)
         PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
 endif()
 
-# install
+# install & export
 
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
-        DESTINATION developer_package/include/funcSharedTests
-        COMPONENT developer_package EXCLUDE_FROM_ALL)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${PUBLIC_HEADERS_DIR}/")
