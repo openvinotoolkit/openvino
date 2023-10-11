@@ -87,6 +87,14 @@ jobs:
         run: choco install --no-progress ninja
 
       #
+      # Disable Telemetry
+      #
+
+      - name: Disable Telemetry
+        run: |
+          mkdir -p "%LOCALAPPDATA%/Intel Corporation/"
+          echo 0 > "%LOCALAPPDATA%/Intel Corporation/openvino_telemetry"
+      #
       # Build
       #
 
