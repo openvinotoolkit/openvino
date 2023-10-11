@@ -38,20 +38,20 @@ OutputVector hammingwindow(const Node& node) {
     const auto step = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{1.0f});
     const auto range = std::make_shared<default_opset::Range>(start, size, step, output_datatype);
     const auto pi = default_opset::Constant::create(output_datatype, ov::Shape(), {static_cast<float>(M_PI)});
-    const auto size_cast = std::make_shared<default_opset::Cast>(size, output_datatype);
+    const auto size_cast = std::make_shared<default_opset::Convert>(size, output_datatype);
     const auto factor = std::make_shared<default_opset::Multiply>(
         range,
         std::make_shared<default_opset::Divide>(
             std::make_shared<default_opset::Multiply>(
                 pi,
-                std::make_shared<default_opset::Cast>(
+                std::make_shared<default_opset::Convert>(
                     std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{2}),
                     output_datatype)),
             periodic
                 ? size_cast
                 : std::make_shared<default_opset::Subtract>(
                       size_cast,
-                      std::make_shared<default_opset::Cast>(
+                      std::make_shared<default_opset::Convert>(
                           std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{1}),
                           output_datatype))));
 
