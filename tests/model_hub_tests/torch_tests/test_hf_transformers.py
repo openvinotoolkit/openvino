@@ -299,7 +299,7 @@ class TestTransformersModel(TestConvertModel):
                                            ("gpt2", "gpt2"),
                                            ("openai/clip-vit-large-patch14", "clip"),
                                            ("RWKV/rwkv-4-169m-pile", "rwkv"),
-                                           ("microsoft/layoutlmv3-base,layoutlmv3", "layoutlmv3"),
+                                           ("microsoft/layoutlmv3-base", "layoutlmv3"),
                                            ("microsoft/xprophetnet-large-wiki100-cased", "xlm-prophetnet"),
                                            ])
     @pytest.mark.precommit
