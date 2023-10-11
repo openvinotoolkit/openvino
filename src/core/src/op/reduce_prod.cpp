@@ -92,11 +92,59 @@ bool ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
     // In such case we shouldn't evaluate a real ReduceProd because it'll cause an
     // overflow and returns wrong value. We should return an Upper Bound as for [-1],
     // which will be evaluated as [0x7FFFFFFFFFFFFFFF]
-    if (get_input_tensor(0).get_element_type() == element::i64 &&
-        tensor_has_max_value(get_input_tensor(0).get_upper_value())) {
-        output_values[0].set_shape(Shape{1});
-        output_values[0].data<int64_t>()[0] =
-            std::numeric_limits<typename element_type_traits<element::i64>::value_type>::max();
+    // In case dimensions has a zero dimension - it should return 0 in any case
+    if (tensor_has_max_value(get_input_tensor(0).get_upper_value())) {
+#define OPENVINO_TYPE_TO_ZERO_CONST(t)                                               \
+    case t:                                                                          \
+        output_values[0].data<typename element_type_traits<t>::value_type>()[0] = 0; \
+        return true
+#define OPENVINO_TYPE_TO_MAX_CONST(t)                                                \
+    case t:                                                                          \
+        output_values[0].data<typename element_type_traits<t>::value_type>()[0] =    \
+            std::numeric_limits<typename element_type_traits<t>::value_type>::max(); \
+        return true
+
+        if (tensor_has_zero_value(get_input_tensor(0).get_upper_value())) {
+            switch (get_input_tensor(0).get_element_type()) {
+                OPENVINO_TYPE_TO_ZERO_CONST(element::boolean);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::bf16);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::f16);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::f32);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::f64);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::i8);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::i16);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::i32);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::i64);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::u1);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::u8);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::u16);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::u32);
+                OPENVINO_TYPE_TO_ZERO_CONST(element::u64);
+            default:
+                return false;
+            }
+        } else {
+            switch (get_input_tensor(0).get_element_type()) {
+                OPENVINO_TYPE_TO_MAX_CONST(element::boolean);
+                OPENVINO_TYPE_TO_MAX_CONST(element::bf16);
+                OPENVINO_TYPE_TO_MAX_CONST(element::f16);
+                OPENVINO_TYPE_TO_MAX_CONST(element::f32);
+                OPENVINO_TYPE_TO_MAX_CONST(element::f64);
+                OPENVINO_TYPE_TO_MAX_CONST(element::i8);
+                OPENVINO_TYPE_TO_MAX_CONST(element::i16);
+                OPENVINO_TYPE_TO_MAX_CONST(element::i32);
+                OPENVINO_TYPE_TO_MAX_CONST(element::i64);
+                OPENVINO_TYPE_TO_MAX_CONST(element::u1);
+                OPENVINO_TYPE_TO_MAX_CONST(element::u8);
+                OPENVINO_TYPE_TO_MAX_CONST(element::u16);
+                OPENVINO_TYPE_TO_MAX_CONST(element::u32);
+                OPENVINO_TYPE_TO_MAX_CONST(element::u64);
+            default:
+                return false;
+            }
+#undef OPENVINO_TYPE_TO_ZERO_CONST
+#undef OPENVINO_TYPE_TO_MAX_CONST
+        }
         return true;
     }
 
