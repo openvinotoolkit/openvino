@@ -1,4 +1,4 @@
-# llm(Large Language Model) Python Sample
+# Large Language Model Python Sample
 {#openvino_inference_engine_ie_bridges_python_sample_llm_README}
 
 @sphinxdirective
