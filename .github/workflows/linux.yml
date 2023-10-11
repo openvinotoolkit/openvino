@@ -115,15 +115,6 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
 
       #
-      # Disable Telemetry
-      #
-
-      - name: Disable Telemetry
-        run: |
-          mkdir -p $HOME/intel/
-          echo 0 > $HOME/intel/openvino_telemetry
-
-      #
       # Build
       #
 
@@ -898,6 +889,15 @@ jobs:
           popd
 
       #
+      # Disable Telemetry
+      #
+
+      - name: Disable Telemetry
+        run: |
+          mkdir -p $HOME/intel/
+          echo 0 > $HOME/intel/openvino_telemetry
+
+      #
       # Tests
       #
 
@@ -1188,6 +1188,15 @@ jobs:
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
 
+      #
+      # Disable Telemetry
+      #
+
+      - name: Disable Telemetry
+        run: |
+          mkdir -p $HOME/intel/
+          echo 0 > $HOME/intel/openvino_telemetry
+
       - name: Install TF Hub tests requirements
         run: |
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
@@ -1279,6 +1288,14 @@ jobs:
           df -h
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
+
+      #
+      # Disable Telemetry
+      #
+      - name: Disable Telemetry
+        run: |
+          mkdir -p $HOME/intel/
+          echo 0 > $HOME/intel/openvino_telemetry
 
       - name: PyTorch Models Tests
         run: |
