@@ -4,8 +4,6 @@
 
 #include "u4_block_repack.hpp"
 
-#include <deque>
-
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
