@@ -4,8 +4,6 @@
 
 import logging
 
-from sys import platform
-
 import onnx.backend.test
 from tests import (
     BACKEND_NAME,
@@ -34,7 +32,6 @@ from tests import (
     xfail_issue_48052,
     xfail_issue_52463,
     xfail_issue_58033,
-    xfail_issue_58676,
     xfail_issue_63033,
     xfail_issue_63036,
     xfail_issue_63043,
@@ -685,12 +682,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_roialign_mode_max_cpu",
     ),
 ]
-
-if platform == 'darwin':
-    tests_expected_to_fail.append((
-        xfail_issue_58676,
-        "OnnxBackendNodeModelTest.test_div_uint8_cpu"
-    ))
 
 for test_group in tests_expected_to_fail:
     for test_case in test_group[1:]:
