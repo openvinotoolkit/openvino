@@ -24,7 +24,7 @@ public:
         LoopPort(const ExpressionPort& port, bool is_scheduled = true)
             : expr_port(std::make_shared<ExpressionPort>(port)), is_incremented(is_scheduled) {}
 
-        std::shared_ptr<LoopPort> clone_for_new_expr(const ExpressionPtr& new_expr) const;
+        std::shared_ptr<LoopPort> clone_with_new_expr(const ExpressionPtr& new_expr) const;
 
         friend bool operator==(const LoopPort& lhs, const LoopPort& rhs);
         friend bool operator!=(const LoopPort& lhs, const LoopPort& rhs);
@@ -51,7 +51,7 @@ public:
                  const std::vector<ExpressionPort>& entries,
                  const std::vector<ExpressionPort>& exits);
 
-        std::shared_ptr<LoopInfo> clone_for_new_expr(const ExressionMap& expr_map) const;
+        std::shared_ptr<LoopInfo> clone_with_new_expr(const ExressionMap& expr_map) const;
 
         size_t work_amount = 0;
         size_t increment = 0;
@@ -67,7 +67,7 @@ public:
     };
     using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
-    std::shared_ptr<LoopManager> clone_for_new_expr(const ExressionMap& expr_map) const;
+    std::shared_ptr<LoopManager> clone_with_new_expr(const ExressionMap& expr_map) const;
     size_t add_loop_info(const LoopInfoPtr& loop);
     void remove_loop_info(size_t index);
     LoopInfoPtr get_loop_info(size_t index) const;

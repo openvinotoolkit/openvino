@@ -55,7 +55,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     // node_map and expr_map map original node pointer (expression) to a new pointer (expression)
     ngraph::NodeMap node_map;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::clone_nodes(original_nodes,  node_map);
+    ngraph::clone_nodes(original_nodes, node_map);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     ExressionMap expression_map;
@@ -66,7 +66,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
             cloned->m_io_expressions.push_back(io);
     }
 
-    cloned->m_loop_manager = m_loop_manager->clone_for_new_expr(expression_map);
+    cloned->m_loop_manager = m_loop_manager->clone_with_new_expr(expression_map);
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
     cloned->m_shape_infer_factory = m_shape_infer_factory;
     cloned->m_shape_infer = std::make_shared<LIRShapeInfer>(cloned->m_expressions, cloned->m_io_expressions);

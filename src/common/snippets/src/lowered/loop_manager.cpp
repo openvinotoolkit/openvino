@@ -19,9 +19,9 @@ using LoopManager = LinearIR::LoopManager;
 using LoopPort = LoopManager::LoopPort;
 using LoopInfo = LoopManager::LoopInfo;
 
-std::shared_ptr<LoopPort> LoopPort::clone_for_new_expr(const ExpressionPtr& new_expr) const {
+std::shared_ptr<LoopPort> LoopPort::clone_with_new_expr(const ExpressionPtr& new_expr) const {
     auto new_loop_port = std::make_shared<LoopPort>(*this);
-    new_loop_port->expr_port = expr_port->clone_for_new_expr(new_expr);
+    new_loop_port->expr_port = expr_port->clone_with_new_expr(new_expr);
     return new_loop_port;
 }
 
@@ -36,7 +36,7 @@ LoopInfo::LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
         exit_points.emplace_back(port);
 }
 
-std::shared_ptr<LoopInfo> LoopInfo::clone_for_new_expr(const ExressionMap& expr_map) const {
+std::shared_ptr<LoopInfo> LoopInfo::clone_with_new_expr(const ExressionMap& expr_map) const {
     auto clone_loop_ports = [&expr_map](const std::vector<LoopPort>& port_points) {
         std::vector<LoopPort> cloned_port_points;
         cloned_port_points.reserve(port_points.size());
@@ -44,7 +44,7 @@ std::shared_ptr<LoopInfo> LoopInfo::clone_for_new_expr(const ExressionMap& expr_
             const auto& expr = p.expr_port->get_expr().get();
             OPENVINO_ASSERT(expr_map.count(expr), "Can't clone LoopInfo: old expression is not in the map");
             const auto& new_expr = expr_map.at(expr);
-            cloned_port_points.emplace_back(*p.clone_for_new_expr(new_expr));
+            cloned_port_points.emplace_back(*p.clone_with_new_expr(new_expr));
         }
         return cloned_port_points;
     };
@@ -57,10 +57,10 @@ std::shared_ptr<LoopInfo> LoopInfo::clone_for_new_expr(const ExressionMap& expr_
     return new_loop_info;
 }
 
-std::shared_ptr<LoopManager> LoopManager::clone_for_new_expr(const ExressionMap& expr_map) const {
+std::shared_ptr<LoopManager> LoopManager::clone_with_new_expr(const ExressionMap& expr_map) const {
     auto new_loop_manager = std::make_shared<LoopManager>();
     for (const auto& id_info : m_map)
-        new_loop_manager->m_map.insert({id_info.first, id_info.second->clone_for_new_expr(expr_map)});
+        new_loop_manager->m_map.insert({id_info.first, id_info.second->clone_with_new_expr(expr_map)});
     new_loop_manager->next_id = next_id;
     return new_loop_manager;
 }
@@ -356,13 +356,11 @@ void LinearIR::LoopManager::update_loop_port(size_t loop_id, const ExpressionPor
         return;
 
     // to save other parameters except expression port
-    std::vector<LoopPort> target_loop_ports(target_ports.size(), *port_it);
-    std::transform(target_loop_ports.begin(), target_loop_ports.end(), target_ports.begin(), target_loop_ports.begin(),
-                   [](LoopPort loop_port, const ExpressionPort& expr_port) {
-                       LoopPort copy = std::move(loop_port);  // to save loop port parameters
-                       copy.expr_port = std::make_shared<ExpressionPort>(expr_port);
-                       return copy;
-                   });
+    std::vector<LoopPort> target_loop_ports;
+    target_loop_ports.reserve(target_ports.size());
+    for (const auto& p : target_ports)
+        target_loop_ports.push_back(*port_it->clone_with_new_expr(p.get_expr()));
+
     port_it = ports.erase(port_it);
     ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
 }

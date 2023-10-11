@@ -26,10 +26,10 @@ public:
     ExpressionPort() = default;
     explicit ExpressionPort(const std::shared_ptr<Expression>& expr, Type type, size_t port);
     /**
-    * @interface clone
+    * @interface clone_with_new_expr
     * @brief Creates similar Expression port, but for new expression
      */
-    std::shared_ptr<ExpressionPort> clone_for_new_expr(const std::shared_ptr<Expression>& new_expr) const;
+    std::shared_ptr<ExpressionPort> clone_with_new_expr(const std::shared_ptr<Expression>& new_expr) const;
 
     std::shared_ptr<Expression> get_expr() const;
     Type get_type() const { return m_type; }
