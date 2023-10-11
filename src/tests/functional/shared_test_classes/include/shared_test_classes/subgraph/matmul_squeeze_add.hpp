@@ -9,22 +9,21 @@
 #include <tuple>
 #include <vector>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-typedef std::tuple<
-        InferenceEngine::Precision,          // Network Precision
-        std::string,                         // Target Device
-        std::map<std::string, std::string>,  // Configuration
-        std::vector<size_t>,                 // Input Shapes
-        size_t                               // Output Size
-> matmulSqueezeAddParams;
+typedef std::tuple<ov::element::Type,  // Network Precision
+                   std::string,        // Target Device
+                   ov::AnyMap,         // Configuration
+                   ov::Shape,          // Input Shapes
+                   size_t              // Output Size
+                   >
+    matmulSqueezeAddParams;
 
 class MatmulSqueezeAddTest : public testing::WithParamInterface<matmulSqueezeAddParams>,
-                     virtual public LayerTestsUtils::LayerTestsCommon {
+                             virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<matmulSqueezeAddParams>& obj);
 
@@ -32,4 +31,5 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

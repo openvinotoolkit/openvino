@@ -4,13 +4,14 @@
 
 #include "shared_test_classes/subgraph/convert_pad_to_group_conv.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-std::string ConvertPadToConvTests::getTestCaseName(const testing::TestParamInfo<PadParams> &obj) {
-    ngraph::Shape input_shape;
+std::string ConvertPadToConvTests::getTestCaseName(const testing::TestParamInfo<PadParams>& obj) {
+    ov::Shape input_shape;
     std::string targetName;
     std::vector<int64_t> pad_begin, pad_end;
-    ngraph::op::PadMode mode;
+    ov::op::PadMode mode;
     float value;
     std::tie(input_shape, pad_begin, pad_end, value, mode, targetName) = obj.param;
     std::ostringstream results;
@@ -25,20 +26,24 @@ std::string ConvertPadToConvTests::getTestCaseName(const testing::TestParamInfo<
 }
 
 void ConvertPadToConvTests::SetUp() {
-    ngraph::Shape input_shape;
+    ov::Shape input_shape;
     std::vector<int64_t> pad_begin, pad_end;
-    ngraph::op::PadMode mode;
+    ov::op::PadMode mode;
     float value;
     std::tie(input_shape, pad_begin, pad_end, value, mode, targetDevice) = this->GetParam();
 
     {
-        auto param = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, input_shape);
-        auto pad = std::make_shared<ngraph::opset4::Pad>(param,
-                                                         ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{pad_begin.size()}, pad_begin),
-                                                         ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{pad_end.size()}, pad_end),
-                                                         ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{}, {value}), mode);
-        auto relu = std::make_shared<ngraph::opset4::Relu>(pad);
-        function = std::make_shared<ngraph::Function>(ngraph::OutputVector{relu}, ngraph::ParameterVector{param}, "pad");
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+        auto pad = std::make_shared<ov::op::v1::Pad>(
+            param,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{pad_begin.size()}, pad_begin),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{pad_end.size()}, pad_end),
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {value}),
+            mode);
+        auto relu = std::make_shared<ov::op::v0::Relu>(pad);
+        function = std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{param}, "pad");
     }
 }
-} // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

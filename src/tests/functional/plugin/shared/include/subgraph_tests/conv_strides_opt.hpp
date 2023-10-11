@@ -6,9 +6,12 @@
 
 #include "shared_test_classes/subgraph/conv_strides_opt.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(ConvStridesOpt, CompareWithRefs) {
-    Run();
+    run();
 }
-} // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

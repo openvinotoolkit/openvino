@@ -4,45 +4,45 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include <ngraph/shape.hpp>
+#include <tuple>
 
-namespace SubgraphTestsDefinitions {
+#include "shared_test_classes/base/ov_subgraph.hpp"
+
+namespace ov {
+namespace test {
 
 struct MatMulMultiplyFusionShapeParams {
-    ngraph::Shape input_shape;
-    ngraph::Shape weights_shape;
+    ov::Shape input_shape;
+    ov::Shape weights_shape;
     bool trans_b;
-    ngraph::Shape const_shape;
+    ov::Shape const_shape;
 };
 
-typedef std::tuple<
-        MatMulMultiplyFusionShapeParams,
-        bool,                       // whether Mul can be fused to MatMul in this case
-        std::string                 // Device name
-        > MatMulMultiplyFusionParams;
+typedef std::tuple<MatMulMultiplyFusionShapeParams,
+                   bool,        // whether Mul can be fused to MatMul in this case
+                   std::string  // Device name
+                   >
+    MatMulMultiplyFusionParams;
 
-class MatMulMultiplyFusion
-        : public testing::WithParamInterface<MatMulMultiplyFusionParams>,
-          virtual public LayerTestsUtils::LayerTestsCommon {
+class MatMulMultiplyFusion : public testing::WithParamInterface<MatMulMultiplyFusionParams>,
+                             virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MatMulMultiplyFusionParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulMultiplyFusionParams>& obj);
 
 protected:
     void SetUp() override;
 };
 
-class QuantizedMatMulMultiplyFusion
-        : public testing::WithParamInterface<MatMulMultiplyFusionParams>,
-          virtual public LayerTestsUtils::LayerTestsCommon {
+class QuantizedMatMulMultiplyFusion : public testing::WithParamInterface<MatMulMultiplyFusionParams>,
+                                      virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MatMulMultiplyFusionParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulMultiplyFusionParams>& obj);
 
 protected:
     void SetUp() override;
     void TearDown() override;
 };
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
