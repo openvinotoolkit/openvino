@@ -90,7 +90,7 @@ After that, you can call ``save_pretrained()`` method to save model to the folde
     model.save_pretrained(model_dir)
 
 
-Alternatively, you can download and convert model using CLI interface: ``optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf llama_openvino``
+Alternatively, you can download and convert the model using CLI interface: ``optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf llama_openvino``.
 In this case, you can load the converted model in OpenVINO representation directly from the disk:
 
 .. code-block:: python
