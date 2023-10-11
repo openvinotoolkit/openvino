@@ -124,7 +124,7 @@ target_link_libraries(openvino_runtime_dev INTERFACE ${TARGET_NAME} openvino::co
 ov_set_threading_interface_for(openvino_runtime_dev)
 set_target_properties(openvino_runtime_dev PROPERTIES EXPORT_NAME runtime::dev)
 
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::runtime::dev)
+ov_developer_package_export_targets(openvino::runtime::dev)
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(openvino_runtime_dev ${OV_CPACK_COMP_CORE})

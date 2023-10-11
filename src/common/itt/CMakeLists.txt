@@ -43,7 +43,7 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::itt)
+ov_developer_package_export_targets(openvino::itt)
 
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
         DESTINATION developer_package/include/openvino_itt

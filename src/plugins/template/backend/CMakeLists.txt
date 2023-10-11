@@ -52,7 +52,7 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${all_backends_src})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
+ov_developer_package_export_targets(${TARGET_NAME})
 
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/"
         DESTINATION developer_package/include/openvino_interpreter

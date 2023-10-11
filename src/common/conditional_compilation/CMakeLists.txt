@@ -67,7 +67,7 @@ endif()
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::conditional_compilation)
+ov_developer_package_export_targets(openvino::conditional_compilation)
 
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
         DESTINATION developer_package/include/openvino_conditional_compilation

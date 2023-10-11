@@ -208,11 +208,6 @@ set_target_properties(${TARGET_NAME}_s PROPERTIES
     EXCLUDE_FROM_ALL ON
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-install(TARGETS ${TARGET_NAME}_s EXPORT OpenVINODeveloperTargets
-        RUNTIME DESTINATION developer_package/bin COMPONENT developer_package EXCLUDE_FROM_ALL
-        ARCHIVE DESTINATION developer_package/lib COMPONENT developer_package EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION developer_package/lib COMPONENT developer_package EXCLUDE_FROM_ALL)
-
 # LTO
 
 set_target_properties(${TARGET_NAME}_obj
@@ -220,7 +215,7 @@ set_target_properties(${TARGET_NAME}_obj
 
 # Export for developer package
 
-openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME}_plugin_api)
+ov_developer_package_export_targets(${TARGET_NAME}_s ${TARGET_NAME}_plugin_api)
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 

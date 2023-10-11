@@ -53,7 +53,7 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS ${TARGET_NAME})
+ov_developer_package_export_targets(${TARGET_NAME})
 
 install(DIRECTORY "${UTIL_INCLUDE_DIR}/"
         DESTINATION developer_package/include/openvino_util

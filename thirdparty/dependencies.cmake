@@ -271,7 +271,7 @@ if(NOT TARGET openvino::pugixml)
         ov_build_pugixml_static()
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         add_library(openvino::pugixml ALIAS pugixml-static)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::pugixml)
+        ov_developer_package_export_targets(openvino::pugixml)
         ov_install_static_lib(pugixml-static ${OV_CPACK_COMP_CORE})
     endfunction()
 
@@ -297,7 +297,7 @@ if(ENABLE_GAPI_PREPROCESSING)
         add_subdirectory(thirdparty/ade EXCLUDE_FROM_ALL)
 
         set_target_properties(ade PROPERTIES FOLDER thirdparty)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade)
+        ov_developer_package_export_targets(ade)
 
         ov_install_static_lib(ade ${OV_CPACK_COMP_CORE})
     endif()
@@ -313,7 +313,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     endif()
 
     set_target_properties(fluid PROPERTIES FOLDER thirdparty)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS fluid)
+    ov_developer_package_export_targets(fluid)
 
     ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
 endif()
@@ -366,7 +366,7 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
 
     if(NOT TARGET gflags)
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
+        ov_developer_package_export_targets(gflags)
     endif()
 endif()
 
@@ -389,8 +389,7 @@ if(ENABLE_TESTS)
     else()
         add_subdirectory(thirdparty/gtest EXCLUDE_FROM_ALL)
         # install & export
-        openvino_developer_export_targets(COMPONENT tests
-                                          TARGETS gmock gtest gtest_main)
+        ov_developer_package_export_targets(gmock gtest gtest_main)
         install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gtest/gtest/googletest/include/"
                 DESTINATION developer_package/include/gtest
                 COMPONENT developer_package EXCLUDE_FROM_ALL)
@@ -590,7 +589,7 @@ if(ENABLE_SAMPLES)
         add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 
         # this is required only because of NPU plugin reused this: export & install
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
+        ov_developer_package_export_targets(nlohmann_json)
         install(DIRECTORY "${OpenVINO_SOURCE_DIR}/thirdparty/json/nlohmann_json/include"
                 DESTINATION developer_package/include/nlohmann_json
                 COMPONENT developer_package EXCLUDE_FROM_ALL)

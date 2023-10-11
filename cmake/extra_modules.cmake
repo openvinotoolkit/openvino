@@ -9,13 +9,10 @@ function(ie_generate_dev_package_config)
         set(OpenCV_FOUND OFF)
     endif()
 
-    foreach(component IN LISTS openvino_export_components)
-        # export all targets with prefix and use them during extra modules build
-        export(TARGETS ${${component}} NAMESPACE IE::
-               APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
-        list(APPEND all_dev_targets ${${component}})
-    endforeach()
-    add_custom_target(ie_dev_targets DEPENDS ${all_dev_targets})
+    # export all targets with prefix and use them during extra modules build
+    export(TARGETS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS} NAMESPACE IE::
+            APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+    add_custom_target(ie_dev_targets DEPENDS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS})
 
     set(PATH_VARS "OpenVINO_SOURCE_DIR")
     if(ENABLE_SAMPLES OR ENABLE_TESTS)
@@ -44,20 +41,14 @@ function(ov_generate_dev_package_config)
         set(OpenCV_FOUND OFF)
     endif()
 
-    foreach(component IN LISTS openvino_export_components)
-        # filter out targets which are installed by OpenVINOConfig.cmake static build case
-        set(exported_targets)
-        foreach(target IN LISTS ${component})
-            if(NOT target IN_LIST openvino_installed_targets)
-                list(APPEND exported_targets ${target})
-            endif()
-        endforeach()
-        # export all developer targets with prefix and use them during extra modules build
-        export(TARGETS ${exported_targets} NAMESPACE openvino::
-               APPEND FILE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
-        list(APPEND all_dev_targets ${${component}})
-    endforeach()
-    add_custom_target(ov_dev_targets DEPENDS ${all_dev_targets})
+    # create a helper target to build all developer package targets
+    add_custom_target(ov_dev_targets DEPENDS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS})
+
+    # filter out targets which are installed by OpenVINOConfig.cmake static build case
+    list(REMOVE_ITEM _OPENVINO_DEVELOPER_PACKAGE_TARGETS ${openvino_installed_targets})
+    # export all developer targets with prefix and use them during extra modules build
+    export(TARGETS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS} NAMESPACE openvino::
+            APPEND FILE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
 
     #
     # OpenVINODeveloperPackageConfig.cmake for build tree
@@ -88,28 +79,14 @@ function(ov_generate_dev_package_config)
 
     set(DEV_PACKAGE_ROOT_DIR developer_package)
     set(DEV_PACKAGE_CMAKE_DIR ${DEV_PACKAGE_ROOT_DIR}/cmake)
-
     set(DEVELOPER_PACKAGE_COMPONENT developer_package)
+    set(DEVELOPER_PACKAGE_EXPORT_SET OpenVINOTargets)
 
     # create and install main developer package config files
-
-    function(_ov_generate_relocatable_openvino_developer_package_config)
-        # add a flag to denote developer package is relocable
-        set(OV_RELOCATABLE_DEVELOPER_PACKAGE ON)
-
-        # overwrite OpenVINO_SOURCE_DIR to make it empty - it's not available for relocatable developer package
-        set(openvino_developer_package_config_template
-            "${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINODeveloperPackageConfig.cmake.in")
-        set(OpenVINO_SOURCE_DIR "")
-
-        configure_package_config_file("${openvino_developer_package_config_template}"
-                                      "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
-                                      INSTALL_DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
-                                      PATH_VARS ${PATH_VARS}
-                                      NO_CHECK_REQUIRED_COMPONENTS_MACRO)
-    endfunction()
-
-    _ov_generate_relocatable_openvino_developer_package_config()
+    configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINODeveloperPackageConfigRelocatable.cmake.in"
+                                    "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
+                                    INSTALL_DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
+                                    NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
                    "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake" 
@@ -121,54 +98,30 @@ function(ov_generate_dev_package_config)
             COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
 
     # Install whole 'cmake/developer_package' folder
-
     install(DIRECTORY "${OpenVINODeveloperScripts_DIR}/"
             DESTINATION "${DEV_PACKAGE_CMAKE_DIR}/"
             COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
 
     # Install CMakeLists.txt to read cache variables from
-
     install(FILES "${OpenVINO_BINARY_DIR}/CMakeCache.txt"
             DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
             COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
 
-    # export all sets of developer package targets
+    # install developer package targets
+    install(TARGETS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS} EXPORT ${DEVELOPER_PACKAGE_EXPORT_SET}
+            RUNTIME DESTINATION ${DEV_PACKAGE_ROOT_DIR}/bin COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
+            ARCHIVE DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
+            LIBRARY DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
 
-    foreach(component IN LISTS openvino_export_components)
-        if(component MATCHES ".*_legacy$")
-            continue()
-        endif()
-
-        # filter out targets which are installed by OpenVINOConfig.cmake static build case
-        set(install_targets)
-        foreach(target IN LISTS ${component})
-            # if(NOT target IN_LIST openvino_installed_targets)
-                message("!! Adding ${target}")
-                list(APPEND install_targets ${target})
-            # endif()
-        endforeach()
-
-        # install all developer targets with prefix and use them during extra modules build
-        set(export_set ov_${component}_dev_targets)
-
-        install(TARGETS ${install_targets} EXPORT OpenVINODeveloperTargets
-                RUNTIME DESTINATION ${DEV_PACKAGE_ROOT_DIR}/bin COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
-                ARCHIVE DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
-                LIBRARY DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
-    endforeach()
-
-    install(EXPORT OpenVINODeveloperTargets
+    install(EXPORT ${DEVELOPER_PACKAGE_EXPORT_SET}
             FILE OpenVINODeveloperTargets.cmake
             NAMESPACE openvino::
             DESTINATION ${DEV_PACKAGE_ROOT_DIR}/cmake
             COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
 
-    # message(FATAL_ERROR "${install_targets}")
-
-    # TODO: OpenCV
-
-    # TODO: gflags for samples
-
+    # Note: that OpenCV and gflags are explicitly not installed to simplify relocatable
+    # OpenVINO Developer package maintainance. OpenVINO_SOURCE_DIR is also unvailable, because
+    # relocatable developer package can be used on a different machine where OpenVINO repo is not available
 endfunction()
 
 #
@@ -180,27 +133,26 @@ function(_ov_register_extra_modules)
     set(OpenVINODeveloperPackage_DIR "${CMAKE_BINARY_DIR}/build-modules")
     set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
 
-    function(generate_fake_dev_package NS)
+    function(_ov_generate_fake_developer_package NS)
         if(NS STREQUAL "openvino")
             set(devconfig_file "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig.cmake")
         else()
             set(devconfig_file "${InferenceEngineDeveloperPackage_DIR}/InferenceEngineDeveloperPackageConfig.cmake")
         endif()
-        file(REMOVE "${devconfig_file}")
 
+        file(REMOVE "${devconfig_file}")
         file(WRITE "${devconfig_file}" "\# !! AUTOGENERATED: DON'T EDIT !!\n\n")
 
-        foreach(targets_list IN LISTS ${openvino_export_components})
-            foreach(target IN LISTS targets_list)
-                file(APPEND "${devconfig_file}" "if(NOT TARGET ${NS}::${target})
-    add_library(${NS}::${target} ALIAS ${target})
+        foreach(exported_target IN LISTS _OPENVINO_DEVELOPER_PACKAGE_TARGETS)
+            file(APPEND "${devconfig_file}" "if(NOT TARGET ${NS}::${exported_target})
+    add_library(${NS}::${exported_target} ALIAS ${exported_target})
 endif()\n")
-            endforeach()
         endforeach()
     endfunction()
 
-    generate_fake_dev_package("openvino")
-    generate_fake_dev_package("IE")
+    _ov_generate_fake_developer_package("openvino")
+    # TODO: remove with API 1.0 removal
+    _ov_generate_fake_developer_package("IE")
 
     # detect where OPENVINO_EXTRA_MODULES contains folders with CMakeLists.txt
     # other folders are supposed to have sub-folders with CMakeLists.txt

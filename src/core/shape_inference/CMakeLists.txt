@@ -37,7 +37,7 @@ endif()
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
+ov_developer_package_export_targets(${TARGET_NAME})
 
 install(DIRECTORY "${SHAPE_INFER_INCLUDE_DIR}/"
         DESTINATION developer_package/include/openvino_shape_inference

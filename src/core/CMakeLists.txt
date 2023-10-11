@@ -52,7 +52,7 @@ target_include_directories(openvino_core_dev INTERFACE
 target_link_libraries(openvino_core_dev INTERFACE openvino::itt openvino::util)
 
 set_target_properties(openvino_core_dev PROPERTIES EXPORT_NAME core::dev)
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
+ov_developer_package_export_targets(openvino::core::dev)
 
 # Install interface libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(openvino_core_dev ${OV_CPACK_COMP_CORE})

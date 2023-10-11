@@ -40,7 +40,7 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 ov_install_static_lib(openvino_builders ${OV_CPACK_COMP_CORE})
 
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::builders)
+ov_developer_package_export_targets(openvino::builders)
 
 install(DIRECTORY "${BUILDER_INCLUDE_DIR}/"
         DESTINATION developer_package/include/openvino_builders

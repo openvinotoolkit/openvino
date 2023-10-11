@@ -51,7 +51,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-openvino_developer_export_targets(COMPONENT ${OV_CPACK_COMP_CORE} TARGETS ${TARGET_NAME})
+ov_developer_package_export_targets(${TARGET_NAME})
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         DESTINATION developer_package/include/openvino_snippets

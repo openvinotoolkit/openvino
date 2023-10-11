@@ -9,7 +9,7 @@ ov_add_target(
    NAME core_lib
    ADD_CPPLINT
    ADD_CLANG_FORMAT
-   DEVELOPER_PACKAGE <component>
+   DEVELOPER_PACKAGE
    TYPE <SHARED / STATIC / EXECUTABLE>
    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
    ADDITIONAL_SOURCE_DIRS
@@ -38,14 +38,12 @@ function(ov_add_target)
     set(options
         ADD_CPPLINT                   # Enables code style checks for the target
         ADD_CLANG_FORMAT              # Enables code style checks for the target
+        DEVELOPER_PACKAGE             # Enables exporting of the target through the developer package
         )
     set(oneValueRequiredArgs
         TYPE # type of target, SHARED|STATIC|EXECUTABLE. SHARED and STATIC correspond to add_library, EXECUTABLE to add_executable
         NAME # name of target
         ROOT # root directory to be used for recursive search of source files
-        )
-    set(oneValueOptionalArgs
-        DEVELOPER_PACKAGE             # Enables exporting of the target through the developer package
         )
     set(multiValueArgs
         INCLUDES                      # Extra include directories
@@ -58,7 +56,7 @@ function(ov_add_target)
         LINK_LIBRARIES_WHOLE_ARCHIVE  # list of static libraries to link, each object file should be used and not discarded
         LINK_FLAGS                    # list of extra commands to linker
         )
-    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN} )
+    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN} )
 
     # sanity checks
     foreach(argName IN LISTS oneValueRequiredArgs)
@@ -130,8 +128,7 @@ function(ov_add_target)
     endif()
     if (ARG_DEVELOPER_PACKAGE)
         # developer package
-        openvino_developer_export_targets(COMPONENT ${ARG_DEVELOPER_PACKAGE}
-                                          TARGETS ${ARG_NAME})
+        ov_developer_package_export_targets(${ARG_NAME})
     endif()
     if(WIN32)
         # Provide default compile pdb name equal to target name

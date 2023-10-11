@@ -51,7 +51,7 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::reference)
+ov_developer_package_export_targets(openvino::reference)
 
 install(DIRECTORY "${REF_IMPL_INCLUDE_DIR}/"
         DESTINATION developer_package/include/openvino_reference
