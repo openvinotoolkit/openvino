@@ -110,7 +110,6 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DENABLE_CPPLINT=OFF `
-            -DCMAKE_CXX_STANDARD=14 `
             -DBUILD_nvidia_plugin=OFF `
             -DBUILD_SHARED_LIBS=OFF `
             -DENABLE_TESTS=ON `
