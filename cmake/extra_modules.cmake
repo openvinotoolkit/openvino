@@ -95,29 +95,33 @@ function(ov_generate_dev_package_config)
     install(FILES "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
                   "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake"
             DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
-            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
+            EXCLUDE_FROM_ALL)
 
     # Install whole 'cmake/developer_package' folder
     install(DIRECTORY "${OpenVINODeveloperScripts_DIR}/"
-            DESTINATION "${DEV_PACKAGE_CMAKE_DIR}/"
-            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+            DESTINATION "${DEV_PACKAGE_CMAKE_DIR}"
+            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
+            EXCLUDE_FROM_ALL)
 
     # Install CMakeLists.txt to read cache variables from
     install(FILES "${OpenVINO_BINARY_DIR}/CMakeCache.txt"
             DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
-            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
+            EXCLUDE_FROM_ALL)
 
     # install developer package targets
     install(TARGETS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS} EXPORT ${DEVELOPER_PACKAGE_EXPORT_SET}
-            RUNTIME DESTINATION ${DEV_PACKAGE_ROOT_DIR}/bin COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
-            ARCHIVE DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
-            LIBRARY DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+            RUNTIME DESTINATION ${DEV_PACKAGE_ROOT_DIR}/bin COMPONENT ${DEVELOPER_PACKAGE_COMPONENT} EXCLUDE_FROM_ALL
+            ARCHIVE DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT} EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT} EXCLUDE_FROM_ALL)
 
     install(EXPORT ${DEVELOPER_PACKAGE_EXPORT_SET}
             FILE OpenVINODeveloperPackageTargets.cmake
             NAMESPACE openvino::
             DESTINATION ${DEV_PACKAGE_ROOT_DIR}/cmake
-            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
+            COMPONENT ${DEVELOPER_PACKAGE_COMPONENT}
+            EXCLUDE_FROM_ALL)
 
     # Note: that OpenCV and gflags are explicitly not installed to simplify relocatable
     # OpenVINO Developer package maintainance. OpenVINO_SOURCE_DIR is also unvailable, because
