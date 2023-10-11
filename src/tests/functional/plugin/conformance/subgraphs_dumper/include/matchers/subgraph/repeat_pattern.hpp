@@ -19,6 +19,7 @@ private:
 
 public:
     using PatternBorders = std::pair<InputVector, OutputVector>;
+    ModelComparator::Ptr model_comparator = ModelComparator::get();
 
     std::vector<std::vector<PatternBorders>>
     get_repeat_pattern_borders(const std::shared_ptr<ov::Model> &model);
@@ -31,16 +32,14 @@ public:
 protected:
     // {subgraph, node_vector, input_info}
     using ExtractedRepeatPattern = std::tuple<std::shared_ptr<ov::Model>, ov::NodeVector, std::map<std::string, InputInfo>>;
-
-    ModelComparator::Ptr model_comparator = ModelComparator::get();
     bool is_recursive_extraction = true;
 
-    std::vector<std::vector<ExtractedRepeatPattern>>
+    std::list<std::vector<ExtractedRepeatPattern>>
     find_repeat_patterns(const std::shared_ptr<ov::Model> &model,
                          bool is_save_borders_only = false);
-    void update_extractor_cache(std::vector<std::vector<ExtractedRepeatPattern>>& extracted_patterns,
-                                std::vector<std::vector<ExtractedRepeatPattern>>& secondary_extracted_patterns);
-    void update_extractor_cache(std::vector<std::vector<ExtractedRepeatPattern>>& extracted_patterns,
+    void update_extractor_cache(std::list<std::vector<ExtractedRepeatPattern>>& extracted_patterns,
+                                std::list<std::vector<ExtractedRepeatPattern>>& secondary_extracted_patterns);
+    void update_extractor_cache(std::list<std::vector<ExtractedRepeatPattern>>& extracted_patterns,
                                 const std::shared_ptr<ov::Model>& pattern,
                                 const ov::NodeVector& pattern_node_vector,
                                 const std::map<std::string, InputInfo>& in_info);
