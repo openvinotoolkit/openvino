@@ -709,3 +709,250 @@ TYPED_TEST(non_max_suppression_basic, soft_nms_sigma_cached) {
 TYPED_TEST(non_max_suppression_basic, multiple_outputs_cached) {
     this->test_multiple_outputs(true);
 }
+
+namespace {
+template<typename T, typename T_IND>
+struct NmsRotatedParams {
+    std::string test_name;
+    int num_batches;
+    int num_boxes;
+    int num_classes;
+    std::vector<T> boxes;
+    std::vector<T> scores;
+    int max_output_boxes_per_class;
+    float iou_threshold;
+    float score_threshold;
+    bool sort_result_descending;
+    bool clockwise;
+    std::vector<T_IND> expected_indices;
+    std::vector<T> expected_scores;
+};
+
+template <typename T> float getError();
+
+template<>
+float getError<float>() {
+    return 0.001;
+}
+
+template<>
+float getError<ov::float16>() {
+    return 0.1;
+}
+
+template<typename T, typename T_IND>
+struct nms_rotated_test : public ::testing::TestWithParam<NmsRotatedParams<T, T_IND>> {
+public:
+    void test(bool is_caching_test = false
+    ) {
+        const NmsRotatedParams<T, T_IND> param = testing::TestWithParam<NmsRotatedParams<T, T_IND>>::GetParam();
+        const auto data_type = ov::element::from<T>();
+
+        auto& engine = tests::get_test_engine();
+
+        const auto boxes_layout = layout(ov::PartialShape{param.num_batches, param.num_boxes, 5}, data_type,
+                                         format::bfyx);
+        const auto scores_layout = layout(ov::PartialShape{param.num_batches, param.num_classes, param.num_boxes},
+                                          data_type, format::bfyx);
+
+        const int selected_indices_num = param.num_batches * param.num_classes * param.num_boxes;
+        const auto selected_scores_layout = layout(ov::PartialShape{selected_indices_num/*expected_indices_count*/, 3},
+                                                   data_type, format::bfyx);
+        const auto valid_outputs_layout = layout(ov::PartialShape{1}, cldnn::data_types::i32, format::bfyx);
+
+        const auto boxes_mem = engine.allocate_memory(boxes_layout);
+        tests::set_values(boxes_mem, param.boxes);
+
+        const auto scores_mem = engine.allocate_memory(scores_layout);
+        tests::set_values(scores_mem, param.scores);
+
+        const auto num_per_class_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
+        tests::set_values(num_per_class_mem, {1.f * param.max_output_boxes_per_class});
+
+        const auto iou_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
+        tests::set_values(iou_threshold_mem, {param.iou_threshold});
+
+        const auto score_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
+        tests::set_values(score_threshold_mem, {param.score_threshold});
+
+        const auto selected_scores_mem = engine.allocate_memory(selected_scores_layout);
+        const auto valid_outputs_mem = engine.allocate_memory(valid_outputs_layout);
+
+        topology topo;
+        topo.add(input_layout("boxes", boxes_layout));
+        topo.add(input_layout("scores", scores_layout));
+        topo.add(data("num_per_class", num_per_class_mem));
+        topo.add(data("iou_threshold", iou_threshold_mem));
+        topo.add(data("score_threshold", score_threshold_mem));
+        topo.add(mutable_data("selected_scores", selected_scores_mem));
+        topo.add(mutable_data("valid_outputs", valid_outputs_mem));
+        auto nms = non_max_suppression("nms",
+                                       input_info("boxes"),
+                                       input_info("scores"),
+                                       selected_indices_num,
+                                       false,
+                                       param.sort_result_descending,
+                                       "num_per_class",
+                                       "iou_threshold",
+                                       "score_threshold",
+                                       "",
+                                       "selected_scores",
+                                       "valid_outputs");
+        nms.rotation = param.clockwise ? non_max_suppression::Rotation::CLOCKWISE :
+                       non_max_suppression::Rotation::COUNTERCLOCKWISE;
+
+        topo.add(nms);
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
+        net->set_input_data("boxes", boxes_mem);
+        net->set_input_data("scores", scores_mem);
+        const auto result = net->execute();
+        const auto indices_mem = result.at("nms").get_memory();
+        const cldnn::mem_lock<T_IND> indices_ptr(indices_mem, get_test_stream());
+        const cldnn::mem_lock<T> selected_scores_ptr(selected_scores_mem, get_test_stream());
+        const cldnn::mem_lock<int> valid_outputs_ptr(valid_outputs_mem, get_test_stream());
+
+        const auto expected_valid_outputs = param.expected_indices.size() / 3;
+        const size_t num_valid_outputs = static_cast<size_t>(valid_outputs_ptr[0]);
+
+        EXPECT_EQ(num_valid_outputs, expected_valid_outputs);
+        ASSERT_GE(indices_ptr.size(), param.expected_indices.size());
+        ASSERT_GE(selected_scores_ptr.size(), param.expected_scores.size());
+
+        for (size_t i = 0; i < indices_ptr.size(); ++i) {
+            if (i < num_valid_outputs * 3) {
+                EXPECT_EQ(param.expected_indices[i], indices_ptr[i]) << "at i = " << i;
+                EXPECT_NEAR(param.expected_scores[i], selected_scores_ptr[i], getError<T>()) << "at i = " << i;
+            } else {
+                EXPECT_EQ(indices_ptr[i], -1) << "at i = " << i;
+                EXPECT_NEAR(selected_scores_ptr[i], -1, getError<T>()) << "at i = " << i;
+            }
+        }
+    }
+};
+
+
+struct PrintToStringParamName {
+    template<class T, class T_IND>
+    std::string operator()(const testing::TestParamInfo<NmsRotatedParams<T, T_IND>>& info) {
+        const auto& p = info.param;
+        std::ostringstream result;
+        result << p.test_name << "_";
+        result << "DataType=" << data_type_traits::name(ov::element::from<T>());
+        result << "_IndexType=" << data_type_traits::name(ov::element::from<T_IND>());
+        return result.str();
+    }
+};
+
+
+using nms_rotated_test_f32_i32 = nms_rotated_test<float, int32_t>;
+using nms_rotated_test_f16_i32 = nms_rotated_test<ov::float16, int32_t>;
+
+TEST_P(nms_rotated_test_f32_i32, basic) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+TEST_P(nms_rotated_test_f16_i32, basic) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+template<typename T, typename T_IND>
+std::vector<NmsRotatedParams<T, T_IND>> getNmsRotatedParams() {
+    const std::vector<NmsRotatedParams<T, T_IND>> params = {
+            {"basic",
+             1, 4, 1,
+             std::vector<T>{
+                7.0, 4.0, 8.0,  7.0,  0.5,
+                4.0, 7.0, 9.0,  11.0, 0.6,
+                4.0, 8.0, 10.0, 12.0, 0.3,
+                2.0, 5.0, 13.0, 7.0,  0.6},
+             std::vector<T>{0.65, 0.7, 0.55, 0.96},
+             5000, 0.5f, 0.0f, false, true,
+             std::vector<T_IND>{0, 0, 3, 0, 0, 1, 0, 0, 0},
+             std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65},
+            },
+            {"max_out_2",
+             1, 4, 1,
+             std::vector<T>{
+                7.0, 4.0, 8.0,  7.0,  0.5,
+                4.0, 7.0, 9.0,  11.0, 0.6,
+                4.0, 8.0, 10.0, 12.0, 0.3,
+                2.0, 5.0, 13.0, 7.0,  0.6},
+             std::vector<T>{0.65, 0.7, 0.55, 0.96},
+             2, 0.5f, 0.0f, false, true,
+             std::vector<T_IND>{0, 0, 3, 0, 0, 1},
+             std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7},
+            },
+            {"score_thresold",
+             1, 4, 1,
+             std::vector<T>{
+                7.0, 4.0, 8.0,  7.0,  0.5,
+                4.0, 7.0, 9.0,  11.0, 0.6,
+                4.0, 8.0, 10.0, 12.0, 0.3,
+                2.0, 5.0, 13.0, 7.0,  0.6},
+             std::vector<T>{0.65, 0.7, 0.55, 0.96},
+             5000, 0.5f, 0.67f, false, true,
+             std::vector<T_IND>{0, 0, 3, 0, 0, 1},
+             std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7},
+            },
+            {"iou_thresold_2",
+             1, 4, 1,
+             std::vector<T>{
+                7.0, 4.0, 8.0,  7.0,  0.5,
+                4.0, 7.0, 9.0,  11.0, 0.6,
+                4.0, 8.0, 10.0, 12.0, 0.3,
+                2.0, 5.0, 13.0, 7.0,  0.6},
+             std::vector<T>{0.65, 0.7, 0.55, 0.96},
+             5000, 0.3f, 0.0f, false, true,
+             std::vector<T_IND>{0, 0, 3, 0, 0, 0},
+             std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.65},
+            },
+            {"negative_cw",
+             1, 2, 1,
+             std::vector<T>{6.0, 34.0, 4.0, 8.0, -0.7854, 9.0, 32, 2.0, 4.0, 0.0},
+             std::vector<T>{0.8, 0.7},
+             5000, 0.1f, 0.0f, false, true,
+             std::vector<T_IND>{0, 0, 0, 0, 0, 1},
+             std::vector<T>{0.0, 0.0, 0.8, 0.0, 0.0, 0.7}
+            },
+            {"negative_ccw",
+             1, 2, 1,
+             std::vector<T>{6.0, 34.0, 4.0, 8.0, -0.7854, 9.0, 32, 2.0, 4.0, 0.0},
+             std::vector<T>{0.8, 0.7},
+             5000, 0.1f, 0.0f, false, false,
+             std::vector<T_IND>{0, 0, 0},
+             std::vector<T>{0.0, 0.0, 0.8}
+            },
+            {"positive_ccw",
+             1, 2, 1,
+             std::vector<T>{6.0, 34.0, 4.0, 8.0, 0.7854, 9.0, 32, 2.0, 4.0, 0.0},
+             std::vector<T>{0.8, 0.7},
+             5000, 0.1f, 0.0f, false, false,
+             std::vector<T_IND>{0, 0, 0, 0, 0, 1},
+             std::vector<T>{0.0, 0.0, 0.8, 0.0, 0.0, 0.7}
+            },
+            {"positive_cw",
+             1, 2, 1,
+             std::vector<T>{6.0, 34.0, 4.0, 8.0, 0.7854, 9.0, 32, 2.0, 4.0, 0.0},
+             std::vector<T>{0.8, 0.7},
+             5000, 0.1f, 0.0f, false, true,
+             std::vector<T_IND>{0, 0, 0},
+             std::vector<T>{0.0, 0.0, 0.8}
+            }
+    };
+
+    return params;
+}
+INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
+                     nms_rotated_test_f32_i32,
+                     ::testing::ValuesIn(getNmsRotatedParams<float, int32_t>()),
+                     PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
+                     nms_rotated_test_f16_i32,
+                     ::testing::ValuesIn(getNmsRotatedParams<ov::float16, int32_t>()),
+                     PrintToStringParamName());
+} // namespace
