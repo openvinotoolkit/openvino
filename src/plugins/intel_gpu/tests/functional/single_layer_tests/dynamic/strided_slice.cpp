@@ -243,6 +243,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_2D, StridedSliceLay
                              ::testing::Values(emptyAdditionalConfig)),
                          StridedSliceLayerGPUTest::getTestCaseName);
 
+const std::vector<InputShape> inputShapesDynamic2D_excessive_uppper_boundary = {
+        {{{0, 1000}, {0, 364000000}, 4},
+         {{640, 640, 4}}},
+};
+
+const std::vector<StridedSliceParams> paramsPlain2D_excessive_uppper_boundary = {
+        StridedSliceParams{ { 0, 1 }, { 0, 2147483647 }, { 1, 1 }, { 1, 0 }, { 1, 0 },  { },  { },  { } },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Dynamic_2D_excessive_uppper_boundary, StridedSliceLayerGPUTest,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(inputShapesDynamic2D_excessive_uppper_boundary),
+                             ::testing::ValuesIn(paramsPlain2D_excessive_uppper_boundary),
+                             ::testing::ValuesIn(inputPrecisions),
+                             ::testing::Values(restInputTypes[0]),
+                             ::testing::Values(emptyAdditionalConfig)),
+                         StridedSliceLayerGPUTest::getTestCaseName);
+
 const std::vector<StridedSliceParams> testCasesCommon4D = {
         StridedSliceParams{ { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },  { },  { },  { } },
         StridedSliceParams{ { 0, 0, 10, 20 }, { 1, 5, 28, 26 }, { 1, 1, 1, 2 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },  { },  { },  { } },
