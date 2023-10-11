@@ -116,12 +116,19 @@ bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int
 
     auto input_rank = input_shape.rank().get_length();
     auto output_rank = output_shape.rank().get_length();
+    // check if output_rank == input_rank - 1
+    // to make sure the node actually squeezes a dimension
     if (input_rank != output_rank + 1)
         return false;
 
+    // check if squeezed dimension equals to 1
     if (input_shape[axis].is_dynamic() || input_shape[axis] != 1)
         return false;
 
+    // check if the dimensions surrounding squeezed axis matches:
+    // input shape = [..., a, 1, b, ...]
+    // output shape = [..., x, y, ...]
+    // function returns false if a != x or b != y
     if (axis > 0) {
         const auto& input_dimension = input_shape[axis - 1];
         const auto& output_dimension = output_shape[axis - 1];
