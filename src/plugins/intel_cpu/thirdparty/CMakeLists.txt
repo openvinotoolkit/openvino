@@ -133,6 +133,9 @@ function(ov_add_onednn)
     endif()
 endfunction()
 
+add_subdirectory(libxsmm)
+ov_install_static_lib(libxsmm ${OV_CPACK_COMP_CORE})
+
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas)
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})

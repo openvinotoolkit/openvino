@@ -19,6 +19,7 @@
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
+#include "libxsmm.h"
 
 namespace ov {
 namespace intel_cpu {
