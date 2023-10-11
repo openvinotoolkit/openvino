@@ -20,7 +20,7 @@ OutputVector translate_multinomial(const NodeContext& context) {
     auto num_samples = context.get_input(1);
     auto replacement = context.const_input<bool>(2);
     FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(3),
-                                  "aten::multinomial conversion with generator does not supported");
+                                  "aten::multinomial conversion with generator is not supported");
     auto multinomial =
         context.mark_node(std::make_shared<v13::Multinomial>(input, num_samples, element::i64, replacement, false));
     if (!context.input_is_none(5)) {
