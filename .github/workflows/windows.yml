@@ -258,7 +258,7 @@ jobs:
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     strategy:
       matrix:
-        test_group: [mo, api, pytorh, tf, tf_lite, ovc, onnx]
+        test_group: [mo, api, tf, tf_lite, ovc, onnx]
 
     steps:
       - name: Download OpenVINO package
