@@ -22,6 +22,8 @@ OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_all);
+OP_CONVERTER(translate_amax);
+OP_CONVERTER(translate_amin);
 OP_CONVERTER(translate_and);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_argmax);
@@ -124,6 +126,7 @@ OP_CONVERTER(translate_outer);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pixel_shuffle);
+OP_CONVERTER(translate_pixel_unshuffle);
 OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_pythonop);
 OP_CONVERTER(translate_quantize_per_channel);
@@ -238,6 +241,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
         {"aten::all", op::translate_all},
+        {"aten::amax", op::translate_amax},
+        {"aten::amin", op::translate_amin},
         {"aten::arange", op::translate_arange},
         {"aten::argmax", op::translate_argmax},
         {"aten::argmin", op::translate_argmin},
@@ -267,8 +272,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::channel_shuffle", op::translate_channel_shuffle},
         {"aten::clamp", op::translate_clamp},
+        {"aten::clamp_", op::inplace_op<op::translate_clamp>},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset10::Minimum>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset10::Maximum>},
+        {"aten::clip", op::translate_clamp},
+        {"aten::clip_", op::inplace_op<op::translate_clamp>},
         {"aten::clone", op::skip_node},       // ignore clone operators that are inserted by PyTorch autograd
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
@@ -404,6 +412,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::pairwise_distance", op::translate_pairwise_distance},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset10::Transpose>},
         {"aten::pixel_shuffle", op::translate_pixel_shuffle},
+        {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::pow", op::translate_pow},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
