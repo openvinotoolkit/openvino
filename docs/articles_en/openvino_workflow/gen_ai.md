@@ -64,7 +64,7 @@ Prerequisites
 +++++++++++++++++++++++++++
 
 * Create a Python environment.
-* Install Optimium-Intel running:
+* Install Optimum Intel:
 
 .. code-block:: console
 
