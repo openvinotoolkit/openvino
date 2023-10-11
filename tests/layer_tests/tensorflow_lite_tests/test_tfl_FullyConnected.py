@@ -13,7 +13,7 @@ test_params = [
 class TestTFLiteFullyConnectedLayerTest(TFLiteLayerTest):
     inputs = ["Input_x", "Input_y"]
     outputs = ["FullyConnected"]
-    allowed_ops = ['BATCH_MATMUL'] # changed since TF 2.14
+    allowed_ops = (['FULLY_CONNECTED'], ['BATCH_MATMUL'])
 
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'shape_x', 'shape_y'})) == 2, \
