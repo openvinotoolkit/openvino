@@ -27,39 +27,37 @@ OutputVector hammingwindow(const Node& node) {
     // Weights as described in ONNX HammingWindow docs
     // https://github.com/onnx/onnx/blob/main/docs/Operators.md#hammingwindow
     const auto a_0 = std::make_shared<default_opset::Divide>(
-        std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{25.0f}),
-        std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{46.0f}));
+        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{25.0f}),
+        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{46.0f}));
     const auto a_1 = std::make_shared<default_opset::Subtract>(
-        std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{1.0f}),
+        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{1.0f}),
         a_0);
 
     const auto start =
-        std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{0.0f});
-    const auto step = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{1.0f});
-    const auto range = std::make_shared<default_opset::Range>(start, size, step, output_datatype);
-    const auto pi = default_opset::Constant::create(output_datatype, ov::Shape(), {static_cast<float>(M_PI)});
-    const auto size_cast = std::make_shared<default_opset::Convert>(size, output_datatype);
+        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{0.0f});
+    const auto step =
+        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{1.0f});
+    const auto range = std::make_shared<default_opset::Range>(start, size, step, ov::element::f32);
+    const auto pi = default_opset::Constant::create(ov::element::f32, ov::Shape(), {static_cast<float>(M_PI)});
     const auto factor = std::make_shared<default_opset::Multiply>(
         range,
         std::make_shared<default_opset::Divide>(
             std::make_shared<default_opset::Multiply>(
                 pi,
-                std::make_shared<default_opset::Convert>(
-                    std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{2}),
-                    output_datatype)),
-            periodic
-                ? size_cast
-                : std::make_shared<default_opset::Subtract>(
-                      size_cast,
-                      std::make_shared<default_opset::Convert>(
-                          std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{1}),
-                          output_datatype))));
+                std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{2.0f})),
+            periodic ? size
+                     : std::make_shared<default_opset::Subtract>(
+                           size,
+                           std::make_shared<default_opset::Constant>(ov::element::f32,
+                                                                     ov::Shape(),
+                                                                     std::vector<float>{1.0f}))));
 
     const auto cos = std::make_shared<default_opset::Cos>(factor);
     const auto scaled_cos = std::make_shared<default_opset::Multiply>(cos, a_1);
     const auto y_values = std::make_shared<default_opset::Subtract>(a_0, scaled_cos);
+    const auto final_y_values = std::make_shared<default_opset::Convert>(y_values, output_datatype);
 
-    return {y_values};
+    return {final_y_values};
 }
 }  // namespace set_1
 }  // namespace op

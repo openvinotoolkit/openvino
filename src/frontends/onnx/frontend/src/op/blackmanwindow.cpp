@@ -26,43 +26,43 @@ OutputVector blackmanwindow(const Node& node) {
 
     // Weights as described in ONNX BlackmanWindow docs
     // https://github.com/onnx/onnx/blob/main/docs/Operators.md#blackmanwindow
-    const auto a_0 = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{0.42f});
+    const auto a_0 =
+        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{0.42f});
     const auto a_1 =
-        std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{-0.50f});
-    const auto a_2 = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{0.08f});
+        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{-0.50f});
+    const auto a_2 =
+        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{0.08f});
 
     const auto start =
-        std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{0.0f});
-    const auto step = std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<float>{1.0f});
-    const auto range = std::make_shared<default_opset::Range>(start, size, step, output_datatype);
-    const auto pi = default_opset::Constant::create(output_datatype, ov::Shape(), {static_cast<float>(M_PI)});
-    const auto size_cast = std::make_shared<default_opset::Convert>(size, output_datatype);
+        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{0.0f});
+    const auto step =
+        std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{1.0f});
+    const auto range = std::make_shared<default_opset::Range>(start, size, step, ov::element::f32);
+    const auto pi = default_opset::Constant::create(ov::element::f32, ov::Shape(), {static_cast<float>(M_PI)});
     const auto factor_1 = std::make_shared<default_opset::Multiply>(
         range,
         std::make_shared<default_opset::Divide>(
             std::make_shared<default_opset::Multiply>(
                 pi,
-                std::make_shared<default_opset::Convert>(
-                    std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{2}),
-                    output_datatype)),
-            periodic
-                ? size_cast
-                : std::make_shared<default_opset::Subtract>(
-                      size_cast,
-                      std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{1}))));
+                std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{2.0f})),
+            periodic ? size
+                     : std::make_shared<default_opset::Subtract>(
+                           size,
+                           std::make_shared<default_opset::Constant>(ov::element::f32,
+                                                                     ov::Shape(),
+                                                                     std::vector<float>{1.0f}))));
     const auto factor_2 = std::make_shared<default_opset::Multiply>(
         range,
         std::make_shared<default_opset::Divide>(
             std::make_shared<default_opset::Multiply>(
                 pi,
-                std::make_shared<default_opset::Convert>(
-                    std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{4}),
-                    output_datatype)),
-            periodic
-                ? size_cast
-                : std::make_shared<default_opset::Subtract>(
-                      size_cast,
-                      std::make_shared<default_opset::Constant>(output_datatype, ov::Shape(), std::vector<int>{1}))));
+                std::make_shared<default_opset::Constant>(ov::element::f32, ov::Shape(), std::vector<float>{4.0f})),
+            periodic ? size
+                     : std::make_shared<default_opset::Subtract>(
+                           size,
+                           std::make_shared<default_opset::Constant>(ov::element::f32,
+                                                                     ov::Shape(),
+                                                                     std::vector<float>{1.0f}))));
 
     const auto cos_1 = std::make_shared<default_opset::Cos>(factor_1);
     const auto cos_2 = std::make_shared<default_opset::Cos>(factor_2);
@@ -70,8 +70,9 @@ OutputVector blackmanwindow(const Node& node) {
     const auto scaled_cos_2 = std::make_shared<default_opset::Multiply>(cos_2, a_2);
     const auto y_values =
         std::make_shared<default_opset::Add>(std::make_shared<default_opset::Add>(a_0, scaled_cos_1), scaled_cos_2);
+    const auto final_y_values = std::make_shared<default_opset::Convert>(y_values, output_datatype);
 
-    return {y_values};
+    return {final_y_values};
 }
 }  // namespace set_1
 }  // namespace op
