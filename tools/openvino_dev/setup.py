@@ -48,7 +48,7 @@ PKG_INSTALL_CFG = {
         'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'model_tools',  # noqa:E501
         'black_list': [],
         'prefix': 'omz_tools',
-        'extract_requirements': False,
+        'extract_requirements': True,
         'extract_entry_points': True,
         'extract_extras': True,
     },
