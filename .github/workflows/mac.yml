@@ -485,12 +485,11 @@ jobs:
             python3 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2]
           popd
 
-      - name: nGraph and IE Python Bindings Tests
+      - name: Python API 1.0 Tests
         run: |
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
-            --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_zoo_models.py \
-            --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_backend.py
+            --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests/test_onnx/test_zoo_models.py
 
       - name: Python API 2.0 Tests
         run: |
