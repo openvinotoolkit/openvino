@@ -1003,8 +1003,7 @@ jobs:
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
-        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
-          --ir_version=11 --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml -k "sigmoid"
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 -k "sigmoid" --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
