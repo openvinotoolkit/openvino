@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
+#include "include/fetch_utils.cl"
 
 KERNEL(rms_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -12,6 +12,7 @@ KERNEL(rms_gpu_ref)(
 {
     const uint b = get_global_id(0);
     const uint f = get_global_id(1);
+    const uint w = 0;
 
     ACCUMULATOR_TYPE rms = ACCUMULATOR_VAL_ZERO;
     for (uint z = 0; z < INPUT0_SIZE_Z; z++)
@@ -20,11 +21,7 @@ KERNEL(rms_gpu_ref)(
         {
             for (uint x = 0; x < INPUT0_SIZE_X; x++)
             {
-#if INPUT0_DIMS == 4
-                const uint input_idx = INPUT0_GET_INDEX(b, f, y, x);
-#elif INPUT0_DIMS == 5
-                const uint input_idx = INPUT0_GET_INDEX(b, f, z, y, x);
-#endif
+                const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
                 rms += pow(TO_ACCUMULATOR_TYPE(input[input_idx]), 2);
             }
         }
@@ -39,13 +36,11 @@ KERNEL(rms_gpu_ref)(
         {
             for (uint x = 0; x < INPUT0_SIZE_X; x++)
             {
+                const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+                const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
 #if INPUT0_DIMS == 4
-                const uint input_idx = INPUT0_GET_INDEX(b, f, y, x);
-                const uint output_idx = OUTPUT_GET_INDEX(b, f, y, x);
                 const uint gamma_idx = y;
 #elif INPUT0_DIMS == 5
-                const uint input_idx = INPUT0_GET_INDEX(b, f, z, y, x);
-                const uint output_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
                 const uint gamma_idx = z;
 #endif
                 OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]) * TO_OUTPUT_TYPE(gamma[gamma_idx]);

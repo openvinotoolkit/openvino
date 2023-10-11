@@ -75,7 +75,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0])};
 
         // x^2
-        auto power_const = ov::opset10::Constant::create(ov::element::f32, {}, {2.f});
+        auto power_const = ov::opset10::Constant::create(input_precision, {}, {2.f});
         auto power = std::make_shared<ov::opset10::Power>(params[0], power_const);
 
         // ReduceMean(x^2,axes)
@@ -83,14 +83,14 @@ protected:
         auto mean = std::make_shared<ov::opset10::ReduceMean>(power, mean_axes, true);
 
         // ReduceMean(x^2,axes)+eps
-        auto eps = ov::opset10::Constant::create(ov::element::f32, {}, {1e-5f});
+        auto eps = ov::opset10::Constant::create(input_precision, {}, {1e-5f});
         auto add_eps = std::make_shared<ov::opset10::Add>(mean, eps);
 
         // Sqrt(ReduceMean(x^2,axes)+eps)
         auto sqrt = std::make_shared<ov::opset10::Sqrt>(add_eps);
 
         // 1/Sqrt(ReduceMean(x^2,axes)+eps)
-        auto div_const = ov::opset10::Constant::create(ov::element::f32, {}, {1});
+        auto div_const = ov::opset10::Constant::create(input_precision, {}, {1});
         auto div = std::make_shared<ov::opset10::Divide>(div_const, sqrt);
 
         // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
@@ -129,7 +129,7 @@ TEST_P(RMSNormDecomposition, CompareWithRefs) {
 
 namespace {
 
-const std::vector<ov::test::ElementType> input_precisions = {ov::element::f32};
+const std::vector<ov::test::ElementType> input_precisions = {ov::element::f32, ov::element::f16};
 
 const std::vector<std::vector<InputShape>> input_shapes_basic = {
     {{{-1, -1, 96}, {{1, 4, 96}}}},

@@ -20,6 +20,20 @@
 namespace ov {
 namespace intel_gpu {
 
+static std::function<bool(ov::Output<ov::Node>)> constant_value(const float target_value) {
+    return [=](const ov::Output<ov::Node>& output) -> bool {
+        auto node = std::dynamic_pointer_cast<ov::op::v0::Constant>(output.get_node_shared_ptr());
+        if (!node) {
+            return false;
+        }
+        float value;
+        if (!ov::op::util::get_single_value(node, value)) {
+            return false;
+        }
+        return value == target_value;
+    };
+}
+
 RMSFusion::RMSFusion() {
     using namespace ov::pass::pattern;
 
@@ -28,11 +42,11 @@ RMSFusion::RMSFusion() {
     auto x = any_input();
 
     // x^2
-    auto const_2 = wrap_type<ov::op::v0::Constant>();
-    auto power = wrap_type<ov::op::v1::Power>({x, const_2});
+    auto const_power = wrap_type<ov::op::v0::Constant>(constant_value(2));
+    auto power = wrap_type<ov::op::v1::Power>({x, const_power});
 
     // ReduceMean(x^2,axes)
-    auto mean_axes = wrap_type<ov::op::v0::Constant>();
+    auto mean_axes = wrap_type<ov::op::v0::Constant>(constant_value(-1));
     auto mean = wrap_type<ov::op::v1::ReduceMean>({power, mean_axes});
 
     // ReduceMean(x^2,axes)+eps
@@ -43,8 +57,8 @@ RMSFusion::RMSFusion() {
     auto sqrt = wrap_type<ov::op::v0::Sqrt>({add_eps});
 
     // 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto const_minus_1 = wrap_type<ov::op::v0::Constant>();
-    auto div = wrap_type<ov::op::v1::Power>({sqrt, const_minus_1});
+    auto const_div = wrap_type<ov::op::v0::Constant>(constant_value(-1));
+    auto div = wrap_type<ov::op::v1::Power>({sqrt, const_div});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
     auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div});

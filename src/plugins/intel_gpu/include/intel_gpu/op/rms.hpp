@@ -9,13 +9,19 @@
 namespace ov {
 namespace intel_gpu {
 namespace op {
-
+/// \brief Operator performing Root Mean Square Normalization
+///
+/// \note Performs re-scaling invariance and regularizes the summed input according to RMS statistics
 class RMS : public ov::op::Op {
 public:
     OPENVINO_OP("RMS", "gpu_opset");
 
     RMS() = default;
-
+    /// \brief Constructs an RMS operation.
+    ///
+    /// \param data Input tensor with data
+    /// \param gamma Gamma values for weight
+    /// \param eps Epsilon for not dividing by zero while normalizing the value
     RMS(const Output<Node>& data,
         const Output<Node>& gamma,
         double epsilson);

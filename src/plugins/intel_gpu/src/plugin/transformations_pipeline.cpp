@@ -643,12 +643,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
-
-        manager.run_passes(func);
-    }
-
-    {
-        ov::pass::Manager manager;
         manager.register_pass<ov::intel_gpu::RMSFusion>();
 
         manager.run_passes(func);
