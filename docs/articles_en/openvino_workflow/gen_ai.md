@@ -71,7 +71,7 @@ Prerequisites
     pip install optimum[openvino,nncf]
 
 
-To start using OpenVINO as a backend for Hugging Face you should change original Hugging Face code in two places. 
+To start using OpenVINO as a backend for Hugging Face, change the original Hugging Face code in two places:
 
 .. code-block:: diff
 
