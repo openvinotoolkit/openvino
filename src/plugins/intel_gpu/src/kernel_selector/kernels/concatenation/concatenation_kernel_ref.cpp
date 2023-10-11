@@ -83,13 +83,16 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
 
     std::string input_dims_order = "";
     std::string output_dims_order = "";
-    for (size_t i = 0; i < dims_id.size(); i++) {
-        input_dims_order += dims_id[i] + (i == dims_id.size() - 1 ? "" : ",");
-        if (axis_order[i] == axis)
-            output_dims_order += "(" + dims_id[i] + " + output_offset_in_concat_axis)" +
-                                 (i == dims_id.size() - 1 ? "" : ",");
-        else
-            output_dims_order += dims_id[i] + (i == dims_id.size() - 1 ? "" : ",");
+
+    for (size_t i = 0; i < dims_id.size(); ++i) {
+        std::string separator = i == dims_id.size() - 1 ? "" : ",";
+        input_dims_order += dims_id[i] + separator;
+
+        if (axis_order[i] == axis) {
+            output_dims_order += "(" + dims_id[i] + " + output_offset_in_concat_axis)" + separator;
+        } else {
+            output_dims_order += dims_id[i] + separator;
+        }
     }
 
     cldnnJit.AddConstant(MakeJitConstant("INPUT_DIMS_ORDER", input_dims_order));
@@ -97,6 +100,14 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
 
     cldnnJit.AddConstant(MakeJitConstant("INPUT_DIM_0", DataTensor::Channelndex(input_format, Tensor::DataChannelName::X)));
 
+    if (!params.fused_ops.empty()) {
+        auto idx_order = dims_id;
+        size_t axis_idx = std::distance(axis_order.begin(), std::find(axis_order.begin(), axis_order.end(), axis));
+        idx_order[axis_idx] = "(" + idx_order[axis_idx] + " + output_offset_in_concat_axis)";
+
+        auto conf = FusedOpsConfiguration("", idx_order, "result", params.inputs[0].GetDType());
+        cldnnJit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
     return cldnnJit;
 }
 
