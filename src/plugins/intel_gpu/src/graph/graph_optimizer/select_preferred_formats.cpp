@@ -31,15 +31,21 @@ void select_preferred_formats::run(program& p) {
     if (!device_info.supports_immad)
         return;
 
-    if (!_lo.get_implementation_forcing().empty())
-        return;
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    auto forcing_map = _lo.get_implementation_forcing();
+
     engine.create_onednn_engine(p.get_config());
     for (auto n : p.get_processing_order()) {
         if (n->is_input() || !_lo.are_data_types_suitable_for_onednn(*n)) {
             continue;
         }
+
+        for (auto& it : forcing_map) {
+            if (it.first == n->id() && it.second.second != impl_types::onednn) {
+                continue;
+            }
+        }
+
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
             if (n->is_type<convolution>()) {
