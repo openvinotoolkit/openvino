@@ -20,31 +20,33 @@ class KeepWeight(torch.nn.Module):
         return self.weight
 
 
+# Produces a pattern that can be captured later and represented as a single u4 constant node
+def decompression_pattern(weights):
+    mask = torch.tensor(15, dtype=torch.uint8).to(weights.device)
+    return torch.stack((torch.bitwise_and(weights, mask), torch.bitwise_right_shift(weights, 4)), dim=-1)
+
+
 def patched_forward(self, *args, **kwargs):
     if hasattr(self, "_hf_hook"):
         args, kwargs = self._hf_hook.pre_forward(self, *args, **kwargs)
 
-    x = args[0].half()
+    dtype = x.dtype
+    x = args[0]
     outshape = x.shape[:-1] + (self.width,)
     x = x.view(-1, x.shape[-1])
     groups = self.qzeros.shape[0]
     height = self.qweight.shape[0]
-    mask = torch.tensor(15, dtype=torch.uint8).to(self.qweight.device)
 
-    unpacked_weights = torch.stack(
-                    (torch.bitwise_and(self._openvino_u4_compression_submodule_qweights(), mask),
-                    torch.bitwise_right_shift(self._openvino_u4_compression_submodule_qweights(), 4)), dim=-1).contiguous().view(height, -1, 8)
+    unpacked_weights = decompression_pattern(self._openvino_u4_compression_submodule_qweights()).contiguous().view(height, -1, 8)
     unpacked_weights = torch.transpose(unpacked_weights, 1, 2).contiguous().view(-1, self.group_size, self.width)
-    unpacked_zp = torch.stack(
-                    (torch.bitwise_and(self._openvino_u4_compression_submodule_qzeros(), mask),
-                    torch.bitwise_right_shift(self._openvino_u4_compression_submodule_qzeros(), 4)), dim=-1).contiguous().view(groups, 1, -1)
+    unpacked_zp = decompression_pattern(self._openvino_u4_compression_submodule_qzeros()).contiguous().view(groups, 1, -1)
 
-    unpacked_zp = unpacked_zp.half() + 1 # +1 !!
+    unpacked_zp = unpacked_zp.to(dtype) + 1
 
-    unpacked_weights = (unpacked_weights.half() - unpacked_zp) * self.scales
+    unpacked_weights = (unpacked_weights.to(dtype) - unpacked_zp) * self.scales
     unpacked_weights = unpacked_weights.view(-1, self.width)
 
-    out = x @ unpacked_weights # Cast weights to FP16 to prevent a failure with precisions misalignment
+    out = x @ unpacked_weights
 
     out = out.view(outshape)
     if self.bias is not None:
