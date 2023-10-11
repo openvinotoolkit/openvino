@@ -141,10 +141,12 @@ function(ov_check_init_files_alignment init_files)
     endforeach()
 endfunction()
 
-ov_check_init_files_alignment("${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
-                              "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
-                              "${OpenVINOPython_SOURCE_DIR}/../../../tools/ovc/openvino/__init__.py"
-                              "${OpenVINOPython_SOURCE_DIR}/../../../tools/benchmark_tool/openvino/__init__.py")
+set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
+                       "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
+                       "${OpenVINOPython_SOURCE_DIR}/../../../tools/ovc/openvino/__init__.py"
+                       "${OpenVINOPython_SOURCE_DIR}/../../../tools/benchmark_tool/openvino/__init__.py")
+
+ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")
 
 ov_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
 
