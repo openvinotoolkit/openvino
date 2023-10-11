@@ -175,12 +175,12 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
         scaled_atten = context.mark_node(std::make_shared<v1::Add>(scaled_atten, atten_mask));
     }
     std::vector<int> softmax_shape_v(3);
-    softmax_shape_v[0] = 16;
+    softmax_shape_v[0] = scaled_atten->get_shape()[0]*scaled_atten->get_shape()[1];
     softmax_shape_v[1] = scaled_atten->get_shape()[2];
     softmax_shape_v[2] = scaled_atten->get_shape()[3];
     std::vector<int> matmul_shape_v(4);
-    matmul_shape_v[0] = 2;
-    matmul_shape_v[1] = 8;
+    matmul_shape_v[0] = scaled_atten->get_shape()[0];
+    matmul_shape_v[1] = scaled_atten->get_shape()[1];
     matmul_shape_v[2] = scaled_atten->get_shape()[2];
     matmul_shape_v[3] = scaled_atten->get_shape()[3];
     auto softmax_shape = context.mark_node(v0::Constant::create(element::i32, Shape{3}, softmax_shape_v));
