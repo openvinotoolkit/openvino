@@ -79,12 +79,7 @@ using ov::test::utils::ConversionTypes;
 using ov::test::utils::LogicalTypes;
 using ov::test::utils::SqueezeOpType;
 using ov::test::utils::MinMaxOpType;
-
-enum QuantizationGranularity {
-    Pertensor,
-    Perchannel
-};
-
+using ov::test::utils::QuantizationGranularity;
 using ov::test::utils::TensorIteratorBody;
 using ov::test::utils::ReductionType;
 using ov::test::utils::DFTOpType;
@@ -101,23 +96,6 @@ enum class MemoryTransformation {
 // clang-format on
 
 bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function>& func);
-
-inline std::string quantizationGranularityToString(const QuantizationGranularity& granularity) {
-    static std::map<QuantizationGranularity, std::string> names = {
-        {Pertensor, "Pertensor"},
-        {Perchannel, "Perchannel"},
-    };
-
-    auto i = names.find(granularity);
-    if (i != names.end())
-        return i->second;
-    else
-        throw std::runtime_error("Unsupported QuantizationGranularity type");
-}
-
-inline std::ostream& operator<<(std::ostream& out, const QuantizationGranularity& granularity) {
-    return out << quantizationGranularityToString(granularity);
-}
 
 ngraph::OutputVector convert2OutputVector(const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
 

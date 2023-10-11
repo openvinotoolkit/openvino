@@ -4,36 +4,29 @@
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <string>
-#include <memory>
+#include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+namespace ov {
+namespace test {
 
-namespace SubgraphTestsDefinitions {
+typedef std::tuple<ov::Shape,
+                   ov::Shape,
+                   std::vector<ptrdiff_t>,
+                   std::vector<ptrdiff_t>,
+                   ov::Shape,
+                   size_t,
+                   size_t,
+                   size_t,
+                   ov::test::utils::QuantizationGranularity,
+                   bool>
+    quantGroupConvSpecificParams;
 
-typedef std::tuple<
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
-        std::vector<ptrdiff_t>,
-        std::vector<ptrdiff_t>,
-        InferenceEngine::SizeVector,
-        size_t,
-        size_t,
-        size_t,
-        ngraph::helpers::QuantizationGranularity,
-        bool> quantGroupConvSpecificParams;
-typedef std::tuple<
-        quantGroupConvSpecificParams,
-        InferenceEngine::Precision,
-        InferenceEngine::SizeVector,
-        LayerTestsUtils::TargetDevice> quantGroupConvLayerTestParamsSet;
+typedef std::tuple<quantGroupConvSpecificParams, ov::element::Type, ov::Shape, ov::test::TargetDevice>
+    quantGroupConvLayerTestParamsSet;
 
 class QuantGroupConvLayerTest : public testing::WithParamInterface<quantGroupConvLayerTestParamsSet>,
-                                            virtual public LayerTestsUtils::LayerTestsCommon {
+                                virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<quantGroupConvLayerTestParamsSet>& obj);
 
@@ -41,4 +34,5 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
