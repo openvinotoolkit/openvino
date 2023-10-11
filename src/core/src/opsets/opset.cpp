@@ -5,16 +5,10 @@
 #include "ngraph/opsets/opset.hpp"
 
 #include "itt.hpp"
-#include "ngraph/deprecated.hpp"
 #include "ngraph/log.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/log.hpp"
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
-
-ngraph::OpSet::OpSet(const ngraph::OpSet& opset) : ov::OpSet(opset) {}
 
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}
 
@@ -49,24 +43,6 @@ ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
     }
     REGISTER_OP(m_name, name);
     return m_factory_registry.create(type_info_it->second);
-}
-
-const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_available_opsets() {
-#define _NGRAPH_REG_OPSET(OPSET) \
-    { #OPSET, ngraph::get_##OPSET }
-    const static std::map<std::string, std::function<const ngraph::OpSet&()>> opset_map = {_NGRAPH_REG_OPSET(opset1),
-                                                                                           _NGRAPH_REG_OPSET(opset2),
-                                                                                           _NGRAPH_REG_OPSET(opset3),
-                                                                                           _NGRAPH_REG_OPSET(opset4),
-                                                                                           _NGRAPH_REG_OPSET(opset5),
-                                                                                           _NGRAPH_REG_OPSET(opset6),
-                                                                                           _NGRAPH_REG_OPSET(opset7),
-                                                                                           _NGRAPH_REG_OPSET(opset8),
-                                                                                           _NGRAPH_REG_OPSET(opset9),
-                                                                                           _NGRAPH_REG_OPSET(opset10),
-                                                                                           _NGRAPH_REG_OPSET(opset11)};
-#undef _NGRAPH_REG_OPSET
-    return opset_map;
 }
 
 const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_available_opsets() {
@@ -232,57 +208,96 @@ const ov::OpSet& ov::get_opset13() {
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset1() {
+OPENVINO_SUPPRESS_DEPRECATED_START
+namespace ngraph {
+
+OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
+
+OpSet::OpSet(const OpSet& opset) : ov::OpSet(opset) {}
+
+const std::map<std::string, std::function<const OpSet&()>>& get_available_opsets() {
+#define _REG_OPSET(OPSET) \
+    { #OPSET, get_##OPSET }
+    const static std::map<std::string, std::function<const OpSet&()>> opset_map = {_REG_OPSET(opset1),
+                                                                                   _REG_OPSET(opset2),
+                                                                                   _REG_OPSET(opset3),
+                                                                                   _REG_OPSET(opset4),
+                                                                                   _REG_OPSET(opset5),
+                                                                                   _REG_OPSET(opset6),
+                                                                                   _REG_OPSET(opset7),
+                                                                                   _REG_OPSET(opset8),
+                                                                                   _REG_OPSET(opset9),
+                                                                                   _REG_OPSET(opset10),
+                                                                                   _REG_OPSET(opset11),
+                                                                                   _REG_OPSET(opset12),
+                                                                                   _REG_OPSET(opset13)};
+#undef _REG_OPSET
+    return opset_map;
+}
+
+const OpSet& get_opset1() {
     static OpSet opset(ov::get_opset1());
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset2() {
+const OpSet& get_opset2() {
     static OpSet opset(ov::get_opset2());
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset3() {
+const OpSet& get_opset3() {
     static OpSet opset(ov::get_opset3());
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset4() {
+const OpSet& get_opset4() {
     static OpSet opset(ov::get_opset4());
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset5() {
+const OpSet& get_opset5() {
     static OpSet opset(ov::get_opset5());
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset6() {
+const OpSet& get_opset6() {
     static OpSet opset(ov::get_opset6());
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset7() {
+const OpSet& get_opset7() {
     static OpSet opset(ov::get_opset7());
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset8() {
+const OpSet& get_opset8() {
     static OpSet opset(ov::get_opset8());
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset9() {
+const OpSet& get_opset9() {
     static OpSet opset(ov::get_opset9());
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset10() {
+const OpSet& get_opset10() {
     static OpSet opset(ov::get_opset10());
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset11() {
+const OpSet& get_opset11() {
     static OpSet opset(ov::get_opset11());
     return opset;
 }
+
+const OpSet& get_opset12() {
+    static OpSet opset(ov::get_opset12());
+    return opset;
+}
+
+const OpSet& get_opset13() {
+    static OpSet opset(ov::get_opset13());
+    return opset;
+}
+
+}  // namespace ngraph
