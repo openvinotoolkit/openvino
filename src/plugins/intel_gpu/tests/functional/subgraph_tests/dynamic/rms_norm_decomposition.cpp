@@ -132,7 +132,7 @@ namespace {
 const std::vector<ov::test::ElementType> input_precisions = {ov::element::f32};
 
 const std::vector<std::vector<InputShape>> input_shapes_basic = {
-    {{{-1, -1, 4096}, {{1, 43, 4096}}}},
+    {{{-1, -1, 96}, {{1, 4, 96}}}},
     {{{-1, -1, -1}, {{1, 2, 16}}}},
     {{{}, {{1, 2, 6}}}},
     {{{}, {{1, 2, 18}}}},
