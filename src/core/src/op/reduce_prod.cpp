@@ -94,7 +94,7 @@ bool ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
     // which will be evaluated as [0x7FFFFFFFFFFFFFFF]
     if (get_input_tensor(0).get_element_type() == element::i64 &&
         tensor_has_max_value(get_input_tensor(0).get_upper_value())) {
-        output_values[0].set_shape(Shape{});
+        output_values[0].set_shape(Shape{1});
         output_values[0].data<int64_t>()[0] =
             std::numeric_limits<typename element_type_traits<element::i64>::value_type>::max();
         return true;
