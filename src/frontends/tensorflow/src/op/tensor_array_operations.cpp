@@ -56,19 +56,6 @@ Output<Node> create_initial_tensor_array_constant(int64_t tensor_element_rank,
 
     return initial_tensor_array->output(0);
 }
-
-// the function replaces internal operation TensorArrayV3 with the constant imitating initial tensor array container
-// since it gets info about elements shape at some moment
-Output<Node> replace_tensor_array_v3_with_constant(shared_ptr<TensorArrayV3>& tensor_array_v3,
-                                                   Output<Node> handle,
-                                                   Output<Node> flow,
-                                                   int64_t tensor_element_rank) {
-    auto new_output = create_initial_tensor_array_constant(tensor_element_rank,
-                                                           tensor_array_v3->get_element_type(),
-                                                           tensor_array_v3->input_value(0),
-                                                           tensor_array_v3->get_friendly_name());
-    return new_output;
-}
 }  // namespace
 
 OutputVector translate_tensor_array_v3_op(const NodeContext& node) {
@@ -108,22 +95,16 @@ OutputVector translate_tensor_array_scatter_v3_op(const NodeContext& node) {
 
     // check if producer of tensor_array is TensorArrayV3, internal operation, still
     // if yes, try to replace it with constant container
-    if (auto tensor_array_v3 = as_type_ptr<TensorArrayV3>(tensor_array.get_node_shared_ptr())) {
-        TENSORFLOW_OP_VALIDATION(
-            node,
-            value.get_partial_shape().rank().is_static(),
-            "[TensorFlow Frontend] internal error: only values of static rank for tensor array is supported");
+    if (as_type_ptr<TensorArrayV3>(tensor_array.get_node_shared_ptr()) &&
+        value.get_partial_shape().rank().is_static()) {
+        // set tensor element rank that gets known from TensorArrayScatterV3 operation
+        auto tensor_array_v3 = as_type_ptr<TensorArrayV3>(tensor_array.get_node_shared_ptr());
         TENSORFLOW_OP_VALIDATION(
             node,
             value.get_partial_shape().rank().get_length() > 0,
             "[TensorFlow Frontend] internal error or inconsistent model: value to TensorArrayScatterV3 is a scalar");
         int64_t tensor_element_rank = value.get_partial_shape().rank().get_length() - 1;
-        auto new_output = replace_tensor_array_v3_with_constant(tensor_array_v3,
-                                                                node.get_input(0),
-                                                                node.get_input(3),
-                                                                tensor_element_rank);
-        // re-initialize Output since producer is changed
-        tensor_array = new_output;
+        tensor_array_v3->set_element_rank(tensor_element_rank);
     }
 
     // compute element shape (shape of a tensor in the tensor array) using value
@@ -311,18 +292,12 @@ OutputVector translate_tensor_array_write_v3_op(const NodeContext& node) {
     index = make_shared<v1::Reshape>(index, new_index_shape, false);
 
     if (auto enter = as_type_ptr<Enter>(handle.get_node_shared_ptr())) {
-        if (auto tensor_array_v3 = as_type_ptr<TensorArrayV3>(enter->input_value(0).get_node_shared_ptr())) {
-            TENSORFLOW_OP_VALIDATION(
-                node,
-                value.get_partial_shape().rank().is_static(),
-                "[TensorFlow Frontend] internal error: only values of static rank for tensor array is supported");
+        if (as_type_ptr<TensorArrayV3>(enter->input_value(0).get_node_shared_ptr()) &&
+            value.get_partial_shape().rank().is_static()) {
+            // set tensor element rank that gets known from TensorArrayWriteV3 operation
+            auto tensor_array_v3 = as_type_ptr<TensorArrayV3>(enter->input_value(0).get_node_shared_ptr());
             int64_t tensor_element_rank = value.get_partial_shape().rank().get_length();
-            auto new_output = replace_tensor_array_v3_with_constant(tensor_array_v3,
-                                                                    tensor_array_v3->output(0),
-                                                                    tensor_array_v3->output(1),
-                                                                    tensor_element_rank);
-            // re-initialize since the producer is replaced
-            tensor_array = new_output;
+            tensor_array_v3->set_element_rank(tensor_element_rank);
         }
     }
 
