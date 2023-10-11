@@ -146,6 +146,11 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
+  - script: |
+      mkdir -p "%LOCALAPPDATA%/Intel Corporation/"
+      echo 0 > "%LOCALAPPDATA%/Intel Corporation/openvino_telemetry"
+    displayName: 'Disable Telemetry'
+
   - powershell: |
       Write-Host "##vso[task.setvariable variable=CMAKE_TOOLCHAIN_FILE]$(OV_CMAKE_TOOLCHAIN_FILE)"
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')

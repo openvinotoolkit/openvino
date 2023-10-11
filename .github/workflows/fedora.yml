@@ -86,6 +86,15 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
 
       #
+      # Disable Telemetry
+      #
+
+      - name: Disable Telemetry
+        run: |
+          mkdir -p $HOME/intel/
+          echo 0 > $HOME/intel/openvino_telemetry
+
+      #
       # Build
       #
 
