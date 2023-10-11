@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/prior_box_clustered.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/prior_box.hpp"
-#include "openvino/opsets/opset1.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -76,9 +78,9 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const PriorBoxClusteredParams& params) {
         auto LS =
-            std::make_shared<opset1::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
+            std::make_shared<op::v0::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
         auto IS =
-            std::make_shared<opset1::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
+            std::make_shared<op::v0::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
         const auto PriorBoxClustered = std::make_shared<op::v0::PriorBoxClustered>(LS, IS, params.attrs);
         return std::make_shared<ov::Model>(NodeVector{PriorBoxClustered}, ParameterVector{});
     }
