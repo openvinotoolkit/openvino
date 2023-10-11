@@ -32,8 +32,8 @@ The table below summarizes differences of both Hugging Face and Native approache
      - Hugging Face through OpenVINO
      - OpenVINO Native API
    * - Model support
-     - Wide set of Models
-     - Wide set of Models
+     - Broad set of Models
+     - Broad set of Models
    * - APIs
      - Python (Hugging Face API)
      - Python, C++ (OpenVINO API)
