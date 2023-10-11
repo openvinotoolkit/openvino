@@ -338,7 +338,7 @@ jobs:
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m precommit ${{ env.PYTEST_PARALLEL }} --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m "not launch_only_if_manually_specified and precommit" ${{ env.PYTEST_PARALLEL }} --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
 
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ always() }}
