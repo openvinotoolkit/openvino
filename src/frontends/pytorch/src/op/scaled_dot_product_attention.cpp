@@ -133,10 +133,11 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
     }
     auto value = context.get_input(2);
     auto output = context.mark_node(std::make_shared<v0::MatMul>(scaled_atten, value));
+    // TODO: scaled_dot_product_flash_attention has 9 outputs but fort most cases only
+    // the first input is used. Rest of the outputs should be returned properly as
+    // needed.
     ov::OutputVector out_vec;
-    for (int i=0; i<9; i++) {
-        out_vec.push_back(output);
-    }
+    out_vec.push_back(output);
     return {context.mark_node(make_list_construct(out_vec))};
 };
 
