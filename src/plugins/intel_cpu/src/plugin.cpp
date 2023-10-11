@@ -142,28 +142,10 @@ public:
 };
 #endif // __linux__
 
-#if defined(OV_CPU_WITH_ACL)
-std::mutex Engine::SchedulerGuard::mutex;
-std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
-
-Engine::SchedulerGuard::SchedulerGuard() {
-#if IE_THREAD == IE_THREAD_SEQ
-        arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
-#else
-        arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
-#endif
+static std::mutex & get_mtx_acl() {
+    static std::mutex mtx_acl;
+    return mtx_acl;
 }
-
-std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
-    std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
-    auto scheduler_guard_ptr = SchedulerGuard::ptr.lock();
-    if (scheduler_guard_ptr == nullptr) {
-        SchedulerGuard::ptr = scheduler_guard_ptr = std::make_shared<SchedulerGuard>();
-    }
-    return scheduler_guard_ptr;
-}
-
-#endif
 
 Engine::Engine() :
     deviceFullName(getDeviceFullName()),
@@ -171,7 +153,8 @@ Engine::Engine() :
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
-    scheduler_guard = SchedulerGuard::instance();
+    std::lock_guard<std::mutex> lock{get_mtx_acl()};
+    arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
 #endif
 }
 
