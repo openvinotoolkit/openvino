@@ -117,8 +117,10 @@ ov::PartialShape get_planar_pshape(const Output<Node>& out) {
 
 VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& layout) {
     VectorDims reordered_shape(shape.size());
-    for (size_t i = 0; i < layout.size(); i++)
+    for (size_t i = 0; i < layout.size(); i++) {
+        OPENVINO_ASSERT(layout[i] < shape.size(), "get_planar_vdims: layout index is greater than the shape size");
         reordered_shape[i] = shape[layout[i]];
+    }
     return reordered_shape;
 }
 
