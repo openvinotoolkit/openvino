@@ -87,15 +87,6 @@ jobs:
         run: choco install --no-progress ninja
 
       #
-      # Disable Telemetry
-      #
-
-      - name: Disable Telemetry
-        run: |
-          mkdir -p "%LOCALAPPDATA%/Intel Corporation/"
-          echo 0 > "%LOCALAPPDATA%/Intel Corporation/openvino_telemetry"
-
-      #
       # Build
       #
 
@@ -314,6 +305,15 @@ jobs:
           # Find and install the dev OV wheel
           $ovDevWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino_dev*.whl | % { $_.FullName }
           python3 -m pip install "$ovDevWheelPath[mxnet,caffe,kaldi,onnx,tensorflow2]"
+
+      #
+      # Disable Telemetry
+      #
+
+      - name: Disable Telemetry
+        run: |
+          mkdir -p "%LOCALAPPDATA%/Intel Corporation/"
+          echo 0 > "%LOCALAPPDATA%/Intel Corporation/openvino_telemetry"
 
       - name: Python API 1.0 Tests
         shell: cmd
