@@ -924,7 +924,12 @@ jobs:
           # required for MxNet
           apt-get install -y libgomp1 libquadmath0
 
-          python3 -m pytest -n logical --dist loadscope -s ${INSTALL_TEST_DIR}/mo/unit_tests \
+          python3 -m pytest -n logical --dist loadscope \
+              --tx  popen//env:TMPDIR=/tmp/0 \
+              --tx  popen//env:TMPDIR=/tmp/1 \
+              --tx  popen//env:TMPDIR=/tmp/2 \
+              --tx  popen//env:TMPDIR=/tmp/3 \
+              -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       # - name: PyTorch Layer Tests

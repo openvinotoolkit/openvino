@@ -1,6 +1,7 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import tempfile
 import pytest
 import unittest
 from unittest.mock import Mock
@@ -88,11 +89,11 @@ class TestMoFallback(unittest.TestCase):
         )
         self.models["test_model.onnx"] = model
         for name, model in self.models.items():
-            onnx.save(model, name)
+            onnx.save(model, os.path.join(tempfile.TemporaryDirectory(), name))
 
     def tearDown(self):
         for name in self.models.keys():
-            os.remove(name)
+            os.remove(os.path.join(tempfile.TemporaryDirectory(), name))
 
     @pytest.mark.skipif(
         len(get_builtin_extensions_path()) == 0,

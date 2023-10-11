@@ -1,6 +1,7 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import tempfile
 import unittest
 from unittest.mock import patch, Mock
 import onnx
@@ -106,12 +107,12 @@ class TestMoFallback(unittest.TestCase):
         self.models["test_model_3.onnx"] = model_3
 
         for name, model in self.models.items():
-            onnx.save(model, name)
+            onnx.save(model, os.path.join(tempfile.TemporaryDirectory(), name))
 
     def tearDown(self):
         del environ['MO_ENABLED_TRANSFORMS']
         for name in self.models.keys():
-            os.remove(name)
+            os.remove(os.path.join(tempfile.TemporaryDirectory(), name))
 
 
     @patch('openvino.tools.mo.moc_frontend.analysis.json_model_analysis_print')

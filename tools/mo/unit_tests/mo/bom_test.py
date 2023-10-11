@@ -32,6 +32,9 @@ class TestBOMFile(unittest.TestCase):
         cls.existing_files = []
         cur_path = os.path.join(os.path.realpath(__file__), os.pardir)
         mo_path = os.path.abspath(os.path.join(cur_path, os.pardir, os.pardir))
+        with open('test.file','w',encoding = 'utf-8') as f:
+            f.write("Write what you want to write in\n")
+            f.write("this file\n\n")
         with open(os.path.join(mo_path, 'automation', 'package_BOM.txt'), 'r') as bom_file:
             if platform.system() == 'Windows':
                 cls.existing_files = [name.rstrip().replace('/', '\\') for name in bom_file.readlines()]

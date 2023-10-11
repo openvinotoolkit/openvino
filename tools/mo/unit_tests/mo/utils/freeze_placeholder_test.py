@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import tempfile
 import argparse
 import os
 import unittest
@@ -118,11 +119,11 @@ class TestMoFreezePlaceholder(unittest.TestCase):
         self.models["test_model_int.onnx"] = model_3
 
         for name, model in self.models.items():
-            onnx.save(model, name)
+            onnx.save(model, os.path.join(tempfile.TemporaryDirectory(), name))
 
     def tearDown(self):
         for name in self.models.keys():
-            os.remove(name)
+            os.remove(os.path.join(tempfile.TemporaryDirectory(), name))
 
     @generate(
         *[

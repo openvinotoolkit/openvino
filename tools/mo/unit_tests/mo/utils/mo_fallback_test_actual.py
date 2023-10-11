@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import tempfile
 import unittest
 from unittest.mock import patch, Mock
 
@@ -93,7 +94,7 @@ class TestMoFallback(unittest.TestCase):
         self.models["test_model.onnx"] = model
 
         for name, model in self.models.items():
-            onnx.save(model, name)
+            onnx.save(model, os.path.join(tempfile.TemporaryDirectory(), name))
 
         self.test_config_files = {}
         self.test_config_files['fake_config.json'] = '[]' # json format
@@ -106,7 +107,7 @@ class TestMoFallback(unittest.TestCase):
             "id": "TransformationName1",
             "match_kind": "scope"
             },
-            { 
+            {
             "custom_attributes": {
             },
             "id": "TransfromationName2",
@@ -118,7 +119,7 @@ class TestMoFallback(unittest.TestCase):
         self.test_config_files['onnx_fe_ext_2.so'] = 'binary_content'
 
         for file, content in self.test_config_files.items():
-            with open(file, 'w') as f:
+            with open(os.path.join(tempfile.TemporaryDirectory(), file), 'w') as f:
                 f.write(content)
 
         self.paddle_dir = "paddle_dir"
@@ -138,9 +139,9 @@ class TestMoFallback(unittest.TestCase):
 
     def tearDown(self):
         for name in self.models.keys():
-            os.remove(name)
+            os.remove(os.path.join(tempfile.TemporaryDirectory(), name))
         for name in self.test_config_files:
-            os.remove(name)
+            os.remove(os.path.join(tempfile.TemporaryDirectory(), name))
         shutil.rmtree(self.paddle_dir)
 
 
