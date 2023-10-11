@@ -932,6 +932,11 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
+      - name: ONNX Layer Tests
+        run: |
+          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
+
       - name: TensorFlow 1 Layer Tests - TF FE
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
