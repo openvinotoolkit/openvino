@@ -138,7 +138,7 @@ Low-rank Adaptation (LoRA) is a popular method to tune Generative AI models to a
     model.get_base_model().save_pretrained("fused_lora_model")
 
 
-Now the model can be converted to OpenVINO using Optimum-Intel Python API or CLI interfaces mentioned above.
+Now the model can be converted to OpenVINO using Optimum Intel Python API or CLI interfaces mentioned above.
 
 Running Generative AI models using native OpenVINO APIs 
 ########################################################
