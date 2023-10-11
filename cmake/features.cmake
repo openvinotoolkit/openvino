@@ -81,13 +81,21 @@ else()
 endif()
 
 set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
-set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
+if (APPLE)
+    set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "SEQ")
+else()
+    set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
+endif()
 list (APPEND IE_OPTIONS THREADING)
 if (NOT THREADING STREQUAL "TBB" AND
     NOT THREADING STREQUAL "TBB_AUTO" AND
     NOT THREADING STREQUAL "OMP" AND
     NOT THREADING STREQUAL "SEQ")
-    message(FATAL_ERROR "THREADING should be set to TBB (default), TBB_AUTO, OMP or SEQ")
+    if (APPLE)
+        message(FATAL_ERROR "THREADING should be set to TBB (default), TBB_AUTO or SEQ")
+    else()
+        message(FATAL_ERROR "THREADING should be set to TBB (default), TBB_AUTO, OMP or SEQ")
+    endif()
 endif()
 
 if (APPLE AND THREADING STREQUAL "OMP")
