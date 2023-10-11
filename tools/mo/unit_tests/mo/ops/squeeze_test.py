@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generate, generator
 
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from openvino.tools.mo.graph.graph import Node
@@ -41,9 +40,8 @@ nodes_attributes = {
 }
 
 
-@generator
-class TestSqueezeInfer(unittest.TestCase):
-    @generate(*[
+class TestSqueezeInfer():
+    @pytest.mark.parametrize("input_value, input_shape, squeeze_dims, ref_value, ref_shape",[
         (None, shape_array([1, 2, 1, 4]), shape_array([2]), None, [1, 2, 4]),
                 # allow squeezing dynamic dimensions
                 (None, shape_array([1, 2, dynamic_dimension_value, 4]), shape_array([2]), None, [1, 2, 4]),
@@ -67,10 +65,10 @@ class TestSqueezeInfer(unittest.TestCase):
                              })
         node = Node(graph, 'squeeze')
         if ref_shape is None:  # the test should fail
-            with self.assertRaises(Error):
+            with pytest.raises(Error):
                 Squeeze.infer(node)
         else:
             Squeeze.infer(node)
             if ref_value is not None:
-                self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_value(), ref_value))
-            self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_shape(), ref_shape))
+                assert strict_compare_tensors(node.out_port(0).data.get_value(), ref_value)
+            assert strict_compare_tensors(node.out_port(0).data.get_shape(), ref_shape)

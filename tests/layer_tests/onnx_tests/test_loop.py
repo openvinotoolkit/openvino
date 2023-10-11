@@ -16,7 +16,7 @@ class TestLoop(OnnxRuntimeLayerTest):
         if tensor_type == TensorProto.INT64:
             np_type = np.int64
         elif tensor_type == TensorProto.FLOAT:
-            np_type = np.float
+            np_type = np.float32
         elif tensor_type == TensorProto.BOOL:
             np_type = bool
         else:

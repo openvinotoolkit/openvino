@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from sys import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -38,6 +40,7 @@ class TestTensorListLength(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_tensor_list_length_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend, use_old_api):
         self._test(*self.create_tensor_list_length(**params),
@@ -76,6 +79,7 @@ class TestTensorListLengthEmptyList(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_tensor_list_length_empty_list)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_tensor_list_length_empty_list(self, params, ie_device, precision, ir_version, temp_dir,
                                            use_new_frontend, use_old_api):
         self._test(*self.create_tensor_list_length_empty_list(**params),
