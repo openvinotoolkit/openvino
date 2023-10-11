@@ -57,7 +57,7 @@ The table below summarizes the differences between Hugging Face and Native APIs 
      - Best
 
 
-Running Generative AI models using Hugging Face Optimium-Intel 
+Running Generative AI Models using Hugging Face Optimum Intel 
 ##############################################################
 
 Prerequisites
