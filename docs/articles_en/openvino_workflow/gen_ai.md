@@ -16,7 +16,7 @@ OpenVINO offers two main paths for Generative AI use cases:
 * Using OpenVINO native APIs (Python and C++) with custom pipeline code. 
 
  
-In both cases, OpenVINO runtime and tools are used, the difference is mostly in the preferred API and the final solution's footprint. Native APIs enable the use of generative models in C++ applications, ensure minimal runtime dependencies, and minimize application footprint. The Native APIs approach requires the implementation of glue code (generation loop, text tokenization, or scheduler functions), which is hidden as internal implementation details within Hugging Face libraries. 
+In both cases, OpenVINO runtime and tools are used, the difference is mostly in the preferred API and the final solution's footprint. Native APIs enable the use of generative models in C++ applications, ensure minimal runtime dependencies, and minimize application footprint. The Native APIs approach requires the implementation of glue code (generation loop, text tokenization, or scheduler functions), which is hidden within Hugging Face libraries for a better developer experience.
 
 It is recommended to start with Hugging Face frameworks. Experiment with different models and scenarios to find your fit, and then consider converting to OpenVINO native APIs based on your specific requirements. 
 
@@ -45,7 +45,7 @@ The table below summarizes differences of both Hugging Face and Native approache
      - Custom inference pipelines
    * - Additional dependencies
      - Many Hugging Face dependencies
-     - Ligthweight (e.g. numpy, boost, etc.)
+     - Lightweight (e.g. numpy, etc.)
    * - Application footprint
      - Large
      - Small
@@ -83,7 +83,7 @@ To start using OpenVINO as a backend for Hugging Face you should change original
     +model = OVModelForCausalLM.from_pretrained(model_id, export=True)
 
 
-After that, you can call ``.save_pretrained()`` method to save model to the folder in the OpenVINO Intermediate Representation and use it further.
+After that, you can call ``save_pretrained()`` method to save model to the folder in the OpenVINO Intermediate Representation and use it further.
 
 .. code-block:: python
 
@@ -99,14 +99,14 @@ In this case, you can load the converted model in OpenVINO representation direct
     model = OVModelForCausalLM.from_pretrained(model_id)
 
 
-By default, inference will run on CPU. To select a different inference device, for example GPU, add ``device="GPU"`` to the ``from_pretrained()`` call. To switch to a different device after the model has been loaded, use the ``.to()`` method. The device naming convention is the same as in OpenVINO native API:
+By default, inference will run on CPU. To select a different inference device, for example, GPU, add ``device="GPU"`` to the ``from_pretrained()`` call. To switch to a different device after the model has been loaded, use the ``.to()`` method. The device naming convention is the same as in OpenVINO native API:
 
 .. code-block:: python
 
     model.to("GPU")
 
 
-Optimum-Intel API also provides out-of-the-box model optimization through weights compression using NNCF which substantially reduces the model footdpring and inference latency:
+Optimum-Intel API also provides out-of-the-box model optimization through weight compression using NNCF which substantially reduces the model footprint and inference latency:
 
 .. code-block:: python
 
@@ -114,6 +114,13 @@ Optimum-Intel API also provides out-of-the-box model optimization through weight
 
 
 Wieght compression is applied by default to models larger than 1 billion parameters and also available for CLI interface as ``--int8`` option.
+
+Below are some examples of using Optimum-Intel for model conversion and inference:
+
+* `Stable Diffusion v2.1 using Optimum-Intel OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-optimum-demo.ipynb>`__
+* `Image generation with Stable Diffusion XL and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/248-stable-diffusion-xl/248-stable-diffusion-xl.ipynb>`__
+* `Instruction following using Databricks Dolly 2.0 and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/240-dolly-2-instruction-following/240-dolly-2-instruction-following.ipynb>`__
+* `Create an LLM-powered Chatbot using OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb>`__
 
 Working with models tuned with LoRA
 ++++++++++++++++++++++++++++++++++++
@@ -138,7 +145,7 @@ Running Generative AI models using native OpenVINO APIs
 
 To run Generative AI models using native OpenVINO APIs you need to follow regular **Сonvert -> Optimize -> Deploy** path with a few simplifications. 
 
-To convert model from Hugging Face you can use Optimum-Intel export feature that allows to export model in OpenVINO format without invoking conversion API and tools directly, as it is shown above. In this case, the conversion process is a bit more simplified. You can still use regular conversion path if model comes from outside of Hugging Face ecosystem, i.e., in source framework format (PyTorch, etc.) 
+To convert model from Hugging Face you can use Optimum-Intel export feature that allows to export model in OpenVINO format without invoking conversion API and tools directly, as it is shown above. In this case, the conversion process is a bit more simplified. You can still use a regular conversion path if model comes from outside of Hugging Face ecosystem, i.e., in source framework format (PyTorch, etc.) 
 
 Model optimization could be performed within Hugging Face or directly using NNCF as described :doc:`here <weight_compression>`.
 
@@ -158,7 +165,7 @@ Additional Resources
 ############################
 
 * `Optimum Intel documentation <https://huggingface.co/docs/optimum/intel/inference>`_
-* :doc:`Weight Compression <weight_compression>`
+* :doc:`LLM Weight Compression <weight_compression>`
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`_
 
 @endsphinxdirective
