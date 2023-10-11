@@ -296,7 +296,7 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
             in_idx += 1
         elif s is np.newaxis:
             output_shape.append(1)
-        elif type(s) in [int, np.int, np.int32, np.int64]:  # shrink_axis
+        elif type(s) in [int, np.int32, np.int64]:  # shrink_axis
             in_idx += 1
         elif s is Ellipsis:
             for idx in range(num_ellipsis_inserts):
