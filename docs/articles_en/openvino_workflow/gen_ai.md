@@ -50,7 +50,7 @@ The table below summarizes the differences between Hugging Face and Native APIs 
      - Large
      - Small
    * - Pre/post-processing and glue code
-     - Available at Hugging Face OOB
+     - Available at Hugging Face out-of-the-box
      - OpenVINO samples and notebooks
    * - Performance
      - Good
