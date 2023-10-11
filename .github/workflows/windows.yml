@@ -256,7 +256,6 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
-      PYTEST_PARALLEL: "-n 2"
 
     steps:
       - name: Download OpenVINO package
@@ -291,8 +290,8 @@ jobs:
 
       - name: Install Python API tests dependencies
         run: |
-          # Install test-related requirements
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements_test.txt
+          # For torchvision to OpenVINO preprocessing converter
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
 
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
@@ -310,18 +309,18 @@ jobs:
       - name: Python API 1.0 Tests
         shell: cmd
         run: |
-          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph ${{ env.PYTHON_STATIC_ARGS }} ${{ env.PYTEST_PARALLEL }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py
+          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py
 
       - name: Python API 2.0 Tests
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
-          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} ${{ env.PYTEST_PARALLEL }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
+          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Model Optimizer UT
         shell: cmd
         run: |
-          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests --ignore=${{ env.INSTALL_TEST_DIR }}/mo/unit_tests/mo/front/mxnet ${{ env.PYTEST_PARALLEL }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
+          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests --ignore=${{ env.INSTALL_TEST_DIR }}/mo/unit_tests/mo/front/mxnet --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
 
       # Ticket - 115085
       - name: PyTorch Layer Tests
@@ -329,7 +328,7 @@ jobs:
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit ${{ env.PYTEST_PARALLEL }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
 
@@ -338,7 +337,7 @@ jobs:
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m "not launch_only_if_manually_specified and precommit" ${{ env.PYTEST_PARALLEL }} --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
 
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ always() }}
@@ -348,7 +347,7 @@ jobs:
 
           # requires 'unit_tests' from 'tools/mo'
           set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe ${{ env.PYTEST_PARALLEL }}  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -362,7 +361,7 @@ jobs:
           # requires 'unit_tests' from 'tools/mo'
           set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
 
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe ${{ env.PYTEST_PARALLEL }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU
 
@@ -371,7 +370,7 @@ jobs:
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -m precommit ${{ env.PYTEST_PARALLEL }} --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
 
@@ -380,14 +379,14 @@ jobs:
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 ${{ env.PYTEST_PARALLEL }}  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 ${{ env.PYTEST_PARALLEL }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -397,7 +396,7 @@ jobs:
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ ${{ env.PYTEST_PARALLEL }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -407,7 +406,7 @@ jobs:
         shell: cmd
         run: |
           :: Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests -k "not cuda" ${{ env.PYTEST_PARALLEL }} ^
+          python3 -m pytest ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests -k "not cuda" ^
           --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx_frontend.xml ^
           --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_zoo_models.py
 
@@ -418,7 +417,7 @@ jobs:
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           
           :: TODO: remove setupvars.bat from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests ${{ env.PYTEST_PARALLEL }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
+          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -430,7 +429,7 @@ jobs:
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           
           :: TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests ${{ env.PYTEST_PARALLEL }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
+          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -441,13 +440,13 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests ${{ env.PYTEST_PARALLEL }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
+          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
 
       # TODO: install to 'tests' component via cpack
       - name: OVC unit tests
         if: ${{ always() }}
         shell: cmd
-        run: python3 -m pytest -s {{ env.OPENVINO_REPO }}/tools/ovc/unit_tests ${{ env.PYTEST_PARALLEL }} --junitxml=$${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
+        run: python3 -m pytest -s {{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=$${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
@@ -531,7 +530,7 @@ jobs:
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
-      - name: TensorFlow Common tests
+      - name: TensorFlow Common frontend tests
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowCommonFrontend.xml
@@ -546,7 +545,7 @@ jobs:
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
 
-      - name: Transformations Tests
+      - name: Transformations func tests
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
@@ -581,17 +580,17 @@ jobs:
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_gna_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GNAUnitTests.xml
 
-      - name: AUTO UT
+      - name: AUTO unit tests
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_auto_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_unit_tests.xml
 
-      - name: AUTO FuncTests
+      - name: AUTO func Tests
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
-      - name: Template plugin tests
+      - name: Template plugin func tests
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateFuncTests.xml
@@ -611,12 +610,12 @@ jobs:
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_unit_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_unit_tests.xml
 
-      - name: AutoBatch FuncTests
+      - name: AutoBatch func tests
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml
 
-      - name: Proxy Plugin Tests
+      - name: Proxy Plugin func tests
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
