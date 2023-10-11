@@ -27,8 +27,8 @@ namespace ov {
 namespace intel_gpu {
 
 template<class DATA_TYPE>
-static DATA_TYPE CreateScalarData(ProgramBuilder &p, const cldnn::primitive_id& id, int64_t num) {
-    auto mem = p.get_engine().allocate_memory({ cldnn::data_types::i32, cldnn::format::bfyx, { 1, 1, 1, 1 } });
+static DATA_TYPE CreateScalarData(ProgramBuilder &p, const cldnn::primitive_id& id, ov::Shape& shape, cldnn::data_types dtype, int64_t num) {
+    auto mem = p.get_engine().allocate_memory({ shape, dtype, cldnn::format::bfyx });
     cldnn::mem_lock<int64_t> ptr{mem, p.get_engine().get_service_stream()};
     *ptr.begin() = num;
     return {id, mem};
@@ -193,11 +193,13 @@ static std::vector<cldnn::primitive_id> GetOutputNames(const cldnn::primitive_id
     return output_names;
 }
 
-
 static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::util::SubGraphOp>& op, bool is_loop_op) {
     const std::string layerName = layer_type_name_ID(op);
     auto inputs = p.GetInputInfo(op);
     bool is_dynamic = p.use_new_shape_infer() || op->is_dynamic();
+
+    int64_t num_iterations = op->get_num_iterations();
+    OPENVINO_ASSERT((is_dynamic || num_iterations > 0), "loop's num_iteration should be positive on static shape model");
 
     auto num_outputs = is_dynamic? op->get_output_size() : 1;
     auto ov_model = op->get_function();
@@ -207,14 +209,16 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     cldnn::primitive_id body_execution_condition_id;
     cldnn::primitive_id trip_count_id;
     cldnn::primitive_id first_execution_condition_id;
+    cldnn::primitive_id updated_current_iteration_id;
 
+    std::shared_ptr<ov::op::v0::Parameter> current_iteration_input_op;
     if (is_loop_op) {
         auto loop_op = std::dynamic_pointer_cast<Loop>(op);
         auto special_body_ports = loop_op->get_special_body_ports();
         if (special_body_ports.current_iteration_input_idx >= 0) {
             const auto& body_inputs = loop_op->get_function()->get_parameters();
-            auto current_iteration_input = body_inputs.at(special_body_ports.current_iteration_input_idx);
-            body_current_iteration_id = layer_type_name_ID(current_iteration_input);
+            current_iteration_input_op = body_inputs.at(special_body_ports.current_iteration_input_idx);
+            body_current_iteration_id = layer_type_name_ID(current_iteration_input_op);
         }
 
         if (special_body_ports.body_condition_output_idx >= 0) {
@@ -234,6 +238,40 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     SetLoopInputOutputMap(p, op, inputs, input_primitive_maps, output_primitive_maps, back_edges);
 
+    auto shape = is_dynamic? ngraph::Shape{1} : ngraph::Shape{1, 1, 1, 1};
+    auto prec = ngraph::element::i64;
+    if (current_iteration_input_op) {
+        current_iteration_input_op->set_output_type(0, prec, shape);
+        current_iteration_input_op->set_partial_shape(shape);
+        current_iteration_input_op->set_element_type(prec);
+
+        auto increment_value_id = current_iteration_input_op->get_friendly_name() + "_inc";
+        auto increment_value_op = std::make_shared<op::v0::Constant>(prec, shape, 1);
+        increment_value_op->set_friendly_name(increment_value_id);
+
+        auto update_current_iter_op_id = current_iteration_input_op->get_friendly_name() + "_update";
+        auto update_current_iter_op = std::make_shared<op::v1::Add>(current_iteration_input_op, increment_value_op);
+        update_current_iter_op->set_friendly_name(update_current_iter_op_id);
+        updated_current_iteration_id = layer_type_name_ID(update_current_iter_op);
+
+        auto result = std::make_shared<ov::op::v0::Result>(update_current_iter_op);
+        ov_model->add_results({result});
+    }
+
+    // set trip count, num iteration primitives
+    // they should be mutable_data to prevent from being optimized out
+    const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
+    cldnn::mutable_data num_iteration_data = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, shape, prec, 0);
+
+    p.add_primitive(*op, std::move(num_iteration_data));
+    inputs.insert(inputs.begin(), cldnn::input_info(num_iteration_id, 0));
+
+    if (!body_current_iteration_id.empty()) {
+        // update input_primitive_maps and back_edges for current_iteration nodes
+        input_primitive_maps.emplace_back(cldnn::input_info(num_iteration_id), cldnn::input_info(body_current_iteration_id));
+        back_edges.emplace_back(updated_current_iteration_id, body_current_iteration_id);
+    }
+
     auto output_names_vec = GetOutputNames(layerName, body_execution_condition_id, output_primitive_maps, back_edges);
 
     auto config = p.get_config();
@@ -244,16 +282,6 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     // get body program from ov::Model
     ProgramBuilder prog(ov_model, p.get_engine(), config, false, false, p.get_task_executor(), true);
     auto body_program = prog.get_compiled_program();
-
-    int64_t num_iterations = op->get_num_iterations();
-    OPENVINO_ASSERT((is_dynamic || num_iterations > 0), "loop's num_iteration should be positive on static shape model");
-
-    // set trip count, num iteration primitives
-    // they should be mutable_data to prevent from being optimized out
-    const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
-    cldnn::mutable_data num_iteration_data = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, 0);
-    p.add_primitive(*op, std::move(num_iteration_data));
-    inputs.insert(inputs.begin(), cldnn::input_info(num_iteration_id, 0));
 
     GPU_DEBUG_LOG << "* trip_count_id                 : " << trip_count_id << std::endl;
     GPU_DEBUG_LOG << "* num_iteration_id              : " << num_iteration_id << std::endl;

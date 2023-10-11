@@ -242,12 +242,9 @@ struct loop_impl : typed_primitive_impl<loop> {
         }
 
         // shortcut of current_iteration memory in body network
-        memory::ptr current_iteration_mem = nullptr;
-        memory::ptr body_current_iteration_mem = nullptr;
         if (!primitive->body_current_iteration_id.empty()) {
-            body_current_iteration_mem = body_network->get_primitive(primitive->body_current_iteration_id)->output_memory_ptr();
-            body_network->set_input_data(primitive->body_current_iteration_id, body_current_iteration_mem);
-            current_iteration_mem = outer_network.get_engine().allocate_memory(body_current_iteration_mem->get_layout());
+            memory::ptr body_current_iteration_mem = body_network->get_primitive(primitive->body_current_iteration_id)->output_memory_ptr();
+            write_scalar_value(body_current_iteration_mem, body_network->get_stream(), 0);
         }
 
         const auto is_dynamic = instance.is_dynamic();
@@ -289,12 +286,6 @@ struct loop_impl : typed_primitive_impl<loop> {
         std::vector<event::ptr> all_events;
         std::vector<event::ptr> loop_carried_dep(events.begin(), events.end());
         while (((trip_count <= 0) || (current_iteration_idx < trip_count)) && execution_condition) {
-            if (body_current_iteration_mem != nullptr) {
-                write_scalar_value(current_iteration_mem, stream, current_iteration_idx);
-                auto ev = body_current_iteration_mem->copy_from(stream, *current_iteration_mem);
-                if (ev) loop_carried_dep.push_back(ev);
-            }
-
             // Copy & Set sliced input memory
             for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
                 const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
@@ -342,21 +333,6 @@ struct loop_impl : typed_primitive_impl<loop> {
                 }
             }
 
-            // execution condition is the result of body network execution
-            if (body_execution_condition_mem != nullptr) {
-                if (is_dynamic) {
-                    auto execution_id = primitive->body_execution_condition_id;
-                    if (body_network->has_event(execution_id)) {
-                        auto ev = body_network->get_primitive_event(execution_id);
-                        if (ev) ev->wait();
-                    }
-                }
-                execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
-            }
-            GPU_DEBUG_IF(!execution_condition) {
-                GPU_DEBUG_LOG << "body_exec_condition is false at "<< current_iteration_idx << " iterations" << std::endl;
-            }
-
             // Store output of sliced_data_prim to sliced mems vector
             // After execution of body network, sliced_data_prim will has output memory buffer
             // current memory buffer move to sliced_mems and new memory buffer will be allocated in sliced_data_prim
@@ -380,8 +356,22 @@ struct loop_impl : typed_primitive_impl<loop> {
                 }
             }
 
-            // update index & execution condition for the next iteration
-            ++current_iteration_idx;
+            // execution condition is the result of body network execution
+            if (body_execution_condition_mem != nullptr) {
+                if (is_dynamic) {
+                    auto execution_id = primitive->body_execution_condition_id;
+                    if (body_network->has_event(execution_id)) {
+                        auto ev = body_network->get_primitive_event(execution_id);
+                        if (ev) ev->wait();
+                    }
+                }
+                execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
+            }
+            GPU_DEBUG_IF(!execution_condition) {
+                GPU_DEBUG_LOG << "body_exec_condition is false at "<< current_iteration_idx << " iterations" << std::endl;
+            }
+
+            current_iteration_idx++;
         }
 
         // Reset network and wait for all collected events
