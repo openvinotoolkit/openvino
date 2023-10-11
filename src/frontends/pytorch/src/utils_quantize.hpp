@@ -172,9 +172,7 @@ OutputVector quantizable_op(const NodeContext& context) {
  * Captures aten::stack([aten::bitwise_and(Constant(u8)), aten::bitwise_right_shift(Constant(u8))], dim=-1).
  * This pattern is transformed to a single Constant with element_type=u4.
 */
-std::shared_ptr<Node> u4_compression_stack(const NodeContext* context,
-                                            const std::deque<ov::Output<ov::Node>>& list_elems,
-                                            int64_t axis);
+std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64_t axis);
 
 }  // namespace pytorch
 }  // namespace frontend

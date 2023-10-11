@@ -14,6 +14,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/subtract.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -169,9 +170,7 @@ std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> no
     return quant_node;
 }
 
-std::shared_ptr<Node> u4_compression_stack(const NodeContext* context,
-                                            const std::deque<ov::Output<ov::Node>>& list_elems,
-                                            int64_t axis) {
+std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64_t axis) {
     // Part 1: Detect pattern
 
     if (list_elems.size() != 2)
@@ -183,10 +182,6 @@ std::shared_ptr<Node> u4_compression_stack(const NodeContext* context,
     if (!bitwise_shift)
         return nullptr;
 
-    // TODO: Use context (if not nullptr) to mark newly created nodes
-
-    // TODO: Check mask and shift values
-
     auto weights_u8 = std::dynamic_pointer_cast<v0::Constant>(bitwise_and->get_input_node_shared_ptr(0));
     if (weights_u8 != std::dynamic_pointer_cast<v0::Constant>(bitwise_shift->get_input_node_shared_ptr(0)))
         return nullptr;
@@ -195,6 +190,12 @@ std::shared_ptr<Node> u4_compression_stack(const NodeContext* context,
         return nullptr;
 
     if (axis != -1 && axis != weights_u8->get_shape().size() - 1)
+        return nullptr;
+
+    if(!ov::op::util::has_constant_value<uint64_t>(bitwise_and->get_input_node_shared_ptr(1), 0x0F))
+        return nullptr;
+
+    if(!ov::op::util::has_constant_value<uint64_t>(bitwise_shift->get_input_node_shared_ptr(1), 4))
         return nullptr;
 
     // Pattern detected, weights_u8 is target u8 packed constant with weights
@@ -217,6 +218,7 @@ std::shared_ptr<Node> u4_compression_stack(const NodeContext* context,
     // TODO: If pack_byte is implemented trivially (no exchange of the halfs of a byte) then the following
     // transform is not needed and we can use the original constant as-is
     std::transform(src, src + full_size, dst, swap_nibbles);
+    copy_runtime_info_and_name(weights_u8, {new_const}, {weights_u8, bitwise_and, bitwise_shift});
     return new_const;
 }
 

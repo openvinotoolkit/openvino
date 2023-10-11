@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <deque>
-
 #include "aten_stack_list_construct_replacer.hpp"
 
 #include "openvino/core/rt_info.hpp"
@@ -46,7 +44,7 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
         if (auto list_construct_node = cast_fw_node(input_node, "prim::ListConstruct")) {
             const auto& list_inputs = list_construct_node->input_values();
             std::shared_ptr<Node> node;
-            if (auto compression = u4_compression_stack(nullptr, std::deque<Output<Node>>(list_inputs.begin(), list_inputs.end()), axis[0])) {
+            if (auto compression = u4_compression_stack(list_inputs, axis[0])) {
                 node = compression;
             } else {
                 OutputVector node_vector;
