@@ -541,6 +541,15 @@ private:
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
             return false;
         }
+
+        auto& e = typ_node.get_program().get_engine();
+        auto max_mem = e.get_max_memory_size();
+        auto required_mem = typ_node.get_output_layout().bytes_count();
+        // When dynamic shape node has huge upper boundary which causes bigger mem size than system max mem size, return false.
+        if (required_mem >= max_mem) {
+            return false;
+        }
+
         return true;
     }
 };
