@@ -45,7 +45,12 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     OV_ITT_TASK_NEXT(GENERATE, "::GetSnippet")
 
     // Note: some emitters use precompiled kernels. They need to be saved, so the kernels are accessible at runtime.
-    if (linear_ir.get_config().m_save_expressions) {
+    if (linear_ir.get_config().m_enable_segfault_detector) {
+        for (const auto& expr : linear_ir) {
+            const auto& emitter = expr->get_emitter();
+                result.m_saved_emitters.emplace_back(emitter);
+        }
+    } else if (linear_ir.get_config().m_save_expressions) {
         for (const auto& expr : linear_ir) {
             const auto& emitter = expr->get_emitter();
             if (uses_precompiled_kernel(emitter))

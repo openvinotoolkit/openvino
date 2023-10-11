@@ -6,14 +6,15 @@
 #include <vector>
 #include "utils/general_utils.h"
 
-using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace ov {
 namespace intel_cpu {
 
-jit_emitter* g_debug_err_handler = nullptr;
+std::shared_ptr<ThreadLocal<jit_emitter*>> g_debug_err_handler = std::make_shared<ThreadLocal<jit_emitter*>>();
 
 size_t jit_emitter::get_max_vecs_count() const {
     return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 32 : 16;
@@ -218,15 +219,20 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
 }
 
 void jit_emitter::build_debug_info() const {
-    h->push(h->r15);
-    h->push(h->r14);
+    internal_call_preamble();
 
-    h->mov(h->r15, reinterpret_cast<uint64_t>(&g_debug_err_handler));
-    h->mov(h->r14, reinterpret_cast<uint64_t>(this));
-    h->mov(h->qword[h->r15], h->r14);
+    const auto &set_local_handler_overload = static_cast<void (*)(jit_emitter*)>(set_local_handler);
+    h->mov(h->rax, reinterpret_cast<size_t>(set_local_handler_overload));
+    h->mov(abi_param1, reinterpret_cast<uint64_t>(this));
+    internal_call_rsp_align();
+    h->call(h->rax);
+    internal_call_rsp_restore();
 
-    h->pop(h->r14);
-    h->pop(h->r15);
+    internal_call_postamble();
+}
+
+void jit_emitter::set_local_handler(jit_emitter* emitter_address) {
+    g_debug_err_handler->local() = emitter_address;
 }
 
 }   // namespace intel_cpu

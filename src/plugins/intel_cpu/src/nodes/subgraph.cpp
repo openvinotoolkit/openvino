@@ -502,9 +502,8 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
             jit_snippets_call_args call_args;
             update_ptrs(call_args, inMemPtrs, outMemPtrs);
 #ifdef __linux__
-            
             __sighandler_t signal_handler = [](int signal) {
-                ov::intel_cpu::g_debug_err_handler->print_debug_info();
+                ov::intel_cpu::g_debug_err_handler->local()->print_debug_info();
                 OPENVINO_THROW("Segfault was caught by the signal handler");
             };
             struct sigaction new_handler{};
@@ -533,7 +532,7 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
             }
 #ifdef __linux__
             __sighandler_t signal_handler = [](int signal) {
-                ov::intel_cpu::g_debug_err_handler->print_debug_info();
+                ov::intel_cpu::g_debug_err_handler->local()->print_debug_info();
                 OPENVINO_THROW("Segfault was caught by the signal handler");
             };
             struct sigaction new_handler{};
