@@ -17,6 +17,9 @@
 - '.ci/**/*'
 - 'Jenkinsfile'
 
+'github_actions':
+- '.github/workflows/*'
+
 'category: Core':
 - 'src/core/**/*'
 - 'src/common/itt/**/*'
@@ -41,6 +44,7 @@
 
 'category: dependency_changes':
 - '**/requirement*.txt'
+- '**/constraints*.txt'
 - 'scripts/**/*'
 - '.gitmodules'
 - '**/setup.py'
@@ -86,6 +90,7 @@
 
 'category: MO':
 - 'tools/mo/**/*'
+- 'tools/ovc/**/*'
 
 'category: ONNX FE':
 - 'src/frontends/onnx/**/*'

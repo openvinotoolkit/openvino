@@ -12,64 +12,35 @@ namespace op {
 namespace pooling {
 constexpr size_t spatial_dim_offset = 2;
 
-/**
- * @brief Calculate dimension padding required by filter/kernel properties.
- *
- * Provides pair of padding values as left padding is total value of required padding divided by 2 and right as
- * total required padding minus left padding.
- *
- * @param dim          input dimension to calculate its padding.
- * @param filter_size  Kernel size for input dimension.
- * @param dilation     Kernel dilation.
- * @param stride       Kernel stride.
- * @return Pair of left, right padding values for input dimension.
- */
-template <class TDim, class T = typename TDim::value_type>
-inline std::pair<T, T> dim_padding(const TDim& dim, const int64_t kernel_size, const int64_t dilation, int64_t stride) {
-    if (dim.is_static()) {
-        const auto dim_size = static_cast<int64_t>(dim.get_length());
-        const auto dilated_kernel = ov::util::dim::dilated(kernel_size, dilation);
-        const int64_t tmp = (dim_size + stride - 1) / stride;
-
-        const auto padding = std::max<int64_t>(0, (tmp - 1) * stride + dilated_kernel - dim_size);
-        const auto left_padding = padding / 2;
-        return {left_padding, padding - left_padding};
-    } else {
-        // If input dimension is infinite or interval the padding will be set to 0
-        // as operator cannot store paddings for both bounds.
-        return {0, 0};
-    }
+namespace validate {
+template <class TOp, class TContainer>
+void padding(const TOp* op, const TContainer& pads_begin, const TContainer& pads_end) {
+    const auto num_spatial = op->get_kernel().size();
+    NODE_VALIDATION_CHECK(op,
+                          pads_begin.size() == num_spatial,
+                          "Expected pads_begin size to be equal to input size - 2. Got: ",
+                          pads_begin.size());
+    NODE_VALIDATION_CHECK(op,
+                          pads_end.size() == num_spatial,
+                          "Expected pads_end size to be equal to input size - 2. Got: ",
+                          pads_end.size());
 }
 
 template <class TOp, class TShape>
-void update_and_validate_attributes(TOp* op, const TShape& data_shape, const Strides& dilations) {
+void attributes(const TOp* op, const TShape& data_shape, const Strides& dilations) {
     const auto& data_rank = data_shape.rank();
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
                           is_rank_compatible_any_of(data_rank, {3, 4, 5}),
                           "Expected a 3D, 4D or 5D tensor for the input. Got: ",
                           data_shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& kernel = op->get_kernel();
-    const auto& auto_pad = op->get_auto_pad();
     const auto num_spatial = kernel.size();
     const auto& strides = op->get_strides();
 
-    if (auto_pad == PadType::VALID || op->get_pads_begin().empty()) {
-        op->set_pads_begin(Shape(num_spatial, 0));
-    }
-    if (auto_pad == PadType::VALID || op->get_pads_end().empty()) {
-        op->set_pads_end(Shape(num_spatial, 0));
-    }
-
-    NODE_VALIDATION_CHECK(op,
-                          op->get_pads_begin().size() == num_spatial,
-                          "Expected pads_begin size to be equal to input size - 2. Got: ",
-                          op->get_pads_begin().size());
-    NODE_VALIDATION_CHECK(op,
-                          op->get_pads_end().size() == num_spatial,
-                          "Expected pads_end size to be equal to input size - 2. Got: ",
-                          op->get_pads_end().size());
     NODE_VALIDATION_CHECK(op,
                           strides.size() == num_spatial,
                           "Expected strides size to be equal to input size - 2. Got: ",
@@ -79,31 +50,10 @@ void update_and_validate_attributes(TOp* op, const TShape& data_shape, const Str
                           "Expected dilations size to be equal to kernel size. Got: ",
                           dilations.size());
 
-    if (data_rank.is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              num_spatial == (data_shape.size() - spatial_dim_offset),
-                              "Expected kernel size to be equal to input size - 2. Got: ",
-                              num_spatial);
-
-        if (auto_pad == PadType::SAME_UPPER || auto_pad == PadType::SAME_LOWER) {
-            Shape pads_begin, pads_end;
-            pads_begin.reserve(num_spatial);
-            pads_end.reserve(num_spatial);
-
-            auto data_dim = data_shape.cbegin() + spatial_dim_offset;
-            auto pad_begin_ins = std::back_inserter(pads_begin);
-            auto pad_end_ins = std::back_inserter(pads_end);
-            auto& pad_left = auto_pad == PadType::SAME_UPPER ? pad_begin_ins : pad_end_ins;
-            auto& pad_right = auto_pad == PadType::SAME_UPPER ? pad_end_ins : pad_begin_ins;
-
-            for (size_t i = 0; i < num_spatial; ++i, ++pad_left, ++pad_right, ++data_dim) {
-                std::tie(*pad_left, *pad_right) = dim_padding(*data_dim, kernel[i], dilations[i], strides[i]);
-            }
-
-            op->set_pads_begin(pads_begin);
-            op->set_pads_end(std::move(pads_end));
-        }
-    }
+    NODE_VALIDATION_CHECK(op,
+                          data_rank.is_dynamic() || num_spatial == (data_shape.size() - spatial_dim_offset),
+                          "Expected kernel size to be equal to input size - 2. Got: ",
+                          num_spatial);
 
     constexpr auto is_zero = cmp::Equal<size_t>(0);
     NODE_VALIDATION_CHECK(op,
@@ -114,6 +64,65 @@ void update_and_validate_attributes(TOp* op, const TShape& data_shape, const Str
                           std::none_of(dilations.cbegin(), dilations.cend(), is_zero),
                           "Kernel dilations has zero dimension(s). ",
                           dilations);
+}
+}  // namespace validate
+
+/**
+ * @brief Resize paddings if empty to number of spatial dimensions.
+ *
+ * @param num_spatial  Number of spatial dimensions.
+ * @param pads_begin   Begin padding to resize.
+ * @param pads_end     End padding to resize.
+ */
+template <class TContainer>
+void resize_empty_padding(const size_t num_spatial, TContainer& pads_begin, TContainer& pads_end) {
+    if (pads_begin.empty()) {
+        pads_begin.resize(num_spatial);
+    }
+
+    if (pads_end.empty()) {
+        pads_end.resize(num_spatial);
+    }
+}
+
+/**
+ * @brief Apply pooling operator padding depends on auto pad value.
+ *
+ * @param op          Pointer to Pooling operator to apply padding.
+ * @param data_shape  Shape infer data input shape.
+ * @param dilations   Kernel dilations.
+ * @param pads_begin  Padding begin to update.
+ * @param pads_end    Padding end to update.
+ */
+template <class TOp, class TShape, class TContainer>
+void apply_padding(const TOp* op,
+                   const TShape& data_shape,
+                   const Strides& dilations,
+                   TContainer& pads_begin,
+                   TContainer& pads_end) {
+    const auto& auto_pad = op->get_auto_pad();
+    if (data_shape.rank().is_static() && (auto_pad == PadType::SAME_UPPER || auto_pad == PadType::SAME_LOWER)) {
+        const auto& kernel = op->get_kernel();
+        const auto& strides = op->get_strides();
+        const auto num_spatial = kernel.size();
+        pads_begin.reserve(num_spatial);
+        pads_end.reserve(num_spatial);
+
+        auto data_dim = &data_shape[spatial_dim_offset];
+        auto pad_b = auto_pad == PadType::SAME_UPPER ? pads_begin.begin() : pads_end.begin();
+        auto pad_e = auto_pad == PadType::SAME_UPPER ? pads_end.begin() : pads_begin.begin();
+
+        for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim) {
+            using namespace ov::util;
+            std::tie(*pad_b, *pad_e) = dim::padding(*data_dim, kernel[i], dilations[i], strides[i]);
+        }
+    } else if (auto_pad == PadType::VALID) {
+        std::fill_n(pads_begin.begin(), pads_begin.size(), 0);
+        std::fill_n(pads_end.begin(), pads_end.size(), 0);
+    } else if (op->get_auto_pad() == op::PadType::EXPLICIT) {
+        std::copy(op->get_pads_begin().begin(), op->get_pads_begin().end(), pads_begin.begin());
+        std::copy(op->get_pads_end().begin(), op->get_pads_end().end(), pads_end.begin());
+    }
 }
 
 template <class TOp, class TDim>
@@ -144,8 +153,23 @@ void valid_dilated_kernel_with_padding(const TOp* op,
                                        const size_t pad_end,
                                        const size_t axis) {}
 
-template <class TOp, class TShape>
-TShape spatial_shape_infer(const TOp* op, const TShape& data_shape, const Strides& dilations) {
+/**
+ * @brief Append spatial shape to the end of output shape for pooling operator shape inference result.
+ *
+ * @param op          Pointer to pooling operator.
+ * @param data_shape  Shape inference input pooling data shape.
+ * @param pads_begin  Pooling pads begin.
+ * @param pads_end    Pooling pads end.
+ * @param dilations   Kernel dilations.
+ * @param out_shape   Output shape for appending the spatial shape of pooling
+ */
+template <class TOp, class TShape, class TContainer, class TRShape>
+void append_spatial_shape(const TOp* op,
+                          const TShape& data_shape,
+                          const TContainer& pads_begin,
+                          const TContainer& pads_end,
+                          const Strides& dilations,
+                          TRShape& out_shape) {
     using namespace ov::util;
     const auto spatial_num = data_shape.size() - spatial_dim_offset;
     const auto is_ceil_mode = op->get_rounding_type() == RoundingType::CEIL;
@@ -154,12 +178,7 @@ TShape spatial_shape_infer(const TOp* op, const TShape& data_shape, const Stride
     using TDim = typename TShape::value_type;
     const auto& dim_divide = is_ceil_mode ? dim::ceil_div<TDim> : dim::floor_div<TDim>;
 
-    TShape out_shape;
-    out_shape.reserve(spatial_num);
-
-    auto data_dim = data_shape.cbegin() + spatial_dim_offset;
-    const auto& pads_begin = op->get_pads_begin();
-    const auto& pads_end = op->get_pads_end();
+    auto data_dim = &data_shape[spatial_dim_offset];
     const auto& kernel = op->get_kernel();
     const auto& stride = op->get_strides();
 
@@ -183,16 +202,19 @@ TShape spatial_shape_infer(const TOp* op, const TShape& data_shape, const Stride
             out_shape.emplace_back(dim::inf_bound);
         }
     }
-
-    return out_shape;
 }
 
 /**
  * @brief Shape inference helper used for pooling operators such Max Pool, Avg Pool.
  */
-template <class TOp, class TShape>
-TShape out_shape_infer(const TOp* op, const TShape& data_shape, const Strides& dilations) {
-    TShape out_shape;
+template <class TOp, class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
+TRShape out_shape_infer(const TOp* op,
+                        const TShape& data_shape,
+                        const TContainer& pads_begin,
+                        const TContainer& pads_end,
+                        const Strides& dilations) {
+    const auto out_rank_size = spatial_dim_offset + op->get_kernel().size();
+    TRShape out_shape;
     if (data_shape.rank().is_static()) {
         const auto& batch_size = data_shape[0];
         const auto& channel_count = data_shape[1];
@@ -202,8 +224,9 @@ TShape out_shape_infer(const TOp* op, const TShape& data_shape, const Strides& d
                               channel_count.is_dynamic() || channel_count.get_length() > 0,
                               "Channel count is zero.");
 
-        out_shape = spatial_shape_infer(op, data_shape, dilations);
-        out_shape.insert(out_shape.begin(), data_shape.begin(), data_shape.begin() + spatial_dim_offset);
+        out_shape.reserve(out_rank_size);
+        std::copy_n(data_shape.begin(), spatial_dim_offset, std::back_inserter(out_shape));
+        pooling::append_spatial_shape(op, data_shape, pads_begin, pads_end, dilations, out_shape);
     } else {
         out_shape.insert(out_shape.begin(), spatial_dim_offset + op->get_kernel().size(), Dimension::dynamic());
     }
@@ -216,11 +239,10 @@ TShape out_shape_infer(const TOp* op, const TShape& data_shape, const Strides& d
  */
 template <class TShape,
           class TOp,
+          class TRShape = result_shape_t<TShape>,
           typename std::enable_if<std::is_same<TOp, v8::AdaptiveAvgPool>::value ||
                                   std::is_same<TOp, v8::AdaptiveMaxPool>::value>::type* = nullptr>
-TShape out_shape_infer(const TOp* op,
-                       const std::vector<TShape>& input_shapes,
-                       const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+TRShape out_shape_infer(const TOp* op, const std::vector<TShape>& input_shapes, const ITensorAccessor& ta) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     const auto& data_shape = input_shapes[0];
@@ -228,12 +250,14 @@ TShape out_shape_infer(const TOp* op,
 
     const auto& data_rank = data_shape.rank();
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
                           is_rank_compatible_any_of(data_rank, {3, 4, 5}),
                           "Expected a 3D, 4D or 5D tensor for the input. Got: ",
                           data_shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    TShape output_shape;
+    TRShape output_shape;
     if (data_rank.is_static()) {
         auto num_of_spatial_dims = data_shape.size() - spatial_dim_offset;
 
@@ -245,7 +269,7 @@ TShape out_shape_infer(const TOp* op,
         output_shape.reserve(data_shape.size());
         std::copy_n(data_shape.begin(), spatial_dim_offset, std::back_inserter(output_shape));
 
-        if (const auto spatial_dims = get_input_const_data_as_shape<TShape>(op, 1, constant_data)) {
+        if (const auto spatial_dims = get_input_const_data_as_shape<TRShape>(op, 1, ta)) {
             NODE_VALIDATION_CHECK(op,
                                   num_of_spatial_dims == spatial_dims->size(),
                                   "Number of spatial dimensions is not compatible with input data rank");

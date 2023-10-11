@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Reverse : public Op {
 public:
-    OPENVINO_OP("Reverse", "opset1", op::Op, 1);
+    OPENVINO_OP("Reverse", "opset1", op::Op);
 
     enum class Mode { INDEX, MASK };
 

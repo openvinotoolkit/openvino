@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_layer/broadcast.hpp"
 
+#include "ov_models/builders.hpp"
+
 namespace LayerTestsDefinitions {
 std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
     InferenceEngine::SizeVector targetShape;
@@ -15,10 +17,10 @@ std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<Bro
     std::tie(targetShape, axesMapping, mode, inputShape, networkPrecision, deviceName) = obj.param;
 
     std::ostringstream result;
-    result << "targetShape=" << CommonTestUtils::vec2str(targetShape) << "_";
-    result << "axesMapping=" << CommonTestUtils::set2str(axesMapping)  << "_";
+    result << "targetShape=" << ov::test::utils::vec2str(targetShape) << "_";
+    result << "axesMapping=" << ov::test::utils::set2str(axesMapping)  << "_";
     result << "mode=" << mode << "_";
-    result << "inShape=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "inShape=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "inNPrec=" << networkPrecision << "_";
     result << "trgDev=" << deviceName;
     return result.str();
@@ -34,7 +36,7 @@ void BroadcastLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(networkPrecision);
 
     auto target_shape_const = ov::op::v0::Constant::create(ov::element::i64, {targetShape.size()}, targetShape);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto broadcast = ngraph::builder::makeBroadcast(params[0], target_shape_const, mode, axesMapping);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(broadcast)};

@@ -1,83 +1,102 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <snippets/itt.hpp>
-
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
-#include "snippets/pass/transpose_decomposition.hpp"
+
 #include "snippets/op/subgraph.hpp"
+#include "snippets/itt.hpp"
 
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/rt_info.hpp"
 
+bool ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(const std::shared_ptr<ov::Node>& node) {
+    const auto inputs = node->inputs();
+    return std::all_of(inputs.begin() + 1, inputs.end(),
+                       [](const ov::Input<ov::Node>& in) {
+                           return in.get_partial_shape().is_static() && ov::shape_size(in.get_shape()) == 1;
+                       });
+}
 
+void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<ov::Node>& input) {
+    auto parent = input.get_source_output().get_node_shared_ptr();
+    auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent);
+    while (!transpose && !ov::is_type<ov::op::v0::Parameter>(parent)) {
+        // We can set supported order and transposed_<a|b>=false only if ops have scalar shapes to avoid shape mismatching
+        if (!are_weights_scalar(parent))
+            break;
 
-ngraph::snippets::pass::ExplicitTransposeMatMulInputs::ExplicitTransposeMatMulInputs() {
+        parent = parent->get_input_node_shared_ptr(0);
+        transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent);
+    }
+
+    // If there isn't another Transpose, need to create new Transpose
+    if (transpose) {
+        const auto transpose_pattern = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        OPENVINO_ASSERT(transpose_pattern,
+                        "ExplicitTransposeMatMulInputs expects existing Transpose with Constant order");
+
+        auto transposed_order = transpose_pattern->cast_vector<int32_t>();
+        OPENVINO_ASSERT(transposed_order.size() > 2, "Incorrect Transpose order for ExplicitTransposeMatMulInputs");
+        std::swap(*transposed_order.rbegin(), *(transposed_order.rbegin() + 1));
+
+        auto new_transpose_order = std::make_shared<ov::op::v0::Constant>(transpose_pattern->get_element_type(),
+                                                                          ov::Shape{transposed_order.size()},
+                                                                          transposed_order);
+        new_transpose_order->set_friendly_name(transpose_pattern->get_friendly_name());
+        ov::copy_runtime_info(transpose_pattern, new_transpose_order);
+        transpose->set_argument(1, new_transpose_order);
+        return;
+    }
+
+    // Create new Transpose before Parameter
+    OPENVINO_ASSERT(ov::is_type<opset1::Parameter>(parent),
+                    "ExplicitTransposeMatMulInputs expects Parameter in cases when there isn't existing Transpose on input");
+    const auto& consumers = parent->get_output_target_inputs(0);
+    OPENVINO_ASSERT(consumers.size() == 1,
+                    "ExplicitTransposeMatMulInputs expects Parameter with one consumer in cases when there isn't existing Transpose on input");
+    // Extract Transpose from MatMul
+    OPENVINO_ASSERT(input.get_partial_shape().is_static(), "ExplicitTransposeMatMulInputs supports only static shapes");
+    const auto rank = input.get_shape().size();
+    std::vector<size_t> transpose_order(rank, 0);
+    std::iota(transpose_order.begin(), transpose_order.end(), 0);
+    std::swap(transpose_order[rank - 1], transpose_order[rank - 2]);
+
+    const auto constant_order = std::make_shared<opset1::Constant>(ov::element::i32, ov::Shape{rank}, transpose_order);
+    const auto new_transpose = std::make_shared<opset1::Transpose>(parent, constant_order); // parent is Parameter
+    const auto consumer_input = *(consumers.begin());
+    consumer_input.replace_source_output(new_transpose);
+}
+
+ov::snippets::pass::ExplicitTransposeMatMulInputs::ExplicitTransposeMatMulInputs() {
     MATCHER_SCOPE(ExplicitTransposeMatMulInputs);
 
-    auto m_matmul0 = std::make_shared<ngraph::opset1::MatMul>(
-            ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-            ngraph::pattern::any_input(ngraph::pattern::has_static_shape()));
+    auto m_matmul0 = std::make_shared<ov::op::v0::MatMul>(
+            ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+            ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()));
 
-    register_matcher(std::make_shared<ngraph::pattern::Matcher>(m_matmul0, matcher_name),
-        [=](ngraph::pattern::Matcher &m) {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ExplicitTransposeMatMulInputs")
-        auto root = m.get_match_root();
-        bool rewritten = false;
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_matmul0, matcher_name),
+        [=](ov::pass::pattern::Matcher &m) {
+            OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExplicitTransposeMatMulInputs")
+            auto root = m.get_match_root();
+            bool rewritten = false;
 
-        auto matmul0 = ngraph::as_type_ptr<ngraph::opset1::MatMul>(root);
-        if (!matmul0)
-            return false;
+            auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(root);
+            if (!matmul)
+                return false;
 
-        for (size_t i = 0; i < matmul0->get_input_size(); i++) {
-            if (i == 0 && !matmul0->get_transpose_a())
-                continue;
-            if (i == 1 && !matmul0->get_transpose_b())
-                continue;
-
-            auto parent1 = matmul0->get_input_node_shared_ptr(i);
-            auto transpose1 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(parent1);
-            while (!transpose1 && !ov::is_type<ngraph::opset1::Parameter>(parent1)) {
-                // We can set supported order and transposed_b(false) only if ops have scalar shapes to avoid shape mismatching
-                const auto parent_count = parent1->inputs().size();
-                bool are_weights_scalar = true;
-                for (size_t j = 1; j < parent_count; ++j) {
-                    are_weights_scalar = are_weights_scalar && ngraph::shape_size(parent1->get_input_shape(j)) == 1;
-                }
-                if (!are_weights_scalar)
-                    break;
-
-                parent1 = parent1->get_input_node_shared_ptr(0);
-                transpose1 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(parent1);
+            if (matmul->get_transpose_a()) {
+                extract(matmul->input(0));
+                matmul->set_transpose_a(false);
+                rewritten |= true;
             }
-            if (!transpose1)
-                continue;
-
-            const auto transpose_pattern = ngraph::as_type_ptr<ngraph::opset1::Constant>(transpose1->get_input_node_shared_ptr(1));
-            if (!transpose_pattern)
-                continue;
-
-            auto transposed_order = transpose_pattern->cast_vector<int32_t>();
-            std::swap(*transposed_order.rbegin(), *(transposed_order.rbegin() + 1));
-            if (pass::TransposeDecomposition::supported_cases.count(transposed_order) == 0)
-                continue;
-
-            auto new_transpose_order = std::make_shared<ngraph::opset1::Constant>(transpose_pattern->get_element_type(),
-                                                                                  ngraph::Shape{4},
-                                                                                  transposed_order);
-            new_transpose_order->set_friendly_name(transpose_pattern->get_friendly_name());
-            ngraph::copy_runtime_info(transpose_pattern, new_transpose_order);
-            transpose1->set_argument(1, new_transpose_order);
-            if (i == 0) {
-                matmul0->set_transpose_a(false);
-            } else {
-                matmul0->set_transpose_b(false);
+            if (matmul->get_transpose_b()) {
+                extract(matmul->input(1));
+                matmul->set_transpose_b(false);
+                rewritten |= true;
             }
-            rewritten |= true;
-        }
 
-        return rewritten;
-    });
+            return rewritten;
+        });
 }

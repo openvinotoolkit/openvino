@@ -32,7 +32,7 @@ void ExecGraphInputsFusingBinConv::SetUp() {
     const float padValue = 1.0;
     targetDevice = this->GetParam();
 
-    auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShapes});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShapes))};
     auto binConv = ngraph::builder::makeBinaryConvolution(params[0], binConvKernelSize, strides, padsBegin, padsEnd, dilations, paddingType, numOutChannels,
                                                           padValue);
     auto conv = ngraph::builder::makeGroupConvolution(binConv, ngraph::element::f32, convKernelSize, strides, padsBegin, padsEnd, dilations, paddingType,

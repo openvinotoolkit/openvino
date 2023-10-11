@@ -4,6 +4,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <atomic>
 #include <cstring>
 #include <deque>
@@ -52,9 +62,11 @@ using ov::Node;
 namespace runtime {
 class HostTensor;
 }
+NGRAPH_SUPPRESS_DEPRECATED_START
 using HostTensor = runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 namespace op {
 
@@ -69,8 +81,10 @@ using ResultVector = std::vector<std::shared_ptr<ngraph::op::v0::Result>>;
 const auto node_validation_failure_loc_string = ov::node_validation_failure_loc_string;
 
 NGRAPH_API
+NGRAPH_API_DEPRECATED
 const std::shared_ptr<Node>& check_single_output_arg(const std::shared_ptr<Node>& node, size_t i);
 NGRAPH_API
+NGRAPH_API_DEPRECATED
 const NodeVector& check_single_output_args(const NodeVector& args);
 
 const auto as_output_vector = ov::as_output_vector;
@@ -150,20 +164,18 @@ using ov::check_new_args_count;
         }
 #endif
 
-#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)               \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                                    \
-        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME,                              \
-                                                                  static_cast<uint64_t>(_VERSION_INDEX),  \
-                                                                  &PARENT_CLASS::get_type_info_static()}; \
-        return type_info_static;                                                                          \
-    }                                                                                                     \
-    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
-
-#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)                                          \
+#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, PARENT_CLASS)                                          \
     const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                                               \
-        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME, static_cast<uint64_t>(_VERSION_INDEX)}; \
+        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME, &PARENT_CLASS::get_type_info_static()}; \
         return type_info_static;                                                                                     \
     }                                                                                                                \
+    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+
+#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME)                   \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {        \
+        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME}; \
+        return type_info_static;                                              \
+    }                                                                         \
     _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
 #define NGRAPH_RTTI_DEFINITION(...)                                                               \
     _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                         \

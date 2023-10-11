@@ -13,7 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Less : public util::BinaryElementwiseComparison {
 public:
-    OPENVINO_OP("Less", "opset1", op::util::BinaryElementwiseComparison, 1);
+    OPENVINO_OP("Less", "opset1", op::util::BinaryElementwiseComparison);
     /// \brief Constructs a less-than operation.
     Less() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a less-than operation.

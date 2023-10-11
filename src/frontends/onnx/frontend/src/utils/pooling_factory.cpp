@@ -30,6 +30,7 @@ std::shared_ptr<default_opset::Constant> transposition_axis_order(const Rank& in
 }
 }  // namespace
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 PoolingFactory::PoolingFactory(const Node& node)
     : m_onnx_node{node},
       m_inputs{node.get_ng_inputs()},
@@ -57,6 +58,7 @@ OutputVector PoolingFactory::make_avg_pool() const {
                                                      m_rounding_type,
                                                      m_auto_pad)};
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 OutputVector PoolingFactory::make_max_pool() const {
     return {std::make_shared<op::v1::MaxPool>(m_inputs.at(0),

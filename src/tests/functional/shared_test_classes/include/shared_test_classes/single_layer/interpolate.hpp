@@ -11,16 +11,16 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-        ngraph::op::v4::Interpolate::InterpolateMode,          // InterpolateMode
-        ngraph::op::v4::Interpolate::ShapeCalcMode,            // ShapeCalculationMode
-        ngraph::op::v4::Interpolate::CoordinateTransformMode,  // CoordinateTransformMode
-        ngraph::op::v4::Interpolate::NearestMode,              // NearestMode
+        ov::op::util::InterpolateBase::InterpolateMode,          // InterpolateMode
+        ov::op::util::InterpolateBase::ShapeCalcMode,            // ShapeCalculationMode
+        ov::op::util::InterpolateBase::CoordinateTransformMode,  // CoordinateTransformMode
+        ov::op::util::InterpolateBase::NearestMode,              // NearestMode
         bool,                                                  // AntiAlias
         std::vector<size_t>,                                   // PadBegin
         std::vector<size_t>,                                   // PadEnd
@@ -50,6 +50,19 @@ public:
 protected:
     void SetUp() override;
 };
+
+namespace v11 {
+
+class InterpolateLayerTest : public testing::WithParamInterface<InterpolateLayerTestParams>,
+                             virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<InterpolateLayerTestParams>& obj);
+
+protected:
+    void SetUp() override;
+};
+
+} // namespace v11
 
 //Interpolate-1 test
 typedef std::tuple<

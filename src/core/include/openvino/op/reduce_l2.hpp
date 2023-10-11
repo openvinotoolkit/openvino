@@ -15,7 +15,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceL2 : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceL2", "opset4", util::ArithmeticReductionKeepDims, 4);
+    OPENVINO_OP("ReduceL2", "opset4", util::ArithmeticReductionKeepDims);
     /// \brief Constructs a reducet L2-norm operation.
     ReduceL2() = default;
     /// \brief Constructs a reduce L2-norm operation.
@@ -27,9 +27,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 };
 }  // namespace v4

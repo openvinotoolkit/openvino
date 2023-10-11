@@ -27,6 +27,26 @@ void regclass_frontend_TelemetryExtension(py::module m) {
                                                                                            py::dynamic_attr());
 
     ext.def(py::init([](const std::string& event_category,
+                        py::function& send_event,
+                        py::function& send_error,
+                        py::function& send_stack_trace) {
+        return std::make_shared<TelemetryExtension>(
+            event_category,
+            [send_event](const std::string& category, const std::string& action, const std::string& label, int value) {
+                py::gil_scoped_acquire acquire;
+                send_event(category, action, label, value);
+            },
+            [send_error](const std::string& category, const std::string& error_message) {
+                py::gil_scoped_acquire acquire;
+                send_error(category, error_message);
+            },
+            [send_stack_trace](const std::string& category, const std::string& error_message) {
+                py::gil_scoped_acquire acquire;
+                send_stack_trace(category, error_message);
+            });
+    }));
+
+    ext.def(py::init([](const std::string& event_category,
                         const TelemetryExtension::event_callback& send_event,
                         const TelemetryExtension::error_callback& send_error,
                         const TelemetryExtension::error_callback& send_stack_trace) {
@@ -96,6 +116,13 @@ void regclass_frontend_ProgressReporterExtension(py::module m) {
         return std::make_shared<ProgressReporterExtension>();
     }));
 
+    ext.def(py::init([](py::function& callback) {
+        return std::make_shared<ProgressReporterExtension>([callback](float a, unsigned int b, unsigned int c) {
+            py::gil_scoped_acquire acquire;
+            callback(a, b, c);
+        });
+    }));
+
     ext.def(py::init([](const ProgressReporterExtension::progress_notifier_callback& callback) {
         return std::make_shared<ProgressReporterExtension>(callback);
     }));
@@ -138,6 +165,52 @@ void regclass_frontend_OpExtension(py::module m) {
             }),
             py::arg("ov_type_name"),
             py::arg("fw_type_name"),
+            py::arg("attr_names_map") = std::map<std::string, std::string>(),
+            py::arg("attr_values_map") = std::map<std::string, py::object>());
+
+    ext.def(py::init([](const std::string& fw_type_name,
+                        const std::vector<std::string>& in_names_vec,
+                        const std::vector<std::string>& out_names_vec,
+                        const std::map<std::string, std::string>& attr_names_map,
+                        const std::map<std::string, py::object>& attr_values_map) {
+                std::map<std::string, ov::Any> any_map;
+                for (const auto& it : attr_values_map) {
+                    any_map[it.first] = Common::utils::py_object_to_any(it.second);
+                }
+                return std::make_shared<OpExtension<void>>(fw_type_name,
+                                                           in_names_vec,
+                                                           out_names_vec,
+                                                           attr_names_map,
+                                                           any_map);
+            }),
+            py::arg("fw_type_name"),
+            py::arg("in_names_vec"),
+            py::arg("out_names_vec"),
+            py::arg("attr_names_map") = std::map<std::string, std::string>(),
+            py::arg("attr_values_map") = std::map<std::string, py::object>());
+
+    ext.def(py::init([](const std::string& ov_type_name,
+                        const std::string& fw_type_name,
+                        const std::vector<std::string>& in_names_vec,
+                        const std::vector<std::string>& out_names_vec,
+                        const std::map<std::string, std::string>& attr_names_map,
+                        const std::map<std::string, py::object>& attr_values_map) {
+                std::map<std::string, ov::Any> any_map;
+                for (const auto& it : attr_values_map) {
+                    any_map[it.first] = Common::utils::py_object_to_any(it.second);
+                }
+
+                return std::make_shared<OpExtension<void>>(ov_type_name,
+                                                           fw_type_name,
+                                                           in_names_vec,
+                                                           out_names_vec,
+                                                           attr_names_map,
+                                                           any_map);
+            }),
+            py::arg("ov_type_name"),
+            py::arg("fw_type_name"),
+            py::arg("in_names_vec"),
+            py::arg("out_names_vec"),
             py::arg("attr_names_map") = std::map<std::string, std::string>(),
             py::arg("attr_values_map") = std::map<std::string, py::object>());
 }

@@ -15,6 +15,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -31,8 +32,10 @@ namespace pooling {
 ///             paddings, kernel shape and auto_pad type.
 class PoolingFactory {
 public:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit PoolingFactory(const Node& node);
     virtual ~PoolingFactory() = default;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ///
     /// \brief      Creates average pooling ONNX operation.
@@ -50,7 +53,9 @@ public:
     OutputVector make_max_pool_with_indices() const;
 
 protected:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     Node m_onnx_node;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const OutputVector m_inputs;
     Shape m_kernel_shape;
     Strides m_strides;

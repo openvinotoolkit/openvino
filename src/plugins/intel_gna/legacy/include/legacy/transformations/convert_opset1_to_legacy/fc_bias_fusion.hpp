@@ -28,7 +28,7 @@ class FullyConnectedBiasFusion;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::FullyConnectedBiasFusion : public ngraph::pass::MatcherPass {
+class ngraph::pass::FullyConnectedBiasFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("FullyConnectedBiasFusion", "0");
     FullyConnectedBiasFusion();

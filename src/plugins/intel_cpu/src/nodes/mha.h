@@ -142,12 +142,13 @@ protected:
 
 private:
     struct brgemmCtx {
-        size_t M, N, K, LDA, LDB, LDC;
-        dnnl_data_type_t dt_in0, dt_in1;
+        size_t M = 0, N = 0, K = 0, LDA = 0, LDB = 0, LDC = 0;
+        dnnl_data_type_t dt_in0 = dnnl_data_type_undef;
+        dnnl_data_type_t dt_in1 = dnnl_data_type_undef;
         char palette[64];
-        bool is_with_amx;
-        bool is_with_comp;
-        float beta;
+        bool is_with_amx = false;
+        bool is_with_comp = false;
+        float beta = 0.0f;
     };
 
     template <typename in1_type>
@@ -167,6 +168,7 @@ private:
     }
 
     std::vector<InferenceEngine::Precision> inputPrecisions;
+    InferenceEngine::Precision outputPrecision;
     InferenceEngine::Precision accPrecision0;
     InferenceEngine::Precision accPrecision1;
 
@@ -190,18 +192,18 @@ private:
     VectorDims dimsMatMul1In1;
     VectorDims dimsMatMul1Out;
 
-    size_t batch0, batch1;
-    size_t M, M_blk, M_tail;
-    size_t K0, K0_blk, K0_tail, N0, N0_blk, N0_tail;
-    size_t K1, K1_blk, K1_tail, N1, N1_blk, N1_tail;
+    size_t batch0 = 0, batch1 = 0;
+    size_t M = 0, M_blk = 0, M_tail = 0;
+    size_t K0 = 0, K0_blk = 0, K0_tail = 0, N0 = 0, N0_blk = 0, N0_tail = 0;
+    size_t K1 = 0, K1_blk = 0, K1_tail = 0, N1 = 0, N1_blk = 0, N1_tail = 0;
 
-    size_t bufferMatMul0In0Size;
-    size_t bufferMatMul0In1Size;
-    size_t bufferMatMul0OutSize;
-    size_t bufferMatMul1In1Size;
-    size_t bufferMatMul1OutSize;
-    size_t bufferCompensation0Size;
-    size_t bufferCompensation1Size;
+    size_t bufferMatMul0In0Size = 0;
+    size_t bufferMatMul0In1Size = 0;
+    size_t bufferMatMul0OutSize = 0;
+    size_t bufferMatMul1In1Size = 0;
+    size_t bufferMatMul1OutSize = 0;
+    size_t bufferCompensation0Size = 0;
+    size_t bufferCompensation1Size = 0;
     size_t wsp_size_per_thread = 4 * 1024;
 
     std::vector<uint8_t> bufferMatMul0In0;
@@ -222,13 +224,13 @@ private:
     std::vector<float> fqScales2;
     std::vector<float> fqScales3;
 
-    size_t brg0VnniFactor;
+    size_t brg0VnniFactor = 0;
     brgemmCtx brgCtxs0[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels0[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t> brgCopyAKernel0;
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> brgCopyBKernel0;
 
-    size_t brg1VnniFactor;
+    size_t brg1VnniFactor = 0;
     brgemmCtx brgCtxs1[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels1[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> brgCopyBKernel1;

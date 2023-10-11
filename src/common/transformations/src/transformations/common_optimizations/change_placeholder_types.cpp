@@ -9,8 +9,9 @@
 #include <numeric>
 
 #include "itt.hpp"
-#include "ngraph/node.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 
 using namespace std;
@@ -18,10 +19,10 @@ using namespace ov;
 
 namespace {
 bool is_node_casts_to_float_or_shapeof(const Node* node) {
-    if (dynamic_cast<const opset8::ShapeOf*>(node)) {
+    if (dynamic_cast<const ov::op::v3::ShapeOf*>(node)) {
         return true;
     }
-    auto convert = dynamic_cast<const opset8::Convert*>(node);
+    auto convert = dynamic_cast<const ov::op::v0::Convert*>(node);
     if (convert && convert->get_destination_type() == element::f32) {
         return true;
     }

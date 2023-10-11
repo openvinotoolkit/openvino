@@ -173,13 +173,13 @@ public:
     virtual std::vector<std::string> GetAvailableDevices() const = 0;
 
     /**
-     * @brief Checks whether device supports Export & Import functionality of network
+     * @brief Checks whether device supports model caching feature
      *
      * @param deviceName - A name of a device to get a metric value.
-     * @return True if device has IMPORT_EXPORT_SUPPORT metric in SUPPORTED_METRICS and
+     * @return True if device has IMPORT_EXPORT_SUPPORT and CACHING_PROPERTIES metric in SUPPORTED_METRICS and
      * this metric returns 'true', False otherwise.
      */
-    virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
+    virtual bool DeviceSupportsModelCaching(const std::string& deviceName) const = 0;
 
     /**
      * @brief Create a new shared context object on specified accelerator device

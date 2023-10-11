@@ -8,7 +8,7 @@
 #include "gna_data_types.hpp"
 #include "gna_plugin.hpp"
 #include "memory/gna_memory.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 namespace testing {
@@ -17,7 +17,7 @@ class GNAPluginForPrecisionTest : public GNAPlugin {
 public:
     GNAPluginForPrecisionTest(const std::map<std::string, std::string>& configMap) : GNAPlugin(configMap) {
         gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
-        graphCompiler.setGNAMemoryPtr(gnamem);
+        m_graph_compiler->setGNAMemoryPtr(gnamem);
         gnadevice.reset();
     }
     std::vector<intel_dnn_component_t> get_components() {
@@ -85,13 +85,13 @@ TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestDefault) {
 
 TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestI16) {
     Run({ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-         ov::inference_precision(ngraph::element::i16)});
+         ov::hint::inference_precision(ngraph::element::i16)});
     compare(ngraph::element::i16, ngraph::element::i32, sizeof(int16_t), sizeof(uint32_t));
 }
 
 TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestI8) {
     Run({ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-         ov::inference_precision(ngraph::element::i8)});
+         ov::hint::inference_precision(ngraph::element::i8)});
     compare(ngraph::element::i16,
             ngraph::element::i32,
             sizeof(int8_t),
@@ -100,7 +100,7 @@ TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestI8) {
 
 TEST_F(GNAHwPrecisionTest, GNAHwPrecisionTestI8LP) {
     Run({ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-         ov::inference_precision(ngraph::element::i8)},
+         ov::hint::inference_precision(ngraph::element::i8)},
         true);
     compare(ngraph::element::i8, ngraph::element::i32, sizeof(int8_t), sizeof(int8_t));
 }

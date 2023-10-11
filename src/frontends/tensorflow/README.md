@@ -2,7 +2,8 @@
 
 The TensorFlow Frontend (TF FE) is a C++ based OpenVINO Frontend component that is responsible for reading and converting a TensorFlow model to an `ov::Model` object
 that further can be serialized into the Intermediate Representation (IR) format.
-This is an internal API for OpenVINO that is used to implement user facing API such as Model Optimizer, `read_model` function, and OpenVINO Integration with TensorFlow.
+This is an internal API for OpenVINO that is used to implement user-facing API such as MO tool, Model Conversion API, and OpenVINO Runtime `read_model` function
+for reading TensorFlow models of the original format in run-time. Also, OpenVINO Model Server uses the frontend for serving models.
 Regular users should not use the frontend directly.
 
 ```mermaid
@@ -15,8 +16,8 @@ flowchart BT
     style model3 fill:#427cb0
     ov_model[(ov::Model)]
     style ov_model fill:#427cb0
-    ovtf(OpenVINO Integration with TensorFlow)
-    style ovtf fill:#ffffc2
+    ovms(OpenVINO Model Server)
+    style ovms fill:#ffffc2
     tf_fe(TensorFlow Frontend)
     style tf_fe fill:#ee9a4d
     fem(Frontend Manager)
@@ -24,13 +25,13 @@ flowchart BT
     ov_runtime(OpenVINO Runtime)
     model --> mo --> fem --> tf_fe
     model2 --> ov_runtime --> fem
-    model3 --> ovtf --> tf_fe
+    model3 --> ovms --> ov_runtime
     tf_fe --> ov_model
-    click ovtf "https://github.com/openvinotoolkit/openvino_tensorflow"
+    click ovms "https://github.com/openvinotoolkit/model_server"
 ```
 
-Currently, it is only used by [OpenVINO Integration with TensorFlow](https://github.com/openvinotoolkit/openvino_tensorflow).
-Model Optimizer for now relies on the legacy [TensorFlow Frontend](https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html) developed in Python.
+The MO tool and model conversion API now use the TensorFlow Frontend as the default path for conversion to IR.
+Known limitations of TF FE are described [here](https://docs.openvino.ai/nightly/openvino_docs_MO_DG_TensorFlow_Frontend.html).
 
 ## Key contacts
 
@@ -45,7 +46,7 @@ The structure of OpenVINO TensorFlow Frontend sources includes the following dir
 * [src](./src/) folder contains the sources of the component.
 * [tests](./tests) cover internal transformations.
 
-Additionally, there is a shared [tensorflow common](../tensorflow_common) directory with same structure and purposes.
+Additionally, there is a shared [TensorFlow Common](../tensorflow_common) directory with same structure and purposes.
 Its content depend only on common FrontEnd APIs thus is free to use in other FrontEnds.
 
 ## Architecture
@@ -56,8 +57,8 @@ The whole workflow can be split into two steps: model loading and conversion.
 During loading, the `FrontEnd::load()` method creates `InputModel` that encapsulates the `GraphIterator` object.
 `GraphIterator` is a reader that iterates through the graph nodes in the topological order.
 `GraphIterator::get_decoder()` provides a decoder for the current graph node to read its attributes.
-Each TensorFlow model format has its implementation of `GraphIterator`. Currently, the frontend supports only binary frozen format `.pb`,
-and `GraphIteratorProto` is used for reading and parsing this format. The architecture of the loading step is shown in the picture below:
+Each TensorFlow model format has its implementation of `GraphIterator`. Currently, the frontend supports SavedModel, MetaGraph (`.meta`), and frozen protobuf (`.pb` and `.pbtxt`) formats.
+The base class `GraphIteratorProto` is used for reading and parsing these formats. The architecture of the loading step is shown in the picture below:
 
 ```mermaid
 classDiagram
@@ -70,6 +71,9 @@ classDiagram
     Place --o "1..*" InputModel
     DecoderBase "1" --o "1" Place
     GraphIteratorProto ..|> GraphIterator
+    GraphIteratorProtoTxt ..|> GraphIterator
+    GraphIteratorMeta ..|> GraphIterator
+    GraphIteratorSavedModel ..|> GraphIterator
 ```
 
 After the loading step, `InputModel` includes a container of topologically sorted operation `Place` objects.
@@ -136,15 +140,15 @@ The main rules for loaders implementation:
 
 In rare cases, TensorFlow operation conversion requires two transformations (`Loader` and `Internal Transformation`).
 In the first step, `Loader` must convert a TF operation into [Internal Operation](../tensorflow_common/helper_ops) that is used temporarily by the conversion pipeline.
-The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/nightly/groupov_ops_cpp_api.html) operations.
+The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/2023.0/groupov_ops_cpp_api.html) operations.
 
 Here is an example of an implementation for the internal operation `SparseFillEmptyRows` used to convert Wide and Deep models.
 
 https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b008142fb945bc/src/frontends/tensorflow/src/helper_ops/sparse_fill_empty_rows.hpp#L17-L55
 
 In the second step, `Internal Transformation` based on `ov::pass::MatcherPass` must convert sub-graphs with internal operations into sub-graphs consisting only of the OpenVINO opset.
-For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/nightly/openvino_docs_transformations.html)
-and [OpenVINO Matcher Pass](https://docs.openvino.ai/nightly/openvino_docs_Extensibility_UG_matcher_pass.html) documentation.
+For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/2023.0/openvino_docs_transformations.html)
+and [OpenVINO Matcher Pass](https://docs.openvino.ai/2023.0/openvino_docs_Extensibility_UG_matcher_pass.html) documentation.
 The internal transformation must be called in the `ov::frontend::tensorflow::FrontEnd::normalize()` method.
 It is important to check the order of applying internal transformations to avoid situations when some internal operation
 breaks a graph pattern with an internal operation for another internal transformation.

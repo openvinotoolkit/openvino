@@ -6,6 +6,7 @@
 #include "include/batch_headers/fetch_weights.cl"
 
 KERNEL(kernel_name)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE *conv_input,
     __global OUTPUT_TYPE *output,
     const __global FILTER_TYPE *weights
@@ -35,7 +36,7 @@ KERNEL(kernel_name)(
     const uint y = get_global_id(1);
     const uint z = 0;
 #endif
-#if OUTPUT_BATCH_NUM == 1
+#if SKIP_BATCH
     const uint f = get_global_id(2);
     const uint b = 0;
 #else
@@ -62,7 +63,7 @@ KERNEL(kernel_name)(
 
     for (uint k = 0; k < FILTER_IFM_NUM; ++k)
     {
-#if INPUT0_SIZE > 4
+#if INPUT0_DIMS > 4
         for (uint l = 0; l < FILTER_SIZE_Z ; ++l)
         {
             const int input_offset_z = input_z + l * DILATION_SIZE_Z;
@@ -84,7 +85,7 @@ KERNEL(kernel_name)(
 
                             if(!zero_x)
                             {
-#if INPUT0_SIZE <= 4
+#if INPUT0_DIMS <= 4
                                 uint input_idx = INPUT0_GET_INDEX(b, (k + g*FILTER_IFM_NUM), input_offset_y, input_offset_x);
                                 uint filter_idx = GET_FILTER_INDEX(FILTER, g, of, k, j, i);
 #else
@@ -105,7 +106,7 @@ KERNEL(kernel_name)(
                         }
                     }
                 }
-#if INPUT0_SIZE > 4
+#if INPUT0_DIMS > 4
             }
         }
 #endif
@@ -129,7 +130,7 @@ KERNEL(kernel_name)(
 #endif
 
 
-#if OUTPUT_SIZE <= 4
+#if OUTPUT_DIMS <= 4
     const uint dst_index = OUTPUT_GET_INDEX(b, f, y, x);
 #else
     const uint dst_index = OUTPUT_GET_INDEX(b, f, z, y, x);

@@ -15,9 +15,10 @@ template <>
 struct typed_program_node<prior_box> : typed_program_node_base<prior_box> {
     using parent = typed_program_node_base<prior_box>;
 
-    typed_program_node(std::shared_ptr<prior_box> prim, program& prog);
+    typed_program_node(std::shared_ptr<prior_box> prim, program& prog) : parent(prim, prog) {}
 
     program_node& input() const { return get_dependency(0); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {0, 1}; }
 
     bool is_clustered() const { return get_primitive()->is_clustered(); }
     void calc_result();
@@ -35,6 +36,8 @@ class typed_primitive_inst<prior_box> : public typed_primitive_inst_base<prior_b
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(prior_box_node const& /*node*/, kernel_impl_params const& impl_param);
     static layout calc_output_layout(prior_box_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(prior_box_node const& node);
 

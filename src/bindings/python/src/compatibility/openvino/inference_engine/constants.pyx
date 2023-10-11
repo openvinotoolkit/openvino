@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+#cython: language_level=3
+
 from .cimport ie_api_impl_defs as C
 
 import numpy as np
@@ -69,8 +71,6 @@ class ColorFormat(Enum):
     BGR = 2
     RGBX = 3
     BGRX = 4
-    NV12 = 5
-    I420 = 6
 
 
 cpdef enum StatusCode:

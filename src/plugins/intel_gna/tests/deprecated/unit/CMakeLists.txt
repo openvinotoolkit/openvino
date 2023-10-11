@@ -8,9 +8,6 @@ set(TARGET_NAME InferenceEngineUnitTests)
 
 ov_disable_deprecated_warnings()
 
-# rpath enabled for unit tests only
-SET (CMAKE_SKIP_RPATH OFF)
-
 # collect sources
 
 file(GLOB
@@ -42,7 +39,7 @@ if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
         list(REMOVE_ITEM TEST_SRC "${gna_stub}")
         add_library(libGNAStubs SHARED "${gna_stub}")
 
-        find_package(libGNA)
+        find_package(libGNA NO_MODULE REQUIRED)
 
         target_include_directories(libGNAStubs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/")
         target_link_libraries(libGNAStubs PUBLIC libGNA::API gmock gtest)
@@ -66,9 +63,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 
 # because IE unit tests use plugin and IE object files compiled with LTO
-if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
-    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-endif()
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 ## Mock macros doesn't use "override" specificator
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-error=inconsistent-missing-override >)
@@ -81,7 +76,7 @@ endif()
 target_link_libraries(${TARGET_NAME} PRIVATE
     # static libraries
     inference_engine_s # need to have this explicitly for USE_STATIC_IE
-    unitTestUtils
+    unit_test_utils
     ieTestHelpers_s
     ${TEST_DEPS}
 
@@ -93,7 +88,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 ov_try_use_gold_linker()
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
-set_property(TEST ${TARGET_NAME} PROPERTY LABELS IE)
+set_property(TEST ${TARGET_NAME} PROPERTY LABELS OV UNIT)
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests

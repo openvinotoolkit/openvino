@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatherTree : public Op {
 public:
-    OPENVINO_OP("GatherTree", "opset1", op::Op, 1);
+    OPENVINO_OP("GatherTree", "opset1", op::Op);
 
     GatherTree() = default;
     /// \param step_ids     Tensor of shape [MAX_TIME, BATCH_SIZE, BEAM_WIDTH] with
@@ -29,7 +29,6 @@ public:
                const Output<Node>& max_seq_len,
                const Output<Node>& end_token);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

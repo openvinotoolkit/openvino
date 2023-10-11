@@ -11,8 +11,8 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "ov_lpt_models/concat.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -26,7 +26,11 @@ std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<C
     const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) << testValues.fqOnData1 << testValues.fqOnData2;
+    result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) <<
+        testValues.fqOnData1 <<
+        testValues.dequantization1 <<
+        testValues.fqOnData2 <<
+        testValues.dequantization2;
     return result.str();
 }
 
@@ -50,8 +54,12 @@ void ConcatTransformation::SetUp() {
     function = ngraph::builder::subgraph::ConcatFunction::getOriginal(
         precision,
         inputShape,
+        testValues.input_constant1,
         testValues.fqOnData1,
-        testValues.fqOnData2);
+        testValues.dequantization1,
+        testValues.input_constant2,
+        testValues.fqOnData2,
+        testValues.dequantization2);
 }
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {

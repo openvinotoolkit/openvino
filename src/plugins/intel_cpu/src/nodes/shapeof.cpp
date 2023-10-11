@@ -4,42 +4,13 @@
 
 #include "shapeof.h"
 #include <ngraph/opsets/opset1.hpp>
-#include <utils/shape_inference/shape_inference_cpu.hpp>
+#include "shape_inference/custom/shapeof.hpp"
 
 using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-namespace {
-/**
- * Implements Shape Of shape inference algorithm. The output shape is simply a 1D tensor with the size of the input tensor
- * rank.
- *  
- */
-class ShapeOfShapeInfer : public ShapeInferEmptyPads {
-public:
-    ShapeOfShapeInfer() = default;
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        IE_ASSERT(!input_shapes.empty());
-        return {{VectorDims{input_shapes.front().get().size()}}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-};
-
-class ShapeOfShapeInferFactory : public ShapeInferFactory {
-public:
-    ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<ShapeOfShapeInfer>();
-    }
-};
-} // namespace
 
 bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -68,8 +39,6 @@ ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
 }
 
 void ShapeOf::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
     if (getParentEdges().size() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -102,7 +71,7 @@ void ShapeOf::execute(dnnl::stream strm) {
     if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0])
         IE_THROW() << errorPrefix << "has inconsistent input shape and output size";
 
-    auto *dst = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto *dst = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     for (size_t i = 0; i < dimsCount; i++) {
         dst[i] = inDims[i];

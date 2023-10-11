@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -38,7 +38,7 @@ public:
 
         result << "IS=";
         for (const auto& shape : shapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : shapes) {
@@ -46,12 +46,12 @@ public:
             if (!shape.second.empty()) {
                 auto itr = shape.second.begin();
                 do {
-                    result << CommonTestUtils::vec2str(*itr);
+                    result << ov::test::utils::vec2str(*itr);
                 } while (++itr != shape.second.end() && result << "_");
             }
             result << ")_";
         }
-        result << "DATA=" << "[" << CommonTestUtils::vec2str(data) << "]_";
+        result << "DATA=" << "[" << ov::test::utils::vec2str(data) << "]_";
         result << "PRC=" << prc << "_";
 
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -62,7 +62,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape> shapes;
         std::vector<int> data;
@@ -81,7 +81,7 @@ protected:
 
         init_input_shapes(shapes);
 
-        auto params = ngraph::builder::makeDynamicParams(prc, {inputDynamicShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(prc, inputDynamicShapes.front())};
         auto reshapeData = ngraph::builder::makeConstant(ElementType::i32, {data.size()}, data);
         auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapeData, true);
 
@@ -108,17 +108,28 @@ const std::vector<ReshapeFcSpecParams> reshFcParams = {
     }
 };
 
+static std::vector<fusingSpecificParams> filterFusingParams(const std::vector<fusingSpecificParams>& orig) {
+#ifdef OV_CPU_WITH_MLAS
+    return {emptyFusingSpec, fusingBias};
+#else
+    return orig;
+#endif
+}
+
 std::vector<fusingSpecificParams> fusingParamsSet {
         emptyFusingSpec,
         fusingBias,
         fusingMultiplyPerChannel
 };
 
+#ifdef OV_CPU_WITH_MLAS
+const auto gemmParam = CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"};
+#else
 const auto gemmParam = CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"};
-
+#endif
 const auto params = ::testing::Combine(
     ::testing::ValuesIn(reshFcParams),
-    ::testing::ValuesIn(fusingParamsSet),
+    ::testing::ValuesIn(filterFusingParams(fusingParamsSet)),
     ::testing::Values(gemmParam));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReshapeFc, ReshapeFcCPUTest, params, ReshapeFcCPUTest::getTestCaseName);

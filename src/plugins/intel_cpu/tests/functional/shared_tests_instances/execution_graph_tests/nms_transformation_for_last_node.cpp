@@ -8,6 +8,6 @@
 namespace {
 using namespace ExecutionGraphTests;
 
-INSTANTIATE_TEST_SUITE_P(smoke_NmsTransformationLastNode, ExecGraphNmsTransformLastNode, ::testing::Values(CommonTestUtils::DEVICE_CPU),
+INSTANTIATE_TEST_SUITE_P(smoke_NmsTransformationLastNode, ExecGraphNmsTransformLastNode, ::testing::Values(ov::test::utils::DEVICE_CPU),
                         ExecGraphNmsTransformLastNode::getTestCaseName);
 } // namespace

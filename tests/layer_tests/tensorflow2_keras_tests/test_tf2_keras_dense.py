@@ -56,7 +56,7 @@ class TestKerasDense(CommonTF2LayerTest):
         dict(input_names=["x"], input_shapes=[[5, 4]], input_type=tf.float32, units=1,
              activation='sigmoid', use_bias=True),
         pytest.param(dict(input_names=["x"], input_shapes=[[5, 4, 8]], input_type=tf.float32, units=4,
-                          activation='tanh', use_bias=True), marks=pytest.mark.precommit_tf_fe),
+                          activation='tanh', use_bias=True), marks=pytest.mark.skip(reason="110006")),
         dict(input_names=["x"], input_shapes=[[5, 4, 8, 8]], input_type=tf.float32, units=5,
              activation='linear', use_bias=True),
         dict(input_names=["x"], input_shapes=[[5, 4, 8, 6, 4]], input_type=tf.float32, units=4,

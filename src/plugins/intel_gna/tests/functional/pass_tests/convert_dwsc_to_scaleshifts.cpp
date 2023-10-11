@@ -12,7 +12,7 @@
 #include <string>
 
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -66,15 +66,15 @@ public:
 
         std::ostringstream result;
         result << "M=" << static_cast<uint32_t>(model) << "_";
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-        result << "K" << CommonTestUtils::vec2str(filter) << "_";
-        result << "S" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+        result << "K" << ov::test::utils::vec2str(filter) << "_";
+        result << "S" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
         result << "O=" << numOutChannels << "_";
         result << "AP=" << padType << "_";
-        result << "B=" << CommonTestUtils::vec2str(bias) << "_";
+        result << "B=" << ov::test::utils::vec2str(bias) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";
         for (auto const& configItem : configuration) {
@@ -98,12 +98,12 @@ protected:
         std::tie(filter, stride, padBegin, padEnd, dilation, padType, numOutChannels, numGroups, bias) = params;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto input = builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto transposeInOrder = op::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(filter), std::end(filter), 1ull, std::multiplies<size_t>());
         auto filterWeights =
-            CommonTestUtils::generate_float_numbers(numOutChannels * (inputShape[3] / numGroups) * filterSize,
+            ov::test::utils::generate_float_numbers(numOutChannels * (inputShape[3] / numGroups) * filterSize,
                                                     -0.5f,
                                                     0.5f);
         auto dwsc = builder::makeGroupConvolution(transposeIn,
@@ -123,7 +123,7 @@ protected:
 
         if (model == modelType::TranspDWSCBiasTransp) {
             Shape biasShape{bias};
-            auto biasWeights = CommonTestUtils::generate_float_numbers(shape_size(biasShape), -1.0f, 1.0f);
+            auto biasWeights = ov::test::utils::generate_float_numbers(shape_size(biasShape), -1.0f, 1.0f);
             auto biasConst = std::make_shared<Constant>(ngPrc, biasShape, biasWeights);
             auto bias = std::make_shared<Add>(dwsc, biasConst);
             lastOp = std::make_shared<Transpose>(bias, transposeOutOrder);
@@ -176,7 +176,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DWSCToScaleShifts,
                          DWSCToScaleShiftsTest,
                          ::testing::Combine(convParams,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputNHWC),
                                             ::testing::ValuesIn(models)),
@@ -205,7 +205,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DWSCToScaleShiftsStridesDilations,
                          DWSCToScaleShiftsTest,
                          ::testing::Combine(convParamsSD,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputNHWCSD),
                                             ::testing::ValuesIn(models)),

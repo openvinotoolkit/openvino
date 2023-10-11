@@ -145,7 +145,7 @@ InferenceEngine::Blob::Ptr getWeightsBlob(size_t sizeInBytes, const std::string 
     }
 
     weights->allocate();
-    CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->byteSize() / sizeof(float));
+    ov::test::utils::fill_data(weights->buffer().as<float *>(), weights->byteSize() / sizeof(float));
 
     return weights;
 }

@@ -8,7 +8,7 @@
 #include "primitive_onednn_base.h"
 #include "implementation_map.hpp"
 
-#include "kernel_selector_common.h"
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include "utils.hpp"
 
@@ -26,7 +26,7 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
     using parent = typed_primitive_onednn_impl<convolution>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::convolution_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -38,12 +38,14 @@ protected:
 
         {
             auto weights = instance.weights_memory();
-            args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0))});
+            auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
+            args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0), offset)});
         }
 
         if (instance.bias_term()) {
             auto bias = instance.bias_memory();
-            args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
+            auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
+            args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1), offset)});
         }
 
         if (instance.activations_zero_points_term()) {
@@ -51,33 +53,40 @@ protected:
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
-            auto dnnl_mem = a_zp->get_onednn_memory(desc);
-            void *mapped_ptr = dnnl_mem.map_data();
-            if (mapped_ptr) {
-                GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: ";
-                for (size_t i = 0; i < desc.get_size(); ++i) {
-                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
+                auto dnnl_mem = a_zp->get_onednn_memory(desc);
+                void *mapped_ptr = dnnl_mem.map_data();
+                if (mapped_ptr) {
+                    GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: ";
+                    for (size_t i = 0; i < desc.get_size(); ++i) {
+                        GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+                    }
+                    GPU_DEBUG_TRACE_DETAIL << std::endl;
+                    dnnl_mem.unmap_data(mapped_ptr);
                 }
-                GPU_DEBUG_TRACE_DETAIL << std::endl;
-                dnnl_mem.unmap_data(mapped_ptr);
             }
         }
 
         if (instance.weights_zero_points_term()) {
-            auto w_zp = instance.weights_zero_points_memory();
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
-            args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
+            throw std::runtime_error("Convolution oneDNN primitive doesn't support asymmetric weights quantization");
+            // auto w_zp = instance.weights_zero_points_memory();
+            // dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
+            // args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
-            auto dnnl_mem = w_zp->get_onednn_memory(desc);
-            void *mapped_ptr = dnnl_mem.map_data();
-            if (mapped_ptr) {
-                GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
-                for (size_t i = 0; i < desc.get_size(); ++i) {
-                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-                }
-                GPU_DEBUG_TRACE_DETAIL << std::endl;
-                dnnl_mem.unmap_data(mapped_ptr);
-            }
+            // GPU_DEBUG_GET_INSTANCE(debug_config);
+            // GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
+            //     auto dnnl_mem = w_zp->get_onednn_memory(desc);
+            //     void *mapped_ptr = dnnl_mem.map_data();
+            //     if (mapped_ptr) {
+            //         GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
+            //         for (size_t i = 0; i < desc.get_size(); ++i) {
+            //             GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+            //         }
+            //         GPU_DEBUG_TRACE_DETAIL << std::endl;
+            //         dnnl_mem.unmap_data(mapped_ptr);
+            //     }
+            // }
         }
 
         return args;
@@ -130,40 +139,18 @@ protected:
         return attrs;
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd, bool rotate) {
-        kernel_selector::WeightsReorderParams weights_reorder_params;
-        auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
-        kernel_selector::reorder_weights_params r_params;
-
+    static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd, bool rotate) {
         auto cldnn_prim = impl_params.typed_desc<convolution>();
-        auto weights_layout = impl_params.get_input_layout(1);
-        auto grouped_weights = format::is_grouped(weights_layout.format) || cldnn_prim->grouped_weights_shape;
-        cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
-        kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        set_params(impl_params, r_params);
-        r_params.layerID = cldnn_prim->id + "_reorder_";
-        r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
-        r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), cldnn_prim->groups, false);
-        r_params.rotate_180 = rotate;
+        auto input_weights_layout = impl_params.get_input_layout(1);
+        auto grouped_weights = format::is_grouped(input_weights_layout.format) || cldnn_prim->grouped_weights_shape;
+        format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
 
-        kernel_selector::reorder_optional_params op;
-        kernel_selector::KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
+        auto output_weights_layout = input_weights_layout;
+        output_weights_layout.format = out_fmt;
 
-        if (kernels_data.empty()) {
-            throw std::runtime_error("No suitable kernel found for weights reorder from " +
-                                        kernel_selector::toString(r_params.input.GetLayout()) + " to " +
-                                        kernel_selector::toString(r_params.output.GetLayout()));
-        }
-
-        weights_reorder_params.engine = kernel_selector::WeightsReorderParams::Engine::GPU;
-        weights_reorder_params.clKernel = std::make_shared<kernel_selector::clKernelData>(kernels_data[0].kernels[0]);
-        weights_reorder_params.dest = r_params.output;
-
-        return weights_reorder_params;
+        return std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, rotate, grouped_weights);
     }
-
-
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
@@ -196,7 +183,7 @@ public:
             _attrs->set_zero_points_mask(DNNL_ARG_SRC, _zero_point_mask);
         }
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
 
         auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
         auto weights_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1), dnnl::memory::format_tag::any);
@@ -232,6 +219,8 @@ public:
                                     *_attrs.get());
             _pd = *prim_desc;
         }
+
+        _scratchpad_md = _pd.scratchpad_desc();
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
@@ -273,6 +262,8 @@ attach_convolution_onednn::attach_convolution_onednn() {
         format::b_fs_zyx_fsv2,
         format::b_fs_yx_fsv4,
         format::b_fs_zyx_fsv4,
+        format::b_fs_yx_fsv8,
+        format::b_fs_zyx_fsv8,
         format::b_fs_yx_fsv16,
         format::b_fs_zyx_fsv16,
         format::b_fs_zyx_fsv32,
@@ -287,9 +278,11 @@ attach_convolution_onednn::attach_convolution_onednn() {
         format::bs_fs_zyx_bsv32_fsv32,
         format::bs_fs_yx_bsv4_fsv4,
         format::bs_fs_yx_bsv8_fsv4,
+        format::bs_fs_yx_bsv16_fsv8,
         format::bs_fs_yx_bsv16_fsv4,
         format::bs_fs_yx_bsv16_fsv2,
         format::bs_fs_zyx_bsv8_fsv4,
+        format::bs_fs_zyx_bsv16_fsv8,
         format::bs_fs_zyx_bsv16_fsv4,
         format::bs_fs_zyx_bsv16_fsv2,
         format::bs_fs_yx_bsv8_fsv2,

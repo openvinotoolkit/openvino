@@ -14,7 +14,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API CTCLoss : public Op {
 public:
-    OPENVINO_OP("CTCLoss", "opset4", op::Op, 4);
+    OPENVINO_OP("CTCLoss", "opset4", op::Op);
 
     CTCLoss() = default;
     /// \brief Constructs a CTCLoss operation

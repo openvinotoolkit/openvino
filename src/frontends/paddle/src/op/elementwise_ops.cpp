@@ -19,7 +19,11 @@ NamedOutputs elementwise_sub(const NodeContext& node_context) {
 }
 
 NamedOutputs elementwise_mul(const NodeContext& node_context) {
-    return elementwise_ops<default_opset::Multiply>(node_context);
+    auto x = node_context.get_input("X");
+    if (x.get_element_type() == ov::element::boolean)
+        return elementwise_ops<default_opset::LogicalAnd>(node_context);
+    else
+        return elementwise_ops<default_opset::Multiply>(node_context);
 }
 
 NamedOutputs elementwise_div(const NodeContext& node_context) {

@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -54,23 +54,23 @@ public:
 
         std::ostringstream result;
 
-        result << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         result << "TS=";
         for (const auto& shape : shapes.second) {
-            result << "(" << CommonTestUtils::vec2str(shape) << ")_";
+            result << "(" << ov::test::utils::vec2str(shape) << ")_";
         }
         result << "RS=";
         for (const auto& data : ranges) {
-            result << "(" << CommonTestUtils::vec2str(data) << ")_";
+            result << "(" << ov::test::utils::vec2str(data) << ")_";
         }
         result << "inPrec=" << inPrec.name() << "_";
 
         result << "LOW_BOUNDS=" << inDataLowBounds << "_";
         result << "HIGH_BOUNDS=" << inDataHighBounds << "_";
-        result << "IL=" << CommonTestUtils::vec2str(inputLow) << "_";
-        result << "IH=" << CommonTestUtils::vec2str(inputHigh) << "_";
-        result << "OL=" << CommonTestUtils::vec2str(outputLow) << "_";
-        result << "OH=" << CommonTestUtils::vec2str(outputHigh) << "_";
+        result << "IL=" << ov::test::utils::vec2str(inputLow) << "_";
+        result << "IH=" << ov::test::utils::vec2str(inputHigh) << "_";
+        result << "OL=" << ov::test::utils::vec2str(outputLow) << "_";
+        result << "OH=" << ov::test::utils::vec2str(outputHigh) << "_";
         result << "LEVELS=" << levels;
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -84,7 +84,7 @@ protected:
     std::string layerName;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         fqSpecificParams fqParams;
         inputShapes testShapes;
         Precision inPrec;
@@ -111,7 +111,10 @@ protected:
         std::tie(inDataLowBounds, inDataHighBounds, rangesBounds[2], rangesBounds[3], levels) = fqParams;
 
         auto ngInPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
-        ParameterVector params = builder::makeDynamicParams(ngInPrec, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngInPrec, shape));
+        }
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset5::Parameter>(params));
 
         auto il = builder::makeConstant(ngInPrec, ranges[0], rangesBounds[0], rangesBounds[0].empty());
@@ -199,7 +202,7 @@ std::vector<inputShapes> rangesShapes4D_jit = {
         {{1, 16, 1, 1}, {1, 16, 1, 1}, {1, 16, 1, 1}, {1, 16, 1, 1}}
     },
 };
-
+#if defined(OPENVINO_ARCH_X86_64)
 const auto testParams4D_jit = ::testing::Combine(specificParams,
                                                  ::testing::ValuesIn(rangesShapes4D_jit),
                                                  ::testing::Values(Precision::FP32),
@@ -207,7 +210,7 @@ const auto testParams4D_jit = ::testing::Combine(specificParams,
                                                  ::testing::Values(false),
                                                  ::testing::ValuesIn(filterCPUSpecificParams(memForm4D_jit)));
 INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_jit, FakeQuantizeLayerCPUTest, testParams4D_jit, FakeQuantizeLayerCPUTest::getTestCaseName);
-
+#endif
 
 std::vector<CPUSpecificParams> memForm4D_ref = {
         CPUSpecificParams({nchw}, {nchw}, {"ref_FP32"}, {"ref_FP32"})
@@ -232,7 +235,7 @@ const auto testParams4D_ref = ::testing::Combine(specificParams,
                                                  ::testing::ValuesIn(memForm4D_ref));
 INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_ref, FakeQuantizeLayerCPUTest, testParams4D_ref, FakeQuantizeLayerCPUTest::getTestCaseName);
 
-
+#if defined(OPENVINO_ARCH_X86_64)
 std::vector<CPUSpecificParams> memForm5D_jit = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
@@ -266,7 +269,7 @@ const auto testParams5D_jit = ::testing::Combine(specificParams,
                                                  ::testing::ValuesIn(filterCPUSpecificParams(memForm5D_jit)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_jit, FakeQuantizeLayerCPUTest, testParams5D_jit, FakeQuantizeLayerCPUTest::getTestCaseName);
-
+#endif
 
 std::vector<CPUSpecificParams> memForm5D_ref = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {"ref_FP32"}, {"ref_FP32"})

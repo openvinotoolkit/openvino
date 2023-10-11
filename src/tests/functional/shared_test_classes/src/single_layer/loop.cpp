@@ -29,8 +29,8 @@ namespace LayerTestsDefinitions {
         result << "is_body_condition_const=" << is_body_condition_const << "_";
         result << "body_condition=" << body_condition << "_";
         result << "trip_count=" << trip_count << "_";
-        result << "IS=" << CommonTestUtils::vec2str(inputs_separate) << "_";
-        result << "types=" << CommonTestUtils::vec2str(types_separate) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputs_separate) << "_";
+        result << "types=" << ov::test::utils::vec2str(types_separate) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";
         auto res_str = result.str();
@@ -62,7 +62,10 @@ namespace LayerTestsDefinitions {
         /*      auto X = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{32, 1, 10});
         auto Y = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{32, 1, 10});
         auto M = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{32, 1, 10});*/
-        auto params = ngraph::builder::makeParams(ngPrc, inputs_separate);
+        ov::ParameterVector params;
+        for (auto&& shape : inputs_separate) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+        }
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
@@ -172,7 +175,7 @@ namespace LayerTestsDefinitions {
         result << "axis=" << std::to_string(axis) << "_";
         result << "start_value=" << std::to_string(start_value) << "_";
         result << "max_iter_num=" << std::to_string(max_iter_num) << "_";
-        result << "IS=" << CommonTestUtils::vec2str(data_shape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(data_shape) << "_";
         result << "netPRC=" << std::to_string(data_prc) << "_";
         result << "targetDevice=" << targetDevice << "_";
 
@@ -269,10 +272,10 @@ namespace LayerTestsDefinitions {
         blob->allocate();
 
         if (tdesc.getLayout() == InferenceEngine::SCALAR) {
-            auto scalar_1d = CommonTestUtils::make_reshape_view(blob, {1});
-            CommonTestUtils::fill_data_with_broadcast(scalar_1d, 0, {static_cast<float>(max_iter_num)});
+            auto scalar_1d = ov::test::utils::make_reshape_view(blob, {1});
+            ov::test::utils::fill_data_with_broadcast(scalar_1d, 0, {static_cast<float>(max_iter_num)});
         } else {
-            CommonTestUtils::fill_data_with_broadcast(blob, 0, {static_cast<float>(start_value)});
+            ov::test::utils::fill_data_with_broadcast(blob, 0, {static_cast<float>(start_value)});
         }
 
         return blob;
@@ -296,7 +299,7 @@ namespace LayerTestsDefinitions {
         if (auto_concat_out)
             ref_shape[axis] *= n_iter;
 
-        using namespace CommonTestUtils;
+        using namespace ov::test::utils;
         InferenceEngine::TensorDesc tdesc {data_prc, ref_shape, InferenceEngine::TensorDesc::getLayoutByDims(ref_shape)};
         std::pair<ngraph::element::Type, std::vector<uint8_t>> res;
         res.first = function->get_result()->get_element_type();

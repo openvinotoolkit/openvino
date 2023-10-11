@@ -47,7 +47,7 @@ class TestSplit(PytorchLayerTest):
 
         return aten_split(self.split_param, self.axis), ref_net, "aten::split"
 
-    # Test case - (split_param, axis), always split into 5 due to hardcoded number of outputs in ListUnpack test. 
+    # Test case - (split_param, axis), always split into 5 due to hardcoded number of outputs in ListUnpack test.
     test_cases = [
         (2, 1),
         (45, 2),
@@ -64,7 +64,8 @@ class TestSplit(PytorchLayerTest):
     def test_split_getitem(self, params, getitem, ie_device, precision, ir_version):
         (self.split_param, self.axis) = params
         self.getitem = getitem
-        self._test(*self.create_model_split_getitem(), ie_device, precision, ir_version)
+        self._test(*self.create_model_split_getitem(),
+                   ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("params", test_cases)
     @pytest.mark.nightly
@@ -74,3 +75,30 @@ class TestSplit(PytorchLayerTest):
         self._test(
             *self.create_model_split_listunpack(), ie_device, precision, ir_version
         )
+
+
+class TestSplitWithSizes(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(20).astype(np.float32),np.random.randn(20).astype(np.float32))
+
+    def create_model(self):
+        import torch
+
+        class aten_split_with_sizes(torch.nn.Module):
+            def __init__(self):
+                super(aten_split_with_sizes, self).__init__()                
+                #self.sizes = 20
+
+            def forward(self, x, y):
+                return x.split([y.shape[0]], dim=0)
+
+        ref_net = None
+
+        return aten_split_with_sizes(), ref_net, ["aten::split_with_sizes", "prim::ListConstruct"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_relu(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version, trace_model=True)

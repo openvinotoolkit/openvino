@@ -1,0 +1,32 @@
+name: Documentation issue report
+description: Report an issue with Documentation. 
+title: "[Docs]: "
+labels: ["docs", "support_request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please provide all the necessary information to expedite the response.
+  - type: input
+    id: doc_link
+    attributes:
+      label: Documentation link 
+      description: Please provide the link for the documentation issue
+      placeholder: e.g. intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Provide a description of the issue you noticed.
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Issue submission checklist
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
+      options:
+        - label: I'm reporting a documentation issue. It's not a question.
+          required: true

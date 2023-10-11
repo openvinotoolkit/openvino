@@ -4,7 +4,7 @@
 
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "shared_test_classes/subgraph/matmul_const_transposes_extraction.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <exec_graph_info.hpp>
 
 namespace SubgraphTestsDefinitions {
@@ -101,6 +101,7 @@ void QuantizedMatMulConstTransposesExtractionTest::SetUp() {
 }
 
 void QuantizedMatMulConstTransposesExtractionTest::TearDown() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto runtime_function = executableNetwork.GetExecGraphInfo().getFunction();
     int ops_found = 0;
     for (const auto& node : runtime_function->get_ordered_ops()) {

@@ -8,7 +8,7 @@
 #include <tuple>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/add_function.hpp"
+#include "ov_lpt_models/add.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -114,6 +114,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
 }
 
 TEST_P(ElementwiseBranchSelectionTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

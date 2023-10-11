@@ -457,12 +457,12 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                 jit.AddConstant(MakeJitConstant(out_idx_order, GetIdxOrderStringForLayout(params.outputs[0].GetLayout(),
                                                                                           params.layoutBased || params.broadcast,
                                                                                           {1, 1, 1})));
-            } else if (out_c == 5) {
-                jit.AddConstant(MakeJitConstant(out_idx_order, "d5,d4,d3,d2,d1"));
-            } else if (out_c == 6) {
-                jit.AddConstant(MakeJitConstant(out_idx_order, "d6,d5,d4,d3,d2,d1"));
             } else {
-                assert(0);
+                std::string idx_order;
+                for (size_t i = 0; i < out_c; i++) {
+                    idx_order += "d" + std::to_string(out_c - i) + ((i == (out_c - 1)) ? "" : ",");
+                }
+                jit.AddConstant(MakeJitConstant(out_idx_order, idx_order));
             }
         }
     }
@@ -516,6 +516,28 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d3,d2,d1"));
                     } else {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));
+                    }
+                } else if (out_c == 7) {
+                    if (in_c < 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d7,d6,d2,d1"));
+                    } else if (in_c == 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d7,d6,d3,d2,d1"));
+                    } else if (in_c == 6) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d7,d6,d4,d3,d2,d1"));
+                    } else {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d7,d6,d5,d4,d3,d2,d1"));
+                    }
+                } else if (out_c == 8) {
+                    if (in_c < 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d8,d7,d2,d1"));
+                    } else if (in_c == 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d8,d7,d3,d2,d1"));
+                    } else if (in_c == 6) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d8,d7,d4,d3,d2,d1"));
+                    } else if (in_c == 7) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d8,d7,d5,d4,d3,d2,d1"));
+                    } else {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d8,d7,d6,d5,d4,d3,d2,d1"));
                     }
                 } else {
                     assert(0);
@@ -601,7 +623,13 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         }
 
         dispatchData.gws[0] = gws[0];
-        if (n_dims == 6) {
+        if (n_dims == 8) {
+            dispatchData.gws[1] = gws[1] * gws[2] * gws[3] * gws[4] * gws[5];  // y*z*w*u*v
+            dispatchData.gws[2] = gws[6] * gws[7];
+        } else if (n_dims == 7) {
+            dispatchData.gws[1] = gws[1] * gws[2] * gws[3] * gws[4];  // y*z*w*u
+            dispatchData.gws[2] = gws[5] * gws[6];
+        } else if (n_dims == 6) {
             dispatchData.gws[1] = gws[1] * gws[2] * gws[3];  // y*z*w
             dispatchData.gws[2] = gws[4] * gws[5];
         } else if (n_dims == 5) {
@@ -714,6 +742,7 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     DispatchData dispatchData = SetDefault(newParams);

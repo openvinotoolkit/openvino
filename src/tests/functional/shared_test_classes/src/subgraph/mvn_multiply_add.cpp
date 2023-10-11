@@ -18,11 +18,11 @@ std::string MVNMultiplyAdd::getTestCaseName(const testing::TestParamInfo<mvnMult
     std::tie(shapes, dataPrecision, axesPrecision, axes, normalizeVariance, eps, epsMode, targetDevice) = obj.param;
     std::tie(inputShapes, constantShapes) = shapes;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "CS=" << CommonTestUtils::vec2str(constantShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "CS=" << ov::test::utils::vec2str(constantShapes) << "_";
     result << "DataPrc=" << dataPrecision.name() << "_";
     result << "AxPrc=" << axesPrecision.name() << "_";
-    result << "Ax=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "Ax=" << ov::test::utils::vec2str(axes) << "_";
     result << "NormVariance=" << (normalizeVariance ? "TRUE" : "FALSE") << "_";
     result << "Eps=" << eps << "_";
     result << "EM=" << epsMode << "_";
@@ -44,7 +44,7 @@ void MVNMultiplyAdd::SetUp() {
     auto dataType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
     auto axesType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(axesPrecision);
 
-    auto param = ngraph::builder::makeParams(dataType, {inputShapes});
+    ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(dataType, ov::Shape(inputShapes))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
     auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
     auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);

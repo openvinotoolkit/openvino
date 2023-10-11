@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <openvino/opsets/opset9.hpp>
@@ -43,10 +43,10 @@ public:
         std::ostringstream result;
         result << "prec=" << precision;
         for (size_t i = 0; i < shapes.size(); i++) {
-            result << "_IS" << i << "=" << CommonTestUtils::partialShape2str({shapes[i].first});
+            result << "_IS" << i << "=" << ov::test::utils::partialShape2str({shapes[i].first});
             result << "_TS" << i << "=(";
             for (size_t j = 0; j < shapes[i].second.size(); j++) {
-                result << CommonTestUtils::vec2str(shapes[i].second[j]);
+                result << ov::test::utils::vec2str(shapes[i].second[j]);
                 if (j < shapes[i].second.size() - 1)
                     result << "_";
             }
@@ -55,7 +55,7 @@ public:
         result << "_constAxes=" << std::boolalpha << constAxes;
         result << "_axes=(";
         for (size_t i = 0; i < axes.size(); i++) {
-            result << CommonTestUtils::vec2str(axes[i]);
+            result << ov::test::utils::vec2str(axes[i]);
             if (i < axes.size() - 1)
                 result << "_";
         }
@@ -63,7 +63,7 @@ public:
             result << ")_constSignalSizes=" << std::boolalpha << constSignalSizes;
             result << "_signalSizes=(";
             for (size_t i = 0; i < signalSizes.size(); i++) {
-                result << CommonTestUtils::vec2str(signalSizes[i]);
+                result << ov::test::utils::vec2str(signalSizes[i]);
                 if (i < signalSizes.size() - 1)
                     result << "_";
                 }
@@ -87,7 +87,7 @@ protected:
         std::tie(shapes, axes, signalSizes, inverse, constAxes, constSignalSizes, cpuParams) = params;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = makeSelectedTypeStr(selectedType, precision);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         if (shapes.size() > 1) {
             ASSERT_EQ(shapes[0].second.size(), shapes[1].second.size());

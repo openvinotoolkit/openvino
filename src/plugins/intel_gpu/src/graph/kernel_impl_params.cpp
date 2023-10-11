@@ -8,6 +8,7 @@
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 
 #include <string>
 #include <vector>
@@ -15,7 +16,9 @@
 namespace cldnn {
 
 size_t kernel_impl_params::hash() const {
-    size_t seed = desc->hash();
+    size_t seed = 0;
+    if (desc != nullptr)
+        seed = desc->hash();
     const size_t prime_number = 2654435761; // magic number to reduce hash collision rate.
     for (auto& in : input_layouts) {
         seed = hash_combine(seed, in.hash() * prime_number);
@@ -28,11 +31,16 @@ size_t kernel_impl_params::hash() const {
     for (auto& fd : fused_desc) {
         seed = hash_combine(seed, fd.desc->hash());
     }
+
+    seed = hash_combine(seed, _can_be_optimized);
     return seed;
 }
 
 bool kernel_impl_params::operator==(const kernel_impl_params& rhs) const {
-    if (*desc != *rhs.desc)
+    if ((desc != nullptr && rhs.desc == nullptr) || (desc == nullptr && rhs.desc != nullptr))
+        return false;
+
+    if ((desc != nullptr && rhs.desc != nullptr) && *desc != *rhs.desc)
         return false;
 
     if (rhs.input_layouts.size() != input_layouts.size())
@@ -64,6 +72,7 @@ bool kernel_impl_params::operator==(const kernel_impl_params& rhs) const {
 
 void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
     ob << desc;
+    ob << static_cast<uint64_t>(dev_type);
     ob << has_runtime_layouts;
     ob << unique_id;
     ob << input_layouts;
@@ -113,7 +122,13 @@ void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
     size_t num_fused_prims = fused_desc_onednn.size();
     ob << num_fused_prims;
     for (auto fused_prim : fused_desc_onednn) {
-        ob << make_data(&fused_prim, sizeof(fused_primitive_desc_onednn));
+        ob << make_data(&fused_prim.op_type, sizeof(onednn_post_op_type));
+        ob << fused_prim.mem_offset;
+        ob << fused_prim.mem_dep;
+        ob << make_data(&fused_prim.tag, sizeof(dnnl::memory::format_tag));
+        ob << fused_prim.flatten;
+        ob << fused_prim.dims;
+        ob << make_data(&fused_prim.dt, sizeof(dnnl::memory::data_type));
     }
 #endif // ENABLE_ONEDNN_FOR_GPU
     ob << primary_input_idx;
@@ -122,6 +137,9 @@ void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
 void kernel_impl_params::load(BinaryInputBuffer& ib) {
     prog = nullptr;
     ib >> desc;
+    size_t dev_type_id = 0;
+    ib >> dev_type_id;
+    dev_type = static_cast<cldnn::device_type>(dev_type_id);
     ib >> has_runtime_layouts;
     ib >> unique_id;
     ib >> input_layouts;
@@ -182,7 +200,13 @@ void kernel_impl_params::load(BinaryInputBuffer& ib) {
     ib >> num_fused_prims;
     fused_desc_onednn.resize(num_fused_prims);
     for (size_t idx = 0; idx < num_fused_prims; ++idx) {
-        ib >> make_data(&fused_desc_onednn[idx], sizeof(fused_primitive_desc_onednn));
+        ib >> make_data(&fused_desc_onednn[idx].op_type, sizeof(onednn_post_op_type));
+        ib >> fused_desc_onednn[idx].mem_offset;
+        ib >> fused_desc_onednn[idx].mem_dep;
+        ib >> make_data(&fused_desc_onednn[idx].tag, sizeof(dnnl::memory::format_tag));
+        ib >> fused_desc_onednn[idx].flatten;
+        ib >> fused_desc_onednn[idx].dims;
+        ib >> make_data(&fused_desc_onednn[idx].dt, sizeof(dnnl::memory::data_type));
     }
 #endif // ENABLE_ONEDNN_FOR_GPU
     ib >> primary_input_idx;

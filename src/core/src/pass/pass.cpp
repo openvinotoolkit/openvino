@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef _WIN32
-#else
+#ifndef _WIN32
 #    include <cxxabi.h>
 #endif
 
@@ -57,6 +56,6 @@ ov::pass::ModelPass::~ModelPass() = default;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass");
 
 ngraph::pass::NodePass::~NodePass() = default;

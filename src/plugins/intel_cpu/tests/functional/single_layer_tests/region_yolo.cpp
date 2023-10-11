@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -79,8 +79,10 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         selectedType = getPrimitiveType() + "_" + InferenceEngine::details::convertPrecision(inPrc).name();
-        auto paramRegionYolo = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
-
+        ov::ParameterVector paramRegionYolo;
+        for (auto&& shape : inputDynamicShapes) {
+            paramRegionYolo.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+        }
         const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
                                                                               attributes.coordinates, attributes.classes, attributes.num_regions,
                                                                               attributes.do_softmax, mask, attributes.start_axis, attributes.end_axis);
@@ -160,7 +162,7 @@ const auto testCase_yolov3 = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_yolov3_dynamic = ::testing::Combine(
@@ -170,7 +172,7 @@ const auto testCase_yolov3_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const regionYoloAttributes yoloV3mxnetAttr = {20, 4, 9, false, 1, 3};
@@ -182,7 +184,7 @@ const auto testCase_yolov3_mxnet = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_yolov3_mxnet_dynamic = ::testing::Combine(
@@ -192,7 +194,7 @@ const auto testCase_yolov3_mxnet_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const regionYoloAttributes yoloV2caffeAttr = {20, 4, 5, true, 1, 3};
@@ -204,7 +206,7 @@ const auto testCase_yolov2_caffe = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_yolov2_caffe_dynamic = ::testing::Combine(
@@ -214,7 +216,7 @@ const auto testCase_yolov2_caffe_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYolov3CPUStatic, RegionYoloCPULayerTest, testCase_yolov3, RegionYoloCPULayerTest::getTestCaseName);

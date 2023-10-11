@@ -26,6 +26,7 @@ public:
     MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
 
     bool isCompatible(const MemoryDesc& rhs) const override;
+    bool isCompatible(const DnnlMemoryDesc& rhs) const;
 
     bool hasLayoutType(LayoutType layoutType) const override { return false; }
 

@@ -4,7 +4,7 @@
 
 #include "openvino/openvino.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/convolution_params.hpp"
 
 using namespace CPUTestUtils;
@@ -16,7 +16,7 @@ class EdgeWithSameNameInTwoModels : public ::testing::Test, public CPUTestsBase 
 TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    const std::string targetDevice = CommonTestUtils::DEVICE_CPU;
+    const std::string targetDevice = ov::test::utils::DEVICE_CPU;
     const ov::element::Type type(ov::element::Type_t::f32);
     const std::string convName("conv_name"), weightName("weight_name");
     const std::vector<size_t> kernel{3, 3};
@@ -36,7 +36,10 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
 
     // first model
     const std::vector<std::vector<size_t>> shapes1{{1, 16, 720, 1280}};
-    auto params1 = ngraph::builder::makeParams(type, shapes1);
+    ov::ParameterVector params1;
+    for (auto&& shape : shapes1) {
+        params1.push_back(std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shape)));
+    }
     const size_t convOutCh1 = 32;
     auto conv1 = ngraph::builder::makeConvolution(params1.front(), type, kernel, strides, padsBegin, padsEnd, dilations, autoPad, convOutCh1);
     conv1->set_friendly_name(convName);
@@ -45,7 +48,10 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
 
     // second model
     const std::vector<std::vector<size_t>> shapes2{{1, 32, 24, 24}};
-    auto params2 = ngraph::builder::makeParams(type, shapes2);
+    ov::ParameterVector params2;
+    for (auto&& shape : shapes2) {
+        params2.push_back(std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shape)));
+    }
     const size_t convOutCh2 = 16;
     auto conv2 = ngraph::builder::makeConvolution(params2.front(), type, kernel, strides, padsBegin, padsEnd, dilations, autoPad, convOutCh2);
     conv2->set_friendly_name(convName);

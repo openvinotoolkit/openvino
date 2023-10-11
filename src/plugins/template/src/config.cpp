@@ -4,10 +4,9 @@
 
 #include "config.hpp"
 
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <ie_plugin_config.hpp>
-
-#include "template/config.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "template/properties.hpp"
 
 using namespace ov::template_plugin;
 
@@ -22,19 +21,43 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
         const auto& key = c.first;
         const auto& value = c.second;
 
-        if (ov::template_plugin::throughput_streams == key) {
-            streams_executor_config.set_property(CONFIG_KEY(CPU_THROUGHPUT_STREAMS), value);
+        if (ov::template_plugin::disable_transformations == key) {
+            disable_transformations = value.as<bool>();
+        } else if (ov::internal::exclusive_async_requests == key) {
+            exclusive_async_requests = value.as<bool>();
         } else if (streamExecutorConfigKeys.end() !=
                    std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streams_executor_config.set_property(key, value);
-        } else if (ov::device::id.name() == key) {
+        } else if (ov::device::id == key) {
             device_id = std::stoi(value.as<std::string>());
             OPENVINO_ASSERT(device_id <= 0, "Device ID ", device_id, " is not supported");
-        } else if (CONFIG_KEY(PERF_COUNT) == key) {
-            perf_count = (CONFIG_VALUE(YES) == value.as<std::string>());
+        } else if (ov::enable_profiling == key) {
+            perf_count = value.as<bool>();
         } else if (ov::hint::performance_mode == key) {
             std::stringstream strm{value.as<std::string>()};
             strm >> performance_mode;
+        } else if (ov::hint::inference_precision == key) {
+            inference_precision = value.as<ov::element::Type>();
+        } else if (ov::hint::execution_mode == key) {
+            execution_mode = value.as<ov::hint::ExecutionMode>();
+            if ((execution_mode != ov::hint::ExecutionMode::ACCURACY) &&
+                (execution_mode != ov::hint::ExecutionMode::PERFORMANCE)) {
+                OPENVINO_THROW("Unsupported execution mode, should be ACCURACY or PERFORMANCE, but was: ",
+                               value.as<std::string>());
+            }
+        } else if (ov::num_streams == key) {
+            streams_executor_config.set_property(key, value);
+        } else if (ov::hint::num_requests == key) {
+            auto tmp_val = value.as<std::string>();
+            int tmp_i = std::stoi(tmp_val);
+            if (tmp_i >= 0)
+                num_requests = tmp_i;
+            else
+                OPENVINO_THROW("Incorrect value, it should be unsigned integer: ", key);
+        } else if (ov::log::level == key) {
+            log_level = value.as<ov::log::Level>();
+        } else if (ov::hint::model_priority == key) {
+            model_priority = value.as<ov::hint::Priority>();
         } else if (throwOnUnsupported) {
             OPENVINO_THROW("Property was not found: ", key);
         }
@@ -47,20 +70,34 @@ ov::Any Configuration::Get(const std::string& name) const {
     if ((streamExecutorConfigKeys.end() !=
          std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), name))) {
         return streams_executor_config.get_property(name);
-    } else if (name == CONFIG_KEY(DEVICE_ID)) {
+    } else if (name == ov::device::id) {
         return {std::to_string(device_id)};
-    } else if (name == CONFIG_KEY(PERF_COUNT)) {
+    } else if (name == ov::enable_profiling) {
         return {perf_count};
-    } else if (name == ov::template_plugin::throughput_streams || name == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
+    } else if (name == ov::internal::exclusive_async_requests) {
+        return {exclusive_async_requests};
+    } else if (name == ov::template_plugin::disable_transformations) {
+        return {disable_transformations};
+    } else if (name == ov::num_streams) {
         return {std::to_string(streams_executor_config._streams)};
-    } else if (name == CONFIG_KEY(CPU_BIND_THREAD)) {
+    } else if (name == ov::internal::cpu_bind_thread) {
         return streams_executor_config.get_property(name);
-    } else if (name == CONFIG_KEY(CPU_THREADS_NUM)) {
+    } else if (name == ov::inference_num_threads) {
         return {std::to_string(streams_executor_config._threads)};
-    } else if (name == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
+    } else if (name == ov::internal::threads_per_stream) {
         return {std::to_string(streams_executor_config._threadsPerStream)};
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;
+    } else if (name == ov::hint::inference_precision) {
+        return inference_precision;
+    } else if (name == ov::hint::execution_mode) {
+        return execution_mode;
+    } else if (name == ov::hint::num_requests) {
+        return num_requests;
+    } else if (name == ov::log::level) {
+        return log_level;
+    } else if (name == ov::hint::model_priority) {
+        return model_priority;
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }

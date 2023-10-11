@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -45,7 +45,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_weightstMinMax=(" << weightsMinMax.first << ".." << weightsMinMax.second << ")";
         result << "_levels=" << levels;
 
@@ -62,14 +62,15 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape, weightsMinMax, levels) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         const size_t outChannels = 8;
         const size_t kernelSize = 8;
         auto weights = ngraph::builder::makeConstant<float>(
             ngPrc,
             {outChannels, inputShape[1], 1, kernelSize},
-            CommonTestUtils::generate_float_numbers(outChannels * inputShape[1] * kernelSize,
+            ov::test::utils::generate_float_numbers(outChannels * inputShape[1] * kernelSize,
                                                     weightsMinMax.first,
                                                     weightsMinMax.second));
         auto weightsLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.first * 2});
@@ -148,7 +149,7 @@ const std::vector<size_t> levels = {
 INSTANTIATE_TEST_SUITE_P(smoke_fq_fusion,
                          FQFusionWithMultipleWeights,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(weightsMinMax),

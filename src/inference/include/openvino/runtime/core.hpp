@@ -196,28 +196,44 @@ public:
      * operation.
      *
      * @return A compiled model.
+     * @{
      */
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    CompiledModel compile_model(const std::wstring& model_path, const AnyMap& properties = {});
+#endif
+    /// @}
+
     /**
-     * @brief Reads and loads a compiled model from IR / ONNX / PDPD file to the default OpenVINI device selected by
+     * @brief Reads and loads a compiled model from IR / ONNX / PDPD file to the default OpenVINO device selected by
      * AUTO plugin.
      *
      * This can be more efficient than using read_model + compile_model(Model) flow
      * especially for cases when caching is enabled and cached model is available
      *
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param model_path path to model
+     * @param model_path path to model with string or wstring
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
      *
      * @return A compiled model
+     * @{
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
                                                                            Properties&&... properties) {
         return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
     }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::wstring& model_path,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
+    }
+#endif
+    /// @}
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -231,10 +247,18 @@ public:
      * operation.
      *
      * @return A compiled model.
+     * @{
      */
     CompiledModel compile_model(const std::string& model_path,
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    CompiledModel compile_model(const std::wstring& model_path,
+                                const std::string& device_name,
+                                const AnyMap& properties = {});
+#endif
+    /// @}
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -249,6 +273,7 @@ public:
      * load operation.
      *
      * @return A compiled model.
+     * @{
      */
     template <typename... Properties>
     util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
@@ -256,6 +281,16 @@ public:
                                                                            Properties&&... properties) {
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::wstring& model_path,
+                                                                           const std::string& device_name,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+#endif
+    /// @}
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
@@ -324,6 +359,7 @@ public:
         return compile_model(model, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated This method is deprecated. Please use other Core::add_extension methods.
      * @brief Registers OpenVINO 1.0 extension to a Core object.
@@ -331,6 +367,7 @@ public:
      */
     OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
     void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Registers an extension to a Core object.
@@ -651,8 +688,9 @@ public:
      * @note For security purposes it suggested to specify absolute path to register plugin.
      *
      * @param device_name Device name to register a plugin for.
+     * @param config Plugin configuration options
      */
-    void register_plugin(const std::string& plugin, const std::string& device_name);
+    void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.

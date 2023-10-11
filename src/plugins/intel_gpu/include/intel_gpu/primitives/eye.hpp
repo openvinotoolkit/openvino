@@ -12,6 +12,8 @@ namespace cldnn {
 struct eye : public primitive_base<eye> {
     CLDNN_DECLARE_PRIMITIVE(eye)
 
+    eye() : primitive_base("", {}) {}
+
     /// @brief Constructs eye primitive.
     /// @param id This primitive id.
     /// @param inputs List of primitive ids.
@@ -29,7 +31,7 @@ struct eye : public primitive_base<eye> {
           shift{shift} {}
 
     tensor output_shape;
-    int32_t shift;
+    int32_t shift = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -44,6 +46,18 @@ struct eye : public primitive_base<eye> {
         auto rhs_casted = downcast<const eye>(rhs);
 
         return shift == rhs_casted.shift;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<eye>::save(ob);
+        ob << output_shape;
+        ob << shift;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<eye>::load(ib);
+        ib >> output_shape;
+        ib >> shift;
     }
 };
 }  // namespace cldnn

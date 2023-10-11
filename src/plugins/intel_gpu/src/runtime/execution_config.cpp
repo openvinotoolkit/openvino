@@ -4,6 +4,7 @@
 
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 #include <thread>
 
@@ -26,10 +27,12 @@ class PerformanceModeValidator : public BaseValidator {
 public:
     bool is_valid(const ov::Any& v) const override {
         auto mode = v.as<ov::hint::PerformanceMode>();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return mode == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT ||
                mode == ov::hint::PerformanceMode::THROUGHPUT ||
                mode == ov::hint::PerformanceMode::LATENCY ||
                mode == ov::hint::PerformanceMode::UNDEFINED;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 };
 
@@ -40,7 +43,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::cache_dir, ""),
         std::make_tuple(ov::num_streams, 1),
         std::make_tuple(ov::compilation_num_threads, std::max(1, static_cast<int>(std::thread::hardware_concurrency()))),
-        std::make_tuple(ov::inference_precision, ov::element::f16, InferencePrecisionValidator()),
+        std::make_tuple(ov::hint::inference_precision, ov::element::f16, InferencePrecisionValidator()),
         std::make_tuple(ov::hint::model_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY, PerformanceModeValidator()),
         std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
@@ -50,10 +53,10 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
+        std::make_tuple(ov::intel_gpu::disable_winograd_convolution, false),
+        std::make_tuple(ov::internal::exclusive_async_requests, false),
 
         // Legacy API properties
-        std::make_tuple(ov::intel_gpu::enable_dynamic_batch, false),
-        std::make_tuple(ov::intel_gpu::exclusive_async_requests, false),
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
         std::make_tuple(ov::intel_gpu::config_file, ""),
         std::make_tuple(ov::intel_gpu::enable_lp_transformations, false));
@@ -68,7 +71,9 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::dump_graphs, ""),
         std::make_tuple(ov::intel_gpu::force_implementations, ImplForcingMap{}),
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
-        std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false));
+        std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
+        std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false),
+        std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f));
 }
 
 void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {
@@ -122,14 +127,14 @@ Any ExecutionConfig::get_property(const std::string& name) const {
 void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
     if (is_set_by_user(ov::hint::execution_mode)) {
         const auto mode = get_property(ov::hint::execution_mode);
-        if (!is_set_by_user(ov::inference_precision)) {
+        if (!is_set_by_user(ov::hint::inference_precision)) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
-                set_property(ov::inference_precision(ov::element::f32));
+                set_property(ov::hint::inference_precision(ov::element::f32));
             } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
                 if (info.supports_fp16)
-                    set_property(ov::inference_precision(ov::element::f16));
+                    set_property(ov::hint::inference_precision(ov::element::f16));
                 else
-                    set_property(ov::inference_precision(ov::element::f32));
+                    set_property(ov::hint::inference_precision(ov::element::f32));
             }
         }
     }
@@ -151,6 +156,10 @@ void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
         int32_t n_streams = std::max<int32_t>(info.num_ccs, 2);
         set_property(ov::num_streams(n_streams));
     }
+
+    if (get_property(ov::internal::exclusive_async_requests)) {
+        set_property(ov::num_streams(1));
+    }
 }
 
 void ExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
@@ -170,6 +179,15 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
 
     GPU_DEBUG_IF(debug_config->serialize_compile == 1) {
         set_property(ov::compilation_num_threads(1));
+    }
+
+    GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+        GPU_DEBUG_COUT << "[WARNING] ov::enable_profiling property was forced because of enabled OV_GPU_DumpProfilingData debug option\n";
+        set_property(ov::enable_profiling(true));
+    }
+
+    GPU_DEBUG_IF(debug_config->disable_dynamic_impl == 1) {
+        set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }
 }
 

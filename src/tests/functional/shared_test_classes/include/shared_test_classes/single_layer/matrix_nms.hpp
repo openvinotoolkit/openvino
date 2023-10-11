@@ -7,7 +7,7 @@
 #include <tuple>
 #include <string>
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -36,6 +36,7 @@ using NmsParams = std::tuple<std::vector<InputShape>,                           
                              int,                                                // Background class id
                              bool,                                               // If boxes are normalized
                              ngraph::op::v8::MatrixNms::DecayFunction,           // Decay function
+                             bool,                                               // make output shape static
                              std::string>;                                       // Device name
 
 class MatrixNmsLayerTest : public testing::WithParamInterface<NmsParams>,

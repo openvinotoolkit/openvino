@@ -4,11 +4,21 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include "ngraph/partial_shape.hpp"
 
 namespace ngraph {
 template <typename AXIS_VALUES>
-AXIS_VALUES project(const AXIS_VALUES& axis_values, const AxisSet& axes) {
+NGRAPH_API_DEPRECATED AXIS_VALUES project(const AXIS_VALUES& axis_values, const AxisSet& axes) {
     AXIS_VALUES result;
 
     for (size_t i = 0; i < axis_values.size(); i++) {
@@ -21,11 +31,11 @@ AXIS_VALUES project(const AXIS_VALUES& axis_values, const AxisSet& axes) {
 }
 
 template <>
-NGRAPH_API PartialShape project(const PartialShape& shape, const AxisSet& axes);
+NGRAPH_API_DEPRECATED NGRAPH_API PartialShape project(const PartialShape& shape, const AxisSet& axes);
 
 // Removes some values from a vector of axis values
 template <typename AXIS_VALUES>
-AXIS_VALUES reduce(const AXIS_VALUES& axis_values, const AxisSet& deleted_axes, bool keep_dims) {
+NGRAPH_API_DEPRECATED AXIS_VALUES reduce(const AXIS_VALUES& axis_values, const AxisSet& deleted_axes, bool keep_dims) {
     AXIS_VALUES result;
 
     for (size_t i = 0; i < axis_values.size(); i++) {
@@ -41,14 +51,16 @@ AXIS_VALUES reduce(const AXIS_VALUES& axis_values, const AxisSet& deleted_axes, 
 }
 
 template <>
-NGRAPH_API PartialShape reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool keep_dims);
+NGRAPH_API_DEPRECATED NGRAPH_API PartialShape reduce(const PartialShape& shape,
+                                                     const AxisSet& deleted_axes,
+                                                     bool keep_dims);
 
 // TODO: check validity, i.e. that the new axis indices are all less than
 // axis_values.size()+num_new_axes.
 // Add new values at particular axis positions
 template <typename AXIS_VALUES, typename AXIS_VALUE>
-AXIS_VALUES inject_pairs(const AXIS_VALUES& axis_values,
-                         std::vector<std::pair<size_t, AXIS_VALUE>> new_axis_pos_value_pairs) {
+NGRAPH_API_DEPRECATED AXIS_VALUES inject_pairs(const AXIS_VALUES& axis_values,
+                                               std::vector<std::pair<size_t, AXIS_VALUE>> new_axis_pos_value_pairs) {
     AXIS_VALUES result;
 
     size_t original_pos = 0;
@@ -76,12 +88,12 @@ AXIS_VALUES inject_pairs(const AXIS_VALUES& axis_values,
 }
 
 template <>
-NGRAPH_API PartialShape inject_pairs(const PartialShape& shape,
-                                     std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs);
+NGRAPH_API_DEPRECATED NGRAPH_API PartialShape
+inject_pairs(const PartialShape& shape, std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs);
 
 // Add a new value at a particular axis position
 template <typename AXIS_VALUES, typename AXIS_VALUE>
-AXIS_VALUES inject(const AXIS_VALUES& axis_values, size_t new_axis_pos, AXIS_VALUE new_axis_val) {
+NGRAPH_API_DEPRECATED AXIS_VALUES inject(const AXIS_VALUES& axis_values, size_t new_axis_pos, AXIS_VALUE new_axis_val) {
     return inject_pairs(
         axis_values,
         std::vector<std::pair<size_t, AXIS_VALUE>>{std::pair<size_t, AXIS_VALUE>(new_axis_pos, new_axis_val)});

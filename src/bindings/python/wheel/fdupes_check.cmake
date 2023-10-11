@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-foreach(var PYTHON_EXECUTABLE WORKING_DIRECTORY REPORT_FILE WHEEL_VERSION PACKAGE_FILE)
+foreach(var Python3_EXECUTABLE WORKING_DIRECTORY REPORT_FILE WHEEL_VERSION PACKAGE_FILE CMAKE_SHARED_LIBRARY_SUFFIX)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "Variable ${var} is not defined")
     endif()
@@ -20,7 +20,7 @@ endif()
 
 get_filename_component(wheel_name "${PACKAGE_FILE}" NAME)
 
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -m wheel unpack ${PACKAGE_FILE}
+execute_process(COMMAND ${Python3_EXECUTABLE} -m wheel unpack ${PACKAGE_FILE}
                 WORKING_DIRECTORY ${WORKING_DIRECTORY}
                 OUTPUT_VARIABLE output_message
                 ERROR_VARIABLE error_message
@@ -37,7 +37,7 @@ if(NOT EXISTS "${WORKING_DIRECTORY}")
 endif()
 
 execute_process(COMMAND ${fdupes_PROGRAM} -f -r "${WORKING_DIRECTORY}"
-                OUTPUT_VARIABLE output_message
+                OUTPUT_VARIABLE duplicated_files
                 ERROR_VARIABLE error_message
                 RESULT_VARIABLE exit_code
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -45,10 +45,18 @@ execute_process(COMMAND ${fdupes_PROGRAM} -f -r "${WORKING_DIRECTORY}"
 # remove unpacked directory
 file(REMOVE_RECURSE "${WORKING_DIRECTORY}")
 
+# filtering of 'duplicated_files'
+
+foreach(duplicated_file IN LISTS duplicated_files)
+    if(duplicated_file MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
+        set(duplicated_libraries "${duplicated_file}\n${duplicated_libraries}")
+    endif()
+endforeach()
+
 # write output
 
-file(WRITE "${REPORT_FILE}" "${output_message}")
+file(WRITE "${REPORT_FILE}" "${duplicated_libraries}")
 
-if(output_message)
-    message(FATAL_ERROR "${output_message}")
+if(duplicated_libraries)
+    message(FATAL_ERROR "${duplicated_libraries}")
 endif()

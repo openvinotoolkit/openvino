@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dimension_tracker.hpp"
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/ops.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ov;

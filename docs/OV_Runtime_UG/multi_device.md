@@ -2,10 +2,16 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The Multi-Device execution mode in OpenVINO Runtime assigns 
+                 multiple available computing devices to particular inference 
+                 requests to execute in parallel.
+
+
 To run inference on multiple devices, you can choose either of the following ways:
 
 - Use the :ref:`CUMULATIVE_THROUGHPUT option <cumulative throughput>` of the Automatic Device Selection mode. This way, you can use all available devices in the system without the need to specify them.
-- Use the Multi-Device execution mode. This page will explain how it works and how to use it.
+- Use the Multi-Device execution mode. It shares the same behaviors as the :ref:`CUMULATIVE_THROUGHPUT option <cumulative throughput>` of the Automatic Device Selection mode. The difference is,it needs <device list> or ``ov::device::priorities`` to be set explicitly.
 
 How MULTI Works
 ####################
@@ -39,43 +45,28 @@ Following the OpenVINO™ naming convention, the Multi-Device mode is assigned t
 +----------------------------+---------------------------------+------------------------------------------------------------+
 
 
-Specifying the device list explicitly is required by MULTI, as it defines the devices available for inference and sets their priorities.  Importantly, the list may also specify the number of requests for MULTI to keep for each device, as described below.
+Specifying the device list explicitly is required by MULTI, as it defines the devices available for inference and sets their priorities.
 
 Note that OpenVINO™ Runtime enables you to use “GPU” as an alias for “GPU.0” in function calls. More details on enumerating devices can be found in :doc:`Working with devices <openvino_docs_OV_UG_Working_with_devices>`.
 
 The following commands are accepted by the API:
 
+.. tab-set::
 
-.. tab:: C++
+   .. tab-item:: Python
+      :sync: py
+   
+      .. doxygensnippet:: docs/snippets/ov_multi.py
+         :language: python
+         :fragment: [MULTI_0]
 
-    .. doxygensnippet:: docs/snippets/MULTI0.cpp
-       :language: cpp
-       :fragment: [part0]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/MULTI0.cpp
+         :language: cpp
+         :fragment: [part0]
 
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/ov_multi.py
-       :language: python
-       :fragment: [MULTI_0]
-
-
-Notice that MULTI allows you to **change device priorities on the fly**. You can alter the order, exclude a device, and bring an excluded device back. Still, it does not allow adding new devices.
-
-
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/MULTI1.cpp
-       :language: cpp
-       :fragment: [part1]
-
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/ov_multi.py
-       :language: python
-       :fragment: [MULTI_1]
-
-
-One more thing you can define is the **number of requests to allocate for each device**. You can do it simply by adding the number to each device in parentheses, like this: ``"MULTI:CPU(2),GPU(2)"``. However, this method is not recommended as it is not performance-portable. The suggested approach is to configure individual devices and query the resulting number of requests to be used at the application level, as described in `Configuring Individual Devices and Creating MULTI On Top <#configuring-individual-devices-and-creating-the-multi-device-on-top>`__.
 
 To check what devices are present in the system, you can use the Device API. For information on how to do it, check :doc:`Query device properties and configuration <openvino_docs_OV_UG_query_api>`.
 
@@ -85,18 +76,21 @@ Configuring Individual Devices and Creating the Multi-Device On Top
 
 As mentioned previously, executing inference with MULTI may be set up by configuring individual devices before creating the "MULTI" device on top. It may be considered for performance reasons.
 
+.. tab-set::
 
-.. tab:: C++
+   .. tab-item:: Python
+      :sync: py
+   
+      .. doxygensnippet:: docs/snippets/ov_multi.py
+         :language: python
+         :fragment: [MULTI_4]
 
-    .. doxygensnippet:: docs/snippets/MULTI4.cpp
-       :language: cpp
-       :fragment: [part4]
-
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/ov_multi.py
-       :language: python
-       :fragment: [MULTI_4]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/MULTI4.cpp
+         :language: cpp
+         :fragment: [part4]
 
 
 Alternatively, you can combine all the individual device settings into a single config file and load it for MULTI to parse. See the code example in the next section.
@@ -107,12 +101,13 @@ Querying the Optimal Number of Inference Requests
 When using MULTI, you don't need to sum over included devices yourself, you can query the optimal number of requests directly,
 using the :doc:`configure devices <openvino_docs_OV_UG_query_api>` property:
 
+.. tab-set::
 
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/MULTI5.cpp
-       :language: cpp
-       :fragment: [part5]
+   .. tab-item:: C++
+   
+       .. doxygensnippet:: docs/snippets/MULTI5.cpp
+          :language: cpp
+          :fragment: [part5]
 
 
 Using the Multi-Device with OpenVINO Samples and Benchmarking Performance
@@ -154,12 +149,5 @@ Additional Resources
 - :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`
 - :doc:`Automatic Device Selection <openvino_docs_OV_UG_supported_plugins_AUTO>`
 
-
-.. raw:: html
-
-    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/xbORYFEmrqU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-
-.. note:: This video is currently available only for C++, but many of the same concepts apply to Python.
 
 @endsphinxdirective

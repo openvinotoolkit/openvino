@@ -13,6 +13,8 @@ struct generate_proposals
         : public primitive_base<generate_proposals> {
     CLDNN_DECLARE_PRIMITIVE(generate_proposals)
 
+    generate_proposals() : primitive_base("", {}) {}
+
     /// @brief Constructs generate_proposals primitive
     /// @param id This primitive id
     /// @param input_im_info image size info
@@ -51,13 +53,13 @@ struct generate_proposals
 
     primitive_id output_rois_scores;
     primitive_id output_rois_num;
-    float min_size;
-    float nms_threshold;
-    int64_t pre_nms_count;
-    int64_t post_nms_count;
-    bool normalized;
-    float nms_eta;
-    data_types roi_num_type;
+    float min_size = 0.0f;
+    float nms_threshold = 0.0f;
+    int64_t pre_nms_count = 0;
+    int64_t post_nms_count = 0;
+    bool normalized = false;
+    float nms_eta = 0.0f;
+    data_types roi_num_type = data_types::undefined;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -90,6 +92,32 @@ struct generate_proposals
                cmp_fields(output_rois_scores.empty()) &&
                cmp_fields(output_rois_num.empty());
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<generate_proposals>::save(ob);
+        ob << output_rois_scores;
+        ob << output_rois_num;
+        ob << min_size;
+        ob << nms_threshold;
+        ob << pre_nms_count;
+        ob << post_nms_count;
+        ob << normalized;
+        ob << nms_eta;
+        ob << make_data(&roi_num_type, sizeof(data_types));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<generate_proposals>::load(ib);
+        ib >> output_rois_scores;
+        ib >> output_rois_num;
+        ib >> min_size;
+        ib >> nms_threshold;
+        ib >> pre_nms_count;
+        ib >> post_nms_count;
+        ib >> normalized;
+        ib >> nms_eta;
+        ib >> make_data(&roi_num_type, sizeof(data_types));
     }
 
 protected:

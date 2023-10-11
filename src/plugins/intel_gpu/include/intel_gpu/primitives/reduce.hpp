@@ -42,6 +42,8 @@ enum class reduce_mode : uint16_t {
 struct reduce : public primitive_base<reduce> {
     CLDNN_DECLARE_PRIMITIVE(reduce)
 
+    reduce() : primitive_base("", {}) {}
+
     /// @brief Constructs reduce primitive
     /// @param id This primitive id
     /// @param input Input primitive id
@@ -59,7 +61,7 @@ struct reduce : public primitive_base<reduce> {
     /// @brief List of axes to reduce
     std::vector<int64_t> axes;
     /// @brief Keep the reduced dimension or not, 1 mean keep reduced dimension
-    bool keep_dims;
+    bool keep_dims = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -78,6 +80,20 @@ struct reduce : public primitive_base<reduce> {
         return mode == rhs_casted.mode &&
                axes == rhs_casted.axes &&
                keep_dims == rhs_casted.keep_dims;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reduce>::save(ob);
+        ob << make_data(&mode, sizeof(reduce_mode));
+        ob << axes;
+        ob << keep_dims;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<reduce>::load(ib);
+        ib >> make_data(&mode, sizeof(reduce_mode));
+        ib >> axes;
+        ib >> keep_dims;
     }
 };
 }  // namespace cldnn

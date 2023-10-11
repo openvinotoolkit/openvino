@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 #include "snippets/op/memory_access.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -20,12 +21,22 @@ namespace op {
  */
 class Load : public MemoryAccess {
 public:
-    OPENVINO_OP("Load", "SnippetsOpset");
+    OPENVINO_OP("Load", "SnippetsOpset", MemoryAccess);
 
     Load(const Output<Node>& x, const size_t count = 1lu, const size_t offset = 0lu);
     Load() = default;
 
+    size_t get_offset() const { return get_input_offset(0); }
+    size_t get_count() const { return get_input_count(0); }
+
+    void set_offset(size_t offset) { set_input_offset(offset, 0); }
+    void set_count(size_t count) { set_input_count(count, 0); }
+
+    void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+protected:
+    void validate_memory_access_params() const;
 };
 
 /**
@@ -41,13 +52,24 @@ public:
     LoadReshape(const Output<Node>& x, size_t count = 1lu, const size_t offset = 0lu, std::vector<size_t> order = {});
     LoadReshape() = default;
 
+    void set_offset(size_t offset) { set_output_offset(offset, 0); }
+    void set_count(size_t count) { set_output_count(count, 0); }
+
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 
-private:
+    class ShapeInfer : public IShapeInferSnippets {
+        std::vector<size_t> m_order;
+    public:
+        explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
+        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+    };
+
+
+protected:
     std::vector<size_t> m_order;
 };
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

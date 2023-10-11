@@ -4,12 +4,7 @@
 
 #pragma once
 
-#include "utils.hpp"
-
 #include <string>
-#include <stdexcept>
-#include <thread>
-#include <threading/ie_cpu_streams_executor.hpp>
 
 namespace cldnn {
 
@@ -18,7 +13,7 @@ enum class engine_types : int32_t {
     ocl,
 };
 
-inline std::ostream& operator<<(std::ostream& os, engine_types type) {
+inline std::ostream& operator<<(std::ostream& os, const engine_types& type) {
     switch (type) {
     case engine_types::ocl: os << "ocl"; break;
     default: os << "unknown"; break;
@@ -31,5 +26,14 @@ inline std::ostream& operator<<(std::ostream& os, engine_types type) {
 enum class runtime_types : int32_t {
     ocl,
 };
+
+inline std::ostream& operator<<(std::ostream& os, const runtime_types& type) {
+    switch (type) {
+    case runtime_types::ocl: os << "ocl"; break;
+    default: os << "unknown"; break;
+    }
+
+    return os;
+}
 
 }  // namespace cldnn

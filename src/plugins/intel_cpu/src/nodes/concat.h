@@ -26,8 +26,7 @@ public:
     bool created() const override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
-
-    bool isOptimized() const;
+    void resolveInPlaceEdges(Edge::LOOK look) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -52,6 +51,7 @@ private:
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
     bool canExecRef = false;
     static constexpr size_t MAX_RANK_REF = 6;
+    dnnl::primitive prim;
 };
 
 }   // namespace node

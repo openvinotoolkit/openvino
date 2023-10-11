@@ -17,15 +17,15 @@ pybind11_add_module(${TARGET_NAME} MODULE NO_EXTRAS ${SOURCES})
 
 add_dependencies(${TARGET_NAME} pyopenvino)
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
+if(COMMAND ov_add_vs_version_file)
+    ov_add_vs_version_file(NAME ${TARGET_NAME}
             FILEDESCRIPTION "Test Utils Python library")
 endif()
 
 if(OpenVINODeveloperPackage_FOUND)
     list(APPEND link_libraries openvino::commonTestUtils)
 else()
-    list(APPEND link_libraries commonTestUtils)
+    list(APPEND link_libraries common_test_utils)
 endif()
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -42,8 +42,8 @@ add_custom_command(TARGET ${TARGET_NAME}
         COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/src/openvino/test_utils/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
         )
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-        EXCLUDE_PATTERNS ".*\\.cxx")
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
+                           EXCLUDE_PATTERNS ".*\\.cxx")
 
 # install
 

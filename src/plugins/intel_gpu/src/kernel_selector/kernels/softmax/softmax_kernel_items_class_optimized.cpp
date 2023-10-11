@@ -35,7 +35,37 @@ inline static size_t GetItemClassCount(const DataTensor& input, SoftmaxDim dim) 
     return item_class_count;
 }
 
-ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const { return GetDefaultSupportedKey(); }
+ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableInputLayout(DataLayout::byxf);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::yxfb);
+    k.EnableInputLayout(DataLayout::bf);
+    k.EnableInputLayout(DataLayout::fb);
+    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::f);
+    k.EnableOutputLayout(DataLayout::f);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableOutputLayout(DataLayout::bf);
+    k.EnableOutputLayout(DataLayout::fb);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableSoftmaxDim(SoftmaxDim::X);
+    k.EnableSoftmaxDim(SoftmaxDim::Y);
+    k.EnableSoftmaxDim(SoftmaxDim::Z);
+    k.EnableSoftmaxDim(SoftmaxDim::FEATURE);
+    k.EnableSoftmaxDim(SoftmaxDim::BATCH);
+    k.EnableDifferentTypes();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBatching();
+    return k;
+}
 
 DeviceFeaturesKey SoftmaxKerneItemsClassOptimized::get_required_device_features_key(const Params& params, const optional_params& options) const {
     DeviceFeaturesKey k;
@@ -63,7 +93,9 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
 
     dispatchData.lws = { 1, static_cast<size_t>(workitems_per_classes), 1 };
 
-    dispatchData.leftovers = GetItemClassCount(input, params.dim) % workitems_per_classes;
+    dispatchData.dataSetsCount = dispatchData.gws[2];
+    dispatchData.dataSetSize = GetItemClassCount(input, params.dim);
+    dispatchData.leftovers = dispatchData.dataSetSize % workitems_per_classes;
 
     return dispatchData;
 }
@@ -77,10 +109,16 @@ KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params
 JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
     auto jit = SoftmaxItemsClassKernelBase::GetJitConstants(params, dispatchData);
 
+    // sub_group_block_write requires aligned memory,
+    // therefore it can be utilized if either memory is aligned by 16 bytes
+    bool isSubGroupBlockIOEnabled = params.dim != SoftmaxDim::BATCH &&
+        (dispatchData.dataSetSize * params.outputs[0].ElementSize()) % 16 == 0;
+
     jit.AddConstants({
         MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
         MakeJitConstant("WORKITEMS_PER_CLASSES", workitems_per_classes),
         MakeJitConstant("HAS_DRIVER_PROBLEMS", params.engineInfo.supports_imad),
+        MakeJitConstant("IS_SUBGROUP_BLOCK_IO_ENABLED", isSubGroupBlockIOEnabled),
     });
 
     return jit;

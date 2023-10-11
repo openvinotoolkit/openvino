@@ -23,16 +23,40 @@ KERNEL(activation)(
 #endif
     )
 {
-#if OUTPUT_DIMS == 5
+#if OUTPUT_DIMS == 8
+    #define ORDER batch,feature,v,u,w,z,y,x
+#elif OUTPUT_DIMS == 7
+    #define ORDER batch,feature,u,w,z,y,x
+#elif OUTPUT_DIMS == 6
+    #define ORDER batch,feature,w,z,y,x
+#elif OUTPUT_DIMS == 5
     #define ORDER batch,feature,z,y,x
 #elif OUTPUT_DIMS == 4
     #define ORDER batch,feature,y,x
 #endif
 
-#if OUTPUT_DIMS == 5
-    const unsigned x = get_global_id(0);
+#if OUTPUT_DIMS >= 5
+
+#if OUTPUT_DIMS == 8
+    const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
+    const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y % OUTPUT_SIZE_Z;
+    const uint w = (uint)get_global_id(1) / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z % OUTPUT_SIZE_W;
+    const uint u = (uint)get_global_id(1) / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z / OUTPUT_SIZE_W % OUTPUT_SIZE_U;
+    const uint v = (uint)get_global_id(1) / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z / OUTPUT_SIZE_W / OUTPUT_SIZE_U;
+#elif OUTPUT_DIMS == 7
+    const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
+    const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y % OUTPUT_SIZE_Z;
+    const uint w = (uint)get_global_id(1) / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z % OUTPUT_SIZE_W;
+    const uint u = (uint)get_global_id(1) / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z / OUTPUT_SIZE_W;
+#elif OUTPUT_DIMS == 6
+    const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
+    const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y % OUTPUT_SIZE_Z;
+    const uint w = (uint)get_global_id(1) / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z;
+#elif OUTPUT_DIMS == 5
     const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
     const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
+#endif
+    const unsigned x = get_global_id(0);
     #if OUTPUT_BATCH_NUM_CONST == 1
         const unsigned feature = (uint)get_global_id(2);
         const unsigned batch = 0;
@@ -40,7 +64,7 @@ KERNEL(activation)(
         const unsigned feature = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
         const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
     #endif
-#else
+#elif OUTPUT_DIMS <= 4
     #if defined OUTPUT_LAYOUT_YXFB || defined OUTPUT_LAYOUT_B_FS_YX_FSV16 || defined OUTPUT_LAYOUT_B_FS_YX_FSV32
         const unsigned x = (uint)get_global_id(1);
         const unsigned y = (uint)get_global_id(2);

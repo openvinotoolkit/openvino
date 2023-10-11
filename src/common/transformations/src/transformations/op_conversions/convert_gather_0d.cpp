@@ -5,25 +5,28 @@
 #include "transformations/op_conversions/convert_gather_0d.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertGather0D::ConvertGather0D() {
     MATCHER_SCOPE(ConvertGather0D);
-    auto gather = ngraph::pattern::wrap_type<opset1::Gather>();
+    auto gather = ov::pass::pattern::wrap_type<ov::op::v1::Gather>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto gather = std::dynamic_pointer_cast<ov::opset1::Gather>(m.get_match_root());
+        auto gather = std::dynamic_pointer_cast<ov::op::v1::Gather>(m.get_match_root());
         if (!gather) {
             return false;
         }
 
         auto axes_constant =
-            std::dynamic_pointer_cast<ov::opset1::Constant>(gather->input_value(2).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(gather->input_value(2).get_node_shared_ptr());
         if (!axes_constant) {
             return false;
         }
@@ -38,18 +41,18 @@ ov::pass::ConvertGather0D::ConvertGather0D() {
 
         auto axis = axes_constant->cast_vector<int64_t>()[0];
         indices =
-            std::make_shared<ov::opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
-        auto gather_new = std::make_shared<ov::opset1::Gather>(gather->input_value(0), indices, axes_constant);
-        auto sq =
-            std::make_shared<ov::opset1::Squeeze>(gather_new, opset1::Constant::create(element::i64, Shape{1}, {axis}));
+            std::make_shared<ov::op::v0::Unsqueeze>(indices, ov::op::v0::Constant::create(element::i64, Shape{1}, {0}));
+        auto gather_new = std::make_shared<ov::op::v1::Gather>(gather->input_value(0), indices, axes_constant);
+        auto sq = std::make_shared<ov::op::v0::Squeeze>(gather_new,
+                                                        ov::op::v0::Constant::create(element::i64, Shape{1}, {axis}));
         sq->set_friendly_name(gather->get_friendly_name());
 
-        ngraph::copy_runtime_info(gather, {indices.get_node_shared_ptr(), gather_new, sq});
-        ngraph::replace_node(gather, sq);
+        ov::copy_runtime_info(gather, {indices.get_node_shared_ptr(), gather_new, sq});
+        ov::replace_node(gather, sq);
 
         return true;
     };
 
-    auto m1 = std::make_shared<ngraph::pattern::Matcher>(gather, matcher_name);
+    auto m1 = std::make_shared<ov::pass::pattern::Matcher>(gather, matcher_name);
     this->register_matcher(m1, callback);
 }

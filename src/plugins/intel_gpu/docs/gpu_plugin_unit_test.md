@@ -1,14 +1,14 @@
-# GPU plugin unit test
+# GPU Plugin Unit Test
 
-GPU plugin has two type tests: first one is functional tests and second one is unit tests.
+GPU plugin has two types of tests: functional and unit tests. This article is about the latter.
 
-- The functional test is testing single layer, behavior, sub graph and low precision transformation on inference engine level for various layout and data types such as fp16 and fp32.
-- The unit test is testing cldnn primitive and core type modules on GPU plugin level. Unlike functional test, it is possible to test by explicitly specifying the format of the input such as `bfyx` or `b_fs_yx_fsv16`. This documentation is about this type of test.
+- The functional test is testing a single layer, behavior, subgraph and low-precision transformation on inference engine level for various layout and data types, such as FP16 and FP32.
+- The unit test is testing clDNN primitive and core-type modules on GPU plugin level. Unlike the functional test, it is possible to test by explicitly specifying the format of the input, such as `bfyx` or `b_fs_yx_fsv16`.
 
-# Structure of unit test
+# Structure of a unit test
 
-Intel GPU unit test (aka clDNN unit test) is a set of unit tests each of which is for testing all primitives, fusions and fundamental core types of GPU plugin. 
-There are 4 sub categories of unit tests as below.
+Intel GPU unit test (aka clDNN unit test) is a set of unit tests, each of which is for testing all primitives, fusions, and fundamental core types of GPU plugin.
+There are four subcategories of unit tests as below.
 
 ```bash
 openvino/src/plugins/intel_gpu/tests	- root of Intel GPU unit test
@@ -19,75 +19,73 @@ openvino/src/plugins/intel_gpu/tests	- root of Intel GPU unit test
 ```
 
 - ### fusions
-  - Fusion is an algorithm that fuse several operations into one optimized operation. For example, two nodes of `conv -> relu` may be fused into single node of `conv`.
+
+  - Fusion is an algorithm that fuses several operations into one optimized operation. For example, two nodes of `conv -> relu` may be fused into a single node of `conv`.
   - Fusion unit tests checks whether the fusion is done as expected.
   - fusion_test_common.cpp
-     - The base class for fusing test, i.e., [BaseFusingTest](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/fusions/fusion_test_common.hpp#L19), is implemented here. It tests whether the fusing is successful or not by comparing the execution results of the two networks, one is the fused network, the other is non fused network for same topology.
-       - [BaseFusingTest](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/fusions/fusion_test_common.hpp#L19) has an important method called *`compare()`*. 
-       - *`compare()`* method has the following three tasks
+     - The base class for a fusing test, that is, [BaseFusingTest](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/fusions/fusion_test_common.hpp#L19), is implemented here. It tests whether the fusing is successful or not by comparing the execution results of the two networks, one is the fused network, the other is non-fused network for the same topology.
+       - [BaseFusingTest](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/fusions/fusion_test_common.hpp#L19) has an important method called `compare()`.
+       - `compare()` method has the following three tasks:
             - Execute two networks (fused network and not fused network)
-            - Compare the actual  number of executed primitives with the expected number of executed primitives in test params
+            - Compare the actual number of executed primitives with the expected number of executed primitives in test params
             - Compare the results between fused network and non fused network
   - eltwise_fusing_test.cpp
-       - Check whether or not eltwise is fused to other primitives as expected
+       - Checks whether or not *eltwise* is fused to other primitives as expected
   - [primitive_name]_fusion_test.cpp
-       - Check that nodes such as eltwise or activation are fusing to the [primitive_name] as expected
+       - Checks that nodes such as *eltwise* or *activation* are fusing to the [primitive_name] as expected
   - The detail of how to add each instance is described [below](#fusions-1).
 
 - ### test_cases
-  - It is mainly checking that cldnn primitives and topology creation are working as designed
-  - It also checks configurations for OpenCL functionalities such as cl_cache, cl_mem allocation and cl_command_queue modes
 
-- ### module_tests 
-  - Unit tests for fundamental core modules such as ocl_user_events, format, layout, and usm memory
-    - Check ocl_user_event is working as expected
-    - Check all format is converted to the string and trait
-    - Check various layouts are created as expected
-    - Check usm_host and  usm device memory buffer creation and read/write functionality
+  - It is mainly checking whether clDNN primitives and topology creation are working as designed.
+  - It also checks configurations for OpenCL functionalities such as *cl_cache*, *cl_mem allocation* and *cl_command_queue* modes
+
+- ### module_tests
+
+  - Unit tests for fundamental core modules such as `ocl_user_events`, format, layout, and USM memory:
+    - check whether `ocl_user_event` is working as expected,
+    - check whether all format is converted to the string and trait,
+    - check whether various layouts are created as expected,
+    - check `usm_host` and USM device memory buffer creation and read/write functionality.
 
 - ### test_utils
-  - Defined base functions of unit test such as *`get_test_engine()`* which returns `cldnn::engine`
-  - Utility functions such as Float16, random_gen and uniform_quantized_real_distribution
 
+  - Define base functions of a unit test, such as `get_test_engine()`, which returns `cldnn::engine`
+  - Utility functions such as `Float16`, `random_gen` and `uniform_quantized_real_distribution`
 
 # How to run unit tests
 
 ## Build unit test
 
-1. Turn on `ENABLE_TESTS` and `ENABLE_CLDNN_TESTS` in cmake option
+1. Turn on `ENABLE_TESTS` in cmake option:
 
    ```bash
-   cmake -DCMAKE_BUILD_TYPE=Release \
-       -DENABLE_TESTS=ON \
-       -DENABLE_CLDNN_TESTS=ON \
-       -DENABLE_CLDNN=ON ..
+   cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON ..
    ```
 
 2. Build
 
    ```bash
-   make clDNN_unit_tests
+   make ov_gpu_unit_tests
    ```
 
-3. You can find _`clDNN_unit_tests64`_ in bin directory after build
-
-
+3. You can find `ov_gpu_unit_tests` in *bin* directory after build
 
 ## Run unit test
 
-You can run _`clDNN_unit_tests64`_ in bin directory which is the output of openvino build
+You can run _`ov_gpu_unit_tests`_ in *bin* directory which is the output of OpenVINO build
 
-If you want to run specific unit test, you can use gtest_filter option as follows:
+If you want to run a specific unit test, you can use `gtest_filter` option as follows:
 
 ```
-./clDNN_unit_tests64 --gtest_filter='*filter_name*'
+./ov_gpu_unit_tests --gtest_filter='*filter_name*'
 ```
 
-Then, you can get the result like this
+Then, you can get the result similar to:
 
 ```bash
 openvino/bin/intel64/Release$ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD
-openvino/bin/intel64/Release$ ./clDNN_unit_tests64 --gtest_filter='*fusings_gpu/conv_fp32_reorder_fsv16_to_bfyx.basic/0*'
+openvino/bin/intel64/Release$ ./ov_gpu_unit_tests --gtest_filter='*fusings_gpu/conv_fp32_reorder_fsv16_to_bfyx.basic/0*'
 Running main() from /home/openvino/thirdparty/gtest/gtest/googletest/src/gtest_main.cc
 Note: Google Test filter = *fusings_gpu/conv_fp32_reorder_fsv16_to_bfyx.basic/0*
 [==========] Running 1 test from 1 test suite.
@@ -101,34 +99,33 @@ Note: Google Test filter = *fusings_gpu/conv_fp32_reorder_fsv16_to_bfyx.basic/0*
 [  PASSED  ] 1 test.
 ```
 
-
 # How to create new test case
 
 ## TEST and TEST_P (GoogleTest macros)
 
-GPU unit tests are using 2 types of test macros(**TEST** and **TEST_P**)  in  [GoogleTest (aka gtest)](https://google.github.io/googletest/)
+GPU unit tests are using two types of test macros (**TEST** and **TEST_P**)  in  [GoogleTest (aka gtest)](https://google.github.io/googletest/)
 
 - ### **TEST**
-  - **TEST** is the simple test case macro.
-  - To make test-case using **TEST**,  define an individual test named *`TestName`* in the test suite *`TestSuiteName`*
+  - **TEST** is a simple test case macro.
+  - To make a test-case using **TEST**, define an individual test named `TestName` in the test suite `TestSuiteName`
 
     ```
     TEST(TestSuiteName, TestName) {
       ... test body ...
     }
     ```
-  - The test body can be any code under test. To determine the outcomes within the test body, use assertion such as *`EXPECT_EQ`* and *`ASSERT_NE`*.
- 
+  - The test body can be any code under the test. To determine the outcome within the test body, use assertion types, such as `EXPECT_EQ` and `ASSERT_NE`.
+
 - ### **TEST_P**
-  - **TEST_P** is used to set test case using test parameter sets
-  - To make test-case using **TEST_P**, define an individual value-parameterized test named *`TestName`* that uses the test fixture class *`TestFixtureName`* which is the test suite name
+  - **TEST_P** is used to set a test case using test parameter sets
+  - To make a test case using **TEST_P**, define an individual value-parameterized test named `TestName` that uses the test fixture class `TestFixtureName`, which is the test suite name:
 
     ```
     TEST_P(TestFixtureName, TestName) {
       ... statements ...
     }
     ```
-  - Then, instantiates the value-parameterized test suite *`TestSuiteName`* which is defined defined with **TEST_P**
+  - Then, instantiates the value-parameterized test suite `TestSuiteName`, which is defined with **TEST_P**
     ```c++
     INSTANTIATE_TEST_SUITE_P(InstantiationName,TestSuiteName,param_generator)
     ```
@@ -136,29 +133,28 @@ GPU unit tests are using 2 types of test macros(**TEST** and **TEST_P**)  in  [G
 
 ## module_test and test_cases
 
-- module_test and test_cases are testing GPU plugin using both **TEST_P** and **TEST**.
-- Please refer to [the fusion test](#fusions-1) for the test case based on **TEST_P**
+- *module_test* and *test_cases* are testing GPU plugin using both **TEST_P** and **TEST**.
+- Refer to [the fusion test](#fusions-1) for the test case based on **TEST_P**
 - **TEST** checks the test result by comparing the execution results with expected values after running network created from the target topology to check.
   - It is important to generate test input and expected output result in **TEST**
-  - You can create input data and expected output data using the 3 following ways:
-    - Generate simple input data and calculate the expected output data from input data manually like [basic_deformable_convolution_def_group1_2](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/test_cases/convolution_gpu_test.cpp#L254)
-    - Generate random input and get the expected output using reference function which is made in the test codes like [mvn_test_across_channels_outside_sqrt_bfyx](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/test_cases/mvn_gpu_test.cpp#L108)
-    - Generate random input and get the expected output from another reference kernel which is existed in cldnn kernels like [mvn_random_test_bsv32](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/test_cases/mvn_gpu_test.cpp#L793)
+  - You can create input data and expected output data using these three approaches:
+    - Generate simple input data and calculate the expected output data from input data manually, like [basic_deformable_convolution_def_group1_2](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/test_cases/convolution_gpu_test.cpp#L254)
+    - Generate random input and get the expected output, using reference function, which is made in the test codes like [mvn_test_across_channels_outside_sqrt_bfyx](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/test_cases/mvn_gpu_test.cpp#L108)
+    - Generate random input and get the expected output from another reference kernel which exists in clDNN kernels like [mvn_random_test_bsv32](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/test_cases/mvn_gpu_test.cpp#L793)
 
-- When you allocate input data, please keep in mind that the layout order in *`engine.allocation_memory`* is not *`bfyx`* but *`bfxy`*. i.e., example, if input is {1,1,4,5}, the layout should be below
+- When you allocate input data, keep in mind that the layout order in `engine.allocation_memory` is not `bfyx` but `bfxy`. For example, if input is `{1,1,4,5}`, the layout should be as below:
 
   ```c++
   auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 5, 4 } });
   ```
 
-
 ## fusions
 
-- It is implemented based on **TEST_P** because there are many cases where multiple layouts are tested in the same topology
-- If the fusing test class is already existed, you can use it. otherwise, you should make new fusing test class which is inherited [BaseFusingTest](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/fusions/fusion_test_common.hpp#L19)
-  - The new fusing test class should create `execute()` method which creates fused / non fused networks and calls *`compare`* method after setting input
-- Create test case using **TEST_P**
-  - You can make the desired networks using create_topologies. 
+- It is implemented based on **TEST_P** because there are many cases where multiple layouts are tested in the same topology.
+- If the fusing test class already exists, you can use it. Otherwise, you should make a new fusing test class, which is inherited [BaseFusingTest](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/fusions/fusion_test_common.hpp#L19).
+  - The new fusing test class should create the `execute()` method, which creates fused / non-fused networks and calls `compare` method after setting input.
+- Create a test case, using **TEST_P**:
+  - You can make the desired networks using create_topologies.
 ```mermaid
 flowchart LR
     nodeA1(bias) --> nodeA2(conv_prim)
@@ -186,7 +182,7 @@ class nodeA3 moss1
 class nodeA8 steel1
 class nodeA4,nodeA1,nodeA6,nodeA9,nodeA11 carbon1
 ```
-  - For example, if you design the networks like the one above, you can make the test code as follow
+  - For example, if you design the networks like the one above, you can make the test code as follows:
 
     ```c++
     class conv_fp32_multi_eltwise_4_clamp : public ConvFusingTest {};
@@ -218,12 +214,12 @@ class nodeA4,nodeA1,nodeA6,nodeA9,nodeA11 carbon1
     
     ```
 
-  - If you want to change some node's layout format to specific format, you can change it using *`build_option::force_implementations`*.
-    - In the sample codes, *`conv_prim`* is set to *`format::b_fs_yx_fsv16`* by *`build_option::force_implementations`*
-- *`tolerance`* is used as to threshold to check whether or not output result are same between fused network and non fused network in *`compare`* function.
-- After the test case is implemented, use `INSTANTIATE_TEST_SUITE_P` to set the test suite for each parameter case as follows. 
-  - Check all variables in *`convolution_test_params`* to make `CASE_CONV_FP32_2`. 
-    - In *`convolution_test_params`*, all tensor, format, and data_types are used in common in all convolution fusing tests. So you can define `CASE_CONV_FP32_2` with all variables except *`expected_fused_primitives`* and *`expected_not_fused_primitives`*
+  - If you want to change some node's layout format to a specific format, you can change it using `build_option::force_implementations`.
+    - In the sample codes, `conv_prim` is set to `format::b_fs_yx_fsv16` by `build_option::force_implementations`.
+- `tolerance` is used as a threshold to check whether or not the output results are the same between a fused network and a non-fused network in the `compare` function.
+- After the test case is implemented, use `INSTANTIATE_TEST_SUITE_P` to set the test suite for each parameter case as follows.
+  - Check all variables in `convolution_test_params` to make `CASE_CONV_FP32_2`.
+    - In `convolution_test_params`, all tensor, format, and `data_types` are used in common in all convolution fusing tests. Therefore, you can define `CASE_CONV_FP32_2` with all variables except `expected_fused_primitives` and `expected_not_fused_primitives`.
 
 ```c++
 struct convolution_test_params {
@@ -256,6 +252,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale, ::testing::ValuesIn(std::
 ```
 
 ## See also
+
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)

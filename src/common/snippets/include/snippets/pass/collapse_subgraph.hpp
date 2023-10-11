@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/matcher.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -35,16 +34,16 @@ namespace pass {
  * Scalar constants are placed as is into subgraph due to optimization purpose
  * @ingroup snippets
  */
-class TokenizeSnippets: public ngraph::pass::MatcherPass {
+class TokenizeSnippets: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TokenizeSnippets", "0");
     explicit TokenizeSnippets();
 
     static bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);
 
-    static const std::set<ngraph::element::Type> supported_element_types;
+    static const std::set<ov::element::Type>& get_supported_element_types();
 };
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

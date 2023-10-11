@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -74,7 +74,7 @@ public:
             result << "(bs=" << bs << "_sl=" << sl << ")_";
         }
 
-        result << "activations=" << CommonTestUtils::vec2str(activations)  << "_";
+        result << "activations=" << ov::test::utils::vec2str(activations)  << "_";
         result << "clip=" << clip << "_";
         result << "linear=" << linearBeforeReset << "_";
         result << "direction=" << direction << "_";
@@ -104,7 +104,7 @@ protected:
         std::vector<TargetShapeParams> targetShapes;
         std::tie(bounds, targetShapes) = inShapeParams;
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         seqLengthInIdx = (seqType == SEQ_TYPE::LSTM ? 3 : 2);
 
@@ -171,8 +171,11 @@ protected:
         if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
             types.back() = ElementType::i64;
         }
-        auto params = ngraph::builder::makeDynamicParams(types, inputDynamicShapes);
-
+        ov::ParameterVector params;
+        for (size_t i = 0; i < types.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
+        }
         std::vector<int64_t> order_ref_before = {1, 0, 2};
         const auto order_before = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                          ov::Shape({order_ref_before.size()}),
@@ -273,10 +276,6 @@ TEST_P(SequenceCPUTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 0);
 }
 
-const std::vector<SEQ_TYPE> nodeType = {
-    SEQ_TYPE::GRU, SEQ_TYPE::LSTM, SEQ_TYPE::RNN
-};
-
 const std::vector<size_t> hiddenSizes = {
     1, 10
 };
@@ -317,12 +316,25 @@ std::vector<bool> linearBeforeReset = {true, false};
 
 std::vector<ElementType> netPrecisions = { ElementType::f32 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic, SequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(nodeType),
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_lstm_rnn, SequenceCPUTest,
+            ::testing::Combine(::testing::ValuesIn({SEQ_TYPE::LSTM, SEQ_TYPE::RNN}),
                                ::testing::ValuesIn(hiddenSizes),
                                ::testing::ValuesIn(inputSizes),
                                ::testing::ValuesIn(inShapeParams_dynamic),
                                ::testing::ValuesIn(activations_lstm_support),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(linearBeforeReset),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER)),
+            SequenceCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_gru, SequenceCPUTest,
+            ::testing::Combine(::testing::Values(SEQ_TYPE::GRU),
+                               ::testing::ValuesIn(hiddenSizes),
+                               ::testing::ValuesIn(inputSizes),
+                               ::testing::ValuesIn(inShapeParams_dynamic),
+                               ::testing::ValuesIn(activations_gru_support),
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(linearBeforeReset),
                                ::testing::ValuesIn(direction),

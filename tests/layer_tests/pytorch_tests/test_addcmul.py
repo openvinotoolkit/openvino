@@ -39,7 +39,7 @@ class TestAddCMul(PytorchLayerTest):
         [np.int32, 10],
         [np.int32, 110],
         [np.float32, 2.0],
-        [np.float32, 3.1],
+        [np.float32, 3.123],
         [np.float32, 4.5],
         [np.float64, 41.5],
         [np.float64, 24.5],

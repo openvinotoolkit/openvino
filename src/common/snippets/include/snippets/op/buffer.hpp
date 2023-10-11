@@ -1,47 +1,68 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
 /**
  * @interface Buffer
- * @brief The operation is for intermediate data storage
- *        - m_allocation_rank - rank of shape for memory allocation: shape[shape_rank - normalize(m_allocation_rank) : shape_rank].
- *                 It's needed to allocate needed memory size that depends on Tile rank, for example.
- *                 Default value is -1 (full shape)
+ * @brief This is a base class for memory storage.
+ *        If Buffer has a parent, the operation is for intermediate data storage - IntermediateMemory type.
+ *        Otherwise, the operation is for allocation of new empty memory with shape `m_shape` - NewMemory type
  *        Notes:
- *               - All buffers in a graph have the same memory pointer. So if we have a few buffers,
+ *               - All buffers with the same ID in a graph have the same memory pointer. So if we have a few buffers,
  *                 each the corresponding MemoryAccess op for Buffer should have offset for common memory pointer of this Buffer
  *               - Buffer should be a single consumer for operation output port
+ * @param m_type - type of Buffer: IntermediateMemory/NewMemory
+ * @param m_shape - output allocation shape for Buffer with type NewMemory
+ * @param m_offset - offset in common Buffer scratchpad
+ * @param m_id - Buffer ID in common Buffer system
  * @ingroup snippets
  */
-class Buffer : public ngraph::op::Op {
+class Buffer : public ov::op::Op {
 public:
     OPENVINO_OP("Buffer", "SnippetsOpset");
-
-    Buffer(const Output<Node>& x, const int32_t allocation_rank = -1);
     Buffer() = default;
-
-    int32_t get_allocation_rank() const { return m_allocation_rank; }
-    void set_allocation_rank(int32_t rank) { m_allocation_rank = rank; }
-
-    size_t get_byte_size() const;
+    Buffer(const ov::Shape& shape, ov::element::Type element_type = ov::element::u8, size_t id = 0);
+    Buffer(const ov::Output<ov::Node>& arg, const ov::Shape& shape, size_t id = 0);
+    Buffer(const ov::Output<ov::Node>& arg, int32_t allocation_rank = -1, size_t id = 0);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    enum Type {
+        NewMemory,
+        IntermediateMemory
+    };
+
+    size_t get_id() const { return m_id; }
+    Type get_type() const { return m_type; }
+    ov::Shape get_allocation_shape() const { return m_shape; }
+    int64_t get_offset() const { return m_offset; }
+    void set_id(size_t id) { m_id = id; }
+    void set_offset(int64_t offset) { m_offset = offset; }
+    size_t get_byte_size() const;
+
+    void set_element_type(ov::element::Type element_type);
+
+    bool is_intermediate_memory() const { return m_type == Type::IntermediateMemory; }
+    bool is_new_memory() const { return m_type == Type::NewMemory; }
 
 private:
-    int32_t m_allocation_rank = -1;
+    Type m_type = Type::IntermediateMemory;
+    ov::Shape m_shape = {};
+    int64_t m_offset = 0;
+    size_t m_id = 0;  // Default ID - 0. All Buffers are from the same set
+    ov::element::Type m_element_type = ov::element::u8;  // u8 - default 1 byte
 };
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

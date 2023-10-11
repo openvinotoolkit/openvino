@@ -4,14 +4,14 @@
 
 #include <onnx/onnx_pb.h>
 
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_control.hpp"
 #include "gtest/gtest.h"
-#include "util/test_control.hpp"
+#include "ngraph/file_util.hpp"
 
-using namespace ngraph;
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 
-static std::string s_manifest = "${MANIFEST}";
-
-NGRAPH_TEST(onnx, check_ir_version_support) {
+OPENVINO_TEST(onnx, check_ir_version_support) {
     // It appears you've changed the ONNX library version used by nGraph. Please update the value
     // tested below to make sure it equals the current IR_VERSION enum value defined in ONNX headers
     //
@@ -21,7 +21,7 @@ NGRAPH_TEST(onnx, check_ir_version_support) {
     //
     // The last step is to also update the details::onnx::contains_onnx_model_keys() function
     // in the same file to make sure that prototxt format validation also covers the changes in ONNX
-    EXPECT_EQ(ONNX_NAMESPACE::Version::IR_VERSION, 8)
+    EXPECT_EQ(ONNX_NAMESPACE::Version::IR_VERSION, 9)
         << "The IR_VERSION defined in ONNX does not match the version that OpenVINO supports. "
            "Please check the source code of this test for details and explanation how to proceed.";
 }

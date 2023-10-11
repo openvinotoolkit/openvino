@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/batch_to_space.hpp"
 
 namespace LayerTestsDefinitions {
@@ -16,15 +16,15 @@ std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
     std::string targetName;
     std::tie(blockShape, cropsBegin, cropsEnd, inShapes, netPrc, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inShapes) << "_";
     result << "netPRC=" << netPrc.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
-    result << "BS=" << CommonTestUtils::vec2str(blockShape) << "_";
-    result << "CB=" << CommonTestUtils::vec2str(cropsBegin) << "_";
-    result << "CE=" << CommonTestUtils::vec2str(cropsEnd) << "_";
+    result << "BS=" << ov::test::utils::vec2str(blockShape) << "_";
+    result << "CB=" << ov::test::utils::vec2str(cropsBegin) << "_";
+    result << "CE=" << ov::test::utils::vec2str(cropsEnd) << "_";
     result << "trgDev=" << targetName << "_";
     return result.str();
 }
@@ -35,7 +35,7 @@ void BatchToSpaceLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(blockShape, cropsBegin, cropsEnd, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto b2s = ngraph::builder::makeBatchToSpace(paramOuts[0], ngPrc, blockShape, cropsBegin, cropsEnd);

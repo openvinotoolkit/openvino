@@ -4,7 +4,7 @@
 from collections import defaultdict
 from datetime import timedelta
 import enum
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize, properties
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize, properties, OVAny
 from openvino.preprocess import PrePostProcessor
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
@@ -272,7 +272,7 @@ def check_for_static(app_input_info):
 
 def can_measure_as_static(app_input_info):
     for info in app_input_info:
-        if info.is_dynamic and (len(info.shapes) > 1 or info.original_shape.is_static):
+        if len(info.shapes) > 1:
             return False
     return True
 
@@ -559,7 +559,6 @@ class AppInputInfo:
     def __init__(self):
         self.element_type = None
         self.layout = Layout()
-        self.original_shape = None
         self.partial_shape = None
         self.data_shapes = []
         self.scale = np.empty([0])
@@ -650,7 +649,6 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         # Input precision
         info.element_type = inputs[i].element_type
         # Shape
-        info.original_shape = inputs[i].partial_shape
         if info.name in shape_map:
             info.partial_shape = PartialShape(shape_map[info.name])
             reshape = True
@@ -758,12 +756,64 @@ def show_available_devices():
     print("\nAvailable target devices:  ", ("  ".join(Core().available_devices)))
 
 
+def device_properties_to_string(config):
+    ret = "{"
+    for k, v in config.items():
+        if isinstance(v, dict):
+            sub_str = "{"
+            for sk, sv in v.items():
+                if isinstance(sv, bool):
+                    sv = "YES" if sv else "NO"
+                if isinstance(sv, properties.Affinity):
+                    sv = sv.name
+                sub_str += "{0}:{1},".format(sk, sv)
+            sub_str = sub_str[:-1]
+            sub_str += "}"
+            ret += "{0}:{1},".format(k, sub_str)
+        else:
+            ret += "{0}:{1},".format(k, v)
+    ret = ret[:-1]
+    ret += "}"
+    return ret
+
+
+def string_to_device_properties(device_properties_str):
+    ret = {}
+    if not device_properties_str:
+        return ret
+    if not device_properties_str.startswith("{") or not device_properties_str.endswith("}"):
+        raise Exception(
+            "Failed to parse device properties. Value of device properties should be started with '{' and ended with '}'."
+            "They are actually {} and {}".format(device_properties_str[0], device_properties_str[-1]))
+    pattern = r'(\w+):({.+?}|[^,}]+)'
+    pairs = re.findall(pattern, device_properties_str)
+    for key, value in pairs:
+        if value.startswith("{") and value.endswith("}"):
+            value = value[1:-1]
+            nested_pairs = re.findall(pattern, value)
+            nested_dict = {}
+            for nested_key, nested_value in nested_pairs:
+                nested_dict[nested_key] = nested_value
+            value = nested_dict
+        ret[key] = value
+    return ret
+
+
 def dump_config(filename, config):
     json_config = {}
     for device_name, device_config in config.items():
         json_config[device_name] = {}
         for key, value in device_config.items():
-            value_string = value.name if isinstance(value, properties.hint.PerformanceMode) else str(value)
+            if isinstance(value, OVAny) and (isinstance(value.value, dict)):
+                value_string = device_properties_to_string(value.get())
+            elif isinstance(value, (properties.hint.PerformanceMode, properties.Affinity)):
+                value_string = value.name
+            elif isinstance(value, OVAny):
+                value_string = str(value.value)
+            else:
+                value_string = str(value)
+                if isinstance(value, bool):
+                    value_string = "YES" if value else "NO"
             json_config[device_name][key] = value_string
 
     with open(filename, 'w') as f:
@@ -776,4 +826,9 @@ def load_config(filename, config):
     for device in original_config:
         config[device] = {}
         for property_name in original_config[device]:
-            config[device][property_name] = original_config[device][property_name]
+            property_value = original_config[device][property_name]
+            if property_name == properties.device.properties():
+                property_value = string_to_device_properties(property_value)
+            elif property_value in ("YES", "NO"):
+                property_value = True if property_value == "YES" else False
+            config[device][property_name] = OVAny(property_value)

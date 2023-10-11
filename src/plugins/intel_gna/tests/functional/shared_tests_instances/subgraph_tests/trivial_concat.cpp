@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_trivial_concat_Basic,
                          TrivialConcatLayerTest,
                          ::testing::Combine(::testing::ValuesIn(inShapes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(additional_config)),
                          TrivialConcatLayerTest::getTestCaseName);
 }  // namespace

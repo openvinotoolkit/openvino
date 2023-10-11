@@ -7,7 +7,6 @@
 #include "generate_proposals_shape_inference.hpp"
 #include "itt.hpp"
 
-using namespace std;
 namespace ov {
 
 op::v9::GenerateProposals::GenerateProposals(const Output<Node>& im_info,
@@ -22,15 +21,15 @@ op::v9::GenerateProposals::GenerateProposals(const Output<Node>& im_info,
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v9::GenerateProposals::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v9::GenerateProposals::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v9_GenerateProposals_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<ov::op::v9::GenerateProposals>(new_args.at(0),
-                                                      new_args.at(1),
-                                                      new_args.at(2),
-                                                      new_args.at(3),
-                                                      m_attrs,
-                                                      m_roi_num_type);
+    return std::make_shared<ov::op::v9::GenerateProposals>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           new_args.at(2),
+                                                           new_args.at(3),
+                                                           m_attrs,
+                                                           m_roi_num_type);
 }
 
 bool op::v9::GenerateProposals::visit_attributes(AttributeVisitor& visitor) {
@@ -51,12 +50,11 @@ void op::v9::GenerateProposals::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, m_attrs.post_nms_count > 0, "Attribute post_nms_count must be larger than 0.");
     NODE_VALIDATION_CHECK(this, m_attrs.nms_eta == 1.0, "Attribute min_size must be 1.0.");
 
-    std::vector<PartialShape> output_shapes = {PartialShape{}, PartialShape{}, PartialShape{}};
     std::vector<PartialShape> input_shapes = {get_input_partial_shape(0),
                                               get_input_partial_shape(1),
                                               get_input_partial_shape(2),
                                               get_input_partial_shape(3)};
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     const auto& input_et = get_input_element_type(0);
     set_output_type(0, input_et, output_shapes[0]);
@@ -67,4 +65,9 @@ void op::v9::GenerateProposals::validate_and_infer_types() {
                           "The third output type must be int64 or int32.");
     set_output_type(2, roi_num_type, output_shapes[2]);
 }
+
+void op::v9::GenerateProposals::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+
 }  // namespace ov

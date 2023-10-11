@@ -7,26 +7,26 @@
 #include <memory>
 #include <topk_shape_inference.hpp>
 
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/topk.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/axis_vector.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/reference/topk.hpp"
 
 using namespace std;
-using namespace ngraph;
 
+namespace ov {
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace topk {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
-inline bool evaluate_execute(const HostTensorPtr& arg0,
-                             const HostTensorPtr& out_indices,
-                             const HostTensorPtr& out_values,
+inline bool evaluate_execute(const ngraph::HostTensorPtr& arg0,
+                             const ngraph::HostTensorPtr& out_indices,
+                             const ngraph::HostTensorPtr& out_values,
                              const ov::Shape out_shape,
                              const size_t axis,
                              const size_t k,
@@ -41,15 +41,15 @@ inline bool evaluate_execute(const HostTensorPtr& arg0,
     out_values->set_shape(out_shape);
     out_values->set_element_type(arg0->get_element_type());
 
-    runtime::reference::topk<T, U>(arg0->get_data_ptr<INPUT_ET>(),
-                                   out_indices->get_data_ptr<INDEX_ET>(),
-                                   out_values->get_data_ptr<INPUT_ET>(),
-                                   in_shape,
-                                   out_shape,
-                                   axis,
-                                   k,
-                                   compute_max,
-                                   sort);
+    ov::reference::topk<T, U>(arg0->get_data_ptr<INPUT_ET>(),
+                              out_indices->get_data_ptr<INDEX_ET>(),
+                              out_values->get_data_ptr<INPUT_ET>(),
+                              in_shape,
+                              out_shape,
+                              axis,
+                              k,
+                              compute_max,
+                              sort);
     return true;
 }
 
@@ -60,9 +60,9 @@ inline bool evaluate_execute(const HostTensorPtr& arg0,
     } break
 
 template <element::Type_t INPUT_ET>
-bool evaluate(const HostTensorPtr& arg,
-              const HostTensorPtr& out_indices,
-              const HostTensorPtr& out_values,
+bool evaluate(const ngraph::HostTensorPtr& arg,
+              const ngraph::HostTensorPtr& out_indices,
+              const ngraph::HostTensorPtr& out_values,
               const ov::Shape out_shape,
               const size_t axis,
               const size_t k,
@@ -80,9 +80,9 @@ bool evaluate(const HostTensorPtr& arg,
     return rc;
 }
 
-bool evaluate_topk(const HostTensorPtr& arg,
-                   const HostTensorPtr& out_indices,
-                   const HostTensorPtr& out_values,
+bool evaluate_topk(const ngraph::HostTensorPtr& arg,
+                   const ngraph::HostTensorPtr& out_indices,
+                   const ngraph::HostTensorPtr& out_values,
                    const ov::Shape out_shape,
                    const size_t axis,
                    const size_t k,
@@ -91,12 +91,12 @@ bool evaluate_topk(const HostTensorPtr& arg,
                    const element::Type index_et) {
     bool rc = true;
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_topk, i32, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-        NGRAPH_TYPE_CASE(evaluate_topk, i64, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-        NGRAPH_TYPE_CASE(evaluate_topk, u32, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-        NGRAPH_TYPE_CASE(evaluate_topk, u64, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-        NGRAPH_TYPE_CASE(evaluate_topk, f16, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-        NGRAPH_TYPE_CASE(evaluate_topk, f32, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
+        OPENVINO_TYPE_CASE(evaluate_topk, i32, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
+        OPENVINO_TYPE_CASE(evaluate_topk, i64, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
+        OPENVINO_TYPE_CASE(evaluate_topk, u32, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
+        OPENVINO_TYPE_CASE(evaluate_topk, u64, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
+        OPENVINO_TYPE_CASE(evaluate_topk, f16, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
+        OPENVINO_TYPE_CASE(evaluate_topk, f32, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
     default:
         rc = false;
         break;
@@ -107,13 +107,14 @@ bool TopK_evaluate(const ov::op::util::TopKBase* const node,
                    const HostTensorVector& outputs,
                    const HostTensorVector& inputs) {
     const auto& arg_shape = inputs[0]->get_shape();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto axis = normalize_axis(node, node->get_provided_axis(), arg_shape.size());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto compute_max = node->get_mode() == ov::op::TopKMode::MAX;
     const auto sort_type = node->get_sort_type();
 
     const auto input_shapes = vector<PartialShape>{inputs[0]->get_partial_shape(), inputs[1]->get_partial_shape()};
-    const auto constant_data = map<size_t, HostTensorPtr>{{1, inputs[1]}};
-    auto output_shape = shape_infer(node, input_shapes, constant_data).front().to_shape();
+    auto output_shape = shape_infer(node, input_shapes, ov::make_tensor_accessor(inputs)).front().to_shape();
 
     if (output_shape[axis] == 0) {
         // the kernel can't handle K (output_shape[axis]) equal 0, use arg_shape[axis] instead.
@@ -183,12 +184,12 @@ bool op::v1::TopK::has_evaluate() const {
     OV_OP_SCOPE(v1_TopK_has_evaluate);
 
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         break;
     default:
         return false;
@@ -196,23 +197,23 @@ bool op::v1::TopK::has_evaluate() const {
 
     if (op::util::is_constant(input_value(1).get_node())) {
         switch (get_input_element_type(1)) {
-        case ngraph::element::i8:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
+        case element::i8:
+        case element::i32:
+        case element::i64:
             break;
         default:
             return false;
         }
     } else {
         switch (get_input_element_type(1)) {
-        case ngraph::element::i8:
-        case ngraph::element::i16:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
-        case ngraph::element::u8:
-        case ngraph::element::u16:
-        case ngraph::element::u32:
-        case ngraph::element::u64:
+        case element::i8:
+        case element::i16:
+        case element::i32:
+        case element::i64:
+        case element::u8:
+        case element::u16:
+        case element::u32:
+        case element::u64:
             break;
         default:
             return false;
@@ -256,12 +257,12 @@ bool op::v3::TopK::has_evaluate() const {
     OV_OP_SCOPE(v3_TopK_has_evaluate);
 
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         break;
     default:
         return false;
@@ -269,23 +270,23 @@ bool op::v3::TopK::has_evaluate() const {
 
     if (op::util::is_constant(input_value(1).get_node())) {
         switch (get_input_element_type(1)) {
-        case ngraph::element::i8:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
+        case element::i8:
+        case element::i32:
+        case element::i64:
             break;
         default:
             return false;
         }
     } else {
         switch (get_input_element_type(1)) {
-        case ngraph::element::i8:
-        case ngraph::element::i16:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
-        case ngraph::element::u8:
-        case ngraph::element::u16:
-        case ngraph::element::u32:
-        case ngraph::element::u64:
+        case element::i8:
+        case element::i16:
+        case element::i32:
+        case element::i64:
+        case element::u8:
+        case element::u16:
+        case element::u32:
+        case element::u64:
             break;
         default:
             return false;
@@ -321,11 +322,10 @@ void ov::op::v11::TopK::validate_and_infer_types() {
     OV_OP_SCOPE(v11_TopK_validate_and_infer_types);
 
     if (m_stable) {
-        NODE_VALIDATION_CHECK(
-            this,
-            m_sort == TopKSortType::SORT_VALUES,
-            "Stable sort can only be used when TopK's sorting mode is set to 'VALUE'. Current sorting mode = ",
-            AttributeAdapter<TopKSortType>(m_sort).get());
+        NODE_VALIDATION_CHECK(this,
+                              m_sort == TopKSortType::SORT_VALUES || m_sort == TopKSortType::SORT_INDICES,
+                              "Stable sort can only be used when TopK's sorting mode is set to 'VALUE' or 'INDEX'.",
+                              AttributeAdapter<TopKSortType>(m_sort).get());
     }
 
     util::TopKBase::validate_and_infer_types();
@@ -359,15 +359,16 @@ bool ov::op::v11::TopK::has_evaluate() const {
     OV_OP_SCOPE(v11_TopK_has_evaluate);
 
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         break;
     default:
         return false;
     }
     return true;
 }
+}  // namespace ov

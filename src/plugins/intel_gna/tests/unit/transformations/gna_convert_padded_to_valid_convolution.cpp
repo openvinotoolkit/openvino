@@ -10,7 +10,7 @@
 #include <transformations/init_node_info.hpp>
 #include <tuple>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/convert_padded_to_valid_convolution.hpp"
 
 namespace testing {
@@ -230,7 +230,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class ConvertPaddedToValidConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
+class ConvertPaddedToValidConvTestInvalidFixture : public ov::test::TestsCommon,
                                                    public ::testing::WithParamInterface<fqPaddedToValidConvParams> {
 public:
     void SetUp() override;
@@ -292,7 +292,7 @@ void ConvertPaddedToValidConvTestInvalidFixture::SetUp() {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class ConvertPaddedToValidConvTestFixture : public CommonTestUtils::TestsCommon,
+class ConvertPaddedToValidConvTestFixture : public ov::test::TestsCommon,
                                             public ::testing::WithParamInterface<fqPaddedToValidConvParams> {
 public:
     void SetUp() override;

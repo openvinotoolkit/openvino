@@ -33,7 +33,7 @@ std::string pyramid_roi_align_inst::to_string(pyramid_roi_align_node const& node
     auto node_info = node.desc_to_json();
     std::stringstream primitive_description;
     json_composite pyramid_roi_align_info;
-    node_info->add("pyramid_roi_align_info", pyramid_roi_align_info);
+    node_info->add("pyramid_roi_align_info", std::move(pyramid_roi_align_info));
     node_info->dump(primitive_description);
     return primitive_description.str();
 }

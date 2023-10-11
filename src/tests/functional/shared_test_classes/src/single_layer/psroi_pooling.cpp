@@ -21,8 +21,8 @@ std::string PSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<
 
     std::ostringstream result;
 
-    result << "in_shape=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "coord_shape=" << CommonTestUtils::vec2str(coordsShape) << "_";
+    result << "in_shape=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "coord_shape=" << ov::test::utils::vec2str(coordsShape) << "_";
     result << "out_dim=" << outputDim << "_";
     result << "group_size=" << groupSize << "_";
     result << "scale=" << spatialScale << "_";
@@ -107,7 +107,8 @@ void PSROIPoolingLayerTest::SetUp() {
              spatialBinsX_, spatialBinsY_, mode_, netPrecision, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape, coordsShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
+                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(coordsShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::shared_ptr<ngraph::Node> psroiPooling = std::make_shared<ngraph::op::v0::PSROIPooling>(paramOuts[0],

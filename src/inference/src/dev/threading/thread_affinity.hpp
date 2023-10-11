@@ -6,17 +6,25 @@
 
 #include <memory>
 #include <tuple>
+#include <vector>
 
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
+#endif
+#if defined(_WIN32)
+#    include <windows.h>
+
+#    include <thread>
 #endif
 
 namespace ov {
 namespace threading {
 
-#if (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
+#if (defined(__APPLE__) || defined(__EMSCRIPTEN__))
 using cpu_set_t = void;
-#endif  // (defined(__APPLE__) || defined(_WIN32))
+#elif defined(_WIN32)
+using cpu_set_t = DWORD_PTR;
+#endif
 
 /**
  * @brief      Release the cores affinity mask for the current process
@@ -68,6 +76,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                int hyperThreads,
                                int ncores,
                                const CpuSet& processMask,
+                               const std::vector<int>& cpu_ids = {},
                                int cpuIdxOffset = 0);
 
 /**

@@ -2,25 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/slice_plan.hpp"
+#include "openvino/op/util/slice_plan.hpp"
 
 #include <algorithm>
 
-#include "ngraph/check.hpp"
+#include "ngraph/op/util/slice_plan.hpp"
+#include "openvino/core/except.hpp"
 
-using namespace ngraph;
+namespace ov {
+namespace op {
+namespace util {
 
-SlicePlan ngraph::make_slice_plan(const Shape& input_shape,
-                                  const std::vector<int64_t>& begins,
-                                  const std::vector<int64_t>& ends,
-                                  const std::vector<int64_t>& strides,
-                                  const AxisSet& lower_bounds_mask,
-                                  const AxisSet& upper_bounds_mask,
-                                  const AxisSet& new_axis_mask,
-                                  const AxisSet& shrink_axis_mask,
-                                  const AxisSet& ellipsis_mask) {
-    NGRAPH_CHECK(begins.size() == ends.size());
-    NGRAPH_CHECK(ends.size() == strides.size());
+SlicePlan make_slice_plan(const Shape& input_shape,
+                          const std::vector<int64_t>& begins,
+                          const std::vector<int64_t>& ends,
+                          const std::vector<int64_t>& strides,
+                          const AxisSet& lower_bounds_mask,
+                          const AxisSet& upper_bounds_mask,
+                          const AxisSet& new_axis_mask,
+                          const AxisSet& shrink_axis_mask,
+                          const AxisSet& ellipsis_mask) {
+    OPENVINO_ASSERT(begins.size() == ends.size());
+    OPENVINO_ASSERT(ends.size() == strides.size());
     size_t num_slice_indices = begins.size();
 
     size_t num_real_axes = 0;
@@ -34,7 +37,7 @@ SlicePlan ngraph::make_slice_plan(const Shape& input_shape,
     // and are not the ellipsis).
     for (size_t i = 0; i < num_slice_indices; i++) {
         if (ellipsis_mask.count(i)) {
-            NGRAPH_CHECK(!ellipsis_found);
+            OPENVINO_ASSERT(!ellipsis_found);
             ellipsis_found = true;
         } else if (new_axis_mask.count(i)) {
             num_new_axes++;
@@ -46,7 +49,11 @@ SlicePlan ngraph::make_slice_plan(const Shape& input_shape,
         }
     }
 
-    NGRAPH_CHECK(num_real_axes <= input_shape.size(), "num_real_axes=", num_real_axes, ", input_shape=", input_shape);
+    OPENVINO_ASSERT(num_real_axes <= input_shape.size(),
+                    "num_real_axes=",
+                    num_real_axes,
+                    ", input_shape=",
+                    input_shape);
 
     // Figure out how many axes need to be inserted when the ellipsis (which
     // may be an implicit ellipsis at the end) is expanded.
@@ -99,7 +106,7 @@ SlicePlan ngraph::make_slice_plan(const Shape& input_shape,
 
             // Note that clipping is not used for "shrunken" axes: an
             // out-of-bounds index is an error.
-            NGRAPH_CHECK(begin >= -(int64_t(input_shape[i_in])) && begin < int64_t(input_shape[i_in]));
+            OPENVINO_ASSERT(begin >= -(int64_t(input_shape[i_in])) && begin < int64_t(input_shape[i_in]));
 
             if (begin < 0) {
                 begin += int64_t(input_shape[i_in]);
@@ -141,7 +148,7 @@ SlicePlan ngraph::make_slice_plan(const Shape& input_shape,
             real_end = std::max(min_real_end, std::min(int64_t(input_shape[i_in]), real_end));
 
             // Ensure stride is not zero, and adjust it for backwards slicing.
-            NGRAPH_CHECK(strides[i] != 0);
+            OPENVINO_ASSERT(strides[i] != 0);
             int64_t real_stride = std::abs(strides[i]);
 
             // Adjust for reversal if needed. This isn't quite as simple as swapping begin and
@@ -156,8 +163,7 @@ SlicePlan ngraph::make_slice_plan(const Shape& input_shape,
                 p.reverse_axes.insert(i_out);
             }
 
-            // nGraph's slice op does not like it when end < begin, so we truncate for that case
-            // here.
+            // ov slice op does not like it when end < begin, so we truncate for that case here.
             if (real_end < real_begin) {
                 real_end = real_begin;
             }
@@ -193,7 +199,7 @@ SlicePlan ngraph::make_slice_plan(const Shape& input_shape,
     return p;
 }
 
-bool SlicePlan::operator==(const ngraph::SlicePlan& other) const {
+bool SlicePlan::operator==(const SlicePlan& other) const {
     bool equal = true;
     equal &= begins == other.begins;
     equal &= ends == other.ends;
@@ -205,6 +211,51 @@ bool SlicePlan::operator==(const ngraph::SlicePlan& other) const {
     return equal;
 }
 
-bool SlicePlan::operator!=(const ngraph::SlicePlan& other) const {
+bool SlicePlan::operator!=(const SlicePlan& other) const {
     return !(*this == other);
 }
+}  // namespace util
+}  // namespace op
+}  // namespace ov
+
+NGRAPH_SUPPRESS_DEPRECATED_START
+namespace ngraph {
+
+SlicePlan make_slice_plan(const Shape& input_shape,
+                          const std::vector<int64_t>& begins,
+                          const std::vector<int64_t>& ends,
+                          const std::vector<int64_t>& strides,
+                          const AxisSet& lower_bounds_mask,
+                          const AxisSet& upper_bounds_mask,
+                          const AxisSet& new_axis_mask,
+                          const AxisSet& shrink_axis_mask,
+                          const AxisSet& ellipsis_mask) {
+    const auto sp = ov::op::util::make_slice_plan(input_shape,
+                                                  begins,
+                                                  ends,
+                                                  strides,
+                                                  lower_bounds_mask,
+                                                  upper_bounds_mask,
+                                                  new_axis_mask,
+                                                  shrink_axis_mask,
+                                                  ellipsis_mask);
+    return SlicePlan{sp.begins, sp.ends, sp.strides, sp.reshape_in_shape, sp.reshape_out_shape, sp.reverse_axes};
+}
+
+bool SlicePlan::operator==(const SlicePlan& other) const {
+    bool equal = true;
+    equal &= begins == other.begins;
+    equal &= ends == other.ends;
+    equal &= strides == other.strides;
+    equal &= reshape_in_shape == other.reshape_in_shape;
+    equal &= reshape_out_shape == other.reshape_out_shape;
+    equal &= reverse_axes == other.reverse_axes;
+
+    return equal;
+}
+
+bool SlicePlan::operator!=(const SlicePlan& other) const {
+    return !(*this == other);
+}
+}  // namespace ngraph
+NGRAPH_SUPPRESS_DEPRECATED_END

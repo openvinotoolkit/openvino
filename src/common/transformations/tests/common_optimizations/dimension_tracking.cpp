@@ -2,23 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/dimension_tracking.hpp"
+
 #include <gtest/gtest.h>
 
-#include <dimension_tracker.hpp>
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/dimension_tracking.hpp>
-#include <transformations/common_optimizations/divide_fusion.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "transformations/common_optimizations/divide_fusion.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
+using namespace ov;
 using namespace testing;
 
 TEST(TransformationTests, AutoBatch_LabelPropagation_Transpose) {
@@ -90,6 +91,40 @@ TEST(TransformationTests, AutoBatch_FindBatch_Transpose_and_Convolution) {
     ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[1])) << out_shape;
     ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[2])) << out_shape;
     ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[3])) << out_shape;
+}
+
+TEST(TransformationTests, AutoBatch_LabelPropagation_Convolution_Reshape) {
+    auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 4, 6, 8});
+
+    const auto& filters = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4, 3, 3});
+    const auto& conv = std::make_shared<ov::opset1::Convolution>(data,
+                                                                 filters,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
+    const auto& reshape =
+        std::make_shared<ov::opset1::Reshape>(conv,
+                                              ov::opset1::Constant::create(ov::element::i64, {3}, {-1, 4, 6}),
+                                              false);
+    const auto& model = std::make_shared<ov::Model>(ov::NodeVector{reshape}, ov::ParameterVector{data});
+
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::FindBatch>();
+    m.run_passes(model);
+    ASSERT_NO_THROW(check_rt_info(model));
+
+    const auto& shape = data->get_partial_shape();
+    ASSERT_TRUE(ov::DimensionTracker::get_label(shape[0])) << shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[1])) << shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[2])) << shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[3])) << shape;
+
+    const auto& out_shape = model->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(ov::DimensionTracker::get_label(out_shape[0])) << out_shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[1])) << out_shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[2])) << out_shape;
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_SingleMultiply) {
@@ -300,7 +335,7 @@ TEST(partial_shape, cout_with_label) {
     ov::PartialShape shape{1, 2, 3, a};
     std::stringstream stream;
     stream << shape;
-    ASSERT_EQ(stream.str(), "[1,2,3,l<100500>5]");
+    ASSERT_EQ(stream.str(), "[1,2,3,<100500>5]");
 }
 
 TEST(partial_shape, cout_without_label) {

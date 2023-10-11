@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ngraph;
@@ -33,10 +33,11 @@ protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32;
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 512, 32}, {1, 128, 32}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 512, 32}),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 128, 32})};
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         auto FQ = ngraph::builder::makeFakeQuantize(paramOuts[1], ngPrc, 256, {}, {-2.8215785026550293}, {2.799535036087036},

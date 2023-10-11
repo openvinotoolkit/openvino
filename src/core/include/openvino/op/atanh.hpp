@@ -16,7 +16,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Atanh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Atanh", "opset4", util::UnaryElementwiseArithmetic, 3);
+    OPENVINO_OP("Atanh", "opset4", util::UnaryElementwiseArithmetic);
 
     /// \brief Constructs an Atanh operation.
     Atanh() = default;
@@ -33,9 +33,7 @@ public:
     bool visit_attributes(AttributeVisitor&) override {
         return true;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 };
 }  // namespace v3

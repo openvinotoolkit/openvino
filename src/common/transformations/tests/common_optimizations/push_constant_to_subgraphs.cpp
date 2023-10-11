@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <transformations/common_optimizations/push_constant_to_subgraph.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -39,7 +38,7 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoop) {
         loop->set_sliced_input(loop_params[1], convert_1, 0, 1, 1, -1, 0);
         loop->set_invariant_input(loop_params[2], convert_2);
         auto out = loop->get_concatenated_slices(loop_body->get_results()[0], 0, 1, 1, -1, 0);
-        function = std::make_shared<Model>(OutputVector{out}, ParameterVector{X});
+        model = std::make_shared<Model>(OutputVector{out}, ParameterVector{X});
 
         manager.register_pass<pass::PushConstantToSubgraph>();
     }
@@ -68,7 +67,7 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoop) {
         loop->set_sliced_input(loop_params[0], X, 0, 1, 1, -1, 0);
         loop->set_sliced_input(loop_params[1], convert_1, 0, 1, 1, -1, 0);
         auto out = loop->get_concatenated_slices(loop_body->get_results()[0], 0, 1, 1, -1, 0);
-        function_ref = std::make_shared<Model>(OutputVector{out}, ParameterVector{X});
+        model_ref = std::make_shared<Model>(OutputVector{out}, ParameterVector{X});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -127,7 +126,7 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphIf) {
         if_op->set_input(convert_3, nullptr, else_params[3]);
         if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
 
-        function = std::make_shared<ov::Model>(if_op, ov::ParameterVector{A, B, C});
+        model = std::make_shared<ov::Model>(if_op, ov::ParameterVector{A, B, C});
 
         manager.register_pass<pass::PushConstantToSubgraph>();
     }
@@ -172,7 +171,7 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphIf) {
         if_op->set_input(C, nullptr, else_params[1]);
         if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
 
-        function_ref = std::make_shared<ov::Model>(if_op, ov::ParameterVector{A, B, C});
+        model_ref = std::make_shared<ov::Model>(if_op, ov::ParameterVector{A, B, C});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -218,7 +217,7 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoopMoreThan32Inputs) {
             loop->set_invariant_input(loop_params[i + 1], constants[i]);
         }
         auto out = loop->get_concatenated_slices(loop_body->get_results()[0], 0, 1, 1, -1, 0);
-        function = std::make_shared<Model>(OutputVector{out}, ParameterVector{X});
+        model = std::make_shared<Model>(OutputVector{out}, ParameterVector{X});
 
         manager.register_pass<pass::PushConstantToSubgraph>();
     }
@@ -248,7 +247,7 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoopMoreThan32Inputs) {
         loop->set_special_body_ports({-1, 1});
         loop->set_sliced_input(loop_params[0], X, 0, 1, 1, -1, 0);
         auto out = loop->get_concatenated_slices(loop_body->get_results()[0], 0, 1, 1, -1, 0);
-        function_ref = std::make_shared<Model>(OutputVector{out}, ParameterVector{X});
+        model_ref = std::make_shared<Model>(OutputVector{out}, ParameterVector{X});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);

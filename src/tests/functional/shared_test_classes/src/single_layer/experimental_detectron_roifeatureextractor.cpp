@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/single_layer/experimental_detectron_roifeatureextractor.hpp"
@@ -25,7 +25,7 @@ std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
     if (inputShapes.front().first.size() != 0) {
         result << "IS=(";
         for (const auto &shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result.seekp(-1, result.cur);
         result << ")_";
@@ -33,12 +33,12 @@ std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
     result << "TS=";
     for (const auto& shape : inputShapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
     result << "outputSize=" << outputSize << "_";
     result << "samplingRatio=" << samplingRatio << "_";
-    result << "pyramidScales=" << CommonTestUtils::vec2str(pyramidScales) << "_";
+    result << "pyramidScales=" << ov::test::utils::vec2str(pyramidScales) << "_";
     std::string alig = aligned ? "true" : "false";
     result << "aligned=" << alig << "_";
     result << "netPRC=" << netPrecision << "_";
@@ -66,7 +66,10 @@ void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
     attrs.sampling_ratio = samplingRatio;
     attrs.pyramid_scales = pyramidScales;
 
-    auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+    }
     auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto experimentalDetectronROIFeatureExtractor = std::make_shared<ExperimentalROI>(paramsOuts, attrs);
     function = std::make_shared<ov::Model>(ov::OutputVector{experimentalDetectronROIFeatureExtractor->output(0),

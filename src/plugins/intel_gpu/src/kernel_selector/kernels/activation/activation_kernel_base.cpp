@@ -24,13 +24,14 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
     } else if (out_layout == DataLayout::b_fs_yx_fsv16 || out_layout == DataLayout::b_fs_yx_fsv32) {
         dispatchData.gws = {Align(out.Feature().v, 16) * out.Batch().v, out.X().v, out.Y().v};
         dispatchData.lws = {16, 1, 1};
-    } else if (out.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || out.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
+    } else if (out_layout == DataLayout::bs_fs_yx_bsv32_fsv16 || out_layout == DataLayout::bs_fs_yx_bsv32_fsv32) {
         dispatchData.gws = {out.X().v * out.Y().v, Align(out.Feature().v, 16), Align(out.Batch().v, 16)};
         dispatchData.lws = {1, 16, 16};
     } else {
-        dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        dispatchData.gws = {out.X().v, out.Y().v * out.Z().v * out.W().v * out.U().v * out.V().v, out.Feature().v * out.Batch().v};
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
-                                                                         {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                                                                         {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
+                                                                          Tensor::DataChannelName::U, Tensor::DataChannelName::V},
                                                                          {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
     }
@@ -99,6 +100,7 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     auto& kernel = kd.kernels[0];

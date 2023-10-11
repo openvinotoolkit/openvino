@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 
@@ -92,7 +92,7 @@ std::shared_ptr<ngraph::Node> CreateConvolution(const ngraph::Output<ngraph::Nod
     size_t filter_total_size =
         num_out_channels * input_shape.back() *
         std::accumulate(std::begin(kernel_shape), std::end(kernel_shape), 1, std::multiplies<size_t>());
-    const std::vector<float> filter_weights = CommonTestUtils::generate_float_numbers(filter_total_size, -0.01f, 0.01f);
+    const std::vector<float> filter_weights = ov::test::utils::generate_float_numbers(filter_total_size, -0.01f, 0.01f);
     const auto shape_size = input_shape.size();
     auto conv = ngraph::builder::makeConvolution(input,
                                                  ngPrc,
@@ -141,7 +141,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         result << "_1d_out=" << output1D;
         result << "_transpose2reshape=" << transpose_to_reshape;
         return result.str();
@@ -171,7 +171,7 @@ protected:
         ASSERT_LT(shape_size, 5);
         size_t in_total_dims_size =
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, in_total_dims_size}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
 
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
                                                                    ngraph::Shape{shape_size},
@@ -217,7 +217,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -232,7 +232,7 @@ protected:
         ASSERT_GT(shape_size, 2);
         ASSERT_LT(shape_size, 5);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto permute1 = CreateTranspose(params[0], shape_size, true);
         auto conv = CreateConvolution(permute1, ngPrc, inputShape);
         auto permute2 = CreateTranspose(conv, shape_size, false);
@@ -262,7 +262,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         result << "_withActivation=" << withActivation;
         result << "_transpose2reshape=" << transpose_to_reshape;
         return result.str();
@@ -274,7 +274,7 @@ protected:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -309,7 +309,7 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, in_total_dims_size}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
 
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
                                                                    ngraph::Shape{shape_size},
@@ -356,7 +356,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -366,7 +366,7 @@ protected:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), 0.0f, 0.5f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), 0.0f, 0.5f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -396,7 +396,7 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, in_total_dims_size}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
 
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
                                                                    ngraph::Shape{shape_size},
@@ -438,7 +438,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -448,7 +448,7 @@ protected:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -479,7 +479,8 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 2 * in_total_dims_size}});
+        ov::ParameterVector params{
+            std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 2 * in_total_dims_size})};
         auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
@@ -532,7 +533,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         result << "_splits=" << splits_num;
         return result.str();
     }
@@ -543,7 +544,7 @@ protected:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -576,7 +577,8 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, splits_num * in_total_dims_size}});
+        ov::ParameterVector params{
+            std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, splits_num * in_total_dims_size})};
 
         auto multipleInputShape = inputShape;
         size_t mul_dim = inputShape.size() == 4 && inputShape[1] > 1 ? 1 : (inputShape.size() - 2);
@@ -670,7 +672,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_PermutationPass,
     RemovePermutationsNHWCToNCHWPassTest,
     ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                       ::testing::Values(ov::test::utils::DEVICE_GNA),
                        ::testing::ValuesIn(configs),
                        ::testing::ValuesIn(inputShapes),
                        ::testing::ValuesIn(std::vector<bool>{false, true}),   // with 1d output of convolution
@@ -680,7 +682,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
                          RemovePermutationsNHWCToNCHWPassNoReshapesTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes)),
                          RemovePermutationsNHWCToNCHWPassNoReshapesTest::getTestCaseName);
@@ -688,7 +690,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
 INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
                          RemovePermutationsWithPoolAndActTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(std::vector<bool>{false, true}),  // with activation
@@ -699,7 +701,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
 INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
                          RemovePermutationsWithTwoConvTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes)),
                          RemovePermutationsWithTwoConvTest::getTestCaseName);
@@ -707,7 +709,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
 INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
                          RemovePermutationsWithEltwiseTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes)),
                          RemovePermutationsWithEltwiseTest::getTestCaseName);
@@ -715,7 +717,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
 INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
                          RemoveSharedPermutationTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapesSplit),
                                             ::testing::ValuesIn(splitsNum)),

@@ -10,10 +10,10 @@
 #include "any_copy.hpp"
 #include "common/versioning.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ::testing;
 using ov::intel_gna::GNAPlugin;
@@ -106,11 +106,11 @@ protected:
     std::shared_ptr<ngraph::Function> getFunction() {
         auto ngPrc = ngraph::element::f32;
         size_t shape = 10;
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, shape}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, shape})};
         auto mul_const =
             ngraph::builder::makeConstant<float>(ngPrc,
                                                  {shape, shape},
-                                                 CommonTestUtils::generate_float_numbers(shape * shape, -0.5f, 0.5f),
+                                                 ov::test::utils::generate_float_numbers(shape * shape, -0.5f, 0.5f),
                                                  false);
 
         auto matmul = std::make_shared<ngraph::op::MatMul>(params[0], mul_const, false, true);
@@ -169,7 +169,7 @@ protected:
 
 TEST_F(GNAExportImportTest, ExportImportI16) {
     const ov::AnyMap gna_config = {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-                                   ov::inference_precision(ngraph::element::i16)};
+                                   ov::hint::inference_precision(ngraph::element::i16)};
     exported_file_name = "export_test.bin";
     ExportModel(exported_file_name, gna_config);
     ImportModel(exported_file_name, gna_config);
@@ -177,7 +177,7 @@ TEST_F(GNAExportImportTest, ExportImportI16) {
 
 TEST_F(GNAExportImportTest, ExportImportI8) {
     const ov::AnyMap gna_config = {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
-                                   ov::inference_precision(ngraph::element::i8)};
+                                   ov::hint::inference_precision(ngraph::element::i8)};
     exported_file_name = "export_test.bin";
     ExportModel(exported_file_name, gna_config);
     ImportModel(exported_file_name, gna_config);

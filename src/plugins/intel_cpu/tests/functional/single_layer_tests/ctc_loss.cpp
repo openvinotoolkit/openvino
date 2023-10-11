@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -43,7 +43,7 @@ public:
         ngraph::element::Type iPrecision;
         std::tie(shapes, blank, preprocessCollapseRepeated, ctcMergeRepeated, unique, fPrecision, iPrecision) = obj.param;
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (std::vector<ngraph::Shape>& staticShapes : shapes.second) {
             for (ngraph::Shape& shape : staticShapes) {
@@ -75,7 +75,7 @@ protected:
         ngraph::element::Type iPrecision;
         std::tie(shapes, blank, preprocessCollapseRepeated, ctcMergeRepeated, unique, fPrecision, iPrecision) = GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         selectedType = std::string("ref_any_FP32");
 
         for (std::vector<ngraph::Shape>& staticShapes : shapes.second) {
@@ -96,7 +96,11 @@ protected:
         std::vector<ngraph::element::Type> types{fPrecision, iPrecision, iPrecision, iPrecision};
         std::vector<ov::PartialShape> partialShapes{inputDynamicShapesValues, shapeN, shapeNT, shapeN};
 
-        auto params = ngraph::builder::makeDynamicParams(types, partialShapes);
+        ov::ParameterVector params;
+        for (size_t i = 0; i < types.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], partialShapes[i]);
+            params.push_back(param_node);
+        }
         auto bankNode = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ }, {blank});
 
         auto ctcLoss = std::make_shared<ngraph::opset4::CTCLoss>(params[0], params[1], params[2],
@@ -118,10 +122,10 @@ protected:
         std::mt19937 gen(42);
         std::uniform_int_distribution<unsigned long> dist(1, T);
         std::vector<int32_t> logitLength(N, 0);
-        for (int n = 0; n < N; n++) {
+        for (size_t n = 0; n < N; n++) {
             logitLength[n] = dist(gen);
         }
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
@@ -143,7 +147,7 @@ protected:
                 std::mt19937 genLable(42);
                 std::uniform_int_distribution<unsigned long> distLabel(0, C - 1);
                 std::vector<int32_t> labels(N * T, 0);
-                for (int n = 0; n < N * T; n++) {
+                for (size_t n = 0; n < N * T; n++) {
                     int value;
                     // make sure blank not be inclded in labels
                     while ((value = distLabel(genLable)) == blank) {}
@@ -162,7 +166,7 @@ protected:
                 std::uniform_int_distribution<unsigned long> dist(1, T);
 
                 std::vector<int32_t> labelLength(N, 0);
-                for (int n = 0; n < N; n++) {
+                for (size_t n = 0; n < N; n++) {
                     const int len = dist(gen);
                     // make sure lableLen <= logitLen
                     labelLength[n] = std::min(len, logitLength[n]);

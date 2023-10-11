@@ -3,10 +3,10 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
-#include "dimension_tracker.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "topk_shape_inference.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ov;
 using namespace ov::opset11;
@@ -73,10 +73,9 @@ TYPED_TEST_P(topk_type_prop, default_ctor_no_arguments) {
     op->set_mode(op::TopKMode::MIN);
     op->set_sort_type(op::TopKSortType::SORT_INDICES);
 
-    const auto constant_map =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{}, &k)}};
+    const auto constant_map = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, Shape{}, &k}}};
 
-    const auto outputs = shape_infer(op.get(), PartialShapes{data_shape, {}}, constant_map);
+    const auto outputs = shape_infer(op.get(), PartialShapes{data_shape, {}}, ov::make_tensor_accessor(constant_map));
 
     EXPECT_EQ(op->get_provided_axis(), exp_axis);
     EXPECT_EQ(op->get_axis(), exp_axis);
@@ -260,38 +259,38 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_labels_k_is_interval) {
     const auto data = std::make_shared<Parameter>(element::f32, data_shape);
 
     {
-        // dim{2,5} k{10,20} -> {2,20}
+        // dim{2,5} k{10,20} -> {2,5}
         const auto op = this->make_op(data, k, 0, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
-                    AllOf(PartialShape({{2, 20}, {12, 18}, {2, 30}, {30, 40}, {-1, 15}, {15, -1}}),
+                    AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {30, 40}, {-1, 15}, {15, -1}}),
                           ResultOf(get_shape_labels, ElementsAre(no_label, 2, 3, 4, 5, 6))));
     }
     {
-        // dim{12,18} k{10,20} -> {10,20}
+        // dim{12,18} k{10,20} -> {10,18}
         const auto op = this->make_op(data, k, 1, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
-                    AllOf(PartialShape({{2, 5}, {10, 20}, {2, 30}, {30, 40}, {-1, 15}, {15, -1}}),
+                    AllOf(PartialShape({{2, 5}, {10, 18}, {2, 30}, {30, 40}, {-1, 15}, {15, -1}}),
                           ResultOf(get_shape_labels, ElementsAre(1, no_label, 3, 4, 5, 6))));
     }
     {
-        // dim{2, 30} k{10,20} -> {2,30}
+        // dim{2, 30} k{10,20} -> {2,20}
         const auto op = this->make_op(data, k, 2, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
-                    AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {30, 40}, {-1, 15}, {15, -1}}),
+                    AllOf(PartialShape({{2, 5}, {12, 18}, {2, 20}, {30, 40}, {-1, 15}, {15, -1}}),
                           ResultOf(get_shape_labels, ElementsAre(1, 2, no_label, 4, 5, 6))));
     }
     {
-        // dim{30,40} k{10,20} -> {10,40}  (should use k upper bounds??)
+        // dim{30,40} k{10,20} -> {10,20}  (should use k upper bounds??)
         const auto op = this->make_op(data, k, 3, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
-                    AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {10, 40}, {-1, 15}, {15, -1}}),
+                    AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {10, 20}, {-1, 15}, {15, -1}}),
                           ResultOf(get_shape_labels, ElementsAre(1, 2, 3, no_label, 5, 6))));
     }
     {
-        // dim{-inf,15} k{10,20} -> {0,20}
+        // dim{-inf,15} k{10,20} -> {0,15}
         const auto op = this->make_op(data, k, 4, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
-                    AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {30, 40}, {0, 20}, {15, -1}}),
+                    AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {30, 40}, {0, 15}, {15, -1}}),
                           ResultOf(get_shape_labels, ElementsAre(1, 2, 3, 4, no_label, 6))));
     }
     {
@@ -410,18 +409,14 @@ TEST_F(TypePropTopKV3Test, k_is_u32) {
                 Each(Property("PartialShape", &Output<Node>::get_partial_shape, PartialShape({1, {-1, 2}}))));
 }
 
-TEST(type_prop, topk_v11_stable_sort_by_indices) {
-    const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 3, 4});
-    const auto k = Constant::create(element::u32, Shape{}, {1});
-    OV_EXPECT_THROW(const auto op = std::make_shared<ov::op::v11::TopK>(data,
-                                                                        k,
-                                                                        1,
-                                                                        op::TopKMode::MAX,
-                                                                        op::TopKSortType::SORT_INDICES,
-                                                                        element::i32,
-                                                                        true),
-                    NodeValidationFailure,
-                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE'"));
+TEST(type_prop, top_k_partial_value) {
+    const auto data = std::make_shared<opset11::Parameter>(element::f32, PartialShape{{0, 16000}});
+    const auto shape = std::make_shared<opset11::ShapeOf>(data);
+    const auto concat =
+        std::make_shared<Concat>(ov::OutputVector{shape, Constant::create(element::i64, {1}, {200})}, 0);
+    const auto reduce_min = std::make_shared<opset11::ReduceMin>(concat, Constant::create(element::i64, {1}, {0}));
+    const auto op = std::make_shared<op::v3::TopK>(data, reduce_min, 0, "max", "value");
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{0, 200}}));
 }
 
 TEST(type_prop, topk_v11_stable_sort_by_none) {
@@ -435,5 +430,5 @@ TEST(type_prop, topk_v11_stable_sort_by_none) {
                                                                         element::i64,
                                                                         true),
                     NodeValidationFailure,
-                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE'"));
+                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE' or 'INDEX'"));
 }

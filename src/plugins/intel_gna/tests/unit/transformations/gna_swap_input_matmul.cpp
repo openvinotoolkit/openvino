@@ -9,7 +9,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
 
 namespace testing {
@@ -150,8 +150,7 @@ static void transposeInputShapes(std::vector<ngraph::Shape>& shapes) {
 }
 
 template <MatmulInputType E>
-class SwapInputMatmul : public CommonTestUtils::TestsCommon,
-                        public ::testing::WithParamInterface<SwapInputMatmulParams> {
+class SwapInputMatmul : public ov::test::TestsCommon, public ::testing::WithParamInterface<SwapInputMatmulParams> {
 public:
     void SetUp() override {
         std::vector<ngraph::Shape> shapes;
@@ -196,7 +195,7 @@ public:
 };
 
 template <MatmulInputType E>
-class SwapInputMatmulNotApplied : public CommonTestUtils::TestsCommon,
+class SwapInputMatmulNotApplied : public ov::test::TestsCommon,
                                   public ::testing::WithParamInterface<SwapInputMatmulParams> {
 public:
     void SetUp() override {

@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <tuple>
+#include <vector>
 
 #include "dev/threading/thread_affinity.hpp"
 
@@ -16,7 +17,7 @@
 namespace InferenceEngine {
 #if (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 using cpu_set_t = ov::threading::cpu_set_t;
-#endif  // (defined(__APPLE__) || defined(_WIN32))
+#endif  // (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 
 /**
  * @brief      Release the cores affinity mask for the current process
@@ -47,7 +48,12 @@ std::tuple<CpuSet, int> GetProcessMask();
  * @param[in]  processMask   The process mask
  * @return     `True` in case of success, `false` otherwise
  */
-bool PinThreadToVacantCore(int thrIdx, int hyperThreads, int ncores, const CpuSet& processMask, int cpuIdxOffset = 0);
+bool PinThreadToVacantCore(int thrIdx,
+                           int hyperThreads,
+                           int ncores,
+                           const CpuSet& processMask,
+                           const std::vector<int>& cpu_ids = {},
+                           int cpuIdxOffset = 0);
 
 /**
  * @brief      Pins thread to a spare core in the round-robin scheme, while respecting the given process mask.

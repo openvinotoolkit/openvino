@@ -41,7 +41,7 @@ op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch,
 
 std::shared_ptr<Node> op::ScaleShiftIE::clone_with_new_inputs(const OutputVector& new_args) const {
     if (new_args.size() != 3) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 
     return make_shared<ScaleShiftIE>(new_args.at(0), new_args.at(1), new_args.at(2), output_type);

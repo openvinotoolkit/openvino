@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/stridedslice_concat.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -22,12 +22,12 @@ std::string SliceConcatTest::getTestCaseName(const testing::TestParamInfo<SliceC
     for (auto const& configItem : configuration) {
         result << "_configItem=" << configItem.first << "_" << configItem.second;
     }
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "B=" << CommonTestUtils::vec2str(begin) << "_";
-    result << "E=" << CommonTestUtils::vec2str(end) << "_";
-    result << "S=" << CommonTestUtils::vec2str(strides) << "_";
-    result << "BM=" << CommonTestUtils::vec2str(beginMask) << "_";
-    result << "EM=" << CommonTestUtils::vec2str(endMask) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "B=" << ov::test::utils::vec2str(begin) << "_";
+    result << "E=" << ov::test::utils::vec2str(end) << "_";
+    result << "S=" << ov::test::utils::vec2str(strides) << "_";
+    result << "BM=" << ov::test::utils::vec2str(beginMask) << "_";
+    result << "EM=" << ov::test::utils::vec2str(endMask) << "_";
     return result.str();
 }
 
@@ -42,7 +42,7 @@ void SliceConcatTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     size_t input_size = std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<size_t>());
-    auto params = ngraph::builder::makeParams(ngPrc, {{1, input_size}});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, input_size})};
 
     ngraph::Output<ngraph::Node> input = params[0];
     if (inputShape[0] != 1 || inputShape.size() != 2) {

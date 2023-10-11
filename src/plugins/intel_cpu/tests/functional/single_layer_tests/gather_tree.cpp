@@ -3,8 +3,8 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -37,10 +37,10 @@ public:
         std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
         for (const auto& item : inputShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "secondaryInputType=" << secondaryInputType << "_";
         result << "netPRC=" << netPrecision.get_type_name() << "_";
@@ -86,7 +86,7 @@ protected:
         std::shared_ptr<ngraph::Node> inp3;
         std::shared_ptr<ngraph::Node> inp4;
 
-        auto paramsIn = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
         if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
             inp2 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[1]);
             inp3 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[2]);
@@ -163,7 +163,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUStatic, GatherTreeLayerCPUTest,
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GatherTreeLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicParameter, GatherTreeLayerCPUTest,
@@ -175,7 +175,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicParameter, GatherTreeLayerCPU
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GatherTreeLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicConstant, GatherTreeLayerCPUTest,
@@ -187,7 +187,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicConstant, GatherTreeLayerCPUT
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GatherTreeLayerCPUTest::getTestCaseName);
 
 } // namespace

@@ -6,6 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
+#include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -21,11 +22,11 @@ class TRANSFORMATIONS_API TSDataMovementBackward;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TSDataMovementForward transformation sinks Transpose through BatchToSpace, SpaceToBatch
- * and Pad operations in the forward direction.
+ * @brief TSDataMovementForward transformation sinks Transpose through BatchToSpace, SpaceToBatch,
+ * ReverseSequence and Pad operations in the forward direction.
  * These operations are categorized as "DataMovement" and are handled in a similar way in this transformation.
  */
-class ov::pass::transpose_sinking::TSDataMovementForward : public ov::pass::MatcherPass {
+class ov::pass::transpose_sinking::TSDataMovementForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
     OPENVINO_RTTI("ov::pass::TSDataMovementForward", "0");
     TSDataMovementForward();
@@ -33,8 +34,8 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TSDataMovementBackward transformation sinks Transpose through BatchToSpace, SpaceToBatch
- * and Pad operations in the backward direction.
+ * @brief TSDataMovementBackward transformation sinks Transpose through BatchToSpace, SpaceToBatch,
+ * ReverseSequence and Pad operations in the backward direction.
  * These operations are categorized as "DataMovement" and are handled in a similar way in this transformation.
  */
 class ov::pass::transpose_sinking::TSDataMovementBackward : public ov::pass::MatcherPass {

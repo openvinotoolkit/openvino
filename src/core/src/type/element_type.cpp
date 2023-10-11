@@ -9,8 +9,7 @@
 #include <iostream>
 #include <unordered_map>
 
-#include "ngraph/log.hpp"
-#include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 namespace {
 struct TypeInfo {
@@ -70,10 +69,56 @@ inline TypeInfo get_type_info(ov::element::Type_t type) {
         return {32, false, false, false, "uint32_t", "u32"};
     case ov::element::Type_t::u64:
         return {64, false, false, false, "uint64_t", "u64"};
+    case ov::element::Type_t::nf4:
+        return {4, false, false, true, "nfloat4", "nf4"};
     default:
         OPENVINO_THROW("ov::element::Type_t not supported: ", type);
     }
 };
+
+ov::element::Type type_from_string(const std::string& type) {
+    if (type == "f16" || type == "FP16") {
+        return ::ov::element::Type(::ov::element::Type_t::f16);
+    } else if (type == "f32" || type == "FP32") {
+        return ::ov::element::Type(::ov::element::Type_t::f32);
+    } else if (type == "bf16" || type == "BF16") {
+        return ::ov::element::Type(::ov::element::Type_t::bf16);
+    } else if (type == "f64" || type == "FP64") {
+        return ::ov::element::Type(::ov::element::Type_t::f64);
+    } else if (type == "i4" || type == "I4") {
+        return ::ov::element::Type(::ov::element::Type_t::i4);
+    } else if (type == "i8" || type == "I8") {
+        return ::ov::element::Type(::ov::element::Type_t::i8);
+    } else if (type == "i16" || type == "I16") {
+        return ::ov::element::Type(::ov::element::Type_t::i16);
+    } else if (type == "i32" || type == "I32") {
+        return ::ov::element::Type(::ov::element::Type_t::i32);
+    } else if (type == "i64" || type == "I64") {
+        return ::ov::element::Type(::ov::element::Type_t::i64);
+    } else if (type == "u1" || type == "U1" || type == "BIN" || type == "bin") {
+        return ::ov::element::Type(::ov::element::Type_t::u1);
+    } else if (type == "u4" || type == "U4") {
+        return ::ov::element::Type(::ov::element::Type_t::u4);
+    } else if (type == "u8" || type == "U8") {
+        return ::ov::element::Type(::ov::element::Type_t::u8);
+    } else if (type == "u16" || type == "U16") {
+        return ::ov::element::Type(::ov::element::Type_t::u16);
+    } else if (type == "u32" || type == "U32") {
+        return ::ov::element::Type(::ov::element::Type_t::u32);
+    } else if (type == "u64" || type == "U64") {
+        return ::ov::element::Type(::ov::element::Type_t::u64);
+    } else if (type == "boolean" || type == "BOOL") {
+        return ::ov::element::Type(::ov::element::Type_t::boolean);
+    } else if (type == "undefined" || type == "UNSPECIFIED") {
+        return ::ov::element::Type(::ov::element::Type_t::undefined);
+    } else if (type == "dynamic") {
+        return ::ov::element::Type(::ov::element::Type_t::dynamic);
+    } else if (type == "nf4" || type == "NF4") {
+        return ::ov::element::Type(::ov::element::Type_t::nf4);
+    } else {
+        OPENVINO_THROW("Incorrect type: ", type);
+    }
+}
 }  // namespace
 
 std::vector<const ov::element::Type*> ov::element::Type::get_known_types() {
@@ -122,6 +167,7 @@ ov::element::Type::Type(size_t bitwidth,
         {ov::element::Type_t::u16, {16, false, false, false, "uint16_t", "u16"}},
         {ov::element::Type_t::u32, {32, false, false, false, "uint32_t", "u32"}},
         {ov::element::Type_t::u64, {64, false, false, false, "uint64_t", "u64"}},
+        {ov::element::Type_t::u4, {4, false, false, false, "uint4_t", "nf4"}},
     };
     for (const auto& t : elements_map) {
         const TypeInfo& info = t.second;
@@ -132,6 +178,8 @@ ov::element::Type::Type(size_t bitwidth,
         }
     }
 }
+
+ov::element::Type::Type(const std::string& type) : Type(type_from_string(type)) {}
 
 std::string ov::element::Type::c_type_string() const {
     return get_type_info(m_type).m_cname;
@@ -146,6 +194,10 @@ size_t ov::element::Type::hash() const {
 }
 
 std::string ov::element::Type::get_type_name() const {
+    return to_string();
+}
+
+std::string ov::element::Type::to_string() const {
     return get_type_info(m_type).m_type_name;
 }
 
@@ -251,7 +303,7 @@ Type fundamental_type_for(const Type& type) {
 }  // namespace ov
 
 std::ostream& ov::element::operator<<(std::ostream& out, const ov::element::Type& obj) {
-    return out << obj.get_type_name();
+    return out << obj.to_string();
 }
 
 std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) {
@@ -272,6 +324,7 @@ std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) 
         {"FP64", ov::element::f64},
         {"FP16", ov::element::f16},
         {"BIN", ov::element::u1},
+        {"NF4", ov::element::nf4},
     };
     std::string str;
     in >> str;
@@ -281,7 +334,7 @@ std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) 
         return in;
     }
     for (auto&& type : Type::get_known_types()) {
-        if (type->get_type_name() == str) {
+        if (type->to_string() == str) {
             obj = *type;
             break;
         }
@@ -353,6 +406,7 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         ET_CASE(u16);
         ET_CASE(u32);
         ET_CASE(u64);
+        ET_CASE(nf4);
 #undef ET_CASE
     case ov::element::Type_t::undefined:
         return 0;
@@ -365,7 +419,7 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
 
 namespace ov {
 template <>
-NGRAPH_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
+OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
     static auto enum_names = EnumNames<element::Type_t>("element::Type_t",
                                                         {{"undefined", element::Type_t::undefined},
                                                          {"dynamic", element::Type_t::dynamic},
@@ -384,7 +438,8 @@ NGRAPH_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
                                                          {"u8", element::Type_t::u8},
                                                          {"u16", element::Type_t::u16},
                                                          {"u32", element::Type_t::u32},
-                                                         {"u64", element::Type_t::u64}});
+                                                         {"u64", element::Type_t::u64},
+                                                         {"nf4", element::Type_t::nf4}});
     return enum_names;
 }
 

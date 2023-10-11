@@ -7,7 +7,7 @@
 #include "itt.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/log.hpp"
+#include "openvino/reference/log.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -27,12 +27,13 @@ shared_ptr<Node> op::Log::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Log>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace logop {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::log<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::log<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 
@@ -41,12 +42,12 @@ bool evaluate_log(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_log, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_log, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_log, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_log, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_log, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_log, f32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_log, i32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_log, i64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_log, u32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_log, u64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_log, f16, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_log, f32, arg0, out, count);
     default:
         rc = false;
         break;
@@ -58,7 +59,7 @@ bool evaluate_log(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 
 bool op::Log::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Log_evaluate);
-    return logop::evaluate_log(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return logop::evaluate_log(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool op::Log::has_evaluate() const {

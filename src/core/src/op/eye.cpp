@@ -6,30 +6,31 @@
 
 #include "eye_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/eye.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/eye.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace op {
 namespace eye {
 namespace {
 template <ov::element::Type_t ET>
-bool evaluate(const ov::HostTensorPtr& out, const int64_t diagonal_index) {
-    ngraph::runtime::reference::eye(out->get_data_ptr<ET>(), out->get_shape(), diagonal_index);
+bool evaluate(const ngraph::HostTensorPtr& out, const int64_t diagonal_index) {
+    ov::reference::eye(out->get_data_ptr<ET>(), out->get_shape(), diagonal_index);
     return true;
 }
 
-bool evaluate_eye(const ov::HostTensorPtr& out, const int64_t diagonal_index) {
+bool evaluate_eye(const ngraph::HostTensorPtr& out, const int64_t diagonal_index) {
     bool rc = true;
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate, i8, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, u8, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, f16, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, bf16, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, i32, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, f32, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, f64, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, i64, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, i8, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, u8, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, f16, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, bf16, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, i32, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, f32, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, f64, out, diagonal_index);
+        OPENVINO_TYPE_CASE(evaluate, i64, out, diagonal_index);
     default:
         rc = false;
         break;
@@ -71,7 +72,9 @@ void ov::op::v9::Eye::validate_and_infer_types() {
                               input_et);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_out_type(), output_shape);
 }
 
@@ -110,10 +113,12 @@ bool ov::op::v9::Eye::has_evaluate() const {
     return false;
 }
 
-bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
+bool ov::op::v9::Eye::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
     OV_OP_SCOPE(v9_Eye_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, get_input_size()), "Invalid Eye input TensorVector.");
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid Eye output TensorVector.");
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     int64_t diagonal_index;
 
@@ -129,22 +134,20 @@ bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::Ho
             break;
         default:
             OPENVINO_THROW("Unsupported type of input `diagonal_index` in Eye operation: ",
-                           diagonal_index_data->get_element_type().get_type_name());
+                           diagonal_index_data->get_element_type().to_string());
         }
     } else {
         diagonal_index = 0;
     }
 
-    std::map<size_t, HostTensorPtr> constant_data;
     std::vector<ov::PartialShape> input_shapes;
     input_shapes.reserve(inputs.size());
 
     for (size_t i = 0; i < inputs.size(); ++i) {
         input_shapes.push_back(inputs[i]->get_partial_shape());
-        constant_data.emplace(i, inputs[i]);
     }
 
-    const auto output_shape = shape_infer(this, input_shapes, constant_data).front().to_shape();
+    const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
 
     outputs[0]->set_element_type(get_out_type());
     outputs[0]->set_shape(output_shape);

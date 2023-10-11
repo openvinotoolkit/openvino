@@ -7,7 +7,7 @@
 #include "frontend/quantized_layer_params.hpp"
 #include "gna_graph_tools.hpp"
 #include "ie_layouts.h"
-#include "preprocessing.hpp"
+#include "pre_post_process/data_conversion_helpers.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -70,11 +70,11 @@ void GNAVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
             auto quantized =
                 InferenceEngine::getInjectedData<ov::intel_gna::frontend::QuantizedLayerParams>(state->getInput());
             auto scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : state->scale_factor;
-            ConvertToInt16(static_cast<int16_t*>(state->gna_ptr),
-                           newState->buffer().as<float*>(),
-                           1,
-                           data_elements,
-                           scale_factor);
+            pre_post_processing::ConvertToInt16(static_cast<int16_t*>(state->gna_ptr),
+                                                newState->buffer().as<float*>(),
+                                                1,
+                                                static_cast<uint32_t>(data_elements),
+                                                scale_factor);
         } else {
             THROW_GNA_EXCEPTION
                 << "Failed to SetState for VariableState " << name
@@ -107,7 +107,7 @@ InferenceEngine::Blob::CPtr GNAVariableState::GetState() const {
         auto buffer = result_blob->buffer().as<float*>();
         auto new_gna_ptr = static_cast<int16_t*>(state->gna_ptr);
 
-        for (int i = 0; i < elements; i++) {
+        for (size_t i = 0; i < elements; i++) {
             buffer[i] = new_gna_ptr[i] / scale_factor;
         }
 

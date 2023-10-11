@@ -2,15 +2,17 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import pytest
 import numpy as np
 
-from tests.conftest import model_path
-from tests.test_utils.test_utils import get_relu_model, generate_image, generate_model_and_image, generate_relu_compiled_model
-from openvino.runtime import Model, ConstOutput, Shape, Core, Tensor
-
-test_net_xml, test_net_bin = model_path()
+from tests.utils.helpers import (
+    get_relu_model,
+    generate_image,
+    generate_model_and_image,
+    generate_relu_compiled_model,
+    create_filename_for_test)
+from openvino import Model, Shape, Core, Tensor, serialize
+from openvino.runtime import ConstOutput
 
 
 def test_get_property(device):
@@ -22,9 +24,7 @@ def test_get_property(device):
 
 
 def test_get_runtime_model(device):
-    core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    compiled_model = core.compile_model(model, device)
+    compiled_model = generate_relu_compiled_model(device)
     runtime_model = compiled_model.get_runtime_model()
     assert isinstance(runtime_model, Model)
 
@@ -35,8 +35,7 @@ def test_export_import(device):
     if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
         pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
 
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    compiled_model = core.compile_model(model, device)
+    compiled_model = generate_relu_compiled_model(device)
 
     user_stream = compiled_model.export_model()
 
@@ -45,7 +44,7 @@ def test_export_import(device):
     img = generate_image()
     res = new_compiled.infer_new_request({"data": img})
 
-    assert np.argmax(res[new_compiled.outputs[0]]) == 9
+    assert np.argmax(res[new_compiled.outputs[0]]) == 531
 
 
 def test_export_import_advanced(device):
@@ -56,8 +55,7 @@ def test_export_import_advanced(device):
     if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
         pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
 
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    compiled_model = core.compile_model(model, device)
+    compiled_model = generate_relu_compiled_model(device)
 
     user_stream = io.BytesIO()
 
@@ -68,7 +66,7 @@ def test_export_import_advanced(device):
     img = generate_image()
     res = new_compiled.infer_new_request({"data": img})
 
-    assert np.argmax(res[new_compiled.outputs[0]]) == 9
+    assert np.argmax(res[new_compiled.outputs[0]]) == 531
 
 
 @pytest.mark.parametrize("input_arguments", [[0], ["data"], []])
@@ -221,11 +219,15 @@ def test_direct_infer(device, shared_flag):
     assert np.array_equal(ref[compiled_model.outputs[0]], res[compiled_model.outputs[0]])
 
 
-def test_compiled_model_after_core_destroyed(device):
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_compiled_model_after_core_destroyed(request, tmp_path, device):
     core = Core()
-    with open(test_net_bin, "rb") as f:
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    model = get_relu_model()
+    serialize(model, xml_path, bin_path)
+    with open(bin_path, "rb") as f:
         weights = f.read()
-    with open(test_net_xml, "rb") as f:
+    with open(xml_path, "rb") as f:
         xml = f.read()
     model = core.read_model(model=xml, weights=weights)
     compiled = core.compile_model(model, device)

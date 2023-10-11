@@ -408,7 +408,7 @@ void graph_initializations::set_outputs(program& p) {
         }
     } else {
         for (auto& node : p.nodes_map)
-            if (node.second->is_endpoint()) {
+            if (node.second->is_endpoint() && !node.second->is_type<data>()) {
                 node.second->set_output(true);
                 p.outputs.push_back(node.second.get());
             }

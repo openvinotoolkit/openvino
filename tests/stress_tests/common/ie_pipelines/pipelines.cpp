@@ -55,11 +55,9 @@ create_compiled_model(const std::string &model, const std::string &target_device
     };
 }
 
-std::function<void()> recreate_compiled_model(std::shared_ptr<InferApiBase> &ie_wrapper, const std::string &model,
+std::function<void()> recreate_compiled_model(std::shared_ptr<InferApiBase> &ie_wrapper,
                                               const std::string &target_device, const int &api_version) {
-    return [&] {
-        ie_wrapper->load_plugin(target_device);
-        ie_wrapper->read_network(model);
+    return [=] {
         ie_wrapper->load_network(target_device);
     };
 }
@@ -77,7 +75,7 @@ create_infer_request(const std::string &model, const std::string &target_device,
 
 
 std::function<void()> recreate_infer_request(std::shared_ptr<InferApiBase> &ie_wrapper) {
-    return [&] {
+    return [=] {
         ie_wrapper->create_infer_request();
     };
 }
@@ -97,11 +95,22 @@ infer_request_inference(const std::string &model, const std::string &target_devi
 
 
 std::function<void()> reinfer_request_inference(std::shared_ptr<InferApiBase> &ie_wrapper) {
-    return [&] {
+    return [=] {
         ie_wrapper->infer();
     };
 }
 
+std::function<void()> recreate_and_infer_in_thread(std::shared_ptr<InferApiBase> &ie_wrapper) {
+    return [=] {
+        auto func = [=] {
+            ie_wrapper->create_infer_request();
+            ie_wrapper->prepare_input();
+            ie_wrapper->infer();
+        };
+        std::thread t(func);
+	t.join();
+    };
+}
 
 std::function<void()>
 inference_with_streams(const std::string &model, const std::string &target_device, const int &nstreams,
@@ -122,7 +131,6 @@ inference_with_streams(const std::string &model, const std::string &target_devic
         for (int counter = 0; counter < nireq; counter++) {
             ie_api_wrapper->create_infer_request();
             ie_api_wrapper->prepare_input();
-
             ie_api_wrapper->infer();
         }
     };

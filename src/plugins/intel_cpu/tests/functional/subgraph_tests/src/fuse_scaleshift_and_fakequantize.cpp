@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
@@ -112,7 +112,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FuseScaleShiftAndFakeQuantize, FuseScaleShiftAndF
         ::testing::Values(element::f32),
         ::testing::ValuesIn(scaleShifts),
         ::testing::ValuesIn(quantizes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FuseScaleShiftAndFakeQuantizeTest::getTestCaseName);
 } // namespace
 } // namespace CPUSubgraphTestsDefinitions

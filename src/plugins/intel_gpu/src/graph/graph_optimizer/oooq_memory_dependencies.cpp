@@ -168,6 +168,14 @@ void oooq_memory_dependencies::run(program& p) {
             if (!are_connected(A, B)) {
                 add_memory_dependency(*itr_A, *itr_B);
                 add_memory_dependency(*itr_B, *itr_A);
+            } else {
+                for (auto u : (*itr_A)->get_users()) {
+                    if (u != (*itr_B) && !are_connected(B, user_map[u]) && !are_connected(user_map[u], B)) {
+                        add_memory_dependency(*itr_A, *itr_B);
+                        add_memory_dependency(*itr_B, *itr_A);
+                        break;
+                    }
+                }
             }
             itr_B++;
             B++;

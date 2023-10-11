@@ -107,8 +107,9 @@ std::vector<layout> reduce_inst::calc_output_layouts(reduce_node const& /*node*/
     std::vector<ShapeType> output_shapes = {ShapeType()};
 
     auto axes = desc->axes;
-    auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{axes.size()}, axes.data());
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {{1, axes_tensor}};
+    auto axes_tensor = ov::Tensor(ov::element::i64, ov::Shape{axes.size()}, axes.data());
+    std::unordered_map<size_t, ov::Tensor> const_data = {{1, axes_tensor}};
+    auto ta = ov::make_tensor_accessor(const_data);
 
     // shape infer by mode
     auto mode = desc->mode;
@@ -118,63 +119,63 @@ std::vector<layout> reduce_inst::calc_output_layouts(reduce_node const& /*node*/
         {
             ov::op::v1::ReduceMax op;
             op.set_keep_dims(keep_dims);
-            shape_infer(&op, input_shapes, output_shapes, const_data);
+            output_shapes = shape_infer(&op, input_shapes, ta);
             break;
         }
         case reduce_mode::min:
         {
             ov::op::v1::ReduceMin op;
             op.set_keep_dims(keep_dims);
-            shape_infer(&op, input_shapes, output_shapes, const_data);
+            output_shapes = shape_infer(&op, input_shapes, ta);
             break;
         }
         case reduce_mode::mean:
         {
             ov::op::v1::ReduceMean op;
             op.set_keep_dims(keep_dims);
-            shape_infer(&op, input_shapes, output_shapes, const_data);
+            output_shapes = shape_infer(&op, input_shapes, ta);
             break;
         }
         case reduce_mode::prod:
         {
             ov::op::v1::ReduceProd op;
             op.set_keep_dims(keep_dims);
-            shape_infer(&op, input_shapes, output_shapes, const_data);
+            output_shapes = shape_infer(&op, input_shapes, ta);
             break;
         }
         case reduce_mode::sum:
         {
             ov::op::v1::ReduceSum op;
             op.set_keep_dims(keep_dims);
-            shape_infer(&op, input_shapes, output_shapes, const_data);
+            output_shapes = shape_infer(&op, input_shapes, ta);
             break;
         }
         case reduce_mode::logical_and:
             {
             ov::op::v1::ReduceLogicalAnd op;
             op.set_keep_dims(keep_dims);
-            shape_infer(&op, input_shapes, output_shapes, const_data);
+            output_shapes = shape_infer(&op, input_shapes, ta);
             break;
         }
         case reduce_mode::logical_or:
         {
             ov::op::v1::ReduceLogicalOr op;
             op.set_keep_dims(keep_dims);
-            shape_infer(&op, input_shapes, output_shapes, const_data);
+            output_shapes = shape_infer(&op, input_shapes, ta);
             break;
         }
         case reduce_mode::l1:
         {
             ov::op::v4::ReduceL1 op;
             op.set_keep_dims(keep_dims);
-            shape_infer(&op, input_shapes, output_shapes, const_data);
+            output_shapes = shape_infer(&op, input_shapes, ta);
             break;
         }
         case reduce_mode::l2:
         {
             ov::op::v4::ReduceL2 op;
             op.set_keep_dims(keep_dims);
-            shape_infer(&op, input_shapes, output_shapes, const_data);
+            output_shapes = shape_infer(&op, input_shapes, ta);
             break;
         }
         case reduce_mode::sum_square:

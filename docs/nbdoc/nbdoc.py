@@ -1,24 +1,23 @@
 import argparse
+import shutil
 from pathlib import Path
 from utils import (
     create_content,
     add_content_below,
-    process_notebook_name,
     verify_notebook_name,
-    split_notebooks_into_sections,
 )
 from consts import (
     artifacts_link,
     binder_template,
+    colab_template,
+    binder_colab_template,
     blacklisted_extensions,
-    notebooks_docs,
     notebooks_path,
     no_binder_template,
     repo_directory,
     repo_name,
+    repo_branch,
     repo_owner,
-    rst_template,
-    section_names,
 )
 from notebook import Notebook
 from section import Section
@@ -28,6 +27,7 @@ from jinja2 import Template
 from urllib.request import urlretrieve
 from requests import get
 import os
+import sys
 
 
 class NbTravisDownloader:
@@ -76,45 +76,50 @@ class NbTravisDownloader:
 class NbProcessor:
     def __init__(self, nb_path: str = notebooks_path):
         self.nb_path = nb_path
-        notebooks = [
-            Notebook(
-                name=process_notebook_name(notebook),
-                path=notebook,
-            )
-            for notebook in os.listdir(self.nb_path)
-            if verify_notebook_name(notebook)
-        ]
-        notebooks = split_notebooks_into_sections(notebooks)
-        self.rst_data = {
-            "sections": [
-                Section(name=section_name, notebooks=section_notebooks)
-                for section_name, section_notebooks in zip(section_names, notebooks)
-            ]
-
-        }
         self.binder_data = {
+            "owner": repo_owner,
+            "repo": repo_name,
+            "folder": repo_directory,
+            "branch": repo_branch,
+        }
+        self.colab_data = {
             "owner": repo_owner,
             "repo": repo_name,
             "folder": repo_directory,
         }
 
-    def fetch_binder_list(self, file_format: str = 'txt') -> list:
-        """Funtion that fetches list of notebooks with binder buttons
+    def fetch_binder_list(self, file) -> list:
+        """Function that fetches list of notebooks with binder buttons
 
         :param file_format: Format of file containing list of notebooks with button. Defaults to 'txt'
         :type file_format: str
-        :return: List of notebooks conaining binder buttons
+        :return: List of notebooks containing binder buttons
         :rtype: list
         """
-        list_of_buttons = glob(f"{self.nb_path}/*.{file_format}")
+        list_of_buttons = glob(f"{self.nb_path}/{file}")
         if list_of_buttons:
             with open(list_of_buttons[0]) as file:
                 list_of_buttons = file.read().splitlines()
             return list_of_buttons
-        else:
-            return []
+        return []
 
-    def add_binder(self, buttons_list: list,  template_with_binder: str = binder_template, template_without_binder: str = no_binder_template):
+    def fetch_colab_list(self, file) -> list:
+        """Function that fetches list of notebooks with colab buttons
+
+        :param file_format: Format of file containing list of notebooks with button. Defaults to 'lst'
+        :type file_format: str
+        :return: List of notebooks containing colab buttons
+        :rtype: list
+        """
+        list_of_cbuttons = glob(f"{self.nb_path}/{file}")
+        if list_of_cbuttons:
+            with open(list_of_cbuttons[0]) as file:
+                list_of_cbuttons = file.read().splitlines()
+            return list_of_cbuttons
+        return []
+
+
+    def add_binder(self, buttons_list: list,  cbuttons_list: list, template_with_colab_and_binder: str = binder_colab_template, template_with_binder: str = binder_template, template_with_colab: str = colab_template, template_without_binder: str = no_binder_template):
         """Function working as an example how to add binder button to existing rst files
 
         :param buttons_list: List of notebooks that work on Binder.
@@ -126,46 +131,55 @@ class NbProcessor:
         :raises FileNotFoundError: In case of failure of adding content, error will appear
 
         """
+
         for notebook in [
             nb for nb in os.listdir(self.nb_path) if verify_notebook_name(nb)
         ]:
-            if '-'.join(notebook.split('-')[:-2]) in buttons_list:
-                button_text = create_content(
-                    template_with_binder, self.binder_data, notebook)
-                if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
-                    raise FileNotFoundError("Unable to modify file")
+            notebook_item = '-'.join(notebook.split('-')[:-2])
+
+            if notebook_item in buttons_list:
+                template = template_with_colab_and_binder if notebook_item in cbuttons_list else template_with_binder
             else:
-                button_text = create_content(
-                    template_without_binder, self.binder_data, notebook)
-                if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
-                    raise FileNotFoundError("Unable to modify file")
+                template = template_with_colab if notebook_item in cbuttons_list else template_without_binder
 
-    def render_rst(self, path: str = notebooks_docs, template: str = rst_template):
-        """Rendering rst file for all notebooks
+            button_text = create_content(template, self.binder_data, notebook)
+            if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
+                raise FileNotFoundError("Unable to modify file")
 
-        :param path: Path to notebook main rst file. Defaults to notebooks_docs.
-        :type path: str
-        :param template: Template for default rst page. Defaults to rst_template.
-        :type template: str
-
-        """
-        with open(path, "w+") as nb_file:
-            nb_file.writelines(Template(template).render(self.rst_data))
-
+def add_glob_directive(tutorials_file):
+        with open(tutorials_file, 'r+', encoding='cp437') as mainfile:
+            readfile = mainfile.read()
+            if ':glob:' not in readfile:
+                add_glob = readfile\
+                    .replace(":hidden:\n", ":hidden:\n   :glob:\n")\
+                    .replace("notebooks_installation\n", "notebooks_installation\n   notebooks/*\n")
+                mainfile.seek(0)
+                mainfile.write(add_glob)
+                mainfile.truncate()
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('sourcedir', type=Path)
     parser.add_argument('outdir', type=Path)
+    parser.add_argument('-d', '--download', action='store_true')
     args = parser.parse_args()
+    sourcedir = args.sourcedir
     outdir = args.outdir
-    outdir.mkdir(parents=True, exist_ok=True)
-    # Step 2. Run default pipeline for downloading
-    NbTravisDownloader.download_from_jenkins(outdir)
+
+    main_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials.md').resolve(strict=True)
+    add_glob_directive(main_tutorials_file)
+
+    if args.download:
+        outdir.mkdir(parents=True, exist_ok=True)
+        # Step 2. Run default pipeline for downloading
+        NbTravisDownloader.download_from_jenkins(outdir)
+    else:
+        shutil.copytree(sourcedir, outdir)
     # Step 3. Run processing on downloaded file
     nbp = NbProcessor(outdir)
-    buttons_list = nbp.fetch_binder_list('txt')
-    nbp.add_binder(buttons_list)
-    nbp.render_rst(outdir.joinpath(notebooks_docs))
+    buttons_list = nbp.fetch_binder_list('notebooks_with_binder_buttons.txt')
+    cbuttons_list = nbp.fetch_colab_list('notebooks_with_colab_buttons.txt')
+    nbp.add_binder(buttons_list, cbuttons_list)
 
 
 if __name__ == '__main__':

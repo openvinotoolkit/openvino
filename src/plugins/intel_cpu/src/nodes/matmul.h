@@ -10,6 +10,7 @@
 #include <vector>
 #include <array>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,10 +24,9 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void initSupportedPrimitiveDescriptors() override;
-    MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    MemoryDescPtr getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
-    size_t getMaxBatch() const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
     size_t descInputNumbers() override {
@@ -38,16 +38,20 @@ public:
     }
 
     void prepareParams() override;
+    void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
+    bool canBeExecutedInInt8() const override;
 
 protected:
     AttrPtr initPrimitiveAttr() override;
     AttrPtr initPrimitiveAttr(const VectorDims& dims);
 
 private:
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
     dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
     std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1) const;
 

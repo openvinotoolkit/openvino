@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import pytest
 import numpy as np
 
-from tests.conftest import model_path
-from tests.test_utils.test_utils import generate_relu_compiled_model
+from tests.utils.helpers import generate_relu_compiled_model
 from openvino.runtime import Model, ConstOutput, Type, Shape, Core, Tensor
 from openvino.runtime.utils.data_helpers import _data_dispatch
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
 
 
 def _get_value(value):
@@ -157,8 +155,8 @@ def test_ndarray_copied_dispatcher(device, input_shape):
     result, infer_request = _run_dispatcher(device, test_data, False, input_shape)
 
     assert result == {}
-    assert np.array_equal(infer_request.inputs[0].data, test_data)
+    assert np.array_equal(infer_request.input_tensors[0].data, test_data)
 
     test_data[0] = 2.0
 
-    assert not np.array_equal(infer_request.inputs[0].data, test_data)
+    assert not np.array_equal(infer_request.input_tensors[0].data, test_data)

@@ -77,7 +77,7 @@ ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
             center_point_box = 0;
             break;
         default:
-            throw ngraph_error("NonMaxSuppression layer " + nms->get_friendly_name() + " has unsupported box encoding");
+            OPENVINO_THROW("NonMaxSuppression layer " + nms->get_friendly_name() + " has unsupported box encoding");
         }
         auto new_nms = std::make_shared<ngraph::op::NonMaxSuppressionIE>(nms->input_value(0),
                                                                          nms->input_value(1),

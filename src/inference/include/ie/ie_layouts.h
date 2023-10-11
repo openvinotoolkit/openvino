@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <algorithm>
 
 #include "ie_api.h"
@@ -17,10 +27,12 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
  * @brief This class describes blocking layouts
  */
-class INFERENCE_ENGINE_API_CLASS(BlockingDesc) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(BlockingDesc) {
 public:
     /**
      * @brief The default constructor which creates empty blocking descriptor
@@ -158,7 +170,7 @@ private:
 /**
  * @brief This class defines Tensor description
  */
-class INFERENCE_ENGINE_API_CLASS(TensorDesc) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(TensorDesc) {
 public:
     /**
      * @brief The constructor creates the tensor descriptor using blocking descriptor
@@ -337,7 +349,7 @@ private:
 /**
  * @brief This structure describes ROI data for image-like tensors.
  */
-struct ROI {
+struct INFERENCE_ENGINE_1_0_DEPRECATED ROI {
     size_t id = 0;     //!< ID of a ROI (offset over batch dimension)
     size_t posX = 0;   //!< W upper left coordinate of ROI
     size_t posY = 0;   //!< H upper left coordinate of ROI
@@ -372,7 +384,8 @@ struct ROI {
  *
  * @return A newly created TensorDesc object representing ROI.
  */
-INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_desc(const TensorDesc& origDesc, const ROI& roi, bool useOrigMemDesc);
+INFERENCE_ENGINE_API_CPP(TensorDesc)
+INFERENCE_ENGINE_1_0_DEPRECATED make_roi_desc(const TensorDesc& origDesc, const ROI& roi, bool useOrigMemDesc);
 
 /**
  * @brief Creates a TensorDesc object for ROI.
@@ -386,9 +399,10 @@ INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_desc(const TensorDesc& origDesc, c
  * @return A newly created TensorDesc object representing ROI.
  */
 INFERENCE_ENGINE_API_CPP(TensorDesc)
-make_roi_desc(const TensorDesc& origDesc,
-              const std::vector<size_t>& begin,
-              const std::vector<size_t>& end,
-              bool useOrigMemDesc);
+INFERENCE_ENGINE_1_0_DEPRECATED make_roi_desc(const TensorDesc& origDesc,
+                                              const std::vector<size_t>& begin,
+                                              const std::vector<size_t>& end,
+                                              bool useOrigMemDesc);
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

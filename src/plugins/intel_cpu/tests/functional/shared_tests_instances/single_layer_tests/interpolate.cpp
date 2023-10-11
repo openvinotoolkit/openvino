@@ -4,191 +4,174 @@
 
 #include <vector>
 
-#include "single_layer_tests/interpolate.hpp"
+#include "single_op_tests/interpolate.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
+using ov::test::InterpolateLayerTest;
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::FP32,
+const std::vector<ov::element::Type> model_types = {
+    ov::element::f16,
+    ov::element::f32,
 };
 
-const std::vector<std::vector<size_t>> inShapes = {
-        {1, 4, 6, 6},
+const std::vector<ov::Shape> input_shapes_static = {
+    {1, 4, 6, 6}
 };
 
-const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
-        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR,
-        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
-        ngraph::op::v4::Interpolate::InterpolateMode::CUBIC,
+const  std::vector<ov::op::v4::Interpolate::InterpolateMode> modes_without_nearest = {
+    ov::op::v4::Interpolate::InterpolateMode::LINEAR,
+    ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
+    ov::op::v4::Interpolate::InterpolateMode::CUBIC,
 };
 
-const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {
-        ngraph::op::v4::Interpolate::InterpolateMode::NEAREST,
+const  std::vector<ov::op::v4::Interpolate::InterpolateMode> nearest_mode = {
+    ov::op::v4::Interpolate::InterpolateMode::NEAREST,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
+const std::vector<ov::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
+    ov::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
+    ov::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+    ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+    ov::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
+    ov::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
-        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
-        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
+const std::vector<ov::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
+    ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
+    ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
-        ngraph::op::v4::Interpolate::NearestMode::SIMPLE,
-        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
-        ngraph::op::v4::Interpolate::NearestMode::FLOOR,
-        ngraph::op::v4::Interpolate::NearestMode::CEIL,
-        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL,
+const std::vector<ov::op::v4::Interpolate::NearestMode> nearest_modes = {
+    ov::op::v4::Interpolate::NearestMode::SIMPLE,
+    ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
+    ov::op::v4::Interpolate::NearestMode::FLOOR,
+    ov::op::v4::Interpolate::NearestMode::CEIL,
+    ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL,
 };
 
-const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestMode = {
-        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
+const std::vector<ov::op::v4::Interpolate::NearestMode> default_nearest_mode = {
+    ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
 };
 
 const std::vector<std::vector<size_t>> pads = {
-        {0, 0, 1, 1},
-        {0, 0, 0, 0},
+    {0, 0, 1, 1},
+    {0, 0, 0, 0},
 };
 
 const std::vector<bool> antialias = {
 // Not enabled in Inference Engine
 //        true,
-        false,
+    false,
 };
 
-const std::vector<double> cubeCoefs = {
-        -0.75f,
+const std::vector<double> cube_coefs = {
+    -0.75f,
 };
 
-const std::vector<std::vector<int64_t>> defaultAxes = {
+const std::vector<std::vector<int64_t>> default_axes = {
     {0, 1, 2, 3}
 };
 
-const std::vector<std::vector<size_t>> targetShapes = {
+const std::vector<ov::Shape> target_shapes = {
     {1, 4, 8, 8},
 };
 
-const std::vector<std::vector<float>> defaultScales = {
+const std::vector<std::vector<float>> default_scales = {
     {1.f, 1.f, 1.333333f, 1.333333f}
 };
 
 std::map<std::string, std::string> additional_config = {};
 
 const auto interpolateCasesWithoutNearest = ::testing::Combine(
-        ::testing::ValuesIn(modesWithoutNearest),
+        ::testing::ValuesIn(modes_without_nearest),
         ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
-        ::testing::ValuesIn(defaultNearestMode),
+        ::testing::ValuesIn(default_nearest_mode),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(pads),
-        ::testing::ValuesIn(cubeCoefs),
-        ::testing::ValuesIn(defaultAxes),
-        ::testing::ValuesIn(defaultScales));
+        ::testing::ValuesIn(cube_coefs),
+        ::testing::ValuesIn(default_axes),
+        ::testing::ValuesIn(default_scales));
 
 const auto interpolateCases = ::testing::Combine(
-        ::testing::ValuesIn(nearestMode),
+        ::testing::ValuesIn(nearest_mode),
         ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
-        ::testing::ValuesIn(nearestModes),
+        ::testing::ValuesIn(nearest_modes),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(pads),
-        ::testing::ValuesIn(cubeCoefs),
-        ::testing::ValuesIn(defaultAxes),
-        ::testing::ValuesIn(defaultScales));
+        ::testing::ValuesIn(cube_coefs),
+        ::testing::ValuesIn(default_axes),
+        ::testing::ValuesIn(default_scales));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(model_types),
+        ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+        ::testing::ValuesIn(target_shapes),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
         interpolateCases,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(model_types),
+        ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+        ::testing::ValuesIn(target_shapes),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> targetShapesTailTest = {
-        {1, 4, 2, 11},  // cover down sample and tails process code path
+const std::vector<ov::Shape> target_shapes_tail_test = {
+    {1, 4, 2, 11},  // cover down sample and tails process code path
 };
 
-const std::vector<std::vector<float>> defaultScalesTailTest = {
+const std::vector<std::vector<float>> default_scalesTailTest = {
     {1.f, 1.f, 0.333333f, 1.833333f}
 };
 
 const auto interpolateCasesWithoutNearestTail = ::testing::Combine(
-        ::testing::ValuesIn(modesWithoutNearest),
+        ::testing::ValuesIn(modes_without_nearest),
         ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
-        ::testing::ValuesIn(defaultNearestMode),
+        ::testing::ValuesIn(default_nearest_mode),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(pads),
-        ::testing::ValuesIn(cubeCoefs),
-        ::testing::ValuesIn(defaultAxes),
-        ::testing::ValuesIn(defaultScalesTailTest));
+        ::testing::ValuesIn(cube_coefs),
+        ::testing::ValuesIn(default_axes),
+        ::testing::ValuesIn(default_scalesTailTest));
 
 const auto interpolateCasesTail = ::testing::Combine(
-        ::testing::ValuesIn(nearestMode),
+        ::testing::ValuesIn(nearest_mode),
         ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
-        ::testing::ValuesIn(nearestModes),
+        ::testing::ValuesIn(nearest_modes),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(pads),
-        ::testing::ValuesIn(cubeCoefs),
-        ::testing::ValuesIn(defaultAxes),
-        ::testing::ValuesIn(defaultScalesTailTest));
+        ::testing::ValuesIn(cube_coefs),
+        ::testing::ValuesIn(default_axes),
+        ::testing::ValuesIn(default_scalesTailTest));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearestTail,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(targetShapesTailTest),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(model_types),
+        ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+        ::testing::ValuesIn(target_shapes_tail_test),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Nearest_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesTail,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(targetShapesTailTest),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(model_types),
+        ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+        ::testing::ValuesIn(target_shapes_tail_test),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 

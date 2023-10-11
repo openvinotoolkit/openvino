@@ -3,9 +3,10 @@
 
 from pathlib import Path
 
-from openvino.runtime import serialize
+from openvino.runtime import serialize, save_model
+from openvino.tools.ovc import convert_model
+from openvino.tools.mo import convert_model as legacy_convert_model
 from openvino.test_utils import compare_functions
-from openvino.tools.mo import convert_model
 
 from common.utils.common_utils import generate_ir
 
@@ -16,8 +17,20 @@ class CommonMOConvertTest:
         output_dir = kwargs['output_dir']
         model_name = kwargs['model_name']
         del kwargs['output_dir']
-        model = convert_model(**kwargs)
-        serialize(model, str(Path(output_dir, model_name + '.xml')))
+        del kwargs['model_name']
+        if 'use_legacy_frontend' in kwargs or 'use_convert_model_from_mo' in kwargs:
+            if 'use_convert_model_from_mo' in kwargs:
+                del kwargs['use_convert_model_from_mo']
+            model = legacy_convert_model(**kwargs)
+            serialize(model, str(Path(output_dir, model_name + '.xml')))
+        else:
+            # ovc.convert_model does not have 'compress_to_fp16' arg, it's moved into save model
+            compress_to_fp16 = True
+            if 'compress_to_fp16' in kwargs:
+                compress_to_fp16 = kwargs['compress_to_fp16']
+                del kwargs['compress_to_fp16']
+            model = convert_model(**kwargs)
+            save_model(model, str(Path(output_dir, model_name + '.xml')), compress_to_fp16)
 
     def _test(self, temp_dir, test_params, ref_params):
         """
@@ -40,7 +53,7 @@ class CommonMOConvertTest:
         ir_ref = core.read_model(Path(temp_dir, 'model_ref.xml'))
 
         flag, msg = compare_functions(ir_test, ir_ref)
-        assert flag, '\n'.join(msg)
+        assert flag, msg
 
     def _test_by_ref_graph(self, temp_dir, test_params, ref_graph, compare_tensor_names=True, compare_layout=True):
         """

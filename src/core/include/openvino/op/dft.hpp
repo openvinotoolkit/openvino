@@ -29,7 +29,7 @@ namespace v7 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API DFT : public util::FFTBase {
 public:
-    OPENVINO_OP("DFT", "opset7", util::FFTBase, 7);
+    OPENVINO_OP("DFT", "opset7", util::FFTBase);
     DFT() = default;
 
     /// \brief Constructs a DFT operation. DFT is performed for full size axes.
@@ -44,8 +44,6 @@ public:
     /// \param axes Axes to perform DFT
     /// \param signal_size Signal sizes for 'axes'
     DFT(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size);
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };

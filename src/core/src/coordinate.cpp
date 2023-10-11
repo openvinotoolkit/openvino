@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/coordinate.hpp"
+#include "openvino/core/coordinate.hpp"
 
-#include "ngraph/util.hpp"
-
-using namespace std;
+#include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const Coordinate& coordinate) {
     s << "Coordinate{";
-    s << ngraph::join(coordinate);
+    s << ov::util::join(coordinate);
     s << "}";
     return s;
 }
@@ -19,7 +17,7 @@ ov::Coordinate::Coordinate() = default;
 
 ov::Coordinate::Coordinate(const std::initializer_list<size_t>& axes) : std::vector<size_t>(axes) {}
 
-ov::Coordinate::Coordinate(const ngraph::Shape& shape)
+ov::Coordinate::Coordinate(const ov::Shape& shape)
     : std::vector<size_t>(static_cast<const std::vector<size_t>&>(shape)) {}
 
 ov::Coordinate::Coordinate(const std::vector<size_t>& axes) : std::vector<size_t>(axes) {}
@@ -36,6 +34,6 @@ ov::Coordinate& ov::Coordinate::operator=(const Coordinate& v) {
 }
 
 ov::Coordinate& ov::Coordinate::operator=(Coordinate&& v) noexcept {
-    static_cast<std::vector<size_t>*>(this)->operator=(v);
+    static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }

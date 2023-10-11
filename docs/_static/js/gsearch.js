@@ -154,11 +154,8 @@ function addVersionTabs(selectedVersion, query) {
   var tab_versions = [{'version': 'ALL'}];
   var latestVersion;
   if (versions.length) {
-    tab_versions = [{'version': 'ALL'}].concat(versions.slice(1));
-    latestVersion = tab_versions[2].version;
-    if (selectedVersion === 'latest') {
-      selectedVersion = versions[2].version;
-    }
+    tab_versions = [{'version': 'ALL'}].concat(versions.slice(0, -1));
+    latestVersion = tab_versions[1].version;
   }
   for (var i = 0; i < tab_versions.length; i++) {
     var href;
@@ -351,9 +348,6 @@ $(document).ready(function() {
   var page = trim(getURLParameter('page')) || 1;
   var selectedVersion = trim(getURLParameter('version'));
   if (versionExists(selectedVersion)) {
-    if (versions[1] && selectedVersion === versions[1].version) {
-      selectedVersion = 'latest';
-    }
     if (window.location.pathname.startsWith('/cn')) {
       selectedVersion = 'cn/' + selectedVersion;
     }

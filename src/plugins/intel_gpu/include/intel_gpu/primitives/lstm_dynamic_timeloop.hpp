@@ -21,6 +21,8 @@ struct lstm_dynamic_timeloop
     : public primitive_base<lstm_dynamic_timeloop> {
     CLDNN_DECLARE_PRIMITIVE(lstm_dynamic_timeloop)
 
+    lstm_dynamic_timeloop() : primitive_base("", {}) {}
+
     /// @brief Constructs lstm_dynamic layer.
     /// @param id This primitive id.
     /// @param input Primitive id of input layer.
@@ -64,9 +66,9 @@ struct lstm_dynamic_timeloop
     /// @brief Array of primitive ids containing the initial value of the hidden state data (Ht-1).
     primitive_id initial_cell;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
-    float clip;
+    float clip = 0.0f;
     /// @brief Couple the input and forget gates if input_forget is 1. Default is 0.
-    bool input_forget;
+    bool input_forget = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -93,6 +95,30 @@ struct lstm_dynamic_timeloop
                cmp_fields(initial_hidden.empty()) &&
                cmp_fields(initial_cell.empty());
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lstm_dynamic_timeloop>::save(ob);
+        ob << dyn_length;
+        ob << recurrent;
+        ob << last_hidden_state;
+        ob << last_cell_state;
+        ob << initial_hidden;
+        ob << initial_cell;
+        ob << clip;
+        ob << input_forget;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<lstm_dynamic_timeloop>::load(ib);
+        ib >> dyn_length;
+        ib >> recurrent;
+        ib >> last_hidden_state;
+        ib >> last_cell_state;
+        ib >> initial_hidden;
+        ib >> initial_cell;
+        ib >> clip;
+        ib >> input_forget;
     }
 
 protected:

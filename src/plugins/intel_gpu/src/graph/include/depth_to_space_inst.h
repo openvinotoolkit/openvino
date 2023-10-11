@@ -21,6 +21,7 @@ public:
     std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
         return std::make_shared<NodeFuseParams>(depth_to_space::type_id());
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using depth_to_space_node = typed_program_node<depth_to_space>;
@@ -31,6 +32,8 @@ class typed_primitive_inst<depth_to_space> : public typed_primitive_inst_base<de
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(depth_to_space_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(depth_to_space_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(depth_to_space_node const& node);
 

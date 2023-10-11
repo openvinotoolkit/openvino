@@ -2,35 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
 #include "subgraph_tests/split_concat_memory.hpp"
 
-using namespace SubgraphTestsDefinitions;
+#include <vector>
+
+using namespace ov::test;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I16,
-        InferenceEngine::Precision::U8,
-        InferenceEngine::Precision::I8,
+const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::f32,
+    ov::element::i32,
+    ov::element::f16,
+    ov::element::i16,
+    ov::element::u8,
+    ov::element::i8,
 };
 
-const std::vector<InferenceEngine::SizeVector> shapes = {
+const std::vector<ov::Shape> shapes = {
     {1, 8, 3, 2},
     {3, 8, 3, 2},
     {3, 8, 3},
     {3, 8},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_CPU, SplitConcatMemory,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(shapes),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(1),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        SplitConcatMemory::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPU,
+                         SplitConcatMemory,
+                         ::testing::Combine(::testing::ValuesIn(shapes),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(1),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         SplitConcatMemory::getTestCaseName);
 }  // namespace

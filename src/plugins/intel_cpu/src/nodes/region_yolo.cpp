@@ -12,7 +12,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_convert.h"
 #include <cpu/x64/jit_generator.hpp>
-#include <emitters/jit_bf16_emitters.hpp>
+#include "emitters/x64/jit_bf16_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "utils/bfloat16.hpp"
 
@@ -21,12 +21,14 @@ using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_args_logistic, field)
+#endif
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
@@ -226,6 +228,7 @@ private:
         }
     }
 };
+#endif
 
 bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -306,6 +309,7 @@ void RegionYolo::createPrimitive() {
         updateLastInputDims();
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     jit_logistic_config_params jcp;
     jcp.src_dt = jcp.dst_dt = output_prec;
     jcp.src_data_size = jcp.dst_data_size = output_prec.size();
@@ -322,10 +326,10 @@ void RegionYolo::createPrimitive() {
         block_size = 4;
     }
 
-    softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec);
-
     if (logistic_kernel)
         logistic_kernel->create_ker();
+#endif
+    softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec);
 }
 
 inline float RegionYolo::logistic_scalar(float src) {
@@ -376,7 +380,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
 }
 
 void RegionYolo::execute(dnnl::stream strm) {
-    const auto &inShape = getParentEdgeAt(0)->getMemory().GetShape();
+    const auto &inShape = getParentEdgeAt(0)->getMemory().getShape();
     const auto &inDims = inShape.getStaticDims();
     size_t B =  (inShape.getRank() > 0) ? inDims[0] : 1;
     size_t IC = (inShape.getRank() > 1) ? inDims[1] : 1;
@@ -386,7 +390,7 @@ void RegionYolo::execute(dnnl::stream strm) {
     size_t mask_size = mask.size();
     int end_index = 0;
     int num_ = 0;
-    int output_size = 0;
+    size_t output_size = 0;
     if (do_softmax) {
         // Region layer (Yolo v2)
         end_index = IW * IH;
@@ -399,20 +403,20 @@ void RegionYolo::execute(dnnl::stream strm) {
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 
-    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount())
+    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount())
         IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size << " != "
-                   << getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount();
+                   << getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount();
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;
 
-    const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     cpu_convert(src_data, dst_data, getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
                 getChildEdgeAt(0)->getMemory().getDesc().getPrecision(), output_size);
 
-    for (int b = 0; b < B; b++) {
+    for (size_t b = 0; b < B; b++) {
         for (int n = 0; n < num_; n++) {
             size_t index = b * inputs_size + n * IW * IH * (classes + coords + 1);
             calculate_logistic(index, total_size, dst_data);
@@ -425,7 +429,7 @@ void RegionYolo::execute(dnnl::stream strm) {
     if (do_softmax) {
         int index = IW * IH * (coords + 1);
         int batch_offset = inputs_size / num;
-        for (int b = 0; b < B * num; b++) {
+        for (size_t b = 0; b < B * num; b++) {
             softmax_kernel->execute(src_data + input_prec.size() * (index + b * batch_offset),
                                     dst_data + output_prec.size() * (index + b * batch_offset), 1, classes, IH, IW);
         }

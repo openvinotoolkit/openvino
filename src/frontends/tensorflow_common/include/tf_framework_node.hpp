@@ -15,6 +15,7 @@ namespace tensorflow {
 
 class FrameworkNode : public ov::op::util::FrameworkNode {
 public:
+    static constexpr const char* failed_conversion_key = "tensorflow::FrameworkNode::failed_conversion_key";
     OPENVINO_OP("FrameworkNode", "util", ::ov::op::util::FrameworkNode);
 
     FrameworkNode(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs, size_t num_outputs)
@@ -34,7 +35,9 @@ public:
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return std::make_shared<FrameworkNode>(m_decoder, inputs, get_output_size());
+        auto fw_node = std::make_shared<FrameworkNode>(m_decoder, inputs, get_output_size());
+        fw_node->set_attrs(get_attrs());
+        return fw_node;
     }
 
     std::string get_op_type() const {

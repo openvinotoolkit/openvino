@@ -17,7 +17,7 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
     using kernel_selector_t = kernel_selector::ctc_greedy_decoder_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::ctc_greedy_decoder_params, kernel_selector::ctc_greedy_decoder_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::ctc_greedy_decoder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<ctc_greedy_decoder_impl>(*this);
@@ -57,3 +57,4 @@ attach_ctc_greedy_decoder_impl::attach_ctc_greedy_decoder_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::ctc_greedy_decoder_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ctc_greedy_decoder)

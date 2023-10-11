@@ -25,7 +25,8 @@ public:
                         const std::shared_ptr<DecoderBase>& decoder = nullptr)
         : ov::frontend::tensorflow::InternalOperation(decoder,
                                                       OutputVector{indices, values, dense_shape, default_value},
-                                                      4) {
+                                                      4,
+                                                      "SparseFillEmptyRows") {
         validate_and_infer_types();
     }
 

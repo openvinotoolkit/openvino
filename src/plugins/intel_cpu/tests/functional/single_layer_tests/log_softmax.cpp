@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace ngraph;
@@ -33,7 +33,7 @@ public:
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
             for (const auto &shape : inputShapes) {
-                result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+                result << ov::test::utils::partialShape2str({shape.first}) << "_";
             }
             result.seekp(-1, result.cur);
             result << ")_";
@@ -41,7 +41,7 @@ public:
         result << "TS=";
         for (const auto &shape : inputShapes) {
             for (const auto &item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "netPRC=" << netPrecision.name();
@@ -51,7 +51,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape> inputShapes;
         Precision netPrecision;
@@ -64,7 +64,7 @@ protected:
         selectedType = std::string("unknown_") + netPrecision.name();
         init_input_shapes(inputShapes);
 
-        const auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front())};
         const auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         const auto logSoftmax = std::make_shared<ngraph::op::v5::LogSoftmax>(paramOuts[0], axis);
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(logSoftmax)};

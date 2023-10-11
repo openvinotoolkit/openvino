@@ -8,6 +8,7 @@
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "conv.h"
+#include <memory>
 #include <string>
 #include <vector>
 #include <dnnl_types.h>
@@ -42,7 +43,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_bin_conv_call_args, field)
 
 template <cpu_isa_t isa>
@@ -63,10 +64,10 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
         for (int i = 0; i < end_idx; i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(new jit_uni_eltwise_injector_f32<isa>(
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
                         this, post_op.eltwise, true, eltwise_reserved, mask_post_op_reserved));
             } else if (post_op.is_depthwise()) {
-                depthwise_injectors.push_back(new jit_uni_depthwise_injector_f32<isa>(
+                depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
                         this, post_op, mask_post_op_reserved));
             }
         }
@@ -210,8 +211,8 @@ private:
 
     Xbyak::Label l_table;
 
-    nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
-    nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
+    nstl::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+    nstl::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
 
     void cvt2ps(dnnl::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand &op, bool scalar_load) {
         Xmm xmm_in = Xmm(vmm_in.getIdx());
@@ -586,8 +587,8 @@ private:
                         add(reg_d_weights, jcp_.oc_block * sizeof(float));
                     }
 
-                    depthwise_inj_idx++;
                     post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
+                    depthwise_inj_idx++;
 
                     push(reg_oc_off);
                 } else if (post_op.is_sum(false)) {
@@ -635,6 +636,8 @@ private:
 
         if (jcp_.with_binarization) {
             int binarization_idx = p.find(primitive_kind::binarization);
+
+            IE_ASSERT(binarization_idx >= 0) << "postops don't contain binarization";
 
             pop(reg_oc_off);
 
@@ -874,7 +877,7 @@ private:
         }
     }
 };
-
+#endif
 bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
@@ -905,10 +908,10 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, co
         const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
-        for (int i = 0; i < binConv->get_strides().size(); i++) {
+        for (size_t i = 0; i < binConv->get_strides().size(); i++) {
             stride.push_back(static_cast<ptrdiff_t>(binConv->get_strides()[i]));
         }
-        for (int i = 0; i < binConv->get_dilations().size(); i++) {
+        for (size_t i = 0; i < binConv->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(binConv->get_dilations()[i]) - 1);
         }
         paddingL = binConv->get_pads_begin();
@@ -929,13 +932,10 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, co
 }
 
 void BinaryConvolution::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     withBinarization = isFusedWith(Type::FakeQuantize);
     withSum = false;
-    int expectedInputEdgesNum = 2;
-    for (int i = 0; i < fusedWith.size(); i++) {
+    size_t expectedInputEdgesNum = 2;
+    for (size_t i = 0; i < fusedWith.size(); i++) {
         auto *eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
         if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
             withSum = true;
@@ -969,7 +969,6 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
     setPostOps(attr);
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.inConfs[0].constant(false);
     config.inConfs[0].inPlace(-1);
@@ -1092,7 +1091,8 @@ void BinaryConvolution::createPrimitive() {
                    IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
     if (!args_ok)
         IE_THROW() << "BinaryConvolution with name '" << getName() << "' has unsupported parameters";
-
+#if defined(OPENVINO_ARCH_X86_64)
+    jit_dw_conv_params jcp_dw_conv = {};
     if (implType == impl_desc_type::jit_avx512) {
         bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx512_core>(jcp, jcp_dw_conv, *attr.get()));
     } else if (implType == impl_desc_type::jit_avx2) {
@@ -1102,6 +1102,7 @@ void BinaryConvolution::createPrimitive() {
     }
     if (bin_conv_kernel)
         bin_conv_kernel->create_ker();
+#endif
 }
 
 bool BinaryConvolution::canFuse(const NodePtr& node) const {
@@ -1152,7 +1153,7 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr &attr) {
 }
 
 void BinaryConvolution::executeOptimized(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
-                                                   const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str) {
+                                         const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str) {
     auto dst_f32 = reinterpret_cast<float *>(dst);
 
     const int MB = jcp.mb;
@@ -1297,29 +1298,29 @@ void BinaryConvolution::executeReference(const uint8_t* src, const uint8_t* weig
 }
 
 void BinaryConvolution::execute(dnnl::stream strm) {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t*>(srcMemory->GetPtr());
-    auto weights = reinterpret_cast<const uint8_t*>(weightsMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t*>(srcMemory->getData());
+    auto weights = reinterpret_cast<const uint8_t*>(weightsMemory->getData());
+    auto dst = reinterpret_cast<uint8_t*>(dstMemory->getData());
 
-    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> srcStride(srcDesc->getStrides().size());
-    for (int i = 0; i < srcStride.size(); i++) {
+    for (size_t i = 0; i < srcStride.size(); i++) {
         srcStride[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
     }
 
-    auto weiDesc = getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto weiDesc = getParentEdgeAt(1)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> weightsStride(weiDesc->getShape().getRank());
-    for (int i = 0; i < weightsStride.size(); i++) {
+    for (size_t i = 0; i < weightsStride.size(); i++) {
         weightsStride[weiDesc->getOrder()[i]] = weiDesc->getStrides()[i];
     }
 
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> dstStride(dstDesc->getStrides().size());
-    for (int i = 0; i < dstStride.size(); i++) {
+    for (size_t i = 0; i < dstStride.size(); i++) {
         dstStride[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
     }
 

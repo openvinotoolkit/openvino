@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/detection_output.hpp"
+#include "openvino/op/detection_output.hpp"
 
 #include "intel_gpu/primitives/detection_output.hpp"
 
@@ -22,19 +22,18 @@ static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str)
     if (it != CodeNameToType.end()) {
         return it->second;
     } else {
-        IE_THROW() << "Unknown Prior-Box code type: " << str;
+        OPENVINO_THROW("Unknown Prior-Box code type: ", str);
     }
     return cldnn::prior_box_code_type::corner;
 }
 
-static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v0::DetectionOutput>& op) {
-    validate_inputs_count(op, {3});
+static void CreateCommonDetectionOutputOp(ProgramBuilder& p,
+                                          const std::shared_ptr<ov::Node>& op,
+                                          const ov::op::util::DetectionOutputBase::AttributesBase& attrs,
+                                          int num_classes) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto attrs = op->get_attrs();
-
-    uint32_t num_classes            = attrs.num_classes;
     bool share_location             = attrs.share_location;
     int background_label_id         = attrs.background_label_id;
     float nms_threshold             = attrs.nms_threshold;
@@ -50,15 +49,14 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
     bool clip_before_nms            = attrs.clip_before_nms;
     bool clip_after_nms             = attrs.clip_after_nms;
     bool decrease_label_id          = attrs.decrease_label_id;
+    float objectness_score          = attrs.objectness_score;
 
     cldnn::prior_box_code_type cldnnCodeType = PriorBoxCodeFromString(code_type);
     int32_t prior_info_size = normalized != 0 ? 4 : 5;
     int32_t prior_coordinates_offset = normalized != 0 ? 0 : 1;
 
     auto detectionPrim = cldnn::detection_output(layerName,
-                                                 inputs[0],
-                                                 inputs[1],
-                                                 inputs[2],
+                                                 inputs,
                                                  num_classes,
                                                  keep_top_k,
                                                  share_location,
@@ -76,12 +74,27 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
                                                  input_height,
                                                  decrease_label_id,
                                                  clip_before_nms,
-                                                 clip_after_nms);
+                                                 clip_after_nms,
+                                                 objectness_score);
 
     p.add_primitive(*op, detectionPrim);
 }
 
+static void CreateDetectionOutputOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::DetectionOutput>& op) {
+    validate_inputs_count(op, {3});
+
+    auto attrs = op->get_attrs();
+    CreateCommonDetectionOutputOp(p, op, attrs, attrs.num_classes);
+}
+
+static void CreateDetectionOutputOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::DetectionOutput>& op) {
+    validate_inputs_count(op, {3});
+
+    CreateCommonDetectionOutputOp(p, op, op->get_attrs(), -1);
+}
+
 REGISTER_FACTORY_IMPL(v0, DetectionOutput);
+REGISTER_FACTORY_IMPL(v8, DetectionOutput);
 
 }  // namespace intel_gpu
 }  // namespace ov

@@ -3,11 +3,13 @@
 //
 
 #include <vector>
+
+#include "common_test_utils/test_enums.hpp"
 #include "single_layer_tests/activation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::helpers;
+using namespace ov::test::utils;
 namespace {
 // Common params
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
@@ -26,7 +28,7 @@ const std::vector<InferenceEngine::Precision> intPrecisions = {
         InferenceEngine::Precision::I32,
 };
 
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+const std::map<ov::test::utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
         {Sigmoid,               {}},
         {Tan,                   {}},
         {Tanh,                  {}},
@@ -105,36 +107,36 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
 };
 
 const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto basicPreluCases = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationParamTypes)),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::ValuesIn(ov::test::utils::combineParams(preluBasic)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto basicIntegerOperations = ::testing::Combine(
-            ::testing::ValuesIn(CommonTestUtils::combineParams(intActivationTypes)),
+            ::testing::ValuesIn(ov::test::utils::combineParams(intActivationTypes)),
             ::testing::ValuesIn(intPrecisions),
             ::testing::ValuesIn(intPrecisions),
             ::testing::ValuesIn(intPrecisions),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)
+            ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);

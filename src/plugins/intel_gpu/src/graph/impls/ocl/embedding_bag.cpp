@@ -16,7 +16,7 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
     using kernel_selector_t = kernel_selector::embedding_bag_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::embedding_bag_params, kernel_selector::embedding_bag_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::embedding_bag_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<embedding_bag_impl>(*this);
@@ -65,3 +65,4 @@ attach_embedding_bag_impl::attach_embedding_bag_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::embedding_bag_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::embedding_bag)

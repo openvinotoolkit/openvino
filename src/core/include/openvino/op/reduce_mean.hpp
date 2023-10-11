@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceMean : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceMean", "opset1", util::ArithmeticReductionKeepDims, 1);
+    OPENVINO_OP("ReduceMean", "opset1", util::ArithmeticReductionKeepDims);
     ReduceMean() = default;
 
     /// \param arg The tensor to be summed.
@@ -24,9 +24,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 };
 }  // namespace v1

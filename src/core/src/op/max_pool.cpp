@@ -10,8 +10,8 @@
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/max_pool.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/max_pool.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -41,7 +41,9 @@ bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor) {
 void op::v1::MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
 
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
@@ -57,6 +59,7 @@ shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_
                                     m_auto_pad);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace maxpool {
 namespace {
 template <element::Type_t ET>
@@ -69,14 +72,14 @@ inline bool evaluate(const HostTensorPtr& arg,
                      const ov::Shape& padding_above) {
     using T = typename element_type_traits<ET>::value_type;
     out->set_shape(out_shape);
-    runtime::reference::max_pool<T>(arg->get_data_ptr<ET>(),
-                                    out->get_data_ptr<ET>(),
-                                    arg->get_shape(),
-                                    out_shape,
-                                    window_shape,
-                                    window_movement_strides,
-                                    padding_below,
-                                    padding_above);
+    ov::reference::max_pool<T>(arg->get_data_ptr<ET>(),
+                               out->get_data_ptr<ET>(),
+                               arg->get_shape(),
+                               out_shape,
+                               window_shape,
+                               window_movement_strides,
+                               padding_below,
+                               padding_above);
     return true;
 }
 
@@ -91,12 +94,12 @@ bool evaluate_maxpool(const HostTensorPtr& arg,
     auto arg_shape = arg->get_shape();
 
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_maxpool, i32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, i64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, u32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, u64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, f16, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-        NGRAPH_TYPE_CASE(evaluate_maxpool, f32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, i32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, i64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, u32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, u64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, f16, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+        OPENVINO_TYPE_CASE(evaluate_maxpool, f32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
     default:
         rc = false;
         break;
@@ -108,7 +111,9 @@ bool evaluate_maxpool(const HostTensorPtr& arg,
 
 bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape()};
-    auto out_shape = shape_infer(this, input_shapes).front();
+    auto pads_begin = m_pads_begin;
+    auto pads_end = m_pads_end;
+    auto out_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
     return maxpool::evaluate_maxpool(inputs[0],
                                      outputs[0],
@@ -156,17 +161,17 @@ inline bool evaluate(const HostTensorPtr& data,
                      const int64_t axis) {
     using Values_t = typename element_type_traits<Values>::value_type;
     using Indices_t = typename element_type_traits<Indices>::value_type;
-    runtime::reference::max_pool<Values_t, Indices_t>(data->get_data_ptr<Values_t>(),
-                                                      values->get_data_ptr<Values_t>(),
-                                                      indices->get_data_ptr<Indices_t>(),
-                                                      data->get_shape(),
-                                                      out_shape,
-                                                      kernel,
-                                                      strides,
-                                                      dilations,
-                                                      pads_begin,
-                                                      pads_end,
-                                                      axis);
+    ov::reference::max_pool<Values_t, Indices_t>(data->get_data_ptr<Values_t>(),
+                                                 values->get_data_ptr<Values_t>(),
+                                                 indices->get_data_ptr<Indices_t>(),
+                                                 data->get_shape(),
+                                                 out_shape,
+                                                 kernel,
+                                                 strides,
+                                                 dilations,
+                                                 pads_begin,
+                                                 pads_end,
+                                                 axis);
     return true;
 }
 
@@ -180,20 +185,20 @@ bool evaluate_maxpool(const HostTensorPtr& data,
                       const ov::Shape& pads_begin,
                       const ov::Shape& pads_end,
                       const int64_t axis) {
-#define EVAL_MAX_POOL_8(data_et, index_et)            \
-    NGRAPH_2_TYPES_CASE(maxpool_v8::evaluate_maxpool, \
-                        data_et,                      \
-                        index_et,                     \
-                        data,                         \
-                        values,                       \
-                        indices,                      \
-                        out_shape,                    \
-                        kernel,                       \
-                        strides,                      \
-                        dilations,                    \
-                        pads_begin,                   \
-                        pads_end,                     \
-                        axis)
+#define EVAL_MAX_POOL_8(data_et, index_et)              \
+    OPENVINO_2_TYPES_CASE(maxpool_v8::evaluate_maxpool, \
+                          data_et,                      \
+                          index_et,                     \
+                          data,                         \
+                          values,                       \
+                          indices,                      \
+                          out_shape,                    \
+                          kernel,                       \
+                          strides,                      \
+                          dilations,                    \
+                          pads_begin,                   \
+                          pads_end,                     \
+                          axis)
 
     bool rc = true;
     switch (indices->get_element_type()) {
@@ -273,10 +278,14 @@ void op::v8::MaxPool::validate_and_infer_types() {
 
     const auto input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         m_axis = ngraph::normalize_axis(this, m_axis, input_shape.rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, m_index_element_type, output_shapes[1]);
 }
@@ -318,7 +327,9 @@ bool op::v8::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensor
     OV_OP_SCOPE(v8_MaxPool_evaluate);
 
     const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape()};
-    auto out_shape = shape_infer(this, input_shapes).front();
+    auto pads_begin = m_pads_begin;
+    auto pads_end = m_pads_end;
+    auto out_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
     return maxpool_v8::evaluate_maxpool(inputs[0],
                                         outputs[0],

@@ -73,6 +73,7 @@ protected:
 
 bool ConvolutionCheckInput(const Params& p, const optional_params& o);
 bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const DataTensor& reqDesc);
+bool CheckConvolutionExplicitPaddings(const convolution_params& conv_params);
 bool ConvolutionUpdateInputParams(convolution_params& params);
 
 }  // namespace kernel_selector

@@ -46,7 +46,7 @@ JitConstants CumSumKernelRef::GetJitConstants(const cum_sum_params& params, Disp
             auto idx = rank - axis_idx - 1;
             int shape_info_idx = idx;
             if (idx >= 2) {
-                shape_info_idx += (6 - rank);
+                shape_info_idx += (static_cast<int>(DataTensor::max_rank()) - rank);
             }
 
             size_t num_of_dynamic_inputs = 0;

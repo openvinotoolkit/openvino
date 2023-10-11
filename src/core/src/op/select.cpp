@@ -6,10 +6,11 @@
 
 #include <memory>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/reference/select.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/select.hpp"
 #include "select_shape_inference.hpp"
 
 using namespace std;
@@ -39,10 +40,10 @@ void op::v1::Select::validate_and_infer_types() {
                           element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
                           "Argument 1 and 2 element types must match.");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
-    auto output_shapes = std::vector<ov::PartialShape>(1);
-
-    shape_infer(this, input_shapes, output_shapes);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, result_et, output_shapes[0]);
 }
 
@@ -58,6 +59,7 @@ bool op::v1::Select::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace detail {
 namespace {
 template <element::Type_t ET>
@@ -72,14 +74,14 @@ bool evaluate(const HostTensorVector& output_values,
 
     const auto& out = output_values[0];
 
-    runtime::reference::select<T>(in_cond->get_data_ptr<char>(),
-                                  in_then->get_data_ptr<T>(),
-                                  in_else->get_data_ptr<T>(),
-                                  out->get_data_ptr<T>(),
-                                  in_cond->get_shape(),
-                                  in_then->get_shape(),
-                                  in_else->get_shape(),
-                                  autob);
+    ov::reference::select<T>(in_cond->get_data_ptr<char>(),
+                             in_then->get_data_ptr<T>(),
+                             in_else->get_data_ptr<T>(),
+                             out->get_data_ptr<T>(),
+                             in_cond->get_shape(),
+                             in_then->get_shape(),
+                             in_else->get_shape(),
+                             autob);
     return true;
 }
 
@@ -90,19 +92,19 @@ bool evaluate_select(const HostTensorVector& output_values,
     bool rc = false;
 
     switch (et) {
-        NGRAPH_TYPE_CASE(evaluate_select, i8, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, i16, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, i32, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, i64, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, u8, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, u16, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, f16, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, i8, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, i16, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, i32, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, i64, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, u8, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, u16, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, f16, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
     default:
         rc = false;
         break;
@@ -115,10 +117,20 @@ bool evaluate_select(const HostTensorVector& output_values,
 
 bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_Select_evaluate);
-    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 3));
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 3));
+    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto autob = get_auto_broadcast();
     return detail::evaluate_select(output_values, input_values, autob, output_values[0]->get_element_type());
+}
+
+bool op::v1::Select::evaluate_lower(ov::TensorVector& output_values) const {
+    return get_input_tensor(0).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Select::evaluate_upper(ov::TensorVector& output_values) const {
+    return get_input_tensor(0).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Select::has_evaluate() const {

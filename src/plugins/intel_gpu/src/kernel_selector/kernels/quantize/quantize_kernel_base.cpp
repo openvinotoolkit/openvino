@@ -72,6 +72,7 @@ KernelsData QuantizeKernelBase::GetKernelsData(const Params& params, const optio
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     auto& kernel = kd.kernels[0];
@@ -79,7 +80,7 @@ KernelsData QuantizeKernelBase::GetKernelsData(const Params& params, const optio
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
-    kernel.params.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false, 0, 1, newParams.outputs[0].is_dynamic());
+    kernel.params.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false, 0, 1, newParams.has_dynamic_tensors());
 
     return {kd};
 }

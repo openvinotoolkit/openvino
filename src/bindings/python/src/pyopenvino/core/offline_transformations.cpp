@@ -7,7 +7,6 @@
 #include <pybind11/stl.h>
 
 #include <compress_quantize_weights.hpp>
-#include <generate_mapping_file.hpp>
 #include <openvino/pass/make_stateful.hpp>
 #include <openvino/pass/serialize.hpp>
 #include <pot_transformations.hpp>
@@ -60,7 +59,7 @@ void regmodule_offline_transformations(py::module m) {
         "apply_pot_transformations",
         [](std::shared_ptr<ov::Model> model, std::string device) {
             ov::pass::Manager manager;
-            manager.register_pass<ngraph::pass::POTTransformations>(std::move(device));
+            manager.register_pass<ov::pass::POTTransformations>(std::move(device));
             manager.run_passes(model);
         },
         py::arg("model"),
@@ -80,26 +79,15 @@ void regmodule_offline_transformations(py::module m) {
         "apply_pruning_transformation",
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
-            manager.register_pass<ngraph::pass::Pruning>();
+            manager.register_pass<ov::pass::Pruning>();
             manager.run_passes(model);
         },
         py::arg("model"));
 
     m_offline_transformations.def(
-        "generate_mapping_file",
-        [](std::shared_ptr<ov::Model> model, std::string path, bool extract_names) {
-            ov::pass::Manager manager;
-            manager.register_pass<ngraph::pass::GenerateMappingFile>(path, extract_names);
-            manager.run_passes(model);
-        },
-        py::arg("model"),
-        py::arg("path"),
-        py::arg("extract_names"));
-
-    m_offline_transformations.def(
         "apply_make_stateful_transformation",
         [](std::shared_ptr<ov::Model> model, const std::map<std::string, std::string>& param_res_names) {
-            ngraph::pass::Manager manager;
+            ov::pass::Manager manager;
             manager.register_pass<ov::pass::MakeStateful>(param_res_names);
             manager.run_passes(model);
         },
@@ -120,8 +108,7 @@ void regmodule_offline_transformations(py::module m) {
         "compress_quantize_weights_transformation",
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
-            manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
-            manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
+            manager.register_pass<ov::pass::CompressQuantizeWeights>();
             manager.run_passes(model);
         },
         py::arg("model"));

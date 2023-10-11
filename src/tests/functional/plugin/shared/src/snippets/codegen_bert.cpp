@@ -15,7 +15,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
+#include "ov_models/pass/convert_prc.hpp"
 
 #include "snippets/codegen_bert.hpp"
 //  todo: Rewrite this test using Snippets test infrastructure. See add_convert or conv_eltwise for example
@@ -31,8 +31,8 @@ namespace snippets {
         std::tie(netPrecision, inputShapes0, inputShapes1, targetDevice) = obj.param;
 
         std::ostringstream result;
-        result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes0) << "_";
-        result << "IS[1]=" << CommonTestUtils::vec2str(inputShapes1) << "_";
+        result << "IS[0]=" << ov::test::utils::vec2str(inputShapes0) << "_";
+        result << "IS[1]=" << ov::test::utils::vec2str(inputShapes1) << "_";
         result << "netPRC=" << netPrecision << "_";
         result << "targetDevice=" << targetDevice;
         return result.str();

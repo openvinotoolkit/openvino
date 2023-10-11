@@ -60,6 +60,7 @@ public:
 
 private:
     void execRef(dnnl::stream strm);
+    dnnl::primitive prim;
     size_t batchSize = 0;
     size_t featureSize = 0;
     size_t inputSizes = 0;

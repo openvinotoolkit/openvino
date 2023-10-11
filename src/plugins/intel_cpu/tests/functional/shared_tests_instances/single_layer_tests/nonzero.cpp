@@ -30,7 +30,7 @@ namespace {
                             ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
                                 ::testing::ValuesIn(inputPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(config)),
                             NonZeroLayerTest::getTestCaseName);
 } // namespace

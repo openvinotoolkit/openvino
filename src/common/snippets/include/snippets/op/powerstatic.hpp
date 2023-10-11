@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 #include <ngraph/op/power.hpp>
 #include <snippets/snippets_isa.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -41,4 +41,4 @@ private:
 };
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

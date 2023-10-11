@@ -47,26 +47,37 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
     return 0 == sched_setaffinity(0, CPU_ALLOC_SIZE(ncores), procMask.get());
 }
 
-bool pin_thread_to_vacant_core(int thrIdx, int hyperthreads, int ncores, const CpuSet& procMask, int cpuIdxOffset) {
+bool pin_thread_to_vacant_core(int thrIdx,
+                               int hyperthreads,
+                               int ncores,
+                               const CpuSet& procMask,
+                               const std::vector<int>& cpu_ids,
+                               int cpuIdxOffset) {
     if (procMask == nullptr)
         return false;
     const size_t size = CPU_ALLOC_SIZE(ncores);
     const int num_cpus = CPU_COUNT_S(size, procMask.get());
     thrIdx %= num_cpus;  // To limit unique number in [; num_cpus-1] range
-    // Place threads with specified step
-    int cpu_idx = cpuIdxOffset;
-    for (int i = 0, offset = 0; i < thrIdx; ++i) {
-        cpu_idx += hyperthreads;
-        if (cpu_idx >= num_cpus)
-            cpu_idx = ++offset;
-    }
 
-    // Find index of 'cpu_idx'-th bit that equals to 1
-    int mapped_idx = cpuIdxOffset - 1;
-    while (cpu_idx >= cpuIdxOffset) {
-        mapped_idx++;
-        if (CPU_ISSET_S(mapped_idx, size, procMask.get()))
-            --cpu_idx;
+    int mapped_idx;
+    if (cpu_ids.size() > 0) {
+        mapped_idx = cpu_ids[thrIdx];
+    } else {
+        // Place threads with specified step
+        int cpu_idx = cpuIdxOffset;
+        for (int i = 0, offset = 0; i < thrIdx; ++i) {
+            cpu_idx += hyperthreads;
+            if (cpu_idx >= num_cpus)
+                cpu_idx = ++offset;
+        }
+
+        // Find index of 'cpu_idx'-th bit that equals to 1
+        mapped_idx = cpuIdxOffset - 1;
+        while (cpu_idx >= cpuIdxOffset) {
+            mapped_idx++;
+            if (CPU_ISSET_S(mapped_idx, size, procMask.get()))
+                --cpu_idx;
+        }
     }
 
     CpuSet targetMask{CPU_ALLOC(ncores)};
@@ -99,13 +110,44 @@ bool pin_current_thread_to_socket(int socket) {
     }
     return res;
 }
-#else   // no threads pinning/binding on Win/MacOS
+#elif defined(_WIN32)
+std::tuple<CpuSet, int> get_process_mask() {
+    DWORD_PTR pro_mask, sys_mask;
+    if (0 != GetProcessAffinityMask(GetCurrentProcess(), &pro_mask, &sys_mask)) {
+        CpuSet mask(new DWORD_PTR(pro_mask));
+        return std::make_tuple(std::move(mask), 0);
+    }
+    return std::make_tuple(nullptr, 0);
+}
+void release_process_mask(cpu_set_t*) {}
+
+bool pin_thread_to_vacant_core(int thrIdx,
+                               int hyperthreads,
+                               int ncores,
+                               const CpuSet& procMask,
+                               const std::vector<int>& cpu_ids,
+                               int cpuIdxOffset) {
+    return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu_ids[thrIdx]);
+}
+bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
+    DWORD_PTR mask = static_cast<DWORD_PTR>(*procMask.get());
+    return 0 != SetThreadAffinityMask(GetCurrentThread(), mask);
+}
+bool pin_current_thread_to_socket(int socket) {
+    return false;
+}
+#else   // no threads pinning/binding on MacOS
 std::tuple<CpuSet, int> get_process_mask() {
     return std::make_tuple(nullptr, 0);
 }
 void release_process_mask(cpu_set_t*) {}
 
-bool pin_thread_to_vacant_core(int thrIdx, int hyperthreads, int ncores, const CpuSet& procMask, int cpuIdxOffset) {
+bool pin_thread_to_vacant_core(int thrIdx,
+                               int hyperthreads,
+                               int ncores,
+                               const CpuSet& procMask,
+                               const std::vector<int>& cpu_ids,
+                               int cpuIdxOffset) {
     return false;
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {

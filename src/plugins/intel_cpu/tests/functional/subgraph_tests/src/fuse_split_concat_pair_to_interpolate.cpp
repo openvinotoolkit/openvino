@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
@@ -106,7 +106,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FuseSplitConcatPairToInterpolate4D, FuseSplitConc
         ::testing::ValuesIn(axes4D),
         ::testing::ValuesIn(num_of_outputs_of_split),
         ::testing::ValuesIn(scale_factors),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FuseSplitConcatPairToInterpolateTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_FuseSplitConcatPairToInterpolate5D, FuseSplitConcatPairToInterpolateTest,
@@ -116,7 +116,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FuseSplitConcatPairToInterpolate5D, FuseSplitConc
         ::testing::ValuesIn(axes5D),
         ::testing::ValuesIn(num_of_outputs_of_split),
         ::testing::ValuesIn(scale_factors),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FuseSplitConcatPairToInterpolateTest::getTestCaseName);
 }  // namespace
 } // namespace CPUSubgraphTestsDefinitions

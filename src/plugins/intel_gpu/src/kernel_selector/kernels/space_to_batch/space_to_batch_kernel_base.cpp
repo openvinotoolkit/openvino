@@ -48,6 +48,10 @@ CommonDispatchData SpaceToBatchKernelBase::SetDefault(const space_to_batch_param
     return dispatchData;
 }
 
+inline std::string GetInputTypeStr(size_t idx) {
+    return "INPUT" + std::to_string(idx) + "_TYPE";
+}
+
 JitConstants SpaceToBatchKernelBase::GetJitConstants(const space_to_batch_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
@@ -70,9 +74,26 @@ JitConstants SpaceToBatchKernelBase::GetJitConstants(const space_to_batch_params
         }
     };
 
-    makeJitConstForParam(jit, "BLOCK_SHAPE", params.block_shape, 1);
-    makeJitConstForParam(jit, "PADS_BEGIN", params.pads_begin, 0);
-    makeJitConstForParam(jit, "PADS_END", params.pads_end, 0);
+    if (params.block_type == base_params::ArgType::Input) {
+        jit.AddConstant(MakeJitConstant("BLOCK_TYPE", GetInputTypeStr(params.block_input_index)));
+        jit.AddConstant(MakeJitConstant("BLOCK_DIMS", params.block_dims));
+    } else {
+        makeJitConstForParam(jit, "BLOCK_SHAPE", params.block_shape, 1);
+    }
+
+    if (params.begin_type == base_params::ArgType::Input) {
+        jit.AddConstant(MakeJitConstant("BEGIN_TYPE", GetInputTypeStr(params.begin_input_index)));
+        jit.AddConstant(MakeJitConstant("BEGIN_DIMS", params.begin_dims));
+    } else {
+        makeJitConstForParam(jit, "PADS_BEGIN", params.pads_begin, 0);
+    }
+
+    if (params.end_type == base_params::ArgType::Input) {
+        jit.AddConstant(MakeJitConstant("END_TYPE", GetInputTypeStr(params.end_input_index)));
+        jit.AddConstant(MakeJitConstant("END_DIMS", params.end_dims));
+    } else {
+        makeJitConstForParam(jit, "PADS_END", params.pads_end, 0);
+    }
 
     return jit;
 }
@@ -93,7 +114,8 @@ KernelsData SpaceToBatchKernelBase::GetCommonKernelsData(const Params& params, c
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, 1, GetFusedPrimitiveInputsCount(params));
+                     "", false, false, static_cast<int>(newParams.inputs.size()),
+                     GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
 
     return { kd };
 }

@@ -68,30 +68,13 @@ struct clKernelData {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// CPUKernel
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct CPUKernel {
-    virtual WeightsType GetExpectedInputType() = 0;
-    virtual WeightsLayout GetExpectedInputLayout() const { return WeightsLayout::oiyx; }
-    virtual void Execute(void* input, size_t input_size, void* output, size_t output_size) const = 0;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// GenericKernelParams
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct GenericKernelParams {
-    enum class Engine { NONE, CPU, GPU };
-
-    Engine engine = Engine::NONE;
-    std::shared_ptr<clKernelData> clKernel;
-    std::shared_ptr<CPUKernel> cpuKernel;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // WeightsReorderParams
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct WeightsReorderParams : public GenericKernelParams {
+struct WeightsReorderParams {
+    WeightsTensor src;
     WeightsTensor dest;
+    bool rotate;
+    bool is_initialized = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,6 +97,24 @@ struct KernelData {
 
     bool can_reuse_memory = true;
 
+    static bool SkipKernelExecution(const base_params& params, size_t kernel_id = 0) {
+        for (const auto& input : params.inputs) {
+            if (input.LogicalSize() == 0) {
+                return true;
+            }
+        }
+        for (const auto& output : params.outputs) {
+            if (output.LogicalSize() == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static bool SkipKernelExecution(const Params& params, size_t kernel_id = 0) {
+        return false;
+    }
+
     template <typename T>
     inline static KernelData Default(const Params& _params, size_t kernel_nums = 1) {
         KernelData kd;
@@ -124,6 +125,10 @@ struct KernelData {
         kd.reorderInput = false;  // for KW
         kd.autoTuneIndex = -1;
         kd.can_reuse_memory = true;
+
+        for (auto& kernel : kd.kernels) {
+            kernel.skip_execution = SkipKernelExecution(orgParams);
+        }
         return kd;
     }
 };

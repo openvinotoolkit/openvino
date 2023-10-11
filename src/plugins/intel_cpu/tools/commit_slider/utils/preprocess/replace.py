@@ -2,7 +2,7 @@ import re
 import fileinput
 
 
-def replace(cfg):
+def replace(cfg, commit):
     prepCfg = cfg["runConfig"]["preprocess"]
     filePath = prepCfg["file"]
     pattern = prepCfg["pattern"]

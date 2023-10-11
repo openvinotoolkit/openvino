@@ -3,13 +3,13 @@
 //
 
 #include "reshape.h"
+#include "utils.hpp"
 #include <string>
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
+#include "shape_inference/custom/reshape.hpp"
 
 #include "common/cpu_memcpy.h"
 
@@ -35,7 +35,7 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, NgraphShapeInferFactory(op, PortMask(1))) {
+        Node(op, context, ReshapeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -72,7 +72,7 @@ bool Reshape::needShapeInfer() const {
     if (lastSecondInputValues.empty()) {
         lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
     }
-    const int32_t *sndInput = reinterpret_cast<const int32_t *>(mem.GetPtr());
+    const int32_t *sndInput = reinterpret_cast<const int32_t *>(mem.getData());
     for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
         if (lastSecondInputValues[i] != sndInput[i]) {
             for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
@@ -111,11 +111,10 @@ void Reshape::initSupportedPrimitiveDescriptors() {
         canBeInPlace = false;
 
     NodeConfig config;
-    config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        config.inConfs[i].inPlace(-1);
+        config.inConfs[i].inPlace(0 == i && canBeInPlace ? 0 : -1);
         config.inConfs[i].constant(false);
         config.inConfs[i].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i)));
     }
@@ -131,20 +130,26 @@ void Reshape::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Reshape::execute(dnnl::stream strm) {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto srcPtr = static_cast<uint8_t*>(srcMemPtr->GetPtr());
-    auto dstPtr = static_cast<uint8_t*>(dstMemPtr->GetPtr());
+    auto srcPtr = static_cast<uint8_t*>(srcMemPtr->getData());
+    auto dstPtr = static_cast<uint8_t*>(dstMemPtr->getData());
 
     if (dstPtr != srcPtr) {
-        cpu_memcpy(dstPtr, srcPtr, dstMemPtr->GetSize());
+        cpu_memcpy(dstPtr, srcPtr, dstMemPtr->getSize());
     }
 }
 
 bool Reshape::isExecutable() const {
-    bool inPlaceEnabled =
-        getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace() >= 0;
+    bool inPlaceEnabled = false;
+    if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
+        auto& config = prim_desc->getConfig();
+        if (config.inConfs[0].inPlace() >= 0 ||
+            config.outConfs[0].inPlace() >= 0) {
+            inPlaceEnabled = true;
+        }
+    }
     return !inPlaceEnabled;
 }
 

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "ie_common.h"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -18,17 +18,16 @@ protected:
     void SetUp() override {
         auto netPrecision = inPrc = Precision::FP32;
         outPrc = Precision::BF16;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::map<std::string, std::string> additional_config{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
         configuration.insert(additional_config.begin(), additional_config.end());
 
         std::vector<size_t> inputShape {2, 4, 4, 1};
-        std::vector<size_t> outputShape = inputShape;
         auto eltwiseType = ngraph::helpers::EltwiseTypes::ADD;
         auto secondaryInputType = ngraph::helpers::InputLayerType::CONSTANT;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         std::shared_ptr<ngraph::Node> secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, inputShape);
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
 
@@ -45,16 +44,16 @@ protected:
            \               /
             X  No Reorder X
              \           /
-             Eltwise[FP32->BF16]
+           Eltwise[FP32->BF16] (or Subgraph[FP32->BF16])
                   |
                   |
              Output[BF16]
 */
-TEST_F(InputNoReorderEltwiseBF16, CompareWithRefs) {
+TEST_F(InputNoReorderEltwiseBF16, smoke_CompareWithRefs) {
     Run();
 
     CheckNumberOfNodesWithType(executableNetwork, "Reorder", 0);
     CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);
-    CheckNumberOfNodesWithType(executableNetwork, "Eltwise", 1);
+    CheckNumberOfNodesWithTypes(executableNetwork, {"Eltwise", "Subgraph"}, 1);
 }
 } // namespace CPULayerTestsDefinitions

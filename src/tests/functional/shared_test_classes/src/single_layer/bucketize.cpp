@@ -5,7 +5,6 @@
 #include "shared_test_classes/single_layer/bucketize.hpp"
 
 namespace LayerTestsDefinitions {
-
     std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj) {
         InferenceEngine::SizeVector dataShape;
         InferenceEngine::SizeVector bucketsShape;
@@ -18,8 +17,8 @@ namespace LayerTestsDefinitions {
         std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc, targetDevice) = obj.param;
 
         std::ostringstream result;
-        result << "DS=" << CommonTestUtils::vec2str(dataShape) << "_";
-        result << "BS=" << CommonTestUtils::vec2str(bucketsShape) << "_";
+        result << "DS=" << ov::test::utils::vec2str(dataShape) << "_";
+        result << "BS=" << ov::test::utils::vec2str(bucketsShape) << "_";
         if (with_right_bound)
             result << "rightIntervalEdge_";
         else

@@ -6,10 +6,16 @@
 #include "common_test_utils/test_constants.hpp"
 #include "ov_api_conformance_helpers.hpp"
 
-
 namespace {
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
+
+INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferenceChainingStatic,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(return_all_possible_device_combination()),
+                                ::testing::Values(pluginConfig)),
+                        OVInferenceChaining::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferenceChaining,
                         ::testing::Combine(
                                 ::testing::ValuesIn(return_all_possible_device_combination()),

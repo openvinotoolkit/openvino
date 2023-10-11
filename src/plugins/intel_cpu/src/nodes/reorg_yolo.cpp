@@ -59,8 +59,8 @@ void ReorgYolo::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void ReorgYolo::execute(dnnl::stream strm) {
-    const auto *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const auto *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    auto *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
     const auto &inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     int IW = (inDims.size() > 3) ? inDims[3] : 1;

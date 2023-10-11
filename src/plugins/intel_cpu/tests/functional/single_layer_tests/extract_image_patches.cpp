@@ -5,7 +5,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -32,11 +32,11 @@ public:
         std::tie(inputShapes, inputPrecision, kernelSize, strides, rates, padType) = obj.param;
 
         std::ostringstream result;
-        result << "netPRC=" << inputPrecision << "_" << "IS=" << CommonTestUtils::partialShape2str({ inputShapes.first }) << "_";
+        result << "netPRC=" << inputPrecision << "_" << "IS=" << ov::test::utils::partialShape2str({ inputShapes.first }) << "_";
         result << "TS=";
         result << "(";
         for (const auto& targetShape : inputShapes.second) {
-            result << CommonTestUtils::vec2str(targetShape) << "_";
+            result << ov::test::utils::vec2str(targetShape) << "_";
         }
 
         result << ")_" << "kernelSize=" << kernelSize << "_strides=" << strides << "_rates=" << rates << "_padType=" << padType;
@@ -44,7 +44,7 @@ public:
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         InputShape inputShapes;
         ElementType inputPrecision;
         ov::Shape kernelSize;
@@ -60,7 +60,10 @@ protected:
 
         init_input_shapes({ inputShapes });
 
-        auto params = ngraph::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
+        }
         auto extImgPatches = std::make_shared<ngraph::opset3::ExtractImagePatches>(params[0], kernelSize, strides, rates, padType);
         function = makeNgraphFunction(inputPrecision, params, extImgPatches, "ExtractImagePatches");
     }

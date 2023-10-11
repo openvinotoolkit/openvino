@@ -21,15 +21,13 @@ public:
     GraphContext(const Config& config,
                  ExtensionManager::Ptr extensionManager,
                  WeightsSharing::Ptr w_cache,
-                 std::shared_ptr<std::mutex> sharedMutex,
                  bool isGraphQuantized)
         : config(config),
           extensionManager(extensionManager),
           weightsCache(w_cache),
-          sharedMutex(sharedMutex),
           isGraphQuantizedFlag(isGraphQuantized) {
         rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
-        rtScratchPad = std::make_shared<DnnlScratchPad>(eng);
+        rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
     }
 
     const Config& getConfig() const {
@@ -44,9 +42,6 @@ public:
         return weightsCache;
     }
 
-    std::shared_ptr<std::mutex> getSharedMutex() const {
-        return sharedMutex;
-    }
 
     MultiCachePtr getParamsCache() const {
         return rtParamsCache;
@@ -56,9 +51,7 @@ public:
         return rtScratchPad;
     }
 
-    dnnl::engine getEngine() const {
-        return eng;
-    }
+    static const dnnl::engine& getEngine();
 
     bool isGraphQuantized() const {
         return isGraphQuantizedFlag;
@@ -69,13 +62,11 @@ private:
 
     ExtensionManager::Ptr extensionManager;
     WeightsSharing::Ptr weightsCache;         // per NUMA node caches for sharing weights data
-    std::shared_ptr<std::mutex> sharedMutex;  // mutex for protection of type-relaxed Op in clone_model()
 
     MultiCachePtr rtParamsCache;     // primitive cache
     DnnlScratchPadPtr rtScratchPad;  // scratch pad
 
     bool isGraphQuantizedFlag = false;
-    static dnnl::engine eng;  // onednn engine (singleton)
 };
 
 }  // namespace intel_cpu

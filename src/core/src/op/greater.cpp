@@ -6,11 +6,12 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/greater.hpp"
+#include "openvino/reference/greater.hpp"
 
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace greaterop {
 namespace {
 template <element::Type_t ET>
@@ -18,12 +19,12 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::greater(arg0->get_data_ptr<ET>(),
-                                arg1->get_data_ptr<ET>(),
-                                out->get_data_ptr<element::Type_t::boolean>(),
-                                arg0->get_shape(),
-                                arg1->get_shape(),
-                                broadcast_spec);
+    ov::reference::greater(arg0->get_data_ptr<ET>(),
+                           arg1->get_data_ptr<ET>(),
+                           out->get_data_ptr<element::Type_t::boolean>(),
+                           arg0->get_shape(),
+                           arg1->get_shape(),
+                           broadcast_spec);
     return true;
 }
 
@@ -34,13 +35,13 @@ bool evaluate_greater(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1, element::boolean);
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_greater, boolean, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_greater, i32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_greater, i64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_greater, u32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_greater, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_greater, f16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_greater, f32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_greater, boolean, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_greater, i32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_greater, i64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_greater, u32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_greater, u64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_greater, f16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_greater, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;

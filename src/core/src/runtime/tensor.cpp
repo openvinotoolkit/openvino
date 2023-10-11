@@ -11,6 +11,8 @@
 using namespace ngraph;
 using namespace std;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 const Shape& runtime::Tensor::get_shape() const {
     return m_descriptor->get_shape();
 }

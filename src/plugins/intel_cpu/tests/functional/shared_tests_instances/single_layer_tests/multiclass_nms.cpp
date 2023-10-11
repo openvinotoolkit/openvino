@@ -88,6 +88,8 @@ const std::vector<bool> sortResDesc = {true, false};
 const std::vector<float> nmsEta = {0.6f, 1.0f};
 const std::vector<bool> normalized = {true, false};
 
+const std::vector<bool> outStaticShape = {false};   // only be false for cpu plugin with ov2.0.
+
 const auto nmsParamsStatic_smoke1 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams1)),
     ::testing::Combine(::testing::Values(ov::element::f32),
@@ -101,7 +103,8 @@ const auto nmsParamsStatic_smoke1 = ::testing::Combine(
     ::testing::ValuesIn(outType),
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    ::testing::ValuesIn(outStaticShape),
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto nmsParamsDynamic_smoke1 = ::testing::Combine(
     ::testing::ValuesIn(inDynamicShapeParams1),
@@ -116,7 +119,8 @@ const auto nmsParamsDynamic_smoke1 = ::testing::Combine(
     ::testing::ValuesIn(outType),
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    ::testing::ValuesIn(outStaticShape),
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_static1, MulticlassNmsLayerTest, nmsParamsStatic_smoke1, MulticlassNmsLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_dynamic1, MulticlassNmsLayerTest, nmsParamsDynamic_smoke1, MulticlassNmsLayerTest::getTestCaseName);
@@ -134,7 +138,8 @@ const auto nmsParamsStatic_smoke2 = ::testing::Combine(
     ::testing::ValuesIn(outType),
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    ::testing::ValuesIn(outStaticShape),
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto nmsParamsDynamic_smoke2 = ::testing::Combine(
     ::testing::ValuesIn(inDynamicShapeParams2),
@@ -149,7 +154,8 @@ const auto nmsParamsDynamic_smoke2 = ::testing::Combine(
     ::testing::ValuesIn(outType),
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    ::testing::ValuesIn(outStaticShape),
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_static2, MulticlassNmsLayerTest, nmsParamsStatic_smoke2, MulticlassNmsLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_dynamic2, MulticlassNmsLayerTest, nmsParamsDynamic_smoke2, MulticlassNmsLayerTest::getTestCaseName);

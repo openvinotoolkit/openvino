@@ -6,8 +6,8 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <Windows.h>
 #    include <direct.h>
+#    include <windows.h>
 #else  // _WIN32
 #    include <dirent.h>
 #    include <dlfcn.h>
@@ -143,7 +143,8 @@ bool PluginInfo::load_internal() {
         so = ov::util::load_shared_object(m_file_path.c_str());
 #endif
     } catch (const std::exception& ex) {
-        OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
+        OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what()
+                       << " Please check that frontend library doesn't have unresolved dependencies." << std::endl;
         return false;
     }
 

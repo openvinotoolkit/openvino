@@ -15,15 +15,14 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "lpt_ngraph_functions/group_convolution_function.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_lpt_models/group_convolution.hpp"
 
 namespace LayerTestsDefinitions {
-
 std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::pair<ngraph::PartialShape, ngraph::Shape> inputShapes;
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
@@ -38,6 +37,7 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
         param.group << "_" <<
         param.groupCalculationDimention << "_" <<
         param.fakeQuantizeOnData << "_" <<
+        (param.addReshape ? "reshape_on_weights_" : "wo_reshape_") <<
         (addPrecisionPreserved ? "max_pool_" : "") <<
         param.fakeQuantizeOnWeights;
     return result.str();
@@ -47,7 +47,7 @@ void GroupConvolutionTransformation::SetUp() {
     threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::pair<ngraph::PartialShape, ngraph::Shape> inputShapes;
     GroupConvolutionTransformationParam param;
     bool addPrecisionPreserved;
@@ -64,6 +64,7 @@ void GroupConvolutionTransformation::SetUp() {
         param.groupCalculationDimention,
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights,
+        param.addReshape,
         addPrecisionPreserved);
 }
 
@@ -82,6 +83,7 @@ void GroupConvolutionTransformation::Run() {
 }
 
 TEST_P(GroupConvolutionTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

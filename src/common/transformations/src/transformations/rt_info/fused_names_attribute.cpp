@@ -4,15 +4,13 @@
 
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
-#include <assert.h>
-
 #include <functional>
 #include <iterator>
 #include <memory>
-#include <ngraph/node.hpp>
 #include <ostream>
 
-using namespace ngraph;
+#include "openvino/core/node.hpp"
+
 using namespace ov;
 
 std::string FusedNames::getNames() const {
@@ -33,7 +31,7 @@ void FusedNames::fuseWith(const FusedNames& names) {
     }
 }
 
-std::string ov::getFusedNames(const std::shared_ptr<ngraph::Node>& node) {
+std::string ov::getFusedNames(const std::shared_ptr<ov::Node>& node) {
     if (node) {
         const auto& rtInfo = node->get_rt_info();
         auto it_info = rtInfo.find(FusedNames::get_type_info_static());
@@ -46,7 +44,7 @@ std::string ov::getFusedNames(const std::shared_ptr<ngraph::Node>& node) {
     return {};
 }
 
-std::vector<std::string> ov::getFusedNamesVector(const std::shared_ptr<ngraph::Node>& node) {
+std::vector<std::string> ov::getFusedNamesVector(const std::shared_ptr<ov::Node>& node) {
     if (node) {
         const auto& rtInfo = node->get_rt_info();
         auto it_info = rtInfo.find(FusedNames::get_type_info_static());
@@ -59,7 +57,7 @@ std::vector<std::string> ov::getFusedNamesVector(const std::shared_ptr<ngraph::N
     return {};
 }
 
-Any FusedNames::merge(const ngraph::NodeVector& nodes) const {
+Any FusedNames::merge(const ov::NodeVector& nodes) const {
     FusedNames mergedNames;
     for (auto& node : nodes) {
         const auto& rtInfo = node->get_rt_info();
@@ -71,7 +69,7 @@ Any FusedNames::merge(const ngraph::NodeVector& nodes) const {
     return mergedNames;
 }
 
-Any FusedNames::init(const std::shared_ptr<ngraph::Node>& node) const {
+Any FusedNames::init(const std::shared_ptr<ov::Node>& node) const {
     return FusedNames{node->get_friendly_name()};
 }
 

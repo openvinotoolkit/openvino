@@ -21,7 +21,7 @@ private:
 };
 
 struct fused_primitive_desc {
-    explicit fused_primitive_desc(std::shared_ptr<const primitive> prim) : desc(prim) {}
+    explicit fused_primitive_desc(const std::shared_ptr<const primitive>& prim) : desc(prim) {}
 
     template <class PType>
     bool is_type() const {
@@ -44,13 +44,15 @@ struct fused_primitive_desc {
     bool operator==(const fused_primitive_desc& rhs) const {
         if (total_num_deps != rhs.total_num_deps)
             return false;
-        if (dep_start_idx != rhs.dep_start_idx)
+        if (outer_dep_start_idx != rhs.outer_dep_start_idx)
             return false;
 
         return *desc == *rhs.desc;
     }
 
     bool operator!=(const fused_primitive_desc& rhs) const { return !(*this == rhs); }
+
+    bool has_outer_dep() const { return outer_dep_start_idx >= 0; }
 
     std::shared_ptr<const primitive> desc;
 
@@ -61,7 +63,11 @@ struct fused_primitive_desc {
 
     std::vector<std::pair<primitive_id, size_t>> deps;
     std::map<primitive_id, size_t> fused_deps;
-    size_t dep_start_idx;
+    // TODO:
+    // Currently, it assumes very simple case where dep 0 is the fused node and no input sharing b/w fused node and peer node
+    // To cover such cases where some of the peer node uses input of fused node, we need to maintain actual indexes of the dependencies
+    // not only the "starting index".
+    int32_t outer_dep_start_idx = -1; // if -1, no external dep after fusing
     size_t total_num_deps = 0;
 };
 
@@ -120,6 +126,8 @@ struct fused_primitive_desc_onednn {
     size_t mem_dep;              // memory dependency for working with fused node
     dnnl::memory::format_tag tag;
     bool flatten;
+    dnnl::memory::dims dims;
+    dnnl::memory::data_type dt;
 };
 #endif // ENABLE_ONEDNN_FOR_GPU
 } // namespace cldnn

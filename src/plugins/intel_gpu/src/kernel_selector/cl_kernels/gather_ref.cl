@@ -54,7 +54,14 @@ KERNEL(gather_ref)(
     const uint dictionary_idx = GET_DICTIONARY_INDEX(DICTIONARY_INDEX_ORDER);
     const uint output_idx = GET_INDEX(OUTPUT,,ORDER);
 
+
+#if GATHER_AXIS_SHAPE_INFO_INDEX
+    INPUT0_TYPE val = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < shape_info[GATHER_AXIS_SHAPE_INFO_INDEX]) ? dictionary[dictionary_idx] : 0;
+#elif AXIS_DIM
+    INPUT0_TYPE val = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < AXIS_DIM) ? dictionary[dictionary_idx] : 0;
+#else
     INPUT0_TYPE val = dictionary[dictionary_idx];
+#endif
 
 #if HAS_FUSED_OPS
     FUSED_OPS;

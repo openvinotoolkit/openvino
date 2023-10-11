@@ -7,22 +7,25 @@
 
 #include "utils.hpp"
 
-template <class T>
-void shape_infer(const ov::op::v0::FakeQuantize* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 5 && output_shapes.size() == 1);
+namespace ov {
+namespace op {
+namespace v0 {
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const FakeQuantize* op, const std::vector<T>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 5);
 
-    T data_pshape = input_shapes[0];
+    TRShape data_pshape = input_shapes[0];
     ov::op::AutoBroadcastSpec auto_broadcast = op->get_auto_broadcast();
 
     for (size_t i = 1; i <= 4; ++i) {
         if (auto_broadcast.m_type == ov::op::AutoBroadcastType::NONE) {
-            NODE_VALIDATION_CHECK(op, T::merge_into(data_pshape, input_shapes[i]), "Argument shapes are inconsistent.");
+            NODE_VALIDATION_CHECK(op,
+                                  TRShape::merge_into(data_pshape, input_shapes[i]),
+                                  "Argument shapes are inconsistent.");
         } else if (auto_broadcast.m_type == ov::op::AutoBroadcastType::NUMPY ||
                    auto_broadcast.m_type == ov::op::AutoBroadcastType::PDPD) {
             NODE_VALIDATION_CHECK(op,
-                                  T::broadcast_merge_into(data_pshape, input_shapes[i], auto_broadcast),
+                                  TRShape::broadcast_merge_into(data_pshape, input_shapes[i], auto_broadcast),
                                   "Argument shapes are inconsistent.");
         } else {
             NODE_VALIDATION_CHECK(op, false, "Unsupported auto broadcast specification");
@@ -35,5 +38,8 @@ void shape_infer(const ov::op::v0::FakeQuantize* op,
     // input[1].shape = [1, 3, 4, 5]
     // This controversial behavior is kept here due to backward-compatibility and the fact that
     // frameworks do not allow such behavior too -- so the chance to have such FQ configuration is minimal
-    first_input_passthrough_infer(op, input_shapes, output_shapes);
+    return {data_pshape};
 }
+}  // namespace v0
+}  // namespace op
+}  // namespace ov

@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "helper_ops/gru_block_cell.hpp"
-#include "ngraph/rt_info.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"

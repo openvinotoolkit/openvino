@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <ngraph/shape.hpp>
 #include <ngraph/node.hpp>
 
@@ -35,7 +35,7 @@ public:
 }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ngraph::NodeTypeInfo resize_type;
         int channels_count;
         int batch_count;

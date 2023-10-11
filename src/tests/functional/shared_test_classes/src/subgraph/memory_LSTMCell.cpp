@@ -6,7 +6,7 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include "ngraph/pass/low_latency.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
 #include "functional_test_utils/core_config.hpp"
 
@@ -49,15 +49,15 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> hidden_memory_dims {1, hiddenSize};
         std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-        input_bias = CommonTestUtils::generate_float_numbers(inputSize, -0.2f, 0.0f);
-        input_weights = CommonTestUtils::generate_float_numbers(inputSize, 0.0f, 0.1f);
-        hidden_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
-        cell_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
-        weights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
-        reccurrenceWeights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
-        bias_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize, -0.2f, 0.1f);
+        input_bias = ov::test::utils::generate_float_numbers(inputSize, -0.2f, 0.0f);
+        input_weights = ov::test::utils::generate_float_numbers(inputSize, 0.0f, 0.1f);
+        hidden_memory_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
+        cell_memory_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
+        weights_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
+        reccurrenceWeights_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
+        bias_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize, -0.2f, 0.1f);
 
-        auto input_parameter = builder::makeParams(ngPrc, {input_dims});
+        ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
         auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
         auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
@@ -146,7 +146,7 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> hidden_memory_dims {1, hiddenSize};
         std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-        auto input_parameter = builder::makeParams(ngPrc, {input_dims});
+        ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
         auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
         auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
@@ -193,7 +193,7 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> hidden_memory_dims {1, hiddenSize};
         std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-        auto input_parameter = builder::makeParams(ngPrc, {input_dims});
+        ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
         auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
         auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
@@ -308,18 +308,7 @@ namespace SubgraphTestsDefinitions {
     void MemoryLSTMCellTest::ApplyLowLatency() {
         // Calculate values after LowLatency transformation
         CreatePureTensorIteratorModel();
-        if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY) {
-            function->validate_nodes_and_infer_types();
-            // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
-            pass::Manager manager;
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            manager.register_pass<ngraph::pass::LowLatency>();
-            NGRAPH_SUPPRESS_DEPRECATED_END // LowLatency enables UnrollTI
-            manager.run_passes(function);
-            bool ti_found = helpers::is_tensor_iterator_exist(function);
-            EXPECT_EQ(ti_found, true);
-            LoadNetwork();
-        } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
+        if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
             function->validate_nodes_and_infer_types();
             // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
 
@@ -329,18 +318,6 @@ namespace SubgraphTestsDefinitions {
             bool ti_found = helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
             LoadNetwork();
-        } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_REGULAR_API) {
-            cnnNetwork = InferenceEngine::CNNNetwork{function};
-            IE_SUPPRESS_DEPRECATED_START
-            InferenceEngine::LowLatency(cnnNetwork);
-            IE_SUPPRESS_DEPRECATED_END
-
-            bool ti_found = helpers::is_tensor_iterator_exist(cnnNetwork.getFunction());
-            EXPECT_EQ(ti_found, true);
-
-            ConfigureNetwork();
-            executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
-            inferRequest = executableNetwork.CreateInferRequest();
         } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
             InferenceEngine::lowLatency2(cnnNetwork);

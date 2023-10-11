@@ -7,11 +7,11 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
-namespace ngraph {
+namespace ov {
 
 /**
  * @ingroup ie_transformation_common_api
@@ -23,11 +23,11 @@ namespace ngraph {
  */
 class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 public:
-    OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute);
     using PrecisionPreservedAttribute::PrecisionPreservedAttribute;
     void merge_attributes(std::vector<ov::Any>& attributes);
     bool is_skipped() const;
     std::string to_string() const override;
 };
 
-} // namespace ngraph
+} // namespace ov

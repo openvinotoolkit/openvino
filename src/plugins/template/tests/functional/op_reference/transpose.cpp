@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/transpose.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/transpose.hpp"
+#include "base_reference_test.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "base_reference_test.hpp"
-#include "util/type_prop.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -33,7 +34,7 @@ struct TransposeParams {
     reference_tests::Tensor axisTensor;
     reference_tests::Tensor expectedTensor;
     std::string testcaseName;
-    std::pair<std::string,std::string> expectedException;
+    std::pair<std::string, std::string> expectedException;
 };
 
 class ReferenceTransposeLayerTest : public testing::TestWithParam<TransposeParams>, public CommonReferenceTest {
@@ -68,17 +69,19 @@ private:
         std::shared_ptr<Model> function;
         if (params.dynamicDataShape.is_static()) {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-            const auto axis = std::make_shared<op::v0::Constant>(params.axisTensor.type, params.axisTensor.shape,
+            const auto axis = std::make_shared<op::v0::Constant>(params.axisTensor.type,
+                                                                 params.axisTensor.shape,
                                                                  params.axisTensor.data.data());
             const auto axisI64 = std::make_shared<op::v0::Convert>(axis, element::i64);
             const auto transpose = std::make_shared<op::v1::Transpose>(data, axisI64);
-            function = std::make_shared<ov::Model>(NodeVector {transpose}, ParameterVector {data});
+            function = std::make_shared<ov::Model>(NodeVector{transpose}, ParameterVector{data});
         } else {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, PartialShape::dynamic());
-            const auto axis = std::make_shared<op::v0::Parameter>(params.axisTensor.type, PartialShape{Dimension::dynamic()});
+            const auto axis =
+                std::make_shared<op::v0::Parameter>(params.axisTensor.type, PartialShape{Dimension::dynamic()});
             const auto axisI64 = std::make_shared<op::v0::Convert>(axis, element::i64);
             const auto transpose = std::make_shared<op::v1::Transpose>(data, axisI64);
-            function = std::make_shared<ov::Model>(NodeVector {transpose}, ParameterVector {data, axis});
+            function = std::make_shared<ov::Model>(NodeVector{transpose}, ParameterVector{data, axis});
         }
         return function;
     }
@@ -105,7 +108,7 @@ TEST_P(ReferenceTransposeLayerTest, CompareWithRefs) {
 template <element::Type_t IN_ET>
 std::vector<TransposeParams> generateTransposeParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
-    std::vector<TransposeParams> transposeParams {
+    std::vector<TransposeParams> transposeParams{
         // transpose_basic
         TransposeParams(PartialShape::dynamic(),
                         reference_tests::Tensor(IN_ET, {2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6}),
@@ -117,51 +120,62 @@ std::vector<TransposeParams> generateTransposeParams() {
                         reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
                         reference_tests::Tensor(IN_ET, {3, 2}, std::vector<T>{1, 4, 2, 5, 3, 6}),
                         "transpose_basic_2"),
-        TransposeParams(PartialShape::dynamic(),
-                        reference_tests::Tensor(IN_ET, {2, 2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
-                        reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{2, 1, 0}),
-                        reference_tests::Tensor(IN_ET, {3, 2, 2}, std::vector<T>{1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12}),
-                        "transpose_basic_3"),
+        TransposeParams(
+            PartialShape::dynamic(),
+            reference_tests::Tensor(IN_ET, {2, 2, 3}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{2, 1, 0}),
+            reference_tests::Tensor(IN_ET, {3, 2, 2}, std::vector<T>{1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12}),
+            "transpose_basic_3"),
         // transpose_axes_constant
-        TransposeParams({},
-                        reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
-                                                                   13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                        reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
-                        reference_tests::Tensor(IN_ET, {3, 4, 2, 1}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
-                                                                   7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
-                        "transpose_axes_constant"),
+        TransposeParams(
+            {},
+            reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,
+                                                                        9,  10, 11, 12, 13, 14, 15, 16,
+                                                                        17, 18, 19, 20, 21, 22, 23, 24}),
+            reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
+            reference_tests::Tensor(IN_ET, {3, 4, 2, 1}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                                                        7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
+            "transpose_axes_constant"),
         // transpose_axes_empty_constant
-        TransposeParams({},
-                        reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
-                                                                   13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                        reference_tests::Tensor(element::i64, {0}, std::vector<int64_t>{}),
-                        reference_tests::Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 5, 17, 9,  21, 2, 14, 6, 18, 10, 22,
-                                                                   3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24}),
-                        "transpose_axes_empty_constant"),
+        TransposeParams(
+            {},
+            reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,
+                                                                        9,  10, 11, 12, 13, 14, 15, 16,
+                                                                        17, 18, 19, 20, 21, 22, 23, 24}),
+            reference_tests::Tensor(element::i64, {0}, std::vector<int64_t>{}),
+            reference_tests::Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 5, 17, 9,  21, 2, 14, 6, 18, 10, 22,
+                                                                        3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24}),
+            "transpose_axes_empty_constant"),
         // transpose_axes_parameter_static_shapes
-        TransposeParams({},
-                        reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
-                                                                   13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                        reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
-                        reference_tests::Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
-                                                                   7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
-                        "transpose_axes_parameter_static_shapes"),
+        TransposeParams(
+            {},
+            reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,
+                                                                        9,  10, 11, 12, 13, 14, 15, 16,
+                                                                        17, 18, 19, 20, 21, 22, 23, 24}),
+            reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
+            reference_tests::Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                                                        7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
+            "transpose_axes_parameter_static_shapes"),
         // transpose_axes_parameter_dynamic_shapes
-        TransposeParams(PartialShape::dynamic(),
-                        reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
-                                                                   13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                        reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
-                        reference_tests::Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
-                                                                   7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
-                        "transpose_axes_parameter_dynamic_shapes"),
+        TransposeParams(
+            PartialShape::dynamic(),
+            reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,
+                                                                        9,  10, 11, 12, 13, 14, 15, 16,
+                                                                        17, 18, 19, 20, 21, 22, 23, 24}),
+            reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
+            reference_tests::Tensor(IN_ET, {4, 3, 1, 2}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                                                        7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
+            "transpose_axes_parameter_dynamic_shapes"),
         // transpose_int_data_axes_constant
-        TransposeParams({},
-                        reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
-                                                                   13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
-                        reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
-                        reference_tests::Tensor(IN_ET, {3, 4, 2, 1}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
-                                                                   7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
-                        "transpose_int_data_axes_constant"),
+        TransposeParams(
+            {},
+            reference_tests::Tensor(IN_ET, {2, 1, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,
+                                                                        9,  10, 11, 12, 13, 14, 15, 16,
+                                                                        17, 18, 19, 20, 21, 22, 23, 24}),
+            reference_tests::Tensor(element::i64, {4}, std::vector<int64_t>{2, 3, 0, 1}),
+            reference_tests::Tensor(IN_ET, {3, 4, 2, 1}, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                                                        7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
+            "transpose_int_data_axes_constant"),
     };
     return transposeParams;
 }
@@ -192,7 +206,7 @@ std::vector<TransposeParams> generateThrowingTransposeParams() {
 }
 
 std::vector<TransposeParams> generateTransposeCombinedParams() {
-    const std::vector<std::vector<TransposeParams>> transposeTypeParams {
+    const std::vector<std::vector<TransposeParams>> transposeTypeParams{
         generateTransposeParams<element::Type_t::i8>(),
         generateTransposeParams<element::Type_t::i16>(),
         generateTransposeParams<element::Type_t::i32>(),
@@ -214,6 +228,8 @@ std::vector<TransposeParams> generateTransposeCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Transpose_With_Hardcoded_Refs, ReferenceTransposeLayerTest,
-    testing::ValuesIn(generateTransposeCombinedParams()), ReferenceTransposeLayerTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_Transpose_With_Hardcoded_Refs,
+                         ReferenceTransposeLayerTest,
+                         testing::ValuesIn(generateTransposeCombinedParams()),
+                         ReferenceTransposeLayerTest::getTestCaseName);
+}  // namespace

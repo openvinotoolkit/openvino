@@ -1,14 +1,15 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "deconvolution_inst.h"
-#include "primitive_type_base.h"
-#include "sliding_window_utils.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
 #include <string>
 
-#include "convolution_shape_inference.hpp"
+#include "convolution_backprop_shape_inference.hpp"
+#include "deconvolution_inst.h"
+#include "group_convolution_backprop_shape_inference.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "sliding_window_utils.hpp"
 
 using namespace ov::intel_gpu;
 
@@ -164,7 +165,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>()
     };
-    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> output_shapes;
     auto& memory_deps = impl_param.memory_deps;
     // Dimensions order of weights is IOYX, but the selected format is OIYX by default and I/O dimensions are
     // already swapped when creating constant op. So we need to swap I/O dimensions according to the original
@@ -179,19 +180,20 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         std::swap(weights_pshape[2], weights_pshape[1]);
         input_shapes.push_back(weights_pshape);
         if (output_partial_shape.size() != 0) {
-            ShapeType output_shape = ov::Shape{ output_partial_shape.size() };
-            input_shapes.push_back(output_shape);
-            ov::op::v1::shape_infer(&op, pads_begin, pads_end, output_partial_shape, input_shapes, output_shapes);
+            op.set_output_shape(output_partial_shape.to_shape());
+            input_shapes.push_back(ov::Shape{output_partial_shape.size()});
+            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
         } else if (memory_deps.count(2)) {
             auto mem = memory_deps.at(2);
-            std::vector<int64_t> dims = read_vector<int64_t>(mem, impl_param.prog->get_stream());
-            ov::Shape shape(dims.begin(), dims.end());
-            ov::PartialShape output_pshape(shape);
-            ShapeType output_shape = ov::Shape{ output_pshape.size() };
-            input_shapes.push_back(output_shape);
-            ov::op::v1::shape_infer(&op, pads_begin, pads_end, output_pshape, input_shapes, output_shapes);
+            auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
+            auto dims_shape = ov::Shape{dims.size()};
+            auto const_data =
+                std::unordered_map<size_t, ov::Tensor>{{2, ov::Tensor(ov::element::i64, dims_shape, dims.data())}};
+            input_shapes.push_back(dims_shape);
+            output_shapes =
+                ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end, ov::make_tensor_accessor(const_data));
         } else {
-            ov::op::v1::shape_infer(&op, pads_begin, pads_end, ov::PartialShape{}, input_shapes, output_shapes);
+            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
         }
     } else {
         ov::op::v1::ConvolutionBackpropData op;
@@ -202,19 +204,21 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         std::swap(weights_pshape[1], weights_pshape[0]);
         input_shapes.push_back(weights_pshape);
         if (output_partial_shape.size() != 0) {
-            ShapeType output_shape = ov::Shape{ output_partial_shape.size() };
-            input_shapes.push_back(output_shape);
-            ov::op::v1::shape_infer(&op, pads_begin, pads_end, output_partial_shape, input_shapes, output_shapes);
+            op.set_output_shape(output_partial_shape.to_shape());
+            input_shapes.push_back(ov::Shape{output_partial_shape.size()});
+            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
         } else if (memory_deps.count(2)) {
             auto mem = memory_deps.at(2);
-            std::vector<int64_t> dims = read_vector<int64_t>(mem, impl_param.prog->get_stream());
-            ov::Shape shape(dims.begin(), dims.end());
-            ov::PartialShape output_pshape(shape);
-            ShapeType output_shape = ov::Shape{ output_pshape.size() };
-            input_shapes.push_back(output_shape);
-            ov::op::v1::shape_infer(&op, pads_begin, pads_end, output_pshape, input_shapes, output_shapes);
+            auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
+            auto dims_shape = ov::Shape{dims.size()};
+            auto const_data =
+                std::unordered_map<size_t, ov::Tensor>{{2, ov::Tensor(ov::element::i64, dims_shape, dims.data())}};
+            input_shapes.push_back(dims_shape);
+
+            output_shapes =
+                ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end, ov::make_tensor_accessor(const_data));
         } else {
-            ov::op::v1::shape_infer(&op, pads_begin, pads_end, ov::PartialShape{}, input_shapes, output_shapes);
+            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
         }
     }
     return {layout{output_shapes[0], output_type, out_fmt.value}};

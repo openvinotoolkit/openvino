@@ -23,6 +23,7 @@ namespace ov {
  * @deprecated This class will be removed in 2024.0 release
  * @brief Tries to act like [std::pmr::memory_resource](https://en.cppreference.com/w/cpp/memory/memory_resource)
  */
+OPENVINO_SUPPRESS_DEPRECATED_START
 struct OPENVINO_DEPRECATED("Do not inherit from AllocatorImpl. This class will be removed in 2024.0 release. Pass "
                            "std::pmr::memory_resource like object directly to ov::Allocator") AllocatorImpl
     : public std::enable_shared_from_this<AllocatorImpl> {
@@ -58,8 +59,9 @@ struct OPENVINO_DEPRECATED("Do not inherit from AllocatorImpl. This class will b
     virtual bool is_equal(const AllocatorImpl& other) const = 0;
 
 protected:
-    ~AllocatorImpl() = default;
+    virtual ~AllocatorImpl() = default;
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 class Tensor;
 
@@ -92,7 +94,7 @@ class OPENVINO_API Allocator {
         virtual bool is_equal(const Base& other) const = 0;
 
     protected:
-        ~Base() = default;
+        virtual ~Base() = default;
     };
 
     template <typename A>

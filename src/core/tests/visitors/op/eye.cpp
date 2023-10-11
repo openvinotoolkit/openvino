@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "openvino/opsets/opset9.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/eye.hpp"
+
+#include <gtest/gtest.h>
+
+#include "openvino/op/constant.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
 using namespace ov;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using ov::test::NodeBuilder;
 
 TEST(attributes, eye_op) {
     NodeBuilder::get_ops().register_factory<op::v9::Eye>();

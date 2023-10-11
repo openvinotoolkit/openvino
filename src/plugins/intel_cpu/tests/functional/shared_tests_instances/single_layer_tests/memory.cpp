@@ -38,7 +38,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryTest,
                 ::testing::ValuesIn(iterationCount),
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU, "HETERO:CPU")),
+                ::testing::Values(ov::test::utils::DEVICE_CPU, "HETERO:CPU")),
         MemoryTest::getTestCaseName);
 
 } // namespace

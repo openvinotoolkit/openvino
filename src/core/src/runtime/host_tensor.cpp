@@ -12,6 +12,7 @@
 
 using namespace ngraph;
 using namespace std;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 static const size_t alignment = 64;
 
@@ -138,14 +139,15 @@ void runtime::HostTensor::set_element_type(const element::Type& element_type) {
 }
 
 void runtime::HostTensor::set_shape(const Shape& shape) {
-    NGRAPH_CHECK(PartialShape(shape).refines(get_partial_shape()),
+    NGRAPH_CHECK(PartialShape(shape).refines(get_partial_shape()) ||
+                     (m_descriptor->get_partial_shape().is_static() &&
+                      m_descriptor->get_partial_shape().to_shape() == ov::Shape{0}),
                  "Allocation shape ",
                  shape,
                  " must be compatible with the partial shape: ",
                  get_partial_shape());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    m_descriptor->set_partial_shape(shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    m_descriptor->m_partial_shape = shape;
+    m_descriptor->m_shape_changed = true;
 }
 
 void runtime::HostTensor::set_unary(const HostTensorPtr& arg) {

@@ -22,6 +22,7 @@ struct arg_max_min_params : public base_params {
     bool values_first = false;
     bool has_second_output = false;
     bool use_multiple_outputs = false;
+    bool stable = false;
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();

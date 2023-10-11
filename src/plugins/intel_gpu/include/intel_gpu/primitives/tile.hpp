@@ -12,6 +12,8 @@ namespace cldnn {
 struct tile : public primitive_base<tile> {
     CLDNN_DECLARE_PRIMITIVE(tile)
 
+    tile() : primitive_base("", {}) {}
+
     /// @brief Constructs tile primitive with static input.
     /// @param id This primitive id.
     /// @param repeats Per-dimension replication factor.
@@ -46,6 +48,16 @@ struct tile : public primitive_base<tile> {
         auto rhs_casted = downcast<const tile>(rhs);
 
         return repeats == rhs_casted.repeats;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<tile>::save(ob);
+        ob << repeats;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<tile>::load(ib);
+        ib >> repeats;
     }
 };
 }  // namespace cldnn

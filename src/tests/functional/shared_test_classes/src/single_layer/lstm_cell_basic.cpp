@@ -30,8 +30,8 @@ std::string LSTMCellBasicTest::getTestCaseName(const testing::TestParamInfo<LSTM
     result << "batch=" << batch << "_";
     result << "hidden_size=" << hidden_size << "_";
     result << "input_size=" << input_size << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "activations=" << CommonTestUtils::vec2str(activations) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "activations=" << ov::test::utils::vec2str(activations) << "_";
     result << "clip=" << clip << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
@@ -61,7 +61,10 @@ void LSTMCellBasicTest::SetUp() {
                     {4 * hidden_size, hidden_size}, {4 * hidden_size}},
     };
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1])),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[2]))};
+
     std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
     auto lstm_cell = ngraph::builder::makeLSTM(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
             WRB, hidden_size, activations, {}, {}, clip);

@@ -4,6 +4,11 @@
 
 #include "decoder_flatbuffer.h"
 
+#ifdef FLATBUFFERS_LOCALE_INDEPENDENT
+#    undef FLATBUFFERS_LOCALE_INDEPENDENT
+#endif
+#define FLATBUFFERS_LOCALE_INDEPENDENT 0
+#include "flatbuffers/flexbuffers.h"
 #include "schema_generated.h"
 #include "utils.hpp"
 
@@ -17,6 +22,7 @@ size_t DecoderFlatBuffer::get_input_size() const {
 
 void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
                                        std::string& producer_name,
+                                       std::string& producer_output_port_name,
                                        size_t& producer_output_port_index) const {
     const auto inputs = m_node_def->inputs();
     FRONT_END_GENERAL_CHECK(inputs->size() > input_port_idx,
@@ -31,13 +37,6 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
     std::string name = (*tensor).name()->str();
     producer_name = name;
     producer_output_port_index = input_tensor_idx;
-}
-
-void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
-                                       std::string& producer_name,
-                                       size_t& producer_output_port_index,
-                                       const OpTypeByName& op_type_by_name) const {
-    FRONT_END_NOT_IMPLEMENTED("get_input_node method with op_type_by_name map is not implemented for TFL FE.");
 }
 
 const std::string& DecoderFlatBuffer::get_op_type() const {
@@ -93,9 +92,34 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
         ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
         names,
         ov::frontend::tensorflow_lite::get_quantization(tensor->quantization()),
-        tensor_info.input_idx,
-        tensor_info.output_idx,
-        (tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr));
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr));
+}
+
+ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
+#define CASE_MACRO(fbt, as_stmt) \
+    case flexbuffers::fbt:       \
+        return {value.as_stmt()};
+    switch (value.GetType()) {
+        CASE_MACRO(FBT_INT, AsInt32)
+        CASE_MACRO(FBT_INDIRECT_INT, AsInt32)
+        CASE_MACRO(FBT_UINT, AsUInt32)
+        CASE_MACRO(FBT_INDIRECT_UINT, AsUInt32)
+        CASE_MACRO(FBT_FLOAT, AsFloat)
+        CASE_MACRO(FBT_INDIRECT_FLOAT, AsFloat)
+        CASE_MACRO(FBT_STRING, AsString)
+        CASE_MACRO(FBT_BOOL, AsBool)
+    default:
+        return {};
+    }
+    return {};
+}
+
+ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
+    const auto opts = m_node_def->custom_options();
+    if (opts == nullptr)
+        return {};
+    const flexbuffers::Map& m = flexbuffers::GetRoot(opts->Data(), opts->size()).AsMap();
+    return get_value_as_ov_any(m[name]);
 }
 
 }  // namespace tensorflow_lite

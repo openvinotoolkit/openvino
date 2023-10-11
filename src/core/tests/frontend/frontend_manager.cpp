@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <memory>
-#include <openvino/frontend/exception.hpp>
-#include <openvino/frontend/manager.hpp>
 
 #include "common_test_utils/file_utils.hpp"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-#include "ngraph/file_util.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/util/file_util.hpp"
 
 using namespace ov::frontend;
 
 static std::string mock_fe_path() {
     static auto lib_name = std::string(FRONTEND_LIB_PREFIX) + "mock1" + std::string(FRONTEND_LIB_SUFFIX);
-    return ov::util::path_join({CommonTestUtils::getExecutableDirectory(), lib_name});
+    return ov::util::path_join({ov::test::utils::getExecutableDirectory(), lib_name});
 }
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds) {
@@ -156,9 +155,9 @@ TEST(FrontEndManagerTest, testDefaultInputModel) {
     ASSERT_ANY_THROW(im->cut_and_add_new_output(nullptr, ""));
     ASSERT_ANY_THROW(im->add_output(nullptr));
     ASSERT_ANY_THROW(im->remove_output(nullptr));
-    ASSERT_ANY_THROW(im->set_partial_shape(nullptr, ngraph::Shape{}));
+    ASSERT_ANY_THROW(im->set_partial_shape(nullptr, ov::Shape{}));
     ASSERT_ANY_THROW(im->get_partial_shape(nullptr));
-    ASSERT_ANY_THROW(im->set_element_type(nullptr, ngraph::element::Type{}));
+    ASSERT_ANY_THROW(im->set_element_type(nullptr, ov::element::Type{}));
     ASSERT_ANY_THROW(im->set_tensor_value(nullptr, nullptr));
     ASSERT_ANY_THROW(im->set_tensor_partial_value(nullptr, nullptr, nullptr));
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<fuseTransposeBrgemmParams> obj);
 protected:
     void SetUp() override;
-    std::shared_ptr<SnippetsFunctionBase> snippets_function;
+    std::shared_ptr<SnippetsFunctionBase> snippets_model;
 };
 
 }  // namespace snippets

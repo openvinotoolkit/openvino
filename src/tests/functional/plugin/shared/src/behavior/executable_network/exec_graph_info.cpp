@@ -328,7 +328,7 @@ void ExecGraphSerializationTest::SetUp() {
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
-    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
 
     m_out_xml_path = filePrefix + XML_EXT;
     m_out_bin_path = filePrefix + BIN_EXT;
@@ -336,7 +336,7 @@ void ExecGraphSerializationTest::SetUp() {
 
 void ExecGraphSerializationTest::TearDown() {
     APIBaseTest::TearDown();
-    CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
+    ov::test::utils::removeIRFiles(m_out_xml_path, m_out_bin_path);
 }
 
 bool ExecGraphSerializationTest::exec_graph_walker::for_each(pugi::xml_node &node) {
@@ -424,7 +424,11 @@ TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
 
     pugi::xml_document expected;
     pugi::xml_document result;
-    ASSERT_TRUE(expected.load_string(target_device == "CPU" ? expected_serialized_model_cpu : expected_serialized_model));
+    if (target_device == "CPU" || target_device == "AUTO:CPU" || target_device == "MULTI:CPU") {
+        ASSERT_TRUE(expected.load_string(expected_serialized_model_cpu));
+    } else {
+        ASSERT_TRUE(expected.load_string(expected_serialized_model));
+    }
     ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
 
     bool status;
@@ -442,7 +446,7 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
     std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "inPRC=" << inputPrecision.name() << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
@@ -458,7 +462,7 @@ void ExecGraphUniqueNodeNames::SetUp() {
     APIBaseTest::SetUp();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
     auto concat = std::make_shared<ngraph::opset1::Concat>(split->outputs(), 1);
 

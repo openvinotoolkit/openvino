@@ -2,20 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT EXISTS "${IE_CONFIG_OUTPUT_FILE}")
+if(NOT EXISTS "${OV_CONFIG_OUTPUT_FILE}")
     return()
 endif()
 
 # remove plugin file
-file(REMOVE "${IE_CONFIGS_DIR}/${IE_PLUGIN_NAME}.xml")
+file(REMOVE "${OV_CONFIGS_DIR}/${OV_PLUGIN_NAME}.xml")
 
 # remove plugin
 set(newContent "")
-file(STRINGS "${IE_CONFIG_OUTPUT_FILE}" content)
+file(STRINGS "${OV_CONFIG_OUTPUT_FILE}" content)
 
 set(skip_plugin OFF)
 foreach(line IN LISTS content)
-    if("${line}" MATCHES "name=\"${IE_PLUGIN_NAME}\"")
+    if("${line}" MATCHES "name=\"${OV_PLUGIN_NAME}\"")
         set(skip_plugin ON)
     endif()
 
@@ -32,4 +32,4 @@ foreach(line IN LISTS content)
     endif()
 endforeach()
 
-file(WRITE "${IE_CONFIG_OUTPUT_FILE}" "${newContent}")
+file(WRITE "${OV_CONFIG_OUTPUT_FILE}" "${newContent}")

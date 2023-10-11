@@ -28,7 +28,7 @@ TEST_F(ReverseV1StaticShapeInferenceTest, axes_index_as_constant) {
     auto op = make_op(data, Constant::create(element::i16, Shape{4}, {-1000, 1, 2, 2}), Reverse::Mode::INDEX);
 
     input_shapes = ShapeVector{{4, 3, 2, 4}, {4}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes[0], StaticShape({4, 3, 2, 4}));
 }
@@ -38,9 +38,8 @@ TEST_F(ReverseV1StaticShapeInferenceTest, axes_index_in_constant_data) {
 
     input_shapes = ShapeVector{{4, 3, 2, 4}, {4}};
     int8_t axes_val[] = {-1, 2, 1};
-    auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i8, Shape{3}, axes_val)}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i8, Shape{3}, axes_val}}};
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes[0], StaticShape({4, 3, 2, 4}));
 }
@@ -51,7 +50,7 @@ TEST_F(ReverseV1StaticShapeInferenceTest, axes_mask_as_constant) {
 
     input_shapes = ShapeVector{{4, 3, 2, 4}, {4}};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes[0], StaticShape({4, 3, 2, 4}));
 }
@@ -62,9 +61,8 @@ TEST_F(ReverseV1StaticShapeInferenceTest, axes_mask_in_constant_data) {
 
     input_shapes = ShapeVector{{4, 3, 2, 4}, {4}};
     bool axes_val[] = {true, true, false, false};
-    auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::boolean, Shape{4}, axes_val)}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::boolean, Shape{4}, axes_val}}};
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes[0], StaticShape({4, 3, 2, 4}));
 }
@@ -73,7 +71,7 @@ TEST_F(ReverseV1StaticShapeInferenceTest, invalid_axes_mask_length) {
     auto op = make_op(data, Constant::create(element::boolean, Shape{3}, {false, false, true}), Reverse::Mode::MASK);
 
     input_shapes = ShapeVector{{1, 2, 4, 3}, {3}};
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The number of elements in the reversed_axes tensor (3) must match the input data tensor "
                               "rank (4) in 'mask' mode"));
@@ -83,7 +81,7 @@ TEST_F(ReverseV1StaticShapeInferenceTest, axes_index_out_of_data_rank) {
     auto op = make_op(data, Constant::create(element::u8, Shape{3}, {0, 20, 3}), Reverse::Mode::INDEX);
 
     input_shapes = ShapeVector{{1, 2, 4, 3}, {3}};
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Some of the provided axes (AxisSet{0, 3, 20}) are out of bounds (input rank: 4)"));
 }
@@ -95,9 +93,8 @@ TEST_F(ReverseV1StaticShapeInferenceTest, default_ctor) {
     input_shapes = ShapeVector{{11, 2, 3}, {3}};
 
     int64_t axes_val[] = {-1, 2, 0};
-    auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{3}, axes_val)}};
-    shape_inference(op.get(), input_shapes, output_shapes, const_data);
+    auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, Shape{3}, axes_val}}};
+    const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes[0], StaticShape({11, 2, 3}));
 }

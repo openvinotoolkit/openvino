@@ -4,29 +4,29 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/pull_reshape_through_dequantization.hpp>
-#include <low_precision/pull_transpose_through_dequantization.hpp>
+#include "low_precision/pull_reshape_through_dequantization.hpp"
+#include "low_precision/pull_transpose_through_dequantization.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class PullReshapeThroughDequantizationTestValues {
 public:
     class Values {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
         ngraph::builder::subgraph::Constant weights;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
@@ -34,18 +34,19 @@ public:
         ngraph::builder::subgraph::DequantizationOperations::Multiply multiply;
         ngraph::builder::subgraph::Transpose transpose;
         ngraph::builder::subgraph::Reshape reshape2;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
     Values actual;
     Values expected;
+    std::string operation;
 };
 
-typedef std::tuple<ngraph::Shape,
-                   std::pair<ngraph::Shape, ngraph::Shape>,
-                   ngraph::Shape,  // multiplyShapes
+typedef std::tuple<ov::Shape,
+                   std::pair<ov::Shape, ov::Shape>,
+                   ov::Shape,  // multiplyShapes
                    PullReshapeThroughDequantizationTestValues>
     PullReshapeThroughDequantizationParams;
 
@@ -58,6 +59,7 @@ public:
         const auto dequantizationElementwiseShape = std::get<1>(GetParam());
         const auto multiplyShape = std::get<2>(GetParam());
         auto testValues = std::get<3>(GetParam());
+        const auto operation = testValues.operation.empty() ? "GroupConvolution" : testValues.operation;
 
         // to prevent test cases increasing let's parameterize test by dequantization shape and
         // initialize values here
@@ -82,13 +84,13 @@ public:
             testValues.actual.transpose,
             testValues.actual.reshape2,
             testValues.actual.dequantizationAfter,
-            "GroupConvolution");
+            operation);
 
-        ngraph::pass::Manager manager;
-        auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-        const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
-        decomp->add_matcher<ngraph::pass::low_precision::PullReshapeThroughDequantization>(supportedTypes);
-        decomp->add_matcher<ngraph::pass::low_precision::PullTransposeThroughDequantization>(supportedTypes);
+        ov::pass::Manager manager;
+        auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
+        const std::vector<ov::element::Type> supportedTypes = {ov::element::i8, ov::element::u8};
+        decomp->add_matcher<ov::pass::low_precision::PullReshapeThroughDequantization>(supportedTypes);
+        decomp->add_matcher<ov::pass::low_precision::PullTransposeThroughDequantization>(supportedTypes);
         decomp->add_matcher<ov::pass::LinOpSequenceFusion>();
         manager.run_passes(actualFunction);
 
@@ -107,7 +109,7 @@ public:
             testValues.expected.transpose,
             testValues.expected.reshape2,
             testValues.expected.dequantizationAfter,
-            "GroupConvolution");
+            operation);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<PullReshapeThroughDequantizationParams> obj) {
@@ -133,13 +135,19 @@ TEST_P(PullReshapeThroughDequantizationTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> inputShapes = {ngraph::Shape({1, 960, 7, 7}), ngraph::Shape({4, 960, 7, 7})};
+// clang-format off
 
-const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> dequantizationOnWeightElementwiseConstantShapes = {
-    {ngraph::Shape({1, 960}), ngraph::Shape({960, 1, 1, 1})},
-    {ngraph::Shape({9, 960}), ngraph::Shape({960, 1, 3, 3})}};
+const std::vector<ov::Shape> inputShapes = {
+    ov::Shape({1, 960, 7, 7}),
+    ov::Shape({4, 960, 7, 7})
+};
 
-const std::vector<ngraph::Shape> multiplyShapes = {ngraph::Shape({1, 1, 960, 1})};
+const std::vector<std::pair<ov::Shape, ov::Shape>> dequantizationOnWeightElementwiseConstantShapes = {
+    {ov::Shape({1, 960}), ov::Shape({960, 1, 1, 1})},
+    {ov::Shape({9, 960}), ov::Shape({960, 1, 3, 3})}
+};
+
+const std::vector<ov::Shape> multiplyShapes = {ov::Shape({1, 1, 960, 1})};
 
 const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
     // Subtract with Constant (no Convert)
@@ -193,37 +201,51 @@ const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
     //             \         /
     //               Multiply
     //
-    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-     // ActualValues
-     {ngraph::element::u8,
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
-       {{0.02f}, element::f32, {}, false}},
-      {std::vector<float>{2.f}, ngraph::element::i8, {9, 960}},
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {/* from parameter */}, false},
-       {{0.03f}, element::f32, {/* from parameter */}, false}},
-      {{3, 3, 960, 1}},
-      {{2}, element::f32, {/* from parameter: multiplyShapes */}, false},
-      {{2, 3, 0, 1}},
-      {{960, 1, 1, 3, 3}},
-      ngraph::element::f32,
-      {}},
-     // ExpectedValues
-     {ngraph::element::u8,
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
-       {{0.02f}, element::f32, {}, false}},
-      {std::vector<float>{2.f}, ngraph::element::i8, {960, 1, 3, 3}},
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {/* from parameter */}, false},
-       {{0.06f}, element::f32, {/* from parameter */}, false}},
-      {},
-      {},
-      {},
-      {{960, 1, 1, 3, 3}},
-      ngraph::element::f32,
-      {}}},
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ov::element::u8,
+            {
+                { ov::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ov::element::i8, {9, 960}},
+            {
+                { ov::element::f32, false },
+                { {127.f}, element::f32, {/* from parameter */}, false },
+                { {0.03f}, element::f32, {/* from parameter */}, false }
+            },
+            { {3, 3, 960, 1} },
+            { {2}, element::f32, {/* from parameter: multiplyShapes */}, false },
+            { {2, 3, 0, 1} },
+            { {960, 1, 1, 3, 3} },
+            ov::element::f32,
+            {}
+        },
+        // ExpectedValues
+        {
+            ov::element::u8,
+            {
+                { ov::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ov::element::i8, {960, 1, 3, 3}},
+            {
+                { ov::element::f32, false },
+                { {127.f}, element::f32, {/* from parameter */}, false },
+                { {0.06f}, element::f32, {/* from parameter */}, false }
+            },
+            {},
+            {},
+            {},
+            {{960, 1, 1, 3, 3}},
+            ov::element::f32,
+            {}
+        }
+    },
 
     // Subtract with Convert + Constant
     // Actual:
@@ -276,37 +298,52 @@ const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
     //             \         /
     //               Multiply
     //
-    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-     // ActualValues
-     {ngraph::element::u8,
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
-       {{0.02f}, element::f32, {}, false}},
-      {std::vector<float>{2.f}, ngraph::element::i8, {9, 960}},
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {/* from parameter */}, false, 1ul, element::i8, true},
-       {{0.03f}, element::f32, {/* from parameter */}, false}},
-      {{3, 3, 960, 1}},
-      {{2}, element::f32, {/* from parameter: multiplyShapes */}, false},
-      {{2, 3, 0, 1}},
-      {{960, 1, 1, 3, 3}},
-      ngraph::element::f32,
-      {}},
-     // ExpectedValues
-     {ngraph::element::u8,
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
-       {{0.02f}, element::f32, {}, false}},
-      {std::vector<float>{2.f}, ngraph::element::i8, {960, 1, 3, 3}},
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {/* from parameter */}, false, 1ul, element::i8, true},
-       {{0.06f}, element::f32, {/* from parameter */}, false}},
-      {},
-      {},
-      {},
-      {{960, 1, 1, 3, 3}},
-      ngraph::element::f32,
-      {}}}};
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ov::element::u8,
+            {
+                { ov::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ov::element::i8, {9, 960}},
+            {
+                { ov::element::f32, false },
+                { {127.f}, element::f32, {/* from parameter */}, false, 1ul, element::i8, true },
+                { {0.03f}, element::f32, {/* from parameter */}, false }
+            },
+            { {3, 3, 960, 1} },
+            { {2}, element::f32, {/* from parameter: multiplyShapes */}, false },
+            { {2, 3, 0, 1} },
+            { {960, 1, 1, 3, 3} },
+            ov::element::f32,
+            {}
+        },
+        // ExpectedValues
+        {
+            ov::element::u8,
+            {
+                { ov::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {0.02f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ov::element::i8, {960, 1, 3, 3}},
+            {
+                { ov::element::f32, false },
+                { {127.f}, element::f32, {/* from parameter */}, false, 1ul, element::i8, true },
+                { {0.06f}, element::f32, {/* from parameter */}, false }
+            },
+            {},
+            {},
+            {},
+            {{960, 1, 1, 3, 3}},
+            ov::element::f32,
+            {}
+        }
+    }
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          PullReshapeThroughDequantizationTransformation,
@@ -315,3 +352,45 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                                             ::testing::ValuesIn(multiplyShapes),
                                             ::testing::ValuesIn(testValues)),
                          PullReshapeThroughDequantizationTransformation::getTestCaseName);
+
+namespace reshapeAsTranspose {
+const PullReshapeThroughDequantizationTestValues reshapeAsTransposeTestCase = {
+    LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+    // ActualValues
+    {
+        element::u8,
+        {{element::f32, false}, {}, {{0.02f}, element::f32, {}, false}},
+        {std::vector<float>{2.f}, element::i8, {24, 1, 1, 32}},
+        {{element::f32, false}, {}, {{0.03f}, element::f32, {/* from parameter */}, false}},
+        {},
+        {},
+        {{}},
+        {{24, 32, 1, 1}},
+        element::f32,
+        {}
+    },
+    // ExpectedValues
+    {
+        element::u8,
+        {{element::f32, false}, {}, {{0.02f}, element::f32, {}, false}},
+        {std::vector<float>{2.f}, element::i8, {24, 32, 1, 1}},
+        {{element::f32, false}, {}, {{0.03f}, element::f32, {/* from parameter */}, false}},
+        {},
+        {},
+        {},
+        {},
+        element::f32,
+        {}
+    },
+    "Convolution"
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         PullReshapeThroughDequantizationTransformation,
+                         ::testing::Combine(::testing::Values(Shape{1, 32, 150, 150}),
+                                            ::testing::Values(std::pair<Shape, Shape>{{24, 1, 1, 1}, {24, 1, 1, 1}}),
+                                            ::testing::Values(Shape{}),
+                                            ::testing::Values(reshapeAsTransposeTestCase)),
+                         PullReshapeThroughDequantizationTransformation::getTestCaseName);
+// clang-format on
+}  // namespace reshapeAsTranspose

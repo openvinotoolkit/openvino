@@ -5,25 +5,29 @@
 #pragma once
 
 #include "common_test_utils/test_common.hpp"
-#include "low_precision/layer_transformation.hpp"
-#include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
+#include "low_precision/layer_transformation.hpp"
 #include "low_precision/transformation_context.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "low_precision/network_helper.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-typedef std::tuple<element::Type, Shape, pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
+typedef std::tuple<
+    element::Type,
+    Shape,
+    ov::pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
 
 struct TestTransformationParams {
-    TestTransformationParams(bool updatePrecisions = true,
-                             std::vector<element::Type> precisionsOnActivations = {element::u8, element::i8},
-                             std::vector<element::Type> precisionsOnWeights = {element::i8},
-                             bool supportAsymmetricQuantization = true,
-                             element::Type deqPrecision = element::f32,
-                             bool deconvolutionSpecificChannelsRatio = false,
-                             std::vector<ngraph::element::Type> defaultPrecisions = {element::u8, element::i8});
+    TestTransformationParams(
+        bool updatePrecisions = true,
+        std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
+        std::vector<element::Type> precisionsOnWeights = { element::i8 },
+        bool supportAsymmetricQuantization = true,
+        element::Type deqPrecision = element::f32,
+        bool deconvolutionSpecificChannelsRatio = false,
+        std::vector<ov::element::Type> defaultPrecisions = { element::u8, element::i8 });
 
     TestTransformationParams& setUpdatePrecisions(const bool updatePrecisions);
     TestTransformationParams& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization);
@@ -32,7 +36,7 @@ struct TestTransformationParams {
     TestTransformationParams& setDeconvolutionSpecificChannelsRatio(const bool deconvolutionSpecificChannelsRatio);
     TestTransformationParams& setDefaultPrecisions(const std::vector<element::Type>& defaultPrecisions);
 
-    static pass::low_precision::LayerTransformation::Params toParams(const TestTransformationParams& params);
+    static ov::pass::low_precision::LayerTransformation::Params toParams(const TestTransformationParams& params);
 
     bool updatePrecisions;
     std::vector<element::Type> precisionsOnActivations;
@@ -43,7 +47,7 @@ struct TestTransformationParams {
     std::vector<element::Type> defaultPrecisions;
 };
 
-class LayerTransformation : public CommonTestUtils::TestsCommon {
+class LayerTransformation : public ov::test::TestsCommon {
 public:
     static TestTransformationParams createParamsU8U8();
     static TestTransformationParams createParamsU8I8();
@@ -52,22 +56,23 @@ public:
 
     static std::string toString(const TestTransformationParams& params);
 
-    static std::string getTestCaseNameByParams(const ngraph::element::Type& type,
-                                               const ngraph::PartialShape& shape,
-                                               const TestTransformationParams& params);
+    static std::string getTestCaseNameByParams(
+        const ov::element::Type& type,
+        const ov::PartialShape& shape,
+        const TestTransformationParams& params);
 
-    static builder::subgraph::DequantizationOperations toDequantizationOperations(
-        const pass::low_precision::FakeQuantizeDequantization& dequantization);
+    static ngraph::builder::subgraph::DequantizationOperations toDequantizationOperations(
+        const ov::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
-    static bool allNamesAreUnique(const std::shared_ptr<ngraph::Function>& function);
+    static bool allNamesAreUnique(const std::shared_ptr<ov::Model>& model);
 
     template <class Operation>
-    static NodeVector get(std::shared_ptr<ngraph::Function> function) {
+    static NodeVector get(std::shared_ptr<ov::Model> model) {
         NodeVector foundNodes;
-        NodeVector nodes = function->get_ordered_ops();
+        NodeVector nodes = model->get_ordered_ops();
 
         for (auto& node : nodes) {
-            if (ngraph::is_type<Operation>(node)) {
+            if (ov::is_type<Operation>(node)) {
                 foundNodes.push_back(node);
             }
         }
@@ -78,7 +83,7 @@ public:
         for (size_t nodeIndex = 0ul; nodeIndex < nodes.size(); nodeIndex++) {
             auto& rt = nodes[nodeIndex]->get_rt_info();
             for (auto& it : rt) {
-                auto& reference = it.second.as<IntervalsAlignmentAttribute>();
+                auto& reference = it.second.as<ov::IntervalsAlignmentAttribute>();
                 if ((reference.value().combinedInterval.low != intervalLow) &&
                     (reference.value().combinedInterval.high != intervalHigh)) {
                     return false;
@@ -89,7 +94,9 @@ public:
         return true;
     }
 
-    static bool compare(const IntervalsAlignmentAttribute& value1, const IntervalsAlignmentAttribute& value2) {
+    static bool compare(
+        const ov::IntervalsAlignmentAttribute& value1,
+        const ov::IntervalsAlignmentAttribute& value2) {
         if ((value1.value().combinedInterval.low != value2.value().combinedInterval.low) ||
             (value1.value().combinedInterval.high != value2.value().combinedInterval.high)) {
             return false;
@@ -117,8 +124,7 @@ public:
                 }
 
                 if (!referenceIt->second.empty() && !actualIt.second.empty()) {
-                    if (!compare(referenceIt->second.template as<Operation>(),
-                                 actualIt.second.template as<Operation>())) {
+                    if (!compare(referenceIt->second.template as<Operation>(), actualIt.second.template as<Operation>())) {
                         return false;
                     }
                 }
@@ -156,7 +162,7 @@ public:
         ov::Any first;
         for (auto node : nodes) {
             for (auto output : node->outputs()) {
-                auto value = ngraph::pass::low_precision::getAttributeFromOutput<Attribute>(output);
+                auto value = ov::pass::low_precision::getAttributeFromOutput<Attribute>(output);
                 if (first.empty()) {
                     first = value;
                 } else {
@@ -175,7 +181,7 @@ public:
     static bool checkIfAttributesSharedValuesAreTheSame(const NodeVector& nodes) {
         ov::Any first;
         for (auto node : nodes) {
-            auto value = ngraph::pass::low_precision::getAttribute<Attribute>(node);
+            auto value = ov::pass::low_precision::getAttribute<Attribute>(node);
             if (value.empty()) {
                 return false;
             }
@@ -197,7 +203,7 @@ public:
     static bool checkIfAttributesAreTheSame(const NodeVector& nodes) {
         ov::Any first;
         for (auto node : nodes) {
-            auto value = ngraph::pass::low_precision::getAttribute<Attribute>(node);
+            auto value = ov::pass::low_precision::getAttribute<Attribute>(node);
             if (value.empty()) {
                 return false;
             }
@@ -212,8 +218,8 @@ public:
     }
 
 protected:
-    std::shared_ptr<Function> actualFunction;
-    std::shared_ptr<Function> referenceFunction;
+    std::shared_ptr<Model> actualFunction;
+    std::shared_ptr<Model> referenceFunction;
 };
 
 template <typename T>

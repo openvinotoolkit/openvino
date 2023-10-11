@@ -7,12 +7,11 @@
 #include <exception>
 
 #include "any_copy.hpp"
-#include "dev/make_tensor.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
 #define OV_REMOTE_CONTEXT_STATEMENT(...)                                     \
@@ -50,12 +49,15 @@ void RemoteContext::type_check(const RemoteContext& context,
     }
 }
 
+RemoteContext::operator bool() const noexcept {
+    return (!!_impl);
+}
+
 RemoteContext::~RemoteContext() {
     _impl = {};
 }
 
-RemoteContext::RemoteContext(const std::shared_ptr<ov::IRemoteContext>& impl,
-                             const std::vector<std::shared_ptr<void>>& so)
+RemoteContext::RemoteContext(const std::shared_ptr<ov::IRemoteContext>& impl, const std::shared_ptr<void>& so)
     : _impl{impl},
       _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "RemoteContext was not initialized.");
@@ -68,14 +70,14 @@ std::string RemoteContext::get_device_name() const {
 RemoteTensor RemoteContext::create_tensor(const element::Type& type, const Shape& shape, const AnyMap& params) {
     OV_REMOTE_CONTEXT_STATEMENT({
         auto tensor = _impl->create_tensor(type, shape, params);
-        return {tensor, {_so}};
+        return make_tensor(tensor).as<ov::RemoteTensor>();
     });
 }
 
 Tensor RemoteContext::create_host_tensor(const element::Type element_type, const Shape& shape) {
     OV_REMOTE_CONTEXT_STATEMENT({
         auto tensor = _impl->create_host_tensor(element_type, shape);
-        return {tensor, {_so}};
+        return make_tensor(tensor);
     });
 }
 

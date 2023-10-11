@@ -12,7 +12,7 @@
 #include <string>
 
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -53,7 +53,7 @@ public:
         std::tie(normalizeVariance, eps, epsMode, acrossChannels, mvnVersion6) = mvnParams;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
         result << "NV=" << normalizeVariance << "_";
         result << "eps=" << eps << "_";
         result << "mode=" << static_cast<uint32_t>(epsMode) << "_";
@@ -79,7 +79,7 @@ protected:
         bool normalizeVariance, acrossChannels, mvnVersion6;
         std::tie(normalizeVariance, eps, epsMode, acrossChannels, mvnVersion6) = mvnParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         InferenceEngine::SizeVector axes(inputShape.size() - 2);
         std::iota(axes.begin(), axes.end(), 2);
         std::shared_ptr<ngraph::Node> mvn;
@@ -128,7 +128,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v6,
                          DecomposeMVNTest,
                          ::testing::Combine(mvnParams_v6,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputs)),
                          DecomposeMVNTest::getTestCaseName);
@@ -137,7 +137,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v1,
                          DecomposeMVNTest,
                          ::testing::Combine(mvnParams_v1,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputs)),
                          DecomposeMVNTest::getTestCaseName);

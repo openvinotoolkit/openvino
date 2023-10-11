@@ -8,7 +8,7 @@
 #include <openvino/op/parameter.hpp>
 #include <openvino/pass/constant_folding.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -25,13 +25,13 @@ std::string EyeLayerTest::getTestCaseName(testing::TestParamInfo<EyeLayerTestPar
     result << "EyeTest_";
     result << "IS=(";
     for (const auto& shape : input_shapes) {
-        result << CommonTestUtils::partialShape2str({shape}) << "_";
+        result << ov::test::utils::partialShape2str({shape}) << "_";
     }
     result << ")";
     result << "rowNum=" << eye_par[0] << "_";
     result << "colNum=" << eye_par[1] << "_";
     result << "diagShift=" << eye_par[2] << "_";
-    result << "batchShape=" << CommonTestUtils::vec2str(out_batch_shape) << "_";
+    result << "batchShape=" << ov::test::utils::vec2str(out_batch_shape) << "_";
     result << net_precision << "_";
     result << std::to_string(obj.index);
     return result.str();

@@ -33,7 +33,7 @@ protected:
 
 private:
     void initFromInputs() override;
-    void getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
+    void getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
 
     const size_t OFFSETS_IDX = 2lu;
 

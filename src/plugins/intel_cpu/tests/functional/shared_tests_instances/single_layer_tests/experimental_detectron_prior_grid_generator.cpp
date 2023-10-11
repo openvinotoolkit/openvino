@@ -101,7 +101,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronPriorGridGenerator, Experime
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(inputTensors),
         ::testing::Values(ov::element::Type_t::f32),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
      ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName);
 
 } // namespace

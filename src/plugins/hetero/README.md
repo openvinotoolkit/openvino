@@ -1,4 +1,4 @@
-# OpenVINO Hetero plugin design overview
+# OpenVINO Hetero Plugin Design Overview
 
 ## Subgraphs selection
 
@@ -6,17 +6,17 @@ Algorithm:
 
 For each plugin
 1. Select *root* node
-    * Node not in subgraph previously constructed
-    * Affinity is equal to plugin name
-2. Select adjacent node to any node in already subgraph which is not in rejected list
-    * if there are no such nodes **end**
-3. Check selected node has same affinity
-4. Add node to subgraph if check was successful or add to rejected list otherwise
-5. Check global condition
-    * Nodes in rejected list can never be added to subgraph
-    * Nodes not in subgraph and not in rejected list can possibly be added later
-    * Check subgraph topology (the only check now is there are no indirect subgraph self-references)
-6. If global condition was failed remove last node from subgraph, add it to rejected list and go to step 5
+    * A node not in a previously constructed subgraph
+    * Affinity is equal to the plugin name
+2. Select an adjacent node to any node in a present subgraph which is not on the *rejected* list
+    * If there are no such nodes **end**
+3. Verify that the selected node has the same affinity
+4. Add a node to a subgraph if the check has been successful or add to the *rejected* list otherwise
+5. Check a global condition
+    * Nodes in the *rejected* list can never be added to a subgraph
+    * Nodes not in a subgraph and not in the *rejected* list can possibly be added later
+    * Check the subgraph topology (the only check now is whether there are no indirect subgraph self-references)
+6. If a global condition has failed, remove the last node from a subgraph. Add it to the *rejected* list and go to step 5.
     * we can rollback multiple times here because rejected list is changed every time
 7. Go to step 2
 
@@ -32,7 +32,7 @@ graph TD;
     6-->7;
 ```
 
-Nodes [1,2,3,5,6,7] are supported in plugin, [4] is not
+Nodes [1,2,3,5,6,7] are supported in the plugin, [4] is not
 
 Possible roots: [1,2,3,5,6,7]
 1. Select root [1]
@@ -50,27 +50,27 @@ Possible roots: [1,2,3,5,6,7]
 4. Merge [5]
     * Subgraph: [1,2,3,5]
     * Rejected: []
-    * Global condition: There is possible self-references through node [4] but we do not know yet, ok
+    * Global condition: There are possible self-references throughout a node [4] but they are not known yet, ok
 5. Merge [6]
     * Subgraph: [1,2,3,5,6]
     * Rejected: []
-    * Global condition: There is possible self-references through node [4] but we do not know yet, ok
+    * Global condition: There are possible self-references throughout a node [4] but they are not known yet, ok
 6. Merge [7]
     * Subgraph: [1,2,3,5,6,7]
     * Rejected: []
-    * Global condition: There is possible self-references through node [4] but we do not know yet, ok
+    * Global condition: There are possible self-references throughout a node [4] but they are not known yet, ok
 7. Failed to merge [4]
     * Subgraph: [1,2,3,5,6,7]
     * Rejected: [4]
-    * Global condition: There is self-references through node [4], reject
+    * Global condition: There are self-references throughout a node [4], reject
 8. Rollback [7]
     * Subgraph: [1,2,3,5,6]
     * Rejected: [4,7]
-    * Global condition: There is self-references through node [4], reject
+    * Global condition: There are self-references throughout a node [4], reject
 9. Rollback [6]
     * Subgraph: [1,2,3,5]
     * Rejected: [4,6,7]
-    * Global condition: There is self-references through node [4], reject
+    * Global condition: There are self-references throughout a node [4], reject
 10. Rollback [5]
     * Subgraph: [1,2,3]
     * Rejected: [4,5,6,7]
@@ -97,11 +97,11 @@ Possible roots: [5,6,7]
 5. Merge [2]
     * Subgraph: [2,3,5,6,7]
     * Rejected: []
-    * Global condition: There is possible self-references through node [4] but we do not know yet, ok
+    * Global condition: There are possible self-references throughout a node [4] but they are not known yet, ok
 6. Failed to merge [4]
     * Subgraph: [2,3,5,6,7]
     * Rejected: [4]
-    * Global condition: There is self-references through node [4], reject
+    * Global condition: There are self-references throughout a node [4], reject
 7. Rollback [2]
     * Subgraph: [3,5,6,7]
     * Rejected: [2,4]
@@ -113,7 +113,7 @@ Possible roots: [] no roots, **END**
 Subgraphs: [1,2,3], [3,5,6,7]
 
 Select best subgraph:
-* When we have multiple subgraphs larger ([3,5,6,7]) is always selected, always
+* When there are multiple subgraphs, a larger one ([3,5,6,7]) is **always** selected.
 
 Repeat previous steps with remaining nodes [1,2]
 
@@ -124,18 +124,18 @@ The final result is:
 
 ## Subgraphs self reference detection
 
-1. For each node in network build a list of reachable node (transitive closure)
-2. For each pair of nodes in subgraph find `path` nodes (nodes through one node in pair reachable to other)
-    * assume `src` - one node in pair, `dst` - other node in pair
-    * get all nodes reachable from `src`
-    * in those nodes find nodes through you can reach `dst` those will be our `path` node
-3. Results for pairs is cached.
-4. Check if there intersection between `path` nodes set and rejected nodes set for each nodes pair in subgraph
-5. In case of intersection we have a self-reference and subgraph is invalid
+1. For each node in a network build a list of reachable nodes (transitive closure).
+2. For each pair of nodes in a subgraph find `path` nodes (nodes through one node in pair reachable to other).
+    * assume `src` - one node in a pair, `dst` - other node in a pair
+    * get all reachable nodes from `src`
+    * in the nodes find nodes through which you can reach `dst`. These will be the `path` nodes.
+3. Results for pairs are cached.
+4. Check whether there is an intersection between `path` nodes set and rejected nodes set for each pair of nodes in a subgraph.
+5. If an intersection happens, a self-reference occurs, and a subgraph is invalid.
 
 ## See also
+
  * [OpenVINO™ README](../../../README.md)
  * [OpenVINO Core Components](../../README.md)
  * [OpenVINO Plugins](../README.md)
  * [Developer documentation](../../../docs/dev/index.md)
- 

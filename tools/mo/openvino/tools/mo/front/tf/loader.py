@@ -6,11 +6,12 @@ import logging as log
 import os
 import re
 from distutils.version import LooseVersion
+from pathlib import Path
 
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
-from openvino.tools.mo.utils.versions_checker import get_environment_setup
+from openvino.tools.mo.utils.environment_setup_utils import get_environment_setup  # pylint: disable=no-name-in-module,import-error
 
 # do not print INFO and WARNING messages from TensorFlow
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -200,14 +201,13 @@ def freeze_tf2_concrete_function(model, concrete_func, env_setup):
 
 
 def prepare_graph_def(model):
-    from tensorflow.python.training.tracking.base import Trackable  # pylint: disable=no-name-in-module,import-error
+    env_setup = get_environment_setup("tf")
     if isinstance(model, tf_v1.GraphDef):
         nodes_to_clear_device = model.node
         for node in nodes_to_clear_device:
             node.device = ""
         return model, {}, "tf", None
     if isinstance(model, tf.keras.Model):
-        env_setup = get_environment_setup("tf")
 
         assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
 
@@ -226,9 +226,13 @@ def prepare_graph_def(model):
 
         conc_func = tf_function.get_concrete_function(model_inputs)
         return freeze_tf2_concrete_function(model, conc_func, env_setup)
-    if isinstance(model, Trackable):
-        env_setup = get_environment_setup("tf")
-        return saved_model_load(model, env_setup)
+    if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
+
+        assert hasattr(model, "input_signature") and model.input_signature is not None, \
+            "'input_signature' needs to be set for model conversion."
+
+        conc_func = model.get_concrete_function(*tuple(model.input_signature))
+        return freeze_tf2_concrete_function(model, conc_func, env_setup)
     raise Exception("Unknown model type {}.".format(type(model)))
 
 
@@ -244,7 +248,6 @@ def saved_model_load(imported, env_setup):
 def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpoint: str = "",
                       model_dir: str = "", saved_model_tags: list = [], meta_graph_file: str = "",
                       user_output_node_names_list: list = []):
-
     if not isinstance(graph_file_name, str) and graph_file_name is not None:
         return prepare_graph_def(graph_file_name)
     # As a provisional solution, use a native TF methods to load a model protobuf
@@ -287,6 +290,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
             for node in input_meta_graph_def.graph_def.node:
                 if '_output_shapes' in node.attr:
                     del node.attr['_output_shapes']
+            tf_v1.reset_default_graph()
             # pylint: disable=no-member
             with tf_v1.Session() as sess:
                 restorer = tf_v1.train.import_meta_graph(input_meta_graph_def)
@@ -320,46 +324,6 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
     except Exception as e:
         raise FrameworkError('Cannot load input model: {}', e) from e
     raise Error("Unknown configuration of input model parameters")
-
-
-def convert_to_pb(argv: argparse.Namespace):
-    from openvino.tools.mo.utils.cli_parser import get_model_name
-    env_setup = get_environment_setup("tf")
-    if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.0.0"):
-        tf.keras.backend.clear_session()
-
-    # if this is already binary frozen format .pb, there is no need to create auxiliary binary frozen protobuf
-    # the main thing is to differentiate this format from text frozen format and checkpoint
-    # that can utilize input_model option
-    if argv.input_model and not argv.input_model_is_text and not argv.input_checkpoint and \
-            isinstance(argv.input_model, str):
-        return None
-
-    user_output_node_names_list = argv.output if argv.output else None
-    if user_output_node_names_list is not None and not isinstance(user_output_node_names_list, list):
-        user_output_node_names_list = user_output_node_names_list.split(',')
-    graph_def, _, _, _ = load_tf_graph_def(
-        graph_file_name=argv.input_model,
-        is_binary=not argv.input_model_is_text,
-        checkpoint=argv.input_checkpoint,
-        user_output_node_names_list=user_output_node_names_list,
-        model_dir=argv.saved_model_dir,
-        meta_graph_file=argv.input_meta_graph,
-        saved_model_tags=argv.saved_model_tags)
-    if argv.model_name:
-        model_name = argv.model_name
-    elif argv.input_model:
-        model_name = get_model_name(argv.input_model)
-    elif argv.saved_model_dir:
-        model_name = "saved_model"
-    elif argv.input_meta_graph:
-        model_name = get_model_name(argv.input_meta_graph)
-    argv.model_name = model_name
-    tf_v1.io.write_graph(graph_def, argv.output_dir if argv.output_dir != '.' else os.getcwd(),
-                         model_name + "_tmp.pb", as_text=False)
-    path_to_pb = os.path.normpath(os.path.join(argv.output_dir, model_name + "_tmp.pb"))
-    argv.input_model = path_to_pb
-    return path_to_pb
 
 
 def protobuf_attrs(pb: tf_v1.NodeDef):

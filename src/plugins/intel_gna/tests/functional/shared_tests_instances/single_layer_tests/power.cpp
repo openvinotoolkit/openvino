@@ -66,7 +66,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_power,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(Power)),
                          PowerLayerTest::getTestCaseName);
 
@@ -78,7 +78,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_power,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(PowerPwlUniformDesign)),
                          PwlUniformDesignPowerLayerTest::getTestCaseName);
 

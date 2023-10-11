@@ -20,4 +20,12 @@ TEST_P(Gather8LayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(Gather8IndiceScalarLayerTest, CompareWithRefs) {
+    Run();
+};
+
+TEST_P(Gather8withIndicesDataLayerTest, CompareWithRefs) {
+    Run();
+};
+
 }  // namespace LayerTestsDefinitions

@@ -7,8 +7,10 @@ import copy
 import numpy as np
 import pytest
 
+from openvino import Model, PartialShape, Shape
+
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Dimension, Model, PartialShape, Shape
+from openvino.runtime import Dimension
 
 
 def test_dimension():
@@ -369,10 +371,10 @@ def test_discrete_type_info():
     assert n1.get_type_info().name == "TopK"
     assert n3.get_type_info().name == "Sin"
     assert n1.type_info.name == n2.type_info.name
-    assert n1.type_info.version == n2.type_info.version
+    assert n1.type_info.version_id == n2.type_info.version_id
     assert n1.type_info.parent == n2.type_info.parent
     assert n1.get_type_info().name == n2.get_type_info().name
-    assert n1.get_type_info().version == n2.get_type_info().version
+    assert n1.get_type_info().version_id == n2.get_type_info().version_id
     assert n1.get_type_info().parent == n2.get_type_info().parent
     assert n1.get_type_info().name != n3.get_type_info().name
     assert n1.get_type_info().name > n3.get_type_info().name

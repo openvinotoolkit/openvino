@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/tensor_iterator.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+
+#include <stack>
 
 #include "itt.hpp"
-#include "ngraph/factory.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/specialize_function.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor) {
@@ -33,7 +30,7 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops() {
     while (nodes_to_do.size() > 0) {
         auto node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
-            NGRAPH_CHECK(ov::as_type_ptr<op::v0::TensorIterator>(node) == nullptr, "No nested TensorIterator");
+            OPENVINO_ASSERT(ov::as_type_ptr<op::v0::TensorIterator>(node) == nullptr, "No nested TensorIterator");
             bool can_add = true;
             size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {
@@ -98,7 +95,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                     auto end = make_positive(slice_input_description->m_end, dim_size);
 
                     // +1 because the left and right borders are included [start, end]
-                    m_num_iterations = (abs(end - start) + 1) / part_size;
+                    m_num_iterations = (std::abs(end - start) + 1) / part_size;
                 }
             } else {
                 body_parameter->set_partial_shape(ov::PartialShape::dynamic(input_partial_shape.rank()));
@@ -189,12 +186,12 @@ void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
 
 std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
-    auto op = make_shared<op::v0::TensorIterator>();
+    auto op = std::make_shared<op::v0::TensorIterator>();
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions.size());
 
     op->m_num_iterations = m_num_iterations;
-    op->m_bodies[0] = clone_function(*get_function());
+    op->m_bodies[0] = get_function()->clone();
 
     for (auto& input_description : m_input_descriptions[0]) {
         op->m_input_descriptions[0].push_back(input_description->copy());
@@ -205,3 +202,4 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
     op->validate_and_infer_types();
     return op;
 }
+}  // namespace ov

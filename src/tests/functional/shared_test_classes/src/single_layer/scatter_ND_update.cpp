@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/scatter_ND_update.hpp"
 
 namespace LayerTestsDefinitions {
@@ -19,9 +19,9 @@ std::string ScatterNDUpdateLayerTest::getTestCaseName(const testing::TestParamIn
     std::tie(shapeDescript, inputPrecision, indicesPrecision, targetName) = obj.param;
     std::tie(inShape, indicesShape, indicesValue, updateShape) = shapeDescript;
     std::ostringstream result;
-    result << "InputShape=" << CommonTestUtils::vec2str(inShape) << "_";
-    result << "IndicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
-    result << "UpdateShape=" << CommonTestUtils::vec2str(updateShape) << "_";
+    result << "InputShape=" << ov::test::utils::vec2str(inShape) << "_";
+    result << "IndicesShape=" << ov::test::utils::vec2str(indicesShape) << "_";
+    result << "UpdateShape=" << ov::test::utils::vec2str(updateShape) << "_";
     result << "inPrc=" << inputPrecision.name() << "_";
     result << "idxPrc=" << indicesPrecision.name() << "_";
     result << "targetDevice=" << targetName << "_";

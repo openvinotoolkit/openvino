@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/output_layers_handling_in_transformations.hpp"
+#include "low_precision_transformations/output_layers.hpp"
 
 #include <memory>
 #include <tuple>
@@ -16,26 +16,26 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string OutputLayersHandlingInTransformations::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
+std::string OutputLayers::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
-InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformations::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr OutputLayers::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     const float k = 1.f;
@@ -46,10 +46,10 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformations::GenerateInput(
     return input;
 }
 
-void OutputLayersHandlingInTransformations::SetUp() {
+void OutputLayers::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -89,7 +89,7 @@ void OutputLayersHandlingInTransformations::SetUp() {
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "OutputLayersHandling");
 }
 
-TEST_P(OutputLayersHandlingInTransformations, CompareWithRefImpl) {
+TEST_P(OutputLayers, CompareWithRefImpl) {
     Run();
 };
 

@@ -15,10 +15,10 @@
 namespace ngraph {
 namespace onnx_common {
 ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
-    std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
+    std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
-        throw ngraph_error("Could not open the file: " + file_path);
+        OPENVINO_THROW("Could not open the file: " + file_path);
     };
 
     auto model_proto = parse_from_istream(file_stream);
@@ -28,11 +28,11 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
-    std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
+    std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
         NGRAPH_SUPPRESS_DEPRECATED_START
-        throw ngraph_error("Could not open the file: " + file_util::wstring_to_string(file_path));
+        OPENVINO_THROW("Could not open the file: " + file_util::wstring_to_string(file_path));
         NGRAPH_SUPPRESS_DEPRECATED_END
     };
 
@@ -47,14 +47,14 @@ ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
         model_stream.clear();
         model_stream.seekg(0);
         if (!model_stream.good()) {
-            throw ngraph_error("Provided input stream has incorrect state.");
+            OPENVINO_THROW("Provided input stream has incorrect state.");
         }
     }
 
     ONNX_NAMESPACE::ModelProto model_proto;
     if (!model_proto.ParseFromIstream(&model_stream)) {
-        throw ngraph_error("Error during import of ONNX model provided as input stream "
-                           " with binary protobuf message.");
+        OPENVINO_THROW("Error during import of ONNX model provided as input stream "
+                       " with binary protobuf message.");
     }
 
     return model_proto;

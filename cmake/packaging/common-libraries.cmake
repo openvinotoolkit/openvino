@@ -10,31 +10,20 @@ macro(ov_cpack_settings)
     set(cpack_components_all ${CPACK_COMPONENTS_ALL})
     unset(CPACK_COMPONENTS_ALL)
     foreach(item IN LISTS cpack_components_all)
-        # filter out some components, which are not needed to be wrapped to conda-forge | brew
-        if(# python is not a part of conda | brew
-           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
-           # python wheels are not needed to be wrapped by conda | brew packages
-           NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
-           # skip C / C++ / Python samples
-           NOT item STREQUAL OV_CPACK_COMP_CPP_SAMPLES AND
-           NOT item STREQUAL OV_CPACK_COMP_C_SAMPLES AND
-           NOT item STREQUAL OV_CPACK_COMP_PYTHON_SAMPLES AND
+        string(TOUPPER ${item} UPPER_COMP)
+        # filter out some components, which are not needed to be wrapped to conda-forge | brew | conan | vcpkg
+        if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
+           # because in case of VCPKG | CONAN | BREW | CONDA-FORGE distributions, python is either not needed or installed separately
+           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly since they are installed in `host` section
            NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
-           NOT item STREQUAL "pugixml" AND
-           # we have `license_file` field in conda meta.yml
-           NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
-           # compile_tool is not needed
-           NOT item STREQUAL OV_CPACK_COMP_CORE_TOOLS AND
-           # not appropriate components
-           NOT item STREQUAL OV_CPACK_COMP_DEPLOYMENT_MANAGER AND
-           NOT item STREQUAL OV_CPACK_COMP_INSTALL_DEPENDENCIES AND
-           NOT item STREQUAL OV_CPACK_COMP_SETUPVARS)
+           NOT item STREQUAL "pugixml")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
+    unset(cpack_components_all)
     list(REMOVE_DUPLICATES CPACK_COMPONENTS_ALL)
 
     # override generator

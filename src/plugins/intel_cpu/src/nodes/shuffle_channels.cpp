@@ -81,8 +81,6 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const 
     attrs.dataRank = getInputShapeAtPort(0).getRank();
     if (attrs.axis < 0)
         attrs.axis += attrs.dataRank;
-
-    supportDynamicBatch = (attrs.axis != 0);
 }
 
 void ShuffleChannels::initSupportedPrimitiveDescriptors() {
@@ -111,24 +109,24 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
 
     addSupportedPrimDesc({{firstCreatorType, precision}},
                          {{firstCreatorType, precision}},
-                         impl_type, supportDynamicBatch);
+                         impl_type);
     addSupportedPrimDesc({{secondCreatorType, precision}},
                          {{secondCreatorType, precision}},
-                         impl_type, supportDynamicBatch);
+                         impl_type);
     // canUseBlocked
     if (attrs.axis != 1) {
         addSupportedPrimDesc({{LayoutType::nCsp8c, precision}},
                              {{LayoutType::nCsp8c, precision}},
-                             impl_type, supportDynamicBatch);
+                             impl_type);
         addSupportedPrimDesc({{LayoutType::nCsp16c, precision}},
                              {{LayoutType::nCsp16c, precision}},
-                             impl_type, supportDynamicBatch);
+                             impl_type);
     }
 }
 
 void ShuffleChannels::createPrimitive() {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_SHCH_ERROR << "has not allocated destination memory";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -151,12 +149,12 @@ void ShuffleChannels::createPrimitive() {
 }
 
 void ShuffleChannels::prepareParams() {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto builder = [](const ShuffleChannelsAttributes& key) -> std::shared_ptr<ShuffleChannelsExecutor> {
         return std::make_shared<ShuffleChannelsExecutor>(key);
     };
     attrs.srcDims = srcMemPtr->getStaticDims();
-    attrs.srcBlockedDims = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    attrs.srcBlockedDims = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
@@ -270,7 +268,7 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
 
     std::iota(params.src_block_order.begin(), params.src_block_order.end(), 0);
     std::iota(params.dst_block_order.begin(), params.dst_block_order.end(), 0);
-    for (size_t i = 0; i < reshapedRank; i++)
+    for (int i = 0; i < reshapedRank; i++)
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
 
     permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
@@ -294,12 +292,10 @@ void ShuffleChannels::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_SHCH_ERROR << "doesn't have a compiled executor.";
 
-    int MB = -1;
-    if (supportDynamicBatch)
-        MB = isDynamicNode() ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : batchToProcess();
+    int MB = (attrs.axis != 0) ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : -1;
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
     execPtr->exec(srcData, dstData, MB);
 }
 

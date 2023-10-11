@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/normalize_l2.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -39,13 +39,13 @@ public:
         std::tie(shapes, inType, axes, eps, epsMode, cpuParams, fusingParams) = obj.param;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
         results << "Prc=" << inType << "_";
-        results << "axes=" << CommonTestUtils::vec2str(axes) << "_";
+        results << "axes=" << ov::test::utils::vec2str(axes) << "_";
         results << "eps=" << eps << "_";
         results << "epsMode=" << epsMode << "_";
         results << CPUTestsBase::getTestCaseName(cpuParams);
@@ -71,10 +71,13 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType = makeSelectedTypeStr("unknown", inType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto normalize = builder::makeNormalizeL2(params[0], axes, eps, epsMode);
         function = makeNgraphFunction(inType, params, normalize, "Normalize");
     }
@@ -82,7 +85,7 @@ protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (funcInput.get_element_type().is_real()) {
@@ -107,21 +110,27 @@ namespace {
 /* ============= Common params ============= */
 std::vector<fusingSpecificParams> fusingParamsSet {
         emptyFusingSpec,
+#if defined(OPENVINO_ARCH_X86_64)
         fusingMultiplyPerTensor,
         fusingRelu,
         fusingPReluPerChannel
+#endif
 };
 
 std::vector<fusingSpecificParams> fusingParamsSetDynamic {
     emptyFusingSpec,
+#if defined(OPENVINO_ARCH_X86_64)
     fusingMultiplyPerTensor,
     fusingRelu,
     fusingFakeQuantizePerTensor
+#endif
 };
 
 std::vector<fusingSpecificParams> fusingParamsSetPerChannel {
+#if defined(OPENVINO_ARCH_X86_64)
     fusingPReluPerChannel,
     fusingFakeQuantizePerChannel
+#endif
 };
 
 const float epsilon = 1e-4f;

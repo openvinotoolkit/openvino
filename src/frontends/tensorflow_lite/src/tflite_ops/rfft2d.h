@@ -21,7 +21,7 @@ public:
     Rfft2d(const Output<Node>& data,
            const Output<Node>& fft_length,
            const std::shared_ptr<DecoderBase>& decoder = nullptr)
-            : ov::frontend::tensorflow::InternalOperation(decoder,OutputVector{data, fft_length},1) {
+        : ov::frontend::tensorflow::InternalOperation(decoder, OutputVector{data, fft_length}, 1, "Rfft2d") {
         validate_and_infer_types();
     }
 

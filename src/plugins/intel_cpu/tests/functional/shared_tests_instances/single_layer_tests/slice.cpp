@@ -4,28 +4,28 @@
 
 #include <vector>
 
-#include "single_layer_tests/slice.hpp"
+#include "single_op_tests/slice.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-using namespace ov::test;
+using ov::test::Slice8LayerTest;
+using ov::test::Slice8SpecificParams;
 
 namespace {
 
-const std::vector<ElementType> inputPrecisions = {
-    ElementType::f32,
-    ElementType::bf16,
-    ElementType::i8
+const std::vector<ov::element::Type> model_types = {
+    ov::element::f32,
+    ov::element::bf16,
+    ov::element::i8
 };
 
-const std::vector<ElementType> inputPrecisionsOther = {
-    ElementType::i64,
-    ElementType::i32,
-    ElementType::i16,
-    ElementType::u8
+const std::vector<ov::element::Type> model_types_extra = {
+    ov::element::i64,
+    ov::element::i32,
+    ov::element::i16,
+    ov::element::u8
 };
 
-std::vector<Slice8SpecificParams> staticParams = {
+std::vector<Slice8SpecificParams> static_params = {
         Slice8SpecificParams{ {{{}, {{ 16 }}}}, { 4 }, { 12 }, { 1 }, { 0 } },
         Slice8SpecificParams{ {{{}, {{ 16 }}}}, { 0 }, { 8 }, { 2 }, { 0 } },
         Slice8SpecificParams{ {{{}, {{ 20, 10, 5 }}}}, { 0, 0}, { 10, 20}, { 1, 1 }, { 1, 0 } },
@@ -68,30 +68,20 @@ std::vector<Slice8SpecificParams> staticParams = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Static, Slice8LayerTest,
         ::testing::Combine(
-            ::testing::ValuesIn(staticParams),
-            ::testing::ValuesIn(inputPrecisions),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-            ::testing::Values(std::map<std::string, std::string>())),
+            ::testing::ValuesIn(static_params),
+            ::testing::ValuesIn(model_types),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)),
         Slice8LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_PrecisionTransformation, Slice8LayerTest,
         ::testing::Combine(
-            ::testing::Values(staticParams[0]),
-            ::testing::ValuesIn(inputPrecisionsOther),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-            ::testing::Values(std::map<std::string, std::string>())),
+            ::testing::Values(static_params[0]),
+            ::testing::ValuesIn(model_types_extra),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)),
         Slice8LayerTest::getTestCaseName);
 
 
-std::vector<Slice8SpecificParams> dynamicParams = {
+std::vector<Slice8SpecificParams> dynamic_params = {
         Slice8SpecificParams{ {{{ -1 }, {{ 8 }, { 16 }}}}, { 4 }, { 12 }, { 1 }, { 0 } },
         Slice8SpecificParams{ {{{ ov::Dimension(2, 20) }, {{ 5 }, { 15 }}}}, { 0 }, { 8 }, { 2 }, { 0 } },
         Slice8SpecificParams{ {{{ -1, -1, -1 }, {{ 20, 10, 5 }, {5, 10, 20}}}}, { 0, 0}, { 10, 20}, { 1, 1 }, { 1, 0 } },
@@ -115,13 +105,8 @@ std::vector<Slice8SpecificParams> dynamicParams = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Dynamic, Slice8LayerTest,
         ::testing::Combine(
-            ::testing::ValuesIn(dynamicParams),
-            ::testing::ValuesIn(inputPrecisions),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(ElementType::undefined),
-            ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-            ::testing::Values(std::map<std::string, std::string>())),
+            ::testing::ValuesIn(dynamic_params),
+            ::testing::ValuesIn(model_types),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)),
         Slice8LayerTest::getTestCaseName);
 }  // namespace

@@ -42,8 +42,6 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
         },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         {
-            {"Constant", "convolution1"},
-            {"Constant", "convolution2"},
             {"fakeQuantizeBefore1", "convolution1"},
             {"fakeQuantizeBefore2", "convolution2"},
             {"maxPool", "result"}
@@ -75,8 +73,6 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
         },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         {
-            {"Constant", "convolution1"},
-            {"Constant", "convolution2"},
             {"fakeQuantizeBefore1", "convolution1"},
             {"fakeQuantizeBefore2", "convolution2"},
             {"maxPool", "result"}
@@ -93,7 +89,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ElementwiseBranchSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(elementwiseTypes)),
     ElementwiseBranchSelectionTransformation::getTestCaseName);

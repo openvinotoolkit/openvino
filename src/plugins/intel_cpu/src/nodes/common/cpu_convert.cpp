@@ -7,24 +7,30 @@
 #include <ie_parallel.hpp>
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
-#include <utils/jit_kernel.hpp>
 #include <selective_build.h>
 #include <openvino/core/type/float16.hpp>
-#include <cpu/x64/jit_generator.hpp>
 #include <algorithm>
 #include <type_traits>
 #include <tuple>
 #include <cmath>
 #include <onednn/dnnl.h>
+#if defined(OPENVINO_ARCH_X86_64)
+#include "nodes/kernels/x64/jit_kernel.hpp"
+#include <cpu/x64/jit_generator.hpp>
+#endif
 
 using namespace InferenceEngine;
-using namespace dnnl::impl::utils;
-using namespace dnnl::impl::cpu::x64;
-using namespace Xbyak;
+
 
 namespace ov {
 namespace intel_cpu {
 namespace {
+
+#if defined(OPENVINO_ARCH_X86_64)
+
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu::x64;
+using namespace Xbyak;
 
 template <typename src_t, typename dst_t>
 void convert_vec(jit_generator & gen,
@@ -155,6 +161,8 @@ void jit_convert(const TI* arg, TO* out, size_t count) {
         }
     }
 }
+
+#endif
 
 template <Precision::ePrecision p>
 struct PrecisionInfo {
@@ -356,6 +364,7 @@ struct ConvertPrecision<std::tuple<ov::intel_cpu::bfloat16_t, float>> {
     }
 };
 
+#if defined(OPENVINO_ARCH_X86_64)
 template<typename src_t>
 struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
     void operator()(ConvertContext & ctx) {
@@ -462,6 +471,7 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
         ctx.converted = true;
     }
 };
+#endif
 
 }   // namespace
 

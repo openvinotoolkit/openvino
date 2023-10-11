@@ -1,11 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 from argparse import Namespace
-
+import pytest
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.back.ChangeRandomUniformOutputType import ChangeRandomUniformOutputType
 from openvino.tools.mo.graph.graph import Node
@@ -31,15 +29,14 @@ edges_with_convert = [*connect('placeholder', '0:random_uniform'), *connect('min
                       *connect('convert', 'result'), ]
 
 
-@generator
-class ChangeRandomUniformOutputTypeTest(unittest.TestCase):
-    @generate(*[
-        ("FP16", np.float32, np.float16),
-        ("FP32", np.float16, np.float32),
-        ("FP32", np.float32, None),
-        ("FP32", np.int64, None)
-    ])
-    def test_change_random_uniform_output_type(self, ir_type, out_type, dst_type):
+class TestChangeRandomUniformOutputType():
+    @pytest.mark.parametrize("ir_type, out_type, dst_type", [
+    ("FP16", np.float32, np.float16),
+    ("FP32", np.float16, np.float32),
+    ("FP32", np.float32, None),
+    ("FP32", np.int64, None)
+])
+    def test_change_random_uniform_output_type(self,ir_type, out_type, dst_type):
         graph = build_graph(nodes, edges, cli=Namespace(data_type=ir_type))
         graph_ref = build_graph(nodes, edges if dst_type is None else edges_with_convert, {},
                                 nodes_with_edges_only=True)
@@ -48,8 +45,8 @@ class ChangeRandomUniformOutputTypeTest(unittest.TestCase):
         ChangeRandomUniformOutputType().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
         if dst_type is not None:
             convert_node = Node(graph, 'random_uniform').out_port(0).get_destination().node
-            self.assertTrue(convert_node['dst_type'] == dst_type)
+            assert convert_node['dst_type'] == dst_type

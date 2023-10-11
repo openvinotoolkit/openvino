@@ -34,7 +34,7 @@ const auto normL2params_1D = testing::Combine(
         testing::ValuesIn(epsMode),
         testing::ValuesIn(std::vector<std::vector<size_t>>({{5}})),
         testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -60,7 +60,7 @@ const auto normL2params_2D = testing::Combine(
         testing::ValuesIn(epsMode),
         testing::ValuesIn(std::vector<std::vector<size_t>>({{5, 3}})),
         testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -90,7 +90,7 @@ const auto normL2params_3D = testing::Combine(
         testing::ValuesIn(epsMode),
         testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 5, 3}})),
         testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -123,7 +123,7 @@ const auto normL2params_4D = testing::Combine(
         testing::ValuesIn(epsMode),
         testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 3, 10, 5}})),
         testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -159,7 +159,7 @@ const auto normL2params_5D = testing::Combine(
         testing::ValuesIn(epsMode),
         testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 2, 3, 10, 5}})),
         testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(

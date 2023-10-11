@@ -22,8 +22,8 @@ namespace SubgraphTestsDefinitions {
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, { {1, 336} , {1, 336}});
-
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 336}),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 336})};
         std::vector<size_t> outFormShapes1 = { 1, 1, 168, 2 };
         std::vector<size_t> outFormShapes2 = { 1, 336, 1, 1 };
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, outFormShapes1);

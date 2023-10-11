@@ -14,50 +14,59 @@ DataTensor::DataChannelArray DataTensor::dataChannelArray {{
     // explanation:
     // 0, 1, 2, 3, 4, 5, 6 means the ordering starts from X, then Y, then Z, then W, then F, then B
     // -1 means it's not used
-    //                                      X,  Y,  Z,  W,  F,  B
-    { DataLayout::f,                     { -1, -1, -1, -1,  0, -1 } },
-    { DataLayout::bf,                    { -1, -1, -1, -1,  0,  1 } },
-    { DataLayout::fb,                    { -1, -1, -1, -1,  1,  0 } },
-    { DataLayout::bfyx,                  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::yxfb,                  {  2,  3, -1, -1,  1,  0 } },
-    { DataLayout::byxf,                  {  1,  2, -1, -1,  0,  3 } },
-    { DataLayout::fyxb,                  {  1,  2, -1, -1,  3,  0 } },
-    { DataLayout::b_fs_yx_fsv2,          {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::b_fs_yx_fsv4,          {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::b_fs_yx_fsv16,         {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::b_fs_yx_fsv32,         {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::b_fs_zyx_fsv2,         {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::b_fs_zyx_fsv4,         {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::b_fs_zyx_fsv16,        {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::b_fs_zyx_fsv32,        {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv16_fsv32,  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv16_fsv32, {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_zyx_bsv16_fsv16, {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv16_fsv16,  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_yx_bsv4_fsv4,    {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_yx_bsv8_fsv4,    {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv8_fsv4,   {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv16_fsv4,   {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv16_fsv4,  {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv16_fsv2,   {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv16_fsv2,  {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv8_fsv2,    {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv8_fsv2,   {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv4_fsv2,    {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv32_fsv32, {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv32_fsv32,  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv32_fsv16, {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv32_fsv16,  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_f_bsv8__af8,        { -1, -1, -1, -1,  0,  1 } },
-    { DataLayout::bs_f_bsv16__af8,       { -1, -1, -1, -1,  0,  1 } },
-    { DataLayout::winograd_2x3_s1_data,  {  2,  1, -1, -1,  0,  3 } },
-    { DataLayout::bfzyx,                 {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bzyxf,                 {  1,  2,  3, -1,  0,  4 } },
-    { DataLayout::fs_b_yx_fsv32,         {  0,  1, -1, -1,  3,  2 } },
-    { DataLayout::b_fs_yx_32fp,          {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bfwzyx,                {  0,  1,  2,  3,  4,  5 } },
-    { DataLayout::nv12,                  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::image_2d_rgba,         {  0,  1, -1, -1,  2,  3 } },
+    //                                      X,  Y,  Z,  W,  U,  V,  F,  B
+    { DataLayout::f,                     { -1, -1, -1, -1, -1, -1,  0, -1 } },
+    { DataLayout::bf,                    { -1, -1, -1, -1, -1, -1,  0,  1 } },
+    { DataLayout::fb,                    { -1, -1, -1, -1, -1, -1,  1,  0 } },
+    { DataLayout::bfyx,                  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::yxfb,                  {  2,  3, -1, -1, -1, -1,  1,  0 } },
+    { DataLayout::byxf,                  {  1,  2, -1, -1, -1, -1,  0,  3 } },
+    { DataLayout::byfx,                  {  0,  2, -1, -1, -1, -1,  1,  3 } },
+    { DataLayout::bxfy,                  {  2,  0, -1, -1, -1, -1,  1,  3 } },
+    { DataLayout::fbyx,                  {  0,  1, -1, -1, -1, -1,  3,  2 } },
+    { DataLayout::fyxb,                  {  1,  2, -1, -1, -1, -1,  3,  0 } },
+    { DataLayout::b_fs_yx_fsv2,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::b_fs_yx_fsv4,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::b_fs_yx_fsv8,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::b_fs_yx_fsv16,         {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::b_fs_yx_fsv32,         {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::b_fs_zyx_fsv2,         {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::b_fs_zyx_fsv4,         {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::b_fs_zyx_fsv8,         {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::b_fs_zyx_fsv16,        {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::b_fs_zyx_fsv32,        {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv32,  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv32, {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv16, {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv16,  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv8,  {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv8,   {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_yx_bsv4_fsv4,    {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_yx_bsv8_fsv4,    {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv8_fsv4,   {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv4,   {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv4,  {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv2,   {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv2,  {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv8_fsv2,    {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv8_fsv2,   {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv4_fsv2,    {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv32_fsv32, {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv32_fsv32,  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv32_fsv16, {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv32_fsv16,  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_f_bsv8__af8,        { -1, -1, -1, -1, -1, -1,  0,  1 } },
+    { DataLayout::bs_f_bsv16__af8,       { -1, -1, -1, -1, -1, -1,  0,  1 } },
+    { DataLayout::winograd_2x3_s1_data,  {  2,  1, -1, -1, -1, -1,  0,  3 } },
+    { DataLayout::bfzyx,                 {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bzyxf,                 {  1,  2,  3, -1, -1, -1,  0,  4 } },
+    { DataLayout::fs_b_yx_fsv32,         {  0,  1, -1, -1, -1, -1,  3,  2 } },
+    { DataLayout::b_fs_yx_32fp,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bfwzyx,                {  0,  1,  2,  3, -1, -1,  4,  5 } },
+    { DataLayout::bfuwzyx,               {  0,  1,  2,  3,  4, -1,  5,  6 } },
+    { DataLayout::bfvuwzyx,              {  0,  1,  2,  3,  4,  5,  6,  7 } },
+    { DataLayout::nv12,                  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::image_2d_rgba,         {  0,  1, -1, -1, -1, -1,  2,  3 } },
 }};
 
 WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
@@ -66,9 +75,10 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::io,                                          { -1, -1, -1,   1,   0, -1 } },
     { WeightsLayout::oiyx,                                        {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::ioyx,                                        {  0,  1, -1,   3,   2, -1 } },
-    { WeightsLayout::oyxi,                                        {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::iyxo,                                        {  1,  2, -1,   3,   0, -1 } },
     { WeightsLayout::oyxi,                                        {  1,  2, -1,   0,   3, -1 } },
+    { WeightsLayout::oyix,                                        {  0,  2, -1,   1,   3, -1 } },
+    { WeightsLayout::oxiy,                                        {  2,  0, -1,   1,   3, -1 } },
     { WeightsLayout::yxio,                                        {  2,  3, -1,   1,   0, -1 } },
     { WeightsLayout::os_iyx_osv16,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv32,                                {  0,  1, -1,   2,   3, -1 } },
@@ -76,11 +86,14 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_iyx_osv32__ai32,                          {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv64,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv16_rotate_180,                     {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::o_is_yx_isv4,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::o_is_yx_isv16,                               {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::o_is_zyx_isv16,                              {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::os_yxi_osv16,                                {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::os_i_osv8__ai8,                              { -1, -1, -1,   0,   1, -1 } },
     { WeightsLayout::os_i_osv16__ai8,                             { -1, -1, -1,   0,   1, -1 } },
     { WeightsLayout::os_i_osv16,                                  { -1, -1, -1,   0,   1, -1 } },
+    { WeightsLayout::os_is_yx_osv16_isv2,                         {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_osv16_isv16,                        {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_zyx_osv16_isv16,                       {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::g_os_is_zyx_osv16_isv16,                     {  0,  1,  2,   3,   4,  5 } },
@@ -94,8 +107,8 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::winograd_2x3_s1_weights,                     {  3,  2, -1,   1,   0, -1 } },
     { WeightsLayout::winograd_2x3_s1_fused_weights,               {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::winograd_6x3_s1_fused_weights,               {  0,  1, -1,   2,   3, -1 } },
-    { WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb,      {  0,  1, -1,   2,   3, -1 } },
-    { WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb,      {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb,      {  1,  0, -1,   3,   2, -1 } },
+    { WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb,      {  3,  0, -1,   2,   1, -1 } },
     { WeightsLayout::dlstm_dir_io,                                {  1,  0, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_isa8_osv8_isv4,                     {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_isa8_osv16_isv4,                    {  0,  1, -1,   2,   3, -1 } },
@@ -125,6 +138,8 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::is_o32_yx_isv32_swizzled_by_4,               {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::os_is_y_x8_osv8_isv4,                        {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4,          {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::os_is_yx_osv2_isv16,                         {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::os_is_yx_osv4_isv16,                         {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_osv8_isv4,                          {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_zyx_osv8_isv4,                         {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::os_is_yx_osv8_isv2,                          {  0,  1, -1,   2,   3, -1 } },
@@ -138,9 +153,12 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_is_yx_osv32_isv32p,                       {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_zyx_isv16_osv16,                       {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::os_is_yx_isv16_osv16,                        {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::is_os_yx_osv8_isv4,                          {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::is_os_zyx_isv16_osv16,                       {  0,  1,  2,   4,   3, -1 } },
     { WeightsLayout::is_os_yx_isv16_osv16,                        {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::is_os_yx_isv16_osv8,                         {  0,  1, -1,   3,   2, -1 } },
+    { WeightsLayout::is_os_yx_isv16_osv4,                         {  0,  1, -1,   3,   2, -1 } },
+    { WeightsLayout::is_os_yx_isv16_osv2,                         {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::is_os_yx_isa2_osa8_isv8_osv2,                {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::is_os_yx_isa4_osa8_isv8_osv4,                {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::is_os_yx_osa4_isa8_osv8_isv4,                {  0,  1, -1,   3,   2, -1 } },
@@ -153,6 +171,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_is_yx_isa8_osv8_isv2,                     {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::is_os_yx_isa8_osv8_isv2,                     {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::is_os_yx_isa8_osv8_isv4,                     {  0,  1, -1,   3,   2, -1 } },
+    { WeightsLayout::is_os_yx_osa8_isv16_osv4,                    {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::os_zyxi_osv16,                               {  1,  2,  3,   0,   4, -1 } },
     { WeightsLayout::os_i_yxs_osv4_yxsv4,                         {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_y_is_x_osv8_isv2,                         {  0,  2, -1,   1,   3, -1 } },
@@ -170,6 +189,8 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::g_os_iyx_osv8,                               {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_iyx_osv16,                              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_iyx_osv32,                              {  0,  1, -1,   2,   3,  4 } },
+    { WeightsLayout::gs_oiyx_gsv8,                                {  0,  1, -1,   2,   3,  4 } },
+    { WeightsLayout::gs_oizyx_gsv8,                               {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::gs_oiyx_gsv16,                               {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::gs_oizyx_gsv16,                              {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::gs_oiyx_gsv32,                               {  0,  1, -1,   2,   3,  4 } },
@@ -223,6 +244,10 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
             newDims[0] = RoundUp(newDims[0], 8);
             newDims[1] = RoundUp(newDims[1], 16);
             break;
+        case b_fs_yx_fsv8:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 8);
+            break;
         case b_fs_yx_fsv16:
             assert(newDims.size() == 4);
             newDims[2] = RoundUp(newDims[2], 16);
@@ -243,8 +268,17 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
             assert(newDims.size() == 4);
             newDims[3] = RoundUp(newDims[3], 32);
             break;
+        case b_fs_zyx_fsv8:
+            assert(newDims.size() == 5);
+            newDims[3] = RoundUp(newDims[3], 8);
+            break;
         case b_fs_zyx_fsv16:
             assert(newDims.size() == 5);
+            newDims[3] = RoundUp(newDims[3], 16);
+            break;
+        case bs_fs_yx_bsv16_fsv8:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 8);
             newDims[3] = RoundUp(newDims[3], 16);
             break;
         case bs_fs_yx_bsv16_fsv16:
@@ -265,6 +299,11 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
         case bs_fs_zyx_bsv16_fsv16:
             assert(newDims.size() == 5);
             newDims[3] = RoundUp(newDims[3], 16);
+            newDims[4] = RoundUp(newDims[4], 16);
+            break;
+        case bs_fs_zyx_bsv16_fsv8:
+            assert(newDims.size() == 5);
+            newDims[3] = RoundUp(newDims[3], 8);
             newDims[4] = RoundUp(newDims[4], 16);
             break;
         case bs_fs_yx_bsv4_fsv4:
@@ -578,9 +617,17 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
 
     // TODO: It's not the right pitches. it's here in order to calculate physical size
     switch (l) {
+        case o_is_yx_isv4:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 4);
+            break;
         case o_is_yx_isv16:
             assert(newDims.size() == 4);
             newDims[2] = RoundUp(newDims[2], 16);
+            break;
+        case o_is_zyx_isv16:
+            assert(newDims.size() == 5);
+            newDims[2] = RoundUp(newDims[3], 16);
             break;
         case os_iyx_osv16:
         case os_yxi_osv16:
@@ -762,6 +809,11 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             newDims[3] = RoundUp(newDims[3], 16);
             newDims[4] = RoundUp(newDims[4], 16);
             break;
+        case is_os_yx_osv8_isv4:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 8);
+            newDims[3] = RoundUp(newDims[3], 4);
+            break;
         case is_os_yx_isv16_osv16:
             assert(newDims.size() == 4);
             newDims[2] = RoundUp(newDims[2], 16);
@@ -771,6 +823,16 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             assert(newDims.size() == 4);
             newDims[2] = RoundUp(newDims[2], 16);
             newDims[3] = RoundUp(newDims[3], 8);
+            break;
+        case is_os_yx_isv16_osv4:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 16);
+            newDims[3] = RoundUp(newDims[3], 4);
+            break;
+        case is_os_yx_isv16_osv2:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 16);
+            newDims[3] = RoundUp(newDims[3], 2);
             break;
         case os_is_yx_isv8_osv16_isv2:
             assert(newDims.size() == 4);
@@ -785,6 +847,16 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
         case os_zyxi_osv16:
             assert(newDims.size() == 5);
             newDims[3] = RoundUp(newDims[0], 16);
+            break;
+        case os_is_yx_osv2_isv16:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 16);
+            newDims[3] = RoundUp(newDims[3], 2);
+            break;
+        case os_is_yx_osv4_isv16:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 16);
+            newDims[3] = RoundUp(newDims[3], 4);
             break;
         case os_is_yx_osv8_isv4:
             assert(newDims.size() == 4);
@@ -806,6 +878,14 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
         case g_os_iyx_osv32:
             assert(newDims.size() == 5);
             newDims[3] = RoundUp(newDims[3], 32);
+            break;
+        case gs_oiyx_gsv8:
+            assert(newDims.size() == 5);
+            newDims[4] = RoundUp(newDims[4], 8);
+            break;
+        case gs_oizyx_gsv8:
+            assert(newDims.size() == 6);
+            newDims[5] = RoundUp(newDims[5], 8);
             break;
         case gs_oiyx_gsv16:
             assert(newDims.size() == 5);
@@ -864,6 +944,11 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             break;
         case gs_oi_yxs_gsv4_yxsv4:
             newDims[4] = RoundUp(newDims[4], 4);
+            break;
+        case os_is_yx_osv16_isv2:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 2);
+            newDims[3] = RoundUp(newDims[3], 16);
             break;
         case os_is_yx_osv16_isv16:
             assert(newDims.size() == 4);

@@ -13,7 +13,7 @@ namespace cldnn {
 
 class EltwiseFuseParams : public NodeFuseParams {
 public:
-    EltwiseFuseParams(std::shared_ptr<eltwise> desc) : NodeFuseParams(eltwise::type_id()), _desc(desc) {}
+    EltwiseFuseParams(std::shared_ptr<eltwise> desc) : NodeFuseParams(eltwise::type_id()), _desc(std::move(desc)) {}
     size_t ops_count() const override { return 1; }
 
     std::shared_ptr<eltwise> _desc;
@@ -30,7 +30,6 @@ public:
     }
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-    size_t inputs_count() const { return get_primitive()->input.size(); }
 
     std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
         return std::make_shared<EltwiseFuseParams>(typed_desc());

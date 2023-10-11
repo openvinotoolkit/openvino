@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames = {
@@ -63,7 +63,7 @@ public:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), inputDataMin, inputDataMax);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), inputDataMin, inputDataMax);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -87,7 +87,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const ngraph::Shape shape = {1, 128};
-        auto params = ngraph::builder::makeParams(ngPrc, {shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
 
         auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {100 * -inputDataMax});
         auto highNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {100 * inputDataMax});
@@ -101,7 +101,7 @@ protected:
         auto constant = ngraph::builder::makeConstant<float>(
             ngPrc,
             shape,
-            CommonTestUtils::generate_float_numbers(shape[1], inputDataMin, inputDataMax));
+            ov::test::utils::generate_float_numbers(shape[1], inputDataMin, inputDataMax));
         auto add = std::make_shared<ngraph::opset8::Add>(fqIn, constant);
 
         auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {2 * inputDataMin});
@@ -154,7 +154,7 @@ const std::vector<ngraph::helpers::ActivationTypes> activationTypes = {ngraph::h
 INSTANTIATE_TEST_SUITE_P(smoke_base,
                          EltwiseActFqTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputValues),
                                             ::testing::ValuesIn(activationTypes)),

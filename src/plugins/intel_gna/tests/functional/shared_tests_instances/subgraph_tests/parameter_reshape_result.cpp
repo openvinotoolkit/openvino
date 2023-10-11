@@ -26,7 +26,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_param_reshape_result,
                          ParamReshapeResult,
                          ::testing::Combine(::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(additional_config)),
                          ParamReshapeResult::getTestCaseName);
 }  // namespace

@@ -4,7 +4,7 @@
 
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 #include "shared_test_classes/subgraph/matmul_multiply_fusion.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <exec_graph_info.hpp>
 
 namespace SubgraphTestsDefinitions {
@@ -115,6 +115,7 @@ void QuantizedMatMulMultiplyFusion::SetUp() {
 }
 
 void QuantizedMatMulMultiplyFusion::TearDown() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto get_layer_type = [] (const std::shared_ptr<ngraph::Node>& node) -> const std::string& {
         const auto& rt_info = node->get_rt_info();
         auto it = rt_info.find(ExecGraphInfoSerialization::LAYER_TYPE);

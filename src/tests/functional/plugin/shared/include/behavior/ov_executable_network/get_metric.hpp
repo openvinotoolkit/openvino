@@ -27,6 +27,28 @@ namespace behavior {
         ASSERT_NE(properties.end(), it);                                                           \
     }
 
+using PriorityParams = std::tuple<
+        std::string,            // Device name
+        ov::AnyMap              // device priority Configuration key
+>;
+class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::WithParamInterface<PriorityParams>,
+                                                       public OVCompiledNetworkTestBase {
+protected:
+    ov::AnyMap configuration;
+    std::shared_ptr<ngraph::Function> simpleNetwork;
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<PriorityParams> obj);
+    void SetUp() override {
+        std::tie(target_device, configuration) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
+        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+    }
+};
+using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
+using OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
+
 using OVCompiledModelClassBaseTest = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkImportExportTestP = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVCompiledModelClassBaseTestP;
@@ -73,7 +95,7 @@ protected:
 public:
     void SetUp() override {
         target_device = GetParam();
-        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device;
+        heteroDeviceName = ov::test::utils::DEVICE_HETERO + std::string(":") + target_device;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         OVClassNetworkTest::SetUp();

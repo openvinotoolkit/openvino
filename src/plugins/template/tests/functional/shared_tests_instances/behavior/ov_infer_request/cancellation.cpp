@@ -8,12 +8,12 @@ using namespace ov::test::behavior;
 
 namespace {
 const std::vector<ov::AnyMap> configs = {
-        {},
+    {},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCancellationTests,
-        ::testing::Combine(
-            ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-            ::testing::ValuesIn(configs)),
-        OVInferRequestCancellationTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVInferRequestCancellationTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
+                                            ::testing::ValuesIn(configs)),
+                         OVInferRequestCancellationTests::getTestCaseName);
 }  // namespace

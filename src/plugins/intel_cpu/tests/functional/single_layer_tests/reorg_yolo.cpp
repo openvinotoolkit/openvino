@@ -3,7 +3,7 @@
 //
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -29,9 +29,9 @@ public:
         TargetDevice targetDev;
         std::tie(inputShape, stride, netPrecision, targetDev) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         for (const auto& item : inputShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "stride=" << stride << "_";
         result << "netPRC=" << netPrecision << "_";
@@ -70,12 +70,12 @@ const std::vector<ov::test::InputShape> inShapesDynamic2 = {{{{1, 2}, -1, -1, -1
 const auto testCase_stride2_Dynamic = ::testing::Combine(::testing::ValuesIn(inShapesDynamic),
                                                          ::testing::Values(strides[0]),
                                                          ::testing::Values(ov::element::f32),
-                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU));
+                                                         ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto testCase_stride3_Dynamic = ::testing::Combine(::testing::ValuesIn(inShapesDynamic2),
                                                          ::testing::Values(strides[1]),
                                                          ::testing::Values(ov::element::f32),
-                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU));
+                                                         ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride2_DynamicShape,
                          ReorgYoloLayerCPUTest,

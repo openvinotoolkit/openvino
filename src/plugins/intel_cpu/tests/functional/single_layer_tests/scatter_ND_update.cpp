@@ -5,7 +5,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -39,17 +39,17 @@ public:
         std::ostringstream result;
         result << inputPrecision << "_IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             for (const auto& targetShape : shape.second) {
-                result << CommonTestUtils::vec2str(targetShape) << "_";
+                result << ov::test::utils::vec2str(targetShape) << "_";
             }
             result << ")_";
         }
-        result << "indices_values=" << CommonTestUtils::vec2str(indicesValues) << "_idx_precision=" << idxPrecision;
+        result << "indices_values=" << ov::test::utils::vec2str(indicesValues) << "_idx_precision=" << idxPrecision;
         return result.str();
     }
 
@@ -57,7 +57,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             const auto& inputPrecision = funcInput.get_element_type();
             const auto& targetShape = targetInputStaticShapes[i];
@@ -90,7 +90,7 @@ protected:
     }
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ScatterNDUpdateLayerParams scatterParams;
         ElementType inputPrecision;
         ElementType idxPrecision;
@@ -101,15 +101,18 @@ protected:
         init_input_shapes(inputShapes);
         selectedType = makeSelectedTypeStr("unknown", inputPrecision);
 
-        auto dataParams = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[2] });
-        auto indicesParam = ngraph::builder::makeDynamicParams(idxPrecision, { inputDynamicShapes[1] });
+        ov::ParameterVector dataParams;
+        for (auto&& shape : { inputDynamicShapes[0], inputDynamicShapes[2] }) {
+            dataParams.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
+        }
+        auto indicesParam = std::make_shared<ov::op::v0::Parameter>(idxPrecision, inputDynamicShapes[1]);
         dataParams[0]->set_friendly_name("Param_1");
-        indicesParam[0]->set_friendly_name("Param_2");
+        indicesParam->set_friendly_name("Param_2");
         dataParams[1]->set_friendly_name("Param_3");
 
-        auto scatter = std::make_shared<ngraph::opset4::ScatterNDUpdate>(dataParams[0], indicesParam[0], dataParams[1]);
+        auto scatter = std::make_shared<ngraph::opset4::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
 
-        ngraph::ParameterVector allParams{ dataParams[0], indicesParam[0], dataParams[1] };
+        ngraph::ParameterVector allParams{ dataParams[0], indicesParam, dataParams[1] };
         function = makeNgraphFunction(inputPrecision, allParams, scatter, "ScatterNDUpdateLayerCPUTest");
     }
 };
@@ -151,6 +154,14 @@ const std::vector<ScatterNDUpdateLayerParams> scatterParams = {
             {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
         },
         IndicesValues{ 0, 1, 1, 2, 2, 2 }
+    },
+    ScatterNDUpdateLayerParams{
+        ScatterNDUpdateShapes{
+            {{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
+            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
+        },
+        IndicesValues{ -1, -1, -1, -2, -2, -2 }
     },
 };
 

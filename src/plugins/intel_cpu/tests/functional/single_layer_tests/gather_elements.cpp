@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -41,12 +41,12 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : shapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : shapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "Ax=" << axis << "_";
@@ -73,7 +73,7 @@ public:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
 
@@ -132,7 +132,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsCPUTest,
                     ::testing::ValuesIn(std::vector<int>({2, -2})),           // Axis
                     ::testing::ValuesIn(std::vector<ElementType>({ElementType::bf16, ElementType::f32})),
                     ::testing::Values(ElementType::i32),
-                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D))),
         GatherElementsCPUTest::getTestCaseName);
 

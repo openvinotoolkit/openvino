@@ -6,15 +6,15 @@
 
 #include <memory>
 
-#include "ngraph/node.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "shape_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
 class TensorWrapper : public ngraph::runtime::HostTensor {

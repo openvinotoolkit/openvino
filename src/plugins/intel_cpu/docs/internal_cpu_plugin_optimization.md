@@ -3,7 +3,7 @@
 The CPU plugin supports several graph optimization algorithms, such as fusing or removing layers.
 Refer to the sections below for details.
 
-> **NOTE**: For layer descriptions, see the [IR Notation Reference](https://docs.openvino.ai/latest/openvino_docs_ops_opset.html).
+> **NOTE**: For layer descriptions, see the [IR Notation Reference](https://docs.openvino.ai/2023.0/openvino_docs_ops_opset.html).
 
 
 ## Fusing Convolution and Simple Layers
@@ -135,7 +135,7 @@ class nodeB2,nodeB3,nodeB5,nodeB6,nodeB7,nodeB9 steel1
 ```
 ## Fusing Convolution and Sum Layers
 
-A combination of convolution, simple, and Eltwise layers with the sum operation results in a single layer called *Convolution*:  
+A combination of convolution, simple, and Eltwise layers with the sum operation results in a single layer called *Convolution*:
 
 ```mermaid
 flowchart TD
@@ -216,6 +216,7 @@ CPU plugin removes a Power layer from a topology if it has the following paramet
   - <b>offset</b> = 0
 
 ## See also
+
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)

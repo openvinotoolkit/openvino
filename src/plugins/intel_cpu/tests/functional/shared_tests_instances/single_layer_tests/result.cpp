@@ -25,7 +25,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_ResultLayerTest, ResultLayerTest,
     ::testing::Combine(::testing::ValuesIn(inputDims),
                        ::testing::ValuesIn(inputPrecisions),
-                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(config)),
                        ResultLayerTest::getTestCaseName);
 } // namespace

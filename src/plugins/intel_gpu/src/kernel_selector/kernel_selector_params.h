@@ -10,7 +10,6 @@
 #include <limits>
 #include "common_types.h"
 #include "tensor_type.h"
-#include "document.h"
 #include <vector>
 #include <utility>
 #include <bitset>
@@ -130,6 +129,7 @@ public:
                 uint32_t asym_w_quantization : 1;
                 uint32_t asym_d_quantization : 1;
                 uint32_t dynamic_shapes : 1;
+                uint32_t compressed_weights : 1;
 
                 union dedicated_t {
                     struct argm_t {
@@ -216,6 +216,8 @@ public:
                         uint32_t bilinear_interp : 1;
                         uint32_t cubic : 1;
                         uint32_t linear_onnx : 1;
+                        uint32_t bilinear_pillow : 1;
+                        uint32_t bicubic_pillow : 1;
                     } resample;
                     struct reorder_t {
                         uint32_t winograd : 1;
@@ -316,6 +318,7 @@ public:
     void EnablePoolRemainder(PoolRemainder r);
     void EnablePoolDilation() { key.restrict.val.dedicated.pooling.dilation = 1; }
     void EnablePoolIndicesOutput() { key.restrict.val.dedicated.pooling.indices_output = 1; }
+    void EnableWeightsCompression() { key.restrict.val.compressed_weights = 1; }
     void EnableQuantization(QuantizationType q);
     void EnablePositionSensitivePooling() { key.restrict.val.dedicated.pooling.position_sensitive = 1; }
     void EnableDilation() { key.restrict.val.dedicated.conv.dilation = 1; }
@@ -407,6 +410,9 @@ struct Params {
     KernelType GetType() const { return kType; }
     virtual ParamsKey GetParamsKey() const;
 
+    virtual void set_dynamic_shape_offsets() {
+        return;
+    }
 protected:
     Params(KernelType kt, const std::string& id) : kType(kt), layerID(id), is_shape_agnostic(false) {}
     KernelType kType;
@@ -602,7 +608,7 @@ struct dep_info {
 //  method in binary_convolution_kernel_generic.cpp.
 struct fused_operation_desc {
     std::shared_ptr<fuse_params> op_params;
-    size_t dep_idx_start;
+    int32_t dep_idx_start;
     size_t dep_size;
     MultiDataTensor tensors;
     DataTensor output_tensor;
@@ -618,6 +624,9 @@ struct fused_operation_desc {
             throw std::runtime_error("Invalid dynamic cast of fused operation parameters");
 
         return p;
+    }
+    bool has_outer_dep() {
+        return dep_idx_start != -1;
     }
 };
 
@@ -636,6 +645,7 @@ struct base_params : public Params {
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     MultiDataTensor outputs;
+
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
@@ -650,6 +660,40 @@ struct base_params : public Params {
 
     bool has_dynamic_tensors() const {
         return has_dynamic_inputs() || has_dynamic_outputs();
+    }
+
+    void set_dynamic_shape_offsets() override {
+        size_t offset = 0;
+        for (auto& in : inputs) {
+            in.SetDynamicShapeOffset(offset);
+            if (in.is_dynamic()) {
+                offset += DataTensor::max_rank();
+                for (auto dim : in.GetDims()) {
+                    if (dim.pad.is_dynamic)
+                        offset += Tensor::Pad::NumPadOffsetsPerDim();
+                }
+            }
+        }
+        for (auto& fd : fused_ops) {
+            if (!fd.has_outer_dep())
+                continue;
+            auto& fused_op_inputs = fd.tensors;
+            for (auto& fused_input : fused_op_inputs) {
+                fused_input.SetDynamicShapeOffset(offset);
+                if (fused_input.is_dynamic())
+                    offset += DataTensor::max_rank();
+            }
+        }
+        for (auto& out : outputs) {
+            out.SetDynamicShapeOffset(offset);
+            if (out.is_dynamic()) {
+                offset += DataTensor::max_rank();
+                for (auto& dim : out.GetDims()) {
+                    if (dim.pad.is_dynamic)
+                        offset += Tensor::Pad::NumPadOffsetsPerDim();
+                }
+            }
+        }
     }
 
 protected:

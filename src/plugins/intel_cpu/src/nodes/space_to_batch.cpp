@@ -2,16 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
-#include <dnnl_types.h>
-#include "ie_parallel.hpp"
-#include "utils/bfloat16.hpp"
-#include <selective_build.h>
 #include "space_to_batch.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset2.hpp>
+
+#include "ie_parallel.hpp"
+#include <openvino/op/space_to_batch.hpp>
 
 using namespace InferenceEngine;
 
@@ -19,17 +13,11 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto spaceToBatch = std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(op);
+        const auto spaceToBatch = std::dynamic_pointer_cast<const ov::op::v1::SpaceToBatch>(op);
         if (!spaceToBatch) {
             errorMessage = "Only opset2 SpaceToBatch operation is supported";
-            return false;
-        }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1)) == nullptr ||
-            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2)) == nullptr ||
-            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(3)) == nullptr) {
-            errorMessage = "Only constant 'block_shape', 'pads_begin', 'pads_end' are supported";
             return false;
         }
     } catch (...) {
@@ -38,7 +26,7 @@ bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+SpaceToBatch::SpaceToBatch(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2, 3))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -56,8 +44,6 @@ SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, const GraphC
         IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << srcRank;
     if (srcRank != dstRank)
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
-    blockShapeIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<size_t>();
-    padsBeginIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<size_t>();
 }
 
 void SpaceToBatch::initSupportedPrimitiveDescriptors() {
@@ -71,37 +57,37 @@ void SpaceToBatch::initSupportedPrimitiveDescriptors() {
         IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
 
     addSupportedPrimDesc({{LayoutType::nspc, precision},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp}},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
                          {{LayoutType::nspc, precision}},
                          impl_desc_type::ref_any);
     addSupportedPrimDesc({{LayoutType::ncsp, precision},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp}},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
                          {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 8 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp8c, precision},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp}},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32}},
                              {{LayoutType::nCsp8c, precision}},
                              impl_desc_type::ref_any);
     }
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 16 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp16c, precision},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp}},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32}},
                              {{LayoutType::nCsp16c, precision}},
                              impl_desc_type::ref_any);
     }
 }
 
-static std::vector<size_t> getShape5D(const SizeVector &shape) {
-    std::vector<size_t> shape5D(5, 1);
+static std::vector<int64_t> getShape5D(const SizeVector &shape) {
+    std::vector<int64_t> shape5D(5, 1);
     for (int i = 0; i < 2; i++) {
         shape5D[i] = shape[i];
         shape5D[4 - i] = shape[shape.size() - 1 - i];
@@ -112,21 +98,40 @@ static std::vector<size_t> getShape5D(const SizeVector &shape) {
 
 template<typename T>
 void SpaceToBatch::SpaceToBatchKernel() {
-    const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto& srcMem = getParentEdgesAtPort(0)[0]->getMemoryPtr();
+    const auto& dstMem = getChildEdgesAtPort(0)[0]->getMemoryPtr();
 
-    const auto &inDims = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getStaticDims();
-    const auto &outDims = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getStaticDims();
+    const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    size_t dataRank = srcMem->getShape().getRank();
+    blockShapeIn.clear();
+    for (size_t i = 0; i < dataRank; i++) {
+        blockShapeIn.push_back(*(blockShapesPtr + i));
+    }
 
-    const bool blocked = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c) ||
-                         getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c);
+    const auto *padsBeginPtr = reinterpret_cast<int *>(getParentEdgeAt(2)->getMemoryPtr()->getData());
+    padsBeginIn.clear();
+    for (size_t i = 0; i < dataRank; i++) {
+        padsBeginIn.push_back(*(padsBeginPtr + i));
+    }
+
+    const auto *srcData = reinterpret_cast<const T *>(srcMem->getData());
+    auto *dstData = reinterpret_cast<T *>(dstMem->getData());
+
+    const int64_t srcLen = srcMem->getSize() / sizeof(T);
+    const int64_t dstLen = dstMem->getSize() / sizeof(T);
+
+    const auto &inDims = srcMem->getStaticDims();
+    const auto &outDims = dstMem->getStaticDims();
+
+    const bool blocked = srcMem->getDesc().hasLayoutType(LayoutType::nCsp16c) ||
+                         srcMem->getDesc().hasLayoutType(LayoutType::nCsp8c);
     const auto dimsSize = inDims.size();
 
     auto inShape5D  = getShape5D(outDims);
     auto outShape5D = getShape5D(inDims);
     auto blockShape = getShape5D(blockShapeIn);
 
-    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
+    if (srcMem->getDesc().hasLayoutType(LayoutType::nspc)) {
         inShape5D.push_back(inShape5D[1]);
         inShape5D.erase(inShape5D.begin() + 1);
         outShape5D.push_back(outShape5D[1]);
@@ -135,43 +140,42 @@ void SpaceToBatch::SpaceToBatchKernel() {
         blockShape.erase(blockShape.begin() + 1);
     }
 
-    const auto outBlkDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    const size_t blockSize = blocked ? outBlkDims.back() : 1lu;
-    const size_t blockCountInput = outBlkDims[1];
-    const size_t blockCountOutput = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims()[1];
-    const auto blockRemainder = inShape5D[1] % blockSize;
-    const auto lastBlock = blockRemainder == 0 ? blockSize : blockRemainder;
+    const auto outBlkDims = dstMem->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    const int64_t blockSize = blocked ? outBlkDims.back() : 1lu;
+    const int64_t blockCountInput = outBlkDims[1];
+    const int64_t blockCountOutput = srcMem->getDescWithType<BlockedMemoryDesc>()->getBlockDims()[1];
+    const int64_t blockRemainder = inShape5D[1] % blockSize;
+    const int64_t lastBlock = blockRemainder == 0 ? blockSize : blockRemainder;
 
-    const size_t inSpatialStep = inShape5D[2] * inShape5D[3] * inShape5D[4];
-    const size_t inBatchStep = (blocked ? blockSize * blockCountInput : inShape5D[1]) * inSpatialStep;
+    const int64_t inSpatialStep = inShape5D[2] * inShape5D[3] * inShape5D[4];
+    const int64_t inBatchStep = (blocked ? blockSize * blockCountInput : inShape5D[1]) * inSpatialStep;
 
-    const size_t outSpatialStep = outShape5D[2] * outShape5D[3] * outShape5D[4];
-    const size_t outBatchStep = (blocked ? blockSize * blockCountOutput : outShape5D[1]) * outSpatialStep;
+    const int64_t outSpatialStep = outShape5D[2] * outShape5D[3] * outShape5D[4];
+    const int64_t outBatchStep = (blocked ? blockSize * blockCountOutput : outShape5D[1]) * outSpatialStep;
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
-        splitter(inShape5D[0] * inBatchStep, nthr, ithr, start, end);
-        std::fill(dstData + start, dstData + end, T(0));
-    });
+    memset(dstData, 0, dstMem->getSize());
 
-    size_t channels = (inShape5D[1] / blockSize);
+    int64_t channels = (inShape5D[1] / blockSize);
     channels = channels == 0 ? 1 : channels;
-    const size_t workAmount = inShape5D[0] * channels;
+    const int64_t workAmount = inShape5D[0] * channels;
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        int64_t start(0lu), end(0lu);
         splitter(workAmount, nthr, ithr, start, end);
-        std::vector<size_t> indxStart(2, 0);
-        std::vector<size_t> indxEnd(2, 0);
+        std::vector<int64_t> indxStart(2, 0);
+        std::vector<int64_t> indxEnd(2, 0);
         parallel_it_init(start, indxStart[0], inShape5D[0], indxStart[1], channels);
+        if (start >= end) {
+            return;
+        }
         parallel_it_init((end - 1), indxEnd[0], inShape5D[0], indxEnd[1], channels);
         std::vector<int64_t> oAdd(5, 1);
-        std::vector<size_t> begin(5, 0);
-        std::vector<size_t> finish(5, 1);
-        for (size_t i0 = indxStart[0]; i0 < indxEnd[0] + 1; ++i0) {
+        std::vector<int64_t> begin(5, 0);
+        std::vector<int64_t> finish(5, 1);
+        for (int64_t i0 = indxStart[0]; i0 < indxEnd[0] + 1; ++i0) {
             int64_t bIdx = i0 / outShape5D[0];
-            const size_t srcIdx0 = (i0 - (bIdx * outShape5D[0])) * outBatchStep;
-            const size_t dstIdx0 = i0 * inBatchStep;
+            const int64_t srcIdx0 = (i0 - (bIdx * outShape5D[0])) * outBatchStep;
+            const int64_t dstIdx0 = i0 * inBatchStep;
             oAdd[4] = bIdx % blockShapeIn[dimsSize - 1] - padsBeginIn[dimsSize - 1];
             bIdx /= blockShapeIn[dimsSize - 1];
             oAdd[3] = bIdx % blockShapeIn[dimsSize - 2] - padsBeginIn[dimsSize - 2];
@@ -179,7 +183,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
             oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - padsBeginIn[2] : 0lu;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - padsBeginIn[1];
-            if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
+            if (srcMem->getDesc().hasLayoutType(LayoutType::nspc)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }
@@ -194,32 +198,35 @@ void SpaceToBatch::SpaceToBatchKernel() {
             const int64_t addTmpOC = blocked ? 0lu : oAdd[1];
             const int64_t addTmpOc = blocked ? oAdd[1] : 0lu;
             indxStart[1] = begin[1] > indxStart[1] ? begin[1] : indxStart[1];
-            const size_t lastI1 = i0 == indxEnd[0] ? (indxEnd[1] > finish[1] ? finish[1] : indxEnd[1]) : finish[1];
+            const int64_t lastI1 = i0 == indxEnd[0] ? (indxEnd[1] > finish[1] ? finish[1] : indxEnd[1]) : finish[1];
             for (; indxStart[1] < lastI1 + 1; ++indxStart[1]) {
-                const size_t block = indxStart[1] == finish[1] ? lastBlock : blockSize;
+                const int64_t block = indxStart[1] == finish[1] ? lastBlock : blockSize;
                 const int64_t tmpOC = indxStart[1] * blockShape[1] + addTmpOC;
-                const size_t srcIdx1 = srcIdx0 + tmpOC * outSpatialStep * blockSize;
-                const size_t dstIdx1 = dstIdx0 + indxStart[1] * inSpatialStep * blockSize;
-                const size_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0lu;
-                for (size_t i2 = begin[2]; i2 < finish[2] + 1; ++i2) {
+                const int64_t srcIdx1 = srcIdx0 + tmpOC * outSpatialStep * blockSize;
+                const int64_t dstIdx1 = dstIdx0 + indxStart[1] * inSpatialStep * blockSize;
+                const int64_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0lu;
+                for (int64_t i2 = begin[2]; i2 < finish[2] + 1; ++i2) {
                     const int64_t tmpOd = i2 * blockShape[2] + oAdd[2];
-                    const size_t srcIdx2 = srcIdx1 + tmpOd * outShape5D[3] * outShape5D[4] * blockSize;
-                    const size_t dstIdx2 = dstIdx1 + i2 * inShape5D[3] * inShape5D[4] * blockSize;
-                    for (size_t i3 = begin[3]; i3 < finish[3] + 1; ++i3) {
+                    const int64_t srcIdx2 = srcIdx1 + tmpOd * outShape5D[3] * outShape5D[4] * blockSize;
+                    const int64_t dstIdx2 = dstIdx1 + i2 * inShape5D[3] * inShape5D[4] * blockSize;
+                    for (int64_t i3 = begin[3]; i3 < finish[3] + 1; ++i3) {
                         const int64_t tmpOh = i3 * blockShape[3] + oAdd[3];
-                        const size_t srcIdx3 = srcIdx2 + tmpOh * outShape5D[4] * blockSize;
-                        const size_t dstIdx3 = dstIdx2 + i3 * inShape5D[4] * blockSize;
-                        for (size_t i4 = begin[4]; i4 < finish[4] + 1; ++i4) {
+                        const int64_t srcIdx3 = srcIdx2 + tmpOh * outShape5D[4] * blockSize;
+                        const int64_t dstIdx3 = dstIdx2 + i3 * inShape5D[4] * blockSize;
+                        for (int64_t i4 = begin[4]; i4 < finish[4] + 1; ++i4) {
                             const int64_t tmpOw = i4 * blockShape[4] + oAdd[4];
-                            const size_t srcIdx4 = srcIdx3 + tmpOw * blockSize;
-                            const size_t dstIdx4 = dstIdx3 + i4 * blockSize;
-                            for (size_t it = 0; it < itEnd + 1; ++it) {
-                                const size_t i5Begin = it == 0 ? 0 : (it * blockSize - 1 - oAdd[1]) / blockShape[1] + 1;
-                                const size_t i5End = it == itEnd ? (block - 1) : ((it + 1) * blockSize - 1 - oAdd[1]) / blockShape[1];
-                                for (size_t i5 = i5Begin; i5 < i5End + 1; ++i5) {
+                            const int64_t srcIdx4 = srcIdx3 + tmpOw * blockSize;
+                            const int64_t dstIdx4 = dstIdx3 + i4 * blockSize;
+                            for (int64_t it = 0; it < itEnd + 1; ++it) {
+                                const int64_t i5Begin = it == 0 ? 0 : (it * blockSize - 1 - oAdd[1]) / blockShape[1] + 1;
+                                const int64_t i5End = it == itEnd ? (block - 1) : ((it + 1) * blockSize - 1 - oAdd[1]) / blockShape[1];
+                                for (int64_t i5 = i5Begin; i5 < i5End + 1; ++i5) {
                                     const int64_t tmpOc = i5 * blockShape[1] + addTmpOc;
-                                    const size_t srcIdx5 = srcIdx4 + it * outSpatialStep * blockSize + (tmpOc - it * blockSize);
-                                    const size_t dstIdx5 = dstIdx4 + i5;
+                                    const int64_t srcIdx5 = srcIdx4 + it * outSpatialStep * blockSize + (tmpOc - it * blockSize);
+                                    const int64_t dstIdx5 = dstIdx4 + i5;
+                                    if (srcIdx5 >= srcLen || dstIdx5 >= dstLen) {
+                                        continue;
+                                    }
                                     dstData[dstIdx5] = srcData[srcIdx5];
                                 }
                             }

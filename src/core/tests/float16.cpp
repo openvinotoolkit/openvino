@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/type/float16.hpp"
+
+#include <gtest/gtest.h>
 
 #include <climits>
 #include <random>
 
-#include "gtest/gtest.h"
-#include "ngraph/runtime/aligned_buffer.hpp"
-#include "util/float_util.hpp"
+#include "common_test_utils/float_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(float16, conversions) {
     float16 f16;
@@ -21,33 +21,33 @@ TEST(float16, conversions) {
 
     // 1.f
     source_string = "0  01111  00 0000 0000";
-    f16 = test::bits_to_float16(source_string);
+    f16 = ov::test::utils::bits_to_float16(source_string);
     EXPECT_EQ(f16, float16(1.0));
-    f16_string = test::float16_to_bits(f16);
+    f16_string = ov::test::utils::float16_to_bits(f16);
     EXPECT_STREQ(source_string, f16_string.c_str());
     EXPECT_EQ(static_cast<float>(f16), 1.0);
 
     // -1.f
     source_string = "1  01111  00 0000 0000";
-    f16 = test::bits_to_float16(source_string);
+    f16 = ov::test::utils::bits_to_float16(source_string);
     EXPECT_EQ(f16, float16(-1.0));
-    f16_string = test::float16_to_bits(f16);
+    f16_string = ov::test::utils::float16_to_bits(f16);
     EXPECT_STREQ(source_string, f16_string.c_str());
     EXPECT_EQ(static_cast<float>(f16), -1.0);
 
     // 0.f
     source_string = "0  00000  00 0000 0000";
-    f16 = test::bits_to_float16(source_string);
+    f16 = ov::test::utils::bits_to_float16(source_string);
     EXPECT_EQ(f16, float16(0.0));
-    f16_string = test::float16_to_bits(f16);
+    f16_string = ov::test::utils::float16_to_bits(f16);
     EXPECT_STREQ(source_string, f16_string.c_str());
     EXPECT_EQ(static_cast<float>(f16), 0.0);
 
     // 1.5f
     source_string = "0  01111  10 0000 0000";
-    f16 = test::bits_to_float16(source_string);
+    f16 = ov::test::utils::bits_to_float16(source_string);
     EXPECT_EQ(f16, float16(1.5));
-    f16_string = test::float16_to_bits(f16);
+    f16_string = ov::test::utils::float16_to_bits(f16);
     EXPECT_STREQ(source_string, f16_string.c_str());
     EXPECT_EQ(static_cast<float>(f16), 1.5);
 }
@@ -73,9 +73,9 @@ TEST(float16, assigns) {
 }
 
 TEST(float16, values) {
-    EXPECT_EQ(static_cast<float16>(test::FloatUnion(0, 112 - 8, (1 << 21) + 0).f).to_bits(),
+    EXPECT_EQ(static_cast<float16>(ov::test::utils::FloatUnion(0, 112 - 8, (1 << 21) + 0).f).to_bits(),
               float16(0, 0, 2).to_bits());
-    EXPECT_EQ(static_cast<float16>(test::FloatUnion(0, 112 - 8, (1 << 21) + 1).f).to_bits(),
+    EXPECT_EQ(static_cast<float16>(ov::test::utils::FloatUnion(0, 112 - 8, (1 << 21) + 1).f).to_bits(),
               float16(0, 0, 3).to_bits());
     EXPECT_EQ(static_cast<float16>(1.0 / (256.0 * 65536.0)).to_bits(), float16(0, 0, 1).to_bits());
     EXPECT_EQ(static_cast<float16>(1.5 / (256.0 * 65536.0)).to_bits(), float16(0, 0, 2).to_bits());

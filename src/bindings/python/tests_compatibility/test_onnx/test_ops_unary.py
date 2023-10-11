@@ -326,7 +326,7 @@ def test_identity():
 def test_cast_to_bool(val_type, input_data):
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
+    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
@@ -343,7 +343,7 @@ def test_cast_to_float(val_type, range_start, range_end, in_dtype):
     input_data = np.random.randint(range_start, range_end, size=(2, 2), dtype=in_dtype)
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
+    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
@@ -359,7 +359,7 @@ def test_cast_to_int(val_type):
     input_data = np.ceil(-8 + np.random.rand(2, 3, 4) * 16)
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
+    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
@@ -372,7 +372,7 @@ def test_cast_to_uint(val_type):
     input_data = np.ceil(np.random.rand(2, 3, 4) * 16)
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
+    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
@@ -455,7 +455,7 @@ def test_constant(value_type):
         outputs=["values"],
         value=onnx.helper.make_tensor(
             name="const_tensor",
-            data_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype(value_type)],
+            data_type=onnx.helper.np_dtype_to_tensor_dtype(np.dtype(value_type)),
             dims=values.shape,
             vals=values.flatten(),
         ),
@@ -473,7 +473,7 @@ def test_constant_err():
         outputs=["values"],
         value=onnx.helper.make_tensor(
             name="const_tensor",
-            data_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype(np.float16)],
+            data_type=onnx.helper.np_dtype_to_tensor_dtype(np.dtype(np.float16)),
             dims=values.shape,
             vals=values.flatten(),
         ),

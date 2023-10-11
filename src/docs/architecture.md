@@ -84,12 +84,12 @@ flowchart TB
     subgraph compiled_models [Compiled models]
         cpu_model["CPU"]
         gpu_model["GPU"]
-        auto_model["AUTP"]
+        auto_model["AUTO"]
     end
     subgraph infer_reguests [InferRequests]
         cpu_req["CPU"]
         gpu_req["GPU"]
-        auto_req["AUTP"]
+        auto_req["AUTO"]
     end
    
     result[Results]
@@ -111,6 +111,154 @@ flowchart TB
     cpu_req--"infer()"-->result
     gpu_req--"infer()"-->result
     auto_req--"infer()"-->result
+```
+
+### OpenVINO Components Relationships
+
+The diagram below shows internal components and their relationships inside the OpenVINO dynamic library.
+
+```mermaid
+flowchart LR
+    subgraph legend [Legend]
+    interface_lib[Interface library]
+    style interface_lib fill:#af8401
+
+    object_lib[Object library]
+    style object_lib fill:#6e9f01
+
+    static_lib[(Static library)]
+    style static_lib fill:#01429f
+    dynamic_lib([Dynamic library])
+    style dynamic_lib fill:#cb6969
+
+    some_api{{Some library API}}
+    some_dev_api{{Some developer API}}
+
+    object_lib ===>|Link with| interface_lib
+
+    some_api --->|Depends on headers only| static_lib
+    some_api -.->|Include headers| some_dev_api
+    end
+```
+```mermaid
+flowchart TB
+    util[(openvino::util)]
+    style util fill:#01429f
+
+    itt[(openvino::itt)]
+    style itt fill:#01429f
+
+    pugixml[(openvino::pugixml)]
+    style pugixml fill:#01429f
+
+    builders[(builders)]
+    style builders fill:#01429f
+
+    reference[(reference implementations)]
+    style reference fill:#01429f
+
+    shape_inference[(shape inference)]
+    style shape_inference fill:#01429f
+
+    subgraph core [core]
+        style core fill:#6e9f01
+        core_api{{Core public API}}
+
+        core_api--->builders
+        core_api--->reference
+        core_api--->shape_inference
+    end
+
+    subgraph core_dev [openvino::core::dev]
+        style core_dev fill:#af8401
+        core_dev_api{{Core developer API}}
+    end
+
+    core ===> core_dev
+
+    core_dev_api-.->openvino_dev_api
+
+    pugixml ===> core
+    builders ===> core
+    reference ===> core
+    shape_inference ===> core
+    util ===> core
+    itt ===> core
+
+    subgraph inference [inference]
+        style inference fill:#6e9f01
+        inference_api{{Inference public API}}
+        inference_dev_api{{Infernce developer API}}
+
+        inference_api-.->inference_dev_api
+    end
+
+    core ===> inference
+    util ===> inference
+    itt ===> inference
+
+    inference_dev_api-.->openvino_dev_api
+
+    subgraph frontend_common [frontend_common]
+        style frontend_common fill:#6e9f01
+        frontend_api{{Frontend API}}
+    end
+
+    core_dev ===> frontend_common
+    util ===> frontend_common
+
+
+    frontend_common ---> core_dev
+
+
+    subgraph transformations [OpenVINO transformations]
+        style transformations fill:#6e9f01
+        transformations_api{{Transformations API}}
+    end
+
+    reference ===> transformations
+    builders ===> transformations
+    shape_inference ===> transformations
+    itt ===> transformations
+    core_dev ===> transformations
+
+    transformations ---> core_dev
+
+    subgraph lp_transformations [OpenVINO LP transformations]
+        style lp_transformations fill:#6e9f01
+        lp_transformations_api{{LP transformations API}}
+    end
+
+    itt ===> lp_transformations
+    transformations ---> lp_transformations
+    core ---> lp_transformations
+
+
+    subgraph openvino [openvino::runtime]
+        style openvino fill:#cb6969
+        openvino_api{{OpenVINO Public API}}
+    end
+
+    transformations ===> openvino
+    lp_transformations ===> openvino
+    frontend_common ===> openvino
+    reference ===> openvino
+    builders ===> openvino
+    shape_inference ===> openvino
+    core ===> openvino
+
+    frontend_api-.->openvino_api
+    inference_api-.->openvino_api
+    core_api-.->openvino_api
+
+    subgraph openvino_dev [openvino::runtime::dev]
+        style openvino_dev fill:#af8401
+        openvino_dev_api{{OpenVINO developer API}}
+    end
+
+    openvino ===> openvino_dev
+    inference_dev_api-.->openvino_dev_api
+    lp_transformations_api-.->openvino_dev_api
 ```
 
 ## See also

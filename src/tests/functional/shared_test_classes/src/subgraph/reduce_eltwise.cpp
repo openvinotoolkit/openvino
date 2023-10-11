@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/reduce_eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<ReduceEltwiseParamsTuple> &obj) {
     std::vector<size_t> inputShapes;
     std::vector<int> axes;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     bool keepDims;
     InferenceEngine::Precision netPrecision;
     std::string targetName;
     std::tie(inputShapes, axes, opType, keepDims, netPrecision, targetName) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "opType=" << opType << "_";
     if (keepDims) result << "KeepDims_";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -28,23 +28,23 @@ std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<Redu
 void ReduceEltwiseTest::SetUp() {
     std::vector<size_t> inputShape;
     std::vector<int> axes;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     bool keepDims;
     InferenceEngine::Precision netPrecision;
     std::tie(inputShape, axes, opType, keepDims, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
-        case CommonTestUtils::OpType::SCALAR: {
+        case ov::test::utils::OpType::SCALAR: {
             if (axes.size() > 1)
                 FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
             break;
         }
-        case CommonTestUtils::OpType::VECTOR: {
+        case ov::test::utils::OpType::VECTOR: {
             shapeAxes.push_back(axes.size());
             break;
         }

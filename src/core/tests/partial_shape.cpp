@@ -2,15 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/validation_util.hpp"
-#include "util/test_tools.hpp"
+#include "openvino/core/partial_shape.hpp"
 
-using namespace ngraph;
+#include <gtest/gtest.h>
+
+#include "common_test_utils/test_tools.hpp"
+#include "ngraph/shape_util.hpp"
+#include "ngraph/validation_util.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/op/parameter.hpp"
+
+using namespace ov;
 
 TEST(partial_shape, interators) {
-    const PartialShape ps({1, 2, 3});
+    const ov::PartialShape ps({1, 2, 3});
     ASSERT_TRUE(ps.is_static());
     {
         auto p = ps;
@@ -208,12 +214,12 @@ TEST(partial_shape, to_shape_static) {
 
 TEST(partial_shape, to_shape_dims_dynamic) {
     PartialShape ps{2, 4, Dimension::dynamic(), 8};
-    ASSERT_THROW({ ps.to_shape(); }, std::invalid_argument);
+    ASSERT_THROW({ ps.to_shape(); }, ov::Exception);
 }
 
 TEST(partial_shape, to_shape_rank_dynamic) {
     PartialShape ps{PartialShape::dynamic()};
-    ASSERT_THROW({ ps.to_shape(); }, std::invalid_argument);
+    ASSERT_THROW({ ps.to_shape(); }, ov::Exception);
 }
 
 TEST(partial_shape, tensor_descriptor_from_shape) {
@@ -685,30 +691,31 @@ TEST(partial_shape, partial_shape_relaxes_refines_static_static_not_eq) {
     ASSERT_FALSE(s2.relaxes(s1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(partial_shape, partial_shape_project_rank_dynamic) {
     PartialShape s1{PartialShape::dynamic()};
-    PartialShape s2 = project(s1, AxisSet{284, 0, 103});
+    PartialShape s2 = ngraph::project(s1, AxisSet{284, 0, 103});
 
     ASSERT_TRUE(s2.rank().is_dynamic());
 }
 
 TEST(partial_shape, partial_shape_project_rank_static_dynamic) {
     PartialShape s1{Dimension::dynamic(), 2, Dimension::dynamic(), 3};
-    PartialShape s2 = project(s1, AxisSet{0, 3});
+    PartialShape s2 = ngraph::project(s1, AxisSet{0, 3});
 
     ASSERT_TRUE(s2.same_scheme(PartialShape{Dimension::dynamic(), 3}));
 }
 
 TEST(partial_shape, partial_shape_reduce_rank_dynamic) {
     PartialShape s1{PartialShape::dynamic()};
-    PartialShape s2 = reduce(s1, AxisSet{284, 0, 103}, false);
+    PartialShape s2 = ngraph::reduce(s1, AxisSet{284, 0, 103}, false);
 
     ASSERT_TRUE(s2.rank().is_dynamic());
 }
 
 TEST(partial_shape, partial_shape_reduce_rank_static_dynamic) {
     PartialShape s1{Dimension::dynamic(), 2, Dimension::dynamic(), 3};
-    PartialShape s2 = reduce(s1, AxisSet{0, 3}, false);
+    PartialShape s2 = ngraph::reduce(s1, AxisSet{0, 3}, false);
 
     ASSERT_TRUE(s2.same_scheme(PartialShape{2, Dimension::dynamic()}));
 }
@@ -716,14 +723,14 @@ TEST(partial_shape, partial_shape_reduce_rank_static_dynamic) {
 TEST(partial_shape, partial_shape_inject_pairs_rank_dynamic) {
     PartialShape s1{PartialShape::dynamic()};
     PartialShape s2 =
-        inject_pairs(s1, std::vector<std::pair<size_t, Dimension>>{{0, Dimension::dynamic()}, {207, 909}});
+        ngraph::inject_pairs(s1, std::vector<std::pair<size_t, Dimension>>{{0, Dimension::dynamic()}, {207, 909}});
 
     ASSERT_TRUE(s2.rank().is_dynamic());
 }
 
 TEST(partial_shape, partial_shape_inject_pairs_rank_static) {
     PartialShape s1{1, Dimension::dynamic()};
-    PartialShape s2 = inject_pairs(
+    PartialShape s2 = ngraph::inject_pairs(
         s1,
         std::vector<std::pair<size_t, Dimension>>{{0, Dimension::dynamic()}, {2, 909}, {4, Dimension::dynamic()}});
 
@@ -799,7 +806,7 @@ TEST(partial_shape, copy_with_back_inserter_iterator) {
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_ok) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 0, 0};
@@ -808,23 +815,24 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_ok) {
     Strides window_strides{1, 1, 1, 1};
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
-
-    PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                      data_shape,
-                                                                      data_dilation,
-                                                                      data_padding_below,
-                                                                      data_padding_above,
-                                                                      window_shape,
-                                                                      window_strides,
-                                                                      window_dilation,
-                                                                      is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                              data_shape,
+                                                                              data_dilation,
+                                                                              data_padding_below,
+                                                                              data_padding_above,
+                                                                              window_shape,
+                                                                              window_strides,
+                                                                              window_dilation,
+                                                                              is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_data_dilation) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
     Strides data_dilation{1, 1, 0, 1};
     CoordinateDiff data_padding_below{0, 0, 0, 0};
@@ -833,23 +841,25 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_data
     Strides window_strides{1, 1, 1, 1};
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
-            PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                              data_shape,
-                                                                              data_dilation,
-                                                                              data_padding_below,
-                                                                              data_padding_above,
-                                                                              window_shape,
-                                                                              window_strides,
-                                                                              window_dilation,
-                                                                              is_window_all_in_padding_allowed);
+            PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                                      data_shape,
+                                                                                      data_dilation,
+                                                                                      data_padding_below,
+                                                                                      data_padding_above,
+                                                                                      window_shape,
+                                                                                      window_strides,
+                                                                                      window_dilation,
+                                                                                      is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_window_dilation) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 0, 0};
@@ -858,23 +868,25 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_wind
     Strides window_strides{1, 1, 1, 1};
     Strides window_dilation{1, 0, 1, 1};
     bool is_window_all_in_padding_allowed = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
-            PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                              data_shape,
-                                                                              data_dilation,
-                                                                              data_padding_below,
-                                                                              data_padding_above,
-                                                                              window_shape,
-                                                                              window_strides,
-                                                                              window_dilation,
-                                                                              is_window_all_in_padding_allowed);
+            PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                                      data_shape,
+                                                                                      data_dilation,
+                                                                                      data_padding_below,
+                                                                                      data_padding_above,
+                                                                                      window_shape,
+                                                                                      window_strides,
+                                                                                      window_dilation,
+                                                                                      is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_window_strides) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 0, 0};
@@ -883,23 +895,25 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_wind
     Strides window_strides{1, 1, 1, 0};
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
-            PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                              data_shape,
-                                                                              data_dilation,
-                                                                              data_padding_below,
-                                                                              data_padding_above,
-                                                                              window_shape,
-                                                                              window_strides,
-                                                                              window_dilation,
-                                                                              is_window_all_in_padding_allowed);
+            PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                                      data_shape,
+                                                                                      data_dilation,
+                                                                                      data_padding_below,
+                                                                                      data_padding_above,
+                                                                                      window_shape,
+                                                                                      window_strides,
+                                                                                      window_dilation,
+                                                                                      is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ok) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{Dimension::dynamic(), 2, 3, Dimension::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 0, 0};
@@ -909,32 +923,8 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ok
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
-    PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                      data_shape,
-                                                                      data_dilation,
-                                                                      data_padding_below,
-                                                                      data_padding_above,
-                                                                      window_shape,
-                                                                      window_strides,
-                                                                      window_dilation,
-                                                                      is_window_all_in_padding_allowed);
-
-    ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
-}
-
-TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_zero_data_post_padding) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
-    PartialShape data_shape{Dimension::dynamic(), 2, 3, Dimension::dynamic()};
-    Strides data_dilation{1, 1, 1, 1};
-    CoordinateDiff data_padding_below{0, -1, 0, 0};
-    CoordinateDiff data_padding_above{0, -1, 0, 0};
-    PartialShape window_shape{PartialShape::dynamic()};
-    Strides window_strides{1, 1, 1, 1};
-    Strides window_dilation{1, 1, 1, 1};
-    bool is_window_all_in_padding_allowed = true;
-    ASSERT_THROW(
-        {
-            PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
                                                                               data_shape,
                                                                               data_dilation,
                                                                               data_padding_below,
@@ -943,12 +933,40 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ze
                                                                               window_strides,
                                                                               window_dilation,
                                                                               is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
+}
+
+TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_zero_data_post_padding) {
+    auto node = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+    PartialShape data_shape{Dimension::dynamic(), 2, 3, Dimension::dynamic()};
+    Strides data_dilation{1, 1, 1, 1};
+    CoordinateDiff data_padding_below{0, -1, 0, 0};
+    CoordinateDiff data_padding_above{0, -1, 0, 0};
+    PartialShape window_shape{PartialShape::dynamic()};
+    Strides window_strides{1, 1, 1, 1};
+    Strides window_dilation{1, 1, 1, 1};
+    bool is_window_all_in_padding_allowed = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    ASSERT_THROW(
+        {
+            PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                                      data_shape,
+                                                                                      data_dilation,
+                                                                                      data_padding_below,
+                                                                                      data_padding_above,
+                                                                                      window_shape,
+                                                                                      window_strides,
+                                                                                      window_dilation,
+                                                                                      is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_neg_padding_ok) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{Dimension::dynamic(), 4, 3, Dimension::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, -1, 0, 0};
@@ -957,21 +975,23 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ne
     Strides window_strides{1, 1, 1, 1};
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
-    PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                      data_shape,
-                                                                      data_dilation,
-                                                                      data_padding_below,
-                                                                      data_padding_above,
-                                                                      window_shape,
-                                                                      window_strides,
-                                                                      window_dilation,
-                                                                      is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                              data_shape,
+                                                                              data_dilation,
+                                                                              data_padding_below,
+                                                                              data_padding_above,
+                                                                              window_shape,
+                                                                              window_strides,
+                                                                              window_dilation,
+                                                                              is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_ok) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 0, 0};
@@ -981,21 +1001,23 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_ok
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
-    PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                      data_shape,
-                                                                      data_dilation,
-                                                                      data_padding_below,
-                                                                      data_padding_above,
-                                                                      window_shape,
-                                                                      window_strides,
-                                                                      window_dilation,
-                                                                      is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                              data_shape,
+                                                                              data_dilation,
+                                                                              data_padding_below,
+                                                                              data_padding_above,
+                                                                              window_shape,
+                                                                              window_strides,
+                                                                              window_dilation,
+                                                                              is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_window_dim_zero) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 0, 0};
@@ -1005,23 +1027,25 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
-            PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                              data_shape,
-                                                                              data_dilation,
-                                                                              data_padding_below,
-                                                                              data_padding_above,
-                                                                              window_shape,
-                                                                              window_strides,
-                                                                              window_dilation,
-                                                                              is_window_all_in_padding_allowed);
+            PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                                      data_shape,
+                                                                                      data_dilation,
+                                                                                      data_padding_below,
+                                                                                      data_padding_above,
+                                                                                      window_shape,
+                                                                                      window_strides,
+                                                                                      window_dilation,
+                                                                                      is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_window_dilated_dim_zero) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 0, 0};
@@ -1031,23 +1055,25 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
     Strides window_dilation{1, 1, 3, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
-            PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                              data_shape,
-                                                                              data_dilation,
-                                                                              data_padding_below,
-                                                                              data_padding_above,
-                                                                              window_shape,
-                                                                              window_strides,
-                                                                              window_dilation,
-                                                                              is_window_all_in_padding_allowed);
+            PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                                      data_shape,
+                                                                                      data_dilation,
+                                                                                      data_padding_below,
+                                                                                      data_padding_above,
+                                                                                      window_shape,
+                                                                                      window_strides,
+                                                                                      window_dilation,
+                                                                                      is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_window_all_in_padding_ok) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 3, 0};
@@ -1057,21 +1083,23 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
-    PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                      data_shape,
-                                                                      data_dilation,
-                                                                      data_padding_below,
-                                                                      data_padding_above,
-                                                                      window_shape,
-                                                                      window_strides,
-                                                                      window_dilation,
-                                                                      is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                              data_shape,
+                                                                              data_dilation,
+                                                                              data_padding_below,
+                                                                              data_padding_above,
+                                                                              window_shape,
+                                                                              window_strides,
+                                                                              window_dilation,
+                                                                              is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_window_all_in_padding_not_ok) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 3, 0};
@@ -1081,23 +1109,25 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = false;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
-            PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                              data_shape,
-                                                                              data_dilation,
-                                                                              data_padding_below,
-                                                                              data_padding_above,
-                                                                              window_shape,
-                                                                              window_strides,
-                                                                              window_dilation,
-                                                                              is_window_all_in_padding_allowed);
+            PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                                      data_shape,
+                                                                                      data_dilation,
+                                                                                      data_padding_below,
+                                                                                      data_padding_above,
+                                                                                      window_shape,
+                                                                                      window_strides,
+                                                                                      window_dilation,
+                                                                                      is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_dilated_window_not_all_in_padding) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 3, 0};
@@ -1107,21 +1137,23 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_di
     Strides window_dilation{1, 1, 2, 1};
     bool is_window_all_in_padding_allowed = false;
 
-    PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                      data_shape,
-                                                                      data_dilation,
-                                                                      data_padding_below,
-                                                                      data_padding_above,
-                                                                      window_shape,
-                                                                      window_strides,
-                                                                      window_dilation,
-                                                                      is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                              data_shape,
+                                                                              data_dilation,
+                                                                              data_padding_below,
+                                                                              data_padding_above,
+                                                                              window_shape,
+                                                                              window_strides,
+                                                                              window_dilation,
+                                                                              is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dynamic_ok) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{Dimension::dynamic(), Dimension::dynamic(), 6, 4};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 0, 0};
@@ -1131,22 +1163,24 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
-    PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                      data_shape,
-                                                                      data_dilation,
-                                                                      data_padding_below,
-                                                                      data_padding_above,
-                                                                      window_shape,
-                                                                      window_strides,
-                                                                      window_dilation,
-                                                                      is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                              data_shape,
+                                                                              data_dilation,
+                                                                              data_padding_below,
+                                                                              data_padding_above,
+                                                                              window_shape,
+                                                                              window_strides,
+                                                                              window_dilation,
+                                                                              is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(
         result_shape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 4, Dimension::dynamic()}));
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dynamic_with_padding_ok) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{Dimension::dynamic(), Dimension::dynamic(), 6, 4};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 2, 0};
@@ -1156,22 +1190,24 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
-    PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                      data_shape,
-                                                                      data_dilation,
-                                                                      data_padding_below,
-                                                                      data_padding_above,
-                                                                      window_shape,
-                                                                      window_strides,
-                                                                      window_dilation,
-                                                                      is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                              data_shape,
+                                                                              data_dilation,
+                                                                              data_padding_below,
+                                                                              data_padding_above,
+                                                                              window_shape,
+                                                                              window_strides,
+                                                                              window_dilation,
+                                                                              is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(
         result_shape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 5, Dimension::dynamic()}));
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dynamic_with_padding_and_stride_ok) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{Dimension::dynamic(), Dimension::dynamic(), 6, 4};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 2, 0};
@@ -1181,22 +1217,24 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
-    PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                      data_shape,
-                                                                      data_dilation,
-                                                                      data_padding_below,
-                                                                      data_padding_above,
-                                                                      window_shape,
-                                                                      window_strides,
-                                                                      window_dilation,
-                                                                      is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                              data_shape,
+                                                                              data_dilation,
+                                                                              data_padding_below,
+                                                                              data_padding_above,
+                                                                              window_shape,
+                                                                              window_strides,
+                                                                              window_dilation,
+                                                                              is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(
         result_shape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, Dimension::dynamic()}));
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dynamic_window_too_big) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{Dimension::dynamic(), Dimension::dynamic(), 6, 4};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 0, 0};
@@ -1206,23 +1244,25 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
-            PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                              data_shape,
-                                                                              data_dilation,
-                                                                              data_padding_below,
-                                                                              data_padding_above,
-                                                                              window_shape,
-                                                                              window_strides,
-                                                                              window_dilation,
-                                                                              is_window_all_in_padding_allowed);
+            PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                                      data_shape,
+                                                                                      data_dilation,
+                                                                                      data_padding_below,
+                                                                                      data_padding_above,
+                                                                                      window_shape,
+                                                                                      window_strides,
+                                                                                      window_dilation,
+                                                                                      is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dynamic_window_not_too_big_padding) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{Dimension::dynamic(), Dimension::dynamic(), 6, 4};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 5, 0};
@@ -1232,22 +1272,24 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
-    PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                      data_shape,
-                                                                      data_dilation,
-                                                                      data_padding_below,
-                                                                      data_padding_above,
-                                                                      window_shape,
-                                                                      window_strides,
-                                                                      window_dilation,
-                                                                      is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                              data_shape,
+                                                                              data_dilation,
+                                                                              data_padding_below,
+                                                                              data_padding_above,
+                                                                              window_shape,
+                                                                              window_strides,
+                                                                              window_dilation,
+                                                                              is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(
         result_shape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 2, Dimension::dynamic()}));
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dynamic_window_dilated_too_big) {
-    auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     PartialShape data_shape{Dimension::dynamic(), Dimension::dynamic(), 6, 4};
     Strides data_dilation{1, 1, 1, 1};
     CoordinateDiff data_padding_below{0, 0, 5, 0};
@@ -1257,17 +1299,19 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 2, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
-            PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
-                                                                              data_shape,
-                                                                              data_dilation,
-                                                                              data_padding_below,
-                                                                              data_padding_above,
-                                                                              window_shape,
-                                                                              window_strides,
-                                                                              window_dilation,
-                                                                              is_window_all_in_padding_allowed);
+            PartialShape result_shape = ngraph::infer_windowed_reduction_output_shape(node.get(),
+                                                                                      data_shape,
+                                                                                      data_dilation,
+                                                                                      data_padding_below,
+                                                                                      data_padding_above,
+                                                                                      window_shape,
+                                                                                      window_strides,
+                                                                                      window_dilation,
+                                                                                      is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2022 Intel Corporation
+# Copyright 2017-2023 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 # ******************************************************************************
 #
 #
-# FindNGraph
+# ngraph config file
 # ------
 #
 # This script defines the following variables and imported targets:
@@ -42,9 +42,11 @@
 
 include(CMakeFindDependencyMacro)
 
+message(WARNING "find_package(ngraph) is deprecated and will be removed in 2024.0 release. Please, use find_package(OpenVINO)")
+
 find_dependency(OpenVINO
                 PATHS "${CMAKE_CURRENT_LIST_DIR}"
-                      "${CMAKE_CURRENT_LIST_DIR}/ngraph"
+                      "${CMAKE_CURRENT_LIST_DIR}/../openvino${ngraph_VERSION}"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 

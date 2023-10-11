@@ -35,7 +35,9 @@ public:
                                               intel_dnn_number_type_t number_type,
                                               uint32_t listsize,
                                               uint32_t num_row);
-    static void ApplyMaxPoolTransform(intel_dnn_component_t* component, intel_dnn_number_type_t number_type);
+    static void ApplyMaxPoolTransform(intel_dnn_component_t* component,
+                                      intel_dnn_number_type_t number_type,
+                                      const bool fused_with_convolution_2d);
     static void ApplyTranspose(intel_dnn_component_t* component);
     static void ApplyCopy(intel_dnn_component_t* component);
 };

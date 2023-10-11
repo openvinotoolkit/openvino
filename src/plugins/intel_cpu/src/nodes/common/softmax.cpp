@@ -9,7 +9,7 @@
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include <onednn/dnnl.h>
 #include "utils/bfloat16.hpp"
-#include "emitters/jit_bf16_emitters.hpp"
+#include "emitters/x64/jit_bf16_emitters.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -50,7 +50,7 @@ struct jit_uni_softmax_kernel {
 
     virtual void create_ker() = 0;
 };
-
+#if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_softmax_kernel_f32)
@@ -226,7 +226,7 @@ private:
         }
     }
 };
-
+#endif
 SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     : input_prec(inpPrc), output_prec(outPrc) {
     if (Precision::BF16 == output_prec) {
@@ -236,6 +236,7 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     }
 
     block_size = 1;
+#if defined(OPENVINO_ARCH_X86_64)
     auto jcp = jit_softmax_config_params();
     jcp.src_dt = inpPrc;
     jcp.dst_dt = outPrc;
@@ -252,12 +253,14 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     }
     if (softmax_kernel)
         softmax_kernel->create_ker();
+#endif
 }
 
 template<typename in_data_t, typename out_data_t>
 void SoftmaxGeneric::calculate(const in_data_t *src_data, out_data_t *dst_data, int B, int C, int H, int W) {
     for (int b = 0; b < B; b++) {
         int tail_start = 0;
+
         if (softmax_kernel) {
             int blocks_num = H*W / block_size;
 

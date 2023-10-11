@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/matrix_nms.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -27,9 +27,10 @@ std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<Nms
     TopKParams topKParams;
     ThresholdParams thresholdParams;
     bool normalized;
+    bool outStaticShape;
     std::string targetDevice;
     std::tie(shapes, inPrecisions, sortResultType, outType, topKParams, thresholdParams,
-        backgroudClass, normalized, decayFunction, targetDevice) = obj.param;
+        backgroudClass, normalized, decayFunction, outStaticShape, targetDevice) = obj.param;
 
     ElementType paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -43,12 +44,12 @@ std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<Nms
     std::ostringstream result;
     result << "IS=(";
     for (const auto& shape : shapes) {
-        result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        result << ov::test::utils::partialShape2str({shape.first}) << "_";
     }
     result << ")_TS=(";
     for (const auto& shape : shapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
 
@@ -57,7 +58,7 @@ std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<Nms
     result << "outType=" << outType << "_nmsTopK=" << nmsTopK << "_keepTopK=" << keepTopK << "_";
     result << "backgroudClass=" << backgroudClass << "_decayFunction=" << decayFunction << "_";
     result << "score_threshold=" << score_threshold << "_gaussian_sigma=" << gaussian_sigma << "_";
-    result << "post_threshold=" << post_threshold << "_TargetDevice=" << targetDevice;
+    result << "post_threshold=" << post_threshold << "_outStaticShape=" << outStaticShape <<"_TargetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -305,43 +306,24 @@ void MatrixNmsLayerTest::SetUp() {
     ThresholdParams thresholdParams;
 
     std::tie(shapes, inPrecisions, m_attrs.sort_result_type, m_attrs.output_type, topKParams, thresholdParams,
-        m_attrs.background_class, m_attrs.normalized, m_attrs.decay_function, targetDevice) = this->GetParam();
+        m_attrs.background_class, m_attrs.normalized, m_attrs.decay_function, m_outStaticShape, targetDevice) = this->GetParam();
 
     std::tie(m_attrs.nms_top_k, m_attrs.keep_top_k) = topKParams;
     std::tie(m_attrs.score_threshold, m_attrs.gaussian_sigma, m_attrs.post_threshold) = thresholdParams;
 
     init_input_shapes(shapes);
 
-    // input is dynamic shape -> output will be dynamic shape
-    // input is static shape -> output will be static shape
-    const auto inputDynamicParam = {shapes[0].first, shapes[1].first};
-    m_outStaticShape = std::any_of(inputDynamicParam.begin(), inputDynamicParam.end(), [](const ov::PartialShape& shape) {
-        return shape.rank() == 0;
-    });
-
     ElementType paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
-    const auto params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(paramsPrec, shape));
+    }
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], m_attrs);
 
-    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
-        function = std::make_shared<Function>(nms, params, "MatrixNMS");
-    } else if (!m_outStaticShape) {
-        auto result = std::make_shared<opset5::Result>(nms);
-        function = std::make_shared<Function>(result, params, "MatrixNMS");
-    } else {
-        auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
-        auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(m_attrs.output_type, Shape{1}, {1}));
-        auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(m_attrs.output_type, Shape{1}, {1}));
-        OutputVector results = {
-            std::make_shared<opset5::Result>(nms_0_identity),
-            std::make_shared<opset5::Result>(nms_1_identity),
-            std::make_shared<opset5::Result>(nms_2_identity)
-        };
-        function = std::make_shared<Function>(results, params, "MatrixNMS");
-    }
+    function = std::make_shared<Function>(nms, params, "MatrixNMS");
 }
 
 } // namespace subgraph

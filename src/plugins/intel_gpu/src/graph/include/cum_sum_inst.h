@@ -15,7 +15,6 @@ public:
     using parent::parent;
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
-    size_t inputs_count() const { return get_dependencies().size(); }
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };

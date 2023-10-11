@@ -19,7 +19,7 @@ It is possible because not all interface symbols of OpenVINO Runtime libraries a
 
 ## System requirements
 
-* CMake version 3.17 or higher must be used to build static OpenVINO libraries.
+* CMake version 3.18 or higher must be used to build static OpenVINO libraries.
 * Supported OSes:
     * Windows x64
     * Linux x64
@@ -135,7 +135,7 @@ cmake -DCMAKE_TOOLCHAIN_FILE=<openvino source dir>/cmake/toolchains/mt.runtime.w
 
 * The enabled and tested capabilities of OpenVINO Runtime in a static build:
     * OpenVINO common runtime - work with `ov::Model`, perform model loading on particular device
-    * CPU and GNA inference plugins (**GPU and MYRIAD are not enabled**)
+    * CPU and GNA inference plugins (**GPU is not enabled**)
     * MULTI, HETERO, AUTO, and BATCH inference modes
     * IR, ONNX, PDPD, and TF frontends to read `ov::Model`
 * Static build support for building static libraries only for OpenVINO Runtime libraries. All other third-party prebuilt dependencies remain in the same format:

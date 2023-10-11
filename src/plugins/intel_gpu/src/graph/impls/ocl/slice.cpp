@@ -72,7 +72,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         kInputsNum
     };
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::slice_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<slice_impl>(*this);
@@ -107,6 +107,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         params.start = std::move(selected_start);
         params.end = std::move(selected_end);
         params.step = std::move(selected_step);
+        params.set_dynamic_shape_offsets();
         auto &kernel_selector =
                 kernel_selector::slice_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
@@ -140,3 +141,4 @@ attach_slice_impl::attach_slice_impl() {
 } // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::slice_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::slice)

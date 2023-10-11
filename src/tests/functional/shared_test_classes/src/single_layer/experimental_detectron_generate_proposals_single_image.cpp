@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/experimental_detectron_generate_proposals_single_image.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
@@ -75,7 +75,10 @@ void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
 
     init_input_shapes(inputShapes);
 
-    auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+    }
     auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto experimentalDetectron = std::make_shared<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(
         params[0], // im_info
@@ -95,7 +98,7 @@ void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::generate_inputs
     const auto& funcInputs = function->inputs();
     for (auto i = 0ul; i < funcInputs.size(); ++i) {
         if (targetInputStaticShapes[i] != inputTensors.second[i].get_shape()) {
-            throw Exception("input shape is different from tensor shape");
+            OPENVINO_THROW("input shape is different from tensor shape");
         }
 
         inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors.second[i]});

@@ -18,8 +18,11 @@
 #include <stdexcept>
 #include <algorithm>
 
-#if defined(_WIN32) && !defined(__GNUC__)
-#include <windows.h>
+#if defined(_WIN32)
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif
+# include <windows.h>
 
 static size_t get_cpu_ram_size() {
     MEMORYSTATUSEX s {};
@@ -28,15 +31,15 @@ static size_t get_cpu_ram_size() {
     return s.ullTotalPhys;
 }
 #elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__QNXNTO__)
-#include <unistd.h>
-#include <sys/sysctl.h>
+# include <unistd.h>
+# include <sys/sysctl.h>
 
 static size_t get_cpu_ram_size() {
-#ifdef __APPLE__
+# ifdef __APPLE__
     int query_ram[] = {CTL_HW, HW_MEMSIZE};
-#else
+# else
     int query_ram[] = {CTL_HW, HW_PHYSMEM};
-#endif
+# endif
     int query_ram_len = sizeof(query_ram) / sizeof(*query_ram);
     size_t totalram = 0;
     size_t length = sizeof(totalram);
@@ -45,7 +48,7 @@ static size_t get_cpu_ram_size() {
     return totalram;
 }
 #else
-#include <sys/sysinfo.h>
+# include <sys/sysinfo.h>
 
 static size_t get_cpu_ram_size() {
     struct sysinfo s {};
@@ -79,8 +82,16 @@ bool engine::use_unified_shared_memory() const {
 }
 
 uint64_t engine::get_max_memory_size() const {
-    static uint64_t max_device_mem = (std::max)(get_device_info().max_global_mem_size, static_cast<uint64_t>(get_cpu_ram_size()));
+    static uint64_t max_device_mem = get_host_memory_size();
+    const auto& dev_type = get_device_info().dev_type;
+    if (dev_type == device_type::discrete_gpu) {
+        max_device_mem += get_device_info().max_global_mem_size;
+    }
     return max_device_mem;
+}
+
+uint64_t engine::get_host_memory_size() const {
+    return static_cast<uint64_t>(get_cpu_ram_size());
 }
 
 bool engine::supports_allocation(allocation_type type) const {
@@ -264,6 +275,9 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type) {
     device_query query(engine_type, runtime_type);
     auto devices = query.get_available_devices();
+
+    OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"
+                                      "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
 
     auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "shared_test_classes/subgraph/clamp_fq.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -23,9 +23,9 @@ namespace SubgraphTestsDefinitions {
         std::tie(levels, constShape, clampMinMax, inputParams) = fqParams;
 
         std::ostringstream result;
-        result << "InputShape=" << CommonTestUtils::vec2str(inputShapes) << "_";
-        result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
-        result << "LEVELS=" << CommonTestUtils::vec2str(levels) << "_";
+        result << "InputShape=" << ov::test::utils::vec2str(inputShapes) << "_";
+        result << "CS=" << ov::test::utils::vec2str(constShape) << "_";
+        result << "LEVELS=" << ov::test::utils::vec2str(levels) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "inPRC=" << inPrc.name() << "_";
         result << "outPRC=" << outPrc.name() << "_";
@@ -61,7 +61,7 @@ namespace SubgraphTestsDefinitions {
             inputDataResolution = inputArg[2];
         }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         auto clamp = std::make_shared<ngraph::opset1::Clamp>(paramOuts[0], clamp_min_max[0], clamp_min_max[1]);

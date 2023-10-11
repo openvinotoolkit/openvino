@@ -12,6 +12,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "op/mod.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -30,7 +31,7 @@ OutputVector mod(const Node& node) {
                      "must be set to 1.");
         output = {std::make_shared<default_opset::FloorMod>(dividend, divisor)};
     } else {
-        throw ngraph_error("Unsupported value of 'fmod' attribute (should be: 0 or 1)");
+        OPENVINO_THROW("Unsupported value of 'fmod' attribute (should be: 0 or 1)");
     }
     return output;
 }
@@ -42,3 +43,4 @@ OutputVector mod(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

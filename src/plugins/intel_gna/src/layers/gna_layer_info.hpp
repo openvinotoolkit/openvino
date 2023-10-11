@@ -297,13 +297,16 @@ public:
         return isOfType("FakeQuantize");
     }
     bool isNonFunctional() const {
-        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
+        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute() || is_gather();
     }
     bool isReshape() const noexcept {
         return isOfType("reshape");
     }
     bool isPermute() const noexcept {
         return isOfType("permute");
+    }
+    bool is_gather() const noexcept {
+        return isOfType("gather");
     }
     bool isPermuteFusable() const noexcept {
         return isPermute() &&
@@ -349,6 +352,9 @@ public:
     bool isNonValuesChangable() const {
         return isNonFunctional() || isSplit() || isSlice() || isConcat();
     }
+    bool is_fq_non_sensitive() const {
+        return isPermute() || isNonFunctional();
+    }
     bool isPooling() const noexcept {
         return isOfType("pooling");
     }
@@ -379,7 +385,7 @@ public:
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer*>(layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
             const auto crop_params = GetCropParams(cropLayer);
-            return limitations::isCropAffinedOffset(crop_params.start_offset);
+            return limitations::Limitations::get_instance()->is_crop_affined_offset(crop_params.start_offset);
         }
         return false;
     }

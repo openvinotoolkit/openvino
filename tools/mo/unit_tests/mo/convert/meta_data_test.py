@@ -5,7 +5,6 @@ import os
 import tempfile
 from pathlib import Path
 
-from generator import generator
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import serialize
 
@@ -18,7 +17,6 @@ from utils import save_to_onnx
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 
 
-@generator
 class MetaDataTest(UnitTestWithMockedTelemetry):
     test_directory = os.path.dirname(os.path.realpath(__file__))
 
@@ -76,16 +74,16 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
             for key, value in ref_meta.items():
                 if key == 'conversion_parameters':
                     for param_name, param_value in value.items():
-                        val = ov_model.get_rt_info([key, param_name])
+                        val = ov_model.get_rt_info([key, param_name]).astype(str)
                         if param_name in ['extensions', 'caffe_parser_path', 'input_model', 'k', 'output_dir']:
                             val = Path(val)
                         assert val == param_value, \
                             "Runtime info attribute with name {} does not match. Expected: {}, " \
                             "got {}".format(param_name, param_value, val)
                     continue
-                assert str(ov_model.get_rt_info(key)) == value, \
+                assert ov_model.get_rt_info(key).astype(str) == value, \
                     "Runtime info attribute with name {} does not match. Expected: {}, " \
-                    "got {}".format(key, value, ov_model.get_rt_info(key))
+                    "got {}".format(key, value, ov_model.get_rt_info(key).astype(str))
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
 

@@ -3,19 +3,22 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# exit when any command fails
+set -e
+
 usage() {
     echo "Build OpenVINO Runtime samples"
     echo
     echo "Options:"
     echo "  -h                       Print the help message"
-    echo "  -b SAMPLE_BUILD_DIR      Specify the sample build directory"
-    echo "  -i SAMPLE_INSTALL_DIR    Specify the sample install directory"
+    echo "  -b SAMPLES_BUILD_DIR     Specify the samples build directory"
+    echo "  -i SAMPLES_INSTALL_DIR   Specify the samples install directory"
     echo
     exit 1
 }
 
 samples_type="$(basename "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
-build_dir="$HOME/openvino_${samples_type}_samples_build"
+samples_build_dir="$HOME/openvino_${samples_type}_samples_build"
 sample_install_dir=""
 
 # parse command line options
@@ -23,7 +26,7 @@ while [[ $# -gt 0 ]]
 do
 case "$1" in
     -b | --build_dir)
-    build_dir="$2"
+    samples_build_dir="$2"
     shift
     ;;
     -i | --install_dir)
@@ -52,21 +55,25 @@ error() {
 }
 trap 'error ${LINENO}' ERR
 
-SAMPLES_PATH="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" && pwd )"
+SAMPLES_SOURCE_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" && pwd )"
 printf "\nSetting environment variables for building samples...\n"
 
 if [ -z "$INTEL_OPENVINO_DIR" ]; then
-    if [[ "$SAMPLES_PATH" = "/usr/share/openvino"* ]]; then
+    if [[ "$SAMPLES_SOURCE_DIR" = "/usr/share/openvino"* ]]; then
         true
-    elif [ -e "$SAMPLES_PATH/../../setupvars.sh" ]; then
-        setvars_path="$SAMPLES_PATH/../../setupvars.sh"
-        source "$setvars_path" || true
+    elif [ -e "$SAMPLES_SOURCE_DIR/../../setupvars.sh" ]; then
+        setupvars_path="$SAMPLES_SOURCE_DIR/../../setupvars.sh"
+        # shellcheck source=/dev/null
+        source "$setupvars_path" || true
     else
-        printf "Error: Failed to set the environment variables automatically. To fix, run the following command:\n source <INSTALL_DIR>/setupvars.sh\n where INSTALL_DIR is the OpenVINO installation directory.\n\n"
+        printf "Failed to set the environment variables automatically. To fix, run the following command:"
+        printf "source <INTEL_OPENVINO_DIR>/setupvars.sh"
+        printf "where INTEL_OPENVINO_DIR is the OpenVINO installation directory"
         exit 1
     fi
 else
     # case for run with `sudo -E`
+    # shellcheck source=/dev/null
     source "$INTEL_OPENVINO_DIR/setupvars.sh" || true
 fi
 
@@ -84,21 +91,22 @@ OS_PATH=$(uname -m)
 NUM_THREADS=2
 
 if [ "$OS_PATH" == "x86_64" ]; then
-  OS_PATH="intel64"
-  NUM_THREADS=8
+    OS_PATH="intel64"
+    NUM_THREADS=8
 fi
 
-if [ -e "$build_dir/CMakeCache.txt" ]; then
-  rm -rf "$build_dir/CMakeCache.txt"
+if [ -e "$samples_build_dir/CMakeCache.txt" ]; then
+    rm -rf "$samples_build_dir/CMakeCache.txt"
 fi
 
-mkdir -p "$build_dir"
-$CMAKE_EXEC -DCMAKE_BUILD_TYPE=Release -S "$SAMPLES_PATH" -B "$build_dir"
-$CMAKE_EXEC --build "$build_dir" --config Release --parallel $NUM_THREADS
+mkdir -p "$samples_build_dir"
+cd "$samples_build_dir"
+$CMAKE_EXEC -DCMAKE_BUILD_TYPE=Release "$SAMPLES_SOURCE_DIR"
+$CMAKE_EXEC --build "$samples_build_dir" --config Release -- -j $NUM_THREADS
 
 if [ "$sample_install_dir" != "" ]; then
-    $CMAKE_EXEC -DCMAKE_INSTALL_PREFIX="$sample_install_dir" -DCOMPONENT=samples_bin -P "$build_dir/cmake_install.cmake"
+    $CMAKE_EXEC -DCMAKE_INSTALL_PREFIX="$sample_install_dir" -DCOMPONENT=samples_bin -P cmake_install.cmake
     printf "\nBuild completed, you can find binaries for all samples in the %s/samples_bin subfolder.\n\n" "$sample_install_dir"
 else
-    printf "\nBuild completed, you can find binaries for all samples in the $build_dir/%s/Release subfolder.\n\n" "$OS_PATH"
+    printf "\nBuild completed, you can find binaries for all samples in the $samples_build_dir/%s/Release subfolder.\n\n" "$OS_PATH"
 fi

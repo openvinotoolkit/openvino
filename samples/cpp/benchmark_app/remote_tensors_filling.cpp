@@ -40,8 +40,10 @@ void fill_buffer_random(void* inputBuffer,
 void fill_buffer(void* inputBuffer, size_t elementsNum, const ov::element::Type& type) {
     if (type == ov::element::f32) {
         fill_buffer_random<float, float>(inputBuffer, elementsNum);
+    } else if (type == ov::element::f64) {
+        fill_buffer_random<double, double>(inputBuffer, elementsNum);
     } else if (type == ov::element::f16) {
-        fill_buffer_random<short, short>(inputBuffer, elementsNum);
+        fill_buffer_random<ov::float16, float>(inputBuffer, elementsNum);
     } else if (type == ov::element::i32) {
         fill_buffer_random<int32_t, int32_t>(inputBuffer, elementsNum);
     } else if (type == ov::element::i64) {

@@ -15,7 +15,7 @@ namespace v3 {
 ///
 class OPENVINO_API Asinh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Asinh", "opset4", util::UnaryElementwiseArithmetic, 3);
+    OPENVINO_OP("Asinh", "opset4", util::UnaryElementwiseArithmetic);
 
     /// \brief Constructs an Asinh operation.
     Asinh() = default;
@@ -32,9 +32,7 @@ public:
     bool visit_attributes(AttributeVisitor&) override {
         return true;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 };
 }  // namespace v3

@@ -8,7 +8,7 @@
 
 #include <queue>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/opsets/opset9.hpp"
 
 using namespace std;
@@ -96,10 +96,10 @@ shared_ptr<Model> gen_reference(WeightsFormat format,
     auto WRh = make_shared<Parameter>(f32, Shape{hidden_size, input_size + hidden_size});
     ParameterVector params = {X, H, WR, WRh};
 
-    shared_ptr<Node> Bzr = make_shared<Constant>(f32, Shape{1, 2 * hidden_size}, 0);
+    shared_ptr<Node> B = make_shared<Constant>(f32, Shape{1, 2 * hidden_size}, 0);
     if (use_bias_add_1) {
-        Bzr = make_shared<Parameter>(f32, Shape{1, 2 * hidden_size});
-        params.push_back(dynamic_pointer_cast<Parameter>(Bzr));
+        B = make_shared<Parameter>(f32, Shape{1, 2 * hidden_size});
+        params.push_back(dynamic_pointer_cast<Parameter>(B));
     }
     shared_ptr<Node> Bh = make_shared<Constant>(f32, Shape{1, hidden_size}, 0);
     if (use_bias_add_2) {
@@ -112,11 +112,12 @@ shared_ptr<Model> gen_reference(WeightsFormat format,
     auto split_lenghts = make_shared<Constant>(i64, Shape{2}, vector<size_t>{input_size, hidden_size});
     auto split_WRh = make_shared<VariadicSplit>(WRh, axis_1, split_lenghts);
 
-    Output<Node> Wzrh, Rzrh;
+    Output<Node> Wzrh, Rzrh, Bzrh;
     if (format == WeightsFormat::zr) {
         auto split_WRzr = make_shared<VariadicSplit>(WR, axis_1, split_lenghts);
         Wzrh = make_shared<Concat>(OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
         Rzrh = make_shared<Concat>(OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
+        Bzrh = make_shared<Concat>(OutputVector{B, Bh}, 1);
     } else {
         auto split_WRrz = make_shared<VariadicSplit>(WR, axis_1, split_lenghts);
         auto split_W_r_z = make_shared<Split>(split_WRrz->output(0), axis_0, 2);
@@ -125,10 +126,11 @@ shared_ptr<Model> gen_reference(WeightsFormat format,
             make_shared<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
         Rzrh =
             make_shared<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
+        auto split_B_r_z = make_shared<Split>(B, axis_1, 2);
+        Bzrh = make_shared<Concat>(OutputVector{split_B_r_z->output(1), split_B_r_z->output(0), Bh}, 1);
     }
-    auto B = make_shared<Concat>(OutputVector{Bzr, Bh}, 1);
 
-    auto squeeze_B = make_shared<Squeeze>(B, axis_0);
+    auto squeeze_B = make_shared<Squeeze>(Bzrh, axis_0);
     auto cell =
         make_shared<GRUCell>(X, H, Wzrh, Rzrh, squeeze_B, hidden_size, vector<string>{activation_1, activation_2});
     return make_shared<Model>(OutputVector{cell}, params);
@@ -201,13 +203,13 @@ static const vector<GRUFusionParams> params = {
     GRUFusionParams{WeightsFormat::zr, "tanh", "sigmoid", 2, 128, 32, true, true},
     GRUFusionParams{WeightsFormat::zr, "tanh", "tanh", 2, 128, 32, true, false},
     GRUFusionParams{WeightsFormat::zr, "sigmoid", "relu", 2, 128, 32, false, false},
+    GRUFusionParams{WeightsFormat::zr, "relu", "tanh", 2, 128, 32, false, true},
     GRUFusionParams{WeightsFormat::rz, "sigmoid", "tanh", 1, 1, 1, true, true},
     GRUFusionParams{WeightsFormat::rz, "tanh", "sigmoid", 2, 128, 32, true, true},
+    GRUFusionParams{WeightsFormat::rz, "relu", "sigmoid", 2, 128, 32, true, true},
     GRUFusionParams{WeightsFormat::rz, "tanh", "tanh", 2, 128, 32, true, false},
     GRUFusionParams{WeightsFormat::rz, "sigmoid", "relu", 2, 128, 32, false, false},
-    // 92424: accuracy issue, it looks like the test infrastructure issue, the graphs are the same.
-    // GRUFusionParams{WeightsFormat::zr, "relu", "tanh", 2, 128, 32, false, true},
-    // GRUFusionParams{WeightsFormat::rz, "relu", "tanh", 2, 128, 32, false, true},
+    GRUFusionParams{WeightsFormat::rz, "relu", "tanh", 2, 128, 32, false, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(GRUFusionTest, GRUFusionTest, ValuesIn(params));

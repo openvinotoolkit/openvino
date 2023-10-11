@@ -10,8 +10,9 @@
 #include <memory>
 #include <ngraph/op/util/attr_types.hpp>
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -26,6 +27,7 @@ using GRUSequenceParams = typename std::tuple<
         float,                                    // clip
         bool,                                     // linear_before_reset
         ngraph::op::RecurrentSequenceDirection,   // direction
+        ngraph::helpers::InputLayerType,          // WRB input type (Constant or Parameter)
         InferenceEngine::Precision,               // Network precision
         std::string>;                             // Device name
 

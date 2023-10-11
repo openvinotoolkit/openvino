@@ -16,9 +16,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvAdd, ConvEltwise,
         ::testing::Values(convInputShape),
         ::testing::Values(convInputShape),
         ::testing::Values(std::shared_ptr<ov::Node> (std::make_shared<ov::op::v1::Add>())), // non-tokenizable
-        ::testing::Values(6), // num nodes = 6: Convert + Convolution + 4 Reorders on Convs in&outs
+        ::testing::Values(5), // num nodes = 5: Convert + Convolution + 3 Reorders on Convs in&outs
         ::testing::Values(0), // num subgraphs = 0: No subgraph since all ops eltwises fused into Convolution
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ConvEltwise::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvMul, ConvEltwise,
@@ -26,9 +26,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvMul, ConvEltwise,
         ::testing::Values(convInputShape),
         ::testing::Values(convInputShape),
         ::testing::Values(std::shared_ptr<ov::Node> (std::make_shared<ov::op::v1::Multiply>())), // fully-tokenizable
-        ::testing::Values(7), //num nodes = 7: Convert + Convolution + Subgraph + Reorders
+        ::testing::Values(6), //num nodes = 6: Convert + Convolution + Subgraph + Reorders
         ::testing::Values(1), // num subgraphs = 1: Mul (2 inputs) can't be fused into Conv => Subgraph is created
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ConvEltwise::getTestCaseName);
 }  // namespace
 } // namespace snippets

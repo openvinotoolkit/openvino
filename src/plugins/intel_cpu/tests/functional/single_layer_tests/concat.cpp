@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
@@ -31,14 +31,14 @@ public:
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             if (!shape.second.empty()) {
                 for (const auto& itr : shape.second) {
-                    result << CommonTestUtils::vec2str(itr);
+                    result << ov::test::utils::vec2str(itr);
                 }
             }
             result << ")_";
@@ -65,7 +65,7 @@ protected:
     size_t inferNum = 0;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         int axis;
         std::vector<InputShape> inputShape;
@@ -78,7 +78,10 @@ protected:
 
         init_input_shapes(inputShape);
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
@@ -632,31 +635,84 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D_dynamic, ConcatLayerCPUTest,
 INSTANTIATE_TEST_SUITE_P(concat_Concat4D_CPU_Block8inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(0, 1),
-                                ::testing::Values(static_shapes_to_test_representation({{1, 8, 3, 5}, {1, 8, 3, 5}})),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(planar_4D, planarChannels_4D, blocked8_4D)),
+                                ::testing::Values(std::vector<InputShape>{
+                                                      {{}, {{1, 16, 5, 7}}},
+                                                      {{}, {{1, 16, 5, 7}}},
+                                                      {{}, {{1, 16, 5, 7}}},
+                                                  },
+                                                  std::vector<InputShape>{
+                                                      {{1, 16, -1, -1}, {{1, 16, 5, 7}, {1, 16, 16, 2}, {1, 16, 2, 8}}},
+                                                      {{1, 16, -1, -1}, {{1, 16, 5, 7}, {1, 16, 16, 2}, {1, 16, 2, 8}}},
+                                                      {{1, 16, -1, -1}, {{1, 16, 5, 7}, {1, 16, 16, 2}, {1, 16, 2, 8}}},
+                                                  }),
+                                ::testing::Values(ElementType::f32),
+                                ::testing::Values(planar_4D, blocked8_4D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16inPlace, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16inPlace_0, ConcatLayerCPUTest,
                         ::testing::Combine(
-                                ::testing::Values(0, 1),
-                                ::testing::Values(static_shapes_to_test_representation({{1, 32, 3, 5}, {1, 32, 3, 5}})),
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(0),
+                                ::testing::Values(std::vector<InputShape>{
+                                                      {{}, {{1, 32, 5, 7}}},
+                                                      {{}, {{1, 32, 5, 7}}},
+                                                      {{}, {{1, 32, 5, 7}}},
+                                                  },
+                                                  std::vector<InputShape>{
+                                                      {{1, 32, -1, -1}, {{1, 32, 5, 7}, {1, 32, 16, 2}, {1, 32, 2, 8}}},
+                                                      {{1, 32, -1, -1}, {{1, 32, 5, 7}, {1, 32, 16, 2}, {1, 32, 2, 8}}},
+                                                      {{1, 32, -1, -1}, {{1, 32, 5, 7}, {1, 32, 16, 2}, {1, 32, 2, 8}}},
+                                                  }),
+                                ::testing::Values(ElementType::f32),
+                                ::testing::Values(blocked16_4D)),
+                        ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16inPlace_1, ConcatLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(1),
+                                ::testing::Values(std::vector<InputShape>{
+                                                      {{}, {{1, 32, 5, 7}}},
+                                                      {{}, {{1, 16, 5, 7}}},
+                                                      {{}, {{1, 32, 5, 7}}},
+                                                  },
+                                                  std::vector<InputShape>{
+                                                      {{1, 32, -1, -1}, {{1, 32, 5, 7}, {1, 32, 16, 2}, {1, 32, 2, 8}}},
+                                                      {{1, 16, -1, -1}, {{1, 16, 5, 7}, {1, 16, 16, 2}, {1, 16, 2, 8}}},
+                                                      {{1, 32, -1, -1}, {{1, 32, 5, 7}, {1, 32, 16, 2}, {1, 32, 2, 8}}},
+                                                  }),
+                                ::testing::Values(ElementType::f32),
                                 ::testing::Values(blocked16_4D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(concat_Concat5D_CPU_Block8inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(0, 1),
-                                ::testing::Values(static_shapes_to_test_representation({{1, 16, 3, 5, 7}, {1, 16, 3, 5, 7}})),
+                                ::testing::Values(std::vector<InputShape>{
+                                                      {{}, {{1, 16, 3, 5, 7}}},
+                                                      {{}, {{1, 16, 3, 5, 7}}},
+                                                      {{}, {{1, 16, 3, 5, 7}}},
+                                                  },
+                                                  std::vector<InputShape>{
+                                                      {{1, 32, -1, -1, -1}, {{1, 32, 5, 7, 3}, {1, 32, 16, 2, 3}, {1, 32, 2, 8, 3}}},
+                                                      {{1, 32, -1, -1, -1}, {{1, 32, 5, 7, 3}, {1, 32, 16, 2, 3}, {1, 32, 2, 8, 3}}},
+                                                      {{1, 32, -1, -1, -1}, {{1, 32, 5, 7, 3}, {1, 32, 16, 2, 3}, {1, 32, 2, 8, 3}}},
+                                                  }),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(planar_5D, planarChannels_5D, blocked8_5D)),
+                                ::testing::Values(planar_5D, blocked8_5D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(0, 1),
-                                ::testing::Values(static_shapes_to_test_representation({{1, 32, 3, 5, 7}, {1, 32, 3, 5, 7}})),
+                                ::testing::Values(std::vector<InputShape>{
+                                                      {{}, {{1, 32, 3, 5, 7}}},
+                                                      {{}, {{1, 32, 3, 5, 7}}},
+                                                      {{}, {{1, 32, 3, 5, 7}}},
+                                                  },
+                                                  std::vector<InputShape>{
+                                                      {{1, 32, -1, -1, -1}, {{1, 32, 5, 7, 3}, {1, 32, 16, 2, 3}, {1, 32, 2, 8, 3}}},
+                                                      {{1, 32, -1, -1, -1}, {{1, 32, 5, 7, 3}, {1, 32, 16, 2, 3}, {1, 32, 2, 8, 3}}},
+                                                      {{1, 32, -1, -1, -1}, {{1, 32, 5, 7, 3}, {1, 32, 16, 2, 3}, {1, 32, 2, 8, 3}}},
+                                                  }),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(blocked16_5D)),
                         ConcatLayerCPUTest::getTestCaseName);

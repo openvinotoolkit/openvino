@@ -5,8 +5,8 @@
 #include "itt.hpp"
 #include "ngraph/op/and.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/and.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/and.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -30,6 +30,7 @@ shared_ptr<Node> op::v1::LogicalAnd::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalAnd>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace logand {
 namespace {
 template <element::Type_t ET>
@@ -37,12 +38,12 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::logical_and(arg0->get_data_ptr<ET>(),
-                                    arg1->get_data_ptr<ET>(),
-                                    out->get_data_ptr<ET>(),
-                                    arg0->get_shape(),
-                                    arg1->get_shape(),
-                                    broadcast_spec);
+    ov::reference::logical_and(arg0->get_data_ptr<ET>(),
+                               arg1->get_data_ptr<ET>(),
+                               out->get_data_ptr<ET>(),
+                               arg0->get_shape(),
+                               arg1->get_shape(),
+                               broadcast_spec);
     return true;
 }
 
@@ -53,7 +54,7 @@ bool evaluate_logand(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1);
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_logand, boolean, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_logand, boolean, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;
@@ -65,7 +66,9 @@ bool evaluate_logand(const HostTensorPtr& arg0,
 
 bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalAnd_evaluate);
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }
 

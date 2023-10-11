@@ -4,222 +4,137 @@
 
 #include <vector>
 
-#include "single_layer_tests/gather.hpp"
-#include "ngraph_functions/builders.hpp"
-
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/gather.hpp"
 
 namespace {
+using ov::test::Gather7LayerTest;
+using ov::test::Gather8LayerTest;
+using ov::test::Gather8withIndicesDataLayerTest;
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::BF16,
-        InferenceEngine::Precision::I8
+const std::vector<ov::element::Type> model_types = {
+        ov::element::f32,
+        ov::element::bf16,
+        ov::element::i8
 };
 
 // Just need to check types transformation.
-const std::vector<InferenceEngine::Precision> netPrecisionsTrCheck = {
-        InferenceEngine::Precision::I64,
-        InferenceEngine::Precision::FP16
+const std::vector<ov::element::Type> model_types_tr_check = {
+        ov::element::i64,
+        ov::element::f16
 };
 
-const std::vector<std::vector<size_t>> inputShapes_1D = {
-        std::vector<size_t>{4},
-};
+const std::vector<ov::Shape> input_shapes_1d = {{4}};
 
-const std::vector<std::vector<size_t>> indicesShapes_1D = {
-        std::vector<size_t>{1},
-        std::vector<size_t>{3},
-};
+const std::vector<ov::Shape> indices_shapes_1d = {{1}, {3}};
 
-const std::vector<std::tuple<int, int>> axes_batchdims_1D = {
-        std::tuple<int, int>{0, 0}
-};
+const std::vector<std::tuple<int, int>> axes_batchdims_1d = {{0, 0}};
 
 const auto gather7Params_1D = testing::Combine(
-        testing::ValuesIn(inputShapes_1D),
-        testing::ValuesIn(indicesShapes_1D),
-        testing::ValuesIn(axes_batchdims_1D),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_1d)),
+        testing::ValuesIn(indices_shapes_1d),
+        testing::ValuesIn(axes_batchdims_1d),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Gather7_1D, Gather7LayerTest, gather7Params_1D, Gather7LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TypesTrf, Gather7LayerTest,
             testing::Combine(
-                testing::ValuesIn(inputShapes_1D),
-                testing::ValuesIn(indicesShapes_1D),
-                testing::ValuesIn(axes_batchdims_1D),
-                testing::ValuesIn(netPrecisionsTrCheck),
-                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                testing::Values(InferenceEngine::Layout::ANY),
-                testing::Values(InferenceEngine::Layout::ANY),
-                testing::Values(CommonTestUtils::DEVICE_CPU)),
+                testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_1d)),
+                testing::ValuesIn(indices_shapes_1d),
+                testing::ValuesIn(axes_batchdims_1d),
+                testing::ValuesIn(model_types_tr_check),
+                testing::Values(ov::test::utils::DEVICE_CPU)),
         Gather7LayerTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> inputShapes_2D = {
-        std::vector<size_t>{4, 19},
-};
+const std::vector<ov::Shape> input_shapes_2d = {{4, 19}};
 
-const std::vector<std::vector<size_t>> indicesShapes_2D = {
-        std::vector<size_t>{4, 1},
-        std::vector<size_t>{4, 2},
-};
+const std::vector<ov::Shape> indices_shapes_2d = {{4, 1}, {4, 2}};
 
-const std::vector<std::tuple<int, int>> axes_batchdims_2D = {
-        std::tuple<int, int>{0, 0},
-        std::tuple<int, int>{1, 0},
-        std::tuple<int, int>{1, 1},
-        std::tuple<int, int>{-1, -1},
-};
+const std::vector<std::tuple<int, int>> axes_batchdims_2d = {{0, 0}, {1, 0}, {1, 1}, {-1, -1}};
 
 const auto gather7Params_2D = testing::Combine(
-        testing::ValuesIn(inputShapes_2D),
-        testing::ValuesIn(indicesShapes_2D),
-        testing::ValuesIn(axes_batchdims_2D),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_2d)),
+        testing::ValuesIn(indices_shapes_2d),
+        testing::ValuesIn(axes_batchdims_2d),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Gather7_2D, Gather7LayerTest, gather7Params_2D, Gather7LayerTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> inputShapes4D = {
-        std::vector<size_t>{4, 5, 6, 7},
-};
+const std::vector<ov::Shape> input_shapes_4d = {{4, 5, 6, 7}};
 
-const std::vector<std::vector<size_t>> indicesShapes_BD0 = {
-        std::vector<size_t>{4},
-        std::vector<size_t>{2, 2},
-        std::vector<size_t>{3, 3},
-        std::vector<size_t>{5, 2},
-        std::vector<size_t>{3, 2, 4},
-};
+const std::vector<ov::Shape> indices_shapes_bd0 = {{4}, {2, 2}, {3, 3}, {5, 2}, {3, 2, 4}};
 
-const std::vector<std::tuple<int, int>> axes_BD0 = {
-        std::tuple<int, int>{0, 0},
-        std::tuple<int, int>{1, 0},
-        std::tuple<int, int>{2, 0},
-        std::tuple<int, int>{-1, 0},
-};
+const std::vector<std::tuple<int, int>> axes_bd0 = {{0, 0}, {1, 0}, {2, 0}, {-1, 0}};
 
-const auto gather7ParamsSubset_BD0 = testing::Combine(
-        testing::ValuesIn(inputShapes4D),
-        testing::ValuesIn(indicesShapes_BD0),
-        testing::ValuesIn(axes_BD0),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+const auto gather7ParamsSubset_bd0 = testing::Combine(
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_4d)),
+        testing::ValuesIn(indices_shapes_bd0),
+        testing::ValuesIn(axes_bd0),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_BD0, Gather7LayerTest, gather7ParamsSubset_BD0, Gather7LayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_BD0, Gather8LayerTest, gather7ParamsSubset_BD0, Gather8LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_bd0, Gather7LayerTest, gather7ParamsSubset_bd0, Gather7LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_bd0, Gather8LayerTest, gather7ParamsSubset_bd0, Gather8LayerTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> indicesShapes_BD1 = {
-        std::vector<size_t>{4, 2},
-        std::vector<size_t>{4, 5, 3},
-        std::vector<size_t>{4, 1, 2, 3},
-};
+const std::vector<ov::Shape> indices_shapes_bd1 = {{4, 2}, {4, 5, 3}, {4, 1, 2, 3}};
 
-const std::vector<std::tuple<int, int>> axes_BD1 = {
-        std::tuple<int, int>{1, 1},
-        std::tuple<int, int>{2, 1},
-        std::tuple<int, int>{-1, 1},
-        std::tuple<int, int>{-2, 1},
-};
+const std::vector<std::tuple<int, int>> axes_bd1 = {{1, 1}, {2, 1}, {-1, 1}, {-2, 1}};
 
-const auto gather7ParamsSubset_BD1 = testing::Combine(
-        testing::ValuesIn(inputShapes4D),
-        testing::ValuesIn(indicesShapes_BD1),
-        testing::ValuesIn(axes_BD1),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+const auto gather7ParamsSubset_bd1 = testing::Combine(
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_4d)),
+        testing::ValuesIn(indices_shapes_bd1),
+        testing::ValuesIn(axes_bd1),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Gather7_BD1, Gather7LayerTest, gather7ParamsSubset_BD1, Gather7LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Gather7_bd1, Gather7LayerTest, gather7ParamsSubset_bd1, Gather7LayerTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> indicesShapes_BD2 = {
-        std::vector<size_t>{4, 5, 4, 3},
-        std::vector<size_t>{4, 5, 3, 2}
-};
+const std::vector<ov::Shape> indices_shapes_bd2 = {{4, 5, 4, 3}, {4, 5, 3, 2}};
 
-const std::vector<std::tuple<int, int>> axes_BD2 = {
-        std::tuple<int, int>{2, 2},
-        std::tuple<int, int>{3, -2},
-        std::tuple<int, int>{-1, 2},
-        std::tuple<int, int>{-1, -2},
-};
+const std::vector<std::tuple<int, int>> axes_bd2 = {{2, 2}, {3, -2}, {-1, 2}, {-1, -2}};
 
-const auto gather7ParamsSubset_BD2 = testing::Combine(
-        testing::ValuesIn(inputShapes4D),
-        testing::ValuesIn(indicesShapes_BD2),
-        testing::ValuesIn(axes_BD2),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+const auto gather7ParamsSubset_bd2 = testing::Combine(
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_4d)),
+        testing::ValuesIn(indices_shapes_bd2),
+        testing::ValuesIn(axes_bd2),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Gather7_BD2, Gather7LayerTest, gather7ParamsSubset_BD2, Gather7LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Gather7_bd2, Gather7LayerTest, gather7ParamsSubset_bd2, Gather7LayerTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> indicesShapes_NegativeBD = {
-        std::vector<size_t>{4, 5, 4},
-        std::vector<size_t>{4, 5, 3}
-};
+const std::vector<ov::Shape> indices_shapes_negative_bd = {{4, 5, 4}, {4, 5, 3}};
 
-const std::vector<std::tuple<int, int>> axes_NegativeBD = {
-        std::tuple<int, int>{0, -3},
-        std::tuple<int, int>{1, -2},
-        std::tuple<int, int>{2, -2},
-        std::tuple<int, int>{-2, -2},
-        std::tuple<int, int>{-1, -1},
-        std::tuple<int, int>{-2, -1},
-};
+const std::vector<std::tuple<int, int>> axes_negative_bd = {{0, -3}, {1, -2}, {2, -2}, {-2, -2}, {-1, -1}, {-2, -1}};
 
-const auto gather7ParamsSubset_NegativeBD = testing::Combine(
-        testing::ValuesIn(inputShapes4D),
-        testing::ValuesIn(indicesShapes_NegativeBD),
-        testing::ValuesIn(axes_NegativeBD),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+const auto gather7ParamsSubset_negative_bd = testing::Combine(
+        testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_4d)),
+        testing::ValuesIn(indices_shapes_negative_bd),
+        testing::ValuesIn(axes_negative_bd),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Gather7_NegativeBD, Gather7LayerTest, gather7ParamsSubset_NegativeBD, Gather7LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Gather7_negative_bd, Gather7LayerTest, gather7ParamsSubset_negative_bd, Gather7LayerTest::getTestCaseName);
 
 
 ///// GATHER-8 /////
 
-const std::vector<std::vector<size_t>> dataShapes4DGather8 = {
-        {10, 3, 1, 2},
-        {10, 3, 3, 1},
-        {10, 2, 2, 7},
-        {10, 2, 2, 2},
-        {10, 3, 4, 4},
-        {10, 2, 3, 17}
+const std::vector<std::vector<ov::Shape>> data_shapes_4d_gather8 = {
+        {{10, 3, 1, 2}},
+        {{10, 3, 3, 1}},
+        {{10, 2, 2, 7}},
+        {{10, 2, 2, 2}},
+        {{10, 3, 4, 4}},
+        {{10, 2, 3, 17}}
 };
-const std::vector<std::vector<size_t>> idxShapes4DGather8 = {
+const std::vector<ov::Shape> idx_shapes_4d_gather8 = {
         {10, 1, 1},
         {10, 1, 2},
         {10, 1, 3},
@@ -231,7 +146,7 @@ const std::vector<std::vector<size_t>> idxShapes4DGather8 = {
         {10, 7, 3},
         {10, 8, 7}
 };
-const std::vector<std::tuple<int, int>> axesBatches4DGather8 = {
+const std::vector<std::tuple<int, int>> axes_batches_4d_gather8 = {
         {3, 0},
         {-1, -2},
         {2, -3},
@@ -243,43 +158,75 @@ const std::vector<std::tuple<int, int>> axesBatches4DGather8 = {
 
 INSTANTIATE_TEST_CASE_P(smoke_static_4D, Gather8LayerTest,
         testing::Combine(
-                testing::ValuesIn(dataShapes4DGather8),
-                testing::ValuesIn(idxShapes4DGather8),
-                testing::ValuesIn(axesBatches4DGather8),
-                testing::ValuesIn(netPrecisions),
-                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                testing::Values(InferenceEngine::Layout::ANY),
-                testing::Values(InferenceEngine::Layout::ANY),
-                testing::Values(CommonTestUtils::DEVICE_CPU)),
+                testing::ValuesIn(ov::test::static_shapes_to_test_representation(data_shapes_4d_gather8)),
+                testing::ValuesIn(idx_shapes_4d_gather8),
+                testing::ValuesIn(axes_batches_4d_gather8),
+                testing::ValuesIn(model_types),
+                testing::Values(ov::test::utils::DEVICE_CPU)),
         Gather8LayerTest::getTestCaseName);
 
+
+const std::vector<std::vector<ov::Shape>> data_shapes_vec2_gather8 = {
+        {{5, 4}},
+        {{11, 4}},
+        {{23, 4}},
+        {{35, 4}},
+        {{51, 4}},
+        {{71, 4}}
+};
+const std::vector<ov::Shape> idx_shapes_vec2_gather8 = {{1}};
+
+const std::vector<std::tuple<int, int>> axes_batches_vec2_gather8 = {{1, 0}};
+
 const auto gatherParamsVec2 = testing::Combine(
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{5, 4}, {11, 4}, {23, 4}, {35, 4}, {51, 4}, {71, 4}})),
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{1}})),
-        testing::ValuesIn(std::vector<std::tuple<int, int>>{std::tuple<int, int>{1, 0}}),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::ValuesIn(ov::test::static_shapes_to_test_representation(data_shapes_vec2_gather8)),
+        testing::ValuesIn(idx_shapes_vec2_gather8),
+        testing::ValuesIn(axes_batches_vec2_gather8),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Vec2, Gather8LayerTest, gatherParamsVec2, Gather8LayerTest::getTestCaseName);
 
+
+const std::vector<ov::Shape> data_shapes_vec3_gather8 = {{4, 4}};
+const std::vector<ov::Shape> idx_shapes_vec3_gather8 = {{5}, {11}, {21}, {35}, {55}, {70}};
+
+const std::vector<std::tuple<int, int>> axes_batches_vec3_gather8 = {{1, 0}};
+
 const auto gatherParamsVec3 = testing::Combine(
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{4, 4}})),
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{5}, {11}, {21}, {35}, {55}, {70}})),
-        testing::ValuesIn(std::vector<std::tuple<int, int>>{std::tuple<int, int>{1, 0}}),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::static_shapes_to_test_representation(data_shapes_vec3_gather8)),
+        testing::ValuesIn(idx_shapes_vec3_gather8),
+        testing::ValuesIn(axes_batches_vec3_gather8),
+        testing::ValuesIn(model_types),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Vec3, Gather8LayerTest, gatherParamsVec3, Gather8LayerTest::getTestCaseName);
+
+
+const ov::test::gather7ParamsTuple dummyParams = {
+        ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{2, 3}}), // input shape
+        ov::Shape{2, 2},                // indices shape
+        std::tuple<int, int>{1, 1},     // axis, batch
+        ov::element::f32,               // model type
+        ov::test::utils::DEVICE_CPU     // device
+};
+
+const std::vector<std::vector<int64_t>> indicesData = {
+        {0, 1, 2, 0},           // positive in bound
+        {-1, -2, -3, -1},       // negative in bound
+        {-1, 0, 1, 2},          // positive and negative in bound
+        {0, 1, 2, 3},           // positive out of bound
+        {-1, -2, -3, -4},       // negative out of bound
+        {0, 4, -4, 0},          // positive and negative out of bound
+};
+
+const auto gatherWithIndicesParams = testing::Combine(
+        testing::Values(dummyParams),
+        testing::ValuesIn(indicesData)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke, Gather8withIndicesDataLayerTest, gatherWithIndicesParams, Gather8withIndicesDataLayerTest::getTestCaseName);
 
 }  // namespace

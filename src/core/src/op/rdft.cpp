@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/rdft.hpp"
+#include "openvino/op/rdft.hpp"
 
 #include <memory>
 
 #include "itt.hpp"
 #include "rdft_shape_inference.hpp"
-
-using namespace std;
 
 ov::op::v9::RDFT::RDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();
@@ -18,11 +16,6 @@ ov::op::v9::RDFT::RDFT(const Output<Node>& data, const Output<Node>& axes) : FFT
 ov::op::v9::RDFT::RDFT(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size)
     : FFTBase(data, axes, signal_size) {
     constructor_validate_and_infer_types();
-}
-
-bool ov::op::v9::RDFT::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v9_RDFT_visit_attributes);
-    return true;
 }
 
 std::shared_ptr<ov::Node> ov::op::v9::RDFT::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -42,7 +35,6 @@ void ov::op::v9::RDFT::validate_and_infer_types() {
 
     validate_types();
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes;
 
     const auto& data = get_input_partial_shape(0);
@@ -54,6 +46,6 @@ void ov::op::v9::RDFT::validate_and_infer_types() {
         input_shapes = {data, axes, signal_size};
     }
 
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }

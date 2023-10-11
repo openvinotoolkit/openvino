@@ -58,10 +58,6 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     return blobPtr;
 }
 
-void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info) {
-    INFER_REQ_CALL_STATEMENT(_impl->SetBlob(name, data, info);)
-}
-
 const PreProcessInfo& InferRequest::GetPreProcess(const std::string& name) const {
     INFER_REQ_CALL_STATEMENT(return _impl->GetPreProcess(name);)
 }
@@ -84,10 +80,6 @@ void InferRequest::SetInput(const BlobMap& inputs) {
 
 void InferRequest::SetOutput(const BlobMap& results) {
     INFER_REQ_CALL_STATEMENT(for (auto&& result : results) { _impl->SetBlob(result.first, result.second); })
-}
-
-void InferRequest::SetBatch(const int batch) {
-    INFER_REQ_CALL_STATEMENT(_impl->SetBatch(batch);)
 }
 
 void InferRequest::StartAsync() {

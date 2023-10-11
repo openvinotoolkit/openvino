@@ -21,12 +21,12 @@ struct strided_slice_params : public base_params {
     std::vector<uint8_t> ellipsis_mask;
     std::vector<uint8_t> new_axis_mask;
     std::vector<uint8_t> shrink_axis_mask;
-    base_params::ArgType begin_type;
-    base_params::ArgType end_type;
-    base_params::ArgType stride_type;
-    size_t begin_dims;
-    size_t end_dims;
-    size_t stride_dims;
+    base_params::ArgType begin_type = base_params::ArgType::Input;
+    base_params::ArgType end_type = base_params::ArgType::Input;
+    base_params::ArgType stride_type = base_params::ArgType::Input;
+    size_t begin_dims = 0;
+    size_t end_dims = 0;
+    size_t stride_dims = 0;
 
     uint32_t GetIndexBegin() const {
         uint32_t input_idx = 0;

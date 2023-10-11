@@ -7,22 +7,19 @@
 #include <fstream>
 #include <random>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/file_util.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 namespace TestDataHelpers {
 
-static const std::string model_bin_name = "test_model.bin";
-static const std::string model_xml_name = "test_model.xml";
-static const std::string model_exported_name = "test_exported_model.blob";
+extern const std::string model_bin_name;
+extern const std::string model_xml_name;
+extern const std::string model_exported_name;
 
-inline void generate_test_model() {
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(model_xml_name, model_bin_name);
-    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
-    manager.run_passes(function);
-}
+void generate_test_model();
 
 inline std::string get_model_xml_file_name() {
     return model_xml_name;
@@ -51,44 +48,7 @@ inline void fill_random_input_nv12_data(uint8_t* data, const size_t w, const siz
     return;
 }
 
-inline std::string generate_test_xml_file() {
-#ifdef _WIN32
-#    ifdef __MINGW32__
-    std::string libraryname = "libopenvino_intel_cpu_plugin.dll";
-#    else
-    std::string libraryname = "openvino_intel_cpu_plugin.dll";
-#    endif
-#elif defined __APPLE__
-#    ifdef __aarch64__
-    std::string libraryname = "libopenvino_arm_cpu_plugin.so";
-#    else
-    std::string libraryname = "libopenvino_intel_cpu_plugin.so";
-#    endif
-#else
-    std::string libraryname = "libopenvino_intel_cpu_plugin.so";
-#endif
-    // Create the file
-    std::string plugin_xml = "plugin_test.xml";
-    std::ofstream plugin_xml_file(plugin_xml);
-
-    // Write to the file
-    plugin_xml_file << "<!--\n";
-    plugin_xml_file << "Copyright (C) 2023 Intel Corporation\n";
-    plugin_xml_file << "SPDX-License-Identifier: Apache-2.0\n";
-    plugin_xml_file << "-->\n";
-    plugin_xml_file << "\n";
-
-    plugin_xml_file << "<ie>\n";
-    plugin_xml_file << "    <plugins>\n";
-    plugin_xml_file << "        <plugin location=\"" << libraryname << "\" name=\"CUSTOM\">\n";
-    plugin_xml_file << "        </plugin>\n";
-    plugin_xml_file << "    </plugins>\n";
-    plugin_xml_file << "</ie>\n";
-
-    // Close the file
-    plugin_xml_file.close();
-    return plugin_xml;
-}
+std::string generate_test_xml_file();
 
 inline void delete_test_xml_file() {
     std::remove("plugin_test.xml");

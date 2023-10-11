@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph_tests/constant_result.hpp"
-
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
+#include "subgraph_tests/constant_result_legacy.hpp"
 
 using namespace SubgraphTestsDefinitions;
 using namespace InferenceEngine;
@@ -33,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Check,
                          ::testing::Combine(::testing::ValuesIn(types),
                                             ::testing::ValuesIn(shapes),
                                             ::testing::ValuesIn(precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ConstantResultSubgraphTest::getTestCaseName);
 
 }  // namespace

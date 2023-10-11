@@ -176,7 +176,7 @@ OutputVector translate_empty(const NodeContext& context) {
     // side, so just skip these parameters
     num_inputs_check(context, 1, 6);
     auto sizes = context.get_input(0);
-    // In OV uninitialised data is not supported, so we create a tensor filled with zeros with a given shape and type.
+    // In OV uninitialized data is not supported, so we create a tensor filled with zeros with a given shape and type.
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
     int dtype_id = 1;
     Output<Node> empty;

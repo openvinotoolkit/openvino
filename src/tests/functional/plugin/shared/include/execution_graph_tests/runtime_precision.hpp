@@ -10,7 +10,7 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ExecutionGraphTests {
 
@@ -30,7 +30,7 @@ using ExecGraphRuntimePrecisionParams = std::tuple<
 >;
 
 class ExecGraphRuntimePrecision : public testing::WithParamInterface<ExecGraphRuntimePrecisionParams>,
-                                 public CommonTestUtils::TestsCommon {
+                                 public ov::test::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ExecGraphRuntimePrecisionParams> obj);
     std::string targetDevice;

@@ -4,29 +4,29 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/common/precisions_restriction.hpp>
-#include <low_precision/common/quantization_granularity_restriction.hpp>
-#include <low_precision/concat.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
-#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
-#include <low_precision/rt_info/precision_preserved_attribute.hpp>
-#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
+#include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/common/quantization_granularity_restriction.hpp"
+#include "low_precision/concat.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include <memory>
 #include <sstream>
 #include <vector>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/concat.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 namespace {
@@ -54,7 +54,7 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
     ngraph::builder::subgraph::DequantizationOperations::Convert convert2;
     ngraph::builder::subgraph::DequantizationOperations dequantization2;
-    ngraph::element::Type precisionAfterOperation;
+    ov::element::Type precisionAfterOperation;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
@@ -97,15 +97,15 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationTes
     return out << "_" << values.multiChannels << "_" << values.actual << "_" << values.result;
 }
 
-typedef std::tuple<ngraph::element::Type, ngraph::PartialShape, ConcatTransformationTestValues>
+typedef std::tuple<ov::element::Type, ov::PartialShape, ConcatTransformationTestValues>
     ConcatTransformationParams;
 
 class ConcatWithFQTransformation : public LayerTransformation,
                                    public testing::WithParamInterface<ConcatTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::PartialShape shape = std::get<1>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
+        const ov::PartialShape shape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
         // dequantization output precision depends on input precision
@@ -126,38 +126,38 @@ public:
                                                                         testValues.actual.convert2,
                                                                         testValues.actual.dequantization2,
                                                                         {},
-                                                                        ngraph::element::undefined,
+                                                                        ov::element::undefined,
                                                                         {},
                                                                         testValues.axis,
                                                                         testValues.addNotPrecisionPreservedOperation);
-        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
-            {ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>(
+        auto supportedPrecisionsOnActivation = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
+            {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
                 {{{0}, testValues.params.precisionsOnActivations}})});
 
         auto quantizationRestrictions =
-            testValues.multiChannels ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
-                                     : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
-                                           {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<
-                                               ngraph::opset1::AvgPool>()});
+            testValues.multiChannels
+                ? std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>()
+                : std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>(
+                      {ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::AvgPool>()});
 
         const auto params = TestTransformationParams::toParams(testValues.params);
         SimpleLowPrecisionTransformer transformer(supportedPrecisionsOnActivation, quantizationRestrictions);
         transformer.commonGraphRewrite
-            ->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>(params);
-        transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(params);
+            ->add_matcher<ov::pass::low_precision::FakeQuantizeDecompositionTransformation>(params);
+        transformer.commonGraphRewrite->add_matcher<ov::pass::low_precision::ConcatTransformation>(params);
         transformer.transform(actualFunction);
 
         {
-            ngraph::pass::Manager standaloneCleanupManager;
+            ov::pass::Manager standaloneCleanupManager;
             standaloneCleanupManager
-                .register_pass<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
+                .register_pass<ov::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
         {
-            ngraph::pass::Manager standaloneCleanupManager;
+            ov::pass::Manager standaloneCleanupManager;
             standaloneCleanupManager
-                .register_pass<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
+                .register_pass<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
@@ -167,12 +167,12 @@ public:
             testValues.result.dequantizationAfter.multiply.outPrecision = precision;
         }
 
-        if (!testValues.params.updatePrecisions && (precision == ngraph::element::f32) &&
+        if (!testValues.params.updatePrecisions && (precision == ov::element::f32) &&
             !testValues.result.dequantizationAfter.convert.empty()) {
             testValues.result.dequantizationAfter.convert = {};
         }
 
-        IntervalsAlignmentSharedValue::Interval interval{-1.28f, 2.55f};
+        ov::IntervalsAlignmentSharedValue::Interval interval{-1.28f, 2.55f};
 
         referenceFunction =
             ngraph::builder::subgraph::ConcatFunction::get(precision,
@@ -183,9 +183,9 @@ public:
                                                            testValues.result.fakeQuantize2,
                                                            testValues.result.convert2,
                                                            testValues.result.dequantization2,
-                                                           {PrecisionPreservedAttribute(true),
-                                                            IntervalsAlignmentAttribute(interval, 256),
-                                                            QuantizationAlignmentAttribute(false)},
+                                                           {ov::PrecisionPreservedAttribute(true),
+                                                            ov::IntervalsAlignmentAttribute(interval, 256),
+                                                            ov::QuantizationAlignmentAttribute(false)},
                                                            testValues.result.precisionAfterOperation,
                                                            testValues.result.dequantizationAfter,
                                                            testValues.axis,
@@ -193,8 +193,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
-        const ngraph::PartialShape shape = std::get<1>(obj.param);
+        const ov::element::Type precision = std::get<0>(obj.param);
+        const ov::PartialShape shape = std::get<1>(obj.param);
         const ConcatTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
@@ -213,27 +213,27 @@ TEST_P(ConcatWithFQTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 
     ConcatTransformationTestValues testValues = std::get<2>(GetParam());
-    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    const auto actualFakeQuantizes = LayerTransformation::get<ov::op::v0::FakeQuantize>(actualFunction);
     if (testValues.axis == 1) {
-        ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes))
-            << "PrecisionsAttribute are not the same";
+        ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<ov::PrecisionsAttribute>(actualFakeQuantizes))
+            << "ov::PrecisionsAttribute are not the same";
 
         if (testValues.checkIntervalsAlignmentAttributes) {
-            auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
+            auto operations = LayerTransformation::get<ov::op::v0::Concat>(actualFunction);
             operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-            ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<IntervalsAlignmentAttribute>(operations))
-                << "IntervalsAlignmentAttribute are not the same";
+            ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<ov::IntervalsAlignmentAttribute>(operations))
+                << "ov::IntervalsAlignmentAttribute are not the same";
         }
     }
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+const std::vector<ov::element::Type> precisions = {
+    ov::element::f32,
+    // ov::element::f16
 };
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {{1, 3, 9, 9}, {4, 3, 9, 9}, {-1, 3, 9, -1}};
+const std::vector<ov::PartialShape> shapes = {{1, 3, 9, 9}, {4, 3, 9, 9}, {-1, 3, 9, -1}};
 
 const std::vector<ConcatTransformationTestValues> testValues = {
     // U8: concat: levels less then threshold is ignored, function is not transformed
@@ -249,8 +249,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2550.f},
           {0.f},
           {255.f},
-          ngraph::element::u8,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::u8,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
          {256ul,
@@ -259,12 +259,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {0.1f},
           {0.f},
           {255.f},
-          ngraph::element::u8,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::u8,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {{10.f, 10.f, 10.f, 0.000392157f, 0.000392157f, 0.000392157f}}},
+         ov::element::u8,
+         {ov::element::f32, {}, {{10.f, 10.f, 10.f, 0.000392157f, 0.000392157f, 0.000392157f}}},
      },
      true},
     // right branch is not quantized
@@ -279,14 +279,14 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f},
           {0.f},
           {2.55f},
-          ngraph::element::f32,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::f32,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
          {},
          {},
          {},
-         ngraph::element::f32,
+         ov::element::f32,
      }},
     // left branch is not quantized
     {LayerTransformation::createParamsU8I8(),
@@ -303,11 +303,11 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f},
           {0.f},
           {2.55f},
-          ngraph::element::f32,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::f32,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ngraph::element::f32,
+         ov::element::f32,
      }},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
@@ -321,8 +321,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f},
           {0.f},
           {255.f},
-          ngraph::element::u8,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::u8,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
          {256ul,
@@ -331,12 +331,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f},
           {0.f},
           {255.f},
-          ngraph::element::u8,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::u8,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ngraph::element::u8,
-         {ngraph::element::f32, {}, {0.01f}},
+         ov::element::u8,
+         {ov::element::f32, {}, {0.01f}},
      }},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
@@ -344,10 +344,10 @@ const std::vector<ConcatTransformationTestValues> testValues = {
      1,
      {
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {}, {0.01f}},
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {}, {0.01f}},
      },
      {{256ul,
@@ -356,8 +356,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -366,22 +366,22 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {}, {0.01f}}}},
+      ov::element::u8,
+      {ov::element::f32, {}, {0.01f}}}},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
      true,
      1,
      {
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {}, {0.01f}},
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {}, {0.01f}},
      },
      {{256ul,
@@ -390,8 +390,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -400,12 +400,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {}, {0.01f}}}},
+      ov::element::u8,
+      {ov::element::f32, {}, {0.01f}}}},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
      false,
@@ -415,7 +415,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
          {},
          {},
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {}, {0.01f}},
      },
      {{256ul,
@@ -424,8 +424,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -434,12 +434,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {}, {0.01f}}}},
+      ov::element::u8,
+      {ov::element::f32, {}, {0.01f}}}},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
      true,
@@ -449,7 +449,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
          {},
          {},
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {}, {0.01f}},
      },
      {{256ul,
@@ -458,8 +458,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -468,12 +468,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {}, {0.01f}}}},
+      ov::element::u8,
+      {ov::element::f32, {}, {0.01f}}}},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
      false,
@@ -490,8 +490,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -500,12 +500,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {}, {0.01f}}}},
+      ov::element::u8,
+      {ov::element::f32, {}, {0.01f}}}},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
      false,
@@ -522,8 +522,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -532,12 +532,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {}, {0.01f}}}},
+      ov::element::u8,
+      {ov::element::f32, {}, {0.01f}}}},
     // U8: concat multi channels
     {LayerTransformation::createParamsU8I8(),
      true,
@@ -549,8 +549,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -559,12 +559,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {1.275f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {}, {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}}},
+      ov::element::u8,
+      {ov::element::f32, {}, {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}}},
     // U8: concat multi channels
     {LayerTransformation::createParamsU8I8(),
      true,
@@ -581,8 +581,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -591,12 +591,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {1.275f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {}, {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}}},
+      ov::element::u8,
+      {ov::element::f32, {}, {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}}},
     // U8: concat multi channels
     {LayerTransformation::createParamsU8I8(),
      true,
@@ -623,8 +623,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f, 2.55f, 2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -633,12 +633,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {1.275f, 1.275f, 1.275f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {}, {{0.01f / 1.f, 0.01f / 2.f, 0.01f / 3.f, 0.005f / 1.f, 0.005f / 2.f, 0.005f / 3.f}}}},
+      ov::element::u8,
+      {ov::element::f32, {}, {{0.01f / 1.f, 0.01f / 2.f, 0.01f / 3.f, 0.005f / 1.f, 0.005f / 2.f, 0.005f / 3.f}}}},
      false,
      false},
     // I8
@@ -657,8 +657,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {1.27f},
        {-128.f},
        {127.f},
-       ngraph::element::i8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::i8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -667,12 +667,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {1.27f},
        {-128.f},
        {127.f},
-       ngraph::element::i8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::i8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::i8,
-      {ngraph::element::f32, {}, {0.01f}}}},
+      ov::element::i8,
+      {ov::element::f32, {}, {0.01f}}}},
     // mixed: U8 + I8: concat (check constant values here)
     {LayerTransformation::createParamsU8I8(),
      false,
@@ -684,8 +684,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -694,12 +694,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {1.27f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}}, {0.01f}}}},
+      ov::element::u8,
+      {ov::element::f32, {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}}, {0.01f}}}},
     // mixed: U8 + I8: concat multi channels
     {LayerTransformation::createParamsU8I8(),
      true,
@@ -711,8 +711,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -721,25 +721,25 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {1.27f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}}, {0.01f}}}},
+      ov::element::u8,
+      {ov::element::f32, {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}}, {0.01f}}}},
     // mixed: I8 + U8: concat (check constant values here)
     {LayerTransformation::createParamsU8I8(),
      false,
      1,
      {{256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, {}, {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}, {}, {}},
-     {{256ul, {}, {-1.28f}, {1.27f}, {0.f}, {170.f}, ngraph::element::u8},
+     {{256ul, {}, {-1.28f}, {1.27f}, {0.f}, {170.f}, ov::element::u8},
       {},
       {},
-      {256ul, {}, {0.f}, {2.55f}, {85.f}, {255.f}, ngraph::element::u8},
+      {256ul, {}, {0.f}, {2.55f}, {85.f}, {255.f}, ov::element::u8},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {85}, {0.015f}}},
+      ov::element::u8,
+      {ov::element::f32, {85}, {0.015f}}},
      true},
     // real case from ctdet_coco_dlav0_384 model, coverage bad rounding
     {LayerTransformation::createParamsU8I8(),
@@ -751,28 +751,28 @@ const std::vector<ConcatTransformationTestValues> testValues = {
       {256ul, {}, {0.f}, {2.55f}, {-3.873046875f}, {3.84375}},
       {},
       {}},
-     {{256ul, {}, {-1.28f}, {1.27f}, {128.f}, {204.f}, ngraph::element::u8},
+     {{256ul, {}, {-1.28f}, {1.27f}, {128.f}, {204.f}, ov::element::u8},
       {},
       {},
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8},
+      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {128}, {0.0302619f}}},
+      ov::element::u8,
+      {ov::element::f32, {128}, {0.0302619f}}},
      true},
     // U8: concat multi channels with subtract, negative axis
     {LayerTransformation::createParamsU8I8(),
      true,
      -3,
      {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}, {}, {}, {256ul, {}, {1.275f}, {2.55f}, {1.275f}, {2.55f}}, {}, {}},
-     {{256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8},
+     {{256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8},
       {},
       {},
-      {256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8},
+      {256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ov::element::u8},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32,
+      ov::element::u8,
+      {ov::element::f32,
        {{0.f, 0.f, 0.f, -255.f, -255.f, -255.f}},
        {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}}},
     // U8: concat multi channels, concatenation by spatial dimension
@@ -787,8 +787,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f},
           {0.f},
           {255.f},
-          ngraph::element::u8,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::u8,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
          {256ul,
@@ -797,12 +797,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {1.275f},
           {0.f},
           {255.f},
-          ngraph::element::u8,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::u8,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ngraph::element::u8,
-         {ngraph::element::f32,
+         ov::element::u8,
+         {ov::element::f32,
           {},
           {
               // Multiply
@@ -834,11 +834,11 @@ const std::vector<ConcatTransformationTestValues> testValues = {
      1,
      {
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {127.f}, {0.01f}},
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
-         {{element::f32}, {{127}, element::f32, {}, false, 1ul, ngraph::element::u8, true, {}, {}}, {0.01f}},
+         {ov::element::u8},
+         {{element::f32}, {{127}, element::f32, {}, false, 1ul, ov::element::u8, true, {}, {}}, {0.01f}},
      },
      {{256ul,
        {},
@@ -846,8 +846,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -856,12 +856,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {127}, {0.01f}}}},
+      ov::element::u8,
+      {ov::element::f32, {127}, {0.01f}}}},
     // U8: concat multi channels with subtract convert and subtract without convert
     {LayerTransformation::createParamsU8I8(),
      true,
@@ -873,7 +873,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f},
           {0.f, 0.f, 0.f},
           {255.f, 255.f, 255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {{127, 127, 127}}, {{0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}},
          {256ul,
           {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
@@ -881,7 +881,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f},
           {0.f, 0.f, 0.f},
           {255.f, 255.f, 255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32}, {{127, 127, 127}}, {{0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}},
      },
      {{256ul,
@@ -890,8 +890,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f},
        {0.f, 0.f, 0.f},
        {255.f, 255.f, 255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -900,23 +900,23 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f},
        {0.f, 0.f, 0.f},
        {255.f, 255.f, 255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {127}, {{0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}}}},
+      ov::element::u8,
+      {ov::element::f32, {127}, {{0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}}}},
     // U8: concat with subtract convert on both branches
     {LayerTransformation::createParamsU8I8(),
      true,
      1,
      {
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
-         {{element::f32}, {{128}, element::f32, {}, false, 1ul, ngraph::element::u8, true, {}, {}}, {0.01f}},
+         {ov::element::u8},
+         {{element::f32}, {{128}, element::f32, {}, false, 1ul, ov::element::u8, true, {}, {}}, {0.01f}},
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
-         {{element::f32}, {{127}, element::f32, {}, false, 1ul, ngraph::element::u8, true, {}, {}}, {0.01f}},
+         {ov::element::u8},
+         {{element::f32}, {{127}, element::f32, {}, false, 1ul, ov::element::u8, true, {}, {}}, {0.01f}},
      },
      {{256ul,
        {},
@@ -924,8 +924,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -934,13 +934,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32,
-       {{128, 128, 128, 127, 127, 127}, element::f32, {1, 6, 1, 1}, false, 1ul, ngraph::element::u8, true, {}, {}},
+      ov::element::u8,
+      {ov::element::f32,
+       {{128, 128, 128, 127, 127, 127}, element::f32, {1, 6, 1, 1}, false, 1ul, ov::element::u8, true, {}, {}},
        {0.01f}}}},
     // U8: concat with subtract convert
     {LayerTransformation::createParamsU8I8(),
@@ -951,8 +951,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
          {},
          {},
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-         {ngraph::element::u8},
-         {{element::f32}, {{127}, element::f32, {}, false, 1ul, ngraph::element::u8, true, {}, {}}, {0.01f}},
+         {ov::element::u8},
+         {{element::f32}, {{127}, element::f32, {}, false, 1ul, ov::element::u8, true, {}, {}}, {0.01f}},
      },
      {{256ul,
        {},
@@ -960,8 +960,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -970,13 +970,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32,
-       {{0, 0, 0, 127, 127, 127}, element::f32, {1, 6, 1, 1}, false, 1ul, ngraph::element::u8, true, {}, {}},
+      ov::element::u8,
+      {ov::element::f32,
+       {{0, 0, 0, 127, 127, 127}, element::f32, {1, 6, 1, 1}, false, 1ul, ov::element::u8, true, {}, {}},
        {0.01f}}}},
     // U8: concat multi channels with subtract convert
     {LayerTransformation::createParamsU8I8(),
@@ -997,9 +997,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f},
           {0.f, 0.f, 0.f},
           {255.f, 255.f, 255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32},
-          {{128, 128, 128}, element::f32, {1, 3, 1, 1}, false, 1ul, ngraph::element::u8, true},
+          {{128, 128, 128}, element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::u8, true},
           {{0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}},
      },
      {{256ul,
@@ -1008,8 +1008,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f},
        {0.f},
        {255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -1018,13 +1018,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f},
        {0.f, 0.f, 0.f},
        {255.f, 255.f, 255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32,
-       {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}, element::f32, {1, 6, 1, 1}, false, 1ul, ngraph::element::u8, true},
+      ov::element::u8,
+      {ov::element::f32,
+       {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}, element::f32, {1, 6, 1, 1}, false, 1ul, ov::element::u8, true},
        {{0.01f, 0.01f, 0.01f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}}}},
     // U8: concat multi channels with subtract convert on both branches
     {LayerTransformation::createParamsU8I8(),
@@ -1037,9 +1037,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f},
           {0.f, 0.f, 0.f},
           {255.f, 255.f, 255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32},
-          {{128, 128, 128}, element::f32, {1, 3, 1, 1}, false, 1ul, ngraph::element::u8, true},
+          {{128, 128, 128}, element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::u8, true},
           {{0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}},
          {256ul,
           {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
@@ -1047,9 +1047,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f},
           {0.f, 0.f, 0.f},
           {255.f, 255.f, 255.f}},
-         {ngraph::element::u8},
+         {ov::element::u8},
          {{element::f32},
-          {{127, 127, 127}, element::f32, {1, 3, 1, 1}, false, 1ul, ngraph::element::u8, true},
+          {{127, 127, 127}, element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::u8, true},
           {{0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}},
      },
      {{256ul,
@@ -1058,8 +1058,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f},
        {0.f, 0.f, 0.f},
        {255.f, 255.f, 255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
       {256ul,
@@ -1068,13 +1068,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {2.55f / 3.f, 2.55f / 2.f, 2.55f / 1.f},
        {0.f, 0.f, 0.f},
        {255.f, 255.f, 255.f},
-       ngraph::element::u8,
-       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+       ov::element::u8,
+       {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32,
-       {{128, 128, 128, 127, 127, 127}, element::f32, {1, 6, 1, 1}, false, 1ul, ngraph::element::u8, true, {}, {}},
+      ov::element::u8,
+      {ov::element::f32,
+       {{128, 128, 128, 127, 127, 127}, element::f32, {1, 6, 1, 1}, false, 1ul, ov::element::u8, true, {}, {}},
        {{0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}}}},
     // U8: concat multi channels with subtract
     // Features:
@@ -1097,8 +1097,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f},
           {0.f},
           {255.f},
-          ngraph::element::u8,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::u8,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
          {256ul,
@@ -1107,12 +1107,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f},
           {0.f},
           {255.f},
-          ngraph::element::u8,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::u8,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ngraph::element::u8,
-         {ngraph::element::f32,
+         ov::element::u8,
+         {ov::element::f32,
           {{0.f, 0.f, 0.f, -255.f, -255.f, -255.f}},
           {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}},
     },
@@ -1137,8 +1137,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f},
           {0.f},
           {255.f},
-          ngraph::element::u8,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::u8,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
          {256ul,
@@ -1147,12 +1147,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {2.55f},
           {0.f},
           {255.f},
-          ngraph::element::u8,
-          {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
+          ov::element::u8,
+          {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ngraph::element::u8,
-         {ngraph::element::f32,
+         ov::element::u8,
+         {ov::element::f32,
           {{-255.f, -255.f, -255.f, 0.f, 0.f, 0.f}},
           {{0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f}}}},
     },
@@ -1168,7 +1168,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
          {},
          {},
-         ngraph::element::f32,
+         ov::element::f32,
          {{element::f32}, {}, {0.01f}},
      }},
     // INT4+INT8 quantization levels, concat
@@ -1184,7 +1184,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
             {},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {},
         },
         true,
@@ -1195,14 +1195,14 @@ const std::vector<ConcatTransformationTestValues> testValues = {
      true,
      1,
      {{16ul, {}, {0.f}, {1.5f}, {0.f}, {1.5f}}, {}, {}, {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}, {}, {}},
-     {{16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f}, ngraph::element::u8},
+     {{16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f}, ov::element::u8},
       {},
       {},
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8},
+      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8},
       {},
       {},
-      ngraph::element::u8,
-      {ngraph::element::f32, {}, {{0.1f, 0.1f, 0.1f, 0.01f, 0.01f, 0.01f}}}},
+      ov::element::u8,
+      {ov::element::f32, {}, {{0.1f, 0.1f, 0.1f, 0.01f, 0.01f, 0.01f}}}},
      true,
      false}};
 
@@ -1215,7 +1215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
+const std::vector<ov::PartialShape> shapesWithDynamicChannels = {
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
 };
 
@@ -1248,7 +1248,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {PartialShape::dynamic()};
+const std::vector<ov::PartialShape> shapesWithDynamicChannels = {PartialShape::dynamic()};
 
 const std::vector<ConcatTransformationTestValues> testValues = {
     // issue #58915
@@ -1265,13 +1265,13 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     //        {}
     //    },
     //    {
-    //        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8, },
+    //        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8, },
     //        {},
-    //        {{ngraph::element::f32}, {}, {0.01f}},
-    //        { 256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+    //        {{ov::element::f32}, {}, {0.01f}},
+    //        { 256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ov::element::u8 },
     //        {},
-    //        {{ngraph::element::f32}, {-255.f}, {0.005f}},
-    //        ngraph::element::f32,
+    //        {{ov::element::f32}, {-255.f}, {0.005f}},
+    //        ov::element::f32,
     //        {},
     //    },
     //},

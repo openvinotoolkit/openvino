@@ -8,6 +8,7 @@
 
 #include "ngraph/log.hpp"
 #include "onnx_framework_node.hpp"
+#include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 
 namespace ngraph {
@@ -18,7 +19,7 @@ std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto) {
 
 std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, const std::string& domain) {
     // copy the opsets and sort them (descending order)
-    // then return the version from the first occurence of a given domain
+    // then return the version from the first occurrence of a given domain
     auto opset_imports = model_proto.opset_import();
     std::sort(std::begin(opset_imports),
               std::end(opset_imports),
@@ -51,12 +52,12 @@ const Operator& Model::get_operator(const std::string& name, const std::string& 
     return op->second;
 }
 
-bool Model::is_operator_available(const ONNX_NAMESPACE::NodeProto& node_proto) const {
-    const auto dm = m_opset.find(get_node_domain(node_proto));
+bool Model::is_operator_available(const std::string& name, const std::string& domain) const {
+    const auto dm = m_opset.find(domain);
     if (dm == std::end(m_opset)) {
         return false;
     }
-    const auto op = dm->second.find(node_proto.op_type());
+    const auto op = dm->second.find(name);
     return (op != std::end(dm->second));
 }
 
@@ -68,7 +69,8 @@ void Model::enable_opset_domain(const std::string& domain, const OperatorsBridge
     if (m_opset.find(domain) == std::end(m_opset)) {
         const auto opset = ops_bridge.get_operator_set(domain);
         if (opset.empty()) {
-            NGRAPH_WARN << "Couldn't enable domain: " << domain << " since it does not have any registered operators.";
+            OPENVINO_WARN << "Couldn't enable domain: " << domain
+                          << " since it does not have any registered operators.";
             return;
         }
         m_opset.emplace(domain, opset);

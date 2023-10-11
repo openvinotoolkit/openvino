@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/deformable_psroi_pooling.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, deformable_psroi_pooling_op) {
-    NodeBuilder::get_ops().register_factory<opset1::DeformablePSROIPooling>();
-    auto input = make_shared<op::Parameter>(element::f32, Shape{2, 16, 67, 32});
-    auto coords = make_shared<op::Parameter>(element::f32, Shape{300, 5});
+    NodeBuilder::get_ops().register_factory<ov::op::v1::DeformablePSROIPooling>();
+    auto input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 16, 67, 32});
+    auto coords = make_shared<ov::op::v0::Parameter>(element::f32, Shape{300, 5});
 
     const int output_dim = 4;
     const float spatial_scale = 0.0625;
@@ -27,18 +26,18 @@ TEST(attributes, deformable_psroi_pooling_op) {
     const float trans_std = 0.1f;
     const int part_size = 3;
 
-    auto op = make_shared<opset1::DeformablePSROIPooling>(input,
-                                                          coords,
-                                                          output_dim,
-                                                          spatial_scale,
-                                                          group_size,
-                                                          mode,
-                                                          spatial_bins_x,
-                                                          spatial_bins_y,
-                                                          trans_std,
-                                                          part_size);
+    auto op = make_shared<ov::op::v1::DeformablePSROIPooling>(input,
+                                                              coords,
+                                                              output_dim,
+                                                              spatial_scale,
+                                                              group_size,
+                                                              mode,
+                                                              spatial_bins_x,
+                                                              spatial_bins_y,
+                                                              trans_std,
+                                                              part_size);
     NodeBuilder builder(op, {input, coords});
-    auto g_op = ov::as_type_ptr<opset1::DeformablePSROIPooling>(builder.create());
+    auto g_op = ov::as_type_ptr<ov::op::v1::DeformablePSROIPooling>(builder.create());
 
     EXPECT_EQ(g_op->get_output_dim(), op->get_output_dim());
     EXPECT_EQ(g_op->get_spatial_scale(), op->get_spatial_scale());
@@ -51,10 +50,10 @@ TEST(attributes, deformable_psroi_pooling_op) {
 }
 
 TEST(attributes, deformable_psroi_pooling_op2) {
-    NodeBuilder::get_ops().register_factory<opset1::DeformablePSROIPooling>();
-    auto input = make_shared<op::Parameter>(element::f32, Shape{2, 16, 67, 32});
-    auto coords = make_shared<op::Parameter>(element::f32, Shape{300, 5});
-    auto offset = make_shared<op::Parameter>(element::i64, Shape{300, 2, 2, 2});
+    NodeBuilder::get_ops().register_factory<ov::op::v1::DeformablePSROIPooling>();
+    auto input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 16, 67, 32});
+    auto coords = make_shared<ov::op::v0::Parameter>(element::f32, Shape{300, 5});
+    auto offset = make_shared<ov::op::v0::Parameter>(element::i64, Shape{300, 2, 2, 2});
 
     const int output_dim = 4;
     const float spatial_scale = 0.0625;
@@ -65,19 +64,19 @@ TEST(attributes, deformable_psroi_pooling_op2) {
     const float trans_std = 0.1f;
     const int part_size = 3;
 
-    auto op = make_shared<opset1::DeformablePSROIPooling>(input,
-                                                          coords,
-                                                          offset,
-                                                          output_dim,
-                                                          spatial_scale,
-                                                          group_size,
-                                                          mode,
-                                                          spatial_bins_x,
-                                                          spatial_bins_y,
-                                                          trans_std,
-                                                          part_size);
+    auto op = make_shared<ov::op::v1::DeformablePSROIPooling>(input,
+                                                              coords,
+                                                              offset,
+                                                              output_dim,
+                                                              spatial_scale,
+                                                              group_size,
+                                                              mode,
+                                                              spatial_bins_x,
+                                                              spatial_bins_y,
+                                                              trans_std,
+                                                              part_size);
     NodeBuilder builder(op, {input, coords, offset});
-    auto g_op = ov::as_type_ptr<opset1::DeformablePSROIPooling>(builder.create());
+    auto g_op = ov::as_type_ptr<ov::op::v1::DeformablePSROIPooling>(builder.create());
 
     EXPECT_EQ(g_op->get_output_dim(), op->get_output_dim());
     EXPECT_EQ(g_op->get_spatial_scale(), op->get_spatial_scale());

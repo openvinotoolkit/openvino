@@ -5,48 +5,39 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "single_layer_tests/conversion.hpp"
-
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/conversion.hpp"
 
 namespace {
-const std::vector<ngraph::helpers::ConversionTypes> conversionOpTypes = {
-    ngraph::helpers::ConversionTypes::CONVERT,
-    ngraph::helpers::ConversionTypes::CONVERT_LIKE,
+using ov::test::ConversionLayerTest;
+
+const std::vector<ov::test::utils::ConversionTypes> conversionOpTypes = {
+    ov::test::utils::ConversionTypes::CONVERT,
+    ov::test::utils::ConversionTypes::CONVERT_LIKE,
 };
 
-const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
+const std::vector<std::vector<ov::Shape>> shapes = {{{1, 2, 3, 4}}};
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::U8,
-    InferenceEngine::Precision::I8,
-    InferenceEngine::Precision::U16,
-    InferenceEngine::Precision::I16,
-    InferenceEngine::Precision::U32,
-    InferenceEngine::Precision::I32,
-    InferenceEngine::Precision::U64,
-    InferenceEngine::Precision::I64,
-    InferenceEngine::Precision::BF16,
-    InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP64,
-    InferenceEngine::Precision::BOOL,
-    InferenceEngine::Precision::MIXED,
-    InferenceEngine::Precision::Q78,
-    InferenceEngine::Precision::U4,
-    InferenceEngine::Precision::I4,
-    InferenceEngine::Precision::BIN,
-    InferenceEngine::Precision::CUSTOM,
+const std::vector<ov::element::Type> types = {
+    ov::element::u8,
+    ov::element::i8,
+    ov::element::u16,
+    ov::element::i16,
+    ov::element::u32,
+    ov::element::i32,
+    ov::element::u64,
+    ov::element::i64,
+    ov::element::bf16,
+    ov::element::f16,
+    ov::element::f32,
+    ov::element::f64,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest,
                          ConversionLayerTest,
                          ::testing::Combine(::testing::ValuesIn(conversionOpTypes),
-                                            ::testing::Values(inShape),
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes)),
+                                            ::testing::ValuesIn(types),
+                                            ::testing::ValuesIn(types),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConversionLayerTest::getTestCaseName);
 }  // namespace

@@ -21,7 +21,7 @@ std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParam
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeTransformationParam testParams;
     bool isConvertOnConstants;
     std::tie(netPrecision, inputShape, targetDevice, params, testParams, isConvertOnConstants) = obj.param;
@@ -35,7 +35,7 @@ std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParam
 void FakeQuantizeTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeTransformationParam testParams;
     bool isConvertOnConstants;
     std::tie(netPrecision, inputShape, targetDevice, params, testParams, isConvertOnConstants) = this->GetParam();
@@ -66,6 +66,7 @@ void FakeQuantizeTransformation::Run() {
 }
 
 TEST_P(FakeQuantizeTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

@@ -33,7 +33,7 @@ std::vector<bool> addReshape = {true, false};
 INSTANTIATE_TEST_SUITE_P(smoke_InputConv,
                          InputConvTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(params),
                                             ::testing::ValuesIn(outputChannels),

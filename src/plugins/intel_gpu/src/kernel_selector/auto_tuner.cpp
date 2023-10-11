@@ -3,23 +3,30 @@
 //
 
 #include "auto_tuner.h"
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <iomanip>
 #include <string>
-#include "istreamwrapper.h"
-#include "stringbuffer.h"
-#include "prettywriter.h"
 #include <memory>
 #include <utility>
 #include <tuple>
 
+#include "rapidjson/istreamwrapper.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
-#include <SetupAPI.h>
+#include <setupapi.h>
 #include <devguid.h>
 #include <cstring>
 #else
@@ -31,32 +38,37 @@
 
 namespace kernel_selector {
 
+class TuningCache::Impl {
+public:
+    rapidjson::Document cache;
+};
+
 TuningCache::TuningCache(const std::string& cacheFilePath)
-    : cache() {
+    : impl(new Impl()) {
     // Read cache file
     std::ifstream tuningFile(cacheFilePath);
 
     if (tuningFile && tuningFile.good()) {
         std::stringstream buffer;
         buffer << tuningFile.rdbuf();
-        cache.Parse(buffer.str().c_str());
+        impl->cache.Parse(buffer.str().c_str());
     } else {
         throw std::runtime_error("Tuning file: " + cacheFilePath + " could not be read! Must provide a valid cache file in USE_CACHE mode.");
     }
 
-    if (cache.IsNull()) {
-        cache.SetObject();
-    } else if (!cache.IsObject()) {
+    if (impl->cache.IsNull()) {
+        impl->cache.SetObject();
+    } else if (!impl->cache.IsObject()) {
         throw std::runtime_error("Tuning file: " + cacheFilePath + " has incorrect format.");
     }
 
-    auto cacheObj = cache.GetObject();
+    auto cacheObj = impl->cache.GetObject();
 
     // Update to new format with version markers
     if (!cacheObj.HasMember(version2Marker)) {
-        auto newName = rapidjson::Value(version2Marker, cache.GetAllocator());
+        auto newName = rapidjson::Value(version2Marker, impl->cache.GetAllocator());
         auto newObj = rapidjson::Value(rapidjson::Type::kObjectType);
-        cacheObj.AddMember(newName, newObj, cache.GetAllocator());
+        cacheObj.AddMember(newName, newObj, impl->cache.GetAllocator());
     }
 
     bool needsV1 = false;
@@ -69,9 +81,9 @@ TuningCache::TuningCache(const std::string& cacheFilePath)
 
     if (needsV1) {
         if (!cacheObj.HasMember(version1Marker)) {
-            auto newName = rapidjson::Value(version1Marker, cache.GetAllocator());
+            auto newName = rapidjson::Value(version1Marker, impl->cache.GetAllocator());
             auto newObj = rapidjson::Value(rapidjson::Type::kObjectType);
-            cacheObj.AddMember(newName, newObj, cache.GetAllocator());
+            cacheObj.AddMember(newName, newObj, impl->cache.GetAllocator());
         }
 
         for (auto it = cacheObj.begin(); it != cacheObj.end();) {
@@ -82,7 +94,7 @@ TuningCache::TuningCache(const std::string& cacheFilePath)
                 auto newValue = rapidjson::Value(rapidjson::Type::kObjectType);
                 newName.Swap(member.name);
                 newValue.Swap(member.value);
-                cache[version1Marker].AddMember(newName, newValue, cache.GetAllocator());
+                impl->cache[version1Marker].AddMember(newName, newValue, impl->cache.GetAllocator());
                 it = cacheObj.EraseMember(it);
             } else {
                 it++;
@@ -92,11 +104,11 @@ TuningCache::TuningCache(const std::string& cacheFilePath)
 }
 
 TuningCache::TuningCache()
-    : cache() {
-    cache.SetObject();
-    auto v2Name = rapidjson::Value(version2Marker, cache.GetAllocator());
+    : impl(new Impl()) {
+    impl->cache.SetObject();
+    auto v2Name = rapidjson::Value(version2Marker, impl->cache.GetAllocator());
     auto v2Obj = rapidjson::Value(rapidjson::Type::kObjectType);
-    cache.AddMember(v2Name, v2Obj, cache.GetAllocator());
+    impl->cache.AddMember(v2Name, v2Obj, impl->cache.GetAllocator());
 }
 
 TuningCache::Entry TuningCache::LoadKernel(const Params& params) {
@@ -125,8 +137,8 @@ TuningCache::Entry TuningCache::LoadKernel_v1(const Params& params, uint32_t com
     auto hashStr = std::to_string(create_hash(params.to_string()));
     auto computeUnitsStr = std::to_string(computeUnitsCount);
 
-    auto v1It = cache.FindMember(version1Marker);
-    if (v1It == cache.MemberEnd())
+    auto v1It = impl->cache.FindMember(version1Marker);
+    if (v1It == impl->cache.MemberEnd())
         return result;
 
     auto computeUnitsIt = v1It->value.FindMember(computeUnitsStr.c_str());
@@ -148,8 +160,8 @@ TuningCache::Entry TuningCache::LoadKernel_v2(const Params& params, uint32_t com
     auto paramStr = params.to_cache_string_v2();
     auto computeUnitsStr = std::to_string(computeUnitsCount);
 
-    auto v2It = cache.FindMember(version2Marker);
-    if (v2It == cache.MemberEnd())
+    auto v2It = impl->cache.FindMember(version2Marker);
+    if (v2It == impl->cache.MemberEnd())
         return result;
 
     auto computeUnitsIt = v2It->value.FindMember(computeUnitsStr.c_str());
@@ -195,12 +207,14 @@ TuningCache* TuningCache::get() {
     GetModuleFileName(hm, module_path, sizeof(module_path));
     std::string bin_path(module_path);
     path = bin_path.substr(0, bin_path.find_last_of("\\")) + "\\cache.json";
-#else
+#elif __linux__
     const char* device_info_failed_msg = "Device lookup failed";
     Dl_info dl_info;
     dladdr((void*)(device_info_failed_msg), &dl_info);  // NOLINT
     std::string bin_path(dl_info.dli_fname);
     path = bin_path.substr(0, bin_path.find_last_of("/")) + "/cache.json";
+#else
+#error "Intel GPU plugin: unknown target system"
 #endif
 
     if (!cache_instance) {

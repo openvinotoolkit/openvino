@@ -5,7 +5,7 @@
 import numpy as np
 
 from openvino.runtime import Type
-import openvino.runtime.opset8 as ov
+import openvino.runtime.opset13 as ov
 
 
 def test_lrn():
@@ -81,6 +81,21 @@ def test_mvn():
     node = ov.mvn(data, axes, normalize_variance, epsilon, eps_mode)
 
     assert node.get_type_name() == "MVN"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 3, 3, 3]
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_group_normalization():
+    data = ov.parameter((1, 3, 3, 3), name="data", dtype=np.float32)
+    scale = np.array((1, 1, 1), dtype=np.float32)
+    bias = np.array((1, 1, 1), dtype=np.float32)
+    num_groups = 1
+    epsilon = 1e-6
+
+    node = ov.group_normalization(data, scale, bias, num_groups, epsilon)
+
+    assert node.get_type_name() == "GroupNormalization"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [1, 3, 3, 3]
     assert node.get_output_element_type(0) == Type.f32

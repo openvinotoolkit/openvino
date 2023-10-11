@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/experimental_detectron_prior_grid_generator.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -58,7 +58,10 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
 
     init_input_shapes(param.inputShapes);
 
-    auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+    }
     auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto experimentalDetectron = std::make_shared<op::v6::ExperimentalDetectronPriorGridGenerator>(
         params[0], // priors
@@ -90,7 +93,7 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std
     auto i = 0ul;
     for (; i < inputTensors.second.size(); ++i) {
         if (targetInputStaticShapes[i] != inputTensors.second[i].get_shape()) {
-            throw Exception("input shape is different from tensor shape");
+            OPENVINO_THROW("input shape is different from tensor shape");
         }
 
         inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors.second[i]});

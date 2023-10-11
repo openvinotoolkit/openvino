@@ -13,6 +13,8 @@ using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START
+
 class PreallocatorTests : public ::testing::Test {
 protected:
     std::vector<float> mybuf;

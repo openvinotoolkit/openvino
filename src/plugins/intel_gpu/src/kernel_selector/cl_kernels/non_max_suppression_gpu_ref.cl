@@ -80,8 +80,8 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TY
 {
 #if BOX_ENCODING == 0
     /// CORNER
-    const COORD_TYPE areaA = (boxA[3] - boxA[1]) * (boxA[2] - boxA[0]);
-    const COORD_TYPE areaB = (boxB[3] - boxB[1]) * (boxB[2] - boxB[0]);
+    const float areaA = convert_float(boxA[3] - boxA[1]) * convert_float(boxA[2] - boxA[0]);
+    const float areaB = convert_float(boxB[3] - boxB[1]) * convert_float(boxB[2] - boxB[0]);
 
     const COORD_TYPE intersection_ymin = max(boxA[0], boxB[0]);
     const COORD_TYPE intersection_xmin = max(boxA[1], boxB[1]);
@@ -89,8 +89,8 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TY
     const COORD_TYPE intersection_xmax = min(boxA[3], boxB[3]);
 #else
     /// CENTER
-    const COORD_TYPE areaA = boxA[3] * boxA[2];
-    const COORD_TYPE areaB = boxB[3] * boxB[2];
+    const float areaA = convert_float(boxA[3]) * convert_float(boxA[2]);
+    const float areaB = convert_float(boxB[3]) * convert_float(boxB[2]);
     const COORD_TYPE halfWidthA = boxA[2] / 2;
     const COORD_TYPE halfHeightA = boxA[3] / 2;
     const COORD_TYPE halfWidthB = boxB[2] / 2;
@@ -105,10 +105,10 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TY
     if (areaA <= 0.0f || areaB <= 0.0f)
         return 0.0f;
 
-    const COORD_TYPE intersection_area = max(intersection_xmax - intersection_xmin, TO_COORD_TYPE(0.f)) *
-                                         max(intersection_ymax - intersection_ymin, TO_COORD_TYPE(0.f));
-    const COORD_TYPE union_area = areaA + areaB - intersection_area;
-    return convert_float(intersection_area / union_area);
+    const float intersection_area = convert_float(max(intersection_xmax - intersection_xmin, TO_COORD_TYPE(0.f))) *
+                                    convert_float(max(intersection_ymax - intersection_ymin, TO_COORD_TYPE(0.f)));
+    const float union_area = areaA + areaB - intersection_area;
+    return intersection_area / union_area;
 }
 
 inline float FUNC(scaleIOU)(float iou, float iou_threshold, float scale)

@@ -17,12 +17,12 @@ std::string VariadicSplitPad::getTestCaseName(const testing::TestParamInfo<Split
     std::tie(inputShape, axis, numSplits, connectIndexes, padsBegin, padsEnd, padMode, netPrecision, targetName) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    results << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     results << "Axis=" << axis << "_";
-    results << "NumSplits=" << CommonTestUtils::vec2str(numSplits) << "_";
-    results << "ConnectIndexes=" << CommonTestUtils::vec2str(connectIndexes) << "_";
-    results << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
-    results << "padsEnd=" << CommonTestUtils::vec2str(padsEnd) << "_";
+    results << "NumSplits=" << ov::test::utils::vec2str(numSplits) << "_";
+    results << "ConnectIndexes=" << ov::test::utils::vec2str(connectIndexes) << "_";
+    results << "padsBegin=" << ov::test::utils::vec2str(padsBegin) << "_";
+    results << "padsEnd=" << ov::test::utils::vec2str(padsEnd) << "_";
     results << "PadMode=" << padMode << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";
@@ -38,7 +38,7 @@ void VariadicSplitPad::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(inputs, axis, numSplits, connectIndexes, padBegin, padEnd, padMode, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto input = ngraph::builder::makeParams(ngPrc, {inputs});
+    ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputs))};
     auto split = ngraph::builder::makeVariadicSplit(input[0], numSplits, axis);
     ngraph::ResultVector results;
 

@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceMax : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceMax", "opset1", util::ArithmeticReductionKeepDims, 1);
+    OPENVINO_OP("ReduceMax", "opset1", util::ArithmeticReductionKeepDims);
     /// \brief Constructs a summation operation.
     ReduceMax() = default;
     /// \brief Constructs a summation operation.
@@ -26,10 +26,10 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 };
 }  // namespace v1
 }  // namespace op

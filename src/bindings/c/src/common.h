@@ -18,6 +18,7 @@
     catch (const InferenceEngine::ExceptionType&) {   \
         return ov_status_e::StatusCode;               \
     }
+
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
     catch (const ov::ExceptionType&) {                \
         return ov_status_e::StatusCode;               \

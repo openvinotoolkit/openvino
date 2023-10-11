@@ -17,7 +17,7 @@ struct lstm_gemm_impl : typed_primitive_impl_ocl<lstm_gemm> {
     using kernel_selector_t = kernel_selector::lstm_gemm_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::lstm_gemm_params, kernel_selector::lstm_gemm_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::lstm_gemm_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<lstm_gemm_impl>(*this);
@@ -74,7 +74,7 @@ public:
         } else {  // For unidirectional input
             lstm_gemm_params.input_direction = 0;
         }
-
+        lstm_gemm_params.set_dynamic_shape_offsets();
         auto lstm_gemm_optional_params =
             get_default_optional_params<kernel_selector::lstm_gemm_optional_params>(impl_param.get_program());
 

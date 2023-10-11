@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pattern/op/capture.hpp"
+#include "openvino/pass/pattern/op/capture.hpp"
 
-#include "ngraph/pattern/matcher.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-bool pattern::op::Capture::match_value(Matcher* matcher,
-                                       const Output<Node>& pattern_value,
-                                       const Output<Node>& graph_value) {
+bool ov::pass::pattern::op::Capture::match_value(Matcher* matcher,
+                                                 const Output<Node>& pattern_value,
+                                                 const Output<Node>& graph_value) {
     matcher->capture(m_static_nodes);
     return true;
 }

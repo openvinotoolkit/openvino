@@ -12,7 +12,7 @@
 #include <tuple>
 #include <debug.h>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -54,7 +54,7 @@ static std::shared_ptr<ov::Model> makeInteraction(const ElementType inType, cons
         features.push_back(sparse_feat);
         inputsParams.push_back(sparse_input);
     }
-    auto shapeof = std::make_shared<opset8::ShapeOf>(dense_feature);
+    auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(dense_feature);
     auto gather_batch_indices =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{1}, std::vector<int32_t>{0});
     auto gather_batch_axis =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{}, 0);
     auto gather_batch = std::make_shared<opset8::Gather>(shapeof, gather_batch_indices, gather_batch_axis);
@@ -142,7 +142,7 @@ public:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
 
@@ -163,7 +163,7 @@ protected:
         } else {
             selectedType = makeSelectedTypeStr("ref_any", ov::element::f32);
         }
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         inputDynamicShapes.push_back(inputShape.first);
         const auto& targetInput = inputShape.second;
         for (size_t i = 0; i  < targetInput.size(); i++) {

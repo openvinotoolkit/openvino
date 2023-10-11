@@ -368,6 +368,15 @@ bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
 }
 
 /**
+ * @brief Strip the name of the input to exclude ":port"
+ * @param name input name
+ * @return striped input name
+ */
+std::string strip_name(const std::string& name) {
+    return {name, 0, name.rfind(':')};
+}
+
+/**
  * @brief Parse scale factors per input
  * Format : <input_name1>=<sf1>,<input2>=<sf2> or just <sf>
  * @param inputs model inputs

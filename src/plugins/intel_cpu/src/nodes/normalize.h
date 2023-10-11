@@ -17,7 +17,7 @@
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 struct jit_normalize_config_params {
     bool is_nchw;
     bool is_nhwc;
@@ -75,7 +75,7 @@ struct jit_uni_normalize_kernel {
     jit_normalize_config_params jcp_;
     const dnnl_primitive_attr &attr_;
 };
-
+#endif
 class NormalizeL2 : public Node {
 public:
     NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);

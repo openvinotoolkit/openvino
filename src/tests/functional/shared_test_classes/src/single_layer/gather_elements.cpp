@@ -7,7 +7,7 @@
 #include <tuple>
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/gather_elements.hpp"
 
 namespace LayerTestsDefinitions {
@@ -20,8 +20,8 @@ std::string GatherElementsLayerTest::getTestCaseName(const testing::TestParamInf
     std::tie(dataShape, indicesShape, axis, dPrecision, iPrecision, device) = obj.param;
 
     std::ostringstream result;
-    result << "DS=" << CommonTestUtils::vec2str(dataShape) << "_";
-    result << "IS=" << CommonTestUtils::vec2str(indicesShape) << "_";
+    result << "DS=" << ov::test::utils::vec2str(dataShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(indicesShape) << "_";
     result << "Ax=" << axis << "_";
     result << "DP=" << dPrecision.name() << "_";
     result << "IP=" << iPrecision.name() << "_";
@@ -40,7 +40,7 @@ void GatherElementsLayerTest::SetUp() {
     auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
 
-    auto params = ngraph::builder::makeParams(ngDPrc, {dataShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto gather = std::dynamic_pointer_cast<ngraph::op::v6::GatherElements>(

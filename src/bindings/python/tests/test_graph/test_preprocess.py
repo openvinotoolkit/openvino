@@ -393,7 +393,7 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
             "Gather",
             "Interpolate",
         ]
-        assert len(model_operators) == 16
+        assert len(model_operators) == 15
         assert function.get_output_size() == 1
         assert list(function.get_output_shape(0)) == [1, 3, 3, 3]
         assert function.get_output_element_type(0) == Type.f32
@@ -535,7 +535,7 @@ def test_graph_preprocess_resize_algorithm():
         "Subtract",
         "Interpolate",
     ]
-    assert len(model_operators) == 8
+    assert len(model_operators) == 7
     assert function.get_output_size() == 1
     assert list(function.get_output_shape(0)) == [1, 1, 3, 3]
     assert function.get_output_element_type(0) == Type.f32

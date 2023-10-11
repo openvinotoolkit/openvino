@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
@@ -34,15 +34,15 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
         result << "TS=";
         for (const auto& shape : inputShapes.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << "numSplits=" << numSplits << "_";
         result << "axis=" << axis << "_";
         if (!outIndices.empty()) {
-            result << "outIndices" << CommonTestUtils::vec2str(outIndices) << "_";
+            result << "outIndices" << ov::test::utils::vec2str(outIndices) << "_";
         }
         result << "netPRC=" << netPrecision << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -51,7 +51,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         size_t axis, numSplits;
         ElementType netPrecision;
@@ -60,7 +60,7 @@ protected:
         CPUSpecificParams cpuParams;
         std::tie(numSplits, axis, netPrecision, inputShapes, outIndices, cpuParams) = this->GetParam();
         if (outIndices.empty()) {
-            for (int i = 0; i < numSplits; ++i) {
+            for (size_t i = 0; i < numSplits; ++i) {
                 outIndices.push_back(i);
             }
         }
@@ -70,14 +70,17 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(ngraph::builder::makeSplit(paramOuts[0],
                                                                                                  netPrecision, numSplits, axis));
         ngraph::ResultVector results;
 
-        for (int i = 0; i < outIndices.size(); i++) {
+        for (size_t i = 0; i < outIndices.size(); i++) {
             // This WA is necessary because result nodes connected to the same output of the split node (or any node) are deduplicated
             // on the CNNNetwork level. It might not be needed when the CPU plugin moves completely to nGraph.
             // This is still a single layer test since the Relu nodes are added only as a WA.
@@ -92,12 +95,12 @@ protected:
 
 TEST_P(SplitLayerCPUTest, CompareWithRefs) {
     run();
-//     CheckPluginRelatedResults(executableNetwork, "Split");
+    CheckPluginRelatedResults(compiledModel, "Split");
 }
 
 namespace {
-const auto planar_4D_ref = CPUSpecificParams{{nchw}, {nchw}, {"ref"}, "ref"};
-const auto planar_5D_ref = CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref"}, "ref"};
+const auto planar_4D_ref = CPUSpecificParams{{nchw}, {nchw}, {}, "ref"};
+const auto planar_5D_ref = CPUSpecificParams{{ncdhw}, {ncdhw}, {}, "ref"};
 
 const auto planar_4D = CPUSpecificParams{{nchw}, {nchw}, {}, "unknown"};
 const auto planar_5D = CPUSpecificParams{{ncdhw}, {ncdhw}, {}, "unknown"};
@@ -249,7 +252,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_planar, SplitLayerCPUTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes4D_planar),
                                 ::testing::ValuesIn(outIndices3),
-                                ::testing::Values(planar_4D, planar_4D_ref, perChannels_4D)),
+                                ::testing::Values(planar_4D_ref, perChannels_4D)),
                         SplitLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes4D_block = {
@@ -336,7 +339,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Split5D_CPU_planar, SplitLayerCPUTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes5D_planar),
                                 ::testing::ValuesIn(outIndices3),
-                                ::testing::Values(planar_5D, planar_5D_ref, perChannels_5D)),
+                                ::testing::Values(planar_5D_ref, perChannels_5D)),
                         SplitLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes5D_block = {
@@ -410,11 +413,11 @@ const std::vector<InputShape> inputShapes3D = {
 INSTANTIATE_TEST_SUITE_P(smoke_Split3D, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(7),
-                                ::testing::Values(0, 1, 2),
+                                ::testing::Values(1, 2),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::Values(std::vector<size_t>({})),
-                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                                 SplitLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes2D = {
@@ -444,15 +447,24 @@ const std::vector<InputShape> inputShapes2D = {
 INSTANTIATE_TEST_SUITE_P(smoke_Split2D, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(2),
-                                ::testing::Values(0, 1),
+                                ::testing::Values(1),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::Values(std::vector<size_t>({})),
-                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         SplitLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Split1D_static, SplitLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(5),
+                                ::testing::Values(0),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InputShape{ {}, {{10}} }),
+                                ::testing::Values(std::vector<size_t>({})),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                            SplitLayerCPUTest::getTestCaseName);
+
 const std::vector<InputShape> inputShapes1D = {
-        { {}, {{10}} },
         {
             // dynamic
             {-1},
@@ -482,7 +494,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Split1D, SplitLayerCPUTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes1D),
                                 ::testing::Values(std::vector<size_t>({})),
-                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                             SplitLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes4D_dynBatch = {
@@ -504,48 +516,83 @@ INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_by_batch, SplitLayerCPUTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes4D_dynBatch),
                                 ::testing::ValuesIn(outIndices3),
-                                ::testing::Values(planar_4D, planar_4D_ref, perChannels_4D)),
+                                ::testing::Values(planar_4D_ref, perChannels_4D)),
                         SplitLayerCPUTest::getTestCaseName);
 
 // ============================================== inPlace cases ============================================
-INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_Block8inPlace, SplitLayerCPUTest,
+const std::vector<InputShape> inputShapes4D_inPlace_0 = {
+        {{}, {{3, 24, 24, 9}}},
+        {{}, {{6, 24, 24}}},
+        {{}, {{9, 24}}},
+        {
+            // dynamic
+            {3, -1, -1, -1, -1},
+            // target
+            {
+                {3, 24, 6, 9, 4},
+                {3, 12, 12, 15, 5},
+            }
+        },
+        {
+            // dynamic
+            {6, -1, -1, -1},
+            // target
+            {
+                {6, 24, 6, 9},
+                {6, 12, 12, 15},
+            }
+        },
+        {
+            // dynamic
+            {9, -1, -1},
+            // target
+            {
+                {9, 24, 6},
+                {9, 12, 12},
+            }
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Split_CPU_planar_inPlace_0, SplitLayerCPUTest,
                     ::testing::Combine(
                             ::testing::Values(3),
-                            ::testing::Values(0, 1),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(InputShape{ {}, {{3, 24, 24, 9}} }),
-                            ::testing::ValuesIn(outIndices3),
-                            ::testing::Values(planar_4D, planar_4D_ref, perChannels_4D, blocked8_4D)),
+                            ::testing::Values(0),
+                            ::testing::Values(ElementType::f32),
+                            ::testing::ValuesIn(inputShapes4D_inPlace_0),
+                            ::testing::Values(std::vector<size_t>{}),
+                            ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
                     SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_Block16inPlace, SplitLayerCPUTest,
-                        ::testing::Combine(
-                                ::testing::Values(4),
-                                ::testing::Values(0, 1),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InputShape{ {}, {{4, 64, 32, 12}} }),
-                                ::testing::ValuesIn(outIndices3),
-                                ::testing::Values(blocked16_4D)),
-                        SplitLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_Block8inPlace_1, SplitLayerCPUTest,
+                    ::testing::Combine(
+                            ::testing::Values(4),
+                            ::testing::Values(1),
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(InputShape{ {}, {{1, 32, 5, 6}} },
+                                              InputShape{ {1, 32, -1, -1},
+                                                          {
+                                                              {1, 32, 5, 6},
+                                                              {1, 32, 5, 2},
+                                                              {1, 32, 5, 8}
+                                                           } }),
+                            ::testing::ValuesIn(outIndices4),
+                            ::testing::Values(planar_4D, blocked8_4D)),
+                    SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Split5D_CPU_Block8inPlace, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split5D_CPU_Block16inPlace_1, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(3),
-                                ::testing::Values(0, 1),
+                                ::testing::Values(1),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InputShape{ {}, {{3, 24, 24, 9, 15}} }),
+                                ::testing::Values(InputShape{ {}, {{1, 48, 5, 6, 3}} },
+                                              InputShape{ {1, 48, -1, -1, 3},
+                                                          {
+                                                              {1, 48, 5, 6, 3},
+                                                              {1, 48, 5, 2, 3},
+                                                              {1, 48, 5, 8, 3}
+                                                           } }),
                                 ::testing::ValuesIn(outIndices3),
-                                ::testing::Values(planar_5D, planar_5D_ref, perChannels_5D, blocked8_5D)),
-                        SplitLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Split5D_CPU_Block16inPlace, SplitLayerCPUTest,
-                        ::testing::Combine(
-                                ::testing::Values(4),
-                                ::testing::Values(0, 1),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InputShape{ {}, {{4, 64, 32, 12, 20}} }),
-                                ::testing::ValuesIn(outIndices4),
-                                ::testing::Values(blocked16_5D)),
+                                ::testing::Values(planar_5D, blocked16_5D)),
                         SplitLayerCPUTest::getTestCaseName);
 
 } // namespace

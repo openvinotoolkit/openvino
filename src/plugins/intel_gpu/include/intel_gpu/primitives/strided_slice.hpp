@@ -14,6 +14,8 @@ namespace cldnn {
 struct strided_slice : public primitive_base<strided_slice> {
     CLDNN_DECLARE_PRIMITIVE(strided_slice)
 
+    strided_slice() : primitive_base("", {}) {}
+
     /// @brief Constructs strided_slice primitive.
     /// @param id This primitive id.
     /// @param input Input data primitive id.
@@ -126,6 +128,32 @@ struct strided_slice : public primitive_base<strided_slice> {
                new_axis_mask == rhs_casted.new_axis_mask &&
                shrink_axis_mask == rhs_casted.shrink_axis_mask &&
                ellipsis_mask == rhs_casted.ellipsis_mask;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<strided_slice>::save(ob);
+        ob << begin;
+        ob << end;
+        ob << strides;
+        ob << begin_mask;
+        ob << end_mask;
+        ob << new_axis_mask;
+        ob << shrink_axis_mask;
+        ob << ellipsis_mask;
+        ob << out_size;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<strided_slice>::load(ib);
+        ib >> begin;
+        ib >> end;
+        ib >> strides;
+        ib >> begin_mask;
+        ib >> end_mask;
+        ib >> new_axis_mask;
+        ib >> shrink_axis_mask;
+        ib >> ellipsis_mask;
+        ib >> out_size;
     }
 };
 }  // namespace cldnn

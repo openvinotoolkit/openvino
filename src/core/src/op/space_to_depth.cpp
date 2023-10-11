@@ -13,8 +13,8 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/runtime/reference/space_to_depth.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/reference/space_to_depth.hpp"
 
 using namespace ngraph;
 
@@ -38,7 +38,7 @@ bool ngraph::op::v0::SpaceToDepth::visit_attributes(AttributeVisitor& visitor) {
 std::shared_ptr<Node> ov::op::v0::SpaceToDepth::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_SpaceToDepth_clone_with_new_inputs);
     if (new_args.size() != 1) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
     return std::make_shared<SpaceToDepth>(new_args.at(0), m_mode, m_blocksize);
 }
@@ -46,10 +46,13 @@ std::shared_ptr<Node> ov::op::v0::SpaceToDepth::clone_with_new_inputs(const Outp
 void ngraph::op::v0::SpaceToDepth::validate_and_infer_types() {
     OV_OP_SCOPE(v0_SpaceToDepth_validate_and_infer_types);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool evaluate_space_to_depth(const HostTensorVector& outputs,
                              const HostTensorVector& inputs,
@@ -63,13 +66,13 @@ bool evaluate_space_to_depth(const HostTensorVector& outputs,
         return false;
     }
 
-    runtime::reference::space_to_depth(in->get_data_ptr<char>(),
-                                       in->get_shape(),
-                                       out->get_data_ptr<char>(),
-                                       out->get_shape(),
-                                       block_size,
-                                       mode,
-                                       elem_size);
+    ov::reference::space_to_depth(in->get_data_ptr<char>(),
+                                  in->get_shape(),
+                                  out->get_data_ptr<char>(),
+                                  out->get_shape(),
+                                  block_size,
+                                  mode,
+                                  elem_size);
     return true;
 }
 }  // namespace

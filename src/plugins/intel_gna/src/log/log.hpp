@@ -5,6 +5,7 @@
 #pragma once
 
 #include <iostream>
+#include <mutex>
 #include <ostream>
 
 #include "openvino/runtime/properties.hpp"
@@ -23,6 +24,7 @@ class GnaLog {
     GnaLog() = default;
 
     static GnaLog& log(ov::log::Level log_level) {
+        std::lock_guard<std::mutex> guard(mutex_);
         GnaLog& obj = get_instance();
         obj.message_level_ = log_level;
         obj << "[" << log_level << "]"
@@ -35,6 +37,7 @@ class GnaLog {
 
     /** Log level of particular log message */
     ov::log::Level message_level_ = ov::log::Level::NO;
+    static std::mutex mutex_;
 
     static GnaLog& get_instance() {
         static GnaLog log_obj;

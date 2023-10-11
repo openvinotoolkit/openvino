@@ -13,7 +13,7 @@ namespace snippets {
 typedef std::tuple<
         std::vector<ov::PartialShape>, // Input  Shapes
         size_t ,                       // Transpose position
-        ov::element::Type,             // Element type
+        std::vector<ov::element::Type>,// Input Element types
         size_t,                        // Expected num nodes
         size_t,                        // Expected num subgraphs
         std::string                    // Target Device
@@ -24,6 +24,21 @@ class TransposeMatMul : public testing::WithParamInterface<ov::test::snippets::T
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMatMulParams> obj);
 
+protected:
+    void SetUp() override;
+};
+
+class TransposeMatMulFQ : public TransposeMatMul {
+protected:
+    void SetUp() override;
+};
+
+class ExplicitTransposeMatMul : public TransposeMatMul {
+protected:
+    void SetUp() override;
+};
+
+class ExplicitTransposeMatMulBias : public TransposeMatMul {
 protected:
     void SetUp() override;
 };
