@@ -20,7 +20,6 @@ namespace op {
 
 using namespace ov::op;
 
-
 OutputVector translate_cat_common(const NodeContext& context,
                                   const std::deque<ov::Output<ov::Node>>& list_elems,
                                   int64_t axis) {
