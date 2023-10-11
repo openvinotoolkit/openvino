@@ -211,6 +211,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"NoOp", CreatorFunction(translate_no_op)},  // do nothing
         {"OneHot", CreatorFunction(translate_one_hot_op)},
         {"OneShotIterator", CreatorFunction(translate_iterator_op)},
+        {"OnesLike", CreatorFunction(translate_ones_like_op)},
         {"Pack", CreatorFunction(translate_pack_op)},
         {"Pad", CreatorFunction(translate_pad_op)},
         {"PadV2", CreatorFunction(translate_padv2_op)},
