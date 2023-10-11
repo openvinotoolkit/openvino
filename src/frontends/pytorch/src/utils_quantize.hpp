@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <deque>
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "pt_framework_node.hpp"
 
@@ -167,11 +166,10 @@ OutputVector quantizable_op(const NodeContext& context) {
 }
 }  // namespace op
 
-
 /**
  * Captures aten::stack([aten::bitwise_and(Constant(u8)), aten::bitwise_right_shift(Constant(u8))], dim=-1).
  * This pattern is transformed to a single Constant with element_type=u4.
-*/
+ */
 std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64_t axis);
 
 }  // namespace pytorch

@@ -189,13 +189,13 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     if (weights_u8->get_output_element_type(0) != element::u8)
         return nullptr;
 
-    if (axis != -1 && axis != weights_u8->get_shape().size() - 1)
+    if (axis != -1 && static_cast<uint64_t>(axis) != weights_u8->get_shape().size() - 1)
+        return nullptr; 
+
+    if (!ov::op::util::has_constant_value<uint64_t>(bitwise_and->get_input_node_shared_ptr(1), 0x0F))
         return nullptr;
 
-    if(!ov::op::util::has_constant_value<uint64_t>(bitwise_and->get_input_node_shared_ptr(1), 0x0F))
-        return nullptr;
-
-    if(!ov::op::util::has_constant_value<uint64_t>(bitwise_shift->get_input_node_shared_ptr(1), 4))
+    if (!ov::op::util::has_constant_value<uint64_t>(bitwise_shift->get_input_node_shared_ptr(1), 4))
         return nullptr;
 
     // Pattern detected, weights_u8 is target u8 packed constant with weights
@@ -210,10 +210,11 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     auto u4_shape = u8_shape;
     u4_shape.push_back(2);
     auto new_const = std::make_shared<v0::Constant>(element::u4, u4_shape);
-    auto dst = const_cast<uint8_t*>(
-        reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));
+    auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));
 
-    auto swap_nibbles = [](uint8_t byte) { return ((byte & 0x0F) << 4) | (byte >> 4); };  // swap halfs because Convert op assumes this layout
+    auto swap_nibbles = [](uint8_t byte) {
+        return ((byte & 0x0F) << 4) | (byte >> 4);
+    };  // swap halfs because Convert op assumes this layout
 
     // TODO: If pack_byte is implemented trivially (no exchange of the halfs of a byte) then the following
     // transform is not needed and we can use the original constant as-is
