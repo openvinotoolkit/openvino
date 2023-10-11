@@ -122,7 +122,7 @@ Below are some examples of using Optimum-Intel for model conversion and inferenc
 * `Instruction following using Databricks Dolly 2.0 and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/240-dolly-2-instruction-following/240-dolly-2-instruction-following.ipynb>`__
 * `Create an LLM-powered Chatbot using OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb>`__
 
-Working with models tuned with LoRA
+Working with Models Tuned with LoRA
 ++++++++++++++++++++++++++++++++++++
 
 Low-ranking Adaptation (LoRA) is a popular method to tune Generative AI models to a downstream task or custom data. But it requires some extra steps to be done for efficient deployment using the Hugging Face API. Namely, the trained adapters should be fused into the baseline model to avoid extra computation. This is how it can be done for LLMs:
