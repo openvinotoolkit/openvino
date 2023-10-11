@@ -157,8 +157,7 @@ To write such pipelines, you can follow the examples provided as part of OpenVIN
 Additional Resources
 ############################
 
-* `Optimum-Intel documentation <https://huggingface.co/docs/optimum/intel/inference>`_
-* `Optimum-Intel GitHub <https://github.com/huggingface/optimum-intel>`_
+* `Optimum Intel documentation <https://huggingface.co/docs/optimum/intel/inference>`_
 * :doc:`Weight Compression <weight_compression>`
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`_
 
