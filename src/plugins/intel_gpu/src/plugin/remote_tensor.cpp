@@ -169,7 +169,7 @@ const std::string& RemoteTensorImpl::get_device_name() const {
     return m_context->get_device_name();
 }
 
-bool RemoteTensorImpl::is_shared() const {
+bool RemoteTensorImpl::is_shared() const noexcept {
     return m_mem_type == TensorType::BT_BUF_SHARED ||
            m_mem_type == TensorType::BT_USM_SHARED ||
            m_mem_type == TensorType::BT_IMG_SHARED ||

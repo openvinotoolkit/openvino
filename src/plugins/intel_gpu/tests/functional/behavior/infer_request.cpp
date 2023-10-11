@@ -199,3 +199,26 @@ TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
     ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
     ASSERT_NO_THROW(inf_req.infer());
 }
+
+TEST(TensorTest, smoke_canReallocateDeviceInputForHostTensor) {
+    auto ov = ov::Core();
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+    auto function = p.build();
+
+    auto compiled_model = ov.compile_model(function, ov::test::utils::DEVICE_GPU);
+    auto inf_req = compiled_model.create_infer_request();
+
+    auto input = function->input();
+    ov::Tensor host_tensor(input.get_element_type(), input.get_shape());
+
+    // Infer with pre-allocated input tensor
+    ASSERT_NO_THROW(inf_req.infer());
+
+    // Infer with host_tensor
+    ASSERT_NO_THROW(inf_req.set_input_tensor(host_tensor));
+    ASSERT_NO_THROW(inf_req.infer());
+}
+
