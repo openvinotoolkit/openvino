@@ -8,9 +8,6 @@ set(TARGET_NAME InferenceEngineUnitTests)
 
 ov_disable_deprecated_warnings()
 
-# rpath enabled for unit tests only
-SET (CMAKE_SKIP_RPATH OFF)
-
 # collect sources
 
 file(GLOB
@@ -91,7 +88,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 ov_try_use_gold_linker()
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
-set_property(TEST ${TARGET_NAME} PROPERTY LABELS IE)
+set_property(TEST ${TARGET_NAME} PROPERTY LABELS OV UNIT)
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests

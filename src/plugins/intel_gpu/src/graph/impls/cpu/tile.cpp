@@ -75,7 +75,7 @@ struct tile_impl : public typed_primitive_impl<tile> {
             if (repeats.empty())
                 OPENVINO_THROW("[GPU] Unexpected configuration of tile impl");
 
-            auto repeats_tensor = ov::Tensor(data_type_to_element_type(data_types::i64), {repeats.size()}, repeats.data());
+            auto repeats_tensor = ov::Tensor(ov::element::i64, {repeats.size()}, repeats.data());
             input_host_tensors.push_back(repeats_tensor);
         }
 

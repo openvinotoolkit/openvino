@@ -8,6 +8,7 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 
 #include "program_wrapper.h"
 
@@ -48,5 +49,53 @@ TEST(remove_redundant_reorder, skip_reorder_at_runtime) {
     network.execute();
     ASSERT_EQ(reorder_inst->can_be_optimized(), true);
     ASSERT_EQ(network.get_output_memory("reorder")->buffer_ptr(), network.get_primitive("fc")->output_memory_ptr()->buffer_ptr());
+}
+
+TEST(skip_reorder_at_runtime, correct_memory_reuse) {
+    auto& engine = get_test_engine();
+
+    auto weight_mem = engine.allocate_memory({{2, 32}, data_types::f32, format::bfyx});
+    std::vector<float> weight_data(weight_mem->get_layout().count());
+    std::iota(weight_data.begin(), weight_data.end(), 1.0f);
+    set_values(weight_mem, weight_data);
+
+    auto input_l = layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
+    topology topology(input_layout("input", input_l),
+                      data("weight", weight_mem),
+                      fully_connected("fc", input_info("input"), {"weight"}, "", data_types::f32),
+                      reorder("reorder", input_info("fc"), format::bfyx, data_types::f32),
+                      reshape("reshape", input_info("reorder"), false, {}, {2, 1, 1, 1}),
+                      reorder("reorder_fsv16", input_info("reshape"), format::b_fs_yx_fsv16, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    auto reorder_inst = network.get_primitive("reorder");
+    auto reshape_inst = network.get_primitive("reshape");
+    auto reorder_fsv16_inst = network.get_primitive("reorder_fsv16");
+    ASSERT_EQ(reorder_inst->can_be_optimized(), false);
+    ASSERT_EQ(reshape_inst->can_be_optimized(), true);
+    ASSERT_EQ(reorder_fsv16_inst->can_be_optimized(), false);
+
+    auto input_mem = engine.allocate_memory({{10, 32}, data_types::f32, format::bfyx});
+    std::vector<float> input_data(input_mem->get_layout().count());
+    std::iota(input_data.begin(), input_data.end(), 0.5f);
+    set_values(input_mem, input_data);
+
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+    outputs.begin()->second.get_memory();
+
+    ASSERT_EQ(reorder_inst->can_be_optimized(), true);
+    ASSERT_EQ(reshape_inst->can_be_optimized(), true);
+    ASSERT_EQ(reorder_fsv16_inst->can_be_optimized(), false);
+
+    auto reshape_memory_deps = reshape_inst->get_runtime_memory_dependencies();
+    ASSERT_TRUE(reshape_memory_deps.find("fc") != reshape_memory_deps.end());
+
+    auto reorder_fsv16_memory_deps = reorder_fsv16_inst->get_runtime_memory_dependencies();
+    ASSERT_TRUE(reorder_fsv16_memory_deps.find("fc") != reorder_fsv16_memory_deps.end());
 }
 }  // memory_realloc_tests

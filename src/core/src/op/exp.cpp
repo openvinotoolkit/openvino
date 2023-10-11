@@ -44,12 +44,12 @@ bool evaluate_exp(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_exp, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_exp, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_exp, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_exp, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_exp, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_exp, f32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_exp, i32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_exp, i64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_exp, u32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_exp, u64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_exp, f16, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_exp, f32, arg0, out, count);
     default:
         rc = false;
         break;

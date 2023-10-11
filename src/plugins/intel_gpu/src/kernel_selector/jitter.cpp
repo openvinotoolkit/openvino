@@ -440,10 +440,12 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::b_fs_yx_fsv32 ||
                        layout == DataLayout::b_fs_yx_fsv2 ||
                        layout == DataLayout::b_fs_yx_fsv4 ||
+                       layout == DataLayout::b_fs_yx_fsv8 ||
                        layout == DataLayout::fs_b_yx_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv16_fsv8 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv8_fsv4 ||
@@ -508,6 +510,10 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::bs_fs_zyx_bsv16_fsv8) {
+                index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV8_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else if (layout == DataLayout::b_fs_zyx_fsv32) {
                 index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
@@ -536,6 +542,10 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::b_fs_zyx_fsv8) {
+                index_func_val = "GET_DATA_B_FS_ZYX_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV8_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else {
                 index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";
@@ -663,6 +673,11 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             using args = std::initializer_list<std::string>;
             if (l == WeightsLayout::oiyx ||
                 l == WeightsLayout::ioyx ||
+                l == WeightsLayout::oyxi ||
+                l == WeightsLayout::oyix ||
+                l == WeightsLayout::oxiy ||
+                l == WeightsLayout::iyxo ||
+                l == WeightsLayout::yxio ||
                 l == WeightsLayout::iozyx ||
                 l == WeightsLayout::oizyx ||
                 l == WeightsLayout::goiyx ||
@@ -974,7 +989,10 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_common_4d_layout = is_common_nd_layout(base_4d_channels, layout);
             if (is_common_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, y, x)";
-                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx)
+                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx ||
+                    layout == WeightsLayout::oyxi || layout == WeightsLayout::oyix ||
+                    layout == WeightsLayout::oxiy || layout == WeightsLayout::iyxo ||
+                    layout == WeightsLayout::yxio)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::os_is_yx_isv16_osv16)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x, 16)";
