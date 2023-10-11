@@ -631,6 +631,8 @@ Performing surgery by cutting model inputs and outputs from a model is no longer
 Below are examples of model cutting of TensorFlow protobuf, TensorFlow SavedModel, and ONNX formats with the legacy conversion API, compared to achieving the same cut with tools provided by the Tensorflow and ONNX frameworks.
 For PyTorch, TensorFlow 2 Keras, and PaddlePaddle, we recommend changing the original model code to perform the model cut.
 
+Note: This guide does not cover the cutting by input port of an operation. This type of cut is available only in legacy API. 
+
 ``PyTorch``
 ###########
 
