@@ -115,11 +115,10 @@ bool are_bounds_valid(const TensorVector& bounds) {
 /**
  * @brief Evaluate binary mask of values which cannot be calculated by modulo.
  *
- * @param output_mask  Output tensor to store result.
  * @param bounds       Modulo inputs bounds.
- * @return True if output_mask has got valid data otherwise false.
+ * @return Tensor with binary mask or empty tensor if evaluate failed.
  */
-bool evaluate_undefined_result_mask(Tensor& output_mask, const TensorVector& bounds) {
+Tensor evaluate_undefined_result_mask(const TensorVector& bounds) {
     const auto eq_op = v1::Equal();
     const auto or_op = v1::LogicalOr();
 
@@ -132,43 +131,50 @@ bool evaluate_undefined_result_mask(Tensor& output_mask, const TensorVector& bou
     const auto& m_lb = bounds[2];
     const auto& m_ub = bounds[3];
 
-    auto output_mask_vector = TensorVector{output_mask};
-
-    if (!eq_op.evaluate(output_mask_vector, {m_lb, zero_t})) {
-        return false;
+    auto m_mask = TensorVector{{element::boolean, m_ub.get_shape()}};
+    if (!eq_op.evaluate(m_mask, {m_lb, zero_t})) {
+        return {};
     }
 
-    auto tmp_mask = TensorVector{{element::boolean, output_mask.get_shape()}};
-    if (!eq_op.evaluate(tmp_mask, {m_ub, zero_t})) {
-        return false;
+    auto out_masks = TensorVector{{element::boolean, m_lb.get_shape()}};
+    if (!eq_op.evaluate(out_masks, {m_ub, zero_t})) {
+        return {};
     }
-    or_op.evaluate(output_mask_vector, {output_mask_vector.front(), tmp_mask.front()});
 
-    if (!eq_op.evaluate(tmp_mask, {m_lb, max_t})) {
-        return false;
+    auto m_or_inputs = TensorVector{out_masks[0], m_mask[0]};
+    or_op.evaluate(m_mask, m_or_inputs);
+    if (!eq_op.evaluate(out_masks, {m_lb, max_t})) {
+        return {};
     }
-    or_op.evaluate(output_mask_vector, {output_mask_vector.front(), tmp_mask.front()});
 
-    if (!eq_op.evaluate(tmp_mask, {v_ub, max_t})) {
-        return false;
+    or_op.evaluate(m_mask, m_or_inputs);
+    auto v_mask = TensorVector{{element::boolean, v_ub.get_shape()}};
+    if (!eq_op.evaluate(v_mask, {v_ub, max_t})) {
+        return {};
     }
-    return or_op.evaluate(output_mask_vector, {output_mask_vector.front(), tmp_mask.front()});
+
+    out_masks[0].set_shape(ov::op::infer_broadcast_shape(&or_op, v_mask[0].get_shape(), m_mask[0].get_shape()));
+    return or_op.evaluate(out_masks, {v_mask[0], m_mask[0]}) ? out_masks[0] : Tensor{};
 }
 
 /**
- * @brief Get the m (modulo) inputs bound with set to one values which can cause undefined result.
+ * @brief Get the inputs bound with valid values only.
+ *
+ * The values which result modulo to give undefined result are replaced by one.
+ * The auto broadcast is applied to have inputs same shape.
  *
  * @param bounds  Modulo operator inputs bounds.
  * @param mask    Mask with undefined result values.
  * @return Vector of bounds tensors.
  */
-TensorVector get_m_bounds(const TensorVector& bounds, const Tensor& mask) {
+TensorVector get_bounds_with_valid_values(const TensorVector& bounds, const Tensor& mask) {
     const auto select_op = v1::Select();
     const auto one_t = ov::util::make_tensor_of_value(bounds.front().get_element_type(), 1);
 
     auto m_bounds = TensorVector();
-    std::transform(bounds.begin() + 2, bounds.end(), std::back_inserter(m_bounds), [&](const Tensor& b) {
-        auto tmp = TensorVector{{b.get_element_type(), b.get_shape()}};
+    m_bounds.reserve(bounds.size());
+    std::transform(bounds.cbegin(), bounds.cend(), std::back_inserter(m_bounds), [&](const Tensor& b) {
+        auto tmp = TensorVector{{b.get_element_type(), mask.get_shape()}};
         return select_op.evaluate(tmp, {mask, one_t, b}) ? tmp.front() : Tensor{};
     });
     return m_bounds;
@@ -186,30 +192,27 @@ bool evaluate_bound(const Node* const op, TensorVector& outputs, bool is_lower) 
     const auto bounds = mod::get_bounds(op);
 
     if (mod::are_bounds_valid(bounds)) {
-        const auto& v_lb = bounds[0];
-        const auto& v_ub = bounds[1];
-        const auto& in_et = v_lb.get_element_type();
-        const auto in_shape = ov::op::infer_broadcast_shape(op, v_lb.get_shape(), bounds[2].get_shape());
+        const auto& in_et = bounds[0].get_element_type();
 
-        // Get undefined results mask for modulo.
-        auto undefined_result_mask = Tensor{element::boolean, in_shape};
-        if (!mod::evaluate_undefined_result_mask(undefined_result_mask, bounds)) {
+        const auto undefined_result_mask = mod::evaluate_undefined_result_mask(bounds);
+        if (!undefined_result_mask) {
             return false;
         }
 
-        // Set 2nd input values to 1 for undefined results mask (0, inf, etc.)
-        const auto m_bounds = mod::get_m_bounds(bounds, undefined_result_mask);
+        // Set inputs values to 1 for undefined results mask (0, inf, etc.)
+        const auto m_bounds = mod::get_bounds_with_valid_values(bounds, undefined_result_mask);
         if (!mod::are_bounds_valid(m_bounds)) {
             return false;
         }
+
         // Evaluate bound.
-        outputs[0].set_shape(in_shape);
+        outputs[0].set_shape(undefined_result_mask.get_shape());
         using namespace ov::element;
         if (!IfTypeOf<i8, i16, i32, i64, u8, u16, u32, u64>::apply<mod::EvaluateBound>(in_et,
-                                                                                       v_lb,
-                                                                                       v_ub,
                                                                                        m_bounds[0],
                                                                                        m_bounds[1],
+                                                                                       m_bounds[2],
+                                                                                       m_bounds[3],
                                                                                        outputs[0],
                                                                                        is_lower)) {
             return false;

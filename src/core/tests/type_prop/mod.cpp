@@ -9,6 +9,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 
 using Type = ::testing::Types<ov::op::v1::Mod>;
 
@@ -16,6 +17,7 @@ INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_mod, ArithmeticOperator, Type);
 
 using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
+using ov::op::v0::Squeeze;
 using ov::op::v3::Broadcast;
 using ov::op::v3::ShapeOf;
 
@@ -44,6 +46,33 @@ TEST_F(TypePropModV1Test, preserve_partial_values_on_inputs) {
     EXPECT_EQ(output_shape, ov::PartialShape({{0, 2}, {4, 10}, {0, 5}, -1, -1}));
 }
 
+TEST_F(TypePropModV1Test, preserve_partial_values_when_m_is_interval_scalar) {
+    const auto a = std::make_shared<Parameter>(ov::element::i64, ov::PartialShape{{5, 6}, 22, {3, 7}, -1, {7, 9}});
+    const auto b = std::make_shared<Parameter>(ov::element::i64, ov::PartialShape{{12, 18}});
+    const auto b_scalar = std::make_shared<Squeeze>(std::make_shared<ShapeOf>(b));
+    const auto op = make_op(std::make_shared<ShapeOf>(a), b_scalar);
+
+    const auto param = std::make_shared<Parameter>(ov::element::i64, ov::Shape{1});
+    auto bc = std::make_shared<Broadcast>(param, op, ov::op::BroadcastType::BIDIRECTIONAL);
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, ov::PartialShape({{5, 6}, {4, 10}, {3, 7}, -1, {7, 9}}));
+}
+
+TEST_F(TypePropModV1Test, preserve_partial_values_when_value_is_interval_scalar) {
+    const auto a = std::make_shared<Parameter>(ov::element::i64, ov::PartialShape{{3, 7}});
+    const auto b = std::make_shared<Parameter>(ov::element::i64, ov::PartialShape{3, {12, 18}, {4, 6}, -1, {0, 4}});
+    const auto a_scalar = std::make_shared<Squeeze>(std::make_shared<ShapeOf>(a));
+    const auto op = make_op(a_scalar, std::make_shared<ShapeOf>(b));
+
+    const auto param = std::make_shared<Parameter>(ov::element::i64, ov::Shape{1});
+    auto bc = std::make_shared<Broadcast>(param, op, ov::op::BroadcastType::BIDIRECTIONAL);
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, ov::PartialShape({{0, 2}, {3, 7}, {0, 5}, -1, -1}));
+}
+
+// test params as {a, b, exp_result}
 using IntervalModuloParams = std::tuple<ov::Dimension, ov::Dimension, ov::Dimension>;
 
 class SingleDimModV1Test : public TypePropModV1Test, public testing::WithParamInterface<IntervalModuloParams> {
@@ -82,7 +111,7 @@ const auto v_static_m_interval = testing::Values(IntervalModuloParams{{0, 0}, {3
                                                  IntervalModuloParams{{10, 10}, {3, 10}, {0, 9}},
                                                  IntervalModuloParams{{10, 10}, {7, 8}, {2, 3}},
                                                  IntervalModuloParams{{100, 100}, {2, 20}, {0, 19}},
-                                                 // can be estimated accurte as only two results are possible
+                                                 // can be estimated accurate as only two results are possible
                                                  IntervalModuloParams{{100, 100}, {15, 16}, {4, 10}},
                                                  // can not be estimated accurate as there are three results [10,4,15]
                                                  // Requires to calculate all possibilities and pick min, max
