@@ -76,7 +76,7 @@ To start using OpenVINO as a backend for Hugging Face you should change original
 .. code-block:: diff
 
     -from transformers import AutoModelForCausalLM
-    +from optimum.intel. import OVModelForCausalLM
+    +from optimum.intel import OVModelForCausalLM
 
     model_id = "meta-llama/Llama-2-7b-chat-hf"
     -model = AutoModelForCausalLM.from_pretrained(model_id)
