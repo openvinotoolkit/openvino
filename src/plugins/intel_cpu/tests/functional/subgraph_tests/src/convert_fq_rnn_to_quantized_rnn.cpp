@@ -90,7 +90,11 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        selectedType = "ref_any_I8";
+        // Only avx512_core VNNI supports brgemm.
+        if (with_cpu_x86_avx512_core_vnni())
+            selectedType = "brgemm_avx512_I8";
+        else
+            selectedType = "ref_I8";
 
         std::vector<InputShape> inputShapes;
         std::string rnnType;
