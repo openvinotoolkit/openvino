@@ -23,8 +23,6 @@ const std::vector<ov::element::Type_t> netPrecisions = {
 const std::vector<ov::AnyMap> configs = {
         {},
 };
-const std::vector<ov::AnyMap> multiConfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}};
 
 const std::vector<ov::AnyMap> heteroConfigs = {
         {ov::device::priorities(ov::test::utils::DEVICE_CPU)}};
@@ -36,14 +34,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::ValuesIn(configs)),
                          OVCompiledGraphImportExportTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-         OVCompiledGraphImportExportTest,
-        ::testing::Combine(
-                ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                ::testing::ValuesIn(multiConfigs)),
-        OVCompiledGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
          OVCompiledGraphImportExportTest,

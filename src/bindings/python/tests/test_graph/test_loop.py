@@ -142,7 +142,7 @@ def test_loop_basic():
 
     subgraph_func = loop.get_function()
 
-    assert type(subgraph_func) == type(graph_body)
+    assert isinstance(subgraph_func, type(graph_body))
     assert subgraph_func._get_raw_address() == graph_body._get_raw_address()
     assert compare_models(subgraph_func, graph_body)
     assert loop.get_special_body_ports() == body_ports

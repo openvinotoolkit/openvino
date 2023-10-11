@@ -16,8 +16,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
