@@ -920,15 +920,16 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Model Optimizer unit tests
+        if: ${{ always() }}
         run: |
           # required for MxNet
           apt-get install -y libgomp1 libquadmath0
 
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
-              ${{ env.PYTEST_PARALLEL }} \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit ${{ env.PYTEST_PARALLEL }} --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
@@ -937,11 +938,13 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: ONNX Layer Tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m precommit ${{ env.PYTEST_PARALLEL }} --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
 
       - name: TensorFlow 1 Layer Tests - TF FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # requires 'unit_tests' from 'tools/mo'
@@ -952,6 +955,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - TF FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # requires 'unit_tests' from 'tools/mo'
@@ -962,6 +966,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit ${{ env.PYTEST_PARALLEL }} --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
@@ -969,11 +974,13 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 ${{ env.PYTEST_PARALLEL }} --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
@@ -983,6 +990,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow Lite Layer Tests - TFL FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ ${{ env.PYTEST_PARALLEL }} --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
@@ -991,6 +999,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python ONNX operators tests
+        if: ${{ always() }}
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${OPENVINO_REPO}/src/frontends/onnx/tests -k 'not cuda' \
@@ -999,6 +1008,7 @@ jobs:
             --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_zoo_models.py
 
       - name: MO Python API Tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
@@ -1011,6 +1021,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: OVC Python API Tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
@@ -1023,6 +1034,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python Frontend tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
@@ -1032,6 +1044,7 @@ jobs:
 
       # TODO: install to 'tests' component via cpack
       - name: OVC unit tests
+        if: ${{ always() }}
         run: python3 -m pytest -s ${OPENVINO_REPO}/tools/ovc/unit_tests ${{ env.PYTEST_PARALLEL }} --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
