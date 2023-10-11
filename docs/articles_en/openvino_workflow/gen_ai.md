@@ -20,7 +20,7 @@ In both cases, OpenVINO runtime and tools are used, the difference is mostly in 
 
 It is recommended to start with Hugging Face frameworks. Experiment with different models and scenarios to find your fit, and then consider converting to OpenVINO native APIs based on your specific requirements. 
 
-Within Optimum-Intel product there are interfaces that allow to optimize (compress weights) model with use of `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__ and export model to OpenVINO model format to be used in native API applications. 
+Optimum Intel provides interfaces that enable model optimization (weight compression) using `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__, and export models to the OpenVINO model format for use in native API applications. 
 
 The table below summarizes differences of both Hugging Face and Native approaches. 
 
