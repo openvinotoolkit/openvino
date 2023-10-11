@@ -143,19 +143,19 @@ public:
 #endif // __linux__
 
 #if defined(OV_CPU_WITH_ACL)
-std::mutex Engine::SchedulerGuard::mutex;
+std::mutex Engine::SchedulerGuard::acl_mutex;
 std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
 
 Engine::SchedulerGuard::SchedulerGuard() {
-#if IE_THREAD == IE_THREAD_SEQ
-        arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
-#else
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
         arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
 #endif
 }
 
+Engine::SchedulerGuard::~SchedulerGuard() {}
+
 std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
-    std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
+    std::lock_guard<std::mutex> lock{SchedulerGuard::acl_mutex};
     auto scheduler_guard_ptr = SchedulerGuard::ptr.lock();
     if (scheduler_guard_ptr == nullptr) {
         SchedulerGuard::ptr = scheduler_guard_ptr = std::make_shared<SchedulerGuard>();

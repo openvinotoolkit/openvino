@@ -67,9 +67,9 @@ private:
 #if defined(OV_CPU_WITH_ACL)
     struct SchedulerGuard {
         SchedulerGuard();
-        ~SchedulerGuard() = default;
+        ~SchedulerGuard();
         static std::shared_ptr<SchedulerGuard> instance();
-        static std::mutex mutex;
+        static std::mutex acl_mutex;
         static std::weak_ptr<SchedulerGuard> ptr;
     };
 
