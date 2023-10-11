@@ -136,7 +136,7 @@ Now the model can be converted to OpenVINO using Optimum-Intel Python API or CLI
 Running Generative AI models using native OpenVINO APIs 
 ########################################################
 
-To run Generative AI models using native OpenVINO APIs you need to follow regular **Сonvert -> Optimize -> Deploy** path with few simplifications. 
+To run Generative AI models using native OpenVINO APIs you need to follow regular **Сonvert -> Optimize -> Deploy** path with a few simplifications. 
 
 To convert model from Hugging Face you can use Optimum-Intel export feature that allows to export model in OpenVINO format without invoking conversion API and tools directly, as it is shown above. In this case, the conversion process is a bit more simplified. You can still use regular conversion path if model comes from outside of Hugging Face ecosystem, i.e., in source framework format (PyTorch, etc.) 
 
