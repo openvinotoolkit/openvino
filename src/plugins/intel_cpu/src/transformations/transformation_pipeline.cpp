@@ -207,9 +207,16 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     if (useLpt) {
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
     } else {
+        // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
+        const ov::element::TypeVector decompression_precisions{
+            ov::element::u8,
+            // TODO: Uncomment when group decompression is supported
+            // ov::element::nf4
+        };
         // MarkDequantizationSubgraph is used even in non-LPT pipeline on X64 platforms
-        // in order to keep compressed u8 MatMul weights with decompression operations as is
-        CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, ov::element::TypeVector{ov::element::u8}, true);
+        // in order to keep compressed MatMul weights with decompression operations as is
+        CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
         CPU_SET_CALLBACK_X64(manager, [](const_node_ptr &node) -> bool {
             auto get_single_consumer = [](const_node_ptr &node) -> std::shared_ptr<ov::Node> {
                 const auto consumers = node->get_output_target_inputs(0);
@@ -224,12 +231,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
             if (ov::is_type<ov::opset1::MatMul>(consumer)) {
                 return false;
-            } else if (ov::is_type<ov::opset1::Transpose>(consumer)) {
-                consumer = get_single_consumer(consumer);
-                if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-                    return false;
-                }
             }
+            // TODO: Uncomment when group decompression is supported
+            // else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
+            //     consumer = get_single_consumer(consumer);
+            //     if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+            //         return false;
+            //     }
+            // }
             return true;
         }, ov::pass::MarkDequantizationSubgraph);
     }
