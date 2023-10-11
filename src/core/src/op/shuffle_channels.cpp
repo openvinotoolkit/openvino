@@ -11,7 +11,6 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "openvino/core/validation_util.hpp"

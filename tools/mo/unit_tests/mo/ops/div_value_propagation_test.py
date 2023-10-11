@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.elementwise import Div
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -32,9 +31,8 @@ graph_edges = [
 ]
 
 
-@generator
-class TestDivValuePropagation(unittest.TestCase):
-    @generate(*[
+class TestDivValuePropagation():
+    @pytest.mark.parametrize("a_shape, a_value, b_shape, b_value, elem_type",[
         ([2, 3], np.array([[1, 4, -6], [0, -16, 45]], dtype=np.int64),
          [2, 3], np.array([[1, 2, -4], [1, -8, -5]], dtype=np.int64),
          np.int64),
@@ -80,4 +78,4 @@ class TestDivValuePropagation(unittest.TestCase):
         node_data_shape = node_data.shape
         ref_data_shape = ref_data.shape
         msg = "Value propagation for 'div' node is not correct."
-        self.assertTrue(node_data_shape == ref_data_shape and np.all(node_data == ref_data), msg)
+        assert node_data_shape == ref_data_shape and np.all(node_data == ref_data), msg

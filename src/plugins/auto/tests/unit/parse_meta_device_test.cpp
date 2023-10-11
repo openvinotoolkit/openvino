@@ -38,18 +38,18 @@ public:
     void SetUp() override {
         ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _)).WillByDefault(Throw(ov::Exception("")));
         ON_CALL(*core, get_property(StrEq("GPU.2"), ov::supported_properties.name(), _))
-           .WillByDefault(Throw(ov::Exception("")));
-        ON_CALL(*plugin, parse_meta_devices).WillByDefault([this](const std::string& priorityDevices,
-                   const ov::AnyMap& config) {
-               return plugin->Plugin::parse_meta_devices(priorityDevices, config);
-               });
-       std::tie(priorityDevices, metaDevices, throwException, expectedTimes) = GetParam();
+            .WillByDefault(Throw(ov::Exception("")));
+        ON_CALL(*plugin, parse_meta_devices)
+            .WillByDefault([this](const std::string& priorityDevices, const ov::AnyMap& config) {
+                return plugin->Plugin::parse_meta_devices(priorityDevices, config);
+            });
+        std::tie(priorityDevices, metaDevices, throwException, expectedTimes) = GetParam();
     }
 
     void compare(std::vector<DeviceInformation>& result, std::vector<DeviceInformation>& expect) {
         EXPECT_EQ(result.size(), expect.size());
         if (result.size() == expect.size()) {
-            for (unsigned int i = 0 ; i < result.size(); i++) {
+            for (unsigned int i = 0; i < result.size(); i++) {
                 EXPECT_EQ(result[i].device_name, expect[i].device_name);
                 EXPECT_EQ(result[i].unique_name, expect[i].unique_name);
                 EXPECT_EQ(result[i].num_requests_per_devices, expect[i].num_requests_per_devices);
@@ -61,7 +61,7 @@ public:
     void compareDevicePriority(std::vector<DeviceInformation>& result, std::vector<DeviceInformation>& expect) {
         EXPECT_EQ(result.size(), expect.size());
         if (result.size() == expect.size()) {
-            for (unsigned int i = 0 ; i < result.size(); i++) {
+            for (unsigned int i = 0; i < result.size(); i++) {
                 EXPECT_EQ(result[i].device_priority, expect[i].device_priority);
             }
         }
@@ -84,9 +84,9 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesWithPriority) {
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
-       auto result = plugin->parse_meta_devices(priorityDevices, {ov::device::priorities(priorityDevices)});
-       compare(result, metaDevices);
-       compareDevicePriority(result, metaDevices);
+        auto result = plugin->parse_meta_devices(priorityDevices, {ov::device::priorities(priorityDevices)});
+        compare(result, metaDevices);
+        compareDevicePriority(result, metaDevices);
     }
 }
 
@@ -97,16 +97,16 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesNotWithPriority) {
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
-       auto result = plugin->parse_meta_devices(priorityDevices, {});
-       compare(result, metaDevices);
-       for (unsigned int i = 0 ; i < result.size(); i++) {
-           EXPECT_EQ(result[i].device_priority, 0);
-       }
-       auto result2 = plugin->parse_meta_devices(priorityDevices, {ov::device::priorities("")});
-       compare(result2, metaDevices);
-       for (unsigned int i = 0 ; i < result.size(); i++) {
-           EXPECT_EQ(result2[i].device_priority, 0);
-       }
+        auto result = plugin->parse_meta_devices(priorityDevices, {});
+        compare(result, metaDevices);
+        for (unsigned int i = 0; i < result.size(); i++) {
+            EXPECT_EQ(result[i].device_priority, 0);
+        }
+        auto result2 = plugin->parse_meta_devices(priorityDevices, {ov::device::priorities("")});
+        compare(result2, metaDevices);
+        for (unsigned int i = 0; i < result.size(); i++) {
+            EXPECT_EQ(result2[i].device_priority, 0);
+        }
     }
 }
 
@@ -119,9 +119,9 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
-       auto result = plugin->parse_meta_devices(priorityDevices, {ov::device::priorities(priorityDevices)});
-       compare(result, metaDevices);
-       compareDevicePriority(result, metaDevices);
+        auto result = plugin->parse_meta_devices(priorityDevices, {ov::device::priorities(priorityDevices)});
+        compare(result, metaDevices);
+        compareDevicePriority(result, metaDevices);
     }
 }
 // ConfigParams details
@@ -129,11 +129,7 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
 // ConfigParams {devicePriority, expect metaDevices, ifThrowException}
 
 const std::vector<ConfigParams> testConfigs = {
-    ConfigParams{"CPU,GPU.2,OTHER",
-                 {{"CPU", {}, -1, "", "CPU_", 0},
-                  {"OTHER", {}, -1, "", "OTHER_", 2}},
-                 false,
-                 3},
+    ConfigParams{"CPU,GPU.2,OTHER", {{"CPU", {}, -1, "", "CPU_", 0}, {"OTHER", {}, -1, "", "OTHER_", 2}}, false, 3},
     ConfigParams{"CPU,GPU,OTHER",
                  {{"CPU", {}, -1, "", "CPU_", 0},
                   {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
@@ -189,13 +185,15 @@ const std::vector<ConfigParams> testConfigsNoID = {
                  3},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ParseMetaDeviceTest,
-                ::testing::ValuesIn(testConfigs),
-            ParseMetaDeviceTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         ParseMetaDeviceTest,
+                         ::testing::ValuesIn(testConfigs),
+                         ParseMetaDeviceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ParseMetaDeviceNoIDTest,
-                ::testing::ValuesIn(testConfigsNoID),
-            ParseMetaDeviceTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         ParseMetaDeviceNoIDTest,
+                         ::testing::ValuesIn(testConfigsNoID),
+                         ParseMetaDeviceTest::getTestCaseName);
 
-//toDo need add test for ParseMetaDevices(_, config) to check device config of
-//return metaDevices
+// toDo need add test for ParseMetaDevices(_, config) to check device config of
+// return metaDevices

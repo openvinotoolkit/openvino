@@ -21,6 +21,7 @@ OutputVector translate_where(const NodeContext& context) {
     auto bool_cond = context.mark_node(std::make_shared<v0::Convert>(cond, element::boolean));
     auto x = context.get_input(1);
     auto y = context.get_input(2);
+    align_eltwise_input_types(context, x, y, true);
     return {context.mark_node(std::make_shared<v1::Select>(bool_cond, x, y))};
 };
 

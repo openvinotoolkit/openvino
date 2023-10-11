@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -94,9 +93,8 @@ edges_with_transpose_for_case_with_two_results = [
 ]
 
 
-@generator
-class PreserveRuntimeInfoTest(unittest.TestCase):
-    @generate(*[
+class TestPreserveRuntimeInfoTest():
+    @pytest.mark.parametrize("nhwc_to_nchw_order, nchw_to_nhwc_order, add_permutation_attrs",[
         ([0, 3, 1, 2], [0, 2, 3, 1], True),
         ([0, 4, 1, 2, 3], [0, 2, 3, 4, 1], True),
         (None, None, False),
@@ -135,19 +133,19 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
         PreserveRuntimeInfo().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
-        self.assertFalse(param_node.has_valid('permute_attrs'))
-        self.assertFalse(param_node.out_node(0).has_valid('permutation'))
+        assert not param_node.has_valid('permute_attrs')
+        assert not param_node.out_node(0).has_valid('permutation')
 
         if add_permutation_attrs:
             rt_info = param_node.rt_info.info
             old_api_map = rt_info[('old_api_map_order', 0)].info
-            self.assertTrue(np.array_equal(old_api_map['inverse_order'], nchw_to_nhwc_order))
+            assert np.array_equal(old_api_map['inverse_order'], nchw_to_nhwc_order)
 
             rt_info = result_node.rt_info.info
             old_api_map = rt_info[('old_api_map_order', 0)].info
-            self.assertTrue(np.array_equal(old_api_map['order'], nhwc_to_nchw_order))
+            assert np.array_equal(old_api_map['order'], nhwc_to_nchw_order)
 
     def test_auto_disable_nhwc_to_nchw(self):
         shape_len = 4
@@ -173,18 +171,18 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
         PreserveRuntimeInfo().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
         rt_info = param_node.rt_info.info
         old_api_map = rt_info[('old_api_map_order', 0)].info
-        self.assertTrue(np.array_equal(old_api_map['inverse_order'], [0, 2, 3, 1]))
+        assert np.array_equal(old_api_map['inverse_order'], [0, 2, 3, 1])
 
         rt_info = result_node.rt_info.info
         old_api_map = rt_info[('old_api_map_order', 0)].info
-        self.assertTrue(np.array_equal(old_api_map['order'], [0, 3, 1, 2]))
+        assert np.array_equal(old_api_map['order'], [0, 3, 1, 2])
 
-    @generate(*[
-        ([0, 3, 1, 2], [0, 2, 3, 1], True, 'DFT'),
+    @pytest.mark.parametrize("nhwc_to_nchw_order, nchw_to_nhwc_order,add_permutation_attrs, fft_kind",
+                             [([0, 3, 1, 2], [0, 2, 3, 1], True, 'DFT'),
         ([0, 3, 1, 2], [0, 2, 3, 1], True, 'IDFT'),
         (None, None, False, 'DFT'),
         (None, None, False, 'IDFT'),
@@ -235,12 +233,12 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
         PreserveRuntimeInfo().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result1')
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
-        self.assertFalse(param1_node.has_valid('permute_attrs'))
-        self.assertFalse(param1_node.out_node(0).has_valid('permutation'))
+        assert not param1_node.has_valid('permute_attrs')
+        assert not param1_node.out_node(0).has_valid('permutation')
 
         if add_permutation_attrs:
             rt_info = param1_node.rt_info.info
             old_api_map = rt_info[('old_api_map_order', 0)].info
-            self.assertTrue(np.array_equal(old_api_map['inverse_order'], nchw_to_nhwc_order))
+            assert np.array_equal(old_api_map['inverse_order'], nchw_to_nhwc_order)

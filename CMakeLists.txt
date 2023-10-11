@@ -30,12 +30,11 @@ endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
-find_package(IEDevScripts REQUIRED
+find_package(OpenVINODeveloperScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
-include(CTest)
 include(cmake/features.cmake)
 
 # These options are shared with 3rdparty plugins by means of developer package
@@ -163,4 +162,4 @@ endif()
 # provides a callback function to describe each component in repo
 include(cmake/packaging/packaging.cmake)
 
-ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+ov_cpack(${OV_CPACK_COMPONENTS_ALL})
