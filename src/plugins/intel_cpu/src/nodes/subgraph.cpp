@@ -44,6 +44,13 @@
 std::mutex err_print_lock;
 #endif
 
+#ifdef SNIPPETS_LIBXSMM_TPP
+#include "transformations/snippets/tpp/pass/brgemm_to_brgemm_tpp.hpp"
+#include "transformations/snippets/tpp/pass/eltwise_to_eltwise_tpp.hpp"
+#include "transformations/snippets/tpp/pass/scalar_to_scalar_tpp.hpp"
+#include "transformations/snippets/tpp/pass/lowered/set_tpp_leading_dim.hpp"
+#endif
+
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
@@ -355,6 +362,15 @@ void Snippet::initOptimalPrimitiveDescriptor() {
         SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::pass::MatMulToBrgemm,
                                         pass::EnforcePrecision, element::f32, element::bf16);
     }
+
+#ifdef SNIPPETS_LIBXSMM_TPP
+   SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::pass::PropagatePrecision,
+                                   ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
+   // Note: There could be several ConvertConstantsToScalars instances in the pipeline
+   SNIPPETS_REGISTER_PASS_ABSOLUTE(Place::PipelineEnd, ov::intel_cpu::tpp::pass::ScalarToScalarTPP);
+   SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::pass::PropagatePrecision,
+                                   ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
+#endif
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::pass::PropagatePrecision,
                                     ov::intel_cpu::pass::BrgemmToBrgemmCPU);
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
@@ -377,8 +393,14 @@ void Snippet::initOptimalPrimitiveDescriptor() {
     snippetAttrs.snippet->data_flow_transformations(in_blocked_shapes, input_precisions, output_precisions, backend_passes);
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
     // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
+#ifdef SNIPPETS_LIBXSMM_TPP
+    const auto& lir = snippetAttrs.snippet->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
+                                                                      std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
+    lir->set_loop_depth(std::min(2ul, lir->get_master_shape().size()));
+#else
     snippetAttrs.snippet->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
                                                     std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
+#endif
 }
 
 ov::element::Type Snippet::getRuntimePrecision() const {
@@ -641,9 +663,16 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
                                     ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
 
-    schedule = snippetAttrs.snippet->generate_from_linear_ir(std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
+    auto lowering_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
+#ifdef SNIPPETS_LIBXSMM_TPP
+    lowering_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
+                                    ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
+#endif
+    schedule = snippetAttrs.snippet->generate_from_linear_ir(lowering_config,
                                                              backend_passes,
                                                              reinterpret_cast<const void*>(jcp));
+#undef SNIPPETS_REGISTER_PASS_RELATIVE
 }
 
 bool Snippet::SnippetJitExecutor::schedule_created() {

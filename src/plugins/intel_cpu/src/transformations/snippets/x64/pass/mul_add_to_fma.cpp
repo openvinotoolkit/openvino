@@ -11,7 +11,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/core/rt_info.hpp"
-
+#include "snippets/op/memory_access.hpp"
 
 ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
     MATCHER_SCOPE(MulAddToFMA);
@@ -27,7 +27,9 @@ ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
         const auto multiply = pattern_map.at(mul_m).get_node_shared_ptr();
         const auto add = pattern_map.at(add_m).get_node_shared_ptr();
 
-        if (transformation_callback(add)) {
+        if (transformation_callback(add) ||
+            std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(add) ||
+            std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(multiply)) {
             return false;
         }
 

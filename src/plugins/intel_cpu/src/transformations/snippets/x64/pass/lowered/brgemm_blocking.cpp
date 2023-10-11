@@ -12,6 +12,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/tpp/op/brgemm.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -39,7 +40,7 @@ void BrgemmBlocking::move_new_memory_buffer(snippets::lowered::LinearIR& linear_
 bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmBlocking")
     const auto& loop_manager = linear_ir.get_loop_manager();
-    auto blocking_loop_exists = [&](const ExpressionPtr& brgemm_expr, const std::shared_ptr<ov::intel_cpu::BrgemmCPU>& brgemm) {
+    auto blocking_loop_exists = [&](const ExpressionPtr& brgemm_expr, const std::shared_ptr<snippets::op::Brgemm>& brgemm) {
         auto check_port = [&](const LoopPort& p) {
             return p.expr_port->get_expr() == brgemm_expr && ov::snippets::utils::one_of(p.dim_idx, 0ul, 1ul);
         };
@@ -58,9 +59,13 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
     bool modified = false;
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& brgemm_expr = *expr_it;
-        const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
+        const auto& node = brgemm_expr->get_node();
+        const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
+        const auto brgemm_cpu = ov::as_type_ptr<intel_cpu::BrgemmCPU>(node);
         if (!brgemm || blocking_loop_exists(brgemm_expr, brgemm))
             continue;
+        OPENVINO_ASSERT(ov::is_type<intel_cpu::BrgemmCPU>(node) || ov::is_type<intel_cpu::tpp::op::BrgemmTPP>(node),
+                        "Detected invalid Brgemm operation: ops must be assigned to a backed when blocking is performed.");
 
         const auto& in_0_desc = brgemm_expr->get_input_port_descriptor(0);
         const auto& in_1_desc = brgemm_expr->get_input_port_descriptor(1);
@@ -88,11 +93,13 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
             auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
             std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true),
                                           LoopPort(brgemm_expr->get_input_port(1), false)};
-            if (brgemm->is_with_compensations()) {
-                entries.emplace_back(brgemm_expr->get_input_port(2), false);
-            } else if (brgemm->is_amx()) {
-                move_new_memory_buffer(linear_ir, expr_it);
-                loop_begin_it = std::prev(expr_it);
+            if (brgemm_cpu) {
+                if (brgemm_cpu->is_with_compensations()) {
+                    entries.emplace_back(brgemm_expr->get_input_port(2), false);
+                } else if (brgemm_cpu->is_amx()) {
+                    move_new_memory_buffer(linear_ir, expr_it);
+                    loop_begin_it = std::prev(expr_it);
+                }
             }
             std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
             loop_manager->mark_loop(loop_begin_it, loop_end_it, m, block_size_m, 1, entries, exits);
@@ -112,11 +119,13 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
             auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
             std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), false),
                                           LoopPort(brgemm_expr->get_input_port(1), true)};
-            if (brgemm->is_with_compensations()) {
-                entries.emplace_back(brgemm_expr->get_input_port(2), true);
-            } else if (brgemm->is_amx()) {
-                move_new_memory_buffer(linear_ir, expr_it);
-                loop_begin_it = std::prev(expr_it);
+            if (brgemm_cpu) {
+                if (brgemm_cpu->is_with_compensations()) {
+                    entries.emplace_back(brgemm_expr->get_input_port(2), true);
+                } else if (brgemm_cpu->is_amx()) {
+                    move_new_memory_buffer(linear_ir, expr_it);
+                    loop_begin_it = std::prev(expr_it);
+                }
             }
             std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
             loop_manager->mark_loop(loop_begin_it, loop_end_it, n, block_size_n, 0, entries, exits);
@@ -138,11 +147,13 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
             auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
             std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 0),
                                           LoopPort(brgemm_expr->get_input_port(1), true, 1)};
-            if (brgemm->is_with_compensations()) {
-                entries.emplace_back(brgemm_expr->get_input_port(2), false, 1);
-            } else if (brgemm->is_amx()) {
-                move_new_memory_buffer(linear_ir, expr_it);
-                loop_begin_it = std::prev(expr_it);
+            if (brgemm_cpu) {
+                if (brgemm_cpu->is_with_compensations()) {
+                    entries.emplace_back(brgemm_expr->get_input_port(2), false, 1);
+                } else if (brgemm_cpu->is_amx()) {
+                    move_new_memory_buffer(linear_ir, expr_it);
+                    loop_begin_it = std::prev(expr_it);
+                }
             }
             std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
             const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, k, block_size_k, entries, exits);

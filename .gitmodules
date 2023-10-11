@@ -81,3 +81,7 @@
 [submodule "thirdparty/telemetry"]
 	path = thirdparty/telemetry
 	url = https://github.com/openvinotoolkit/telemetry.git
+[submodule "src/plugins/intel_cpu/thirdparty/libxsmm"]
+	path = src/plugins/intel_cpu/thirdparty/libxsmm
+	url = https://github.com/IvanNovoselov/libxsmm.git
+	branch = sns_libxsmm_integration
