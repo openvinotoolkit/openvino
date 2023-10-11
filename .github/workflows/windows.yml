@@ -332,7 +332,7 @@ jobs:
 
       # Ticket - 115085
       - name: PyTorch Layer Tests
-        if: matrix.test_group == 'pytorh'
+        if: ${{ 'false' }}
         shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
