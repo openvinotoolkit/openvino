@@ -364,7 +364,7 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
         ASSERT_FALSE(property.empty());
 }
 
-TEST_P(OVClassCompiledModelPropertiesTests, CanLoadNetworkWithCustomLocale) {
+TEST_P(OVClassCompiledModelGetConfigTest, CanLoadNetworkWithCustomLocale) {
     auto prev = std::locale().name();
     setlocale(LC_ALL, "en_GB.UTF-8");
 
