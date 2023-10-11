@@ -140,7 +140,7 @@ Low-rank Adaptation (LoRA) is a popular method to tune Generative AI models to a
 
 Now the model can be converted to OpenVINO using Optimum Intel Python API or CLI interfaces mentioned above.
 
-Running Generative AI models using native OpenVINO APIs 
+Running Generative AI Models using Native OpenVINO APIs 
 ########################################################
 
 To run Generative AI models using native OpenVINO APIs you need to follow regular **Сonvert -> Optimize -> Deploy** path with a few simplifications. 
