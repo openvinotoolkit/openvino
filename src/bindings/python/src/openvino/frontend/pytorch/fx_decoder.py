@@ -223,7 +223,7 @@ class TorchFXPythonDecoder (Decoder):
         if self.pt_module.op == 'get_attr':
             # Extract Constant from FX module field
             ret = fetch_attr(self.fx_gm, self.pt_module.target)
-            ov_const = make_constant(ret.numpy())
+            ov_const = op.Constant(ret.numpy(), shared_memory=True)
             return ov_const.outputs()
 
 
