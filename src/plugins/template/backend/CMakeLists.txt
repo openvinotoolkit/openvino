@@ -42,7 +42,8 @@ target_compile_definitions(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::builders openvino::reference openvino::util openvino::runtime::dev openvino::shape_inference)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ops/>)
+                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ops/>
+                                                 $<INSTALL_INTERFACE:developer_package/include/${TARGET_NAME}>)
 
 file(GLOB_RECURSE all_backends_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${all_backends_src})
@@ -51,11 +52,9 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${all_backends_src})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-ov_developer_package_export_targets(TARGET ${TARGET_NAME})
+ov_developer_package_export_targets(TARGET openvino::interpreter_backend)
 
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/"
         DESTINATION developer_package/include/${TARGET_NAME}
         COMPONENT developer_package EXCLUDE_FROM_ALL
-        FILES_MATCHING
-            PATTERN "*.hpp"
-            PATTERN "*.h")
+        FILES_MATCHING PATTERN "*.hpp")

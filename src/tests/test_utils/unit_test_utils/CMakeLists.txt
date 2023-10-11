@@ -30,5 +30,5 @@ ov_add_target(
 # install & export
 
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}
-                                    INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+                                    INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../unit_test_utils"
                                     INSTALL_DESTIONATION "developer_package/include/unit_test_utils/unit_test_utils")

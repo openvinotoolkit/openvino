@@ -102,15 +102,19 @@ function(ov_developer_package_export_targets)
         endif()
         list(APPEND _OPENVINO_DEVELOPER_PACKAGE_TARGETS ${EXPORT_TARGET})
 
-        if(NOT EXPORT_INSTALL_DESTIONATION)
-            set(EXPORT_INSTALL_DESTIONATION "developer_package/include/${EXPORT_TARGET}")
+        if(EXPORT_INSTALL_INCLUDE_DIRECTORIES)
+            if(NOT EXPORT_INSTALL_DESTIONATION)
+                set(EXPORT_INSTALL_DESTIONATION "developer_package/include/${EXPORT_TARGET}")
+            endif()
+
+            target_include_directories(${EXPORT_TARGET} INTERFACE "$<INSTALL_INTERFACE:${EXPORT_INSTALL_DESTIONATION}>")
+
+            foreach(install_dir IN LISTS EXPORT_INSTALL_INCLUDE_DIRECTORIES)
+                install(DIRECTORY "${install_dir}"
+                        DESTINATION "${EXPORT_INSTALL_DESTIONATION}"
+                        COMPONENT developer_package EXCLUDE_FROM_ALL)
+            endforeach()
         endif()
-
-        target_include_directories(${EXPORT_TARGET} INTERFACE "$<INSTALL_INTERFACE:${EXPORT_INSTALL_DESTIONATION}>")
-
-        install(DIRECTORY "${EXPORT_INCLUDE_DIRECTORIES}"
-                DESTINATION "developer_package/include/${EXPORT_TARGET}"
-                COMPONENT developer_package EXCLUDE_FROM_ALL)
     else()
         message(FATAL_ERROR "Internal error: ${target_name} does not represent a cmake target")
     endif()

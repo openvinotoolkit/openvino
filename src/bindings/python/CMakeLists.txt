@@ -308,15 +308,15 @@ macro(ov_define_setup_py_dependencies)
         "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
         "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
         "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
-        "${OpenVINO_SOURCE_DIR}/LICENSE"
-        "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
-        "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
-        "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
-        "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
+        "${OpenVINOPython_SOURCE_DIR}/../../../LICENSE"
+        "${OpenVINOPython_SOURCE_DIR}/../../../licensing/onednn_third-party-programs.txt"
+        "${OpenVINOPython_SOURCE_DIR}/../../../licensing/runtime-third-party-programs.txt"
+        "${OpenVINOPython_SOURCE_DIR}/../../../licensing/tbb_third-party-programs.txt"
+        "${OpenVINOPython_SOURCE_DIR}/../../../docs/install_guides/pypi-openvino-rt.md")
 
     if(wheel_pre_release)
         list(APPEND ov_setup_py_deps
-            "${OpenVINO_SOURCE_DIR}/docs/install_guides/pre-release-note.md")
+            "${OpenVINOPython_SOURCE_DIR}/../../../docs/install_guides/pre-release-note.md")
     endif()
 endmacro()
 
@@ -394,7 +394,7 @@ endif()
 
 if(OpenVINODeveloperPackage_FOUND)
     # provides a callback function to describe each component in repo
-    # include("${OpenVINO_SOURCE_DIR}/cmake/packaging/packaging.cmake")
+    # include("${OpenVINOPython_SOURCE_DIR}/../../../cmake/packaging/packaging.cmake")
 
     ov_cpack(${OV_CPACK_COMPONENTS_ALL})
 endif()

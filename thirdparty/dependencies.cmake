@@ -266,6 +266,14 @@ if(NOT TARGET openvino::pugixml)
     function(ov_build_pugixml)
         function(ov_build_pugixml_static)
             set(BUILD_SHARED_LIBS OFF)
+            macro(install)
+                # does not nothing!
+                # we need to override 'install' command to prevent cmake issue with multiple
+                # export sets for pugixml-target. Currently, it's installed only by OpenVINO
+            endmacro()
+            macro(export)
+                # does not nothing! see the description above
+            endmacro()
             add_subdirectory(thirdparty/pugixml EXCLUDE_FROM_ALL)
         endfunction()
         ov_build_pugixml_static()

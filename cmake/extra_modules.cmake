@@ -11,7 +11,7 @@ function(ie_generate_dev_package_config)
 
     # export all targets with prefix and use them during extra modules build
     export(TARGETS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS} NAMESPACE IE::
-            APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+           APPEND FILE "${CMAKE_BINARY_DIR}/inference_engine_developer_package_targets.cmake")
     add_custom_target(ie_dev_targets DEPENDS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS})
 
     set(PATH_VARS "OpenVINO_SOURCE_DIR")
@@ -48,7 +48,7 @@ function(ov_generate_dev_package_config)
     list(REMOVE_ITEM _OPENVINO_DEVELOPER_PACKAGE_TARGETS ${openvino_installed_targets})
     # export all developer targets with prefix and use them during extra modules build
     export(TARGETS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS} NAMESPACE openvino::
-            APPEND FILE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
+           APPEND FILE "${CMAKE_BINARY_DIR}/openvino_developer_package_targets.cmake")
 
     #
     # OpenVINODeveloperPackageConfig.cmake for build tree
@@ -80,13 +80,13 @@ function(ov_generate_dev_package_config)
     set(DEV_PACKAGE_ROOT_DIR developer_package)
     set(DEV_PACKAGE_CMAKE_DIR ${DEV_PACKAGE_ROOT_DIR}/cmake)
     set(DEVELOPER_PACKAGE_COMPONENT developer_package)
-    set(DEVELOPER_PACKAGE_EXPORT_SET OpenVINOTargets)
+    set(DEVELOPER_PACKAGE_EXPORT_SET OpenVINODeveloperTargets)
 
     # create and install main developer package config files
     configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINODeveloperPackageConfigRelocatable.cmake.in"
-                                    "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
-                                    INSTALL_DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
-                                    NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+                                  "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
+                                  INSTALL_DESTINATION ${DEV_PACKAGE_CMAKE_DIR}
+                                  NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
                    "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake" 
@@ -114,7 +114,7 @@ function(ov_generate_dev_package_config)
             LIBRARY DESTINATION ${DEV_PACKAGE_ROOT_DIR}/lib COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
 
     install(EXPORT ${DEVELOPER_PACKAGE_EXPORT_SET}
-            FILE OpenVINODeveloperTargets.cmake
+            FILE OpenVINODeveloperPackageTargets.cmake
             NAMESPACE openvino::
             DESTINATION ${DEV_PACKAGE_ROOT_DIR}/cmake
             COMPONENT ${DEVELOPER_PACKAGE_COMPONENT})
