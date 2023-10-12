@@ -152,7 +152,7 @@ Engine::SchedulerGuard::SchedulerGuard() {
 }
 
 Engine::SchedulerGuard::~SchedulerGuard() {
-    std::lock_guard<std::mutex> lock{acl_mutex};
+    std::lock_guard<std::mutex> lock{SchedulerGuard::acl_mutex};
     arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
 }
 
