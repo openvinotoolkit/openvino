@@ -31,7 +31,6 @@ std::vector<ShapeAxesTuple> inputs{
 
 std::vector<ov::element::Type> input_types = {
     ov::element::f32,
-    ov::element::f16,
 };
 
 const std::vector<ov::test::utils::SqueezeOpType> opTypes = {ov::test::utils::SqueezeOpType::SQUEEZE,

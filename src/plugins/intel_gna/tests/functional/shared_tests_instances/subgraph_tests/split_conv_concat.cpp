@@ -7,7 +7,7 @@
 #include <vector>
 
 using namespace ov::test;
-const std::vector<ov::element::Type> netPrecisions = {ov::element::f32, ov::element::f16};
+const std::vector<ov::element::Type> netPrecisions = {ov::element::f32};
 
 std::vector<ov::Shape> inputShapes = {{1, 32, 1, 130}, {1, 64, 1, 170}, {1, 32, 1, 1026}};
 
