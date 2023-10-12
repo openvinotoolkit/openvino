@@ -4,7 +4,7 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer, eltwise_reverse_infer
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, strict_compare_tensors, \
@@ -24,9 +24,9 @@ nodes_attributes = {'node_1': {'value': 2, 'kind': 'data'},
                     }
 
 
-@generator
-class TestEltwiseInfer(unittest.TestCase):
-    @generate(*[
+
+class TestEltwiseInfer():
+    @pytest.mark.parametrize("value1, shape1, value2, shape2, shape_infer, exp_value, exp_shape",[
         (np.array(2), [], np.array(3), [], lambda a, b: np.multiply(a, b), np.array(6), []),
         (np.array(2), [], np.array(3), [], lambda a, b: np.maximum(a, b), np.array(3), []),
         (np.array(2), [], np.array(3), [], lambda a, b: np.add(a, b), np.array(5), []),
@@ -67,8 +67,8 @@ class TestEltwiseInfer(unittest.TestCase):
         res_shape = graph.node['node_3']['shape']
         res_value = eltwise_node.out_node().value
         if exp_value is not None:
-            self.assertTrue(strict_compare_tensors(res_value, shape_array(exp_value)))
-        self.assertTrue(strict_compare_tensors(res_shape, shape_array(exp_shape)))
+            assert strict_compare_tensors(res_value, shape_array(exp_value))
+        assert strict_compare_tensors(res_shape, shape_array(exp_shape))
 
     def test_eltwise_infer_none_val(self):
         graph = build_graph(nodes_attributes,
@@ -89,9 +89,9 @@ class TestEltwiseInfer(unittest.TestCase):
         res_shape = graph.node['node_3']['shape']
         res_value = eltwise_node.out_node().value
         for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
+            assert exp_shape[i] == res_shape[i]
 
-        self.assertIsNone(res_value)
+        assert res_value is None
 
     def test_eltwise_infer_none_min_max(self):
         graph = build_graph(nodes_attributes,
@@ -107,7 +107,7 @@ class TestEltwiseInfer(unittest.TestCase):
         graph.graph['layout'] = 'NCHW'
         eltwise_node = Node(graph, 'eltw_1')
 
-        with self.assertRaisesRegex(Error, 'Input shapes mismatch*'):
+        with pytest.raises(Error, match='Input shapes mismatch*'):
             eltwise_infer(eltwise_node)
 
 
