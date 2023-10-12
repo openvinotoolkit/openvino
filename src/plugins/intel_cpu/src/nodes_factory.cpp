@@ -6,6 +6,7 @@
 #include "nodes/shapeof.h"
 #include "nodes/batch_to_space.h"
 #include "nodes/multiclass_nms.hpp"
+#include "nodes/multinomial.hpp"
 #include "nodes/adaptive_pooling.h"
 #include "nodes/conv.h"
 #include "nodes/roi_align.h"
@@ -159,6 +160,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(Reshape, Type::Reshape);
     INTEL_CPU_NODE(MVN, Type::MVN);
     INTEL_CPU_NODE(MatMul, Type::MatMul);
+    INTEL_CPU_NODE(Multinomial, Type::Multinomial);
     INTEL_CPU_NODE(ScatterUpdate, Type::ScatterUpdate);
     INTEL_CPU_NODE(ScatterUpdate, Type::ScatterElementsUpdate);
     INTEL_CPU_NODE(ScatterUpdate, Type::ScatterNDUpdate);

@@ -313,6 +313,7 @@ std::string NameFromType(const Type type) {
         CASE(NonMaxSuppression);
         CASE(MatrixNms);
         CASE(MulticlassNms);
+        CASE(Multinomial);
         CASE(Reference);
         CASE(Subgraph);
         CASE(PriorBox);
@@ -429,7 +430,6 @@ std::string algToString(const Algorithm alg) {
         CASE(MathSoftPlus);
         CASE(MathSoftsign);
         CASE(MathTan);
-        CASE(Multinomial);
         CASE(TensorIteratorCommon);
         CASE(TensorIteratorLoop);
         CASE(ColorConvertNV12toRGB);

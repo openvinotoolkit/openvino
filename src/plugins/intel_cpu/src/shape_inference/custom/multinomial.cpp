@@ -12,39 +12,23 @@ using namespace InferenceEngine;
 Result MultinomialShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    const VectorDims& shapeA = input_shapes[0].get();
-    const VectorDims& shapeB = input_shapes[1].get();
-    const size_t rankA = shapeA.size();
-    const size_t rankB = shapeB.size();
+    const VectorDims& input_shape = input_shapes[0].get();
+    const auto& num_samples_mem = data_dependency.at(0);
 
-    // getSupportedDescriptors has done some shape check.
-    // 1. Needn't assert the scalar type since the matmul_shape_inference has checked.
-    // 2. Needn't check the compatibility of the last two dims
-    // 3. 1-D x 1-D is needed
-    // 4. transpose is necessary
-    // 5. Just support the same rank of matmul
-    // 6. simplify the broadcast check
-    if (rankA == 1 && rankB == 1 && shapeA[0] == shapeB[0]) {
-        return {{m_shapeY}, ShapeInferStatus::success};
+    size_t num_samples;
+    if (num_samples_mem->getDesc().getPrecision() == Precision::I32) {
+        num_samples = reinterpret_cast<const int32_t*>(num_samples_mem->getData())[0];
+    } else { // equals I64 precision
+        num_samples = reinterpret_cast<const int64_t*>(num_samples_mem->getData())[0];
     }
 
-    m_shapeY[m_out_rank-2] = m_transpose_a ? shapeA[rankA-1] : shapeA[rankA-2];
-    m_shapeY[m_out_rank-1] = m_transpose_b ? shapeB[rankB-2] : shapeB[rankB-1];
+    VectorDims dims{num_samples};
 
-    for (size_t i=0; i < m_out_rank-2; ++i) {
-        if (shapeA[i] != shapeB[i]) {
-            if (shapeB[i] == 1) {
-                m_shapeY[i] = shapeA[i];
-                continue;
-            } else if (shapeA[i] != 1) {
-                OPENVINO_THROW("Incompatible MatMul batch dimension. Cant merge the first input dimension=",
-                    shapeA[i], " with second input dimension=", shapeB[i], " at index=", i);
-            }
-        }
-        m_shapeY[i] = shapeB[i];
+    if (input_shape.size() == 2) {
+        dims.insert(dims.begin(), input_shape[0]);
     }
 
-    return {{m_shapeY}, ShapeInferStatus::success};
+    return {{dims}, ShapeInferStatus::success};
 }
 
 ShapeInferPtr MultinomialShapeInferFactory::makeShapeInfer() const {
