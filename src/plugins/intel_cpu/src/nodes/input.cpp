@@ -384,6 +384,12 @@ void Input::cloneBlobIfRequired() {
         memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
     } else {
         memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
+        if (!isBlobAligned()) {
+            std::cout << "=========================================" << std::endl;
+            std::cout << __FILE__ << ":" << __LINE__ << ", Alarm: Found model weight is not aligned." << std::endl;
+            std::cout << "Not aligned node's original name: " << constOp->get_friendly_name() << std::endl;
+            std::cout << "=========================================" << std::endl;
+        }
     }
 }
 
