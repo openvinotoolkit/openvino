@@ -190,7 +190,7 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
         return nullptr;
 
     if (axis != -1 && static_cast<uint64_t>(axis) != weights_u8->get_shape().size() - 1)
-        return nullptr; 
+        return nullptr;
 
     if (!ov::op::util::has_constant_value<uint64_t>(bitwise_and->get_input_node_shared_ptr(1), 0x0F))
         return nullptr;
