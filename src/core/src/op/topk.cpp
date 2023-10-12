@@ -102,7 +102,8 @@ private:
 
 namespace {
 bool evaluate(const util::TopKBase* const node, TensorVector& outputs, const TensorVector& inputs) {
-    auto output_shapes = shape_infer(node, ov::op::util::get_tensors_shapes(inputs), make_tensor_accessor(inputs));
+    auto output_shapes =
+        shape_infer(node, ov::op::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));
     OPENVINO_ASSERT(outputs.size() == output_shapes.size());
 
     auto output_shape = output_shapes.front().get_shape();

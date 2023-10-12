@@ -2,47 +2,42 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include "single_layer_tests/power.hpp"
+#include "single_op_tests/power.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
+using ov::test::PowerLayerTest;
 
-    std::vector<std::vector<std::vector<size_t>>> inShapes = {
-            {{1, 8}},
-            {{2, 16}},
-            {{3, 32}},
-            {{4, 64}},
-            {{5, 128}},
-            {{6, 256}},
-            {{7, 512}},
-            {{8, 1024}}
-    };
+std::vector<std::vector<ov::Shape>> input_shape_static = {
+        {{1, 8}},
+        {{2, 16}},
+        {{3, 32}},
+        {{4, 64}},
+        {{5, 128}},
+        {{6, 256}},
+        {{7, 512}},
+        {{8, 1024}}
+};
 
-    std::vector<std::vector<float >> Power = {
-            {0.0f},
-            {0.5f},
-            {1.0f},
-            {1.1f},
-            {1.5f},
-            {2.0f},
-    };
+std::vector<std::vector<float>> powers = {
+        {0.0f},
+        {0.5f},
+        {1.0f},
+        {1.1f},
+        {1.5f},
+        {2.0f},
+};
 
-    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                             InferenceEngine::Precision::FP16,
-    };
+std::vector<ov::element::Type> model_types = {
+    ov::element::f32,
+    ov::element::f16,
+};
 
-    INSTANTIATE_TEST_SUITE_P(smoke_power, PowerLayerTest,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(inShapes),
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                    ::testing::Values(InferenceEngine::Layout::ANY),
-                                    ::testing::Values(InferenceEngine::Layout::ANY),
-                                    ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                    ::testing::ValuesIn(Power)),
-                            PowerLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_power, PowerLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shape_static)),
+                                ::testing::ValuesIn(model_types),
+                                ::testing::ValuesIn(powers),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        PowerLayerTest::getTestCaseName);
 }  // namespace
