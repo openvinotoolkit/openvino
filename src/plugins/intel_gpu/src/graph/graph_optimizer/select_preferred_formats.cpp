@@ -40,11 +40,12 @@ void select_preferred_formats::run(program& p) {
             continue;
         }
 
-        for (auto& it : forcing_map) {
-            if (it.first == n->id() && it.second.second != impl_types::onednn) {
-                continue;
-            }
-        }
+        // skip to set preferred_formats if forcing_impl is not onednn.
+        if (std::find_if(forcing_map.begin(), forcing_map.end(),
+                [&n](std::map<primitive_id, std::pair<format::type, impl_types>>::value_type const& it) {
+                    return (it.first == n->id() && it.second.second != impl_types::onednn);
+                }) != forcing_map.end())
+            continue;
 
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
