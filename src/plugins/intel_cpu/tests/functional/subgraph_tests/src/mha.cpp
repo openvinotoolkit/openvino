@@ -296,9 +296,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHA_BF16, MHATest,
                                  ::testing::Values(std::vector<ElementType>{ ElementType::bf16, ElementType::bf16, ElementType::bf16, ElementType::bf16 }),
                                  ::testing::ValuesIn(matMulIn0Precisions),
                                  ::testing::ValuesIn(patternTypes),
-                                 ::testing::Values(ExpectedNodes{{"Subgraph", 1},
-                                                                 {"Transpose", 1}}),  // Plugin disables tokenization of Transpose on output
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ExpectedNodes{{"MHA", 1}}),     // If Snippets: Subgraph[1] + Transpose[1]
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),  // (tokenization of Transpose on out is disabled by Plugin)
                          MHATest::getTestCaseName);
 
 } // namespace
@@ -590,9 +589,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern0, MHAQuantTest,
                                 ::testing::ValuesIn(inputPrecisionsQuant),
                                 ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                 ::testing::Values(0),
-                                ::testing::Values(ExpectedNodes{{"Subgraph", 5},  // FQs on inputs x 3 + MHA + Deq Mul
-                                                                {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
-                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                ::testing::Values(ExpectedNodes{{"MHA", 1}}),    // If Snippets: Subgraph[5] + Transpose[1]
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)), // (FQs on inputs x 3 + MHA + Deq Mul and Transpose between MHA and Deq Mul)
                         MHAQuantTest::getTestCaseName);
 
 
@@ -602,9 +600,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern1, MHAQuantTest,
                                 ::testing::ValuesIn(inputPrecisionsQuant),
                                 ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                 ::testing::Values(1),
-                                ::testing::Values(ExpectedNodes{{"Subgraph", 3},  // FQ on input + MHA + Deq Mul
-                                                                {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
-                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                ::testing::Values(ExpectedNodes{{"MHA", 1}}),    // If Snippets: Subgraph[3] + Transpose[1]
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)), // (FQ on input + MHA + Deq Mul and Transpose between MHA and Deq Mul)
                         MHAQuantTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern2, MHAQuantTest,
