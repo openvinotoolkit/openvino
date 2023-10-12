@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/variadic_split.hpp"
+
 #include <numeric>
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/variadic_split.hpp"
 #include "openvino/reference/slice.hpp"
 #include "variadic_split_shape_inference.hpp"
 
@@ -18,7 +19,7 @@ namespace variadic_split {
 namespace {
 
 bool has_axis_and_splits_bound_set(const Node* const node) {
-    return have_node_inputs_bounds_set(node, 1, node->get_input_size() - 1);
+    return have_node_inputs_bounds_set(node, 1, 2);
 }
 
 bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
@@ -94,26 +95,21 @@ std::shared_ptr<Node> VariadicSplit::clone_with_new_inputs(const OutputVector& n
 bool VariadicSplit::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_VariadicSplit_evaluate);
 
-    const auto& data_tensor = inputs[0];
-    const auto& axis_tensor = inputs[1];
-    const auto& split_lengths_tensor = inputs[2];
-    OPENVINO_ASSERT(axis_tensor.get_element_type().is_integral_number(), "axis element type is not integral data type");
-    OPENVINO_ASSERT(split_lengths_tensor.get_element_type().is_integral_number(),
-                    "split_lengths element type is not integral data type");
+    if (inputs[1].get_element_type().is_integral_number() && inputs[2].get_element_type().is_integral_number()) {
+        const auto output_shapes =
+            shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));
+        OPENVINO_ASSERT(outputs.size() == output_shapes.size());
 
-    std::vector<ov::PartialShape> input_shapes = {data_tensor.get_shape(),
-                                                  axis_tensor.get_shape(),
-                                                  split_lengths_tensor.get_shape()};
-    const auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs));
-    OPENVINO_ASSERT(outputs.size() == output_shapes.size());
+        auto out_partial_shape = output_shapes.cbegin();
+        for (auto& output : outputs) {
+            output.set_shape(out_partial_shape->to_shape());
+            ++out_partial_shape;
+        }
 
-    auto out_partial_shape = output_shapes.cbegin();
-    for (auto& output : outputs) {
-        output.set_shape(out_partial_shape->to_shape());
-        ++out_partial_shape;
+        return variadic_split::evaluate(outputs, inputs);
+    } else {
+        return false;
     }
-
-    return variadic_split::evaluate(outputs, inputs);
 }
 
 bool VariadicSplit::has_evaluate() const {
@@ -121,12 +117,12 @@ bool VariadicSplit::has_evaluate() const {
     return get_input_element_type(1).is_integral_number() && get_input_element_type(2).is_integral_number();
 }
 
-bool VariadicSplit::evaluate_lower(ov::TensorVector& output_values) const {
+bool VariadicSplit::evaluate_lower(TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_lower);
     return variadic_split::has_axis_and_splits_bound_set(this) && default_lower_bound_evaluator(this, output_values);
 }
 
-bool VariadicSplit::evaluate_upper(ov::TensorVector& output_values) const {
+bool VariadicSplit::evaluate_upper(TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_upper);
     return variadic_split::has_axis_and_splits_bound_set(this) && default_upper_bound_evaluator(this, output_values);
 }
