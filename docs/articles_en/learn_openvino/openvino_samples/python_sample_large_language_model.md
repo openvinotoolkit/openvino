@@ -77,17 +77,20 @@ Prerequisites:
 install benchmarking dependencies using requirements.txt
 
    .. code-block:: sh
+
       pip install -r requirements/requirements.txt
 
 notes: **You can specify the installed openvino version through pip install**
 
    .. code-block:: sh
+
       # e.g. 
       pip install openvino-dev==2023.0.0
 
 (4) Run the following command to test the performance of one LLM model
 
    .. code-block:: sh
+
       python benchmark.py -m <model> -d <device> -r <report_csv> -f <framework> -t <prompts> -n <num_iters>
       # e.g.
       python benchmark.py -m models/llama-2-7b-chat/pytorch/dldt/FP32 -n 2
@@ -103,6 +106,7 @@ Parameters:
 * `-n` - number of benchmarking iterations, if the value greater 0, will exclude the first iteration. (default=0)
 
    .. code-block:: sh
+
       python ./benchmark.py -h # for more information
 
 @endsphinxdirective

@@ -10,6 +10,5 @@ pillow
 timm
 tiktoken
 onnx==1.14.0
-protobuf==4.23.4
 onnxruntime
 einops
