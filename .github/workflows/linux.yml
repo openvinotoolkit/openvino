@@ -1354,11 +1354,11 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
 
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR} && rm openvino_developer_package.tar.gz
+            tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
           popd
 
       # TODO: replace with sparse checkout below
@@ -1375,7 +1375,6 @@ jobs:
             install_build_dependencies.sh
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
-          ref: 'master'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
