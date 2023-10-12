@@ -336,7 +336,9 @@ macro(ov_cpack_settings)
             # usr/bin/benchmark_app
             "non-standard-executable-perm"
             # all python files
-            "non-standard-file-perm")
+            "non-standard-file-perm"
+            "python-script-but-no-python-dep"
+            "python-package-missing-depends-on-python")
         set(${python_component}_copyright "generic")
     endif()
 
