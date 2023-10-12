@@ -114,10 +114,8 @@ public:
         m_axis = axis;
     }
 
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector&, const HostTensorVector&) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
 private:
     Strides m_dilations;
