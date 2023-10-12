@@ -65,11 +65,11 @@ Any simplified_type_interpret(Any type);
 
 void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
 
+element::Type infer_types(const Output<Node>& lhs, const Output<Node>& rhs, bool align_scalars);
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,
                                Output<Node>& rhs,
                                bool align_scalars = false);
-
 void align_output_types(const NodeContext& context, OutputVector& outputs);
 
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
@@ -165,7 +165,7 @@ public:
         FRONT_END_NOT_IMPLEMENTED(get_output_debug_name);
     }
     virtual PartialShape get_output_shape(size_t index) const override {
-        FRONT_END_NOT_IMPLEMENTED(get_output_shape);
+        return PartialShape::dynamic();
     }
     virtual Any get_output_type(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_output_type);
@@ -186,7 +186,7 @@ public:
         FRONT_END_NOT_IMPLEMENTED(get_op_type);
     }
     virtual const std::string& get_schema() const override {
-        FRONT_END_NOT_IMPLEMENTED(get_schema);
+        return m_schema;
     }
     virtual size_t num_of_outputs() const override {
         FRONT_END_NOT_IMPLEMENTED(num_of_outputs);
@@ -215,6 +215,9 @@ public:
     virtual OutputVector inlined_inputs(size_t start_index) const override {
         FRONT_END_NOT_IMPLEMENTED(inlined_inputs);
     }
+
+private:
+    const std::string m_schema = "NONE";
 };
 
 }  // namespace pytorch
