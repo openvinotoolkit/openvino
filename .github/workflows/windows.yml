@@ -310,6 +310,7 @@ jobs:
       #
 
       - name: Disable Telemetry
+        shell: cmd
         run: |
           mkdir "%LOCALAPPDATA%\\Intel Corporation\\"
           echo 0 > "%LOCALAPPDATA%\\Intel Corporation\\openvino_telemetry"
