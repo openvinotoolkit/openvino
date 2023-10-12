@@ -1,0 +1,21 @@
+batch:
+  - 1
+  - 2
+device:
+  - HETERO:FPGA,CPU
+precision:
+  - FP16
+  - FP32
+api_2:
+  - True
+
+# LSTM specific
+sequence_length:
+  - 1
+  - 5
+
+# Kaldi specific
+qb:
+  - 8
+device_mode:
+  - GNA_AUTO

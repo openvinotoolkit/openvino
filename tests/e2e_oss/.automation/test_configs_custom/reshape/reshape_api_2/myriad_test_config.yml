@@ -1,0 +1,18 @@
+batch:
+  - 1
+device:
+  - MYRIAD
+precision:
+  - FP16
+api_2:
+  - True
+
+# LSTM specific
+sequence_length:
+  - 1
+
+# Kaldi specific
+qb:
+  - 8
+device_mode:
+  - GNA_AUTO

@@ -1,0 +1,63 @@
+#---------------------------------------------------------------------------
+# This is the YAML schema file describing structure for OSS test configs
+# (see https://json-schema.org/understanding-json-schema/index.html)
+#
+# Test config describes the parameters to run tests with, such as batch, precision, device, etc.
+# Tests are run for all possible parameters combinations.
+#
+# Example of test config:
+#
+# batch:
+#   - 1
+#   - 2
+# device:
+#   - CPU
+# precision:
+#   - FP32
+#   - FP16
+#
+#---------------------------------------------------------------------------
+type: object
+properties:
+  batch:
+    type: array
+    items:
+      type: integer
+  device:
+    type: array
+    items:
+      type: string
+      pattern: "^(CPU|GPU|MYRIAD|FPGA|HDDL|GNA|HETERO:((CPU|GPU|MYRIAD|FPGA|HDDL|GNA),?)+|MULTI:((CPU|GPU|MYRIAD|FPGA|HDDL|GNA|HETERO),?)+)$"
+  precision:
+    type: array
+    items:
+      type: string
+      pattern: "^(FP32|FP16|INT8)$"
+  sequence_length:
+    type: array
+    items:
+      type: integer
+  cpu_streams:
+    type: array
+    items:
+      - type: string
+      - type: integer
+  gpu_streams:
+    type: array
+    items:
+      - type: string
+      - type: integer
+  qb:
+    type: array
+    items:
+      type: integer
+      pattern: "^(8|16)$"
+  device_mode:
+    type: array
+    items:
+      type: string
+      pattern: "^(GNA_AUTO|GNA_SW_EXACT|GNA_SW|GNA_HW|GNA_SW_FP32)$"
+
+
+required: ['batch', 'device', 'precision']
+additionalProperties: False

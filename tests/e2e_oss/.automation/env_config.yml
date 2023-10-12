@@ -1,0 +1,43 @@
+mo_out: ${WORKSPACE}/out_dir/
+pregen_irs_path: ${IRS_PATH}
+input_model_dir: ${TEMP_DIR}
+
+models: ${SHARE}/models/model_downloader/
+test_data: test_data/inputs/
+references_repo: test_data/references
+references: ${REFS_PATH}
+ie_extenstion: /usr/lib/x86_64-linux-gnu/
+
+# internal models location
+caffe_internal_models: ${SHARE}/models/internal/caffe/
+mxnet_internal_models: ${SHARE}/models/internal/mxnet/
+tf_internal_models: ${SHARE}/models/internal/tf/
+onnx_internal_models: ${SHARE}/models/internal/onnx/
+onnx_internal_models_paddlepaddle: ${SHARE}/models/internal/onnx/PaddlePaddle
+onnx_small_models: ${SHARE}/models/internal/onnx/small/
+paddlepaddle_internal_models: ${SHARE}/models/internal/paddlepaddle
+
+# Kaldi models location
+kaldi_models: ${SHARE}/models/internal/kaldi/
+
+# PyTorch specific environment
+pytorch_internal_models:  ${SHARE}/models/internal/pytorch
+pytorch_pretrained_models_path: ${SHARE}/models/internal/pytorch/pretrained/0.7.4
+pytorch_torchvision_models_path: ${SHARE}/models/internal/pytorch/torchvision/0.2.1
+pytorch_timm_models_path: ${SHARE}/models/internal/pytorch/timm
+pytorch_hf_models_path:  ${SHARE}/models/internal/pytorch/huggingface
+pytorch_to_onnx_dump_path: ${SHARE}/models/internal/pytorch/pytorch_to_onnx_dumped
+
+# private models location
+private_models: ${SHARE}/models/private/
+
+# large models location
+tf_large_models: ${SHARE_BIG_MODELS}/models/tf/
+pytorch_large_models: ${SHARE_BIG_MODELS}/models/pytorch/
+
+# ICV models zoo location
+icv_model_zoo_models: ${SHARE}/models/icv_modelzoo/
+
+omz_root: ${OMZ_ROOT}
+omz_models_out: ${SHARE}/models/open_model_zoo
+omz_downloader_cache: ${SHARE}/models/open_model_zoo/downloader_cache

@@ -1,0 +1,46 @@
+# Dynamism test rules configuration file
+
+[
+    {
+    rules: [
+        { model: CAFFE_RFCN_ResNet_101, device: [ GPU ] },  # leave only GPU as CPU is not in the plan for support (CVS-89291)
+        { model: Precollected_CAFFE_detection_1000_VD_binary, device: [ GPU ] },  # leave only GPU as CPU don't support binary networks in dynamism (CVS-76366)
+
+        { model: MXNET_DeformablePSROIPoolingRfcn, device: [ GPU ] },  # leave only GPU as CPU is not in the plan for support (CVS-89291)
+
+        { model: Caffe2_ResNet101_DUC_HDC_opset7, device: [ CPU ] },  # it takes more than 10 minutes to run it on GPU, as fully GPU support is not a release criteria for 23.1 release (CVS-105733)
+        { model: ONNX_Runtime_ResNet101_DUC_HDC_opset7, device: [ CPU ] },  # it takes more than 10 minutes to run it on GPU, as fully GPU support is not a release criteria for 23.1 release (CVS-105733)
+        { model: ONNX_Runtime_Deep_MVLM, device: [ CPU ] },  # it takes more than 60 minutes to run it on GPU, as fully GPU support is not a release criteria for 23.1 release (CVS-112582)
+        { model: ONNX_Runtime_ResNeXt101_32x32d_wsl, device: [ CPU ] },  # CVS-107403
+        { model: Precollected_ONNX_ResNet50_88percentinto1bit_binary, device: [ GPU ] },  # leave only GPU as CPU don't support binary networks in dynamism (CVS-76366)
+
+        { model: PDPD_ResNeXt101_32x32d_wsl, device: [ CPU ] }, # CVS-107403
+        { model: Pytorch_Blip, device: [ CPU ] }, # CVS-105259
+        { model: Pytorch_BridgeTower, device: [ CPU ] }, # CVS-108319
+        { model: Pytorch_Gpt_J_6B, device: [ CPU ] }, # CVS-110556
+        { model: Pytorch_Stable_Diffusion_2_1_Text_Encoder,  device: [ CPU ]}, # (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_1_Unet,  device: [ CPU ]}, #  (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_1_Vae_Decoder,  device: [ CPU ]}, # (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_1_Vae_Encoder,  device: [ CPU ]}, #  (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_Inpainting_Text_Encoder,  device: [ CPU ]}, # (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_Inpainting_Unet, device: [ CPU ] }, #  (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_Inpainting_Vae_Decoder,  device: [ CPU ]}, # (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_Inpainting_Vae_Encoder,  device: [ CPU ]}, #  (CVS-110572)
+        { model: Pytorch_StableLM,  device: [ CPU ]}, # Model was requested only for CPU CVS-111394
+        { model: Pytorch_Llama_3b_v2, device: [ CPU ] }, # (CVS-106319)
+
+        { model: ONNX_MagixStyleSwap_INT8, device: [ GPU ] },  # leave only GPU as CPU is not in the plan for support (CVS-112513)
+
+        { model: TF_BlackMagic_Model_C, device: [ CPU ] }, # CVS-107403
+        { model: TF_BlackMagic_Model_D, device: [ CPU ] },  # CVS-107403
+        { model: TF_Faster_RCNN_Inception_ResNet_v2_atrous_coco, device: [ GPU ] },  # leave only GPU as conversion for CPU takes more than 13 minutes and this model needs to be switched to new FE (CVS-99381)
+        { model: TF_Faster_RCNN_Inception_ResNet_v2_atrous_lowproposals_coco, device: [ GPU ] },  # leave only GPU as conversion for CPU takes more than 13 minutes and this model needs to be switched to new FE (CVS-99381)
+        { model: TF_IstaNet, device: [ GPU ] },  # leave only GPU as CPU is not in the plan for support (CVS-76984)
+        { model: TF_Mask_RCNN_Inception_ResNet_v2_atrous_coco, device: [ GPU ] },  # leave only GPU as conversion for CPU takes more than 13 minutes and this model needs to be switched to new FE (CVS-99381)
+        { model: TF_RFCN_ResNet101_coco, device: [ GPU ] },  # leave only GPU as CPU is not in the plan for support (CVS-112513)
+        { model: TF_Topaz_Labs_MaskAI_SRGAN, device: [ GPU ] },  # leave only GPU as CPU is not in the plan for support (CVS-76984)
+    ],
+
+    filter_by: model
+    }
+]

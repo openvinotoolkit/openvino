@@ -1,0 +1,19 @@
+batch:
+  - 1
+device:
+  - CPU
+  - GPU
+precision:
+  - FP32
+api_2:
+  - False
+
+# LSTM specific
+sequence_length:
+  - 1
+
+# Kaldi specific
+qb:
+  - 8
+device_mode:
+  - GNA_AUTO

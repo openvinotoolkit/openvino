@@ -1,0 +1,18 @@
+batch:
+  - 1
+device:
+  - HDDL
+precision:
+  - FP16
+api_2:
+  - False
+
+# LSTM specific
+sequence_length:
+  - 1
+
+# Kaldi specific
+qb:
+  - 8
+device_mode:
+  - GNA_AUTO

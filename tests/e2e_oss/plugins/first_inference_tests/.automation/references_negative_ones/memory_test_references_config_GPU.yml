@@ -1,0 +1,2617 @@
+# values from {"branch": "release/2023/1"}
+ONNX_Runtime_YoloV3_opset10_input_1_[-1, 3, 416, 416]_image_shape_[1, 2]:
+  load_plugin:
+    vmrss:
+      dynamic: '69648'
+      static: '69320'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '69648'
+      static: '69320'
+      ratio: '1.005'
+  read_network:
+    vmrss:
+      dynamic: '84100'
+      static: '83620'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '84100'
+      static: '83620'
+      ratio: '1.006'
+  load_network:
+    vmrss:
+      dynamic: '846800'
+      static: '832016'
+      ratio: '1.018'
+    vmhwm:
+      dynamic: '1062620'
+      static: '1221664'
+      ratio: '0.87'
+  create_exenetwork:
+    vmrss:
+      dynamic: '846800'
+      static: '832016'
+      ratio: '1.018'
+    vmhwm:
+      dynamic: '1062620'
+      static: '1221664'
+      ratio: '0.87'
+  fill_inputs:
+    vmrss:
+      dynamic: '850820'
+      static: '832340'
+      ratio: '1.022'
+    vmhwm:
+      dynamic: '1062620'
+      static: '1221664'
+      ratio: '0.87'
+  first_inference:
+    vmrss:
+      dynamic: '1056640'
+      static: '840584'
+      ratio: '1.257'
+    vmhwm:
+      dynamic: '1081332'
+      static: '1221664'
+      ratio: '0.885'
+  full_run:
+    vmrss:
+      dynamic: '1056640'
+      static: '840584'
+      ratio: '1.257'
+    vmhwm:
+      dynamic: '1081332'
+      static: '1221664'
+      ratio: '0.885'
+  after_objects_release:
+    vmrss:
+      dynamic: '326712'
+      static: '455948'
+      ratio: '0.717'
+    vmhwm:
+      dynamic: '1081332'
+      static: '1221664'
+      ratio: '0.885'
+ONNX_Customized_Cascade_Rcnn_image_[1, 3, -1, -1]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+ONNX_ModNet_input_[-1, 3, 512, 512]:
+      Statistics aggregation is skipped due to GPU Cant choose implementation for concat:Concat_424 node
+ONNX_ModNet_input_[1, 3, -1, -1]:
+      Statistics aggregation is skipped due to  Couldnt find a suitable kernel for concat:Concat_424
+PDPD_BiSeNetV2_x_[-1, 3, 227, 227]:
+      Statistics aggregation is skipped due to Implementation is nullptr for concat:concat_0.tmp_0 primitive
+PDPD_BiSeNetV2_x_[1, 3, -1, -1]:
+      Statistics aggregation is skipped due to GPU program build failed  get_dims is called for dynamic
+PDPD_DeepLabV3p_x_[-1, 3, 227, 227]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck _impl != nullptr failed at src/plugins/intel_gpu/src/graph/primitive_inst.cpp:673:\n[GPU] Implementation is nullptr for concat:concat_1.tmp_0 primitive\n\n", {}, {})
+PDPD_DeepLabV3p_x_[1, 3, -1, -1]:
+  load_plugin:
+    vmrss:
+      dynamic: '66700'
+      static: '66776'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '66700'
+      static: '66776'
+      ratio: '0.999'
+  read_network:
+    vmrss:
+      dynamic: '79264'
+      static: '79212'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '79264'
+      static: '79212'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '452532'
+      static: '546412'
+      ratio: '0.828'
+    vmhwm:
+      dynamic: '495312'
+      static: '789372'
+      ratio: '0.627'
+  create_exenetwork:
+    vmrss:
+      dynamic: '452532'
+      static: '546412'
+      ratio: '0.828'
+    vmhwm:
+      dynamic: '495312'
+      static: '789372'
+      ratio: '0.627'
+  fill_inputs:
+    vmrss:
+      dynamic: '453912'
+      static: '546412'
+      ratio: '0.831'
+    vmhwm:
+      dynamic: '495312'
+      static: '789372'
+      ratio: '0.627'
+  first_inference:
+    vmrss:
+      dynamic: '606172'
+      static: '549964'
+      ratio: '1.102'
+    vmhwm:
+      dynamic: '628696'
+      static: '789372'
+      ratio: '0.796'
+  full_run:
+    vmrss:
+      dynamic: '606172'
+      static: '549964'
+      ratio: '1.102'
+    vmhwm:
+      dynamic: '628696'
+      static: '789372'
+      ratio: '0.796'
+  after_objects_release:
+    vmrss:
+      dynamic: '388992'
+      static: '350840'
+      ratio: '1.109'
+    vmhwm:
+      dynamic: '628696'
+      static: '789372'
+      ratio: '0.796'
+PDPD_FastSCNN_x_[-1, 3, 227, 227]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+PDPD_MobileNetV2_inputs_[-1, 3, 224, 224]:
+  load_plugin:
+    vmrss:
+      dynamic: '70380'
+      static: '66624'
+      ratio: '1.056'
+    vmhwm:
+      dynamic: '70380'
+      static: '66624'
+      ratio: '1.056'
+  read_network:
+    vmrss:
+      dynamic: '80312'
+      static: '76552'
+      ratio: '1.049'
+    vmhwm:
+      dynamic: '80312'
+      static: '76552'
+      ratio: '1.049'
+  load_network:
+    vmrss:
+      dynamic: '296492'
+      static: '404352'
+      ratio: '0.733'
+    vmhwm:
+      dynamic: '338800'
+      static: '539796'
+      ratio: '0.628'
+  create_exenetwork:
+    vmrss:
+      dynamic: '296492'
+      static: '404352'
+      ratio: '0.733'
+    vmhwm:
+      dynamic: '338800'
+      static: '539796'
+      ratio: '0.628'
+  fill_inputs:
+    vmrss:
+      dynamic: '297872'
+      static: '404352'
+      ratio: '0.737'
+    vmhwm:
+      dynamic: '338800'
+      static: '539796'
+      ratio: '0.628'
+  first_inference:
+    vmrss:
+      dynamic: '373424'
+      static: '406848'
+      ratio: '0.918'
+    vmhwm:
+      dynamic: '421876'
+      static: '539796'
+      ratio: '0.782'
+  full_run:
+    vmrss:
+      dynamic: '373424'
+      static: '406848'
+      ratio: '0.918'
+    vmhwm:
+      dynamic: '421876'
+      static: '539796'
+      ratio: '0.782'
+  after_objects_release:
+    vmrss:
+      dynamic: '313208'
+      static: '353884'
+      ratio: '0.885'
+    vmhwm:
+      dynamic: '421876'
+      static: '539796'
+      ratio: '0.782'
+PDPD_OCRNet_x_[1, 3, -1, -1]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::broadcast_merge_into(output_shape, input_shapes[1], autob) failed at src/core/shape_inference/include/utils.hpp:43:\nWhile validating node opset1::Add Add_27029 () -> () with friendly_name Add_27029:\nArgument shapes are inconsistent.\n\n", {}, {})
+PDPD_FastSCNN_x_[1, 3, -1, -1]:
+  load_plugin:
+    vmrss:
+      dynamic: '66708'
+      static: '68280'
+      ratio: '0.977'
+    vmhwm:
+      dynamic: '66708'
+      static: '68280'
+      ratio: '0.977'
+  read_network:
+    vmrss:
+      dynamic: '77872'
+      static: '79560'
+      ratio: '0.979'
+    vmhwm:
+      dynamic: '77872'
+      static: '79560'
+      ratio: '0.979'
+  load_network:
+    vmrss:
+      dynamic: '266364'
+      static: '331228'
+      ratio: '0.804'
+    vmhwm:
+      dynamic: '327024'
+      static: '480404'
+      ratio: '0.681'
+  create_exenetwork:
+    vmrss:
+      dynamic: '266364'
+      static: '331228'
+      ratio: '0.804'
+    vmhwm:
+      dynamic: '327024'
+      static: '480404'
+      ratio: '0.681'
+  fill_inputs:
+    vmrss:
+      dynamic: '267748'
+      static: '331552'
+      ratio: '0.808'
+    vmhwm:
+      dynamic: '327024'
+      static: '480404'
+      ratio: '0.681'
+  first_inference:
+    vmrss:
+      dynamic: '383556'
+      static: '333988'
+      ratio: '1.148'
+    vmhwm:
+      dynamic: '440440'
+      static: '480404'
+      ratio: '0.917'
+  full_run:
+    vmrss:
+      dynamic: '383556'
+      static: '333988'
+      ratio: '1.148'
+    vmhwm:
+      dynamic: '440440'
+      static: '480404'
+      ratio: '0.917'
+  after_objects_release:
+    vmrss:
+      dynamic: '304688'
+      static: '298684'
+      ratio: '1.02'
+    vmhwm:
+      dynamic: '440440'
+      static: '480404'
+      ratio: '0.917'
+PDPD_MobileNetV3_inputs_[-1, 3, 224, 224]:
+  load_plugin:
+    vmrss:
+      dynamic: '69100'
+      static: '69988'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '69100'
+      static: '69988'
+      ratio: '0.987'
+  read_network:
+    vmrss:
+      dynamic: '79488'
+      static: '80556'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '79488'
+      static: '80556'
+      ratio: '0.987'
+  load_network:
+    vmrss:
+      dynamic: '329328'
+      static: '475816'
+      ratio: '0.692'
+    vmhwm:
+      dynamic: '374924'
+      static: '681084'
+      ratio: '0.55'
+  create_exenetwork:
+    vmrss:
+      dynamic: '329328'
+      static: '475816'
+      ratio: '0.692'
+    vmhwm:
+      dynamic: '374924'
+      static: '681084'
+      ratio: '0.55'
+  fill_inputs:
+    vmrss:
+      dynamic: '330708'
+      static: '476668'
+      ratio: '0.694'
+    vmhwm:
+      dynamic: '374924'
+      static: '681084'
+      ratio: '0.55'
+  first_inference:
+    vmrss:
+      dynamic: '397328'
+      static: '479896'
+      ratio: '0.828'
+    vmhwm:
+      dynamic: '435620'
+      static: '681084'
+      ratio: '0.64'
+  full_run:
+    vmrss:
+      dynamic: '397328'
+      static: '479896'
+      ratio: '0.828'
+    vmhwm:
+      dynamic: '435620'
+      static: '681084'
+      ratio: '0.64'
+  after_objects_release:
+    vmrss:
+      dynamic: '295304'
+      static: '347580'
+      ratio: '0.85'
+    vmhwm:
+      dynamic: '442744'
+      static: '681084'
+      ratio: '0.65'
+PDPD_OCRNet_x_[-1, 3, 227, 227]:
+  load_plugin:
+    vmrss:
+      dynamic: '68888'
+      static: '70336'
+      ratio: '0.979'
+    vmhwm:
+      dynamic: '68888'
+      static: '70336'
+      ratio: '0.979'
+  read_network:
+    vmrss:
+      dynamic: '91564'
+      static: '93020'
+      ratio: '0.984'
+    vmhwm:
+      dynamic: '91808'
+      static: '93072'
+      ratio: '0.986'
+  load_network:
+    vmrss:
+      dynamic: '431532'
+      static: '578404'
+      ratio: '0.746'
+    vmhwm:
+      dynamic: '541196'
+      static: '934408'
+      ratio: '0.579'
+  create_exenetwork:
+    vmrss:
+      dynamic: '431532'
+      static: '578404'
+      ratio: '0.746'
+    vmhwm:
+      dynamic: '541196'
+      static: '934408'
+      ratio: '0.579'
+  fill_inputs:
+    vmrss:
+      dynamic: '432912'
+      static: '578992'
+      ratio: '0.748'
+    vmhwm:
+      dynamic: '541196'
+      static: '934408'
+      ratio: '0.579'
+  first_inference:
+    vmrss:
+      dynamic: '602144'
+      static: '598060'
+      ratio: '1.007'
+    vmhwm:
+      dynamic: '660476'
+      static: '934408'
+      ratio: '0.707'
+  full_run:
+    vmrss:
+      dynamic: '602144'
+      static: '598060'
+      ratio: '1.007'
+    vmhwm:
+      dynamic: '660476'
+      static: '934408'
+      ratio: '0.707'
+  after_objects_release:
+    vmrss:
+      dynamic: '502232'
+      static: '471760'
+      ratio: '1.065'
+    vmhwm:
+      dynamic: '660476'
+      static: '934408'
+      ratio: '0.707'
+PDPD_PPOCRv1_x_[-1, 3, 640, 640]:
+  load_plugin:
+    vmrss:
+      dynamic: '70200'
+      static: '70312'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '70200'
+      static: '70312'
+      ratio: '0.998'
+  read_network:
+    vmrss:
+      dynamic: '80524'
+      static: '80600'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '80524'
+      static: '80600'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '226968'
+      static: '421140'
+      ratio: '0.539'
+    vmhwm:
+      dynamic: '251064'
+      static: '604164'
+      ratio: '0.416'
+  create_exenetwork:
+    vmrss:
+      dynamic: '226968'
+      static: '421140'
+      ratio: '0.539'
+    vmhwm:
+      dynamic: '251064'
+      static: '604164'
+      ratio: '0.416'
+  fill_inputs:
+    vmrss:
+      dynamic: '236536'
+      static: '432288'
+      ratio: '0.547'
+    vmhwm:
+      dynamic: '251064'
+      static: '604164'
+      ratio: '0.416'
+  first_inference:
+    vmrss:
+      dynamic: '339652'
+      static: '434400'
+      ratio: '0.782'
+    vmhwm:
+      dynamic: '380512'
+      static: '604164'
+      ratio: '0.63'
+  full_run:
+    vmrss:
+      dynamic: '339652'
+      static: '434400'
+      ratio: '0.782'
+    vmhwm:
+      dynamic: '380512'
+      static: '604164'
+      ratio: '0.63'
+  after_objects_release:
+    vmrss:
+      dynamic: '261440'
+      static: '390308'
+      ratio: '0.67'
+    vmhwm:
+      dynamic: '380512'
+      static: '604164'
+      ratio: '0.63'
+PDPD_ResNet50_inputs_[-1, 3, 224, 224]:
+  load_plugin:
+    vmrss:
+      dynamic: '66364'
+      static: '69984'
+      ratio: '0.948'
+    vmhwm:
+      dynamic: '66364'
+      static: '69984'
+      ratio: '0.948'
+  read_network:
+    vmrss:
+      dynamic: '76276'
+      static: '80072'
+      ratio: '0.953'
+    vmhwm:
+      dynamic: '76276'
+      static: '80072'
+      ratio: '0.953'
+  load_network:
+    vmrss:
+      dynamic: '446692'
+      static: '508548'
+      ratio: '0.878'
+    vmhwm:
+      dynamic: '487376'
+      static: '665136'
+      ratio: '0.733'
+  create_exenetwork:
+    vmrss:
+      dynamic: '446692'
+      static: '508548'
+      ratio: '0.878'
+    vmhwm:
+      dynamic: '487376'
+      static: '665136'
+      ratio: '0.733'
+  fill_inputs:
+    vmrss:
+      dynamic: '448072'
+      static: '508872'
+      ratio: '0.881'
+    vmhwm:
+      dynamic: '487376'
+      static: '665136'
+      ratio: '0.733'
+  first_inference:
+    vmrss:
+      dynamic: '526196'
+      static: '511308'
+      ratio: '1.029'
+    vmhwm:
+      dynamic: '565680'
+      static: '665136'
+      ratio: '0.85'
+  full_run:
+    vmrss:
+      dynamic: '526104'
+      static: '511308'
+      ratio: '1.029'
+    vmhwm:
+      dynamic: '565680'
+      static: '665136'
+      ratio: '0.85'
+  after_objects_release:
+    vmrss:
+      dynamic: '256224'
+      static: '294268'
+      ratio: '0.871'
+    vmhwm:
+      dynamic: '565680'
+      static: '665136'
+      ratio: '0.85'
+TF_BERT_CHINESE_Placeholder_[-1, 128]_Placeholder_1_[-1, 128]_Placeholder_2_[-1, 128]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::merge_into(output_shape, input) failed at src/core/shape_inference/include/concat_shape_inference.hpp:37:\nWhile validating node opset1::Concat Concat_5464 () -> () with friendly_name Concat_5464:\nArgument shapes are inconsistent; they must have the same rank, and must have equal dimension everywhere except on the concatenation axis (axis 1).\n\n", {}, {})
+TF_BERT_CHINESE_Placeholder_[1, -1]_Placeholder_1_[1, -1]_Placeholder_2_[1, -1]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::merge_into(output_shape, input) failed at src/core/shape_inference/include/concat_shape_inference.hpp:37:\nWhile validating node opset1::Concat Concat_5464 () -> () with friendly_name Concat_5464:\nArgument shapes are inconsistent; they must have the same rank, and must have equal dimension everywhere except on the concatenation axis (axis 1).\n\n", {}, {})
+TF_BERT_MULTI_UNCASED_Placeholder_[-1, 128]_Placeholder_1_[-1, 128]_Placeholder_2_[-1, 128]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::merge_into(output_shape, input) failed at src/core/shape_inference/include/concat_shape_inference.hpp:37:\nWhile validating node opset1::Concat Concat_5464 () -> () with friendly_name Concat_5464:\nArgument shapes are inconsistent; they must have the same rank, and must have equal dimension everywhere except on the concatenation axis (axis 1).\n\n", {}, {})
+TF_BERT_MULTI_UNCASED_Placeholder_[1, -1]_Placeholder_1_[1, -1]_Placeholder_2_[1, -1]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::merge_into(output_shape, input) failed at src/core/shape_inference/include/concat_shape_inference.hpp:37:\nWhile validating node opset1::Concat Concat_5464 () -> () with friendly_name Concat_5464:\nArgument shapes are inconsistent; they must have the same rank, and must have equal dimension everywhere except on the concatenation axis (axis 1).\n\n", {}, {})
+TF_CMU_Openpose_image_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::merge_into(output_shape, input) failed at src/core/shape_inference/include/concat_shape_inference.hpp:37:\nWhile validating node opset1::Concat Concat_5464 () -> () with friendly_name Concat_5464:\nArgument shapes are inconsistent; they must have the same rank, and must have equal dimension everywhere except on the concatenation axis (axis 1).\n\n", {}, {})
+TF_CTPN_Placeholder_[-1, 300, 300, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_CTPN_Placeholder_[1, -1, -1, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_DenseNet_121_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::merge_into(output_shape, input) failed at src/core/shape_inference/include/concat_shape_inference.hpp:37:\nWhile validating node opset1::Concat Concat_7730 () -> () with friendly_name Concat_7730:\nArgument shapes are inconsistent; they must have the same rank, and must have equal dimension everywhere except on the concatenation axis (axis 1).\n\n", {}, {})
+TF_DenseNet_169_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::merge_into(output_shape, input) failed at src/core/shape_inference/include/concat_shape_inference.hpp:37:\nWhile validating node opset1::Concat Concat_10106 () -> () with friendly_name Concat_10106:\nArgument shapes are inconsistent; they must have the same rank, and must have equal dimension everywhere except on the concatenation axis (axis 1).\n\n", {}, {})
+TF_EAST_input_images_[-1, 2400, 32, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nCheck false failed at src/plugins/intel_gpu/src/plugin/program.cpp:399:\nGPU program build failed!\nException from src/plugins/intel_gpu/src/graph/include/primitive_type_base.h:58:\n[GPU] Cant choose implementation for add:Transpose_114983 node (type=eltwise)\n[GPU] Original name:'Transpose_114983\n[GPU] Original type:Add\n[GPU] Reason:Check !kernels.empty() failed at src/plugins/intel_gpu/src/kernel_selector/kernel_selector.cpp:70:\n[GPU] Couldnt find a suitable kernel for add:Transpose_114983 params raw string:F16_BFYX_v32_p0_0_v2400_p0_0_v1_p0_0_v0_p0_0;F16_BFYX_v1_p0_0_v1_p0_0_v1_p0_0_v1_p0_0;F16_BFYX_v32_p0_0_v2400_p0_0_v1_p0_0_v0_p0_0\n\n\n\n", {}, {})'
+TF_EAST_input_images_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nCheck false failed at src/plugins/intel_gpu/src/plugin/program.cpp:399:\nGPU program build failed!\nException from src/plugins/intel_gpu/src/graph/include/primitive_type_base.h:58:\n[GPU] Cant choose implementation for add:Transpose_125818 node (type=eltwise)\n[GPU] Original name:'Transpose_125818\n[GPU] Original type:Add\n[GPU] Reason:Check !kernels.empty() failed at src/plugins/intel_gpu/src/kernel_selector/kernel_selector.cpp:70:\n[GPU] Couldnt find a suitable kernel for add:Transpose_125818 params raw string:F16_BFYX_v0_p0_0_v0_p0_0_v1_p0_0_v1_p0_0;F16_BFYX_v1_p0_0_v1_p0_0_v1_p0_0_v1_p0_0;F16_BFYX_v0_p0_0_v0_p0_0_v1_p0_0_v1_p0_0\n\n\n\n", {}, {})'
+TF_Faster_RCNN_Inception_ResNet_v2_atrous_coco_image_tensor_[-1, 600, 600, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_Faster_RCNN_Inception_ResNet_v2_atrous_coco_image_tensor_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nUnsupported parameter nodes type in FirstStageFeatureExtractor/InceptionResnetV2/InceptionResnetV2/Repeat_1/block17_1/Branch_0/Conv2d_1x1/SpaceToBatchND (SpaceToBatch)\n, {}, {})
+TF_Faster_RCNN_Inception_ResNet_v2_atrous_lowproposals_coco_image_tensor_[-1, 600, 600, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_Faster_RCNN_Inception_ResNet_v2_atrous_lowproposals_coco_image_tensor_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nUnsupported parameter nodes type in FirstStageFeatureExtractor/InceptionResnetV2/InceptionResnetV2/Repeat_1/block17_1/Branch_0/Conv2d_1x1/SpaceToBatchND (SpaceToBatch)\n, {}, {})
+TF_Faster_RCNN_Inception_v2_coco_image_tensor_[-1, 600, 600, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_Faster_RCNN_Inception_v2_coco_image_tensor_[1, -1, -1, 3]:
+      Statistics aggregation is skippeddue to GPU program build failed  get_dims is called for dynamic
+TF_Faster_RCNN_ResNet101_coco_image_tensor_[-1, 600, 600, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_Faster_RCNN_ResNet101_coco_image_tensor_[1, -1, -1, 3]:
+      Statistics aggregation is skippeddue to GPU program build failed  get_dims is called for dynamic
+TF_Faster_RCNN_ResNet50_coco_image_tensor_[-1, 600, 600, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_Faster_RCNN_ResNet50_coco_image_tensor_[1, -1, -1, 3]:
+      Statistics aggregation is skippeddue to GPU program build failed  get_dims is called for dynamic
+TF_ICV_SqueezeNet_v1_0_Placeholder_[-1, 227, 227, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck _impl != nullptr failed at src/plugins/intel_gpu/src/graph/primitive_inst.cpp:673:\n[GPU] Implementation is nullptr for concat:Transpose_1698403 primitive\n\n", {}, {})
+TF_ICV_SqueezeNet_v1_1_Placeholder_[-1, 227, 227, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck _impl != nullptr failed at src/plugins/intel_gpu/src/graph/primitive_inst.cpp:673:\n[GPU] Implementation is nullptr for concat:Transpose_1700815 primitive\n\n", {}, {})
+TF_Inception_ResNet_v2_input_[-1, 299, 299, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck _impl != nullptr failed at src/plugins/intel_gpu/src/graph/primitive_inst.cpp:673:\n[GPU] Implementation is nullptr for concat:Transpose_1710318 primitive\n\n", {}, {})
+TF_Inception_v1_input_[-1, 224, 224, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck _impl != nullptr failed at src/plugins/intel_gpu/src/graph/primitive_inst.cpp:673:\n[GPU] Implementation is nullptr for concat:Transpose_1732890 primitive\n\n", {}, {})
+TF_Inception_v2_input_[-1, 224, 224, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck _impl != nullptr failed at src/plugins/intel_gpu/src/graph/primitive_inst.cpp:673:\n[GPU] Implementation is nullptr for concat:Transpose_1741891 primitive\n\n", {}, {})
+TF_Inception_v4_input_[-1, 299, 299, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck _impl != nullptr failed at src/plugins/intel_gpu/src/graph/primitive_inst.cpp:673:\n[GPU] Implementation is nullptr for concat:Transpose_1754183 primitive\n\n", {}, {})
+TF_Magix_Video_FSRCNN_IteratorGetNext_[-1, 120, 80, 4]:
+      Statistics aggregation is skippeddue to GPU program build failed  get_dims is called for dynamic
+TF_Magix_Video_FSRCNN_IteratorGetNext_[1, -1, -1, 4]:
+      Statistics aggregation is skippeddue to GPU program build failed  get_dims is called for dynamic
+TF_Mask_RCNN_Inception_ResNet_v2_atrous_coco_image_tensor_[-1, 800, 800, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_Mask_RCNN_Inception_ResNet_v2_atrous_coco_image_tensor_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nUnsupported parameter nodes type in FirstStageFeatureExtractor/InceptionResnetV2/InceptionResnetV2/Repeat_1/block17_1/Branch_0/Conv2d_1x1/SpaceToBatchND (SpaceToBatch)\n, {}, {})
+TF_Mask_RCNN_ResNet101_atrous_coco_image_tensor_[-1, 800, 800, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_Mask_RCNN_ResNet101_atrous_coco_image_tensor_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nUnsupported parameter nodes type in FirstStageFeatureExtractor/resnet_v1_101/resnet_v1_101/block3/unit_1/bottleneck_v1/conv2/SpaceToBatchND (SpaceToBatch)\n, {}, {})
+TF_MobileNet_v1_1_0_224_input_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '70328'
+      static: '66988'
+      ratio: '1.05'
+    vmhwm:
+      dynamic: '70328'
+      static: '66988'
+      ratio: '1.05'
+  read_network:
+    vmrss:
+      dynamic: '78516'
+      static: '75064'
+      ratio: '1.046'
+    vmhwm:
+      dynamic: '78516'
+      static: '75064'
+      ratio: '1.046'
+  load_network:
+    vmrss:
+      dynamic: '200912'
+      static: '304208'
+      ratio: '0.66'
+    vmhwm:
+      dynamic: '221944'
+      static: '396396'
+      ratio: '0.56'
+  create_exenetwork:
+    vmrss:
+      dynamic: '200912'
+      static: '304208'
+      ratio: '0.66'
+    vmhwm:
+      dynamic: '221944'
+      static: '396396'
+      ratio: '0.56'
+  fill_inputs:
+    vmrss:
+      dynamic: '202028'
+      static: '305340'
+      ratio: '0.662'
+    vmhwm:
+      dynamic: '221944'
+      static: '396396'
+      ratio: '0.56'
+  first_inference:
+    vmrss:
+      dynamic: '267716'
+      static: '306192'
+      ratio: '0.874'
+    vmhwm:
+      dynamic: '301752'
+      static: '396396'
+      ratio: '0.761'
+  full_run:
+    vmrss:
+      dynamic: '267716'
+      static: '306192'
+      ratio: '0.874'
+    vmhwm:
+      dynamic: '301752'
+      static: '396396'
+      ratio: '0.761'
+  after_objects_release:
+    vmrss:
+      dynamic: '209552'
+      static: '269472'
+      ratio: '0.778'
+    vmhwm:
+      dynamic: '301752'
+      static: '396396'
+      ratio: '0.761'
+TF_NasNet_Large_input_[-1, 331, 331, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck _impl != nullptr failed at src/plugins/intel_gpu/src/graph/primitive_inst.cpp:673:\n[GPU] Implementation is nullptr for concat:Transpose_2798856 primitive\n\n", {}, {})
+TF_NasNet_Large_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::broadcast_merge_into(output_shape, input_shapes[1], autob) failed at src/core/shape_inference/include/utils.hpp:43:\nWhile validating node opset1::Add Add_20287 () -> () with friendly_name Add_20287:\nArgument shapes are inconsistent.\n\n", {}, {})
+TF_NasNet_Mobile_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::broadcast_merge_into(output_shape, input_shapes[1], autob) failed at src/core/shape_inference/include/utils.hpp:43:\nWhile validating node opset1::Add Add_15359 () -> () with friendly_name Add_15359:\nArgument shapes are inconsistent.\n\n", {}, {})
+TF_NetVLAD_Placeholder_[-1, 201, 300, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\n[GPU] get_dims() is called for dynamic:shape\n, {}, {})"
+TF_PNasNet_Large_input_[-1, 331, 331, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck _impl != nullptr failed at src/plugins/intel_gpu/src/graph/primitive_inst.cpp:673:\n[GPU] Implementation is nullptr for concat:Transpose_2945007 primitive\n\n", {}, {})
+TF_PNasNet_Large_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::broadcast_merge_into(output_shape, input_shapes[1], autob) failed at src/core/shape_inference/include/utils.hpp:43:\nWhile validating node opset1::Add Add_15885 () -> () with friendly_name Add_15885:\nArgument shapes are inconsistent.\n\n", {}, {})
+TF_ResNet_v1_101_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::broadcast_merge_into(output_shape, input_shapes[1], autob) failed at src/core/shape_inference/include/utils.hpp:43:\nWhile validating node opset1::Add Add_6430 () -> () with friendly_name Add_6430:\nArgument shapes are inconsistent.\n\n", {}, {})
+TF_ResNet_v1_152_input_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '69920'
+      static: '70588'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '69920'
+      static: '70588'
+      ratio: '0.991'
+  read_network:
+    vmrss:
+      dynamic: '83004'
+      static: '83668'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '83004'
+      static: '83668'
+      ratio: '0.992'
+  load_network:
+    vmrss:
+      dynamic: '664568'
+      static: '670848'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '709448'
+      static: '914204'
+      ratio: '0.776'
+  create_exenetwork:
+    vmrss:
+      dynamic: '664568'
+      static: '670848'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '709448'
+      static: '914204'
+      ratio: '0.776'
+  fill_inputs:
+    vmrss:
+      dynamic: '665684'
+      static: '671964'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '709448'
+      static: '914204'
+      ratio: '0.776'
+  first_inference:
+    vmrss:
+      dynamic: '737668'
+      static: '680412'
+      ratio: '1.084'
+    vmhwm:
+      dynamic: '768232'
+      static: '914204'
+      ratio: '0.84'
+  full_run:
+    vmrss:
+      dynamic: '737668'
+      static: '680412'
+      ratio: '1.084'
+    vmhwm:
+      dynamic: '768232'
+      static: '914204'
+      ratio: '0.84'
+  after_objects_release:
+    vmrss:
+      dynamic: '246112'
+      static: '287732'
+      ratio: '0.855'
+    vmhwm:
+      dynamic: '768232'
+      static: '914204'
+      ratio: '0.84'
+TF_ResNet_v1_152_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::broadcast_merge_into(output_shape, input_shapes[1], autob) failed at src/core/shape_inference/include/utils.hpp:43:\nWhile validating node opset1::Add Add_8742 () -> () with friendly_name Add_8742:\nArgument shapes are inconsistent.\n\n", {}, {})
+TF_ResNet_v1_50_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::broadcast_merge_into(output_shape, input_shapes[1], autob) failed at src/core/shape_inference/include/utils.hpp:43:\nWhile validating node opset1::Add Add_4118 () -> () with friendly_name Add_4118:\nArgument shapes are inconsistent.\n\n", {}, {})
+TF_ResNet_v2_101_input_[-1, 299, 299, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '70248'
+      static: '70336'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '70248'
+      static: '70336'
+      ratio: '0.999'
+  read_network:
+    vmrss:
+      dynamic: '82600'
+      static: '82800'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '82600'
+      static: '82800'
+      ratio: '0.998'
+  load_network:
+    vmrss:
+      dynamic: '541648'
+      static: '596688'
+      ratio: '0.908'
+    vmhwm:
+      dynamic: '583360'
+      static: '815636'
+      ratio: '0.715'
+  create_exenetwork:
+    vmrss:
+      dynamic: '541648'
+      static: '596688'
+      ratio: '0.908'
+    vmhwm:
+      dynamic: '583360'
+      static: '815636'
+      ratio: '0.715'
+  fill_inputs:
+    vmrss:
+      dynamic: '543556'
+      static: '597804'
+      ratio: '0.909'
+    vmhwm:
+      dynamic: '583360'
+      static: '815636'
+      ratio: '0.715'
+  first_inference:
+    vmrss:
+      dynamic: '619048'
+      static: '607308'
+      ratio: '1.019'
+    vmhwm:
+      dynamic: '650936'
+      static: '815636'
+      ratio: '0.798'
+  full_run:
+    vmrss:
+      dynamic: '619048'
+      static: '607308'
+      ratio: '1.019'
+    vmhwm:
+      dynamic: '650936'
+      static: '815636'
+      ratio: '0.798'
+  after_objects_release:
+    vmrss:
+      dynamic: '246384'
+      static: '322652'
+      ratio: '0.764'
+    vmhwm:
+      dynamic: '650936'
+      static: '815636'
+      ratio: '0.798'
+TF_ResNet_v2_101_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::broadcast_merge_into(output_shape, input_shapes[1], autob) failed at src/core/shape_inference/include/utils.hpp:43:\nWhile validating node opset1::Add Add_7237 () -> () with friendly_name Add_7237:\nArgument shapes are inconsistent.\n\n", {}, {})
+TF_ResNet_v2_152_input_[-1, 299, 299, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '70572'
+      static: '69560'
+      ratio: '1.015'
+    vmhwm:
+      dynamic: '70572'
+      static: '69560'
+      ratio: '1.015'
+  read_network:
+    vmrss:
+      dynamic: '84516'
+      static: '83940'
+      ratio: '1.007'
+    vmhwm:
+      dynamic: '84516'
+      static: '83940'
+      ratio: '1.007'
+  load_network:
+    vmrss:
+      dynamic: '676392'
+      static: '694124'
+      ratio: '0.974'
+    vmhwm:
+      dynamic: '739044'
+      static: '953944'
+      ratio: '0.775'
+  create_exenetwork:
+    vmrss:
+      dynamic: '676392'
+      static: '694124'
+      ratio: '0.974'
+    vmhwm:
+      dynamic: '739044'
+      static: '953944'
+      ratio: '0.775'
+  fill_inputs:
+    vmrss:
+      dynamic: '678564'
+      static: '695240'
+      ratio: '0.976'
+    vmhwm:
+      dynamic: '739044'
+      static: '953944'
+      ratio: '0.775'
+  first_inference:
+    vmrss:
+      dynamic: '754532'
+      static: '710088'
+      ratio: '1.063'
+    vmhwm:
+      dynamic: '785120'
+      static: '953944'
+      ratio: '0.823'
+  full_run:
+    vmrss:
+      dynamic: '754532'
+      static: '710088'
+      ratio: '1.063'
+    vmhwm:
+      dynamic: '785120'
+      static: '953944'
+      ratio: '0.823'
+  after_objects_release:
+    vmrss:
+      dynamic: '298204'
+      static: '354896'
+      ratio: '0.84'
+    vmhwm:
+      dynamic: '785120'
+      static: '953944'
+      ratio: '0.823'
+TF_ResNet_v2_152_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::broadcast_merge_into(output_shape, input_shapes[1], autob) failed at src/core/shape_inference/include/utils.hpp:43:\nWhile validating node opset1::Add Add_9957 () -> () with friendly_name Add_9957:\nArgument shapes are inconsistent.\n\n", {}, {})
+TF_ResNet_v2_50_input_[-1, 299, 299, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '70268'
+      static: '70328'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '70268'
+      static: '70328'
+      ratio: '0.999'
+  read_network:
+    vmrss:
+      dynamic: '81124'
+      static: '81136'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '81124'
+      static: '81136'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '379916'
+      static: '460664'
+      ratio: '0.825'
+    vmhwm:
+      dynamic: '407976'
+      static: '654132'
+      ratio: '0.624'
+  create_exenetwork:
+    vmrss:
+      dynamic: '379916'
+      static: '460664'
+      ratio: '0.825'
+    vmhwm:
+      dynamic: '407976'
+      static: '654132'
+      ratio: '0.624'
+  fill_inputs:
+    vmrss:
+      dynamic: '382088'
+      static: '461980'
+      ratio: '0.827'
+    vmhwm:
+      dynamic: '407976'
+      static: '654132'
+      ratio: '0.624'
+  first_inference:
+    vmrss:
+      dynamic: '457312'
+      static: '466204'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '487748'
+      static: '654132'
+      ratio: '0.746'
+  full_run:
+    vmrss:
+      dynamic: '457312'
+      static: '466204'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '487748'
+      static: '654132'
+      ratio: '0.746'
+  after_objects_release:
+    vmrss:
+      dynamic: '229732'
+      static: '307044'
+      ratio: '0.748'
+    vmhwm:
+      dynamic: '487748'
+      static: '654132'
+      ratio: '0.746'
+TF_ResNet_v2_50_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::broadcast_merge_into(output_shape, input_shapes[1], autob) failed at src/core/shape_inference/include/utils.hpp:43:\nWhile validating node opset1::Add Add_4517 () -> () with friendly_name Add_4517:\nArgument shapes are inconsistent.\n\n", {}, {})
+TF_SqueezeNet_v1_1_Placeholder_[-1, 224, 224, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck _impl != nullptr failed at src/plugins/intel_gpu/src/graph/primitive_inst.cpp:673:\n[GPU] Implementation is nullptr for concat:Transpose_3164268 primitive\n\n", {}, {})
+TF_SqueezeNet_v1_1_Placeholder_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/infer_request.cpp:215:\nCheck T::merge_into(output_shape, input) failed at src/core/shape_inference/include/concat_shape_inference.hpp:37:\nWhile validating node opset1::Concat Concat_2932 () -> () with friendly_name Concat_2932:\nArgument shapes are inconsistent; they must have the same rank, and must have equal dimension everywhere except on the concatenation axis (axis 1).\n\n", {}, {})
+TF_Ssd_MobileNet_v1_coco_quantized_finetuned_image_tensor_[-1, 300, 300, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nCheck false failed at src/plugins/intel_gpu/src/plugin/program.cpp:399:\nGPU program build failed!\n[GPU] get_buffer_size() is called for dynamic:' shape\n\n", {}, {})
+TF_Ssd_MobileNet_v1_coco_quantized_finetuned_image_tensor_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nvector::_M_range_check:'_n (which is 18446744073709551615) >= this->size() (which is 1)\n, {}, {})
+TF_Ssd_Mobilenet_v1_coco_image_tensor_[-1, 300, 300, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nCheck false failed at src/plugins/intel_gpu/src/plugin/program.cpp:399:\nGPU program build failed!\n[GPU] get_buffer_size() is called for dynamic:' shape\n\n", {}, {})
+TF_Ssd_Mobilenet_v1_coco_image_tensor_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nvector::_M_range_check:'_n (which is 18446744073709551615) >= this->size() (which is 1)\n, {}, {})
+TF_Ssd_Mobilenet_v2_coco_image_tensor_[-1, 300, 300, 3]:
+      Statistics aggregation is skipped. (2, "Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nCheck false failed at src/plugins/intel_gpu/src/plugin/program.cpp:399:\nGPU program build failed!\n[GPU] get_buffer_size() is called for dynamic:' shape\n\n", {}, {})
+TF_Ssd_Mobilenet_v2_coco_image_tensor_[1, -1, -1, 3]:
+      Statistics aggregation is skipped. (2, Inference Engine pipeline failed with exception:\nException from src/inference/src/core.cpp:114:\nvector::_M_range_check:'_n (which is 18446744073709551615) >= this->size() (which is 1)\n, {}, {})
+TF_VGG16_input_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '66720'
+      static: '70332'
+      ratio: '0.949'
+    vmhwm:
+      dynamic: '66720'
+      static: '70332'
+      ratio: '0.949'
+  read_network:
+    vmrss:
+      dynamic: '74096'
+      static: '77644'
+      ratio: '0.954'
+    vmhwm:
+      dynamic: '74096'
+      static: '77644'
+      ratio: '0.954'
+  load_network:
+    vmrss:
+      dynamic: '1240692'
+      static: '1080828'
+      ratio: '1.148'
+    vmhwm:
+      dynamic: '1260424'
+      static: '1502508'
+      ratio: '0.839'
+  create_exenetwork:
+    vmrss:
+      dynamic: '1240692'
+      static: '1080828'
+      ratio: '1.148'
+    vmhwm:
+      dynamic: '1260424'
+      static: '1502508'
+      ratio: '0.839'
+  fill_inputs:
+    vmrss:
+      dynamic: '1241812'
+      static: '1081160'
+      ratio: '1.149'
+    vmhwm:
+      dynamic: '1260424'
+      static: '1502508'
+      ratio: '0.839'
+  first_inference:
+    vmrss:
+      dynamic: '1303620'
+      static: '1081160'
+      ratio: '1.206'
+    vmhwm:
+      dynamic: '1501976'
+      static: '1502508'
+      ratio: '1.0'
+  full_run:
+    vmrss:
+      dynamic: '1303620'
+      static: '1081160'
+      ratio: '1.206'
+    vmhwm:
+      dynamic: '1501976'
+      static: '1502508'
+      ratio: '1.0'
+  after_objects_release:
+    vmrss:
+      dynamic: '181820'
+      static: '260784'
+      ratio: '0.697'
+    vmhwm:
+      dynamic: '1501976'
+      static: '1502508'
+      ratio: '1.0'
+TF_VGG19_input_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '68112'
+      static: '70344'
+      ratio: '0.968'
+    vmhwm:
+      dynamic: '68112'
+      static: '70344'
+      ratio: '0.968'
+  read_network:
+    vmrss:
+      dynamic: '76264'
+      static: '78168'
+      ratio: '0.976'
+    vmhwm:
+      dynamic: '76264'
+      static: '78168'
+      ratio: '0.976'
+  load_network:
+    vmrss:
+      dynamic: '1285068'
+      static: '1113172'
+      ratio: '1.154'
+    vmhwm:
+      dynamic: '1305004'
+      static: '1546396'
+      ratio: '0.844'
+  create_exenetwork:
+    vmrss:
+      dynamic: '1285068'
+      static: '1113172'
+      ratio: '1.154'
+    vmhwm:
+      dynamic: '1305004'
+      static: '1546396'
+      ratio: '0.844'
+  fill_inputs:
+    vmrss:
+      dynamic: '1286184'
+      static: '1113172'
+      ratio: '1.155'
+    vmhwm:
+      dynamic: '1305004'
+      static: '1546396'
+      ratio: '0.844'
+  first_inference:
+    vmrss:
+      dynamic: '1347868'
+      static: '1113172'
+      ratio: '1.211'
+    vmhwm:
+      dynamic: '1546236'
+      static: '1546396'
+      ratio: '1.0'
+  full_run:
+    vmrss:
+      dynamic: '1347868'
+      static: '1113172'
+      ratio: '1.211'
+    vmhwm:
+      dynamic: '1546236'
+      static: '1546396'
+      ratio: '1.0'
+  after_objects_release:
+    vmrss:
+      dynamic: '184804'
+      static: '261396'
+      ratio: '0.707'
+    vmhwm:
+      dynamic: '1546236'
+      static: '1546396'
+      ratio: '1.0'
+TF_YOLO_V2_Full_input_[-1, 416, 416, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_YOLO_V2_Full_input_[1, -1, -1, 3]:
+      Statistics aggregation is skipped due to RTE Exception from src/inference/src/core.cpp 114 get_shape was called on a descriptor Tensor with dynamic shape
+TF_YOLO_V2_Full_No_Region_input_[-1, 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '69560'
+      static: '70324'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '69560'
+      static: '70324'
+      ratio: '0.989'
+  read_network:
+    vmrss:
+      dynamic: '78272'
+      static: '79020'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '78272'
+      static: '79020'
+      ratio: '0.991'
+  load_network:
+    vmrss:
+      dynamic: '467984'
+      static: '504556'
+      ratio: '0.928'
+    vmhwm:
+      dynamic: '489884'
+      static: '670224'
+      ratio: '0.731'
+  create_exenetwork:
+    vmrss:
+      dynamic: '467984'
+      static: '504556'
+      ratio: '0.928'
+    vmhwm:
+      dynamic: '489884'
+      static: '670224'
+      ratio: '0.731'
+  fill_inputs:
+    vmrss:
+      dynamic: '472008'
+      static: '504556'
+      ratio: '0.935'
+    vmhwm:
+      dynamic: '489884'
+      static: '670224'
+      ratio: '0.731'
+  first_inference:
+    vmrss:
+      dynamic: '600028'
+      static: '505408'
+      ratio: '1.187'
+    vmhwm:
+      dynamic: '600028'
+      static: '670224'
+      ratio: '0.895'
+  full_run:
+    vmrss:
+      dynamic: '600028'
+      static: '505408'
+      ratio: '1.187'
+    vmhwm:
+      dynamic: '600028'
+      static: '670224'
+      ratio: '0.895'
+  after_objects_release:
+    vmrss:
+      dynamic: '255040'
+      static: '268128'
+      ratio: '0.951'
+    vmhwm:
+      dynamic: '600556'
+      static: '670224'
+      ratio: '0.896'
+TF_YOLO_V2_Full_No_Region_input_[1, -1, -1, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '67160'
+      static: '70584'
+      ratio: '0.951'
+    vmhwm:
+      dynamic: '67160'
+      static: '70584'
+      ratio: '0.951'
+  read_network:
+    vmrss:
+      dynamic: '75552'
+      static: '79112'
+      ratio: '0.955'
+    vmhwm:
+      dynamic: '75552'
+      static: '79112'
+      ratio: '0.955'
+  load_network:
+    vmrss:
+      dynamic: '464304'
+      static: '504572'
+      ratio: '0.92'
+    vmhwm:
+      dynamic: '486216'
+      static: '669328'
+      ratio: '0.726'
+  create_exenetwork:
+    vmrss:
+      dynamic: '464304'
+      static: '504572'
+      ratio: '0.92'
+    vmhwm:
+      dynamic: '486216'
+      static: '669328'
+      ratio: '0.726'
+  fill_inputs:
+    vmrss:
+      dynamic: '468336'
+      static: '504572'
+      ratio: '0.928'
+    vmhwm:
+      dynamic: '486216'
+      static: '669328'
+      ratio: '0.726'
+  first_inference:
+    vmrss:
+      dynamic: '598532'
+      static: '505424'
+      ratio: '1.184'
+    vmhwm:
+      dynamic: '598532'
+      static: '669328'
+      ratio: '0.894'
+  full_run:
+    vmrss:
+      dynamic: '598532'
+      static: '505424'
+      ratio: '1.184'
+    vmhwm:
+      dynamic: '598532'
+      static: '669328'
+      ratio: '0.894'
+  after_objects_release:
+    vmrss:
+      dynamic: '251232'
+      static: '268272'
+      ratio: '0.936'
+    vmhwm:
+      dynamic: '598532'
+      static: '669328'
+      ratio: '0.894'
+TF_YOLO_V2_Tiny_input_[-1, 416, 416, 3]:
+      Statistics aggregation is skippeddue to GPU program build failed  get_dims is called for dynamic
+TF_YOLO_V2_Tiny_input_[1, -1, -1, 3]:
+      Statistics aggregation is skippeddue to GPU program build failed  get_dims is called for dynamic
+TF_YOLO_V2_Tiny_No_Region_input_[-1, 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '66612'
+      static: '70396'
+      ratio: '0.946'
+    vmhwm:
+      dynamic: '66612'
+      static: '70396'
+      ratio: '0.946'
+  read_network:
+    vmrss:
+      dynamic: '74240'
+      static: '77944'
+      ratio: '0.952'
+    vmhwm:
+      dynamic: '74240'
+      static: '77944'
+      ratio: '0.952'
+  load_network:
+    vmrss:
+      dynamic: '283428'
+      static: '331044'
+      ratio: '0.856'
+    vmhwm:
+      dynamic: '303652'
+      static: '450728'
+      ratio: '0.674'
+  create_exenetwork:
+    vmrss:
+      dynamic: '283428'
+      static: '331044'
+      ratio: '0.856'
+    vmhwm:
+      dynamic: '303652'
+      static: '450728'
+      ratio: '0.674'
+  fill_inputs:
+    vmrss:
+      dynamic: '287448'
+      static: '334008'
+      ratio: '0.861'
+    vmhwm:
+      dynamic: '303652'
+      static: '450728'
+      ratio: '0.674'
+  first_inference:
+    vmrss:
+      dynamic: '346156'
+      static: '334008'
+      ratio: '1.036'
+    vmhwm:
+      dynamic: '385600'
+      static: '450728'
+      ratio: '0.856'
+  full_run:
+    vmrss:
+      dynamic: '346156'
+      static: '334008'
+      ratio: '1.036'
+    vmhwm:
+      dynamic: '385600'
+      static: '450728'
+      ratio: '0.856'
+  after_objects_release:
+    vmrss:
+      dynamic: '241160'
+      static: '230932'
+      ratio: '1.044'
+    vmhwm:
+      dynamic: '385600'
+      static: '450728'
+      ratio: '0.856'
+TF_YOLO_V2_Tiny_No_Region_input_[1, -1, -1, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '67292'
+      static: '66780'
+      ratio: '1.008'
+    vmhwm:
+      dynamic: '67292'
+      static: '66780'
+      ratio: '1.008'
+  read_network:
+    vmrss:
+      dynamic: '74840'
+      static: '74108'
+      ratio: '1.01'
+    vmhwm:
+      dynamic: '74840'
+      static: '74108'
+      ratio: '1.01'
+  load_network:
+    vmrss:
+      dynamic: '283624'
+      static: '325036'
+      ratio: '0.873'
+    vmhwm:
+      dynamic: '304156'
+      static: '444952'
+      ratio: '0.684'
+  create_exenetwork:
+    vmrss:
+      dynamic: '283624'
+      static: '325036'
+      ratio: '0.873'
+    vmhwm:
+      dynamic: '304156'
+      static: '444952'
+      ratio: '0.684'
+  fill_inputs:
+    vmrss:
+      dynamic: '287904'
+      static: '328000'
+      ratio: '0.878'
+    vmhwm:
+      dynamic: '304156'
+      static: '444952'
+      ratio: '0.684'
+  first_inference:
+    vmrss:
+      dynamic: '346068'
+      static: '328000'
+      ratio: '1.055'
+    vmhwm:
+      dynamic: '386064'
+      static: '444952'
+      ratio: '0.868'
+  full_run:
+    vmrss:
+      dynamic: '346068'
+      static: '328000'
+      ratio: '1.055'
+    vmhwm:
+      dynamic: '386064'
+      static: '444952'
+      ratio: '0.868'
+  after_objects_release:
+    vmrss:
+      dynamic: '241404'
+      static: '225324'
+      ratio: '1.071'
+    vmhwm:
+      dynamic: '386064'
+      static: '444952'
+      ratio: '0.868'
+TF_YOLO_V3_Full_inputs_[-1, 416, 416, 3]:
+      Statistics aggregation is skippeddue to GPU program build failed  get_dims is called for dynamic
+TF_YOLO_V3_Full_No_Region_inputs_[-1, 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '70244'
+      static: '69708'
+      ratio: '1.008'
+    vmhwm:
+      dynamic: '70244'
+      static: '69708'
+      ratio: '1.008'
+  read_network:
+    vmrss:
+      dynamic: '81832'
+      static: '81512'
+      ratio: '1.004'
+    vmhwm:
+      dynamic: '81832'
+      static: '81512'
+      ratio: '1.004'
+  load_network:
+    vmrss:
+      dynamic: '667888'
+      static: '685624'
+      ratio: '0.974'
+    vmhwm:
+      dynamic: '697492'
+      static: '927852'
+      ratio: '0.752'
+  create_exenetwork:
+    vmrss:
+      dynamic: '667888'
+      static: '685624'
+      ratio: '0.974'
+    vmhwm:
+      dynamic: '697492'
+      static: '927852'
+      ratio: '0.752'
+  fill_inputs:
+    vmrss:
+      dynamic: '672172'
+      static: '688324'
+      ratio: '0.977'
+    vmhwm:
+      dynamic: '697492'
+      static: '927852'
+      ratio: '0.752'
+  first_inference:
+    vmrss:
+      dynamic: '784588'
+      static: '692548'
+      ratio: '1.133'
+    vmhwm:
+      dynamic: '821500'
+      static: '927852'
+      ratio: '0.885'
+  full_run:
+    vmrss:
+      dynamic: '784588'
+      static: '692548'
+      ratio: '1.133'
+    vmhwm:
+      dynamic: '821500'
+      static: '927852'
+      ratio: '0.885'
+  after_objects_release:
+    vmrss:
+      dynamic: '233856'
+      static: '286212'
+      ratio: '0.817'
+    vmhwm:
+      dynamic: '821500'
+      static: '927852'
+      ratio: '0.885'
+TF_YOLO_V3_Tiny_inputs_[-1, 416, 416, 3]:
+      Statistics aggregation is skippeddue to GPU program build failed  get_dims is called for dynamic
+TF_CMU_Openpose_image_[-1, 368, 656, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '70296'
+      static: '68236'
+      ratio: '1.03'
+    vmhwm:
+      dynamic: '70296'
+      static: '68236'
+      ratio: '1.03'
+  read_network:
+    vmrss:
+      dynamic: '81708'
+      static: '79364'
+      ratio: '1.03'
+    vmhwm:
+      dynamic: '81708'
+      static: '79364'
+      ratio: '1.03'
+  load_network:
+    vmrss:
+      dynamic: '593012'
+      static: '650768'
+      ratio: '0.911'
+    vmhwm:
+      dynamic: '623232'
+      static: '831732'
+      ratio: '0.749'
+  create_exenetwork:
+    vmrss:
+      dynamic: '593012'
+      static: '650768'
+      ratio: '0.911'
+    vmhwm:
+      dynamic: '623232'
+      static: '831732'
+      ratio: '0.749'
+  fill_inputs:
+    vmrss:
+      dynamic: '598880'
+      static: '650768'
+      ratio: '0.92'
+    vmhwm:
+      dynamic: '623232'
+      static: '831732'
+      ratio: '0.749'
+  first_inference:
+    vmrss:
+      dynamic: '666160'
+      static: '655580'
+      ratio: '1.016'
+    vmhwm:
+      dynamic: '696208'
+      static: '831732'
+      ratio: '0.837'
+  full_run:
+    vmrss:
+      dynamic: '666160'
+      static: '655580'
+      ratio: '1.016'
+    vmhwm:
+      dynamic: '696208'
+      static: '831732'
+      ratio: '0.837'
+  after_objects_release:
+    vmrss:
+      dynamic: '271956'
+      static: '337764'
+      ratio: '0.805'
+    vmhwm:
+      dynamic: '696208'
+      static: '831732'
+      ratio: '0.837'
+TF_DenseNet_121_input_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '70316'
+      static: '70276'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '70316'
+      static: '70276'
+      ratio: '1.001'
+  read_network:
+    vmrss:
+      dynamic: '83808'
+      static: '83120'
+      ratio: '1.008'
+    vmhwm:
+      dynamic: '83808'
+      static: '83120'
+      ratio: '1.008'
+  load_network:
+    vmrss:
+      dynamic: '258824'
+      static: '643976'
+      ratio: '0.402'
+    vmhwm:
+      dynamic: '365308'
+      static: '1116804'
+      ratio: '0.327'
+  create_exenetwork:
+    vmrss:
+      dynamic: '258824'
+      static: '643976'
+      ratio: '0.402'
+    vmhwm:
+      dynamic: '365308'
+      static: '1116804'
+      ratio: '0.327'
+  fill_inputs:
+    vmrss:
+      dynamic: '259940'
+      static: '644828'
+      ratio: '0.403'
+    vmhwm:
+      dynamic: '365308'
+      static: '1116804'
+      ratio: '0.327'
+  first_inference:
+    vmrss:
+      dynamic: '402536'
+      static: '655184'
+      ratio: '0.614'
+    vmhwm:
+      dynamic: '432436'
+      static: '1116804'
+      ratio: '0.387'
+  full_run:
+    vmrss:
+      dynamic: '402536'
+      static: '655184'
+      ratio: '0.614'
+    vmhwm:
+      dynamic: '432436'
+      static: '1116804'
+      ratio: '0.387'
+  after_objects_release:
+    vmrss:
+      dynamic: '309248'
+      static: '425120'
+      ratio: '0.727'
+    vmhwm:
+      dynamic: '432436'
+      static: '1116804'
+      ratio: '0.387'
+TF_DenseNet_169_input_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '67132'
+      static: '70336'
+      ratio: '0.954'
+    vmhwm:
+      dynamic: '67132'
+      static: '70336'
+      ratio: '0.954'
+  read_network:
+    vmrss:
+      dynamic: '81968'
+      static: '85316'
+      ratio: '0.961'
+    vmhwm:
+      dynamic: '81968'
+      static: '85316'
+      ratio: '0.961'
+  load_network:
+    vmrss:
+      dynamic: '311448'
+      static: '736472'
+      ratio: '0.423'
+    vmhwm:
+      dynamic: '516372'
+      static: '1228344'
+      ratio: '0.42'
+  create_exenetwork:
+    vmrss:
+      dynamic: '311448'
+      static: '736472'
+      ratio: '0.423'
+    vmhwm:
+      dynamic: '516372'
+      static: '1228344'
+      ratio: '0.42'
+  fill_inputs:
+    vmrss:
+      dynamic: '312828'
+      static: '736472'
+      ratio: '0.425'
+    vmhwm:
+      dynamic: '516372'
+      static: '1228344'
+      ratio: '0.42'
+  first_inference:
+    vmrss:
+      dynamic: '489956'
+      static: '751316'
+      ratio: '0.652'
+    vmhwm:
+      dynamic: '520572'
+      static: '1228344'
+      ratio: '0.424'
+  full_run:
+    vmrss:
+      dynamic: '489956'
+      static: '751316'
+      ratio: '0.652'
+    vmhwm:
+      dynamic: '520572'
+      static: '1228344'
+      ratio: '0.424'
+  after_objects_release:
+    vmrss:
+      dynamic: '360244'
+      static: '453460'
+      ratio: '0.794'
+    vmhwm:
+      dynamic: '520572'
+      static: '1228344'
+      ratio: '0.424'
+TF_MobileNet_EdgeTPU_1_0_224_MobilenetEdgeTPU/input:0_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '66860'
+      static: '69780'
+      ratio: '0.958'
+    vmhwm:
+      dynamic: '66860'
+      static: '69780'
+      ratio: '0.958'
+  read_network:
+    vmrss:
+      dynamic: '77180'
+      static: '80088'
+      ratio: '0.964'
+    vmhwm:
+      dynamic: '77180'
+      static: '80088'
+      ratio: '0.964'
+  load_network:
+    vmrss:
+      dynamic: '202208'
+      static: '358848'
+      ratio: '0.563'
+    vmhwm:
+      dynamic: '234320'
+      static: '495380'
+      ratio: '0.473'
+  create_exenetwork:
+    vmrss:
+      dynamic: '202208'
+      static: '358848'
+      ratio: '0.563'
+    vmhwm:
+      dynamic: '234320'
+      static: '495380'
+      ratio: '0.473'
+  fill_inputs:
+    vmrss:
+      dynamic: '203588'
+      static: '360228'
+      ratio: '0.565'
+    vmhwm:
+      dynamic: '234320'
+      static: '495380'
+      ratio: '0.473'
+  first_inference:
+    vmrss:
+      dynamic: '276232'
+      static: '363132'
+      ratio: '0.761'
+    vmhwm:
+      dynamic: '305836'
+      static: '495380'
+      ratio: '0.617'
+  full_run:
+    vmrss:
+      dynamic: '276492'
+      static: '363132'
+      ratio: '0.761'
+    vmhwm:
+      dynamic: '305836'
+      static: '495380'
+      ratio: '0.617'
+  after_objects_release:
+    vmrss:
+      dynamic: '242520'
+      static: '298272'
+      ratio: '0.813'
+    vmhwm:
+      dynamic: '355064'
+      static: '495380'
+      ratio: '0.717'
+TF_MobileNet_v1_0_25_128_input_[-1, 128, 128, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '69996'
+      static: '70596'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '69996'
+      static: '70596'
+      ratio: '0.992'
+  read_network:
+    vmrss:
+      dynamic: '78180'
+      static: '78576'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '78180'
+      static: '78576'
+      ratio: '0.995'
+  load_network:
+    vmrss:
+      dynamic: '171468'
+      static: '284868'
+      ratio: '0.602'
+    vmhwm:
+      dynamic: '192428'
+      static: '373340'
+      ratio: '0.515'
+  create_exenetwork:
+    vmrss:
+      dynamic: '171468'
+      static: '284868'
+      ratio: '0.602'
+    vmhwm:
+      dynamic: '192428'
+      static: '373340'
+      ratio: '0.515'
+  fill_inputs:
+    vmrss:
+      dynamic: '171792'
+      static: '285468'
+      ratio: '0.602'
+    vmhwm:
+      dynamic: '192428'
+      static: '373340'
+      ratio: '0.515'
+  first_inference:
+    vmrss:
+      dynamic: '237844'
+      static: '286320'
+      ratio: '0.831'
+    vmhwm:
+      dynamic: '271692'
+      static: '373340'
+      ratio: '0.728'
+  full_run:
+    vmrss:
+      dynamic: '237844'
+      static: '286320'
+      ratio: '0.831'
+    vmhwm:
+      dynamic: '271692'
+      static: '373340'
+      ratio: '0.728'
+  after_objects_release:
+    vmrss:
+      dynamic: '209124'
+      static: '271952'
+      ratio: '0.769'
+    vmhwm:
+      dynamic: '271692'
+      static: '373340'
+      ratio: '0.728'
+TF_MobileNet_v1_0_5_160_input_[-1, 160, 160, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '69076'
+      static: '68904'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '69076'
+      static: '68904'
+      ratio: '1.002'
+  read_network:
+    vmrss:
+      dynamic: '77084'
+      static: '77096'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '77084'
+      static: '77096'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '175632'
+      static: '288280'
+      ratio: '0.609'
+    vmhwm:
+      dynamic: '196600'
+      static: '376328'
+      ratio: '0.522'
+  create_exenetwork:
+    vmrss:
+      dynamic: '175632'
+      static: '288280'
+      ratio: '0.609'
+    vmhwm:
+      dynamic: '196600'
+      static: '376328'
+      ratio: '0.522'
+  fill_inputs:
+    vmrss:
+      dynamic: '176236'
+      static: '288608'
+      ratio: '0.611'
+    vmhwm:
+      dynamic: '196600'
+      static: '376328'
+      ratio: '0.522'
+  first_inference:
+    vmrss:
+      dynamic: '242276'
+      static: '289460'
+      ratio: '0.837'
+    vmhwm:
+      dynamic: '276324'
+      static: '376328'
+      ratio: '0.734'
+  full_run:
+    vmrss:
+      dynamic: '242276'
+      static: '289460'
+      ratio: '0.837'
+    vmhwm:
+      dynamic: '276324'
+      static: '376328'
+      ratio: '0.734'
+  after_objects_release:
+    vmrss:
+      dynamic: '206792'
+      static: '270160'
+      ratio: '0.765'
+    vmhwm:
+      dynamic: '276324'
+      static: '376328'
+      ratio: '0.734'
+TF_MobileNet_v1_0_5_224_input_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '69084'
+      static: '67568'
+      ratio: '1.022'
+    vmhwm:
+      dynamic: '69084'
+      static: '67568'
+      ratio: '1.022'
+  read_network:
+    vmrss:
+      dynamic: '77448'
+      static: '75920'
+      ratio: '1.02'
+    vmhwm:
+      dynamic: '77448'
+      static: '75920'
+      ratio: '1.02'
+  load_network:
+    vmrss:
+      dynamic: '177096'
+      static: '303548'
+      ratio: '0.583'
+    vmhwm:
+      dynamic: '198328'
+      static: '407404'
+      ratio: '0.487'
+  create_exenetwork:
+    vmrss:
+      dynamic: '177096'
+      static: '303548'
+      ratio: '0.583'
+    vmhwm:
+      dynamic: '198328'
+      static: '407404'
+      ratio: '0.487'
+  fill_inputs:
+    vmrss:
+      dynamic: '178212'
+      static: '304928'
+      ratio: '0.584'
+    vmhwm:
+      dynamic: '198328'
+      static: '407404'
+      ratio: '0.487'
+  first_inference:
+    vmrss:
+      dynamic: '243984'
+      static: '305720'
+      ratio: '0.798'
+    vmhwm:
+      dynamic: '277556'
+      static: '407404'
+      ratio: '0.681'
+  full_run:
+    vmrss:
+      dynamic: '243984'
+      static: '305720'
+      ratio: '0.798'
+    vmhwm:
+      dynamic: '277556'
+      static: '407404'
+      ratio: '0.681'
+  after_objects_release:
+    vmrss:
+      dynamic: '241964'
+      static: '269688'
+      ratio: '0.897'
+    vmhwm:
+      dynamic: '323840'
+      static: '407404'
+      ratio: '0.795'
+TF_MobileNet_v2_1_0_224_MobilenetV2/input:0_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '66912'
+      static: '70596'
+      ratio: '0.948'
+    vmhwm:
+      dynamic: '66912'
+      static: '70596'
+      ratio: '0.948'
+  read_network:
+    vmrss:
+      dynamic: '76304'
+      static: '79852'
+      ratio: '0.956'
+    vmhwm:
+      dynamic: '76304'
+      static: '79852'
+      ratio: '0.956'
+  load_network:
+    vmrss:
+      dynamic: '195476'
+      static: '359520'
+      ratio: '0.544'
+    vmhwm:
+      dynamic: '228616'
+      static: '491480'
+      ratio: '0.465'
+  create_exenetwork:
+    vmrss:
+      dynamic: '195476'
+      static: '359520'
+      ratio: '0.544'
+    vmhwm:
+      dynamic: '228616'
+      static: '491480'
+      ratio: '0.465'
+  fill_inputs:
+    vmrss:
+      dynamic: '196600'
+      static: '359856'
+      ratio: '0.546'
+    vmhwm:
+      dynamic: '228616'
+      static: '491480'
+      ratio: '0.465'
+  first_inference:
+    vmrss:
+      dynamic: '270600'
+      static: '362292'
+      ratio: '0.747'
+    vmhwm:
+      dynamic: '301396'
+      static: '491480'
+      ratio: '0.613'
+  full_run:
+    vmrss:
+      dynamic: '270600'
+      static: '362292'
+      ratio: '0.747'
+    vmhwm:
+      dynamic: '301396'
+      static: '491480'
+      ratio: '0.613'
+  after_objects_release:
+    vmrss:
+      dynamic: '218316'
+      static: '298276'
+      ratio: '0.732'
+    vmhwm:
+      dynamic: '301396'
+      static: '491480'
+      ratio: '0.613'
+TF_MobileNet_v2_1_4_224_MobilenetV2/input:0_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '67132'
+      static: '66724'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '67132'
+      static: '66724'
+      ratio: '1.006'
+  read_network:
+    vmrss:
+      dynamic: '76384'
+      static: '76212'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '76384'
+      static: '76212'
+      ratio: '1.002'
+  load_network:
+    vmrss:
+      dynamic: '215788'
+      static: '371408'
+      ratio: '0.581'
+    vmhwm:
+      dynamic: '250128'
+      static: '509172'
+      ratio: '0.491'
+  create_exenetwork:
+    vmrss:
+      dynamic: '215788'
+      static: '371408'
+      ratio: '0.581'
+    vmhwm:
+      dynamic: '250128'
+      static: '509172'
+      ratio: '0.491'
+  fill_inputs:
+    vmrss:
+      dynamic: '216916'
+      static: '371732'
+      ratio: '0.584'
+    vmhwm:
+      dynamic: '250128'
+      static: '509172'
+      ratio: '0.491'
+  first_inference:
+    vmrss:
+      dynamic: '291136'
+      static: '373844'
+      ratio: '0.779'
+    vmhwm:
+      dynamic: '322292'
+      static: '509172'
+      ratio: '0.633'
+  full_run:
+    vmrss:
+      dynamic: '291136'
+      static: '373844'
+      ratio: '0.779'
+    vmhwm:
+      dynamic: '322292'
+      static: '509172'
+      ratio: '0.633'
+  after_objects_release:
+    vmrss:
+      dynamic: '218676'
+      static: '312000'
+      ratio: '0.701'
+    vmhwm:
+      dynamic: '322292'
+      static: '509172'
+      ratio: '0.633'
+TF_NasNet_Mobile_input_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '67532'
+      static: '70212'
+      ratio: '0.962'
+    vmhwm:
+      dynamic: '67532'
+      static: '70212'
+      ratio: '0.962'
+  read_network:
+    vmrss:
+      dynamic: '85136'
+      static: '88040'
+      ratio: '0.967'
+    vmhwm:
+      dynamic: '85136'
+      static: '88040'
+      ratio: '0.967'
+  load_network:
+    vmrss:
+      dynamic: '352672'
+      static: '681228'
+      ratio: '0.518'
+    vmhwm:
+      dynamic: '436788'
+      static: '1168656'
+      ratio: '0.374'
+  create_exenetwork:
+    vmrss:
+      dynamic: '352672'
+      static: '681228'
+      ratio: '0.518'
+    vmhwm:
+      dynamic: '436788'
+      static: '1168656'
+      ratio: '0.374'
+  fill_inputs:
+    vmrss:
+      dynamic: '353788'
+      static: '681820'
+      ratio: '0.519'
+    vmhwm:
+      dynamic: '436788'
+      static: '1168656'
+      ratio: '0.374'
+  first_inference:
+    vmrss:
+      dynamic: '510728'
+      static: '694552'
+      ratio: '0.735'
+    vmhwm:
+      dynamic: '553676'
+      static: '1168656'
+      ratio: '0.474'
+  full_run:
+    vmrss:
+      dynamic: '510992'
+      static: '694552'
+      ratio: '0.736'
+    vmhwm:
+      dynamic: '553676'
+      static: '1168656'
+      ratio: '0.474'
+  after_objects_release:
+    vmrss:
+      dynamic: '345188'
+      static: '447396'
+      ratio: '0.772'
+    vmhwm:
+      dynamic: '553676'
+      static: '1168656'
+      ratio: '0.474'
+TF_NetVLAD_Placeholder_[1, -1, -1, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '66620'
+      static: '70572'
+      ratio: '0.944'
+    vmhwm:
+      dynamic: '66620'
+      static: '70572'
+      ratio: '0.944'
+  read_network:
+    vmrss:
+      dynamic: '75912'
+      static: '79484'
+      ratio: '0.955'
+    vmhwm:
+      dynamic: '75912'
+      static: '79484'
+      ratio: '0.955'
+  load_network:
+    vmrss:
+      dynamic: '1129916'
+      static: '1184596'
+      ratio: '0.954'
+    vmhwm:
+      dynamic: '1599184'
+      static: '1623412'
+      ratio: '0.985'
+  create_exenetwork:
+    vmrss:
+      dynamic: '1129916'
+      static: '1184596'
+      ratio: '0.954'
+    vmhwm:
+      dynamic: '1599184'
+      static: '1623412'
+      ratio: '0.985'
+  fill_inputs:
+    vmrss:
+      dynamic: '1131296'
+      static: '1184920'
+      ratio: '0.955'
+    vmhwm:
+      dynamic: '1599184'
+      static: '1623412'
+      ratio: '0.985'
+  first_inference:
+    vmrss:
+      dynamic: '1223348'
+      static: '1185244'
+      ratio: '1.032'
+    vmhwm:
+      dynamic: '1599184'
+      static: '1623412'
+      ratio: '0.985'
+  full_run:
+    vmrss:
+      dynamic: '1223348'
+      static: '1185244'
+      ratio: '1.032'
+    vmhwm:
+      dynamic: '1599184'
+      static: '1623412'
+      ratio: '0.985'
+  after_objects_release:
+    vmrss:
+      dynamic: '252904'
+      static: '301280'
+      ratio: '0.839'
+    vmhwm:
+      dynamic: '1599184'
+      static: '1623412'
+      ratio: '0.985'
+TF_ResNet_v1_101_input_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '69716'
+      static: '70252'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '69716'
+      static: '70252'
+      ratio: '0.992'
+  read_network:
+    vmrss:
+      dynamic: '81372'
+      static: '81796'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '81372'
+      static: '81796'
+      ratio: '0.995'
+  load_network:
+    vmrss:
+      dynamic: '532944'
+      static: '571836'
+      ratio: '0.932'
+    vmhwm:
+      dynamic: '566308'
+      static: '775436'
+      ratio: '0.73'
+  create_exenetwork:
+    vmrss:
+      dynamic: '532944'
+      static: '571836'
+      ratio: '0.932'
+    vmhwm:
+      dynamic: '566308'
+      static: '775436'
+      ratio: '0.73'
+  fill_inputs:
+    vmrss:
+      dynamic: '534324'
+      static: '573216'
+      ratio: '0.932'
+    vmhwm:
+      dynamic: '566308'
+      static: '775436'
+      ratio: '0.73'
+  first_inference:
+    vmrss:
+      dynamic: '606384'
+      static: '578820'
+      ratio: '1.048'
+    vmhwm:
+      dynamic: '640208'
+      static: '775436'
+      ratio: '0.826'
+  full_run:
+    vmrss:
+      dynamic: '606384'
+      static: '578820'
+      ratio: '1.048'
+    vmhwm:
+      dynamic: '640208'
+      static: '775436'
+      ratio: '0.826'
+  after_objects_release:
+    vmrss:
+      dynamic: '232180'
+      static: '276428'
+      ratio: '0.84'
+    vmhwm:
+      dynamic: '640208'
+      static: '775436'
+      ratio: '0.826'
+TF_ResNet_v1_50_input_[-1, 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '70344'
+      static: '70576'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '70344'
+      static: '70576'
+      ratio: '0.997'
+  read_network:
+    vmrss:
+      dynamic: '80228'
+      static: '80136'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '80228'
+      static: '80136'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '372160'
+      static: '456564'
+      ratio: '0.815'
+    vmhwm:
+      dynamic: '396296'
+      static: '614472'
+      ratio: '0.645'
+  create_exenetwork:
+    vmrss:
+      dynamic: '372160'
+      static: '456564'
+      ratio: '0.815'
+    vmhwm:
+      dynamic: '396296'
+      static: '614472'
+      ratio: '0.645'
+  fill_inputs:
+    vmrss:
+      dynamic: '373548'
+      static: '456900'
+      ratio: '0.818'
+    vmhwm:
+      dynamic: '396296'
+      static: '614472'
+      ratio: '0.645'
+  first_inference:
+    vmrss:
+      dynamic: '446192'
+      static: '459336'
+      ratio: '0.971'
+    vmhwm:
+      dynamic: '477192'
+      static: '614472'
+      ratio: '0.777'
+  full_run:
+    vmrss:
+      dynamic: '446192'
+      static: '459336'
+      ratio: '0.971'
+    vmhwm:
+      dynamic: '477192'
+      static: '614472'
+      ratio: '0.777'
+  after_objects_release:
+    vmrss:
+      dynamic: '222768'
+      static: '267592'
+      ratio: '0.832'
+    vmhwm:
+      dynamic: '477192'
+      static: '614472'
+      ratio: '0.777'
+TF_YOLO_V3_Tiny_No_Region_inputs_[-1, 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '66900'
+      static: '70588'
+      ratio: '0.948'
+    vmhwm:
+      dynamic: '66900'
+      static: '70588'
+      ratio: '0.948'
+  read_network:
+    vmrss:
+      dynamic: '75240'
+      static: '78852'
+      ratio: '0.954'
+    vmhwm:
+      dynamic: '75240'
+      static: '78852'
+      ratio: '0.954'
+  load_network:
+    vmrss:
+      dynamic: '230196'
+      static: '327324'
+      ratio: '0.703'
+    vmhwm:
+      dynamic: '251320'
+      static: '424240'
+      ratio: '0.592'
+  create_exenetwork:
+    vmrss:
+      dynamic: '230196'
+      static: '327324'
+      ratio: '0.703'
+    vmhwm:
+      dynamic: '251320'
+      static: '424240'
+      ratio: '0.592'
+  fill_inputs:
+    vmrss:
+      dynamic: '234216'
+      static: '330024'
+      ratio: '0.71'
+    vmhwm:
+      dynamic: '251320'
+      static: '424240'
+      ratio: '0.592'
+  first_inference:
+    vmrss:
+      dynamic: '331536'
+      static: '330288'
+      ratio: '1.004'
+    vmhwm:
+      dynamic: '376452'
+      static: '424240'
+      ratio: '0.887'
+  full_run:
+    vmrss:
+      dynamic: '331536'
+      static: '330288'
+      ratio: '1.004'
+    vmhwm:
+      dynamic: '376452'
+      static: '424240'
+      ratio: '0.887'
+  after_objects_release:
+    vmrss:
+      dynamic: '219436'
+      static: '249884'
+      ratio: '0.878'
+    vmhwm:
+      dynamic: '376452'
+      static: '424240'
+      ratio: '0.887'

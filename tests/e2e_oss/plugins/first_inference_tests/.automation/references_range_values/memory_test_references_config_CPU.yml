@@ -1,0 +1,7885 @@
+# values from {"branch": "release/2022/3"}
+ONNX_Runtime_YoloV3_opset10_input_1_[[1, 2], 3, 416, 416]_image_shape_[1, 2]:
+  load_plugin:
+    vmrss:
+      dynamic: '24928'
+      static: '25208'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '24928'
+      static: '25208'
+      ratio: '0.989'
+  read_network:
+    vmrss:
+      dynamic: '278728'
+      static: '277788'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '279004'
+      static: '278064'
+      ratio: '1.003'
+  load_network:
+    vmrss:
+      dynamic: '570348'
+      static: '570956'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '570348'
+      static: '570956'
+      ratio: '0.999'
+  create_exenetwork:
+    vmrss:
+      dynamic: '570348'
+      static: '570956'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '570348'
+      static: '570956'
+      ratio: '0.999'
+  fill_inputs:
+    vmrss:
+      dynamic: '574392'
+      static: '575264'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '574392'
+      static: '575264'
+      ratio: '0.998'
+  first_inference:
+    vmrss:
+      dynamic: '638636'
+      static: '608588'
+      ratio: '1.049'
+    vmhwm:
+      dynamic: '638636'
+      static: '608588'
+      ratio: '1.049'
+  full_run:
+    vmrss:
+      dynamic: '638636'
+      static: '608588'
+      ratio: '1.049'
+    vmhwm:
+      dynamic: '638636'
+      static: '608588'
+      ratio: '1.049'
+  after_objects_release:
+    vmrss:
+      dynamic: '103004'
+      static: '186444'
+      ratio: '0.552'
+    vmhwm:
+      dynamic: '638636'
+      static: '608588'
+      ratio: '1.049'
+ONNX_Customized_Cascade_Rcnn_image_[1, 3, [1024, 2048], [1024, 2048]]:
+  load_plugin:
+    vmrss:
+      dynamic: '24432'
+      static: '25136'
+      ratio: '0.972'
+    vmhwm:
+      dynamic: '24432'
+      static: '25136'
+      ratio: '0.972'
+  read_network:
+    vmrss:
+      dynamic: '404952'
+      static: '404944'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '405860'
+      static: '405856'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '684300'
+      static: '816052'
+      ratio: '0.839'
+    vmhwm:
+      dynamic: '684300'
+      static: '816052'
+      ratio: '0.839'
+  create_exenetwork:
+    vmrss:
+      dynamic: '684300'
+      static: '816052'
+      ratio: '0.839'
+    vmhwm:
+      dynamic: '684300'
+      static: '816052'
+      ratio: '0.839'
+  fill_inputs:
+    vmrss:
+      dynamic: '703392'
+      static: '840688'
+      ratio: '0.837'
+    vmhwm:
+      dynamic: '703392'
+      static: '840688'
+      ratio: '0.837'
+  first_inference:
+    vmrss:
+      dynamic: '1732312'
+      static: '1238164'
+      ratio: '1.399'
+    vmhwm:
+      dynamic: '1778404'
+      static: '1285012'
+      ratio: '1.384'
+  full_run:
+    vmrss:
+      dynamic: '1732312'
+      static: '1238164'
+      ratio: '1.399'
+    vmhwm:
+      dynamic: '1778404'
+      static: '1285012'
+      ratio: '1.384'
+  after_objects_release:
+    vmrss:
+      dynamic: '337184'
+      static: '306304'
+      ratio: '1.101'
+    vmhwm:
+      dynamic: '1778404'
+      static: '1285012'
+      ratio: '1.384'
+ONNX_ModNet_input_[[1, 2], 3, 512, 512]:
+  load_plugin:
+    vmrss:
+      dynamic: '24364'
+      static: '25660'
+      ratio: '0.949'
+    vmhwm:
+      dynamic: '24364'
+      static: '25660'
+      ratio: '0.949'
+  read_network:
+    vmrss:
+      dynamic: '57544'
+      static: '58048'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '57544'
+      static: '58048'
+      ratio: '0.991'
+  load_network:
+    vmrss:
+      dynamic: '113180'
+      static: '120460'
+      ratio: '0.94'
+    vmhwm:
+      dynamic: '113180'
+      static: '120460'
+      ratio: '0.94'
+  create_exenetwork:
+    vmrss:
+      dynamic: '113180'
+      static: '120460'
+      ratio: '0.94'
+    vmhwm:
+      dynamic: '113180'
+      static: '120460'
+      ratio: '0.94'
+  fill_inputs:
+    vmrss:
+      dynamic: '116556'
+      static: '126880'
+      ratio: '0.919'
+    vmhwm:
+      dynamic: '119600'
+      static: '126880'
+      ratio: '0.943'
+  first_inference:
+    vmrss:
+      dynamic: '269800'
+      static: '217108'
+      ratio: '1.243'
+    vmhwm:
+      dynamic: '269800'
+      static: '217108'
+      ratio: '1.243'
+  full_run:
+    vmrss:
+      dynamic: '269800'
+      static: '217108'
+      ratio: '1.243'
+    vmhwm:
+      dynamic: '269800'
+      static: '217108'
+      ratio: '1.243'
+  after_objects_release:
+    vmrss:
+      dynamic: '76192'
+      static: '101320'
+      ratio: '0.752'
+    vmhwm:
+      dynamic: '269800'
+      static: '217356'
+      ratio: '1.241'
+ONNX_ModNet_input_[1, 3, [512, 1024], [512, 1024]]:
+  load_plugin:
+    vmrss:
+      dynamic: '24640'
+      static: '25000'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '24640'
+      static: '25000'
+      ratio: '0.986'
+  read_network:
+    vmrss:
+      dynamic: '57776'
+      static: '57360'
+      ratio: '1.007'
+    vmhwm:
+      dynamic: '57776'
+      static: '57360'
+      ratio: '1.007'
+  load_network:
+    vmrss:
+      dynamic: '124148'
+      static: '119780'
+      ratio: '1.036'
+    vmhwm:
+      dynamic: '124148'
+      static: '119780'
+      ratio: '1.036'
+  create_exenetwork:
+    vmrss:
+      dynamic: '124148'
+      static: '119780'
+      ratio: '1.036'
+    vmhwm:
+      dynamic: '124148'
+      static: '119780'
+      ratio: '1.036'
+  fill_inputs:
+    vmrss:
+      dynamic: '127524'
+      static: '126200'
+      ratio: '1.01'
+    vmhwm:
+      dynamic: '130568'
+      static: '126200'
+      ratio: '1.035'
+  first_inference:
+    vmrss:
+      dynamic: '300488'
+      static: '216548'
+      ratio: '1.388'
+    vmhwm:
+      dynamic: '300488'
+      static: '216548'
+      ratio: '1.388'
+  full_run:
+    vmrss:
+      dynamic: '300488'
+      static: '216548'
+      ratio: '1.388'
+    vmhwm:
+      dynamic: '300488'
+      static: '216548'
+      ratio: '1.388'
+  after_objects_release:
+    vmrss:
+      dynamic: '73268'
+      static: '100920'
+      ratio: '0.726'
+    vmhwm:
+      dynamic: '300488'
+      static: '216792'
+      ratio: '1.386'
+PDPD_BiSeNetV2_x_[[1, 2], 3, 227, 227]:
+  load_plugin:
+    vmrss:
+      dynamic: '24340'
+      static: '25168'
+      ratio: '0.967'
+    vmhwm:
+      dynamic: '24340'
+      static: '25168'
+      ratio: '0.967'
+  read_network:
+    vmrss:
+      dynamic: '39480'
+      static: '39672'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '39480'
+      static: '39672'
+      ratio: '0.995'
+  load_network:
+    vmrss:
+      dynamic: '73256'
+      static: '75344'
+      ratio: '0.972'
+    vmhwm:
+      dynamic: '73256'
+      static: '75344'
+      ratio: '0.972'
+  create_exenetwork:
+    vmrss:
+      dynamic: '73256'
+      static: '75344'
+      ratio: '0.972'
+    vmhwm:
+      dynamic: '73256'
+      static: '75344'
+      ratio: '0.972'
+  fill_inputs:
+    vmrss:
+      dynamic: '74160'
+      static: '76748'
+      ratio: '0.966'
+    vmhwm:
+      dynamic: '74660'
+      static: '76748'
+      ratio: '0.973'
+  first_inference:
+    vmrss:
+      dynamic: '93376'
+      static: '88340'
+      ratio: '1.057'
+    vmhwm:
+      dynamic: '93376'
+      static: '88340'
+      ratio: '1.057'
+  full_run:
+    vmrss:
+      dynamic: '93376'
+      static: '88340'
+      ratio: '1.057'
+    vmhwm:
+      dynamic: '93376'
+      static: '88340'
+      ratio: '1.057'
+  after_objects_release:
+    vmrss:
+      dynamic: '62936'
+      static: '69880'
+      ratio: '0.901'
+    vmhwm:
+      dynamic: '93376'
+      static: '88340'
+      ratio: '1.057'
+PDPD_BiSeNetV2_x_[1, 3, [227, 454], [227, 454]]:
+  load_plugin:
+    vmrss:
+      dynamic: '24340'
+      static: '25068'
+      ratio: '0.971'
+    vmhwm:
+      dynamic: '24340'
+      static: '25068'
+      ratio: '0.971'
+  read_network:
+    vmrss:
+      dynamic: '39664'
+      static: '39556'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '39664'
+      static: '39556'
+      ratio: '1.003'
+  load_network:
+    vmrss:
+      dynamic: '74904'
+      static: '75280'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '74904'
+      static: '75280'
+      ratio: '0.995'
+  create_exenetwork:
+    vmrss:
+      dynamic: '74904'
+      static: '75280'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '74904'
+      static: '75280'
+      ratio: '0.995'
+  fill_inputs:
+    vmrss:
+      dynamic: '75204'
+      static: '76684'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '75780'
+      static: '76684'
+      ratio: '0.988'
+  first_inference:
+    vmrss:
+      dynamic: '93580'
+      static: '88420'
+      ratio: '1.058'
+    vmhwm:
+      dynamic: '93580'
+      static: '88420'
+      ratio: '1.058'
+  full_run:
+    vmrss:
+      dynamic: '93580'
+      static: '88420'
+      ratio: '1.058'
+    vmhwm:
+      dynamic: '93580'
+      static: '88420'
+      ratio: '1.058'
+  after_objects_release:
+    vmrss:
+      dynamic: '62416'
+      static: '69988'
+      ratio: '0.892'
+    vmhwm:
+      dynamic: '93580'
+      static: '88420'
+      ratio: '1.058'
+PDPD_DeepLabV3p_x_[[1, 2], 3, 227, 227]:
+  load_plugin:
+    vmrss:
+      dynamic: '24764'
+      static: '25608'
+      ratio: '0.967'
+    vmhwm:
+      dynamic: '24764'
+      static: '25608'
+      ratio: '0.967'
+  read_network:
+    vmrss:
+      dynamic: '136052'
+      static: '136856'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '136052'
+      static: '136856'
+      ratio: '0.994'
+  load_network:
+    vmrss:
+      dynamic: '272380'
+      static: '274080'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '272380'
+      static: '274080'
+      ratio: '0.994'
+  create_exenetwork:
+    vmrss:
+      dynamic: '272380'
+      static: '274080'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '272380'
+      static: '274080'
+      ratio: '0.994'
+  fill_inputs:
+    vmrss:
+      dynamic: '272680'
+      static: '275484'
+      ratio: '0.99'
+    vmhwm:
+      dynamic: '273256'
+      static: '275484'
+      ratio: '0.992'
+  first_inference:
+    vmrss:
+      dynamic: '305744'
+      static: '300460'
+      ratio: '1.018'
+    vmhwm:
+      dynamic: '305744'
+      static: '300460'
+      ratio: '1.018'
+  full_run:
+    vmrss:
+      dynamic: '305744'
+      static: '300460'
+      ratio: '1.018'
+    vmhwm:
+      dynamic: '305744'
+      static: '300460'
+      ratio: '1.018'
+  after_objects_release:
+    vmrss:
+      dynamic: '64468'
+      static: '68140'
+      ratio: '0.946'
+    vmhwm:
+      dynamic: '305744'
+      static: '300460'
+      ratio: '1.018'
+PDPD_DeepLabV3p_x_[1, 3, [227, 454], [227, 454]]:
+  load_plugin:
+    vmrss:
+      dynamic: '24424'
+      static: '25072'
+      ratio: '0.974'
+    vmhwm:
+      dynamic: '24424'
+      static: '25072'
+      ratio: '0.974'
+  read_network:
+    vmrss:
+      dynamic: '135904'
+      static: '135904'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '135904'
+      static: '135904'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '274544'
+      static: '273800'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '274544'
+      static: '273800'
+      ratio: '1.003'
+  create_exenetwork:
+    vmrss:
+      dynamic: '274544'
+      static: '273800'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '274544'
+      static: '273800'
+      ratio: '1.003'
+  fill_inputs:
+    vmrss:
+      dynamic: '274844'
+      static: '275204'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '275420'
+      static: '275204'
+      ratio: '1.001'
+  first_inference:
+    vmrss:
+      dynamic: '313664'
+      static: '300048'
+      ratio: '1.045'
+    vmhwm:
+      dynamic: '313664'
+      static: '300048'
+      ratio: '1.045'
+  full_run:
+    vmrss:
+      dynamic: '313664'
+      static: '300048'
+      ratio: '1.045'
+    vmhwm:
+      dynamic: '313664'
+      static: '300048'
+      ratio: '1.045'
+  after_objects_release:
+    vmrss:
+      dynamic: '68720'
+      static: '67616'
+      ratio: '1.016'
+    vmhwm:
+      dynamic: '313664'
+      static: '300048'
+      ratio: '1.045'
+PDPD_FastSCNN_x_[[1, 2], 3, 227, 227]:
+  load_plugin:
+    vmrss:
+      dynamic: '24104'
+      static: '25336'
+      ratio: '0.951'
+    vmhwm:
+      dynamic: '24104'
+      static: '25336'
+      ratio: '0.951'
+  read_network:
+    vmrss:
+      dynamic: '36112'
+      static: '36304'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '36112'
+      static: '36304'
+      ratio: '0.995'
+  load_network:
+    vmrss:
+      dynamic: '65148'
+      static: '66168'
+      ratio: '0.985'
+    vmhwm:
+      dynamic: '65148'
+      static: '66168'
+      ratio: '0.985'
+  create_exenetwork:
+    vmrss:
+      dynamic: '65148'
+      static: '66168'
+      ratio: '0.985'
+    vmhwm:
+      dynamic: '65148'
+      static: '66168'
+      ratio: '0.985'
+  fill_inputs:
+    vmrss:
+      dynamic: '65448'
+      static: '67572'
+      ratio: '0.969'
+    vmhwm:
+      dynamic: '66024'
+      static: '67572'
+      ratio: '0.977'
+  first_inference:
+    vmrss:
+      dynamic: '77660'
+      static: '75388'
+      ratio: '1.03'
+    vmhwm:
+      dynamic: '77660'
+      static: '75388'
+      ratio: '1.03'
+  full_run:
+    vmrss:
+      dynamic: '77660'
+      static: '75388'
+      ratio: '1.03'
+    vmhwm:
+      dynamic: '77660'
+      static: '75388'
+      ratio: '1.03'
+  after_objects_release:
+    vmrss:
+      dynamic: '57760'
+      static: '58836'
+      ratio: '0.982'
+    vmhwm:
+      dynamic: '77704'
+      static: '75388'
+      ratio: '1.031'
+PDPD_FastSCNN_x_[1, 3, [227, 454], [227, 454]]:
+  load_plugin:
+    vmrss:
+      dynamic: '24640'
+      static: '25588'
+      ratio: '0.963'
+    vmhwm:
+      dynamic: '24640'
+      static: '25588'
+      ratio: '0.963'
+  read_network:
+    vmrss:
+      dynamic: '36452'
+      static: '36708'
+      ratio: '0.993'
+    vmhwm:
+      dynamic: '36452'
+      static: '36708'
+      ratio: '0.993'
+  load_network:
+    vmrss:
+      dynamic: '67748'
+      static: '66324'
+      ratio: '1.021'
+    vmhwm:
+      dynamic: '67748'
+      static: '66324'
+      ratio: '1.021'
+  create_exenetwork:
+    vmrss:
+      dynamic: '67748'
+      static: '66324'
+      ratio: '1.021'
+    vmhwm:
+      dynamic: '67748'
+      static: '66324'
+      ratio: '1.021'
+  fill_inputs:
+    vmrss:
+      dynamic: '68652'
+      static: '67728'
+      ratio: '1.014'
+    vmhwm:
+      dynamic: '69152'
+      static: '67728'
+      ratio: '1.021'
+  first_inference:
+    vmrss:
+      dynamic: '80580'
+      static: '75816'
+      ratio: '1.063'
+    vmhwm:
+      dynamic: '80580'
+      static: '75816'
+      ratio: '1.063'
+  full_run:
+    vmrss:
+      dynamic: '80580'
+      static: '75816'
+      ratio: '1.063'
+    vmhwm:
+      dynamic: '80580'
+      static: '75816'
+      ratio: '1.063'
+  after_objects_release:
+    vmrss:
+      dynamic: '57444'
+      static: '59036'
+      ratio: '0.973'
+    vmhwm:
+      dynamic: '80580'
+      static: '75816'
+      ratio: '1.063'
+PDPD_MobileNetV2_inputs_[[1, 2], 3, 224, 224]:
+  load_plugin:
+    vmrss:
+      dynamic: '24328'
+      static: '25816'
+      ratio: '0.942'
+    vmhwm:
+      dynamic: '24328'
+      static: '25816'
+      ratio: '0.942'
+  read_network:
+    vmrss:
+      dynamic: '43500'
+      static: '44492'
+      ratio: '0.978'
+    vmhwm:
+      dynamic: '43500'
+      static: '44492'
+      ratio: '0.978'
+  load_network:
+    vmrss:
+      dynamic: '75000'
+      static: '81740'
+      ratio: '0.918'
+    vmhwm:
+      dynamic: '75000'
+      static: '81740'
+      ratio: '0.918'
+  create_exenetwork:
+    vmrss:
+      dynamic: '75000'
+      static: '81740'
+      ratio: '0.918'
+    vmhwm:
+      dynamic: '75000'
+      static: '81740'
+      ratio: '0.918'
+  fill_inputs:
+    vmrss:
+      dynamic: '75896'
+      static: '83144'
+      ratio: '0.913'
+    vmhwm:
+      dynamic: '76404'
+      static: '83144'
+      ratio: '0.919'
+  first_inference:
+    vmrss:
+      dynamic: '92608'
+      static: '87316'
+      ratio: '1.061'
+    vmhwm:
+      dynamic: '92608'
+      static: '87316'
+      ratio: '1.061'
+  full_run:
+    vmrss:
+      dynamic: '92608'
+      static: '87316'
+      ratio: '1.061'
+    vmhwm:
+      dynamic: '92608'
+      static: '87316'
+      ratio: '1.061'
+  after_objects_release:
+    vmrss:
+      dynamic: '57764'
+      static: '59096'
+      ratio: '0.977'
+    vmhwm:
+      dynamic: '92608'
+      static: '88000'
+      ratio: '1.052'
+PDPD_MobileNetV3_inputs_[[1, 2], 3, 224, 224]:
+  load_plugin:
+    vmrss:
+      dynamic: '24296'
+      static: '25328'
+      ratio: '0.959'
+    vmhwm:
+      dynamic: '24296'
+      static: '25328'
+      ratio: '0.959'
+  read_network:
+    vmrss:
+      dynamic: '51900'
+      static: '52148'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '51900'
+      static: '52148'
+      ratio: '0.995'
+  load_network:
+    vmrss:
+      dynamic: '93228'
+      static: '101308'
+      ratio: '0.92'
+    vmhwm:
+      dynamic: '93228'
+      static: '101308'
+      ratio: '0.92'
+  create_exenetwork:
+    vmrss:
+      dynamic: '93228'
+      static: '101308'
+      ratio: '0.92'
+    vmhwm:
+      dynamic: '93228'
+      static: '101308'
+      ratio: '0.92'
+  fill_inputs:
+    vmrss:
+      dynamic: '94120'
+      static: '102712'
+      ratio: '0.916'
+    vmhwm:
+      dynamic: '94632'
+      static: '102712'
+      ratio: '0.921'
+  first_inference:
+    vmrss:
+      dynamic: '108384'
+      static: '108160'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '108384'
+      static: '108160'
+      ratio: '1.002'
+  full_run:
+    vmrss:
+      dynamic: '108384'
+      static: '108160'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '108384'
+      static: '108160'
+      ratio: '1.002'
+  after_objects_release:
+    vmrss:
+      dynamic: '60404'
+      static: '64732'
+      ratio: '0.933'
+    vmhwm:
+      dynamic: '108384'
+      static: '108160'
+      ratio: '1.002'
+PDPD_OCRNet_x_[[1, 2], 3, 227, 227]:
+  load_plugin:
+    vmrss:
+      dynamic: '25328'
+      static: '25816'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '25328'
+      static: '25816'
+      ratio: '0.981'
+  read_network:
+    vmrss:
+      dynamic: '89248'
+      static: '89760'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '89744'
+      static: '90384'
+      ratio: '0.993'
+  load_network:
+    vmrss:
+      dynamic: '200272'
+      static: '199612'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '200272'
+      static: '199612'
+      ratio: '1.003'
+  create_exenetwork:
+    vmrss:
+      dynamic: '200272'
+      static: '199612'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '200272'
+      static: '199612'
+      ratio: '1.003'
+  fill_inputs:
+    vmrss:
+      dynamic: '201004'
+      static: '201016'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '201004'
+      static: '201016'
+      ratio: '1.0'
+  first_inference:
+    vmrss:
+      dynamic: '241044'
+      static: '230680'
+      ratio: '1.045'
+    vmhwm:
+      dynamic: '241044'
+      static: '230680'
+      ratio: '1.045'
+  full_run:
+    vmrss:
+      dynamic: '241044'
+      static: '230680'
+      ratio: '1.045'
+    vmhwm:
+      dynamic: '241044'
+      static: '230680'
+      ratio: '1.045'
+  after_objects_release:
+    vmrss:
+      dynamic: '154156'
+      static: '149516'
+      ratio: '1.031'
+    vmhwm:
+      dynamic: '241044'
+      static: '230680'
+      ratio: '1.045'
+PDPD_OCRNet_x_[1, 3, [227, 454], [227, 454]]:
+  load_plugin:
+    vmrss:
+      dynamic: '25536'
+      static: '24940'
+      ratio: '1.024'
+    vmhwm:
+      dynamic: '25536'
+      static: '24940'
+      ratio: '1.024'
+  read_network:
+    vmrss:
+      dynamic: '89068'
+      static: '88732'
+      ratio: '1.004'
+    vmhwm:
+      dynamic: '89740'
+      static: '89228'
+      ratio: '1.006'
+  load_network:
+    vmrss:
+      dynamic: '202864'
+      static: '199104'
+      ratio: '1.019'
+    vmhwm:
+      dynamic: '202864'
+      static: '199104'
+      ratio: '1.019'
+  create_exenetwork:
+    vmrss:
+      dynamic: '202864'
+      static: '199104'
+      ratio: '1.019'
+    vmhwm:
+      dynamic: '202864'
+      static: '199104'
+      ratio: '1.019'
+  fill_inputs:
+    vmrss:
+      dynamic: '204004'
+      static: '200508'
+      ratio: '1.017'
+    vmhwm:
+      dynamic: '204004'
+      static: '200508'
+      ratio: '1.017'
+  first_inference:
+    vmrss:
+      dynamic: '249840'
+      static: '230236'
+      ratio: '1.085'
+    vmhwm:
+      dynamic: '249840'
+      static: '230236'
+      ratio: '1.085'
+  full_run:
+    vmrss:
+      dynamic: '249840'
+      static: '230236'
+      ratio: '1.085'
+    vmhwm:
+      dynamic: '249840'
+      static: '230236'
+      ratio: '1.085'
+  after_objects_release:
+    vmrss:
+      dynamic: '155148'
+      static: '149416'
+      ratio: '1.038'
+    vmhwm:
+      dynamic: '249840'
+      static: '230236'
+      ratio: '1.085'
+PDPD_PPOCRv1_x_[[1, 2], 3, 640, 640]:
+  load_plugin:
+    vmrss:
+      dynamic: '24560'
+      static: '25172'
+      ratio: '0.976'
+    vmhwm:
+      dynamic: '24560'
+      static: '25172'
+      ratio: '0.976'
+  read_network:
+    vmrss:
+      dynamic: '32500'
+      static: '32224'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '32500'
+      static: '32224'
+      ratio: '1.009'
+  load_network:
+    vmrss:
+      dynamic: '68140'
+      static: '65048'
+      ratio: '1.048'
+    vmhwm:
+      dynamic: '68140'
+      static: '65048'
+      ratio: '1.048'
+  create_exenetwork:
+    vmrss:
+      dynamic: '68140'
+      static: '65048'
+      ratio: '1.048'
+    vmhwm:
+      dynamic: '68140'
+      static: '65048'
+      ratio: '1.048'
+  fill_inputs:
+    vmrss:
+      dynamic: '73372'
+      static: '74900'
+      ratio: '0.98'
+    vmhwm:
+      dynamic: '78112'
+      static: '74900'
+      ratio: '1.043'
+  first_inference:
+    vmrss:
+      dynamic: '106892'
+      static: '94260'
+      ratio: '1.134'
+    vmhwm:
+      dynamic: '106892'
+      static: '94260'
+      ratio: '1.134'
+  full_run:
+    vmrss:
+      dynamic: '106892'
+      static: '94260'
+      ratio: '1.134'
+    vmhwm:
+      dynamic: '106892'
+      static: '94260'
+      ratio: '1.134'
+  after_objects_release:
+    vmrss:
+      dynamic: '60772'
+      static: '59668'
+      ratio: '1.019'
+    vmhwm:
+      dynamic: '106892'
+      static: '94260'
+      ratio: '1.134'
+PDPD_ResNet50_inputs_[[1, 2], 3, 224, 224]:
+  load_plugin:
+    vmrss:
+      dynamic: '24564'
+      static: '25464'
+      ratio: '0.965'
+    vmhwm:
+      dynamic: '24564'
+      static: '25464'
+      ratio: '0.965'
+  read_network:
+    vmrss:
+      dynamic: '130192'
+      static: '130080'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '130192'
+      static: '130080'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '244444'
+      static: '254328'
+      ratio: '0.961'
+    vmhwm:
+      dynamic: '244444'
+      static: '254328'
+      ratio: '0.961'
+  create_exenetwork:
+    vmrss:
+      dynamic: '244444'
+      static: '254328'
+      ratio: '0.961'
+    vmhwm:
+      dynamic: '244444'
+      static: '254328'
+      ratio: '0.961'
+  fill_inputs:
+    vmrss:
+      dynamic: '245464'
+      static: '255732'
+      ratio: '0.96'
+    vmhwm:
+      dynamic: '245968'
+      static: '255732'
+      ratio: '0.962'
+  first_inference:
+    vmrss:
+      dynamic: '265452'
+      static: '264572'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '265452'
+      static: '264572'
+      ratio: '1.003'
+  full_run:
+    vmrss:
+      dynamic: '265452'
+      static: '264572'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '265452'
+      static: '264572'
+      ratio: '1.003'
+  after_objects_release:
+    vmrss:
+      dynamic: '58116'
+      static: '62588'
+      ratio: '0.929'
+    vmhwm:
+      dynamic: '266272'
+      static: '264572'
+      ratio: '1.006'
+TF_BERT_CHINESE_Placeholder_[[1, 2], 128]_Placeholder_1_[[1, 2], 128]_Placeholder_2_[[1, 2], 128]:
+  load_plugin:
+    vmrss:
+      dynamic: '24780'
+      static: '25472'
+      ratio: '0.973'
+    vmhwm:
+      dynamic: '24780'
+      static: '25472'
+      ratio: '0.973'
+  read_network:
+    vmrss:
+      dynamic: '431968'
+      static: '432016'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '431968'
+      static: '432016'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '792356'
+      static: '790984'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '792356'
+      static: '790984'
+      ratio: '1.002'
+  create_exenetwork:
+    vmrss:
+      dynamic: '792356'
+      static: '790984'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '792356'
+      static: '790984'
+      ratio: '1.002'
+  fill_inputs:
+    vmrss:
+      dynamic: '792356'
+      static: '790984'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '792356'
+      static: '790984'
+      ratio: '1.002'
+  first_inference:
+    vmrss:
+      dynamic: '799624'
+      static: '798120'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '799624'
+      static: '798120'
+      ratio: '1.002'
+  full_run:
+    vmrss:
+      dynamic: '799624'
+      static: '798120'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '799624'
+      static: '798120'
+      ratio: '1.002'
+  after_objects_release:
+    vmrss:
+      dynamic: '63648'
+      static: '62248'
+      ratio: '1.022'
+    vmhwm:
+      dynamic: '799892'
+      static: '798428'
+      ratio: '1.002'
+TF_BERT_CHINESE_Placeholder_[1, [128, 256]]_Placeholder_1_[1, [128, 256]]_Placeholder_2_[1, [128, 256]]:
+  load_plugin:
+    vmrss:
+      dynamic: '24592'
+      static: '25132'
+      ratio: '0.979'
+    vmhwm:
+      dynamic: '24592'
+      static: '25132'
+      ratio: '0.979'
+  read_network:
+    vmrss:
+      dynamic: '431912'
+      static: '431664'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '431912'
+      static: '431664'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '792216'
+      static: '790884'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '792216'
+      static: '790884'
+      ratio: '1.002'
+  create_exenetwork:
+    vmrss:
+      dynamic: '792216'
+      static: '790884'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '792216'
+      static: '790884'
+      ratio: '1.002'
+  fill_inputs:
+    vmrss:
+      dynamic: '792216'
+      static: '790884'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '792216'
+      static: '790884'
+      ratio: '1.002'
+  first_inference:
+    vmrss:
+      dynamic: '799644'
+      static: '798284'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '799644'
+      static: '798284'
+      ratio: '1.002'
+  full_run:
+    vmrss:
+      dynamic: '799644'
+      static: '798284'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '799644'
+      static: '798284'
+      ratio: '1.002'
+  after_objects_release:
+    vmrss:
+      dynamic: '63796'
+      static: '62588'
+      ratio: '1.019'
+    vmhwm:
+      dynamic: '799952'
+      static: '798608'
+      ratio: '1.002'
+TF_BERT_MULTI_UNCASED_Placeholder_[[1, 2], 128]_Placeholder_1_[[1, 2], 128]_Placeholder_2_[[1, 2], 128]:
+  load_plugin:
+    vmrss:
+      dynamic: '24588'
+      static: '25480'
+      ratio: '0.965'
+    vmhwm:
+      dynamic: '24588'
+      static: '25480'
+      ratio: '0.965'
+  read_network:
+    vmrss:
+      dynamic: '727168'
+      static: '726980'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '727168'
+      static: '726980'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '1087452'
+      static: '1086768'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1087452'
+      static: '1086768'
+      ratio: '1.001'
+  create_exenetwork:
+    vmrss:
+      dynamic: '1087452'
+      static: '1086768'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1087452'
+      static: '1086768'
+      ratio: '1.001'
+  fill_inputs:
+    vmrss:
+      dynamic: '1087452'
+      static: '1086768'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1087452'
+      static: '1086768'
+      ratio: '1.001'
+  first_inference:
+    vmrss:
+      dynamic: '1094888'
+      static: '1093916'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1094888'
+      static: '1093916'
+      ratio: '1.001'
+  full_run:
+    vmrss:
+      dynamic: '1094888'
+      static: '1093916'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1094888'
+      static: '1093916'
+      ratio: '1.001'
+  after_objects_release:
+    vmrss:
+      dynamic: '63756'
+      static: '62612'
+      ratio: '1.018'
+    vmhwm:
+      dynamic: '1095156'
+      static: '1094056'
+      ratio: '1.001'
+TF_BERT_MULTI_UNCASED_Placeholder_[1, [128, 256]]_Placeholder_1_[1, [128, 256]]_Placeholder_2_[1, [128, 256]]:
+  load_plugin:
+    vmrss:
+      dynamic: '24700'
+      static: '25140'
+      ratio: '0.982'
+    vmhwm:
+      dynamic: '24700'
+      static: '25140'
+      ratio: '0.982'
+  read_network:
+    vmrss:
+      dynamic: '727008'
+      static: '726928'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '727008'
+      static: '726928'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '1086928'
+      static: '1086144'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1086928'
+      static: '1086144'
+      ratio: '1.001'
+  create_exenetwork:
+    vmrss:
+      dynamic: '1086928'
+      static: '1086144'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1086928'
+      static: '1086144'
+      ratio: '1.001'
+  fill_inputs:
+    vmrss:
+      dynamic: '1086928'
+      static: '1086144'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1086928'
+      static: '1086144'
+      ratio: '1.001'
+  first_inference:
+    vmrss:
+      dynamic: '1094296'
+      static: '1093540'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1094296'
+      static: '1093540'
+      ratio: '1.001'
+  full_run:
+    vmrss:
+      dynamic: '1094296'
+      static: '1093540'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1094296'
+      static: '1093540'
+      ratio: '1.001'
+  after_objects_release:
+    vmrss:
+      dynamic: '63204'
+      static: '62588'
+      ratio: '1.01'
+    vmhwm:
+      dynamic: '1094660'
+      static: '1093864'
+      ratio: '1.001'
+TF_CMU_Openpose_image_[[1, 2], 368, 656, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24788'
+      static: '25396'
+      ratio: '0.976'
+    vmhwm:
+      dynamic: '24788'
+      static: '25396'
+      ratio: '0.976'
+  read_network:
+    vmrss:
+      dynamic: '236180'
+      static: '235856'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '236180'
+      static: '235856'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '472352'
+      static: '471532'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '472352'
+      static: '471532'
+      ratio: '1.002'
+  create_exenetwork:
+    vmrss:
+      dynamic: '472352'
+      static: '471532'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '472352'
+      static: '471532'
+      ratio: '1.002'
+  fill_inputs:
+    vmrss:
+      dynamic: '475484'
+      static: '477424'
+      ratio: '0.996'
+    vmhwm:
+      dynamic: '478244'
+      static: '477424'
+      ratio: '1.002'
+  first_inference:
+    vmrss:
+      dynamic: '629760'
+      static: '595960'
+      ratio: '1.057'
+    vmhwm:
+      dynamic: '629760'
+      static: '595960'
+      ratio: '1.057'
+  full_run:
+    vmrss:
+      dynamic: '629760'
+      static: '595960'
+      ratio: '1.057'
+    vmhwm:
+      dynamic: '629760'
+      static: '595960'
+      ratio: '1.057'
+  after_objects_release:
+    vmrss:
+      dynamic: '59616'
+      static: '73936'
+      ratio: '0.806'
+    vmhwm:
+      dynamic: '629760'
+      static: '595960'
+      ratio: '1.057'
+TF_CMU_Openpose_image_[1, [368, 736], [656, 1312], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24352'
+      static: '25396'
+      ratio: '0.959'
+    vmhwm:
+      dynamic: '24352'
+      static: '25396'
+      ratio: '0.959'
+  read_network:
+    vmrss:
+      dynamic: '235444'
+      static: '235856'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '235444'
+      static: '235856'
+      ratio: '0.998'
+  load_network:
+    vmrss:
+      dynamic: '477652'
+      static: '471540'
+      ratio: '1.013'
+    vmhwm:
+      dynamic: '477652'
+      static: '471540'
+      ratio: '1.013'
+  create_exenetwork:
+    vmrss:
+      dynamic: '477652'
+      static: '471540'
+      ratio: '1.013'
+    vmhwm:
+      dynamic: '477652'
+      static: '471540'
+      ratio: '1.013'
+  fill_inputs:
+    vmrss:
+      dynamic: '480784'
+      static: '477432'
+      ratio: '1.007'
+    vmhwm:
+      dynamic: '483544'
+      static: '477432'
+      ratio: '1.013'
+  first_inference:
+    vmrss:
+      dynamic: '686932'
+      static: '595968'
+      ratio: '1.153'
+    vmhwm:
+      dynamic: '686932'
+      static: '595968'
+      ratio: '1.153'
+  full_run:
+    vmrss:
+      dynamic: '686932'
+      static: '595968'
+      ratio: '1.153'
+    vmhwm:
+      dynamic: '686932'
+      static: '595968'
+      ratio: '1.153'
+  after_objects_release:
+    vmrss:
+      dynamic: '81928'
+      static: '73936'
+      ratio: '1.108'
+    vmhwm:
+      dynamic: '686932'
+      static: '595968'
+      ratio: '1.153'
+TF_CTPN_Placeholder_[[1, 2], 300, 300, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25208'
+      static: '25660'
+      ratio: '0.982'
+    vmhwm:
+      dynamic: '25208'
+      static: '25660'
+      ratio: '0.982'
+  read_network:
+    vmrss:
+      dynamic: '100940'
+      static: '101104'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '100940'
+      static: '101104'
+      ratio: '0.998'
+  load_network:
+    vmrss:
+      dynamic: '194688'
+      static: '197432'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '194688'
+      static: '197432'
+      ratio: '0.986'
+  create_exenetwork:
+    vmrss:
+      dynamic: '194688'
+      static: '197432'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '194688'
+      static: '197432'
+      ratio: '0.986'
+  fill_inputs:
+    vmrss:
+      dynamic: '196044'
+      static: '199628'
+      ratio: '0.982'
+    vmhwm:
+      dynamic: '196884'
+      static: '199628'
+      ratio: '0.986'
+  first_inference:
+    vmrss:
+      dynamic: '262340'
+      static: '249236'
+      ratio: '1.053'
+    vmhwm:
+      dynamic: '262340'
+      static: '249236'
+      ratio: '1.053'
+  full_run:
+    vmrss:
+      dynamic: '262340'
+      static: '249236'
+      ratio: '1.053'
+    vmhwm:
+      dynamic: '262340'
+      static: '249236'
+      ratio: '1.053'
+  after_objects_release:
+    vmrss:
+      dynamic: '65640'
+      static: '65500'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '263504'
+      static: '249236'
+      ratio: '1.057'
+TF_CTPN_Placeholder_[1, [300, 600], [300, 600], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25548'
+      static: '25388'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '25548'
+      static: '25388'
+      ratio: '1.006'
+  read_network:
+    vmrss:
+      dynamic: '100860'
+      static: '100832'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '100860'
+      static: '100832'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '196500'
+      static: '197528'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '196500'
+      static: '197528'
+      ratio: '0.995'
+  create_exenetwork:
+    vmrss:
+      dynamic: '196500'
+      static: '197528'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '196500'
+      static: '197528'
+      ratio: '0.995'
+  fill_inputs:
+    vmrss:
+      dynamic: '197856'
+      static: '199724'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '198696'
+      static: '199724'
+      ratio: '0.995'
+  first_inference:
+    vmrss:
+      dynamic: '279324'
+      static: '249216'
+      ratio: '1.121'
+    vmhwm:
+      dynamic: '279324'
+      static: '249216'
+      ratio: '1.121'
+  full_run:
+    vmrss:
+      dynamic: '279324'
+      static: '249216'
+      ratio: '1.121'
+    vmhwm:
+      dynamic: '279324'
+      static: '249216'
+      ratio: '1.121'
+  after_objects_release:
+    vmrss:
+      dynamic: '67160'
+      static: '65560'
+      ratio: '1.024'
+    vmhwm:
+      dynamic: '279324'
+      static: '249216'
+      ratio: '1.121'
+TF_DenseNet_121_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24696'
+      static: '25056'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '24696'
+      static: '25056'
+      ratio: '0.986'
+  read_network:
+    vmrss:
+      dynamic: '64684'
+      static: '64360'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '65012'
+      static: '64368'
+      ratio: '1.01'
+  load_network:
+    vmrss:
+      dynamic: '128660'
+      static: '137596'
+      ratio: '0.935'
+    vmhwm:
+      dynamic: '128660'
+      static: '137596'
+      ratio: '0.935'
+  create_exenetwork:
+    vmrss:
+      dynamic: '128660'
+      static: '137596'
+      ratio: '0.935'
+    vmhwm:
+      dynamic: '128660'
+      static: '137596'
+      ratio: '0.935'
+  fill_inputs:
+    vmrss:
+      dynamic: '129552'
+      static: '139000'
+      ratio: '0.932'
+    vmhwm:
+      dynamic: '130064'
+      static: '139000'
+      ratio: '0.936'
+  first_inference:
+    vmrss:
+      dynamic: '145016'
+      static: '145864'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '145016'
+      static: '145864'
+      ratio: '0.994'
+  full_run:
+    vmrss:
+      dynamic: '145016'
+      static: '145864'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '145016'
+      static: '145864'
+      ratio: '0.994'
+  after_objects_release:
+    vmrss:
+      dynamic: '89560'
+      static: '101644'
+      ratio: '0.881'
+    vmhwm:
+      dynamic: '145016'
+      static: '145864'
+      ratio: '0.994'
+TF_DenseNet_121_input_[1, [224, 448], [224, 448], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24656'
+      static: '25336'
+      ratio: '0.973'
+    vmhwm:
+      dynamic: '24656'
+      static: '25336'
+      ratio: '0.973'
+  read_network:
+    vmrss:
+      dynamic: '64796'
+      static: '64632'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '65124'
+      static: '64832'
+      ratio: '1.005'
+  load_network:
+    vmrss:
+      dynamic: '130072'
+      static: '137720'
+      ratio: '0.944'
+    vmhwm:
+      dynamic: '130072'
+      static: '137720'
+      ratio: '0.944'
+  create_exenetwork:
+    vmrss:
+      dynamic: '130072'
+      static: '137720'
+      ratio: '0.944'
+    vmhwm:
+      dynamic: '130072'
+      static: '137720'
+      ratio: '0.944'
+  fill_inputs:
+    vmrss:
+      dynamic: '130964'
+      static: '139124'
+      ratio: '0.941'
+    vmhwm:
+      dynamic: '131476'
+      static: '139124'
+      ratio: '0.945'
+  first_inference:
+    vmrss:
+      dynamic: '146976'
+      static: '146048'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '146976'
+      static: '146048'
+      ratio: '1.006'
+  full_run:
+    vmrss:
+      dynamic: '146976'
+      static: '146048'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '146976'
+      static: '146048'
+      ratio: '1.006'
+  after_objects_release:
+    vmrss:
+      dynamic: '89592'
+      static: '101712'
+      ratio: '0.881'
+    vmhwm:
+      dynamic: '146976'
+      static: '146048'
+      ratio: '1.006'
+TF_DenseNet_161_Placeholder_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24588'
+      static: '25332'
+      ratio: '0.971'
+    vmhwm:
+      dynamic: '24588'
+      static: '25332'
+      ratio: '0.971'
+  read_network:
+    vmrss:
+      dynamic: '147616'
+      static: '147372'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '148000'
+      static: '147436'
+      ratio: '1.004'
+  load_network:
+    vmrss:
+      dynamic: '298036'
+      static: '309744'
+      ratio: '0.962'
+    vmhwm:
+      dynamic: '298036'
+      static: '309744'
+      ratio: '0.962'
+  create_exenetwork:
+    vmrss:
+      dynamic: '298036'
+      static: '309744'
+      ratio: '0.962'
+    vmhwm:
+      dynamic: '298036'
+      static: '309744'
+      ratio: '0.962'
+  fill_inputs:
+    vmrss:
+      dynamic: '299560'
+      static: '310884'
+      ratio: '0.964'
+    vmhwm:
+      dynamic: '299560'
+      static: '310884'
+      ratio: '0.964'
+  first_inference:
+    vmrss:
+      dynamic: '322020'
+      static: '321768'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '322020'
+      static: '321768'
+      ratio: '1.001'
+  full_run:
+    vmrss:
+      dynamic: '322020'
+      static: '321768'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '322020'
+      static: '321768'
+      ratio: '1.001'
+  after_objects_release:
+    vmrss:
+      dynamic: '113680'
+      static: '178508'
+      ratio: '0.637'
+    vmhwm:
+      dynamic: '322020'
+      static: '321768'
+      ratio: '1.001'
+TF_DenseNet_161_Placeholder_[1, [224, 448], [224, 448], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25080'
+      static: '25604'
+      ratio: '0.98'
+    vmhwm:
+      dynamic: '25080'
+      static: '25604'
+      ratio: '0.98'
+  read_network:
+    vmrss:
+      dynamic: '148044'
+      static: '147936'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '148684'
+      static: '147936'
+      ratio: '1.005'
+  load_network:
+    vmrss:
+      dynamic: '299132'
+      static: '309812'
+      ratio: '0.966'
+    vmhwm:
+      dynamic: '299132'
+      static: '309812'
+      ratio: '0.966'
+  create_exenetwork:
+    vmrss:
+      dynamic: '299132'
+      static: '309812'
+      ratio: '0.966'
+    vmhwm:
+      dynamic: '299132'
+      static: '309812'
+      ratio: '0.966'
+  fill_inputs:
+    vmrss:
+      dynamic: '300536'
+      static: '310952'
+      ratio: '0.967'
+    vmhwm:
+      dynamic: '300536'
+      static: '310952'
+      ratio: '0.967'
+  first_inference:
+    vmrss:
+      dynamic: '323640'
+      static: '322100'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '323640'
+      static: '322100'
+      ratio: '1.005'
+  full_run:
+    vmrss:
+      dynamic: '323640'
+      static: '322100'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '323640'
+      static: '322100'
+      ratio: '1.005'
+  after_objects_release:
+    vmrss:
+      dynamic: '113232'
+      static: '178888'
+      ratio: '0.633'
+    vmhwm:
+      dynamic: '323640'
+      static: '322100'
+      ratio: '1.005'
+TF_DenseNet_169_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24344'
+      static: '25308'
+      ratio: '0.962'
+    vmhwm:
+      dynamic: '24344'
+      static: '25308'
+      ratio: '0.962'
+  read_network:
+    vmrss:
+      dynamic: '90496'
+      static: '90708'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '90496'
+      static: '90708'
+      ratio: '0.998'
+  load_network:
+    vmrss:
+      dynamic: '185236'
+      static: '197184'
+      ratio: '0.939'
+    vmhwm:
+      dynamic: '185236'
+      static: '197184'
+      ratio: '0.939'
+  create_exenetwork:
+    vmrss:
+      dynamic: '185236'
+      static: '197184'
+      ratio: '0.939'
+    vmhwm:
+      dynamic: '185236'
+      static: '197184'
+      ratio: '0.939'
+  fill_inputs:
+    vmrss:
+      dynamic: '186640'
+      static: '198324'
+      ratio: '0.941'
+    vmhwm:
+      dynamic: '186640'
+      static: '198324'
+      ratio: '0.941'
+  first_inference:
+    vmrss:
+      dynamic: '205076'
+      static: '206040'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '205076'
+      static: '206040'
+      ratio: '0.995'
+  full_run:
+    vmrss:
+      dynamic: '205076'
+      static: '206040'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '205076'
+      static: '206040'
+      ratio: '0.995'
+  after_objects_release:
+    vmrss:
+      dynamic: '115960'
+      static: '131268'
+      ratio: '0.883'
+    vmhwm:
+      dynamic: '205076'
+      static: '206040'
+      ratio: '0.995'
+TF_DenseNet_169_input_[1, [224, 448], [224, 448], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24368'
+      static: '25068'
+      ratio: '0.972'
+    vmhwm:
+      dynamic: '24368'
+      static: '25068'
+      ratio: '0.972'
+  read_network:
+    vmrss:
+      dynamic: '90780'
+      static: '90336'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '90780'
+      static: '90340'
+      ratio: '1.005'
+  load_network:
+    vmrss:
+      dynamic: '186820'
+      static: '197368'
+      ratio: '0.947'
+    vmhwm:
+      dynamic: '186820'
+      static: '197368'
+      ratio: '0.947'
+  create_exenetwork:
+    vmrss:
+      dynamic: '186820'
+      static: '197368'
+      ratio: '0.947'
+    vmhwm:
+      dynamic: '186820'
+      static: '197368'
+      ratio: '0.947'
+  fill_inputs:
+    vmrss:
+      dynamic: '188224'
+      static: '198508'
+      ratio: '0.948'
+    vmhwm:
+      dynamic: '188224'
+      static: '198508'
+      ratio: '0.948'
+  first_inference:
+    vmrss:
+      dynamic: '205736'
+      static: '206164'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '205736'
+      static: '206164'
+      ratio: '0.998'
+  full_run:
+    vmrss:
+      dynamic: '205736'
+      static: '206164'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '205736'
+      static: '206164'
+      ratio: '0.998'
+  after_objects_release:
+    vmrss:
+      dynamic: '115616'
+      static: '131408'
+      ratio: '0.88'
+    vmhwm:
+      dynamic: '205736'
+      static: '206164'
+      ratio: '0.998'
+TF_EAST_input_images_[[1, 2], 2400, 32, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25396'
+      static: '25476'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '25396'
+      static: '25476'
+      ratio: '0.997'
+  read_network:
+    vmrss:
+      dynamic: '125604'
+      static: '125644'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '125604'
+      static: '125644'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '247720'
+      static: '249952'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '247720'
+      static: '249952'
+      ratio: '0.991'
+  create_exenetwork:
+    vmrss:
+      dynamic: '247720'
+      static: '249952'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '247720'
+      static: '249952'
+      ratio: '0.991'
+  fill_inputs:
+    vmrss:
+      dynamic: '248924'
+      static: '251884'
+      ratio: '0.988'
+    vmhwm:
+      dynamic: '249652'
+      static: '251884'
+      ratio: '0.991'
+  first_inference:
+    vmrss:
+      dynamic: '264180'
+      static: '260596'
+      ratio: '1.014'
+    vmhwm:
+      dynamic: '264180'
+      static: '260596'
+      ratio: '1.014'
+  full_run:
+    vmrss:
+      dynamic: '264180'
+      static: '260596'
+      ratio: '1.014'
+    vmhwm:
+      dynamic: '264180'
+      static: '260596'
+      ratio: '1.014'
+  after_objects_release:
+    vmrss:
+      dynamic: '58752'
+      static: '64984'
+      ratio: '0.904'
+    vmhwm:
+      dynamic: '264180'
+      static: '260596'
+      ratio: '1.014'
+TF_EAST_input_images_[1, [2400, 4800], [32, 64], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25468'
+      static: '25660'
+      ratio: '0.993'
+    vmhwm:
+      dynamic: '25468'
+      static: '25660'
+      ratio: '0.993'
+  read_network:
+    vmrss:
+      dynamic: '125536'
+      static: '125892'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '125536'
+      static: '125892'
+      ratio: '0.997'
+  load_network:
+    vmrss:
+      dynamic: '250396'
+      static: '249696'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '250396'
+      static: '249696'
+      ratio: '1.003'
+  create_exenetwork:
+    vmrss:
+      dynamic: '250396'
+      static: '249696'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '250396'
+      static: '249696'
+      ratio: '1.003'
+  fill_inputs:
+    vmrss:
+      dynamic: '251600'
+      static: '251628'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '252328'
+      static: '251628'
+      ratio: '1.003'
+  first_inference:
+    vmrss:
+      dynamic: '272340'
+      static: '260340'
+      ratio: '1.046'
+    vmhwm:
+      dynamic: '272340'
+      static: '260340'
+      ratio: '1.046'
+  full_run:
+    vmrss:
+      dynamic: '272340'
+      static: '260340'
+      ratio: '1.046'
+    vmhwm:
+      dynamic: '272340'
+      static: '260340'
+      ratio: '1.046'
+  after_objects_release:
+    vmrss:
+      dynamic: '62044'
+      static: '64712'
+      ratio: '0.959'
+    vmhwm:
+      dynamic: '272340'
+      static: '260340'
+      ratio: '1.046'
+TF_Faster_RCNN_Inception_ResNet_v2_atrous_coco_image_tensor_[[1, 2], 600, 600, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24592'
+      static: '25140'
+      ratio: '0.978'
+    vmhwm:
+      dynamic: '24592'
+      static: '25140'
+      ratio: '0.978'
+  read_network:
+    vmrss:
+      dynamic: '272264'
+      static: '272016'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '272520'
+      static: '272120'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '538876'
+      static: '545100'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '538876'
+      static: '545100'
+      ratio: '0.989'
+  create_exenetwork:
+    vmrss:
+      dynamic: '538876'
+      static: '545100'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '538876'
+      static: '545100'
+      ratio: '0.989'
+  fill_inputs:
+    vmrss:
+      dynamic: '540360'
+      static: '547296'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '541192'
+      static: '547296'
+      ratio: '0.989'
+  first_inference:
+    vmrss:
+      dynamic: '1435024'
+      static: '1288048'
+      ratio: '1.114'
+    vmhwm:
+      dynamic: '1435024'
+      static: '1288048'
+      ratio: '1.114'
+  full_run:
+    vmrss:
+      dynamic: '1435024'
+      static: '1288048'
+      ratio: '1.114'
+    vmhwm:
+      dynamic: '1435024'
+      static: '1288048'
+      ratio: '1.114'
+  after_objects_release:
+    vmrss:
+      dynamic: '154948'
+      static: '154260'
+      ratio: '1.004'
+    vmhwm:
+      dynamic: '1435024'
+      static: '1288048'
+      ratio: '1.114'
+TF_Faster_RCNN_Inception_ResNet_v2_atrous_coco_image_tensor_[1, [600, 600], [600, 1024], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24388'
+      static: '25076'
+      ratio: '0.973'
+    vmhwm:
+      dynamic: '24388'
+      static: '25076'
+      ratio: '0.973'
+  read_network:
+    vmrss:
+      dynamic: '271916'
+      static: '271944'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '272172'
+      static: '271992'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '545520'
+      static: '545008'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '545520'
+      static: '545008'
+      ratio: '1.001'
+  create_exenetwork:
+    vmrss:
+      dynamic: '545520'
+      static: '545008'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '545520'
+      static: '545008'
+      ratio: '1.001'
+  fill_inputs:
+    vmrss:
+      dynamic: '546876'
+      static: '547324'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '547716'
+      static: '547324'
+      ratio: '1.001'
+  first_inference:
+    vmrss:
+      dynamic: '1406016'
+      static: '1287884'
+      ratio: '1.092'
+    vmhwm:
+      dynamic: '1406016'
+      static: '1287884'
+      ratio: '1.092'
+  full_run:
+    vmrss:
+      dynamic: '1406016'
+      static: '1287884'
+      ratio: '1.092'
+    vmhwm:
+      dynamic: '1406016'
+      static: '1287884'
+      ratio: '1.092'
+  after_objects_release:
+    vmrss:
+      dynamic: '175620'
+      static: '154120'
+      ratio: '1.14'
+    vmhwm:
+      dynamic: '1406016'
+      static: '1287884'
+      ratio: '1.092'
+TF_Faster_RCNN_Inception_ResNet_v2_atrous_lowproposals_coco_image_tensor_[[1, 2], 600, 600, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24380'
+      static: '25536'
+      ratio: '0.955'
+    vmhwm:
+      dynamic: '24380'
+      static: '25536'
+      ratio: '0.955'
+  read_network:
+    vmrss:
+      dynamic: '272016'
+      static: '272240'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '272124'
+      static: '272428'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '538916'
+      static: '544304'
+      ratio: '0.99'
+    vmhwm:
+      dynamic: '538916'
+      static: '544304'
+      ratio: '0.99'
+  create_exenetwork:
+    vmrss:
+      dynamic: '538916'
+      static: '544304'
+      ratio: '0.99'
+    vmhwm:
+      dynamic: '538916'
+      static: '544304'
+      ratio: '0.99'
+  fill_inputs:
+    vmrss:
+      dynamic: '540272'
+      static: '546500'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '541112'
+      static: '546500'
+      ratio: '0.99'
+  first_inference:
+    vmrss:
+      dynamic: '630900'
+      static: '599252'
+      ratio: '1.053'
+    vmhwm:
+      dynamic: '630900'
+      static: '601116'
+      ratio: '1.05'
+  full_run:
+    vmrss:
+      dynamic: '630900'
+      static: '599252'
+      ratio: '1.053'
+    vmhwm:
+      dynamic: '630900'
+      static: '601116'
+      ratio: '1.05'
+  after_objects_release:
+    vmrss:
+      dynamic: '153904'
+      static: '153216'
+      ratio: '1.004'
+    vmhwm:
+      dynamic: '630900'
+      static: '601116'
+      ratio: '1.05'
+TF_Faster_RCNN_Inception_ResNet_v2_atrous_lowproposals_coco_image_tensor_[1, [600, 600], [600, 1024], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24664'
+      static: '25352'
+      ratio: '0.973'
+    vmhwm:
+      dynamic: '24664'
+      static: '25352'
+      ratio: '0.973'
+  read_network:
+    vmrss:
+      dynamic: '272196'
+      static: '271936'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '272644'
+      static: '272064'
+      ratio: '1.002'
+  load_network:
+    vmrss:
+      dynamic: '544396'
+      static: '544504'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '544396'
+      static: '544504'
+      ratio: '1.0'
+  create_exenetwork:
+    vmrss:
+      dynamic: '544396'
+      static: '544504'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '544396'
+      static: '544504'
+      ratio: '1.0'
+  fill_inputs:
+    vmrss:
+      dynamic: '545752'
+      static: '546700'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '546592'
+      static: '546700'
+      ratio: '1.0'
+  first_inference:
+    vmrss:
+      dynamic: '716800'
+      static: '599808'
+      ratio: '1.195'
+    vmhwm:
+      dynamic: '716800'
+      static: '601548'
+      ratio: '1.192'
+  full_run:
+    vmrss:
+      dynamic: '716800'
+      static: '599808'
+      ratio: '1.195'
+    vmhwm:
+      dynamic: '716800'
+      static: '601548'
+      ratio: '1.192'
+  after_objects_release:
+    vmrss:
+      dynamic: '173672'
+      static: '153768'
+      ratio: '1.129'
+    vmhwm:
+      dynamic: '716800'
+      static: '601548'
+      ratio: '1.192'
+TF_Faster_RCNN_Inception_v2_coco_image_tensor_[[1, 2], 600, 600, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24428'
+      static: '25828'
+      ratio: '0.946'
+    vmhwm:
+      dynamic: '24428'
+      static: '25828'
+      ratio: '0.946'
+  read_network:
+    vmrss:
+      dynamic: '83636'
+      static: '84320'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '83636'
+      static: '84320'
+      ratio: '0.992'
+  load_network:
+    vmrss:
+      dynamic: '161940'
+      static: '167628'
+      ratio: '0.966'
+    vmhwm:
+      dynamic: '161940'
+      static: '167628'
+      ratio: '0.966'
+  create_exenetwork:
+    vmrss:
+      dynamic: '161940'
+      static: '167628'
+      ratio: '0.966'
+    vmhwm:
+      dynamic: '161940'
+      static: '167628'
+      ratio: '0.966'
+  fill_inputs:
+    vmrss:
+      dynamic: '163424'
+      static: '169824'
+      ratio: '0.962'
+    vmhwm:
+      dynamic: '164256'
+      static: '169824'
+      ratio: '0.967'
+  first_inference:
+    vmrss:
+      dynamic: '236168'
+      static: '227864'
+      ratio: '1.036'
+    vmhwm:
+      dynamic: '236168'
+      static: '227864'
+      ratio: '1.036'
+  full_run:
+    vmrss:
+      dynamic: '236168'
+      static: '227864'
+      ratio: '1.036'
+    vmhwm:
+      dynamic: '236168'
+      static: '227864'
+      ratio: '1.036'
+  after_objects_release:
+    vmrss:
+      dynamic: '68636'
+      static: '86452'
+      ratio: '0.794'
+    vmhwm:
+      dynamic: '236168'
+      static: '227864'
+      ratio: '1.036'
+TF_Faster_RCNN_Inception_v2_coco_image_tensor_[1, [600, 600], [600, 1024], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25280'
+      static: '25060'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '25280'
+      static: '25060'
+      ratio: '1.009'
+  read_network:
+    vmrss:
+      dynamic: '83552'
+      static: '83332'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '83552'
+      static: '83332'
+      ratio: '1.003'
+  load_network:
+    vmrss:
+      dynamic: '166944'
+      static: '167400'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '166944'
+      static: '167400'
+      ratio: '0.997'
+  create_exenetwork:
+    vmrss:
+      dynamic: '166944'
+      static: '167400'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '166944'
+      static: '167400'
+      ratio: '0.997'
+  fill_inputs:
+    vmrss:
+      dynamic: '168300'
+      static: '169596'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '169140'
+      static: '169596'
+      ratio: '0.997'
+  first_inference:
+    vmrss:
+      dynamic: '259128'
+      static: '227588'
+      ratio: '1.139'
+    vmhwm:
+      dynamic: '259128'
+      static: '227588'
+      ratio: '1.139'
+  full_run:
+    vmrss:
+      dynamic: '259128'
+      static: '227588'
+      ratio: '1.139'
+    vmhwm:
+      dynamic: '259128'
+      static: '227588'
+      ratio: '1.139'
+  after_objects_release:
+    vmrss:
+      dynamic: '76060'
+      static: '86396'
+      ratio: '0.88'
+    vmhwm:
+      dynamic: '259128'
+      static: '227588'
+      ratio: '1.139'
+TF_Faster_RCNN_ResNet101_coco_image_tensor_[[1, 2], 600, 600, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24428'
+      static: '25664'
+      ratio: '0.952'
+    vmhwm:
+      dynamic: '24428'
+      static: '25664'
+      ratio: '0.952'
+  read_network:
+    vmrss:
+      dynamic: '220800'
+      static: '221188'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '220800'
+      static: '221188'
+      ratio: '0.998'
+  load_network:
+    vmrss:
+      dynamic: '436088'
+      static: '441856'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '436088'
+      static: '441856'
+      ratio: '0.987'
+  create_exenetwork:
+    vmrss:
+      dynamic: '436088'
+      static: '441856'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '436088'
+      static: '441856'
+      ratio: '0.987'
+  fill_inputs:
+    vmrss:
+      dynamic: '437572'
+      static: '444052'
+      ratio: '0.985'
+    vmhwm:
+      dynamic: '438404'
+      static: '444052'
+      ratio: '0.987'
+  first_inference:
+    vmrss:
+      dynamic: '566088'
+      static: '545028'
+      ratio: '1.039'
+    vmhwm:
+      dynamic: '566088'
+      static: '545028'
+      ratio: '1.039'
+  full_run:
+    vmrss:
+      dynamic: '566088'
+      static: '545028'
+      ratio: '1.039'
+    vmhwm:
+      dynamic: '566088'
+      static: '545028'
+      ratio: '1.039'
+  after_objects_release:
+    vmrss:
+      dynamic: '72480'
+      static: '121752'
+      ratio: '0.595'
+    vmhwm:
+      dynamic: '566088'
+      static: '545028'
+      ratio: '1.039'
+TF_Faster_RCNN_ResNet101_coco_image_tensor_[1, [600, 600], [600, 1024], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25120'
+      static: '25344'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '25120'
+      static: '25344'
+      ratio: '0.991'
+  read_network:
+    vmrss:
+      dynamic: '220616'
+      static: '220708'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '220616'
+      static: '220708'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '442320'
+      static: '441820'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '442320'
+      static: '441820'
+      ratio: '1.001'
+  create_exenetwork:
+    vmrss:
+      dynamic: '442320'
+      static: '441820'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '442320'
+      static: '441820'
+      ratio: '1.001'
+  fill_inputs:
+    vmrss:
+      dynamic: '443680'
+      static: '444016'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '444516'
+      static: '444016'
+      ratio: '1.001'
+  first_inference:
+    vmrss:
+      dynamic: '581484'
+      static: '545048'
+      ratio: '1.067'
+    vmhwm:
+      dynamic: '581484'
+      static: '545048'
+      ratio: '1.067'
+  full_run:
+    vmrss:
+      dynamic: '581484'
+      static: '545048'
+      ratio: '1.067'
+    vmhwm:
+      dynamic: '581484'
+      static: '545048'
+      ratio: '1.067'
+  after_objects_release:
+    vmrss:
+      dynamic: '73156'
+      static: '121940'
+      ratio: '0.6'
+    vmhwm:
+      dynamic: '581484'
+      static: '545048'
+      ratio: '1.067'
+TF_Faster_RCNN_ResNet50_coco_image_tensor_[[1, 2], 600, 600, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24768'
+      static: '25068'
+      ratio: '0.988'
+    vmhwm:
+      dynamic: '24768'
+      static: '25068'
+      ratio: '0.988'
+  read_network:
+    vmrss:
+      dynamic: '144912'
+      static: '144712'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '145076'
+      static: '144712'
+      ratio: '1.003'
+  load_network:
+    vmrss:
+      dynamic: '281236'
+      static: '286732'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '281236'
+      static: '286732'
+      ratio: '0.981'
+  create_exenetwork:
+    vmrss:
+      dynamic: '281236'
+      static: '286732'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '281236'
+      static: '286732'
+      ratio: '0.981'
+  fill_inputs:
+    vmrss:
+      dynamic: '282592'
+      static: '288928'
+      ratio: '0.978'
+    vmhwm:
+      dynamic: '283432'
+      static: '288928'
+      ratio: '0.981'
+  first_inference:
+    vmrss:
+      dynamic: '410648'
+      static: '390084'
+      ratio: '1.053'
+    vmhwm:
+      dynamic: '410648'
+      static: '390084'
+      ratio: '1.053'
+  full_run:
+    vmrss:
+      dynamic: '410648'
+      static: '390084'
+      ratio: '1.053'
+    vmhwm:
+      dynamic: '410648'
+      static: '390084'
+      ratio: '1.053'
+  after_objects_release:
+    vmrss:
+      dynamic: '63444'
+      static: '80328'
+      ratio: '0.79'
+    vmhwm:
+      dynamic: '410648'
+      static: '390084'
+      ratio: '1.053'
+TF_Faster_RCNN_ResNet50_coco_image_tensor_[1, [600, 600], [600, 1024], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24352'
+      static: '25144'
+      ratio: '0.969'
+    vmhwm:
+      dynamic: '24352'
+      static: '25144'
+      ratio: '0.969'
+  read_network:
+    vmrss:
+      dynamic: '144816'
+      static: '145024'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '144816'
+      static: '145024'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '286764'
+      static: '286620'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '286764'
+      static: '286620'
+      ratio: '1.001'
+  create_exenetwork:
+    vmrss:
+      dynamic: '286764'
+      static: '286620'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '286764'
+      static: '286620'
+      ratio: '1.001'
+  fill_inputs:
+    vmrss:
+      dynamic: '288124'
+      static: '288816'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '288960'
+      static: '288816'
+      ratio: '1.0'
+  first_inference:
+    vmrss:
+      dynamic: '425932'
+      static: '389976'
+      ratio: '1.092'
+    vmhwm:
+      dynamic: '425932'
+      static: '389976'
+      ratio: '1.092'
+  full_run:
+    vmrss:
+      dynamic: '425932'
+      static: '389976'
+      ratio: '1.092'
+    vmhwm:
+      dynamic: '425932'
+      static: '389976'
+      ratio: '1.092'
+  after_objects_release:
+    vmrss:
+      dynamic: '64208'
+      static: '80196'
+      ratio: '0.801'
+    vmhwm:
+      dynamic: '425932'
+      static: '389976'
+      ratio: '1.092'
+TF_ICV_SqueezeNet_v1_1_Placeholder_[[1, 2], 227, 227, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24772'
+      static: '25336'
+      ratio: '0.978'
+    vmhwm:
+      dynamic: '24772'
+      static: '25336'
+      ratio: '0.978'
+  read_network:
+    vmrss:
+      dynamic: '34256'
+      static: '33912'
+      ratio: '1.01'
+    vmhwm:
+      dynamic: '34256'
+      static: '33912'
+      ratio: '1.01'
+  load_network:
+    vmrss:
+      dynamic: '59024'
+      static: '59636'
+      ratio: '0.99'
+    vmhwm:
+      dynamic: '59024'
+      static: '59636'
+      ratio: '0.99'
+  create_exenetwork:
+    vmrss:
+      dynamic: '59024'
+      static: '59636'
+      ratio: '0.99'
+    vmhwm:
+      dynamic: '59024'
+      static: '59636'
+      ratio: '0.99'
+  fill_inputs:
+    vmrss:
+      dynamic: '59324'
+      static: '61040'
+      ratio: '0.972'
+    vmhwm:
+      dynamic: '59900'
+      static: '61040'
+      ratio: '0.981'
+  first_inference:
+    vmrss:
+      dynamic: '66708'
+      static: '64460'
+      ratio: '1.035'
+    vmhwm:
+      dynamic: '66708'
+      static: '64460'
+      ratio: '1.035'
+  full_run:
+    vmrss:
+      dynamic: '66708'
+      static: '64460'
+      ratio: '1.035'
+    vmhwm:
+      dynamic: '66708'
+      static: '64460'
+      ratio: '1.035'
+  after_objects_release:
+    vmrss:
+      dynamic: '50868'
+      static: '52588'
+      ratio: '0.967'
+    vmhwm:
+      dynamic: '66912'
+      static: '64460'
+      ratio: '1.038'
+TF_Inception_ResNet_v2_input_[[1, 2], 299, 299, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24920'
+      static: '25284'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '24920'
+      static: '25284'
+      ratio: '0.986'
+  read_network:
+    vmrss:
+      dynamic: '255472'
+      static: '255196'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '255644'
+      static: '255944'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '511024'
+      static: '518448'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '511024'
+      static: '518448'
+      ratio: '0.986'
+  create_exenetwork:
+    vmrss:
+      dynamic: '511024'
+      static: '518448'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '511024'
+      static: '518448'
+      ratio: '0.986'
+  fill_inputs:
+    vmrss:
+      dynamic: '512372'
+      static: '520764'
+      ratio: '0.984'
+    vmhwm:
+      dynamic: '513220'
+      static: '520764'
+      ratio: '0.986'
+  first_inference:
+    vmrss:
+      dynamic: '535048'
+      static: '529232'
+      ratio: '1.011'
+    vmhwm:
+      dynamic: '535048'
+      static: '529232'
+      ratio: '1.011'
+  full_run:
+    vmrss:
+      dynamic: '535048'
+      static: '529232'
+      ratio: '1.011'
+    vmhwm:
+      dynamic: '535048'
+      static: '529232'
+      ratio: '1.011'
+  after_objects_release:
+    vmrss:
+      dynamic: '124764'
+      static: '157292'
+      ratio: '0.793'
+    vmhwm:
+      dynamic: '535048'
+      static: '529232'
+      ratio: '1.011'
+TF_Inception_v1_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24324'
+      static: '25604'
+      ratio: '0.95'
+    vmhwm:
+      dynamic: '24324'
+      static: '25604'
+      ratio: '0.95'
+  read_network:
+    vmrss:
+      dynamic: '56128'
+      static: '57048'
+      ratio: '0.984'
+    vmhwm:
+      dynamic: '56128'
+      static: '57048'
+      ratio: '0.984'
+  load_network:
+    vmrss:
+      dynamic: '106048'
+      static: '108892'
+      ratio: '0.974'
+    vmhwm:
+      dynamic: '106048'
+      static: '108892'
+      ratio: '0.974'
+  create_exenetwork:
+    vmrss:
+      dynamic: '106048'
+      static: '108892'
+      ratio: '0.974'
+    vmhwm:
+      dynamic: '106048'
+      static: '108892'
+      ratio: '0.974'
+  fill_inputs:
+    vmrss:
+      dynamic: '106940'
+      static: '110296'
+      ratio: '0.97'
+    vmhwm:
+      dynamic: '107452'
+      static: '110296'
+      ratio: '0.974'
+  first_inference:
+    vmrss:
+      dynamic: '115340'
+      static: '113728'
+      ratio: '1.014'
+    vmhwm:
+      dynamic: '115340'
+      static: '113728'
+      ratio: '1.014'
+  full_run:
+    vmrss:
+      dynamic: '115340'
+      static: '113728'
+      ratio: '1.014'
+    vmhwm:
+      dynamic: '115340'
+      static: '113728'
+      ratio: '1.014'
+  after_objects_release:
+    vmrss:
+      dynamic: '57896'
+      static: '64192'
+      ratio: '0.902'
+    vmhwm:
+      dynamic: '115340'
+      static: '113728'
+      ratio: '1.014'
+TF_Inception_v2_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24428'
+      static: '25044'
+      ratio: '0.975'
+    vmhwm:
+      dynamic: '24428'
+      static: '25044'
+      ratio: '0.975'
+  read_network:
+    vmrss:
+      dynamic: '74332'
+      static: '74436'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '74332'
+      static: '74436'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '143500'
+      static: '145900'
+      ratio: '0.984'
+    vmhwm:
+      dynamic: '143500'
+      static: '145900'
+      ratio: '0.984'
+  create_exenetwork:
+    vmrss:
+      dynamic: '143500'
+      static: '145900'
+      ratio: '0.984'
+    vmhwm:
+      dynamic: '143500'
+      static: '145900'
+      ratio: '0.984'
+  fill_inputs:
+    vmrss:
+      dynamic: '144392'
+      static: '147304'
+      ratio: '0.98'
+    vmhwm:
+      dynamic: '144904'
+      static: '147304'
+      ratio: '0.984'
+  first_inference:
+    vmrss:
+      dynamic: '151996'
+      static: '150996'
+      ratio: '1.007'
+    vmhwm:
+      dynamic: '151996'
+      static: '150996'
+      ratio: '1.007'
+  full_run:
+    vmrss:
+      dynamic: '151996'
+      static: '150996'
+      ratio: '1.007'
+    vmhwm:
+      dynamic: '151996'
+      static: '150996'
+      ratio: '1.007'
+  after_objects_release:
+    vmrss:
+      dynamic: '59704'
+      static: '69788'
+      ratio: '0.856'
+    vmhwm:
+      dynamic: '151996'
+      static: '150996'
+      ratio: '1.007'
+TF_Inception_v4_input_[[1, 2], 299, 299, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24656'
+      static: '25476'
+      ratio: '0.968'
+    vmhwm:
+      dynamic: '24656'
+      static: '25476'
+      ratio: '0.968'
+  read_network:
+    vmrss:
+      dynamic: '200320'
+      static: '200488'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '200320'
+      static: '200488'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '395224'
+      static: '402964'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '395224'
+      static: '402964'
+      ratio: '0.981'
+  create_exenetwork:
+    vmrss:
+      dynamic: '395224'
+      static: '402964'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '395224'
+      static: '402964'
+      ratio: '0.981'
+  fill_inputs:
+    vmrss:
+      dynamic: '396572'
+      static: '405160'
+      ratio: '0.979'
+    vmhwm:
+      dynamic: '397420'
+      static: '405160'
+      ratio: '0.981'
+  first_inference:
+    vmrss:
+      dynamic: '420948'
+      static: '414480'
+      ratio: '1.016'
+    vmhwm:
+      dynamic: '420948'
+      static: '414480'
+      ratio: '1.016'
+  full_run:
+    vmrss:
+      dynamic: '420948'
+      static: '414480'
+      ratio: '1.016'
+    vmhwm:
+      dynamic: '420948'
+      static: '414480'
+      ratio: '1.016'
+  after_objects_release:
+    vmrss:
+      dynamic: '76876'
+      static: '100096'
+      ratio: '0.768'
+    vmhwm:
+      dynamic: '421956'
+      static: '414480'
+      ratio: '1.018'
+TF_Magix_Video_FSRCNN_IteratorGetNext_[[1, 2], 120, 80, 4]:
+  load_plugin:
+    vmrss:
+      dynamic: '24760'
+      static: '25068'
+      ratio: '0.988'
+    vmhwm:
+      dynamic: '24760'
+      static: '25068'
+      ratio: '0.988'
+  read_network:
+    vmrss:
+      dynamic: '28304'
+      static: '28036'
+      ratio: '1.01'
+    vmhwm:
+      dynamic: '28304'
+      static: '28036'
+      ratio: '1.01'
+  load_network:
+    vmrss:
+      dynamic: '45208'
+      static: '45388'
+      ratio: '0.996'
+    vmhwm:
+      dynamic: '45208'
+      static: '45388'
+      ratio: '0.996'
+  create_exenetwork:
+    vmrss:
+      dynamic: '45208'
+      static: '45388'
+      ratio: '0.996'
+    vmhwm:
+      dynamic: '45208'
+      static: '45388'
+      ratio: '0.996'
+  fill_inputs:
+    vmrss:
+      dynamic: '45660'
+      static: '45388'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '45660'
+      static: '45388'
+      ratio: '1.006'
+  first_inference:
+    vmrss:
+      dynamic: '56588'
+      static: '54540'
+      ratio: '1.038'
+    vmhwm:
+      dynamic: '56588'
+      static: '54540'
+      ratio: '1.038'
+  full_run:
+    vmrss:
+      dynamic: '56588'
+      static: '54540'
+      ratio: '1.038'
+    vmhwm:
+      dynamic: '56588'
+      static: '54540'
+      ratio: '1.038'
+  after_objects_release:
+    vmrss:
+      dynamic: '50328'
+      static: '49444'
+      ratio: '1.018'
+    vmhwm:
+      dynamic: '56672'
+      static: '54540'
+      ratio: '1.039'
+TF_Magix_Video_FSRCNN_IteratorGetNext_[1, [120, 240], [80, 160], 4]:
+  load_plugin:
+    vmrss:
+      dynamic: '24748'
+      static: '25392'
+      ratio: '0.975'
+    vmhwm:
+      dynamic: '24748'
+      static: '25392'
+      ratio: '0.975'
+  read_network:
+    vmrss:
+      dynamic: '28304'
+      static: '28324'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '28304'
+      static: '28324'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '45472'
+      static: '46056'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '45472'
+      static: '46056'
+      ratio: '0.987'
+  create_exenetwork:
+    vmrss:
+      dynamic: '45472'
+      static: '46056'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '45472'
+      static: '46056'
+      ratio: '0.987'
+  fill_inputs:
+    vmrss:
+      dynamic: '45924'
+      static: '46056'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '45924'
+      static: '46056'
+      ratio: '0.997'
+  first_inference:
+    vmrss:
+      dynamic: '57632'
+      static: '55432'
+      ratio: '1.04'
+    vmhwm:
+      dynamic: '57632'
+      static: '55432'
+      ratio: '1.04'
+  full_run:
+    vmrss:
+      dynamic: '57632'
+      static: '55432'
+      ratio: '1.04'
+    vmhwm:
+      dynamic: '57632'
+      static: '55432'
+      ratio: '1.04'
+  after_objects_release:
+    vmrss:
+      dynamic: '50300'
+      static: '50304'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '57632'
+      static: '55432'
+      ratio: '1.04'
+TF_Mask_RCNN_Inception_ResNet_v2_atrous_coco_image_tensor_[[1, 2], 800, 800, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24168'
+      static: '25280'
+      ratio: '0.956'
+    vmhwm:
+      dynamic: '24168'
+      static: '25280'
+      ratio: '0.956'
+  read_network:
+    vmrss:
+      dynamic: '293220'
+      static: '293648'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '293580'
+      static: '294008'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '695724'
+      static: '700796'
+      ratio: '0.993'
+    vmhwm:
+      dynamic: '695724'
+      static: '700796'
+      ratio: '0.993'
+  create_exenetwork:
+    vmrss:
+      dynamic: '695724'
+      static: '700796'
+      ratio: '0.993'
+    vmhwm:
+      dynamic: '695724'
+      static: '700796'
+      ratio: '0.993'
+  fill_inputs:
+    vmrss:
+      dynamic: '697900'
+      static: '704960'
+      ratio: '0.99'
+    vmhwm:
+      dynamic: '699768'
+      static: '704960'
+      ratio: '0.993'
+  first_inference:
+    vmrss:
+      dynamic: '1550280'
+      static: '1508352'
+      ratio: '1.028'
+    vmhwm:
+      dynamic: '1550280'
+      static: '1508352'
+      ratio: '1.028'
+  full_run:
+    vmrss:
+      dynamic: '1550280'
+      static: '1508352'
+      ratio: '1.028'
+    vmhwm:
+      dynamic: '1550280'
+      static: '1508352'
+      ratio: '1.028'
+  after_objects_release:
+    vmrss:
+      dynamic: '186508'
+      static: '277852'
+      ratio: '0.671'
+    vmhwm:
+      dynamic: '1550280'
+      static: '1508352'
+      ratio: '1.028'
+TF_Mask_RCNN_Inception_ResNet_v2_atrous_coco_image_tensor_[1, [800, 800], [800, 1365], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24364'
+      static: '25656'
+      ratio: '0.95'
+    vmhwm:
+      dynamic: '24364'
+      static: '25656'
+      ratio: '0.95'
+  read_network:
+    vmrss:
+      dynamic: '293100'
+      static: '293772'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '293476'
+      static: '294328'
+      ratio: '0.997'
+  load_network:
+    vmrss:
+      dynamic: '701268'
+      static: '700528'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '701268'
+      static: '700528'
+      ratio: '1.001'
+  create_exenetwork:
+    vmrss:
+      dynamic: '701268'
+      static: '700528'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '701268'
+      static: '700528'
+      ratio: '1.001'
+  fill_inputs:
+    vmrss:
+      dynamic: '703448'
+      static: '704572'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '705312'
+      static: '704572'
+      ratio: '1.001'
+  first_inference:
+    vmrss:
+      dynamic: '1736620'
+      static: '1507744'
+      ratio: '1.152'
+    vmhwm:
+      dynamic: '1736620'
+      static: '1507744'
+      ratio: '1.152'
+  full_run:
+    vmrss:
+      dynamic: '1736620'
+      static: '1507744'
+      ratio: '1.152'
+    vmhwm:
+      dynamic: '1736620'
+      static: '1507744'
+      ratio: '1.152'
+  after_objects_release:
+    vmrss:
+      dynamic: '197092'
+      static: '277136'
+      ratio: '0.711'
+    vmhwm:
+      dynamic: '1736620'
+      static: '1507744'
+      ratio: '1.152'
+TF_Mask_RCNN_ResNet101_atrous_coco_image_tensor_[[1, 2], 800, 800, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25116'
+      static: '25824'
+      ratio: '0.973'
+    vmhwm:
+      dynamic: '25116'
+      static: '25824'
+      ratio: '0.973'
+  read_network:
+    vmrss:
+      dynamic: '245912'
+      static: '245884'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '245912'
+      static: '245884'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '547024'
+      static: '551948'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '547024'
+      static: '551948'
+      ratio: '0.991'
+  create_exenetwork:
+    vmrss:
+      dynamic: '547024'
+      static: '551948'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '547024'
+      static: '551948'
+      ratio: '0.991'
+  fill_inputs:
+    vmrss:
+      dynamic: '549200'
+      static: '555992'
+      ratio: '0.988'
+    vmhwm:
+      dynamic: '551068'
+      static: '555992'
+      ratio: '0.991'
+  first_inference:
+    vmrss:
+      dynamic: '1617420'
+      static: '1576848'
+      ratio: '1.026'
+    vmhwm:
+      dynamic: '1617420'
+      static: '1576848'
+      ratio: '1.026'
+  full_run:
+    vmrss:
+      dynamic: '1617420'
+      static: '1576848'
+      ratio: '1.026'
+    vmhwm:
+      dynamic: '1617420'
+      static: '1576848'
+      ratio: '1.026'
+  after_objects_release:
+    vmrss:
+      dynamic: '75888'
+      static: '125808'
+      ratio: '0.603'
+    vmhwm:
+      dynamic: '1617420'
+      static: '1576848'
+      ratio: '1.026'
+TF_Mask_RCNN_ResNet101_atrous_coco_image_tensor_[1, [800, 800], [800, 1365], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24332'
+      static: '25212'
+      ratio: '0.965'
+    vmhwm:
+      dynamic: '24332'
+      static: '25212'
+      ratio: '0.965'
+  read_network:
+    vmrss:
+      dynamic: '244988'
+      static: '245112'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '244988'
+      static: '245112'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '552588'
+      static: '551580'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '552588'
+      static: '551580'
+      ratio: '1.002'
+  create_exenetwork:
+    vmrss:
+      dynamic: '552588'
+      static: '551580'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '552588'
+      static: '551580'
+      ratio: '1.002'
+  fill_inputs:
+    vmrss:
+      dynamic: '554772'
+      static: '555624'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '556632'
+      static: '555624'
+      ratio: '1.002'
+  first_inference:
+    vmrss:
+      dynamic: '1676040'
+      static: '1576596'
+      ratio: '1.063'
+    vmhwm:
+      dynamic: '1676040'
+      static: '1576596'
+      ratio: '1.063'
+  full_run:
+    vmrss:
+      dynamic: '1676040'
+      static: '1576596'
+      ratio: '1.063'
+    vmhwm:
+      dynamic: '1676040'
+      static: '1576596'
+      ratio: '1.063'
+  after_objects_release:
+    vmrss:
+      dynamic: '82628'
+      static: '126004'
+      ratio: '0.656'
+    vmhwm:
+      dynamic: '1676040'
+      static: '1576596'
+      ratio: '1.063'
+TF_MobileNet_EdgeTPU_1_0_224_MobilenetEdgeTPU/input:0_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24364'
+      static: '25120'
+      ratio: '0.97'
+    vmhwm:
+      dynamic: '24364'
+      static: '25120'
+      ratio: '0.97'
+  read_network:
+    vmrss:
+      dynamic: '46220'
+      static: '46512'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '46220'
+      static: '46512'
+      ratio: '0.994'
+  load_network:
+    vmrss:
+      dynamic: '85752'
+      static: '86880'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '85752'
+      static: '86880'
+      ratio: '0.987'
+  create_exenetwork:
+    vmrss:
+      dynamic: '85752'
+      static: '86880'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '85752'
+      static: '86880'
+      ratio: '0.987'
+  fill_inputs:
+    vmrss:
+      dynamic: '86644'
+      static: '88404'
+      ratio: '0.98'
+    vmhwm:
+      dynamic: '87156'
+      static: '88404'
+      ratio: '0.986'
+  first_inference:
+    vmrss:
+      dynamic: '91480'
+      static: '90304'
+      ratio: '1.013'
+    vmhwm:
+      dynamic: '91480'
+      static: '90304'
+      ratio: '1.013'
+  full_run:
+    vmrss:
+      dynamic: '91480'
+      static: '90304'
+      ratio: '1.013'
+    vmhwm:
+      dynamic: '91480'
+      static: '90304'
+      ratio: '1.013'
+  after_objects_release:
+    vmrss:
+      dynamic: '58488'
+      static: '63188'
+      ratio: '0.926'
+    vmhwm:
+      dynamic: '91652'
+      static: '90304'
+      ratio: '1.015'
+TF_MobileNet_v1_0_25_128_input_[[1, 2], 128, 128, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24348'
+      static: '25664'
+      ratio: '0.949'
+    vmhwm:
+      dynamic: '24348'
+      static: '25664'
+      ratio: '0.949'
+  read_network:
+    vmrss:
+      dynamic: '30328'
+      static: '30968'
+      ratio: '0.979'
+    vmhwm:
+      dynamic: '30328'
+      static: '30968'
+      ratio: '0.979'
+  load_network:
+    vmrss:
+      dynamic: '51496'
+      static: '53096'
+      ratio: '0.97'
+    vmhwm:
+      dynamic: '51496'
+      static: '53096'
+      ratio: '0.97'
+  create_exenetwork:
+    vmrss:
+      dynamic: '51496'
+      static: '53096'
+      ratio: '0.97'
+    vmhwm:
+      dynamic: '51496'
+      static: '53096'
+      ratio: '0.97'
+  fill_inputs:
+    vmrss:
+      dynamic: '51496'
+      static: '53096'
+      ratio: '0.97'
+    vmhwm:
+      dynamic: '51496'
+      static: '53096'
+      ratio: '0.97'
+  first_inference:
+    vmrss:
+      dynamic: '54388'
+      static: '53968'
+      ratio: '1.008'
+    vmhwm:
+      dynamic: '54388'
+      static: '53968'
+      ratio: '1.008'
+  full_run:
+    vmrss:
+      dynamic: '54388'
+      static: '53968'
+      ratio: '1.008'
+    vmhwm:
+      dynamic: '54388'
+      static: '53968'
+      ratio: '1.008'
+  after_objects_release:
+    vmrss:
+      dynamic: '50088'
+      static: '50340'
+      ratio: '0.995'
+    vmhwm:
+      dynamic: '54388'
+      static: '53968'
+      ratio: '1.008'
+TF_MobileNet_v1_0_5_160_input_[[1, 2], 160, 160, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24736'
+      static: '25332'
+      ratio: '0.976'
+    vmhwm:
+      dynamic: '24736'
+      static: '25332'
+      ratio: '0.976'
+  read_network:
+    vmrss:
+      dynamic: '34212'
+      static: '34172'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '34212'
+      static: '34172'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '58156'
+      static: '59440'
+      ratio: '0.978'
+    vmhwm:
+      dynamic: '58156'
+      static: '59440'
+      ratio: '0.978'
+  create_exenetwork:
+    vmrss:
+      dynamic: '58156'
+      static: '59440'
+      ratio: '0.978'
+    vmhwm:
+      dynamic: '58156'
+      static: '59440'
+      ratio: '0.978'
+  fill_inputs:
+    vmrss:
+      dynamic: '58156'
+      static: '59788'
+      ratio: '0.973'
+    vmhwm:
+      dynamic: '58156'
+      static: '59788'
+      ratio: '0.973'
+  first_inference:
+    vmrss:
+      dynamic: '61604'
+      static: '60824'
+      ratio: '1.013'
+    vmhwm:
+      dynamic: '61604'
+      static: '60824'
+      ratio: '1.013'
+  full_run:
+    vmrss:
+      dynamic: '61604'
+      static: '60824'
+      ratio: '1.013'
+    vmhwm:
+      dynamic: '61604'
+      static: '60824'
+      ratio: '1.013'
+  after_objects_release:
+    vmrss:
+      dynamic: '49500'
+      static: '51156'
+      ratio: '0.968'
+    vmhwm:
+      dynamic: '61944'
+      static: '60824'
+      ratio: '1.018'
+TF_MobileNet_v1_1_0_224_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24788'
+      static: '25000'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '24788'
+      static: '25000'
+      ratio: '0.992'
+  read_network:
+    vmrss:
+      dynamic: '45860'
+      static: '45056'
+      ratio: '1.018'
+    vmhwm:
+      dynamic: '45860'
+      static: '45056'
+      ratio: '1.018'
+  load_network:
+    vmrss:
+      dynamic: '81696'
+      static: '82780'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '81696'
+      static: '82780'
+      ratio: '0.987'
+  create_exenetwork:
+    vmrss:
+      dynamic: '81696'
+      static: '82780'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '81696'
+      static: '82780'
+      ratio: '0.987'
+  fill_inputs:
+    vmrss:
+      dynamic: '82588'
+      static: '84184'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '83100'
+      static: '84184'
+      ratio: '0.987'
+  first_inference:
+    vmrss:
+      dynamic: '90484'
+      static: '88508'
+      ratio: '1.022'
+    vmhwm:
+      dynamic: '90484'
+      static: '88508'
+      ratio: '1.022'
+  full_run:
+    vmrss:
+      dynamic: '90484'
+      static: '88508'
+      ratio: '1.022'
+    vmhwm:
+      dynamic: '90484'
+      static: '88508'
+      ratio: '1.022'
+  after_objects_release:
+    vmrss:
+      dynamic: '49684'
+      static: '50996'
+      ratio: '0.974'
+    vmhwm:
+      dynamic: '90484'
+      static: '88508'
+      ratio: '1.022'
+TF_MobileNet_v2_1_0_224_MobilenetV2/input:0_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24780'
+      static: '25140'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '24780'
+      static: '25140'
+      ratio: '0.986'
+  read_network:
+    vmrss:
+      dynamic: '44144'
+      static: '43912'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '44144'
+      static: '43912'
+      ratio: '1.005'
+  load_network:
+    vmrss:
+      dynamic: '80076'
+      static: '80936'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '80076'
+      static: '80936'
+      ratio: '0.989'
+  create_exenetwork:
+    vmrss:
+      dynamic: '80076'
+      static: '80936'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '80076'
+      static: '80936'
+      ratio: '0.989'
+  fill_inputs:
+    vmrss:
+      dynamic: '80968'
+      static: '82340'
+      ratio: '0.983'
+    vmhwm:
+      dynamic: '81480'
+      static: '82340'
+      ratio: '0.99'
+  first_inference:
+    vmrss:
+      dynamic: '89468'
+      static: '87756'
+      ratio: '1.02'
+    vmhwm:
+      dynamic: '89468'
+      static: '87756'
+      ratio: '1.02'
+  full_run:
+    vmrss:
+      dynamic: '89468'
+      static: '87756'
+      ratio: '1.02'
+    vmhwm:
+      dynamic: '89468'
+      static: '87756'
+      ratio: '1.02'
+  after_objects_release:
+    vmrss:
+      dynamic: '54916'
+      static: '56204'
+      ratio: '0.977'
+    vmhwm:
+      dynamic: '89468'
+      static: '87756'
+      ratio: '1.02'
+TF_MobileNet_v2_1_4_224_MobilenetV2/input:0_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24792'
+      static: '25612'
+      ratio: '0.968'
+    vmhwm:
+      dynamic: '24792'
+      static: '25612'
+      ratio: '0.968'
+  read_network:
+    vmrss:
+      dynamic: '54408'
+      static: '54564'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '54408'
+      static: '54564'
+      ratio: '0.997'
+  load_network:
+    vmrss:
+      dynamic: '99984'
+      static: '101584'
+      ratio: '0.984'
+    vmhwm:
+      dynamic: '99984'
+      static: '101584'
+      ratio: '0.984'
+  create_exenetwork:
+    vmrss:
+      dynamic: '99984'
+      static: '101584'
+      ratio: '0.984'
+    vmhwm:
+      dynamic: '99984'
+      static: '101584'
+      ratio: '0.984'
+  fill_inputs:
+    vmrss:
+      dynamic: '100876'
+      static: '102988'
+      ratio: '0.979'
+    vmhwm:
+      dynamic: '101388'
+      static: '102988'
+      ratio: '0.984'
+  first_inference:
+    vmrss:
+      dynamic: '112228'
+      static: '111196'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '112228'
+      static: '111196'
+      ratio: '1.009'
+  full_run:
+    vmrss:
+      dynamic: '112228'
+      static: '111196'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '112228'
+      static: '111196'
+      ratio: '1.009'
+  after_objects_release:
+    vmrss:
+      dynamic: '54640'
+      static: '58212'
+      ratio: '0.939'
+    vmhwm:
+      dynamic: '112228'
+      static: '111196'
+      ratio: '1.009'
+TF_NasNet_Large_input_[[1, 2], 331, 331, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24760'
+      static: '25280'
+      ratio: '0.979'
+    vmhwm:
+      dynamic: '24760'
+      static: '25280'
+      ratio: '0.979'
+  read_network:
+    vmrss:
+      dynamic: '387584'
+      static: '387868'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '388148'
+      static: '388400'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '793724'
+      static: '820160'
+      ratio: '0.968'
+    vmhwm:
+      dynamic: '793724'
+      static: '820160'
+      ratio: '0.968'
+  create_exenetwork:
+    vmrss:
+      dynamic: '793724'
+      static: '820160'
+      ratio: '0.968'
+    vmhwm:
+      dynamic: '793724'
+      static: '820160'
+      ratio: '0.968'
+  fill_inputs:
+    vmrss:
+      dynamic: '795308'
+      static: '823004'
+      ratio: '0.966'
+    vmhwm:
+      dynamic: '796448'
+      static: '823004'
+      ratio: '0.968'
+  first_inference:
+    vmrss:
+      dynamic: '885332'
+      static: '863532'
+      ratio: '1.025'
+    vmhwm:
+      dynamic: '885332'
+      static: '863532'
+      ratio: '1.025'
+  full_run:
+    vmrss:
+      dynamic: '885332'
+      static: '863532'
+      ratio: '1.025'
+    vmhwm:
+      dynamic: '885332'
+      static: '863532'
+      ratio: '1.025'
+  after_objects_release:
+    vmrss:
+      dynamic: '174428'
+      static: '365180'
+      ratio: '0.478'
+    vmhwm:
+      dynamic: '885332'
+      static: '863532'
+      ratio: '1.025'
+TF_NasNet_Large_input_[1, [331, 662], [331, 662], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24368'
+      static: '25480'
+      ratio: '0.956'
+    vmhwm:
+      dynamic: '24368'
+      static: '25480'
+      ratio: '0.956'
+  read_network:
+    vmrss:
+      dynamic: '387628'
+      static: '387616'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '388160'
+      static: '388360'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '812308'
+      static: '820192'
+      ratio: '0.99'
+    vmhwm:
+      dynamic: '812308'
+      static: '820192'
+      ratio: '0.99'
+  create_exenetwork:
+    vmrss:
+      dynamic: '812308'
+      static: '820192'
+      ratio: '0.99'
+    vmhwm:
+      dynamic: '812308'
+      static: '820192'
+      ratio: '0.99'
+  fill_inputs:
+    vmrss:
+      dynamic: '813892'
+      static: '822916'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '815032'
+      static: '822916'
+      ratio: '0.99'
+  first_inference:
+    vmrss:
+      dynamic: '929288'
+      static: '863584'
+      ratio: '1.076'
+    vmhwm:
+      dynamic: '929288'
+      static: '863584'
+      ratio: '1.076'
+  full_run:
+    vmrss:
+      dynamic: '929288'
+      static: '863584'
+      ratio: '1.076'
+    vmhwm:
+      dynamic: '929288'
+      static: '863584'
+      ratio: '1.076'
+  after_objects_release:
+    vmrss:
+      dynamic: '183012'
+      static: '364924'
+      ratio: '0.502'
+    vmhwm:
+      dynamic: '929288'
+      static: '863584'
+      ratio: '1.076'
+TF_NasNet_Mobile_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24636'
+      static: '24956'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '24636'
+      static: '24956'
+      ratio: '0.987'
+  read_network:
+    vmrss:
+      dynamic: '58644'
+      static: '58240'
+      ratio: '1.007'
+    vmhwm:
+      dynamic: '59020'
+      static: '58332'
+      ratio: '1.012'
+  load_network:
+    vmrss:
+      dynamic: '134248'
+      static: '147348'
+      ratio: '0.911'
+    vmhwm:
+      dynamic: '134248'
+      static: '147348'
+      ratio: '0.911'
+  create_exenetwork:
+    vmrss:
+      dynamic: '134248'
+      static: '147348'
+      ratio: '0.911'
+    vmhwm:
+      dynamic: '134248'
+      static: '147348'
+      ratio: '0.911'
+  fill_inputs:
+    vmrss:
+      dynamic: '135652'
+      static: '148752'
+      ratio: '0.912'
+    vmhwm:
+      dynamic: '135652'
+      static: '148752'
+      ratio: '0.912'
+  first_inference:
+    vmrss:
+      dynamic: '154500'
+      static: '154156'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '154500'
+      static: '154156'
+      ratio: '1.002'
+  full_run:
+    vmrss:
+      dynamic: '154500'
+      static: '154156'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '154500'
+      static: '154156'
+      ratio: '1.002'
+  after_objects_release:
+    vmrss:
+      dynamic: '120964'
+      static: '123812'
+      ratio: '0.977'
+    vmhwm:
+      dynamic: '156484'
+      static: '156684'
+      ratio: '0.999'
+TF_NasNet_Mobile_input_[1, [224, 448], [224, 448], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24340'
+      static: '25284'
+      ratio: '0.963'
+    vmhwm:
+      dynamic: '24340'
+      static: '25284'
+      ratio: '0.963'
+  read_network:
+    vmrss:
+      dynamic: '58332'
+      static: '58844'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '58580'
+      static: '58928'
+      ratio: '0.994'
+  load_network:
+    vmrss:
+      dynamic: '139776'
+      static: '147792'
+      ratio: '0.946'
+    vmhwm:
+      dynamic: '139776'
+      static: '147792'
+      ratio: '0.946'
+  create_exenetwork:
+    vmrss:
+      dynamic: '139776'
+      static: '147792'
+      ratio: '0.946'
+    vmhwm:
+      dynamic: '139776'
+      static: '147792'
+      ratio: '0.946'
+  fill_inputs:
+    vmrss:
+      dynamic: '141180'
+      static: '149316'
+      ratio: '0.946'
+    vmhwm:
+      dynamic: '141180'
+      static: '149316'
+      ratio: '0.946'
+  first_inference:
+    vmrss:
+      dynamic: '161644'
+      static: '154756'
+      ratio: '1.045'
+    vmhwm:
+      dynamic: '161644'
+      static: '154756'
+      ratio: '1.045'
+  full_run:
+    vmrss:
+      dynamic: '161644'
+      static: '154756'
+      ratio: '1.045'
+    vmhwm:
+      dynamic: '161644'
+      static: '154756'
+      ratio: '1.045'
+  after_objects_release:
+    vmrss:
+      dynamic: '122828'
+      static: '124172'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '162004'
+      static: '157164'
+      ratio: '1.031'
+TF_NetVLAD_Placeholder_[[1, 2], 201, 300, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24920'
+      static: '25120'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '24920'
+      static: '25120'
+      ratio: '0.992'
+  read_network:
+    vmrss:
+      dynamic: '611244'
+      static: '610564'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '611244'
+      static: '610564'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '1213244'
+      static: '1213956'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '1213244'
+      static: '1213956'
+      ratio: '0.999'
+  create_exenetwork:
+    vmrss:
+      dynamic: '1213244'
+      static: '1213956'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '1213244'
+      static: '1213956'
+      ratio: '0.999'
+  fill_inputs:
+    vmrss:
+      dynamic: '1214252'
+      static: '1215684'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '1214912'
+      static: '1215684'
+      ratio: '0.999'
+  first_inference:
+    vmrss:
+      dynamic: '1259400'
+      static: '1245312'
+      ratio: '1.011'
+    vmhwm:
+      dynamic: '1259400'
+      static: '1245312'
+      ratio: '1.011'
+  full_run:
+    vmrss:
+      dynamic: '1259400'
+      static: '1245312'
+      ratio: '1.011'
+    vmhwm:
+      dynamic: '1259400'
+      static: '1245312'
+      ratio: '1.011'
+  after_objects_release:
+    vmrss:
+      dynamic: '49924'
+      static: '51016'
+      ratio: '0.979'
+    vmhwm:
+      dynamic: '1259400'
+      static: '1245312'
+      ratio: '1.011'
+TF_NetVLAD_Placeholder_[1, [201, 402], [300, 600], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24772'
+      static: '25060'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '24772'
+      static: '25060'
+      ratio: '0.989'
+  read_network:
+    vmrss:
+      dynamic: '611036'
+      static: '610284'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '611036'
+      static: '610284'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '1215716'
+      static: '1214044'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1215716'
+      static: '1214044'
+      ratio: '1.001'
+  create_exenetwork:
+    vmrss:
+      dynamic: '1215716'
+      static: '1214044'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1215716'
+      static: '1214044'
+      ratio: '1.001'
+  fill_inputs:
+    vmrss:
+      dynamic: '1216724'
+      static: '1215712'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '1217384'
+      static: '1215712'
+      ratio: '1.001'
+  first_inference:
+    vmrss:
+      dynamic: '1290376'
+      static: '1245276'
+      ratio: '1.036'
+    vmhwm:
+      dynamic: '1290376'
+      static: '1245276'
+      ratio: '1.036'
+  full_run:
+    vmrss:
+      dynamic: '1290376'
+      static: '1245276'
+      ratio: '1.036'
+    vmhwm:
+      dynamic: '1290376'
+      static: '1245276'
+      ratio: '1.036'
+  after_objects_release:
+    vmrss:
+      dynamic: '49736'
+      static: '51112'
+      ratio: '0.973'
+    vmhwm:
+      dynamic: '1290376'
+      static: '1245276'
+      ratio: '1.036'
+TF_PNasNet_Large_input_[[1, 2], 331, 331, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24416'
+      static: '25136'
+      ratio: '0.971'
+    vmhwm:
+      dynamic: '24416'
+      static: '25136'
+      ratio: '0.971'
+  read_network:
+    vmrss:
+      dynamic: '374076'
+      static: '374092'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '374088'
+      static: '374160'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '754248'
+      static: '779112'
+      ratio: '0.968'
+    vmhwm:
+      dynamic: '754248'
+      static: '779112'
+      ratio: '0.968'
+  create_exenetwork:
+    vmrss:
+      dynamic: '754248'
+      static: '779112'
+      ratio: '0.968'
+    vmhwm:
+      dynamic: '754248'
+      static: '779112'
+      ratio: '0.968'
+  fill_inputs:
+    vmrss:
+      dynamic: '755960'
+      static: '781836'
+      ratio: '0.967'
+    vmhwm:
+      dynamic: '757092'
+      static: '781836'
+      ratio: '0.968'
+  first_inference:
+    vmrss:
+      dynamic: '847880'
+      static: '834912'
+      ratio: '1.016'
+    vmhwm:
+      dynamic: '847880'
+      static: '834912'
+      ratio: '1.016'
+  full_run:
+    vmrss:
+      dynamic: '847880'
+      static: '834912'
+      ratio: '1.016'
+    vmhwm:
+      dynamic: '847880'
+      static: '834912'
+      ratio: '1.016'
+  after_objects_release:
+    vmrss:
+      dynamic: '164012'
+      static: '355924'
+      ratio: '0.461'
+    vmhwm:
+      dynamic: '847880'
+      static: '834912'
+      ratio: '1.016'
+TF_PNasNet_Large_input_[1, [331, 662], [331, 662], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24388'
+      static: '25280'
+      ratio: '0.965'
+    vmhwm:
+      dynamic: '24388'
+      static: '25280'
+      ratio: '0.965'
+  read_network:
+    vmrss:
+      dynamic: '373924'
+      static: '374332'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '373956'
+      static: '374408'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '774352'
+      static: '779464'
+      ratio: '0.993'
+    vmhwm:
+      dynamic: '774352'
+      static: '779464'
+      ratio: '0.993'
+  create_exenetwork:
+    vmrss:
+      dynamic: '774352'
+      static: '779464'
+      ratio: '0.993'
+    vmhwm:
+      dynamic: '774352'
+      static: '779464'
+      ratio: '0.993'
+  fill_inputs:
+    vmrss:
+      dynamic: '775936'
+      static: '782308'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '777076'
+      static: '782308'
+      ratio: '0.993'
+  first_inference:
+    vmrss:
+      dynamic: '889548'
+      static: '835460'
+      ratio: '1.065'
+    vmhwm:
+      dynamic: '889548'
+      static: '835460'
+      ratio: '1.065'
+  full_run:
+    vmrss:
+      dynamic: '889548'
+      static: '835460'
+      ratio: '1.065'
+    vmhwm:
+      dynamic: '889548'
+      static: '835460'
+      ratio: '1.065'
+  after_objects_release:
+    vmrss:
+      dynamic: '168964'
+      static: '356264'
+      ratio: '0.474'
+    vmhwm:
+      dynamic: '890124'
+      static: '835460'
+      ratio: '1.065'
+TF_ResNet_v1_101_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24384'
+      static: '25656'
+      ratio: '0.95'
+    vmhwm:
+      dynamic: '24384'
+      static: '25656'
+      ratio: '0.95'
+  read_network:
+    vmrss:
+      dynamic: '205804'
+      static: '206208'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '205804'
+      static: '206208'
+      ratio: '0.998'
+  load_network:
+    vmrss:
+      dynamic: '408004'
+      static: '409316'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '408004'
+      static: '409316'
+      ratio: '0.997'
+  create_exenetwork:
+    vmrss:
+      dynamic: '408004'
+      static: '409316'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '408004'
+      static: '409316'
+      ratio: '0.997'
+  fill_inputs:
+    vmrss:
+      dynamic: '408896'
+      static: '410720'
+      ratio: '0.996'
+    vmhwm:
+      dynamic: '409408'
+      static: '410720'
+      ratio: '0.997'
+  first_inference:
+    vmrss:
+      dynamic: '416968'
+      static: '414944'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '416968'
+      static: '414944'
+      ratio: '1.005'
+  full_run:
+    vmrss:
+      dynamic: '416968'
+      static: '414944'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '416968'
+      static: '414944'
+      ratio: '1.005'
+  after_objects_release:
+    vmrss:
+      dynamic: '64556'
+      static: '66948'
+      ratio: '0.964'
+    vmhwm:
+      dynamic: '416968'
+      static: '414944'
+      ratio: '1.005'
+TF_ResNet_v1_101_input_[1, [224, 448], [224, 448], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24356'
+      static: '25284'
+      ratio: '0.963'
+    vmhwm:
+      dynamic: '24356'
+      static: '25284'
+      ratio: '0.963'
+  read_network:
+    vmrss:
+      dynamic: '205596'
+      static: '206216'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '205596'
+      static: '206216'
+      ratio: '0.997'
+  load_network:
+    vmrss:
+      dynamic: '409284'
+      static: '409356'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '409284'
+      static: '409356'
+      ratio: '1.0'
+  create_exenetwork:
+    vmrss:
+      dynamic: '409284'
+      static: '409356'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '409284'
+      static: '409356'
+      ratio: '1.0'
+  fill_inputs:
+    vmrss:
+      dynamic: '410176'
+      static: '410880'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '410688'
+      static: '410880'
+      ratio: '1.0'
+  first_inference:
+    vmrss:
+      dynamic: '420668'
+      static: '415164'
+      ratio: '1.013'
+    vmhwm:
+      dynamic: '420668'
+      static: '415164'
+      ratio: '1.013'
+  full_run:
+    vmrss:
+      dynamic: '420668'
+      static: '415164'
+      ratio: '1.013'
+    vmhwm:
+      dynamic: '420668'
+      static: '415164'
+      ratio: '1.013'
+  after_objects_release:
+    vmrss:
+      dynamic: '64160'
+      static: '67272'
+      ratio: '0.954'
+    vmhwm:
+      dynamic: '420668'
+      static: '415164'
+      ratio: '1.013'
+TF_ResNet_v1_152_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24772'
+      static: '25044'
+      ratio: '0.989'
+    vmhwm:
+      dynamic: '24772'
+      static: '25044'
+      ratio: '0.989'
+  read_network:
+    vmrss:
+      dynamic: '268856'
+      static: '268344'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '268856'
+      static: '268344'
+      ratio: '1.002'
+  load_network:
+    vmrss:
+      dynamic: '537356'
+      static: '538500'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '537356'
+      static: '538500'
+      ratio: '0.998'
+  create_exenetwork:
+    vmrss:
+      dynamic: '537356'
+      static: '538500'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '537356'
+      static: '538500'
+      ratio: '0.998'
+  fill_inputs:
+    vmrss:
+      dynamic: '538248'
+      static: '539904'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '538760'
+      static: '539904'
+      ratio: '0.998'
+  first_inference:
+    vmrss:
+      dynamic: '545616'
+      static: '544128'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '545616'
+      static: '544128'
+      ratio: '1.003'
+  full_run:
+    vmrss:
+      dynamic: '545616'
+      static: '544128'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '545616'
+      static: '544128'
+      ratio: '1.003'
+  after_objects_release:
+    vmrss:
+      dynamic: '72924'
+      static: '78660'
+      ratio: '0.927'
+    vmhwm:
+      dynamic: '545616'
+      static: '544128'
+      ratio: '1.003'
+TF_ResNet_v1_152_input_[1, [224, 448], [224, 448], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24372'
+      static: '25416'
+      ratio: '0.959'
+    vmhwm:
+      dynamic: '24372'
+      static: '25416'
+      ratio: '0.959'
+  read_network:
+    vmrss:
+      dynamic: '268620'
+      static: '268544'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '268620'
+      static: '268544'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '538780'
+      static: '538508'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '538780'
+      static: '538508'
+      ratio: '1.001'
+  create_exenetwork:
+    vmrss:
+      dynamic: '538780'
+      static: '538508'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '538780'
+      static: '538508'
+      ratio: '1.001'
+  fill_inputs:
+    vmrss:
+      dynamic: '539672'
+      static: '539912'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '540184'
+      static: '539912'
+      ratio: '1.001'
+  first_inference:
+    vmrss:
+      dynamic: '550160'
+      static: '544136'
+      ratio: '1.011'
+    vmhwm:
+      dynamic: '550160'
+      static: '544136'
+      ratio: '1.011'
+  full_run:
+    vmrss:
+      dynamic: '550160'
+      static: '544136'
+      ratio: '1.011'
+    vmhwm:
+      dynamic: '550160'
+      static: '544136'
+      ratio: '1.011'
+  after_objects_release:
+    vmrss:
+      dynamic: '73512'
+      static: '78436'
+      ratio: '0.937'
+    vmhwm:
+      dynamic: '550160'
+      static: '544136'
+      ratio: '1.011'
+TF_ResNet_v1_50_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24696'
+      static: '25392'
+      ratio: '0.973'
+    vmhwm:
+      dynamic: '24696'
+      static: '25392'
+      ratio: '0.973'
+  read_network:
+    vmrss:
+      dynamic: '130244'
+      static: '130260'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '130244'
+      static: '130260'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '252504'
+      static: '254016'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '252504'
+      static: '254016'
+      ratio: '0.994'
+  create_exenetwork:
+    vmrss:
+      dynamic: '252504'
+      static: '254016'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '252504'
+      static: '254016'
+      ratio: '0.994'
+  fill_inputs:
+    vmrss:
+      dynamic: '253396'
+      static: '255420'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '253908'
+      static: '255420'
+      ratio: '0.994'
+  first_inference:
+    vmrss:
+      dynamic: '260760'
+      static: '259380'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '260760'
+      static: '259380'
+      ratio: '1.005'
+  full_run:
+    vmrss:
+      dynamic: '260760'
+      static: '259380'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '260760'
+      static: '259380'
+      ratio: '1.005'
+  after_objects_release:
+    vmrss:
+      dynamic: '54860'
+      static: '60000'
+      ratio: '0.914'
+    vmhwm:
+      dynamic: '260760'
+      static: '259380'
+      ratio: '1.005'
+TF_ResNet_v1_50_input_[1, [224, 448], [224, 448], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24164'
+      static: '25660'
+      ratio: '0.942'
+    vmhwm:
+      dynamic: '24164'
+      static: '25660'
+      ratio: '0.942'
+  read_network:
+    vmrss:
+      dynamic: '129908'
+      static: '130464'
+      ratio: '0.996'
+    vmhwm:
+      dynamic: '129908'
+      static: '130464'
+      ratio: '0.996'
+  load_network:
+    vmrss:
+      dynamic: '254288'
+      static: '253844'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '254288'
+      static: '253844'
+      ratio: '1.002'
+  create_exenetwork:
+    vmrss:
+      dynamic: '254288'
+      static: '253844'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '254288'
+      static: '253844'
+      ratio: '1.002'
+  fill_inputs:
+    vmrss:
+      dynamic: '255180'
+      static: '255248'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '255692'
+      static: '255248'
+      ratio: '1.002'
+  first_inference:
+    vmrss:
+      dynamic: '265404'
+      static: '259208'
+      ratio: '1.024'
+    vmhwm:
+      dynamic: '265404'
+      static: '259208'
+      ratio: '1.024'
+  full_run:
+    vmrss:
+      dynamic: '265404'
+      static: '259208'
+      ratio: '1.024'
+    vmhwm:
+      dynamic: '265404'
+      static: '259208'
+      ratio: '1.024'
+  after_objects_release:
+    vmrss:
+      dynamic: '55488'
+      static: '59772'
+      ratio: '0.928'
+    vmhwm:
+      dynamic: '265404'
+      static: '259208'
+      ratio: '1.024'
+TF_ResNet_v2_101_input_[[1, 2], 299, 299, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24588'
+      static: '25048'
+      ratio: '0.982'
+    vmhwm:
+      dynamic: '24588'
+      static: '25048'
+      ratio: '0.982'
+  read_network:
+    vmrss:
+      dynamic: '207284'
+      static: '206768'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '207284'
+      static: '206768'
+      ratio: '1.002'
+  load_network:
+    vmrss:
+      dynamic: '412228'
+      static: '414512'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '412228'
+      static: '414512'
+      ratio: '0.994'
+  create_exenetwork:
+    vmrss:
+      dynamic: '412228'
+      static: '414512'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '412228'
+      static: '414512'
+      ratio: '0.994'
+  fill_inputs:
+    vmrss:
+      dynamic: '413704'
+      static: '416708'
+      ratio: '0.993'
+    vmhwm:
+      dynamic: '414544'
+      static: '416708'
+      ratio: '0.995'
+  first_inference:
+    vmrss:
+      dynamic: '433252'
+      static: '428580'
+      ratio: '1.011'
+    vmhwm:
+      dynamic: '433252'
+      static: '428580'
+      ratio: '1.011'
+  full_run:
+    vmrss:
+      dynamic: '433252'
+      static: '428580'
+      ratio: '1.011'
+    vmhwm:
+      dynamic: '433252'
+      static: '428580'
+      ratio: '1.011'
+  after_objects_release:
+    vmrss:
+      dynamic: '67856'
+      static: '197436'
+      ratio: '0.344'
+    vmhwm:
+      dynamic: '433252'
+      static: '428580'
+      ratio: '1.011'
+TF_ResNet_v2_101_input_[1, [299, 598], [299, 598], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24428'
+      static: '25044'
+      ratio: '0.975'
+    vmhwm:
+      dynamic: '24428'
+      static: '25044'
+      ratio: '0.975'
+  read_network:
+    vmrss:
+      dynamic: '206648'
+      static: '206772'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '206648'
+      static: '206772'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '414096'
+      static: '414512'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '414096'
+      static: '414512'
+      ratio: '0.999'
+  create_exenetwork:
+    vmrss:
+      dynamic: '414096'
+      static: '414512'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '414096'
+      static: '414512'
+      ratio: '0.999'
+  fill_inputs:
+    vmrss:
+      dynamic: '415444'
+      static: '416708'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '416292'
+      static: '416708'
+      ratio: '0.999'
+  first_inference:
+    vmrss:
+      dynamic: '436804'
+      static: '428580'
+      ratio: '1.019'
+    vmhwm:
+      dynamic: '436804'
+      static: '428580'
+      ratio: '1.019'
+  full_run:
+    vmrss:
+      dynamic: '436804'
+      static: '428580'
+      ratio: '1.019'
+    vmhwm:
+      dynamic: '436804'
+      static: '428580'
+      ratio: '1.019'
+  after_objects_release:
+    vmrss:
+      dynamic: '66660'
+      static: '197436'
+      ratio: '0.338'
+    vmhwm:
+      dynamic: '436804'
+      static: '428580'
+      ratio: '1.019'
+TF_ResNet_v2_152_input_[[1, 2], 299, 299, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24588'
+      static: '25392'
+      ratio: '0.968'
+    vmhwm:
+      dynamic: '24588'
+      static: '25392'
+      ratio: '0.968'
+  read_network:
+    vmrss:
+      dynamic: '270496'
+      static: '270284'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '270496'
+      static: '270328'
+      ratio: '1.001'
+  load_network:
+    vmrss:
+      dynamic: '542760'
+      static: '546060'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '542760'
+      static: '546060'
+      ratio: '0.994'
+  create_exenetwork:
+    vmrss:
+      dynamic: '542760'
+      static: '546060'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '542760'
+      static: '546060'
+      ratio: '0.994'
+  fill_inputs:
+    vmrss:
+      dynamic: '544236'
+      static: '548256'
+      ratio: '0.993'
+    vmhwm:
+      dynamic: '545076'
+      static: '548256'
+      ratio: '0.994'
+  first_inference:
+    vmrss:
+      dynamic: '562728'
+      static: '560128'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '562728'
+      static: '560128'
+      ratio: '1.005'
+  full_run:
+    vmrss:
+      dynamic: '562728'
+      static: '560128'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '562728'
+      static: '560128'
+      ratio: '1.005'
+  after_objects_release:
+    vmrss:
+      dynamic: '83804'
+      static: '267840'
+      ratio: '0.313'
+    vmhwm:
+      dynamic: '562728'
+      static: '560128'
+      ratio: '1.005'
+TF_ResNet_v2_152_input_[1, [299, 598], [299, 598], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24388'
+      static: '25208'
+      ratio: '0.967'
+    vmhwm:
+      dynamic: '24388'
+      static: '25208'
+      ratio: '0.967'
+  read_network:
+    vmrss:
+      dynamic: '270080'
+      static: '270080'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '270080'
+      static: '270080'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '545208'
+      static: '546076'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '545208'
+      static: '546076'
+      ratio: '0.998'
+  create_exenetwork:
+    vmrss:
+      dynamic: '545208'
+      static: '546076'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '545208'
+      static: '546076'
+      ratio: '0.998'
+  fill_inputs:
+    vmrss:
+      dynamic: '546556'
+      static: '548272'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '547404'
+      static: '548272'
+      ratio: '0.998'
+  first_inference:
+    vmrss:
+      dynamic: '568080'
+      static: '560208'
+      ratio: '1.014'
+    vmhwm:
+      dynamic: '568080'
+      static: '560208'
+      ratio: '1.014'
+  full_run:
+    vmrss:
+      dynamic: '568080'
+      static: '560208'
+      ratio: '1.014'
+    vmhwm:
+      dynamic: '568080'
+      static: '560208'
+      ratio: '1.014'
+  after_objects_release:
+    vmrss:
+      dynamic: '83368'
+      static: '267780'
+      ratio: '0.311'
+    vmhwm:
+      dynamic: '568080'
+      static: '560208'
+      ratio: '1.014'
+TF_ResNet_v2_50_input_[[1, 2], 299, 299, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24772'
+      static: '25392'
+      ratio: '0.976'
+    vmhwm:
+      dynamic: '24772'
+      static: '25392'
+      ratio: '0.976'
+  read_network:
+    vmrss:
+      dynamic: '130992'
+      static: '130780'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '130992'
+      static: '130780'
+      ratio: '1.002'
+  load_network:
+    vmrss:
+      dynamic: '255124'
+      static: '257388'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '255124'
+      static: '257388'
+      ratio: '0.991'
+  create_exenetwork:
+    vmrss:
+      dynamic: '255124'
+      static: '257388'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '255124'
+      static: '257388'
+      ratio: '0.991'
+  fill_inputs:
+    vmrss:
+      dynamic: '256472'
+      static: '259584'
+      ratio: '0.988'
+    vmhwm:
+      dynamic: '257320'
+      static: '259584'
+      ratio: '0.991'
+  first_inference:
+    vmrss:
+      dynamic: '274192'
+      static: '271456'
+      ratio: '1.01'
+    vmhwm:
+      dynamic: '274192'
+      static: '271456'
+      ratio: '1.01'
+  full_run:
+    vmrss:
+      dynamic: '274192'
+      static: '271456'
+      ratio: '1.01'
+    vmhwm:
+      dynamic: '274192'
+      static: '271456'
+      ratio: '1.01'
+  after_objects_release:
+    vmrss:
+      dynamic: '56520'
+      static: '114512'
+      ratio: '0.494'
+    vmhwm:
+      dynamic: '274192'
+      static: '271456'
+      ratio: '1.01'
+TF_ResNet_v2_50_input_[1, [299, 598], [299, 598], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24356'
+      static: '25364'
+      ratio: '0.96'
+    vmhwm:
+      dynamic: '24356'
+      static: '25364'
+      ratio: '0.96'
+  read_network:
+    vmrss:
+      dynamic: '130380'
+      static: '130796'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '130380'
+      static: '130796'
+      ratio: '0.997'
+  load_network:
+    vmrss:
+      dynamic: '257520'
+      static: '256988'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '257520'
+      static: '256988'
+      ratio: '1.002'
+  create_exenetwork:
+    vmrss:
+      dynamic: '257520'
+      static: '256988'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '257520'
+      static: '256988'
+      ratio: '1.002'
+  fill_inputs:
+    vmrss:
+      dynamic: '258868'
+      static: '259184'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '259716'
+      static: '259184'
+      ratio: '1.002'
+  first_inference:
+    vmrss:
+      dynamic: '280244'
+      static: '271120'
+      ratio: '1.034'
+    vmhwm:
+      dynamic: '280244'
+      static: '271120'
+      ratio: '1.034'
+  full_run:
+    vmrss:
+      dynamic: '280244'
+      static: '271120'
+      ratio: '1.034'
+    vmhwm:
+      dynamic: '280244'
+      static: '271120'
+      ratio: '1.034'
+  after_objects_release:
+    vmrss:
+      dynamic: '56760'
+      static: '114232'
+      ratio: '0.497'
+    vmhwm:
+      dynamic: '280244'
+      static: '271120'
+      ratio: '1.034'
+TF_STN_input_2_[[1, 2], 60, 60, 1]:
+  load_plugin:
+    vmrss:
+      dynamic: '24372'
+      static: '25476'
+      ratio: '0.957'
+    vmhwm:
+      dynamic: '24372'
+      static: '25476'
+      ratio: '0.957'
+  read_network:
+    vmrss:
+      dynamic: '32664'
+      static: '32952'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '32664'
+      static: '32952'
+      ratio: '0.991'
+  load_network:
+    vmrss:
+      dynamic: '53232'
+      static: '53996'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '53232'
+      static: '53996'
+      ratio: '0.986'
+  create_exenetwork:
+    vmrss:
+      dynamic: '53232'
+      static: '53996'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '53232'
+      static: '53996'
+      ratio: '0.986'
+  fill_inputs:
+    vmrss:
+      dynamic: '53232'
+      static: '53996'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '53232'
+      static: '53996'
+      ratio: '0.986'
+  first_inference:
+    vmrss:
+      dynamic: '60636'
+      static: '57964'
+      ratio: '1.046'
+    vmhwm:
+      dynamic: '60636'
+      static: '57964'
+      ratio: '1.046'
+  full_run:
+    vmrss:
+      dynamic: '60636'
+      static: '57964'
+      ratio: '1.046'
+    vmhwm:
+      dynamic: '60636'
+      static: '57964'
+      ratio: '1.046'
+  after_objects_release:
+    vmrss:
+      dynamic: '57920'
+      static: '55256'
+      ratio: '1.048'
+    vmhwm:
+      dynamic: '60748'
+      static: '57964'
+      ratio: '1.048'
+TF_SqueezeNet_v1_1_Placeholder_[1, [224, 448], [224, 448], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24696'
+      static: '25212'
+      ratio: '0.98'
+    vmhwm:
+      dynamic: '24696'
+      static: '25212'
+      ratio: '0.98'
+  read_network:
+    vmrss:
+      dynamic: '33916'
+      static: '33592'
+      ratio: '1.01'
+    vmhwm:
+      dynamic: '33916'
+      static: '33592'
+      ratio: '1.01'
+  load_network:
+    vmrss:
+      dynamic: '60156'
+      static: '60744'
+      ratio: '0.99'
+    vmhwm:
+      dynamic: '60156'
+      static: '60744'
+      ratio: '0.99'
+  create_exenetwork:
+    vmrss:
+      dynamic: '60156'
+      static: '60744'
+      ratio: '0.99'
+    vmhwm:
+      dynamic: '60156'
+      static: '60744'
+      ratio: '0.99'
+  fill_inputs:
+    vmrss:
+      dynamic: '61048'
+      static: '62148'
+      ratio: '0.982'
+    vmhwm:
+      dynamic: '61560'
+      static: '62148'
+      ratio: '0.991'
+  first_inference:
+    vmrss:
+      dynamic: '74692'
+      static: '67480'
+      ratio: '1.107'
+    vmhwm:
+      dynamic: '74692'
+      static: '67480'
+      ratio: '1.107'
+  full_run:
+    vmrss:
+      dynamic: '74692'
+      static: '67480'
+      ratio: '1.107'
+    vmhwm:
+      dynamic: '74692'
+      static: '67480'
+      ratio: '1.107'
+  after_objects_release:
+    vmrss:
+      dynamic: '51208'
+      static: '53892'
+      ratio: '0.95'
+    vmhwm:
+      dynamic: '74692'
+      static: '67480'
+      ratio: '1.107'
+TF_Ssd_MobileNet_v1_coco_quantized_finetuned_image_tensor_[[1, 2], 300, 300, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24592'
+      static: '25000'
+      ratio: '0.984'
+    vmhwm:
+      dynamic: '24592'
+      static: '25000'
+      ratio: '0.984'
+  read_network:
+    vmrss:
+      dynamic: '40652'
+      static: '40092'
+      ratio: '1.014'
+    vmhwm:
+      dynamic: '40908'
+      static: '40348'
+      ratio: '1.014'
+  load_network:
+    vmrss:
+      dynamic: '120456'
+      static: '130216'
+      ratio: '0.925'
+    vmhwm:
+      dynamic: '120456'
+      static: '130216'
+      ratio: '0.925'
+  create_exenetwork:
+    vmrss:
+      dynamic: '120456'
+      static: '130216'
+      ratio: '0.925'
+    vmhwm:
+      dynamic: '120456'
+      static: '130216'
+      ratio: '0.925'
+  fill_inputs:
+    vmrss:
+      dynamic: '120456'
+      static: '130216'
+      ratio: '0.925'
+    vmhwm:
+      dynamic: '120456'
+      static: '130216'
+      ratio: '0.925'
+  first_inference:
+    vmrss:
+      dynamic: '139520'
+      static: '136996'
+      ratio: '1.018'
+    vmhwm:
+      dynamic: '139520'
+      static: '136996'
+      ratio: '1.018'
+  full_run:
+    vmrss:
+      dynamic: '139520'
+      static: '136996'
+      ratio: '1.018'
+    vmhwm:
+      dynamic: '139520'
+      static: '136996'
+      ratio: '1.018'
+  after_objects_release:
+    vmrss:
+      dynamic: '66756'
+      static: '75032'
+      ratio: '0.89'
+    vmhwm:
+      dynamic: '139520'
+      static: '136996'
+      ratio: '1.018'
+TF_Ssd_MobileNet_v1_coco_quantized_finetuned_image_tensor_[1, [300, 600], [300, 600], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24768'
+      static: '25144'
+      ratio: '0.985'
+    vmhwm:
+      dynamic: '24768'
+      static: '25144'
+      ratio: '0.985'
+  read_network:
+    vmrss:
+      dynamic: '40172'
+      static: '40400'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '40172'
+      static: '40784'
+      ratio: '0.985'
+  load_network:
+    vmrss:
+      dynamic: '120980'
+      static: '130348'
+      ratio: '0.928'
+    vmhwm:
+      dynamic: '120980'
+      static: '130348'
+      ratio: '0.928'
+  create_exenetwork:
+    vmrss:
+      dynamic: '120980'
+      static: '130348'
+      ratio: '0.928'
+    vmhwm:
+      dynamic: '120980'
+      static: '130348'
+      ratio: '0.928'
+  fill_inputs:
+    vmrss:
+      dynamic: '120980'
+      static: '130348'
+      ratio: '0.928'
+    vmhwm:
+      dynamic: '120980'
+      static: '130348'
+      ratio: '0.928'
+  first_inference:
+    vmrss:
+      dynamic: '141420'
+      static: '137460'
+      ratio: '1.029'
+    vmhwm:
+      dynamic: '141420'
+      static: '137460'
+      ratio: '1.029'
+  full_run:
+    vmrss:
+      dynamic: '141420'
+      static: '137460'
+      ratio: '1.029'
+    vmhwm:
+      dynamic: '141420'
+      static: '137460'
+      ratio: '1.029'
+  after_objects_release:
+    vmrss:
+      dynamic: '66876'
+      static: '75516'
+      ratio: '0.886'
+    vmhwm:
+      dynamic: '141420'
+      static: '137460'
+      ratio: '1.029'
+TF_Ssd_Mobilenet_v1_coco_image_tensor_[[1, 2], 300, 300, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24424'
+      static: '25612'
+      ratio: '0.954'
+    vmhwm:
+      dynamic: '24424'
+      static: '25612'
+      ratio: '0.954'
+  read_network:
+    vmrss:
+      dynamic: '57728'
+      static: '58260'
+      ratio: '0.991'
+    vmhwm:
+      dynamic: '57728'
+      static: '58260'
+      ratio: '0.991'
+  load_network:
+    vmrss:
+      dynamic: '105988'
+      static: '114452'
+      ratio: '0.926'
+    vmhwm:
+      dynamic: '105988'
+      static: '114452'
+      ratio: '0.926'
+  create_exenetwork:
+    vmrss:
+      dynamic: '105988'
+      static: '114452'
+      ratio: '0.926'
+    vmhwm:
+      dynamic: '105988'
+      static: '114452'
+      ratio: '0.926'
+  fill_inputs:
+    vmrss:
+      dynamic: '105988'
+      static: '114452'
+      ratio: '0.926'
+    vmhwm:
+      dynamic: '105988'
+      static: '114452'
+      ratio: '0.926'
+  first_inference:
+    vmrss:
+      dynamic: '125760'
+      static: '122492'
+      ratio: '1.027'
+    vmhwm:
+      dynamic: '125760'
+      static: '122492'
+      ratio: '1.027'
+  full_run:
+    vmrss:
+      dynamic: '125760'
+      static: '122492'
+      ratio: '1.027'
+    vmhwm:
+      dynamic: '125760'
+      static: '122492'
+      ratio: '1.027'
+  after_objects_release:
+    vmrss:
+      dynamic: '55604'
+      static: '61640'
+      ratio: '0.902'
+    vmhwm:
+      dynamic: '125760'
+      static: '122492'
+      ratio: '1.027'
+TF_Ssd_Mobilenet_v1_coco_image_tensor_[1, [300, 600], [300, 600], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24932'
+      static: '25404'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '24932'
+      static: '25404'
+      ratio: '0.981'
+  read_network:
+    vmrss:
+      dynamic: '58260'
+      static: '57784'
+      ratio: '1.008'
+    vmhwm:
+      dynamic: '58260'
+      static: '57784'
+      ratio: '1.008'
+  load_network:
+    vmrss:
+      dynamic: '106552'
+      static: '114476'
+      ratio: '0.931'
+    vmhwm:
+      dynamic: '106552'
+      static: '114476'
+      ratio: '0.931'
+  create_exenetwork:
+    vmrss:
+      dynamic: '106552'
+      static: '114476'
+      ratio: '0.931'
+    vmhwm:
+      dynamic: '106552'
+      static: '114476'
+      ratio: '0.931'
+  fill_inputs:
+    vmrss:
+      dynamic: '106552'
+      static: '114476'
+      ratio: '0.931'
+    vmhwm:
+      dynamic: '106552'
+      static: '114476'
+      ratio: '0.931'
+  first_inference:
+    vmrss:
+      dynamic: '128488'
+      static: '122516'
+      ratio: '1.049'
+    vmhwm:
+      dynamic: '128488'
+      static: '122516'
+      ratio: '1.049'
+  full_run:
+    vmrss:
+      dynamic: '128488'
+      static: '122516'
+      ratio: '1.049'
+    vmhwm:
+      dynamic: '128488'
+      static: '122516'
+      ratio: '1.049'
+  after_objects_release:
+    vmrss:
+      dynamic: '55760'
+      static: '61676'
+      ratio: '0.904'
+    vmhwm:
+      dynamic: '128488'
+      static: '122516'
+      ratio: '1.049'
+TF_Ssd_Mobilenet_v2_coco_image_tensor_[[1, 2], 300, 300, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25084'
+      static: '25828'
+      ratio: '0.971'
+    vmhwm:
+      dynamic: '25084'
+      static: '25828'
+      ratio: '0.971'
+  read_network:
+    vmrss:
+      dynamic: '98312'
+      static: '98312'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '98312'
+      static: '98312'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '188696'
+      static: '197360'
+      ratio: '0.956'
+    vmhwm:
+      dynamic: '188696'
+      static: '197360'
+      ratio: '0.956'
+  create_exenetwork:
+    vmrss:
+      dynamic: '188696'
+      static: '197360'
+      ratio: '0.956'
+    vmhwm:
+      dynamic: '188696'
+      static: '197360'
+      ratio: '0.956'
+  fill_inputs:
+    vmrss:
+      dynamic: '188696'
+      static: '197360'
+      ratio: '0.956'
+    vmhwm:
+      dynamic: '188696'
+      static: '197360'
+      ratio: '0.956'
+  first_inference:
+    vmrss:
+      dynamic: '208892'
+      static: '208260'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '208892'
+      static: '208260'
+      ratio: '1.003'
+  full_run:
+    vmrss:
+      dynamic: '208892'
+      static: '208260'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '208892'
+      static: '208260'
+      ratio: '1.003'
+  after_objects_release:
+    vmrss:
+      dynamic: '62472'
+      static: '70672'
+      ratio: '0.884'
+    vmhwm:
+      dynamic: '208892'
+      static: '208260'
+      ratio: '1.003'
+TF_Ssd_Mobilenet_v2_coco_image_tensor_[1, [300, 600], [300, 600], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24932'
+      static: '25076'
+      ratio: '0.994'
+    vmhwm:
+      dynamic: '24932'
+      static: '25076'
+      ratio: '0.994'
+  read_network:
+    vmrss:
+      dynamic: '98220'
+      static: '97640'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '98220'
+      static: '97640'
+      ratio: '1.006'
+  load_network:
+    vmrss:
+      dynamic: '189596'
+      static: '197096'
+      ratio: '0.962'
+    vmhwm:
+      dynamic: '189596'
+      static: '197096'
+      ratio: '0.962'
+  create_exenetwork:
+    vmrss:
+      dynamic: '189596'
+      static: '197096'
+      ratio: '0.962'
+    vmhwm:
+      dynamic: '189596'
+      static: '197096'
+      ratio: '0.962'
+  fill_inputs:
+    vmrss:
+      dynamic: '189596'
+      static: '197096'
+      ratio: '0.962'
+    vmhwm:
+      dynamic: '189596'
+      static: '197096'
+      ratio: '0.962'
+  first_inference:
+    vmrss:
+      dynamic: '214696'
+      static: '208216'
+      ratio: '1.031'
+    vmhwm:
+      dynamic: '214696'
+      static: '208216'
+      ratio: '1.031'
+  full_run:
+    vmrss:
+      dynamic: '214696'
+      static: '208216'
+      ratio: '1.031'
+    vmhwm:
+      dynamic: '214696'
+      static: '208216'
+      ratio: '1.031'
+  after_objects_release:
+    vmrss:
+      dynamic: '62916'
+      static: '70608'
+      ratio: '0.891'
+    vmhwm:
+      dynamic: '214696'
+      static: '208216'
+      ratio: '1.031'
+TF_VGG16_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25400'
+      static: '25472'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '25400'
+      static: '25472'
+      ratio: '0.997'
+  read_network:
+    vmrss:
+      dynamic: '569044'
+      static: '569372'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '569044'
+      static: '569372'
+      ratio: '0.999'
+  load_network:
+    vmrss:
+      dynamic: '1127676'
+      static: '1128312'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '1127676'
+      static: '1128312'
+      ratio: '0.999'
+  create_exenetwork:
+    vmrss:
+      dynamic: '1127676'
+      static: '1128312'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '1127676'
+      static: '1128312'
+      ratio: '0.999'
+  fill_inputs:
+    vmrss:
+      dynamic: '1127976'
+      static: '1129716'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '1128552'
+      static: '1129716'
+      ratio: '0.999'
+  first_inference:
+    vmrss:
+      dynamic: '1160752'
+      static: '1154532'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '1160752'
+      static: '1154532'
+      ratio: '1.005'
+  full_run:
+    vmrss:
+      dynamic: '1160752'
+      static: '1154532'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '1160752'
+      static: '1154532'
+      ratio: '1.005'
+  after_objects_release:
+    vmrss:
+      dynamic: '47284'
+      static: '48268'
+      ratio: '0.98'
+    vmhwm:
+      dynamic: '1160752'
+      static: '1154532'
+      ratio: '1.005'
+TF_VGG19_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25396'
+      static: '25136'
+      ratio: '1.01'
+    vmhwm:
+      dynamic: '25396'
+      static: '25136'
+      ratio: '1.01'
+  read_network:
+    vmrss:
+      dynamic: '589888'
+      static: '589796'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '589888'
+      static: '589796'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '1169628'
+      static: '1170312'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '1169628'
+      static: '1170312'
+      ratio: '0.999'
+  create_exenetwork:
+    vmrss:
+      dynamic: '1169628'
+      static: '1170312'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '1169628'
+      static: '1170312'
+      ratio: '0.999'
+  fill_inputs:
+    vmrss:
+      dynamic: '1170520'
+      static: '1171716'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '1171032'
+      static: '1171716'
+      ratio: '0.999'
+  first_inference:
+    vmrss:
+      dynamic: '1203296'
+      static: '1196328'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '1203296'
+      static: '1196328'
+      ratio: '1.006'
+  full_run:
+    vmrss:
+      dynamic: '1203296'
+      static: '1196328'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '1203296'
+      static: '1196328'
+      ratio: '1.006'
+  after_objects_release:
+    vmrss:
+      dynamic: '47636'
+      static: '48576'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '1203296'
+      static: '1196328'
+      ratio: '1.006'
+TF_YOLO_V2_Full_input_[[1, 2], 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24356'
+      static: '25284'
+      ratio: '0.963'
+    vmhwm:
+      dynamic: '24356'
+      static: '25284'
+      ratio: '0.963'
+  read_network:
+    vmrss:
+      dynamic: '226184'
+      static: '226772'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '226184'
+      static: '226772'
+      ratio: '0.997'
+  load_network:
+    vmrss:
+      dynamic: '447564'
+      static: '446640'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '447564'
+      static: '446640'
+      ratio: '1.002'
+  create_exenetwork:
+    vmrss:
+      dynamic: '447564'
+      static: '446640'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '447564'
+      static: '446640'
+      ratio: '1.002'
+  fill_inputs:
+    vmrss:
+      dynamic: '449896'
+      static: '451068'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '451872'
+      static: '451068'
+      ratio: '1.002'
+  first_inference:
+    vmrss:
+      dynamic: '480708'
+      static: '475680'
+      ratio: '1.011'
+    vmhwm:
+      dynamic: '480708'
+      static: '475680'
+      ratio: '1.011'
+  full_run:
+    vmrss:
+      dynamic: '480708'
+      static: '475680'
+      ratio: '1.011'
+    vmhwm:
+      dynamic: '480708'
+      static: '475680'
+      ratio: '1.011'
+  after_objects_release:
+    vmrss:
+      dynamic: '49412'
+      static: '53696'
+      ratio: '0.92'
+    vmhwm:
+      dynamic: '480708'
+      static: '475680'
+      ratio: '1.011'
+TF_YOLO_V2_Full_input_[1, [416, 832], [416, 832], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24160'
+      static: '25476'
+      ratio: '0.948'
+    vmhwm:
+      dynamic: '24160'
+      static: '25476'
+      ratio: '0.948'
+  read_network:
+    vmrss:
+      dynamic: '226236'
+      static: '226900'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '226236'
+      static: '226900'
+      ratio: '0.997'
+  load_network:
+    vmrss:
+      dynamic: '451780'
+      static: '446404'
+      ratio: '1.012'
+    vmhwm:
+      dynamic: '451780'
+      static: '446404'
+      ratio: '1.012'
+  create_exenetwork:
+    vmrss:
+      dynamic: '451780'
+      static: '446404'
+      ratio: '1.012'
+    vmhwm:
+      dynamic: '451780'
+      static: '446404'
+      ratio: '1.012'
+  fill_inputs:
+    vmrss:
+      dynamic: '454112'
+      static: '450712'
+      ratio: '1.008'
+    vmhwm:
+      dynamic: '456088'
+      static: '450712'
+      ratio: '1.012'
+  first_inference:
+    vmrss:
+      dynamic: '496132'
+      static: '475528'
+      ratio: '1.043'
+    vmhwm:
+      dynamic: '496132'
+      static: '475528'
+      ratio: '1.043'
+  full_run:
+    vmrss:
+      dynamic: '496132'
+      static: '475528'
+      ratio: '1.043'
+    vmhwm:
+      dynamic: '496132'
+      static: '475528'
+      ratio: '1.043'
+  after_objects_release:
+    vmrss:
+      dynamic: '50512'
+      static: '53624'
+      ratio: '0.942'
+    vmhwm:
+      dynamic: '496132'
+      static: '475528'
+      ratio: '1.043'
+TF_YOLO_V2_Full_No_Region_input_[[1, 2], 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24164'
+      static: '25048'
+      ratio: '0.965'
+    vmhwm:
+      dynamic: '24164'
+      static: '25048'
+      ratio: '0.965'
+  read_network:
+    vmrss:
+      dynamic: '179776'
+      static: '179816'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '179776'
+      static: '179816'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '353360'
+      static: '352432'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '353360'
+      static: '352432'
+      ratio: '1.003'
+  create_exenetwork:
+    vmrss:
+      dynamic: '353360'
+      static: '352432'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '353360'
+      static: '352432'
+      ratio: '1.003'
+  fill_inputs:
+    vmrss:
+      dynamic: '355692'
+      static: '356740'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '357668'
+      static: '356740'
+      ratio: '1.003'
+  first_inference:
+    vmrss:
+      dynamic: '388060'
+      static: '382348'
+      ratio: '1.015'
+    vmhwm:
+      dynamic: '388060'
+      static: '382348'
+      ratio: '1.015'
+  full_run:
+    vmrss:
+      dynamic: '388060'
+      static: '382348'
+      ratio: '1.015'
+    vmhwm:
+      dynamic: '388060'
+      static: '382348'
+      ratio: '1.015'
+  after_objects_release:
+    vmrss:
+      dynamic: '49028'
+      static: '53012'
+      ratio: '0.925'
+    vmhwm:
+      dynamic: '388060'
+      static: '382348'
+      ratio: '1.015'
+TF_YOLO_V2_Full_No_Region_input_[1, [416, 832], [416, 832], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24784'
+      static: '25476'
+      ratio: '0.973'
+    vmhwm:
+      dynamic: '24784'
+      static: '25476'
+      ratio: '0.973'
+  read_network:
+    vmrss:
+      dynamic: '180444'
+      static: '180436'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '180444'
+      static: '180436'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '357304'
+      static: '352244'
+      ratio: '1.014'
+    vmhwm:
+      dynamic: '357304'
+      static: '352244'
+      ratio: '1.014'
+  create_exenetwork:
+    vmrss:
+      dynamic: '357304'
+      static: '352244'
+      ratio: '1.014'
+    vmhwm:
+      dynamic: '357304'
+      static: '352244'
+      ratio: '1.014'
+  fill_inputs:
+    vmrss:
+      dynamic: '359636'
+      static: '356552'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '361612'
+      static: '356552'
+      ratio: '1.014'
+  first_inference:
+    vmrss:
+      dynamic: '402384'
+      static: '382220'
+      ratio: '1.053'
+    vmhwm:
+      dynamic: '402384'
+      static: '382220'
+      ratio: '1.053'
+  full_run:
+    vmrss:
+      dynamic: '402384'
+      static: '382220'
+      ratio: '1.053'
+    vmhwm:
+      dynamic: '402384'
+      static: '382220'
+      ratio: '1.053'
+  after_objects_release:
+    vmrss:
+      dynamic: '49676'
+      static: '52708'
+      ratio: '0.942'
+    vmhwm:
+      dynamic: '402384'
+      static: '382220'
+      ratio: '1.053'
+TF_YOLO_V2_Tiny_input_[[1, 2], 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24776'
+      static: '25816'
+      ratio: '0.96'
+    vmhwm:
+      dynamic: '24776'
+      static: '25816'
+      ratio: '0.96'
+  read_network:
+    vmrss:
+      dynamic: '90696'
+      static: '90980'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '90696'
+      static: '90980'
+      ratio: '0.997'
+  load_network:
+    vmrss:
+      dynamic: '173812'
+      static: '172420'
+      ratio: '1.008'
+    vmhwm:
+      dynamic: '173812'
+      static: '172420'
+      ratio: '1.008'
+  create_exenetwork:
+    vmrss:
+      dynamic: '173812'
+      static: '172420'
+      ratio: '1.008'
+    vmhwm:
+      dynamic: '173812'
+      static: '172420'
+      ratio: '1.008'
+  fill_inputs:
+    vmrss:
+      dynamic: '176144'
+      static: '176728'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '178120'
+      static: '176728'
+      ratio: '1.008'
+  first_inference:
+    vmrss:
+      dynamic: '191984'
+      static: '188080'
+      ratio: '1.021'
+    vmhwm:
+      dynamic: '191984'
+      static: '188080'
+      ratio: '1.021'
+  full_run:
+    vmrss:
+      dynamic: '191984'
+      static: '188080'
+      ratio: '1.021'
+    vmhwm:
+      dynamic: '191984'
+      static: '188080'
+      ratio: '1.021'
+  after_objects_release:
+    vmrss:
+      dynamic: '46948'
+      static: '48692'
+      ratio: '0.964'
+    vmhwm:
+      dynamic: '191984'
+      static: '188080'
+      ratio: '1.021'
+TF_YOLO_V2_Tiny_input_[1, [416, 832], [416, 832], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24164'
+      static: '25120'
+      ratio: '0.962'
+    vmhwm:
+      dynamic: '24164'
+      static: '25120'
+      ratio: '0.962'
+  read_network:
+    vmrss:
+      dynamic: '90016'
+      static: '90252'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '90016'
+      static: '90252'
+      ratio: '0.997'
+  load_network:
+    vmrss:
+      dynamic: '177852'
+      static: '172204'
+      ratio: '1.033'
+    vmhwm:
+      dynamic: '177852'
+      static: '172204'
+      ratio: '1.033'
+  create_exenetwork:
+    vmrss:
+      dynamic: '177852'
+      static: '172204'
+      ratio: '1.033'
+    vmhwm:
+      dynamic: '177852'
+      static: '172204'
+      ratio: '1.033'
+  fill_inputs:
+    vmrss:
+      dynamic: '180184'
+      static: '176632'
+      ratio: '1.02'
+    vmhwm:
+      dynamic: '182160'
+      static: '176632'
+      ratio: '1.031'
+  first_inference:
+    vmrss:
+      dynamic: '202224'
+      static: '188308'
+      ratio: '1.074'
+    vmhwm:
+      dynamic: '202224'
+      static: '188308'
+      ratio: '1.074'
+  full_run:
+    vmrss:
+      dynamic: '202224'
+      static: '188308'
+      ratio: '1.074'
+    vmhwm:
+      dynamic: '202224'
+      static: '188308'
+      ratio: '1.074'
+  after_objects_release:
+    vmrss:
+      dynamic: '47452'
+      static: '48904'
+      ratio: '0.97'
+    vmhwm:
+      dynamic: '202224'
+      static: '188308'
+      ratio: '1.074'
+TF_YOLO_V2_Tiny_No_Region_input_[[1, 2], 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24760'
+      static: '25172'
+      ratio: '0.984'
+    vmhwm:
+      dynamic: '24760'
+      static: '25172'
+      ratio: '0.984'
+  read_network:
+    vmrss:
+      dynamic: '90296'
+      static: '90064'
+      ratio: '1.003'
+    vmhwm:
+      dynamic: '90296'
+      static: '90064'
+      ratio: '1.003'
+  load_network:
+    vmrss:
+      dynamic: '172944'
+      static: '172308'
+      ratio: '1.004'
+    vmhwm:
+      dynamic: '172944'
+      static: '172308'
+      ratio: '1.004'
+  create_exenetwork:
+    vmrss:
+      dynamic: '172944'
+      static: '172308'
+      ratio: '1.004'
+    vmhwm:
+      dynamic: '172944'
+      static: '172308'
+      ratio: '1.004'
+  fill_inputs:
+    vmrss:
+      dynamic: '175276'
+      static: '176616'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '177252'
+      static: '176616'
+      ratio: '1.004'
+  first_inference:
+    vmrss:
+      dynamic: '191480'
+      static: '188292'
+      ratio: '1.017'
+    vmhwm:
+      dynamic: '191480'
+      static: '188292'
+      ratio: '1.017'
+  full_run:
+    vmrss:
+      dynamic: '191480'
+      static: '188292'
+      ratio: '1.017'
+    vmhwm:
+      dynamic: '191480'
+      static: '188292'
+      ratio: '1.017'
+  after_objects_release:
+    vmrss:
+      dynamic: '46668'
+      static: '48892'
+      ratio: '0.955'
+    vmhwm:
+      dynamic: '191480'
+      static: '188292'
+      ratio: '1.017'
+TF_YOLO_V2_Tiny_No_Region_input_[1, [416, 832], [416, 832], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24776'
+      static: '25124'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '24776'
+      static: '25124'
+      ratio: '0.986'
+  read_network:
+    vmrss:
+      dynamic: '90696'
+      static: '90252'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '90696'
+      static: '90252'
+      ratio: '1.005'
+  load_network:
+    vmrss:
+      dynamic: '177236'
+      static: '172024'
+      ratio: '1.03'
+    vmhwm:
+      dynamic: '177236'
+      static: '172024'
+      ratio: '1.03'
+  create_exenetwork:
+    vmrss:
+      dynamic: '177236'
+      static: '172024'
+      ratio: '1.03'
+    vmhwm:
+      dynamic: '177236'
+      static: '172024'
+      ratio: '1.03'
+  fill_inputs:
+    vmrss:
+      dynamic: '179568'
+      static: '176452'
+      ratio: '1.018'
+    vmhwm:
+      dynamic: '181544'
+      static: '176452'
+      ratio: '1.029'
+  first_inference:
+    vmrss:
+      dynamic: '202304'
+      static: '188128'
+      ratio: '1.075'
+    vmhwm:
+      dynamic: '202304'
+      static: '188128'
+      ratio: '1.075'
+  full_run:
+    vmrss:
+      dynamic: '202304'
+      static: '188128'
+      ratio: '1.075'
+    vmhwm:
+      dynamic: '202304'
+      static: '188128'
+      ratio: '1.075'
+  after_objects_release:
+    vmrss:
+      dynamic: '47284'
+      static: '48640'
+      ratio: '0.972'
+    vmhwm:
+      dynamic: '202304'
+      static: '188128'
+      ratio: '1.075'
+TF_YOLO_V3_Full_inputs_[[1, 2], 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24696'
+      static: '25220'
+      ratio: '0.979'
+    vmhwm:
+      dynamic: '24696'
+      static: '25220'
+      ratio: '0.979'
+  read_network:
+    vmrss:
+      dynamic: '273528'
+      static: '273416'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '273528'
+      static: '273416'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '544080'
+      static: '543696'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '544080'
+      static: '543696'
+      ratio: '1.001'
+  create_exenetwork:
+    vmrss:
+      dynamic: '544080'
+      static: '543696'
+      ratio: '1.001'
+    vmhwm:
+      dynamic: '544080'
+      static: '543696'
+      ratio: '1.001'
+  fill_inputs:
+    vmrss:
+      dynamic: '546412'
+      static: '548004'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '548388'
+      static: '548004'
+      ratio: '1.001'
+  first_inference:
+    vmrss:
+      dynamic: '603284'
+      static: '581328'
+      ratio: '1.038'
+    vmhwm:
+      dynamic: '603284'
+      static: '581328'
+      ratio: '1.038'
+  full_run:
+    vmrss:
+      dynamic: '603284'
+      static: '581328'
+      ratio: '1.038'
+    vmhwm:
+      dynamic: '603284'
+      static: '581328'
+      ratio: '1.038'
+  after_objects_release:
+    vmrss:
+      dynamic: '60184'
+      static: '159356'
+      ratio: '0.378'
+    vmhwm:
+      dynamic: '603284'
+      static: '581328'
+      ratio: '1.038'
+TF_YOLO_V3_Full_inputs_[1, [416, 832], [416, 832], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24164'
+      static: '25396'
+      ratio: '0.951'
+    vmhwm:
+      dynamic: '24164'
+      static: '25396'
+      ratio: '0.951'
+  read_network:
+    vmrss:
+      dynamic: '273324'
+      static: '273740'
+      ratio: '0.998'
+    vmhwm:
+      dynamic: '273324'
+      static: '273740'
+      ratio: '0.998'
+  load_network:
+    vmrss:
+      dynamic: '548436'
+      static: '543764'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '548436'
+      static: '543764'
+      ratio: '1.009'
+  create_exenetwork:
+    vmrss:
+      dynamic: '548436'
+      static: '543764'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '548436'
+      static: '543764'
+      ratio: '1.009'
+  fill_inputs:
+    vmrss:
+      dynamic: '550768'
+      static: '548068'
+      ratio: '1.005'
+    vmhwm:
+      dynamic: '552744'
+      static: '548068'
+      ratio: '1.009'
+  first_inference:
+    vmrss:
+      dynamic: '615872'
+      static: '581332'
+      ratio: '1.059'
+    vmhwm:
+      dynamic: '615872'
+      static: '581332'
+      ratio: '1.059'
+  full_run:
+    vmrss:
+      dynamic: '615872'
+      static: '581332'
+      ratio: '1.059'
+    vmhwm:
+      dynamic: '615872'
+      static: '581332'
+      ratio: '1.059'
+  after_objects_release:
+    vmrss:
+      dynamic: '60632'
+      static: '159244'
+      ratio: '0.381'
+    vmhwm:
+      dynamic: '615872'
+      static: '581332'
+      ratio: '1.059'
+TF_YOLO_V3_Full_No_Region_inputs_[[1, 2], 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '25080'
+      static: '25288'
+      ratio: '0.992'
+    vmhwm:
+      dynamic: '25080'
+      static: '25288'
+      ratio: '0.992'
+  read_network:
+    vmrss:
+      dynamic: '274300'
+      static: '273864'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '274300'
+      static: '273864'
+      ratio: '1.002'
+  load_network:
+    vmrss:
+      dynamic: '543892'
+      static: '544016'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '543892'
+      static: '544016'
+      ratio: '1.0'
+  create_exenetwork:
+    vmrss:
+      dynamic: '543892'
+      static: '544016'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '543892'
+      static: '544016'
+      ratio: '1.0'
+  fill_inputs:
+    vmrss:
+      dynamic: '546224'
+      static: '548444'
+      ratio: '0.996'
+    vmhwm:
+      dynamic: '548200'
+      static: '548444'
+      ratio: '1.0'
+  first_inference:
+    vmrss:
+      dynamic: '603308'
+      static: '581504'
+      ratio: '1.037'
+    vmhwm:
+      dynamic: '603308'
+      static: '581504'
+      ratio: '1.037'
+  full_run:
+    vmrss:
+      dynamic: '603308'
+      static: '581504'
+      ratio: '1.037'
+    vmhwm:
+      dynamic: '603308'
+      static: '581504'
+      ratio: '1.037'
+  after_objects_release:
+    vmrss:
+      dynamic: '59988'
+      static: '159244'
+      ratio: '0.377'
+    vmhwm:
+      dynamic: '603308'
+      static: '581504'
+      ratio: '1.037'
+TF_YOLO_V3_Full_No_Region_inputs_[1, [416, 832], [416, 832], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24636'
+      static: '25052'
+      ratio: '0.983'
+    vmhwm:
+      dynamic: '24636'
+      static: '25052'
+      ratio: '0.983'
+  read_network:
+    vmrss:
+      dynamic: '273724'
+      static: '273288'
+      ratio: '1.002'
+    vmhwm:
+      dynamic: '273724'
+      static: '273288'
+      ratio: '1.002'
+  load_network:
+    vmrss:
+      dynamic: '548344'
+      static: '543228'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '548344'
+      static: '543228'
+      ratio: '1.009'
+  create_exenetwork:
+    vmrss:
+      dynamic: '548344'
+      static: '543228'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '548344'
+      static: '543228'
+      ratio: '1.009'
+  fill_inputs:
+    vmrss:
+      dynamic: '550676'
+      static: '547536'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '552652'
+      static: '547536'
+      ratio: '1.009'
+  first_inference:
+    vmrss:
+      dynamic: '619188'
+      static: '580800'
+      ratio: '1.066'
+    vmhwm:
+      dynamic: '619188'
+      static: '580800'
+      ratio: '1.066'
+  full_run:
+    vmrss:
+      dynamic: '619188'
+      static: '580800'
+      ratio: '1.066'
+    vmhwm:
+      dynamic: '619188'
+      static: '580800'
+      ratio: '1.066'
+  after_objects_release:
+    vmrss:
+      dynamic: '60840'
+      static: '158620'
+      ratio: '0.384'
+    vmhwm:
+      dynamic: '619188'
+      static: '580800'
+      ratio: '1.066'
+TF_YOLO_V3_Tiny_inputs_[[1, 2], 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24580'
+      static: '25064'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '24580'
+      static: '25064'
+      ratio: '0.981'
+  read_network:
+    vmrss:
+      dynamic: '63244'
+      static: '62812'
+      ratio: '1.007'
+    vmhwm:
+      dynamic: '63244'
+      static: '62812'
+      ratio: '1.007'
+  load_network:
+    vmrss:
+      dynamic: '120964'
+      static: '119092'
+      ratio: '1.016'
+    vmhwm:
+      dynamic: '120964'
+      static: '119092'
+      ratio: '1.016'
+  create_exenetwork:
+    vmrss:
+      dynamic: '120964'
+      static: '119092'
+      ratio: '1.016'
+    vmhwm:
+      dynamic: '120964'
+      static: '119092'
+      ratio: '1.016'
+  fill_inputs:
+    vmrss:
+      dynamic: '123296'
+      static: '123400'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '125272'
+      static: '123400'
+      ratio: '1.015'
+  first_inference:
+    vmrss:
+      dynamic: '141580'
+      static: '135544'
+      ratio: '1.045'
+    vmhwm:
+      dynamic: '141580'
+      static: '135544'
+      ratio: '1.045'
+  full_run:
+    vmrss:
+      dynamic: '141580'
+      static: '135544'
+      ratio: '1.045'
+    vmhwm:
+      dynamic: '141580'
+      static: '135544'
+      ratio: '1.045'
+  after_objects_release:
+    vmrss:
+      dynamic: '50408'
+      static: '52516'
+      ratio: '0.96'
+    vmhwm:
+      dynamic: '141580'
+      static: '135544'
+      ratio: '1.045'
+TF_YOLO_V3_Tiny_inputs_[1, [416, 832], [416, 832], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24340'
+      static: '25336'
+      ratio: '0.961'
+    vmhwm:
+      dynamic: '24340'
+      static: '25336'
+      ratio: '0.961'
+  read_network:
+    vmrss:
+      dynamic: '62920'
+      static: '63152'
+      ratio: '0.996'
+    vmhwm:
+      dynamic: '62920'
+      static: '63152'
+      ratio: '0.996'
+  load_network:
+    vmrss:
+      dynamic: '125028'
+      static: '119232'
+      ratio: '1.049'
+    vmhwm:
+      dynamic: '125028'
+      static: '119232'
+      ratio: '1.049'
+  create_exenetwork:
+    vmrss:
+      dynamic: '125028'
+      static: '119232'
+      ratio: '1.049'
+    vmhwm:
+      dynamic: '125028'
+      static: '119232'
+      ratio: '1.049'
+  fill_inputs:
+    vmrss:
+      dynamic: '127364'
+      static: '123540'
+      ratio: '1.031'
+    vmhwm:
+      dynamic: '129336'
+      static: '123540'
+      ratio: '1.047'
+  first_inference:
+    vmrss:
+      dynamic: '153316'
+      static: '135684'
+      ratio: '1.13'
+    vmhwm:
+      dynamic: '153316'
+      static: '135684'
+      ratio: '1.13'
+  full_run:
+    vmrss:
+      dynamic: '153316'
+      static: '135684'
+      ratio: '1.13'
+    vmhwm:
+      dynamic: '153316'
+      static: '135684'
+      ratio: '1.13'
+  after_objects_release:
+    vmrss:
+      dynamic: '52840'
+      static: '52520'
+      ratio: '1.006'
+    vmhwm:
+      dynamic: '153316'
+      static: '135684'
+      ratio: '1.13'
+TF_ICV_SqueezeNet_v1_0_Placeholder_[[1, 2], 227, 227, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24636'
+      static: '25048'
+      ratio: '0.984'
+    vmhwm:
+      dynamic: '24636'
+      static: '25048'
+      ratio: '0.984'
+  read_network:
+    vmrss:
+      dynamic: '33936'
+      static: '33548'
+      ratio: '1.012'
+    vmhwm:
+      dynamic: '33936'
+      static: '33548'
+      ratio: '1.012'
+  load_network:
+    vmrss:
+      dynamic: '59464'
+      static: '60204'
+      ratio: '0.988'
+    vmhwm:
+      dynamic: '59464'
+      static: '60204'
+      ratio: '0.988'
+  create_exenetwork:
+    vmrss:
+      dynamic: '59464'
+      static: '60204'
+      ratio: '0.988'
+    vmhwm:
+      dynamic: '59464'
+      static: '60204'
+      ratio: '0.988'
+  fill_inputs:
+    vmrss:
+      dynamic: '59764'
+      static: '61608'
+      ratio: '0.97'
+    vmhwm:
+      dynamic: '60340'
+      static: '61608'
+      ratio: '0.979'
+  first_inference:
+    vmrss:
+      dynamic: '69708'
+      static: '66880'
+      ratio: '1.042'
+    vmhwm:
+      dynamic: '69708'
+      static: '66880'
+      ratio: '1.042'
+  full_run:
+    vmrss:
+      dynamic: '69708'
+      static: '66880'
+      ratio: '1.042'
+    vmhwm:
+      dynamic: '69708'
+      static: '66880'
+      ratio: '1.042'
+  after_objects_release:
+    vmrss:
+      dynamic: '50804'
+      static: '53140'
+      ratio: '0.956'
+    vmhwm:
+      dynamic: '69792'
+      static: '66880'
+      ratio: '1.044'
+TF_MobileNet_v1_0_5_224_input_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24764'
+      static: '25284'
+      ratio: '0.979'
+    vmhwm:
+      dynamic: '24764'
+      static: '25284'
+      ratio: '0.979'
+  read_network:
+    vmrss:
+      dynamic: '34120'
+      static: '34256'
+      ratio: '0.996'
+    vmhwm:
+      dynamic: '34120'
+      static: '34256'
+      ratio: '0.996'
+  load_network:
+    vmrss:
+      dynamic: '59748'
+      static: '60580'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '59748'
+      static: '60580'
+      ratio: '0.986'
+  create_exenetwork:
+    vmrss:
+      dynamic: '59748'
+      static: '60580'
+      ratio: '0.986'
+    vmhwm:
+      dynamic: '59748'
+      static: '60580'
+      ratio: '0.986'
+  fill_inputs:
+    vmrss:
+      dynamic: '60048'
+      static: '62104'
+      ratio: '0.967'
+    vmhwm:
+      dynamic: '60624'
+      static: '62104'
+      ratio: '0.976'
+  first_inference:
+    vmrss:
+      dynamic: '64944'
+      static: '64372'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '64944'
+      static: '64372'
+      ratio: '1.009'
+  full_run:
+    vmrss:
+      dynamic: '64944'
+      static: '64372'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '64944'
+      static: '64372'
+      ratio: '1.009'
+  after_objects_release:
+    vmrss:
+      dynamic: '50368'
+      static: '52784'
+      ratio: '0.954'
+    vmhwm:
+      dynamic: '65004'
+      static: '64372'
+      ratio: '1.01'
+TF_SqueezeNet_v1_1_Placeholder_[[1, 2], 224, 224, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24392'
+      static: '25284'
+      ratio: '0.965'
+    vmhwm:
+      dynamic: '24392'
+      static: '25284'
+      ratio: '0.965'
+  read_network:
+    vmrss:
+      dynamic: '33604'
+      static: '34052'
+      ratio: '0.987'
+    vmhwm:
+      dynamic: '33604'
+      static: '34052'
+      ratio: '0.987'
+  load_network:
+    vmrss:
+      dynamic: '59524'
+      static: '60668'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '59524'
+      static: '60668'
+      ratio: '0.981'
+  create_exenetwork:
+    vmrss:
+      dynamic: '59524'
+      static: '60668'
+      ratio: '0.981'
+    vmhwm:
+      dynamic: '59524'
+      static: '60668'
+      ratio: '0.981'
+  fill_inputs:
+    vmrss:
+      dynamic: '59824'
+      static: '62192'
+      ratio: '0.962'
+    vmhwm:
+      dynamic: '60400'
+      static: '62192'
+      ratio: '0.971'
+  first_inference:
+    vmrss:
+      dynamic: '70028'
+      static: '67528'
+      ratio: '1.037'
+    vmhwm:
+      dynamic: '70028'
+      static: '67528'
+      ratio: '1.037'
+  full_run:
+    vmrss:
+      dynamic: '70028'
+      static: '67528'
+      ratio: '1.037'
+    vmhwm:
+      dynamic: '70028'
+      static: '67528'
+      ratio: '1.037'
+  after_objects_release:
+    vmrss:
+      dynamic: '51556'
+      static: '53688'
+      ratio: '0.96'
+    vmhwm:
+      dynamic: '70352'
+      static: '67528'
+      ratio: '1.042'
+TF_YOLO_V3_Tiny_No_Region_inputs_[[1, 2], 416, 416, 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24408'
+      static: '25396'
+      ratio: '0.961'
+    vmhwm:
+      dynamic: '24408'
+      static: '25396'
+      ratio: '0.961'
+  read_network:
+    vmrss:
+      dynamic: '63088'
+      static: '63288'
+      ratio: '0.997'
+    vmhwm:
+      dynamic: '63088'
+      static: '63288'
+      ratio: '0.997'
+  load_network:
+    vmrss:
+      dynamic: '120276'
+      static: '119232'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '120276'
+      static: '119232'
+      ratio: '1.009'
+  create_exenetwork:
+    vmrss:
+      dynamic: '120276'
+      static: '119232'
+      ratio: '1.009'
+    vmhwm:
+      dynamic: '120276'
+      static: '119232'
+      ratio: '1.009'
+  fill_inputs:
+    vmrss:
+      dynamic: '122736'
+      static: '123540'
+      ratio: '0.993'
+    vmhwm:
+      dynamic: '124704'
+      static: '123540'
+      ratio: '1.009'
+  first_inference:
+    vmrss:
+      dynamic: '140876'
+      static: '135940'
+      ratio: '1.036'
+    vmhwm:
+      dynamic: '140876'
+      static: '135940'
+      ratio: '1.036'
+  full_run:
+    vmrss:
+      dynamic: '140876'
+      static: '135940'
+      ratio: '1.036'
+    vmhwm:
+      dynamic: '140876'
+      static: '135940'
+      ratio: '1.036'
+  after_objects_release:
+    vmrss:
+      dynamic: '49984'
+      static: '52672'
+      ratio: '0.949'
+    vmhwm:
+      dynamic: '140876'
+      static: '135940'
+      ratio: '1.036'
+TF_YOLO_V3_Tiny_No_Region_inputs_[1, [416, 832], [416, 832], 3]:
+  load_plugin:
+    vmrss:
+      dynamic: '24164'
+      static: '25004'
+      ratio: '0.966'
+    vmhwm:
+      dynamic: '24164'
+      static: '25004'
+      ratio: '0.966'
+  read_network:
+    vmrss:
+      dynamic: '62868'
+      static: '62860'
+      ratio: '1.0'
+    vmhwm:
+      dynamic: '62868'
+      static: '62860'
+      ratio: '1.0'
+  load_network:
+    vmrss:
+      dynamic: '124244'
+      static: '118788'
+      ratio: '1.046'
+    vmhwm:
+      dynamic: '124244'
+      static: '118788'
+      ratio: '1.046'
+  create_exenetwork:
+    vmrss:
+      dynamic: '124244'
+      static: '118788'
+      ratio: '1.046'
+    vmhwm:
+      dynamic: '124244'
+      static: '118788'
+      ratio: '1.046'
+  fill_inputs:
+    vmrss:
+      dynamic: '126576'
+      static: '123096'
+      ratio: '1.028'
+    vmhwm:
+      dynamic: '128552'
+      static: '123096'
+      ratio: '1.044'
+  first_inference:
+    vmrss:
+      dynamic: '152556'
+      static: '135500'
+      ratio: '1.126'
+    vmhwm:
+      dynamic: '152556'
+      static: '135500'
+      ratio: '1.126'
+  full_run:
+    vmrss:
+      dynamic: '152556'
+      static: '135500'
+      ratio: '1.126'
+    vmhwm:
+      dynamic: '152556'
+      static: '135500'
+      ratio: '1.126'
+  after_objects_release:
+    vmrss:
+      dynamic: '52316'
+      static: '52364'
+      ratio: '0.999'
+    vmhwm:
+      dynamic: '152556'
+      static: '135500'
+      ratio: '1.126'
