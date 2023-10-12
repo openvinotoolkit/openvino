@@ -129,7 +129,6 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 }
             }
         }
-        node->get_rt_info().erase(PreFusedNames::get_type_info_static());
     }
 
     return rewritten;
@@ -241,6 +240,8 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
             }
         }
     }
+    for (auto&& node : model->get_ordered_ops())
+        node->get_rt_info().erase(pre_fused_key);
     return rewritten;
 }
 
