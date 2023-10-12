@@ -7,7 +7,7 @@ from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import get
 from e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
 from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
 from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
-from utils.path_utils import prepend_with_env_path
+from tests.e2e_oss._utils.path_utils import prepend_with_env_path
 from common_utils.ir_providers.tf_helper import TFVersionHelper
 
 

@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 
-from utils.table_utils import make_table
+from tests.e2e_oss.common_utils.table_utils import make_table
 from .provider import ClassProvider
 
 

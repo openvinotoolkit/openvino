@@ -2,15 +2,15 @@ from collections import OrderedDict
 from pathlib import Path
 
 from common_utils.ir_providers.tf_helper import TFVersionHelper
-from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
-from e2e_oss.pipelines.pipeline_templates.comparators_template import object_detection_comparators
-from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
-from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
-from e2e_oss.pipelines.pipeline_templates.postproc_template import parse_object_detection
-from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_tf
+from tests.e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
+from tests.e2e_oss.pipelines.pipeline_templates.comparators_template import object_detection_comparators
+from tests.e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
+from tests.e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
+from tests.e2e_oss.pipelines.pipeline_templates.postproc_template import parse_object_detection
+from tests.e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_tf
 from utils.openvino_resources import OpenVINOResources
-from utils.path_utils import prepend_with_env_path, resolve_file_path, ref_from_model
-from utils.pytest_utils import mark
+from tests.e2e_oss._utils.path_utils import prepend_with_env_path, resolve_file_path, ref_from_model
+from tests.e2e_oss.common_utils.pytest_utils import mark
 
 common_input_file = resolve_file_path("test_data/inputs/caffe/object_detection_voc_people.npz")
 

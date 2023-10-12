@@ -2,11 +2,11 @@ import logging as log
 import os
 import sys
 
-from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
+from tests.e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
 from utils.downloader_utils import get_models
 from utils.e2e.env_tools import Environment
 from utils.e2e.ir_provider.omz_model_downloader import OMZModelDownloader
-from utils.path_utils import import_from
+from tests.e2e_oss._utils.path_utils import import_from
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 

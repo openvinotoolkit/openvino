@@ -6,7 +6,7 @@ import sys
 import cv2
 import numpy as np
 
-from utils.path_utils import resolve_file_path
+from tests.e2e_oss._utils.path_utils import resolve_file_path
 from .provider import ClassProvider
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)

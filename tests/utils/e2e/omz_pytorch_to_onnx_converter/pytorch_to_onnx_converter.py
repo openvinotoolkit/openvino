@@ -3,9 +3,10 @@ import subprocess
 import sys
 import textwrap
 
-from utils.e2e.omz_pytorch_to_onnx_converter.provider import ClassProvider
-from utils.openvino_resources import OpenVINOResources
 import logging as log
+
+from tests.e2e_oss.common_utils.openvino_resources import OpenVINOResources
+from tests.utils.e2e.omz_pytorch_to_onnx_converter.provider import ClassProvider
 
 
 class PytorchToOnnxConverter(ClassProvider):

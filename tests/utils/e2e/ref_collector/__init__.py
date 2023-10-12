@@ -1,6 +1,7 @@
 from . import precollected
 from .dummy_ref_collector import use_dummy
 from .provider import StepProvider
+from .tf_hub_ref_provider import TFHubStepProvider
 
 try:
     from .score_caffe import ScoreCaffe

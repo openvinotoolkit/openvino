@@ -1,4 +1,4 @@
-from utils.path_utils import resolve_file_path
+from tests.e2e_oss._utils.path_utils import resolve_file_path
 from .provider import ClassProvider
 
 

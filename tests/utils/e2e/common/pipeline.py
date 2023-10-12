@@ -1,18 +1,18 @@
-import utils.e2e.readers
-import utils.e2e.preprocessors
-import utils.e2e.preprocessors_tf_hub
-import utils.e2e.ir_provider
-import utils.e2e.infer
-import utils.e2e.postprocessors
-import utils.e2e.ref_collector
-import utils.e2e.model_loader
-import utils.e2e.omz_pytorch_to_onnx_converter
-from utils.e2e.common.base_provider import BaseStepProvider
+import tests.utils.e2e.readers
+import tests.utils.e2e.preprocessors
+import tests.utils.e2e.preprocessors_tf_hub
+import tests.utils.e2e.ir_provider
+import tests.utils.e2e.infer
+import tests.utils.e2e.postprocessors
+import tests.utils.e2e.ref_collector
+import tests.utils.e2e.model_loader
+import tests.utils.e2e.omz_pytorch_to_onnx_converter
 from types import SimpleNamespace
+
+from tests.utils.e2e.common.base_provider import BaseStepProvider
 
 
 class Pipeline:
-
     def __init__(self, config):
         self._config = config
         self.steps = []
@@ -28,7 +28,7 @@ class Pipeline:
                     step_input = self.steps[i - 1].out_data[0]
                 step.execute(step_input)
 
-                if step.__step_name__ == 'load_model':
+                if step.__step_name__ == 'load_model' or step.__step_name__ == 'tf_hub_load_model':
                     for target_step in self.steps:
                         if target_step.__step_name__ == "get_ir":
                             target_step.executor.prepared_model = step.executor.prepared_model

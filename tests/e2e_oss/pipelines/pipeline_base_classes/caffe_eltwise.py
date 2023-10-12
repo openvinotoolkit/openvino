@@ -1,14 +1,14 @@
 from collections import OrderedDict
 from pathlib import Path
 
-from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
-from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import read_refs_pipeline
-from e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
-from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
-from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
-from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
-from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_caffe
-from utils.path_utils import ref_from_model, prepend_with_env_path, resolve_file_path
+from tests.e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
+from tests.e2e_oss.pipelines.pipeline_templates.collect_reference_templates import read_refs_pipeline
+from tests.e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
+from tests.e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
+from tests.e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
+from tests.e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
+from tests.e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_caffe
+from tests.e2e_oss._utils.path_utils import ref_from_model, prepend_with_env_path, resolve_file_path
 
 common_input_file = resolve_file_path("test_data/inputs/caffe/object_detection_voc.npz")
 

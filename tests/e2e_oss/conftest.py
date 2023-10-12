@@ -19,28 +19,23 @@
 # and approved by Intel in writing.
 #
 import pathlib
-import re
 import sys
-from copy import copy
 
 from cpuinfo import get_cpu_info
+
+from .common_utils.logger import get_logger
+from .common_utils.sys_info_utils import get_sys_info
+from .common_utils.tf_helper import TFVersionHelper
 
 try:
     # In user_config.py, user might export custom environment variables
     from . import user_config
+
     print("Successfully imported user_config")
 except ImportError:
     pass
 
-from . import config    # init config variables
-
-from common_utils.sys_info_utils import get_sys_info
-
-from common_utils.ir_providers.tf_helper import TFVersionHelper
-from common_utils.logger import get_logger
-from common_utils.hook_utils import send_results_to_validation_report
-
-from e2e_oss.plugins.common.conftest import *
+from .plugins.common.conftest import *
 
 NODEID_TOKENS_RE = r"(?P<file>.+?)::(?P<func_name>.+?)\[(?P<args>.+?)\]"
 VR_FRIENDLY_NODEID = "{class_definition_path}::{class_name}::{func_name}[{args}]"
@@ -61,29 +56,6 @@ def pytest_configure(config):
     tf_models_version = config.getoption("tf_models_version")
     TFVersionHelper(tf_models_version)
 
-
-def _get_vr_friendly_item(item):
-    """
-    Description:
-        Transform item.nodeid to more descriptive form that can be expanded in Validation Report.
-        Expanded names includes:
-        - Class definition path in openvino.tests repository
-        - Explicit class name in pytest format
-        - Execution settings.
-    Example of vr friendly name:
-        'pipelines/production/onnx/winml/light/candy.py::AI_WinML_Candy::test_run[api_2_False_batch_1_device_CPU_precision_FP32]'
-    """
-    try:
-        tokens = re.match(NODEID_TOKENS_RE, item.nodeid).groupdict()
-        tokens['class_name'] = type(item.callspec.params['instance']).__name__
-        tokens['class_definition_path']  = item.callspec.params['instance'].definition_path
-        friendly_name = VR_FRIENDLY_NODEID.format(**tokens)
-        item_copy = copy(item)
-        item_copy._nodeid = friendly_name
-        return item_copy
-    except Exception as e:
-        logger.error(str(e))
-    return item
 
 @pytest.mark.hookwrapper
 def pytest_runtest_makereport(item, call):
@@ -112,5 +84,3 @@ def pytest_runtest_makereport(item, call):
             )
     report.extra = extra
 
-    vr_friendly_item = _get_vr_friendly_item(item)
-    send_results_to_validation_report(vr_friendly_item, report)

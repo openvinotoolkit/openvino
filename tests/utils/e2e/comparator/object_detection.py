@@ -5,8 +5,8 @@ from collections import OrderedDict
 
 import numpy as np
 
-from utils.e2e.comparator.threshold_utils import get_default_thresholds, get_default_iou_threshold
-from utils.table_utils import make_table
+from .threshold_utils import get_default_thresholds, get_default_iou_threshold
+from tests.e2e_oss.common_utils.table_utils import make_table
 from .provider import ClassProvider
 
 

@@ -16,14 +16,15 @@ import re
 from copy import deepcopy
 from pathlib import Path
 
-from e2e_oss._utils.test_utils import read_irs_mapping_file, get_ir_tag, check_mo_precision, set_infer_precision_hint
 # pylint:disable=invalid-name
 
-from e2e_oss.test import empty_dirs
 from common_utils.logger import get_logger
-from utils.name_aligner import name_aligner
-from utils.e2e.common.pipeline import Pipeline
-from utils.e2e.comparator.container import ComparatorsContainer
+from tests.e2e_oss._utils.test_utils import set_infer_precision_hint, read_irs_mapping_file, get_ir_tag, \
+    check_mo_precision
+from tests.e2e_oss.common_utils.test_utils import name_aligner
+from tests.e2e_oss.test import empty_dirs
+from tests.utils.e2e.common.pipeline import Pipeline
+from tests.utils.e2e.comparator.container import ComparatorsContainer
 
 pytest_plugins = ('e2e_oss.plugins.e2e_test.conftest',)
 

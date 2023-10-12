@@ -14,20 +14,19 @@ Options[*]:
 import logging as log
 import os
 import re
-import sys
 from pathlib import Path
 from shutil import rmtree
 import yaml
 
 from common_utils.logger import get_logger
-from e2e_oss._utils.modify_configs import get_original_model_importer_pipeline_config
-from e2e_oss._utils.test_utils import get_ir_tag, read_irs_mapping_file, timestamp, store_data_to_csv, remove_mo_args_oob, \
-    check_mo_precision, set_infer_precision_hint, log_timestamp
-from utils.e2e.common.pipeline import Pipeline
-from utils.e2e.comparator.container import ComparatorsContainer
-from utils.e2e.env_tools import Environment
-from utils.parsers import pipeline_cfg_to_string
-from utils.test_utils import get_shapes_from_data
+from tests.e2e_oss._utils.modify_configs import get_original_model_importer_pipeline_config
+from tests.e2e_oss._utils.test_utils import log_timestamp, read_irs_mapping_file, get_ir_tag, check_mo_precision, \
+    set_infer_precision_hint, remove_mo_args_oob, store_data_to_csv, timestamp
+from tests.e2e_oss.common_utils.parsers import pipeline_cfg_to_string
+from tests.e2e_oss.common_utils.test_utils import get_shapes_from_data
+from tests.utils.e2e.common.pipeline import Pipeline
+from tests.utils.e2e.comparator.container import ComparatorsContainer
+from tests.utils.e2e.env_tools import Environment
 
 pytest_plugins = ('e2e_oss.plugins.e2e_test.conftest',)
 

@@ -22,7 +22,7 @@ except ImportError:
 from openvino.runtime import Core
 from openvino.inference_engine import IECore, get_version as ie_get_version
 from utils.multiprocessing_utils import multiprocessing_run
-from utils.path_utils import resolve_file_path
+from tests.e2e_oss._utils.path_utils import resolve_file_path
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 

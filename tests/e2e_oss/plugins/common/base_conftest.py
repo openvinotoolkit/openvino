@@ -8,8 +8,9 @@ from inspect import getsourcefile
 
 from _pytest.mark import MarkDecorator
 
-from e2e_oss._utils.test_utils import BrokenTestException
-from utils.pytest_utils import mark as Mark
+from tests.e2e_oss.common_utils.pytest_utils import mark as Mark
+
+from tests.e2e_oss._utils.test_utils import BrokenTestException
 
 
 def apply_glob(paths, file_ext="py"):

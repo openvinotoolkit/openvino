@@ -1,6 +1,7 @@
 import logging as log
+
+from tests.e2e_oss.common_utils.table_utils import make_table
 from .provider import ClassProvider
-from utils.table_utils import make_table
 import sys
 
 

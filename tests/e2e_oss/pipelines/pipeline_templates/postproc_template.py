@@ -2,7 +2,7 @@
 """
 from collections import OrderedDict
 
-from utils.decorators import wrap_ord_dict
+from tests.e2e_oss.common_utils.decorators import wrap_ord_dict
 
 
 @wrap_ord_dict

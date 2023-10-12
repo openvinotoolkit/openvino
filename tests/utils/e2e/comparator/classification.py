@@ -9,9 +9,9 @@ classification dataset.
 import logging as log
 import sys
 
-from utils.table_utils import make_table
+from tests.e2e_oss.common_utils.table_utils import make_table
 from .provider import ClassProvider
-from utils.e2e.comparator.threshold_utils import get_default_thresholds
+from .threshold_utils import get_default_thresholds
 
 
 class ClassificationComparator(ClassProvider):

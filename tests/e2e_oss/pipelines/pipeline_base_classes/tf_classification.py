@@ -1,17 +1,17 @@
 from collections import OrderedDict
 
 from common_utils.ir_providers.tf_helper import TFVersionHelper
-from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
-from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import collect_tf_refs_pipeline
-from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import read_refs_pipeline
-from e2e_oss.pipelines.pipeline_templates.comparators_template import classification_comparators
-from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
-from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input, read_img_input
-from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
-from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_tf
-from utils.path_utils import prepend_with_env_path, resolve_file_path
-from utils.path_utils import ref_from_model
-from utils.pytest_utils import mark
+from tests.e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
+from tests.e2e_oss.pipelines.pipeline_templates.collect_reference_templates import collect_tf_refs_pipeline
+from tests.e2e_oss.pipelines.pipeline_templates.collect_reference_templates import read_refs_pipeline
+from tests.e2e_oss.pipelines.pipeline_templates.comparators_template import classification_comparators
+from tests.e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
+from tests.e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input, read_img_input
+from tests.e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
+from tests.e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_tf
+from tests.e2e_oss._utils.path_utils import prepend_with_env_path, resolve_file_path
+from tests.e2e_oss._utils.path_utils import ref_from_model
+from tests.e2e_oss.common_utils.pytest_utils import mark
 
 common_input_file = resolve_file_path("test_data/inputs/tf/classification_imagenet.npz")
 

@@ -2,7 +2,7 @@ import os
 import sys
 import logging as log
 import tensorflow as tf
-from .provider import ClassProvider
+from .tf_hub_ref_provider import ClassProvider
 
 
 os.environ['GLOG_minloglevel'] = '3'

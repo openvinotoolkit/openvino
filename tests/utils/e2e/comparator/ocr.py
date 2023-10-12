@@ -7,8 +7,8 @@ Basic result example: list of paths with probabilities
 import logging as log
 import sys
 
-from utils.e2e.comparator.threshold_utils import get_default_thresholds
-from utils.table_utils import make_table
+from .threshold_utils import get_default_thresholds
+from tests.e2e_oss.common_utils.table_utils import make_table
 from .provider import ClassProvider
 
 

@@ -1,8 +1,8 @@
 
-from utils.e2e.model_loader.provider import ClassProvider
 import logging as log
 
-from utils.pytorch_loaders import *
+from tests.e2e_oss.common_utils.pytorch_loaders import *
+from tests.utils.e2e.model_loader.provider import ClassProvider
 
 
 class PyTorchModelLoader(ClassProvider):

@@ -30,9 +30,9 @@ import sys
 import pytest
 import yaml
 
-from e2e_oss.plugins.first_inference_tests.common_utils import get_reformat_shapes, get_redef_ir
-from e2e_oss.plugins.first_inference_tests.timetests_utils import run_timetest, get_compared_time_results, \
-    get_compared_with_refs_results
+from tests.e2e_oss.plugins.first_inference_tests.common_utils import get_redef_ir, get_reformat_shapes
+from tests.e2e_oss.plugins.first_inference_tests.memorytests_utils import get_compared_with_refs_results
+from tests.e2e_oss.plugins.first_inference_tests.timetests_utils import run_timetest, get_compared_time_results
 
 pytest_plugins = 'e2e_oss.plugins.reshape_tests.conftest'
 

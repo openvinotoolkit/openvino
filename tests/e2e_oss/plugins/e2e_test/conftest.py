@@ -15,18 +15,17 @@ import pytest
 import yaml
 from _pytest.runner import show_test_item, call_runtest_hook, check_interactive_exception
 
-import e2e_oss.plugins.common.base_conftest as base
-from common_utils import hook_utils
-from common_utils.environment_info import EnvironmentInfo
-from common_utils.logger import get_logger
-from common_utils.marks import MarkRunType, MarkGeneral
-from e2e_oss._utils.test_utils import class_factory, BrokenTestException, BrokenTest
-from utils.e2e.env_tools import Environment
-from utils.env_utils import fix_env_conf
-from utils.legacy.bitstream_mapping import bitstream_mapping
-from utils.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
-from utils.path_utils import DirLockingHandler
+import tests.e2e_oss.plugins.common.base_conftest as base
 
+from tests.e2e_oss._utils.path_utils import DirLockingHandler
+from tests.e2e_oss._utils.test_utils import class_factory, BrokenTest, BrokenTestException
+from tests.e2e_oss.common_utils import hook_utils
+from tests.e2e_oss.common_utils.env_utils import fix_env_conf
+from tests.e2e_oss.common_utils.environment_info import EnvironmentInfo
+from tests.e2e_oss.common_utils.logger import get_logger
+from tests.e2e_oss.common_utils.marks import MarkRunType, MarkGeneral
+from tests.e2e_oss.common_utils.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
+from tests.utils.e2e.env_tools import Environment
 
 logger = get_logger(__name__)
 
@@ -202,7 +201,6 @@ def pytest_generate_tests(metafunc):
     test_ids = []
     cpu_throughput_mode = metafunc.config.getoption("cpu_throughput_mode")
     gpu_throughput_mode = metafunc.config.getoption("gpu_throughput_mode")
-    bitstream = metafunc.config.getoption("bitstream", "")
     skip_ir_generation = metafunc.config.getoption("skip_ir_generation")
 
     for test in test_classes:
@@ -239,14 +237,6 @@ def pytest_generate_tests(metafunc):
                 test_case = broken_test(test_id=test_id, exception=e,
                                         fail_message="Test {} is broken and fails "
                                                      "with traceback {}".format(name, tb))
-
-            if bitstream:
-                model_name = getattr(test_case, "model", name)
-                current_bitstream = bitstream_mapping(model_name)
-                if current_bitstream != bitstream:
-                    # Skip tests that are not supposed to be run with the
-                    # desired bitstream
-                    continue
 
             params_for_satisfaction = {"model": name, **params}
             if satisfies_all_rules(params_for_satisfaction, Environment.base_rules, can_partially_match=False) \
@@ -344,16 +334,6 @@ def pytest_collection_modifyitems(session, config, items):
 
     # sort items so that we have the sequence of tests being executed as in MarkRunType:
     items[:] = sorted(items, key=lambda element: MarkRunType.test_type_mark_to_int(element))
-
-    # initiate one test run reporter for each marked test type
-    for item in items:
-        # the below call will instantiate test run reporter for every test type
-        _ = hook_utils.get_test_run_reporter(MarkRunType.get_test_type_mark(item))
-
-    build_number = EnvironmentInfo.get_build_number()
-    version_number = EnvironmentInfo.get_version_number()
-    for test_type in hook_utils.test_run_reporters:
-        hook_utils.prepare_test_run_report(test_type, all_components, all_requirements, build_number, version_number)
 
 
 def call_and_report(item, when, log=True, **kwds):
