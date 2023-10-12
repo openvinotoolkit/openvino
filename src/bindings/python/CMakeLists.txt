@@ -404,6 +404,7 @@ if(ENABLE_TESTS)
 endif()
 
 if(OpenVINODeveloperPackage_FOUND)
+    # TODO: understand whether it's required
     # provides a callback function to describe each component in repo
     # include("${OpenVINOPython_SOURCE_DIR}/../../../cmake/packaging/packaging.cmake")
 

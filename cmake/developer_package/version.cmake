@@ -117,7 +117,8 @@ macro(ov_parse_ci_build_number repo_root)
     ov_commit_number(OpenVINO_VERSION_BUILD_FROM_GIT "${repo_root}")
 
     if(OpenVINO_VERSION_BUILD AND NOT OpenVINO_VERSION_BUILD STREQUAL OpenVINO_VERSION_BUILD_FROM_GIT)
-        message(FATAL_ERROR "OpenVINO_VERSION_BUILD parsed from CI_BUILD_NUMBER (${OpenVINO_VERSION_BUILD}) \
+        # TODO: replace with FATAL_ERROR once NPU version will be discussed
+        message(WARNING "OpenVINO_VERSION_BUILD parsed from CI_BUILD_NUMBER (${OpenVINO_VERSION_BUILD}) \
             and determined by git (${OpenVINO_VERSION_BUILD_FROM_GIT}) are different")
     else()
         set(OpenVINO_VERSION_BUILD "${OpenVINO_VERSION_BUILD_FROM_GIT}")
