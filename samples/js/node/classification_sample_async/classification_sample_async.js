@@ -58,7 +58,7 @@ async function main(modelPath, images, deviceName) {
   for (const imagePath of images)
     imagesData.push(await getImageData(imagePath));
 
-  const inputTensors = imagesData.map((imgData) => {
+  const preprocessedImages = imagesData.map((imgData) => {
     // Use opencv-wasm to preprocess image.
     const originalImage = cv.matFromImageData(imgData);
     const image = new cv.Mat();
@@ -87,7 +87,7 @@ async function main(modelPath, images, deviceName) {
   // Create infer request
   const inferRequest = compiledModel.createInferRequest();
 
-  const promises = inputTensors.map((t, i) => {
+  const promises = preprocessedImages.map((t, i) => {
     const inferPromise = inferRequest.inferAsync([new ov.Tensor(ov.element.u8, tensorShape, t)]);
 
     inferPromise.then(result =>
