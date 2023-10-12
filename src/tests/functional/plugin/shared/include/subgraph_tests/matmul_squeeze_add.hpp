@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/matmul_squeeze_add.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(MatmulSqueezeAddTest, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
