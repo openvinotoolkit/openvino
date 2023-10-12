@@ -543,6 +543,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.arange.default", op::translate_arange_fx},
         {"aten.argmax.default", op::translate_argmax},
         {"aten.avg_pool2d.default", op::translate_avg_poolnd},
+        {"aten.baddbmm.default", op::translate_addmm},
         {"aten.bitwise_and.Tensor", op::translate_bitwise_and},
         {"aten.bmm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
         {"aten.cat.default", op::translate_cat_fx},

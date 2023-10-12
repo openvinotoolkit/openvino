@@ -41,6 +41,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.arange.default": None,
             "torch.ops.aten.argmax.default": None,
             "torch.ops.aten.avg_pool2d.default": None,
+            "torch.ops.aten.baddbmm.default": None,
             "torch.ops.aten.bitwise_and.Tensor": None,
             "torch.ops.aten.bmm.default": None,
             "torch.ops.aten.cat.default": None,
