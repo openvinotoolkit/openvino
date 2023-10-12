@@ -188,13 +188,8 @@ ov::TensorVector parse_input_data(const Napi::Value& input) {
     if (input.IsArray()) {
         auto inputs = input.As<Napi::Array>();
         for (size_t i = 0; i < inputs.Length(); ++i) {
-            Napi::Value value = inputs[i];
-            if (value.IsObject()) {
-                auto tensor = cast_to_tensor(value.As<Napi::Object>());
-                parsed_input.push_back(tensor);
-            } else {
-                throw std::invalid_argument("Cannot create a tensor from the passed Napi::Value.");
-            }  
+            auto tensor = cast_to_tensor(static_cast<Napi::Value>(inputs[i]));
+            parsed_input.push_back(tensor);
         }
     } else if (input.IsObject()) {
         auto inputs = input.ToObject();
@@ -202,12 +197,8 @@ ov::TensorVector parse_input_data(const Napi::Value& input) {
         for (size_t i = 0; i < keys.Length(); ++i) {
             auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
             auto value = inputs.Get(input_name);
-            if (value.IsObject()) {
-                auto tensor = cast_to_tensor(value.As<Napi::Object>());
-                parsed_input.push_back(tensor);
-            } else {
-                throw std::invalid_argument("Cannot create a tensor from the passed Napi::Value.");
-            } 
+            auto tensor = cast_to_tensor(static_cast<Napi::Value>(value));
+            parsed_input.push_back(tensor);
         }
     } else {
         throw std::invalid_argument("parse_input_data(): wrong arg");
@@ -223,9 +214,13 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
     return infer_request.get_input_tensor(idx);
 }
 
-ov::Tensor cast_to_tensor(Napi::Object obj) {
-    auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
-    return tensor_wrap->get_tensor();
+ov::Tensor cast_to_tensor(Napi::Value value) {
+    if (value.IsObject()) {
+        auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(value.ToObject());
+        return tensor_wrap->get_tensor();
+    } else {
+        throw std::invalid_argument("Cannot create a tensor from the passed Napi::Value.");
+    }
 }
 
 ov::Tensor cast_to_tensor(Napi::TypedArray typed_array, const ov::Shape& shape, const ov::element::Type_t& type) {

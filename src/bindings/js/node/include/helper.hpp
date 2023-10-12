@@ -109,7 +109,7 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key);
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx);
 
 /** @brief Creates ov::tensor from TensorWrap Object */
-ov::Tensor cast_to_tensor(Napi::Object value);
+ov::Tensor cast_to_tensor(Napi::Value value);
 
 /** @brief Creates ov::tensor from TypedArray using given shape and element type*/
 ov::Tensor cast_to_tensor(Napi::TypedArray data, const ov::Shape& shape, const ov::element::Type_t& type);
@@ -129,9 +129,7 @@ ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& inf
         const auto data = value.As<Napi::TypedArray>();
         return cast_to_tensor(data, shape, type);
 
-    } else if (value.IsObject()) {
-        return cast_to_tensor(value.As<Napi::Object>());
     } else {
-        throw std::invalid_argument("Cannot create a tensor from the passed Napi::Value.");
+        return cast_to_tensor(value.As<Napi::Value>());
     }
 }
