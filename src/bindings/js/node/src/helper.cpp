@@ -183,8 +183,8 @@ Napi::Array cpp_to_js<ov::PartialShape, Napi::Array>(const Napi::CallbackInfo& i
     return arr;
 }
 
-std::vector<ov::Tensor> parse_input_data(const Napi::Value& input) {
-    std::vector<ov::Tensor> parsed_input;
+ov::TensorVector parse_input_data(const Napi::Value& input) {
+    ov::TensorVector parsed_input;
     if (input.IsArray()) {
         auto inputs = input.As<Napi::Array>();
         for (size_t i = 0; i < inputs.Length(); ++i) {
