@@ -280,13 +280,7 @@ bool MaxPool::has_evaluate() const {
     case element::u64:
     case element::f16:
     case element::f32:
-        switch (get_input_element_type(1)) {
-        case element::i32:
-        case element::i64:
-            return true;
-        default:
-            return false;
-        }
+        return true;
     default:
         return false;
     }
