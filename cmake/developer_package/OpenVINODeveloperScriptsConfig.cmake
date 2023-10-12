@@ -28,13 +28,14 @@ set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
 set(CMAKE_MODULE_PATH "${OpenVINODeveloperScripts_DIR}")
 
 function(ov_set_ci_build_number)
-    set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
-    foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_SOVERSION OpenVINO_VERSION_SUFFIX OpenVINO_VERSION_BUILD
-                OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
-        # if(NOT DEFINED ${var})
-        #     message(FATAL_ERROR "${var} version component is not defined")
-        # endif()
+    ov_parse_ci_build_number("${CMAKE_SOURCE_DIR}")
+
+    foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_SOVERSION OpenVINO_VERSION_SUFFIX
+                OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH OpenVINO_VERSION_BUILD)
+        if(NOT DEFINED ${var})
+            message(FATAL_ERROR "${var} version component is not defined")
+        endif()
         set(${var} "${${var}}" PARENT_SCOPE)
     endforeach()
 endfunction()

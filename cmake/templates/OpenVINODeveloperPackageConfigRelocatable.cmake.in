@@ -53,13 +53,13 @@ set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 # Content
 #
 
+# OpenVINO_DIR is supposed to be set as an environment variable
+find_dependency(OpenVINO)
+
 find_dependency(OpenVINODeveloperScripts
                 PATHS "${CMAKE_CURRENT_LIST_DIR}"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
-
-# OpenVINO_DIR is supposed to be set as an environment variable
-find_dependency(OpenVINO)
 
 _ov_find_tbb()
 _ov_find_pugixml()
