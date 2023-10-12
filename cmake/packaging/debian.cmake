@@ -318,7 +318,7 @@ macro(ov_cpack_settings)
 
         set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME "python3-openvino")
         set(python_package "${CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME} (= ${cpack_full_ver})")
-        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_DEPENDS "python3, python3-numpy")
+        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_DEPENDS "python3.9, python3-numpy")
 
         # we can have a single python installed, so we need to generate conflicts for all other versions
         ov_debian_generate_conflicts(${python_component} ${conflicting_versions})
@@ -371,7 +371,7 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_PYTHON_SAMPLES_DEPENDS "${python_component}")
         set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_NAME "openvino-samples-python-${cpack_name_ver}")
         set(python_samples_package "${CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_NAME} (= ${cpack_full_ver})")
-        set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_DEPENDS "python3, ${python_package}")
+        set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_DEPENDS "python3.9, ${python_package}")
         set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "all")
         set(python_samples_copyright "generic")
     endif()
