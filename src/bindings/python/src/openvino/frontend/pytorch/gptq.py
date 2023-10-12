@@ -30,8 +30,8 @@ def patched_forward(self, *args, **kwargs):
     if hasattr(self, "_hf_hook"):
         args, kwargs = self._hf_hook.pre_forward(self, *args, **kwargs)
 
-    dtype = x.dtype
     x = args[0]
+    dtype = x.dtype
     outshape = x.shape[:-1] + (self.width,)
     x = x.view(-1, x.shape[-1])
     groups = self.qzeros.shape[0]
