@@ -45,11 +45,6 @@ macro(ov_debian_cpack_set_dirs)
 
     # skipped during debian packaging
     set(OV_CPACK_WHEELSDIR "tools")
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
 ov_debian_cpack_set_dirs()
@@ -134,7 +129,9 @@ macro(ov_debian_specific_settings)
     # homepage
     set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://docs.openvino.ai/")
     # use lintian to check packages in post-build step
-    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/debian/post_build.cmake")
+    set(CPACK_POST_BUILD_SCRIPTS "${OpenVINODeveloperScripts_DIR}/packaging/debian/post_build.cmake")
+    # to make sure that lib/<multiarch-triplet> is created on Debian
+    set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
     # enable for debug cpack run
     if(NOT DEFINED CPACK_DEBIAN_PACKAGE_DEBUG)
         set(CPACK_DEBIAN_PACKAGE_DEBUG OFF)

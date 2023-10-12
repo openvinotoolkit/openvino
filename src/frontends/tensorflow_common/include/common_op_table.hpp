@@ -97,6 +97,7 @@ OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
 OP_CONVERTER(translate_one_hot_op);
+OP_CONVERTER(translate_ones_like_op);
 OP_CONVERTER(translate_pack_op);
 OP_CONVERTER(translate_pad_op);
 OP_CONVERTER(translate_padv2_op);
