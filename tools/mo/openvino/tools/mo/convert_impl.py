@@ -831,6 +831,8 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
     if telemetry_installed:
         from openvino_telemetry.utils.opt_in_checker import OptInChecker
         print(OptInChecker().consent_file())
+        opt_in_check_result = OptInChecker().check(False)
+        print(opt_in_check_result)
         assert os.path.exists(os.path.join(OptInChecker().consent_file_base_dir(), OptInChecker().consent_file_subdirectory()))
         assert os.path.exists(OptInChecker().consent_file())
         with open(OptInChecker().consent_file(), 'r') as file:
