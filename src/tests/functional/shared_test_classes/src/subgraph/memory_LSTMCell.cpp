@@ -6,7 +6,7 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include "ngraph/pass/low_latency.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
 #include "functional_test_utils/core_config.hpp"
 

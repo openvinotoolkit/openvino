@@ -9,13 +9,6 @@ from openvino._pyopenvino.properties.hint import ExecutionMode
 from openvino.runtime.properties.hint.overloads import PerformanceMode
 
 # Properties
-from openvino._pyopenvino.properties.hint import inference_precision
-from openvino._pyopenvino.properties.hint import model_priority
-from openvino._pyopenvino.properties.hint import performance_mode
-from openvino._pyopenvino.properties.hint import enable_cpu_pinning
-from openvino._pyopenvino.properties.hint import scheduling_core_type
-from openvino._pyopenvino.properties.hint import enable_hyper_threading
-from openvino._pyopenvino.properties.hint import execution_mode
-from openvino._pyopenvino.properties.hint import num_requests
-from openvino._pyopenvino.properties.hint import model
-from openvino._pyopenvino.properties.hint import allow_auto_batching
+import openvino._pyopenvino.properties.hint as __hint
+from openvino.properties._properties import __make_properties
+__make_properties(__hint, __name__)

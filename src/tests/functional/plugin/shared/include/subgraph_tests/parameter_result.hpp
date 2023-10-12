@@ -12,8 +12,14 @@ TEST_P(ParameterResultSubgraphTestLegacyApi, CompareWithRefs) {
     Run();
 }
 
+}  // namespace SubgraphTestsDefinitions
+
+namespace ov {
+namespace test {
+
 TEST_P(ParameterResultSubgraphTest, CompareWithRefs) {
     run();
 }
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

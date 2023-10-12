@@ -28,6 +28,19 @@
 
 namespace {
 
+inline bool can_use_usm_host(const cldnn::engine& engine) {
+    auto can_use_usm = engine.use_unified_shared_memory();
+
+    // WA: Disable USM host memory for infer request`s tensors for PVC as
+    // it has performance issues in case of host <-> device data transfers inside kernels
+    // Use unsupported SIMD8 as unique attribute of PVC
+    auto supported_simd_sizes = engine.get_device_info().supported_simd_sizes;
+    if (std::find(supported_simd_sizes.begin(), supported_simd_sizes.end(), 8) == supported_simd_sizes.end())
+        can_use_usm = false;
+
+    return can_use_usm;
+}
+
 inline std::string get_port_name(const ov::Output<const ov::Node>& port, const bool is_legacy_api) {
     std::string name;
     // TODO: Should use tensor name as the port name, but many legacy tests still use legacy name
@@ -94,7 +107,7 @@ bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
 }
 
 void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream) {
-    auto src_et = cldnn::data_type_to_element_type(src->get_layout().data_type);
+    auto src_et = src->get_layout().data_type;
     auto dst_et = dst->get_element_type();
 
     size_t size = ov::shape_size(dst->get_shape());
@@ -257,10 +270,31 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
     bool is_input = ov::op::util::is_parameter(port.get_node());
 
+    auto update_tensors_maps = [](const std::string& name,
+                                  std::unordered_map<std::string, ov::intel_gpu::TensorWrapper>& user_tensors,
+                                  std::unordered_map<std::string, ov::intel_gpu::TensorWrapper>& plugin_tensors,
+                                  const ov::SoPtr<ov::ITensor>& tensor) {
+        auto current_tensor_owner = user_tensors[name].owner;
+        auto is_same_tensor = user_tensors[name].ptr == tensor._ptr;
+
+        // Keep PLUGIN as a tensor owner if current user's tensor owner is PLUGIN and underlying tensor pointer is not changed
+        auto new_tensor_owner = current_tensor_owner == TensorOwner::PLUGIN && is_same_tensor ? TensorOwner::PLUGIN
+                                                                                              : TensorOwner::USER;
+
+        user_tensors[name] = { tensor._ptr, new_tensor_owner };
+
+        // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer sharing,
+        // so remove plugin's tensor to reallocate it in prepare_input() mehtod
+        if (current_tensor_owner == TensorOwner::PLUGIN && new_tensor_owner == TensorOwner::USER) {
+            if (plugin_tensors.count(name) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[name].ptr)->is_shared())
+                plugin_tensors.erase(plugin_tensors.find(name));
+        }
+    };
+
     if (is_input) {
-        m_user_inputs[name] = { tensor._ptr, TensorOwner::USER };
+        update_tensors_maps(name, m_user_inputs, m_plugin_inputs, tensor);
     } else {
-        m_user_outputs[name] = { tensor._ptr, TensorOwner::USER };
+        update_tensors_maps(name, m_user_outputs, m_plugin_outputs, tensor);
     }
 
     ov::ISyncInferRequest::set_tensor(port, tensor);
@@ -480,6 +514,10 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::Sh
         tensor_type = TensorType::BT_BUF_INTERNAL;
     }
 
+    // Create OpenCL buffer for PVC if lockable memory is needed due to performance issue with usm host
+    if (!can_use_usm_host(m_graph->get_engine()) && need_lockable_memory)
+        tensor_type = TensorType::BT_BUF_INTERNAL;
+
     // Currently, clDeviceMemAllocINTEL returns memory address allocated to other input blob if the current blob is empty
     // W/A for this issue:
     // Allocate with non-empty shape and then reinterprete with original shape
@@ -512,7 +550,9 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     auto input_ptr = user_tensor->data();
     const auto alloc_type = m_graph->get_engine().detect_usm_allocation_type(input_ptr);
     const auto is_usm_host = alloc_type == cldnn::allocation_type::usm_host;
-    bool can_share = is_usm_host && !is_convert_required(user_tensor->get_element_type(), element_type);
+    bool can_share = is_usm_host &&
+                     !is_convert_required(user_tensor->get_element_type(), element_type) &&
+                     can_use_usm_host(m_graph->get_engine());
 
     if (can_share) {
         // For USM case we create host blob using custom USM host allocator
@@ -539,7 +579,7 @@ cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, con
     const auto& layout = src->get_layout();
     auto& stream = m_graph->get_network()->get_stream();
 
-    if (is_convert_required(cldnn::data_type_to_element_type(layout.data_type), dst.get_element_type())) {
+    if (is_convert_required(layout.data_type, dst.get_element_type())) {
         convert_and_copy(src, &dst, stream);
         return nullptr;
     } else {
@@ -657,6 +697,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto element_type = user_tensor->get_element_type();
     auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor);
     bool is_remote = remote_ptr != nullptr;
+    GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << name << " ( is_remote ? " << is_remote << ")" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
     auto network = m_graph->get_network();
     auto& engine = m_graph->get_engine();
@@ -690,6 +733,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
             if (device_tensor->get_original_memory()->size() < user_tensor->get_byte_size()) {
                 auto& shape_predictor = network->get_shape_predictor();
                 auto actual_shape = predict_shape(name, user_tensor->get_shape(), device_tensor_et, shape_predictor);
+                GPU_DEBUG_TRACE_DETAIL << "    actual memory shape: " << actual_shape.to_string() << std::endl;
                 auto new_tensor = create_device_tensor(actual_shape, device_tensor_et, false);
                 new_tensor->set_shape(user_tensor->get_shape());
                 m_plugin_inputs[name] = { new_tensor, TensorOwner::PLUGIN };
@@ -740,7 +784,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     const cldnn::primitive_id internal_name = "parameter:" + name;
     network->set_input_data(internal_name, memory);
 
-    if (ret_event)
+    if (ret_event && !ret_event->is_set())
         return { ret_event };
     else
         return {};
@@ -756,6 +800,10 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(const std::strin
     auto user_tensor = user_tensor_wrapper.ptr;
     auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor);
     bool is_remote = remote_ptr != nullptr;
+
+    GPU_DEBUG_TRACE_DETAIL << "Prepare output for " << name << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
     if (user_tensor->get_size() > 0) {
         OPENVINO_ASSERT(pshape.compatible(ov::PartialShape(user_tensor->get_shape())),

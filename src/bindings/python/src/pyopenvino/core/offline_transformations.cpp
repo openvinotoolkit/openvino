@@ -109,7 +109,6 @@ void regmodule_offline_transformations(py::module m) {
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::CompressQuantizeWeights>();
-            manager.register_pass<ov::pass::ZeroPointOptimizer>();
             manager.run_passes(model);
         },
         py::arg("model"));

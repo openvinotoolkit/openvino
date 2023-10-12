@@ -38,15 +38,9 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 namespace precision_set {
-    const std::vector<element::Type> int8_support  = {
-            ov::element::u8,  ov::element::i8
-    };
-    const std::vector<element::Type> int8_int16_int32_support = {
-            ov::element::u8,  ov::element::i8,
-            ov::element::u16, ov::element::i16,
-            ov::element::u32, ov::element::i32
-    };
-}
+    LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_int8_support();
+    LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_int8_int16_int32_support();
+} // namespace precision_set
 enum levels : size_t {
     int4 = 16,
     int4_narrow_range = 15,
@@ -94,6 +88,7 @@ public:
         switch (precision) {
             case element::i4:
             case element::u4:
+            case element::nf4:
                 return (levels == low_precision::levels::int4) || (levels == low_precision::levels::int4_narrow_range);
             case element::i8:
             case element::u8:
@@ -312,7 +307,7 @@ public:
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
     static bool canBeTransformedStatic(const std::shared_ptr<Node>& layer,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
@@ -326,7 +321,7 @@ public:
     static PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails);
 
     static bool isAsymmetricQuantization(const std::shared_ptr<const Node>& node,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
@@ -376,7 +371,7 @@ protected:
         const bool updatePrecision,
         const bool moveSubtract = true) const;
 
-    void updateOutput(
+    bool updateOutput(
         TransformationContext &context,
         std::shared_ptr<ov::Node> lastNode,
         std::shared_ptr<ov::Node> originalNode) const;

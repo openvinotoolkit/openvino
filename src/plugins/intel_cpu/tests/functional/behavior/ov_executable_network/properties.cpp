@@ -7,7 +7,7 @@
 #include "test_utils/properties_test.hpp"
 #include <common_test_utils/test_assertions.hpp>
 #include "ie_system_conf.h"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
