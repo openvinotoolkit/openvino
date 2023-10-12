@@ -93,4 +93,22 @@ TEST_F(ICacheUnitTest, serialize_model) {
     }
 }
 
+TEST_F(ICacheUnitTest, is_model_large_to_read) {
+    this->mem_size = 0;
+    ASSERT_NO_THROW(this->is_model_large_to_read(test_model, test_model_path));
+    ASSERT_TRUE(this->is_model_large_to_read(test_model, test_model_path));
+    this->mem_size = 1 << 30;
+    ASSERT_NO_THROW(this->is_model_large_to_read(test_model, test_model_path));
+    ASSERT_FALSE(this->is_model_large_to_read(test_model, test_model_path));
+}
+
+TEST_F(ICacheUnitTest, is_model_large_to_store_const) {
+    this->mem_size = 0;
+    ASSERT_NO_THROW(this->is_model_large_to_store_const(test_model));
+    ASSERT_TRUE(this->is_model_large_to_store_const(test_model));
+    this->mem_size = 1 << 30;
+    ASSERT_NO_THROW(this->is_model_large_to_store_const(test_model));
+    ASSERT_FALSE(this->is_model_large_to_store_const(test_model));
+}
+
 }  // namespace

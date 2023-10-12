@@ -12,8 +12,12 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
+#include "matchers/subgraph/repeat_pattern.hpp"
 
 class Model_1 {
+private:
+    using PatternBorders = ov::tools::subgraph_dumper::RepeatPatternExtractor::PatternBorders;
+
 public:
     Model_1() {
         // param        param              param        param
@@ -119,6 +123,22 @@ public:
                                             ov::ParameterVector{test_parameter_0, test_parameter_1,
                                                                 test_parameter_0_0, test_parameter_0_1,
                                                                 test_parameter_1_0, test_parameter_1_1});
+
+        ref_nodes = {{{test_abs_0, test_relu_0}, {test_abs_0_0, test_relu_0_0}},
+                     {{test_abs_1, test_clamp_1}, {test_abs_0_1, test_clamp_0_1}},
+                     {{test_multiply_0_1, test_relu_0_1}, {test_multiply_1_1, test_relu_1_1}}};
+        {
+            PatternBorders ref_pattern_0 = {test_abs_0->inputs(), test_relu_0->outputs()},
+                           ref_pattern_0_0 = {test_abs_0_0->inputs(), test_relu_0_0->outputs()},
+                           ref_pattern_1 = {test_abs_1->inputs(), test_clamp_1->outputs()},
+                           ref_pattern_0_1_0 = {test_abs_0_1->inputs(), test_clamp_0_1->outputs()},
+                           test_pattern_0_1_1 = {test_multiply_0_1->inputs(), test_relu_0_1->outputs()},
+                           test_pattern_1_1 = {test_multiply_1_1->inputs(), test_relu_1_1->outputs()};
+            std::vector<std::vector<PatternBorders>> ref_res = {{ref_pattern_0, ref_pattern_0_0},
+                                                                {ref_pattern_1, ref_pattern_0_1_0},
+                                                                {test_pattern_0_1_1, test_pattern_1_1}};
+            ref_borders = std::move(ref_res);
+        }
     }
 
     std::shared_ptr<ov::Model> get() {
@@ -166,10 +186,19 @@ public:
                 std::make_shared<ov::op::v0::Result>(test_relu_1);
             auto ref_model = std::make_shared<ov::Model>(ov::ResultVector{res},
                                                          ov::ParameterVector{test_parameter_1_0, test_parameter_1_1});
+            ref.push_back(ref_model);
         }
         return ref;
     }
 
+    std::vector<std::vector<ov::NodeVector>>
+    get_ref_node_vector() { return ref_nodes; }
+
+    std::vector<std::vector<PatternBorders>>
+    get_ref_node_borders() { return ref_borders; }
+
 protected:
     std::shared_ptr<ov::Model> model;
+    std::vector<std::vector<ov::NodeVector>> ref_nodes;
+    std::vector<std::vector<PatternBorders>> ref_borders;
 };

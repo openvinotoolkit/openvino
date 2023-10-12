@@ -7,6 +7,73 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
+InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& const_node,
+                                  ov::element::Type elem_type) {
+    InputInfo::Range ranges(DEFAULT_MIN_VALUE, DEFAULT_MAX_VALUE);
+    switch (elem_type) {
+    case ov::element::Type_t::boolean: {
+        ranges = get_const_ranges<bool>(const_node);
+        break;
+    }
+    case ov::element::Type_t::bf16: {
+        ranges = get_const_ranges<ov::bfloat16>(const_node);
+        break;
+    }
+    case ov::element::Type_t::f16: {
+        ranges = get_const_ranges<ov::float16>(const_node);
+        break;
+    }
+    case ov::element::Type_t::f32: {
+        ranges = get_const_ranges<float>(const_node);
+        break;
+    }
+    case ov::element::Type_t::f64: {
+        ranges = get_const_ranges<double>(const_node);
+        break;
+    }
+    case ov::element::Type_t::i8: {
+        ranges = get_const_ranges<int8_t>(const_node);
+        break;
+    }
+    case ov::element::Type_t::i16: {
+        ranges = get_const_ranges<int16_t>(const_node);
+        break;
+    }
+    case ov::element::Type_t::i32: {
+        ranges = get_const_ranges<int32_t>(const_node);
+        break;
+    }
+    case ov::element::Type_t::i64: {
+        ranges = get_const_ranges<int64_t>(const_node);
+        break;
+    }
+        // TODO cast_vector doesn't support u1 now
+        //        case ov::element::Type_t::u1:
+        //            return get_const_ranges<char>(const_node);
+    case ov::element::Type_t::u8: {
+        ranges = get_const_ranges<uint8_t>(const_node);
+        break;
+    }
+    case ov::element::Type_t::u16: {
+        ranges = get_const_ranges<uint16_t>(const_node);
+        break;
+    }
+    case ov::element::Type_t::u32: {
+        ranges = get_const_ranges<uint32_t>(const_node);
+        break;
+    }
+    case ov::element::Type_t::u64: {
+        ranges = get_const_ranges<uint64_t>(const_node);
+        break;
+    }
+    default: {
+        std::cout << "Can't get ranges.. Unsupported data type" << std::endl;
+        break;
+    }
+    }
+    return ranges;
+}
+
 std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov::Node>& node) {
     std::map<std::string, InputInfo> input_info;
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
@@ -19,71 +86,12 @@ std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov
         if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)) {
             if (ov::shape_size(input_node->get_output_shape(0)) == 0)
                 continue;
-            auto const_node =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node);
+            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(input_node);
             in_info.is_const = true;
-            switch (node->get_output_element_type(0)) {
-            case ov::element::Type_t::boolean: {
-                in_info.ranges = get_const_ranges<bool>(const_node);
-                break;
-            }
-            case ov::element::Type_t::bf16: {
-                in_info.ranges = get_const_ranges<ov::bfloat16>(const_node);
-                break;
-            }
-            case ov::element::Type_t::f16: {
-                in_info.ranges = get_const_ranges<ov::float16>(const_node);
-                break;
-            }
-            case ov::element::Type_t::f32: {
-                in_info.ranges = get_const_ranges<float>(const_node);
-                break;
-            }
-            case ov::element::Type_t::f64: {
-                in_info.ranges = get_const_ranges<double>(const_node);
-                break;
-            }
-            case ov::element::Type_t::i8: {
-                in_info.ranges = get_const_ranges<int8_t>(const_node);
-                break;
-            }
-            case ov::element::Type_t::i16: {
-                in_info.ranges = get_const_ranges<int16_t>(const_node);
-                break;
-            }
-            case ov::element::Type_t::i32: {
-                in_info.ranges = get_const_ranges<int32_t>(const_node);
-                break;
-            }
-            case ov::element::Type_t::i64: {
-                in_info.ranges = get_const_ranges<int64_t>(const_node);
-                break;
-            }
-                // TODO cast_vector doesn't support u1 now
-                //        case ov::element::Type_t::u1:
-                //            return get_const_ranges<char>(const_node);
-            case ov::element::Type_t::u8: {
-                in_info.ranges = get_const_ranges<uint8_t>(const_node);
-                break;
-            }
-            case ov::element::Type_t::u16: {
-                in_info.ranges = get_const_ranges<uint16_t>(const_node);
-                break;
-            }
-            case ov::element::Type_t::u32: {
-                in_info.ranges = get_const_ranges<uint32_t>(const_node);
-                break;
-            }
-            case ov::element::Type_t::u64: {
-                in_info.ranges = get_const_ranges<uint64_t>(const_node);
-                break;
-            }
-            default: {
-                std::cout << "Can't get ranges.. Unsupported data type" << std::endl;
-                break;
-            }}
+            in_info.ranges = get_const_ranges(const_node,
+                                              const_node->get_default_output().get_element_type());
         }
-        input_info.insert({ input_name, in_info });
+        input_info.insert({input_name, in_info});
     }
     return input_info;
 }
@@ -128,9 +136,10 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
     std::shared_ptr<ov::Node> cloned_node = nullptr;
     if (!has_parameters && !is_copy_const_node && !inputs.empty()) {
         cloned_node = clone_node(node, true, true, node_name);
-        // std::cout << "The operation: " + node->get_friendly_name() + " does not have parameters! Replace first input to parameter!" << std::endl;
-        auto param =
-            std::make_shared<ov::op::v0::Parameter>(cloned_node->get_input_element_type(0), cloned_node->get_input_partial_shape(0));
+        // std::cout << "The operation: " + node->get_friendly_name() + " does not have parameters! Replace first input
+        // to parameter!" << std::endl;
+        auto param = std::make_shared<ov::op::v0::Parameter>(cloned_node->get_input_element_type(0),
+                                                             cloned_node->get_input_partial_shape(0));
         std::string param_name = node_name + "_0";
         param->set_friendly_name(param_name);
         auto node_to_replace = cloned_node->get_input_node_shared_ptr(0);
@@ -142,10 +151,11 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
     return cloned_node;
 }
 
-std::shared_ptr<ov::op::v0::Parameter> convert_const_to_param(const std::shared_ptr<ov::op::v0::Constant>& op_to_replace) {
+std::shared_ptr<ov::op::v0::Parameter> convert_const_to_param(
+    const std::shared_ptr<ov::op::v0::Constant>& op_to_replace) {
     if (op_to_replace->get_byte_size() > 1024) {
-        auto param = std::make_shared<ov::op::v0::Parameter>(
-            op_to_replace->get_output_element_type(0), op_to_replace->get_output_partial_shape(0));
+        auto param = std::make_shared<ov::op::v0::Parameter>(op_to_replace->get_output_element_type(0),
+                                                             op_to_replace->get_output_partial_shape(0));
         param->set_friendly_name(op_to_replace->get_friendly_name());
         if (param != nullptr) {
             ov::replace_node(op_to_replace, param);
