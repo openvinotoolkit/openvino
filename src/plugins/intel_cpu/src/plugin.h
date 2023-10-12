@@ -70,6 +70,7 @@ private:
         ~SchedulerGuard();
         static std::shared_ptr<SchedulerGuard> instance();
         static std::mutex mutex;
+        // separate mutex for saving ACLScheduler state in destructor
         mutable std::mutex dest_mutex;
         static std::weak_ptr<SchedulerGuard> ptr;
     };
