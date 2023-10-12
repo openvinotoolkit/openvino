@@ -44,7 +44,7 @@ if(X86 OR X86_64 OR AARCH64)
 else()
     set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
 endif()
-ie_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
+ov_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
 add_subdirectory(thirdparty)
 
