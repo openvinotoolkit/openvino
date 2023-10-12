@@ -7,7 +7,6 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/util/evaluate_helpers.hpp"
 #include "openvino/reference/topk.hpp"
 #include "topk_shape_inference.hpp"
 
@@ -102,8 +101,7 @@ private:
 
 namespace {
 bool evaluate(const util::TopKBase* const node, TensorVector& outputs, const TensorVector& inputs) {
-    auto output_shapes =
-        shape_infer(node, ov::op::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));
+    auto output_shapes = shape_infer(node, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));
     OPENVINO_ASSERT(outputs.size() == output_shapes.size());
 
     auto output_shape = output_shapes.front().get_shape();
