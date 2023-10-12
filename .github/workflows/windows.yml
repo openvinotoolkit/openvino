@@ -442,7 +442,7 @@ jobs:
       - name: OVC unit tests
         if: ${{ always() }}
         shell: cmd
-        run: python3 -m pytest -s {{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=$${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
+        run: python3 -m pytest -s ${{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3

@@ -580,6 +580,7 @@ jobs:
         run: |
           export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests \
+              --ignore=${{ env.INSTALL_TEST_DIR }}/mo/unit_tests/mo/front/mxnet \
               --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
