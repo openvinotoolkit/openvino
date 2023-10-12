@@ -543,10 +543,16 @@ jobs:
           # Install the core OV wheel
           python3 -m pip install ${{ env.INSTALL_DIR }}/tools/openvino-*.whl
           
+          # mxnet is only available on x86_64
+          extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
+          if [[ "${{ matrix.arhitecture }}" == "x86_64" ]]; then
+            extras_to_install="mxnet,$extras_to_install"
+          fi
+          
           # Find and install OV dev wheel
           pushd ${{ env.INSTALL_DIR }}/tools
             ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-            python3 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2,pytorch]
+            python3 -m pip install $ov_dev_wheel_name[$extras_to_install]
           popd
 
       - name: Python API 1.0 tests
