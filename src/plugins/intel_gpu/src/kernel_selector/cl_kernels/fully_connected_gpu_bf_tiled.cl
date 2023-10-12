@@ -38,10 +38,17 @@
 #   error "fully_connected_gpu_bf_tiled.cl - TILE_K_OFM must be equal to TILE_K * TILE_OFM and at most 8"
 #endif
 
+#if COMPRESSED_WEIGHTS_INT4
+#   if TILE_K_OFM != TILE_K_OFM_PACKED * 2
+#       error "fully_connected_gpu_bf_tiled.cl - TILE_K_OFM must be divisible by 2 for NF4 compressed case"
+#   endif
+#endif
+
 // Macros for vectorized types.
 #define INPUT_VEC_TYPE             MAKE_VECTOR_TYPE(INPUT0_TYPE, TILE_IFM)
 #define ACCUMULATOR_VEC_TYPE       MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, TILE_OFM)
 #define FILTER_VEC_TYPE            MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, TILE_K_OFM)
+#define FILTER_PACKED_VEC_TYPE     MAKE_VECTOR_TYPE(FILTER_TYPE, TILE_K_OFM_PACKED)
 #define BIAS_VEC_TYPE              MAKE_VECTOR_TYPE(BIAS_TYPE, TILE_OFM)
 #define OUTPUT_VEC_TYPE            MAKE_VECTOR_TYPE(OUTPUT_TYPE, TILE_OFM)
 #define ACTIVATION_VEC_TYPE        MAKE_VECTOR_TYPE(ACTIVATION_TYPE, TILE_OFM)
@@ -50,7 +57,7 @@
 #define TO_FILTER_VEC_TYPE(x)      CAT(convert_, FILTER_VEC_TYPE)(x)
 
 #define INPUT_BLOCK_READ(ptr, offset)        BLOCK_READN(INPUT0_TYPE, TILE_IFM, ptr, offset)
-#define FILTER_BLOCK_READ(ptr, offset)       BLOCK_READN(FILTER_TYPE, TILE_K_OFM, ptr, offset)
+#define FILTER_BLOCK_READ(ptr, offset)       BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, ptr, offset)
 #define BIAS_BLOCK_READ(ptr, offset)         BLOCK_READN(BIAS_TYPE, TILE_OFM, ptr, offset)
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, TILE_OFM, ptr, offset, val)
 
@@ -118,7 +125,11 @@ KERNEL(fc)(
 
     FILTER_VEC_TYPE wei = 0;
     uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
+#if COMPRESSED_WEIGHTS_INT4
+    uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
+#else
     uint weights_offset = out_f * INPUT_ELEMENTS_COUNT;
+#endif
 
 #if COMPRESSED_WEIGHTS && DECOMPRESSION_SCALE_GROUPS_NUM == 1
     #if DECOMPRESSION_SCALE_LENGTH > 1 && DECOMPRESSION_SCALE_LENGTH % SIMD == 0
@@ -188,7 +199,13 @@ KERNEL(fc)(
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
-            wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+            #if COMPRESSED_WEIGHTS_INT4
+                FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
+                wei = UNPACK_INT4x2(ACCUMULATOR_TYPE, wei_packed);
+            #else
+                wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+            #endif
+
             #if COMPRESSED_WEIGHTS
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
@@ -218,7 +235,7 @@ KERNEL(fc)(
                     }
                 }
             #endif
-            weights_offset += TILE_K_OFM * SIMD;
+            weights_offset += TILE_K_OFM_PACKED * SIMD;
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 const uint total_k = ki * TILE_K + kii;
@@ -246,7 +263,13 @@ KERNEL(fc)(
         #undef LOAD_IN_0
         input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
         unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
-            wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+            #if COMPRESSED_WEIGHTS_INT4
+                FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
+                wei = UNPACK_INT4x2(ACCUMULATOR_TYPE, wei_packed);
+            #else
+                wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+            #endif
+
             #if COMPRESSED_WEIGHTS
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
@@ -276,7 +299,7 @@ KERNEL(fc)(
                     }
                 }
             #endif
-            weights_offset += TILE_K_OFM * SIMD;
+            weights_offset += TILE_K_OFM_PACKED * SIMD;
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {

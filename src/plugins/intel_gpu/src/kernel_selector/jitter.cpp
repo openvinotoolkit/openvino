@@ -115,8 +115,10 @@ std::string toCLType(WeightsType wType) {
     switch (wType) {
         case WeightsType::BINARY:
             return GetTypeName<uint32_t>();
+        case WeightsType::INT4:
         case WeightsType::INT8:
             return GetTypeName<int8_t>();
+        case WeightsType::UINT4:
         case WeightsType::UINT8:
             return GetTypeName<uint8_t>();
         case WeightsType::F16:
@@ -1478,6 +1480,36 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "2";
             is_fp = true;
             break;
+        case Datatype::INT4:
+            type = "char";
+            max_val = "undefined";
+            min_val = "undefined";
+            val_one = "undefined";
+            val_zero = "undefined";
+            to_type = "undefined";
+            to_type_sat = "undefined";
+            as_type = "undefined";
+            max_func = "undefined";
+            min_func = "undefined";
+            abs_func = "undefined";
+            type_size = "0.5f";
+            is_fp = false;
+            break;
+        case Datatype::UINT4:
+            type = "uchar";
+            max_val = "undefined";
+            min_val = "undefined";
+            val_one = "undefined";
+            val_zero = "undefined";
+            to_type = "undefined";
+            to_type_sat = "undefined";
+            as_type = "undefined";
+            max_func = "undefined";
+            min_func = "undefined";
+            abs_func = "undefined";
+            type_size = "0.5f";
+            is_fp = false;
+            break;
         default:
             type = "float";
             max_val = "FLT_MAX";
@@ -1523,6 +1555,10 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::INT8, macroName);
         case WeightsType::UINT8:
             return MakeTypeJitConstants(Datatype::UINT8, macroName);
+        case WeightsType::INT4:
+            return MakeTypeJitConstants(Datatype::INT4, macroName);
+        case WeightsType::UINT4:
+            return MakeTypeJitConstants(Datatype::UINT4, macroName);
         case WeightsType::BINARY:
             return MakeTypeJitConstants(Datatype::UINT32, macroName);
         case WeightsType::INT32:

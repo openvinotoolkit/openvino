@@ -26,6 +26,8 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
         jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS", 1)});
         if (params.weights.GetDType() == WeightsType::INT8 || params.weights.GetDType() == WeightsType::UINT8) {
             jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT8", 1)});
+        } else if (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) {
+            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT4", 1)});
         }
 
         const size_t scale_groups_num = params.decompression_scale.Feature().v;

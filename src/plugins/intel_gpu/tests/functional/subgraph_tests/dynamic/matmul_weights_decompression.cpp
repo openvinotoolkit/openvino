@@ -285,7 +285,7 @@ TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
 namespace {
 
 const std::vector<ov::test::ElementType> activations_precisions = {ov::element::f32, ov::element::f16};
-const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8};
+const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
 const std::vector<ShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
     {{{}, {{1, 4, 16}}}, {16, 32}, 2ul},
@@ -310,6 +310,7 @@ const std::vector<ShapeParams> input_shapes_corner_cases_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}}}, {1, 16, 32}},
     {{{-1, -1, -1}, {{1, 4, 16}}}, {16, 32}},
     {{{-1, -1, 16}, {{1, 4, 16}}}, {16, 32}, 4},
+    {{{-1, 16}, {{4, 16}}}, {16, 32}, 4},
 };
 const std::vector<ShapeParams> input_shapes_corner_cases_big = {
     {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {1, 480, 256}},

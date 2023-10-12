@@ -232,7 +232,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8}, true);
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -286,8 +286,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {ov::element::u16, ov::element::i32},
                 {ov::element::u32, ov::element::i32},
                 {ov::element::boolean, ov::element::u8},
-                {ov::element::i4, ov::element::i8},
-                {ov::element::u4, ov::element::u8},
         };
 
         manager.register_pass<ov::pass::Validate>();
@@ -642,6 +640,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager;
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
+        manager.register_pass<ov::pass::VisualizeTree>("before.dot");
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
         manager.register_pass<ov::intel_gpu::RMSFusion>();
 

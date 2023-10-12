@@ -38,6 +38,8 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableInputWeightsType(WeightsType::UINT4);
+    k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputLayout(DataLayout::bf);
@@ -201,7 +203,9 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     while (max_tile_ofm * 2 * simd <= output_f && max_tile_ofm < 4)
         max_tile_ofm *= 2;
 
-    if (params.compressed && params.engineInfo.supports_immad) {
+    if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
+        return selector.Default(tune_params(1, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+    } else if (params.compressed && params.engineInfo.supports_immad) {
         return selector.Default(tune_params(1, 1, 1, 4, 1, 1, EXE_MODE_DEFAULT));
     } else if (params.is_shape_agnostic) {
         // Use special tuning params for Gen12HP dGPUs, since these parameters demonstrate higher performance
@@ -314,13 +318,17 @@ KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params
 
 JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
-
+    size_t tile_k_ofm_packed = (dispatchData.tile_nk * dispatchData.tile_n);
+    if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
+        tile_k_ofm_packed /= 2;
+    }
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
     jit.AddConstant(MakeJitConstant("TILE_OFM", dispatchData.tile_n));
     jit.AddConstant(MakeJitConstant("TILE_IFM", dispatchData.tile_mk));
     jit.AddConstant(MakeJitConstant("TILE_K", dispatchData.tile_nk));
     jit.AddConstant(MakeJitConstant("TILE_K_OFM", dispatchData.tile_nk * dispatchData.tile_n));
+    jit.AddConstant(MakeJitConstant("TILE_K_OFM_PACKED", tile_k_ofm_packed));
     jit.AddConstant(MakeJitConstant("DISPATCH_BSV", dispatchData.tile_ms));
     jit.AddConstant(MakeJitConstant("DISPATCH_FSV", dispatchData.tile_ns));
 
