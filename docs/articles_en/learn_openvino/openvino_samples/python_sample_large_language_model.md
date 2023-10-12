@@ -16,7 +16,7 @@ The following Python API is used in the application:
          :language: python
 
 Running
-####################
+#######
 
 (1) Need to start the virtual environment of python
 
@@ -27,7 +27,6 @@ Running
       pip install update --upgrade
 
 (2) Convert model to IRs
-## Conversion script for preparing benchmarking models
 
 `convert.py` allow to reproduce IRs stored on shared drive.
 
@@ -41,6 +40,7 @@ install conversion dependencies using requirements_conversion.txt
 Usage:
 
    .. code-block:: sh
+
       python convert.py --model_id <model_id_or_path> --output_dir <out_dir>
 
 Paramters:
@@ -54,6 +54,7 @@ Paramters:
 Usage example:
 
    .. code-block:: sh
+
       python convert.py --model_id meta-llama/Llama-2-7b-chat-hf --output_dir models/llama-2-7b-chat
 
 the result of running command will have following file structure:
@@ -103,3 +104,6 @@ Parameters:
 
    .. code-block:: sh
       python ./benchmark.py -h # for more information
+
+@endsphinxdirective
+

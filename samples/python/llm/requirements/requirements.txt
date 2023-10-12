@@ -1,4 +1,4 @@
-openvino-dev
+openvino-dev>=2023.0.0
 git+https://github.com/huggingface/optimum-intel.git@4b8ed2404abf4408a16d251870a8deb25a4c448b
 torch
 torchvision
