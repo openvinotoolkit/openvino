@@ -5,14 +5,17 @@
 #include "shared_test_classes/subgraph/split_conv_concat.hpp"
 
 #include "common_test_utils/data_utils.hpp"
+#include "ie_common.h"
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
 
 std::string SplitConvConcat::getTestCaseName(const testing::TestParamInfo<ov::test::BasicParams>& obj) {
     ov::element::Type element_type;
-    ov::Shape inputShapes, newInputShapes;
+    ov::Shape inputShapes;
     std::string targetDevice;
     std::tie(element_type, inputShapes, targetDevice) = obj.param;
 
@@ -24,9 +27,13 @@ std::string SplitConvConcat::getTestCaseName(const testing::TestParamInfo<ov::te
 }
 
 void SplitConvConcat::SetUp() {
+    configure_test(this->GetParam());
+}
+
+void SplitConvConcatBase::configure_test(const ov::test::BasicParams& param) {
     ov::Shape inputShape;
     ov::element::Type element_type;
-    std::tie(element_type, inputShape, targetDevice) = this->GetParam();
+    std::tie(element_type, inputShape, targetDevice) = param;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
 
@@ -71,3 +78,32 @@ void SplitConvConcat::SetUp() {
 
 }  // namespace test
 }  // namespace ov
+
+namespace SubgraphTestsDefinitions {
+
+std::string SplitConvConcat::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::basicParams>& obj) {
+    InferenceEngine::Precision precision;
+    InferenceEngine::SizeVector inputShapes;
+    std::string targetDevice;
+    std::tie(precision, inputShapes, targetDevice) = obj.param;
+    auto element_type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
+
+    std::ostringstream result;
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "ET=" << element_type << "_";
+    result << "targetDevice=" << targetDevice;
+    return result.str();
+}
+
+void SplitConvConcat::SetUp() {
+    InferenceEngine::Precision precision;
+    InferenceEngine::SizeVector inputShapes;
+    std::tie(precision, inputShapes, targetDevice) = this->GetParam();
+    auto element_type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
+    ov::Shape shape = inputShapes;
+
+    ov::test::BasicParams param(element_type, shape, targetDevice);
+    configure_test(param);
+}
+
+}  // namespace SubgraphTestsDefinitions
