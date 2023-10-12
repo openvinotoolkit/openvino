@@ -64,7 +64,7 @@ RMSFusion::RMSFusion() {
     auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
-    auto gamma = wrap_type<ov::op::v0::Constant>();
+    auto gamma = wrap_type<ov::op::v0::Constant>(type_matches(element::f32));
     auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma, mul1});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
