@@ -32,6 +32,9 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    size_t get_num_append() const { return m_num_append; }
+    size_t get_num_prepend() const { return m_num_prepend; }
+
     class ShapeInfer : public IShapeInferSnippets {
         size_t m_num_prepend = 0;
         size_t m_num_append = 0;

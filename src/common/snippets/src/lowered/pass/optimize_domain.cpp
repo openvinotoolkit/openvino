@@ -82,11 +82,20 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
     OPENVINO_ASSERT(config.m_min_parallel_work_amount != 0, "OptimizeDomain: Min parallel work amount can't equal to zero");
     std::vector<VectorDims> input_shapes;
     VectorDims master_shape = linear_ir.get_master_shape();
+    bool blocked_input_shapes = false;
     for (const auto& io_expr : linear_ir.get_IO_ops()) {
         if (io_expr->get_type() == snippets::lowered::IOExpression::io_type::INPUT) {
             auto consumer_inputs = io_expr->get_output_port_connector(0)->get_consumers();
             const auto& first_consumer = consumer_inputs.begin()->get_expr();
-            const ExpressionPtr& shape_producing_expr = is_type<op::RankNormalization>(first_consumer->get_node()) ?
+            if (auto rank_norm = as_type_ptr<op::RankNormalization>(first_consumer->get_node())) {
+                // If RankNormalization appends dims, then the appended dims will be broadcasted
+                // so collapsing is not allowed. We may increment tile rank though.
+                if (rank_norm->get_num_append() != 0)
+                    blocked_input_shapes = true;
+                // If RankNormalization prepends dims, then the dims should be ignored during domain optimization
+                // to avoid passing already incremented shapes to linear_ir.shape_infer()
+            }
+            const ExpressionPtr& shape_producing_expr = blocked_input_shapes ?
                                                         first_consumer :
                                                         io_expr;
             const auto& shape = utils::get_planar_vdims(shape_producing_expr->get_output_port_descriptor(0));
@@ -100,7 +109,9 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
                                                    master_shape.end(),
                                                    (size_t)1,
                                                    std::multiplies<size_t>());
-    const auto num_dims_collapsed = optimize(input_shapes,
+    const auto num_dims_collapsed = blocked_input_shapes ?
+                                    0 :
+                                    optimize(input_shapes,
                                               master_shape,
                                               total_work_amount,
                                               config.m_min_parallel_work_amount,

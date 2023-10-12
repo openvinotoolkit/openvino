@@ -170,6 +170,8 @@ LinearIR LinearIR::deep_copy() const {
     new_lir.m_loop_manager = std::make_shared<LoopManager>();
     // It's Ok to share shapeInfer factory, since LIR doesn't change it
     new_lir.m_shape_infer_factory = m_shape_infer_factory;
+    // Note: shapeInfer stores expression pointers. we re-create it, so shape inference is performed on cloned exprs.
+    new_lir.m_shape_infer = std::make_shared<LIRShapeInfer>(new_lir.m_expressions, new_lir.m_io_expressions);
     return new_lir;
 }
 
