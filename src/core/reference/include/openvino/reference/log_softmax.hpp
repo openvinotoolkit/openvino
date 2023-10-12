@@ -6,40 +6,39 @@
 
 #include <cmath>
 
-#include "ngraph/shape_util.hpp"
-#include "openvino/reference/max.hpp"
-#include "openvino/reference/sum.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/reference/reduce_max.hpp"
+#include "openvino/reference/reduce_sum.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
 namespace reference {
 template <typename T>
 void log_softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    auto temp_shape = ngraph::reduce(shape, axes, true);
-    auto temp_elements = shape_size(temp_shape);
+    const auto temp_shape = util::reduce_keep_dims(shape, axes);
+    const auto temp_elements = shape_size(temp_shape);
     auto temp_max = std::vector<T>(temp_elements, 0);
     auto temp_sum = std::vector<T>(temp_elements, 0);
 
-    max(arg, temp_max.data(), shape, axes);
+    reduce_max(arg, temp_max.data(), shape, axes);
 
-    CoordinateTransform transform(shape);
-    CoordinateTransform temp_transform(temp_shape);
+    const CoordinateTransformBasic transform{shape};
     for (const Coordinate& coord : transform) {
-        Coordinate temp_coord = ngraph::reduce(coord, axes, true);
-        out[transform.index(coord)] =
-            static_cast<T>(std::exp(arg[transform.index(coord)] - temp_max[temp_transform.index(temp_coord)]));
+        const Coordinate temp_coord = util::reduce_keep_dims(coord, axes);
+        const auto out_index = coordinate_index(coord, shape);
+        const auto temp_index = coordinate_index(temp_coord, temp_shape);
+        out[out_index] = static_cast<T>(std::exp(arg[out_index] - temp_max[temp_index]));
     }
 
-    sum(out, temp_sum.data(), shape, axes);
+    reduce_sum(out, temp_sum.data(), shape, axes);
 
     for (const Coordinate& coord : transform) {
-        Coordinate temp_coord = ngraph::reduce(coord, axes, true);
-        out[transform.index(coord)] =
-            static_cast<T>((arg[transform.index(coord)] - temp_max[temp_transform.index(temp_coord)]) -
-                           std::log(temp_sum[temp_transform.index(temp_coord)]));
+        const Coordinate temp_coord = util::reduce_keep_dims(coord, axes);
+        const auto out_index = coordinate_index(coord, shape);
+        const auto temp_index = coordinate_index(temp_coord, temp_shape);
+        out[out_index] = static_cast<T>((arg[out_index] - temp_max[temp_index]) - std::log(temp_sum[temp_index]));
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace ov

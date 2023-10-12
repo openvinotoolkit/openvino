@@ -12,14 +12,15 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/disable_cleanup_attribute.hpp"
+
 #include "itt.hpp"
-#include "low_precision/rt_info/skip_cleanup_attribute.hpp"
 
 namespace ov {
 namespace pass {
 namespace low_precision {
 
-FuseConvertTransformation::FuseConvertTransformation(const Params& params) : LayerTransformation(params) {
+FuseConvertTransformation::FuseConvertTransformation(const Params& params) : CleanupTransformation(params) {
     MATCHER_SCOPE(FuseConvertTransformation);
     auto multiply = pattern::wrap_type<ov::opset1::Multiply>({ pattern::wrap_type<ov::opset1::Convert>(), pattern::wrap_type<ov::opset1::Constant>() });
     auto subtract = pattern::wrap_type<ov::opset1::Subtract>({ pattern::wrap_type<ov::opset1::Convert>(), pattern::wrap_type<ov::opset1::Constant>() });
@@ -114,7 +115,7 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ov::pa
 }
 
 bool FuseConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!getAttribute<SkipCleanupAttribute>(op).empty()) {
+    if (!CleanupTransformation::canBeTransformed(context, op)) {
         return false;
     }
 

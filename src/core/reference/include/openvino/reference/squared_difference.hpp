@@ -7,7 +7,6 @@
 #include <cmath>
 #include <cstddef>
 
-#include "ngraph/shape_util.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 
 namespace ov {

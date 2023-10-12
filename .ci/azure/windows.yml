@@ -130,8 +130,7 @@ jobs:
       python -m pip install -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
       python -m pip install -r $(REPO_DIR)\src\bindings\python\requirements.txt
       rem For running Paddle frontend unit tests
-      # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
-      #python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
+      python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
       rem For running ONNX frontend unit tests
       python -m pip install -r $(REPO_DIR)\src\frontends\onnx\tests\requirements.txt
       rem For running TensorFlow frontend unit tests
@@ -166,9 +165,7 @@ jobs:
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
         -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" ^
-        -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.11.2\x64\python.exe" ^
-        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.11.2\x64\include" ^
-        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.11.2\x64\libs\python311.lib" ^
+        -DPython3_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.11.2\x64\python.exe" ^
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
@@ -267,9 +264,10 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
 
-  # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
-  #- script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
-  #  displayName: 'Paddle Frontend UT'
+  # TODO Reenable PDPD after paddlepaddle==2.5.1 with compliant protobuf is released (ticket 95904)
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
+    displayName: 'Paddle Frontend UT'
+    enabled: 'false'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
@@ -306,6 +304,9 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_auto_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_auto_unit_tests.xml
     displayName: 'AUTO UT'
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_auto_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_auto_func_tests.xml
+    displayName: 'AUTO FuncTests'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_auto_batch_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_auto_batch_unit_tests.xml
     displayName: 'AutoBatch UT'

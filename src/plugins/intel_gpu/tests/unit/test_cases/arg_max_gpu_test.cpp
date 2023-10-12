@@ -21,14 +21,13 @@ template <format::type layoutFormat, typename DataType>
 struct arg_max_input_types {
     static const auto format = layoutFormat;
     using input_type = DataType;
-    static const data_types data_type = type_to_data_type<DataType>::value;
 };
 
 template <typename ArgMaxInput>
 struct argmax_gpu_test : public testing::Test {
     static const auto format = ArgMaxInput::format;
     using input_type = typename ArgMaxInput::input_type;
-    static const data_types data_type = ArgMaxInput::data_type;
+    const data_types data_type = ov::element::from<input_type>();
     std::vector<input_type> getTypedVector(const std::vector<float>& input) {
         return std::vector<input_type>(input.begin(), input.end());
     }
@@ -54,8 +53,8 @@ using format_types = testing::Types<arg_max_input_types<format::bfyx, float>,
                                     arg_max_input_types<format::bs_fs_yx_bsv16_fsv16, int32_t>,
                                     arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, int32_t>,
                                     arg_max_input_types<format::bs_fs_yx_bsv32_fsv32, int32_t>,
-                                    arg_max_input_types<format::bfyx, half_t>,
-                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, half_t>,
+                                    arg_max_input_types<format::bfyx, ov::float16>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, ov::float16>,
                                     arg_max_input_types<format::bfyx, int8_t>,
                                     arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, int8_t>>;
 
