@@ -1026,7 +1026,7 @@ jobs:
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           # source ${INSTALL_DIR}/setupvars.sh
           # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-          export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino
+          export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino/test_utils
           export LD_LIBRARY_PATH=${INSTALL_DIR}/python/openvino/test_utils:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
@@ -1038,7 +1038,7 @@ jobs:
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           # source ${INSTALL_DIR}/setupvars.sh
           # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-          export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino
+          export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino/test_utils
           export LD_LIBRARY_PATH=${INSTALL_DIR}/python/openvino/test_utils:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
