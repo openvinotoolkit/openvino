@@ -51,9 +51,6 @@ if(X86_64 OR X86 OR UNIVERSAL2)
         # conan creates alias xbyak::xbyak, no extra steps are required
     else()
         add_subdirectory(thirdparty/xbyak EXCLUDE_FROM_ALL)
-        # export and install xbyak
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak::xbyak)
-        ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
     endif()
 endif()
 
@@ -269,12 +266,32 @@ if(NOT TARGET openvino::pugixml)
     function(ov_build_pugixml)
         function(ov_build_pugixml_static)
             set(BUILD_SHARED_LIBS OFF)
+            function(install)
+                cmake_parse_arguments(_install "" "EXPORT" "" ${ARGV})
+                if(_install_EXPORT STREQUAL "pugixml-targets")
+                    # does nothing!
+                    # we need to override 'export' command to prevent cmake issue with multiple
+                    # export sets for pugixml-target. Currently, it's installed only by OpenVINO
+                else()
+                    _install(${ARGV})
+                endif()
+            endfunction()
+            function(export)
+                cmake_parse_arguments(_export "" "EXPORT" "" ${ARGV})
+                if(_export_EXPORT STREQUAL "pugixml-targets")
+                    # does nothing!
+                    # we need to override 'export' command to prevent cmake issue with multiple
+                    # export sets for pugixml-target. Currently, it's installed only by OpenVINO
+                else()
+                    _export(${ARGV})
+                endif()
+            endfunction()
             add_subdirectory(thirdparty/pugixml EXCLUDE_FROM_ALL)
         endfunction()
         ov_build_pugixml_static()
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         add_library(openvino::pugixml ALIAS pugixml-static)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::pugixml)
+        ov_developer_package_export_targets(TARGET openvino::pugixml)
         ov_install_static_lib(pugixml-static ${OV_CPACK_COMP_CORE})
     endfunction()
 
@@ -300,7 +317,7 @@ if(ENABLE_GAPI_PREPROCESSING)
         add_subdirectory(thirdparty/ade EXCLUDE_FROM_ALL)
 
         set_target_properties(ade PROPERTIES FOLDER thirdparty)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade)
+        ov_developer_package_export_targets(TARGET ade)
 
         ov_install_static_lib(ade ${OV_CPACK_COMP_CORE})
     endif()
@@ -316,7 +333,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     endif()
 
     set_target_properties(fluid PROPERTIES FOLDER thirdparty)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS fluid)
+    ov_developer_package_export_targets(TARGET fluid)
 
     ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
 endif()
@@ -369,7 +386,7 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
 
     if(NOT TARGET gflags)
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
+        ov_developer_package_export_targets(TARGET gflags)
     endif()
 endif()
 
@@ -391,8 +408,14 @@ if(ENABLE_TESTS)
         endforeach()
     else()
         add_subdirectory(thirdparty/gtest EXCLUDE_FROM_ALL)
-        openvino_developer_export_targets(COMPONENT tests
-                                          TARGETS gmock gmock_main gtest gtest_main)
+        # install & export
+        set(googletest_root "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gtest/gtest")
+        ov_developer_package_export_targets(TARGET gtest_main
+                                            INSTALL_INCLUDE_DIRECTORIES "${googletest_root}/googletest/include/")
+        ov_developer_package_export_targets(TARGET gtest
+                                            INSTALL_INCLUDE_DIRECTORIES "${googletest_root}/googletest/include/")
+        ov_developer_package_export_targets(TARGET gmock
+                                            INSTALL_INCLUDE_DIRECTORIES "${googletest_root}/googlemock/include/")
     endif()
 endif()
 
@@ -585,8 +608,9 @@ if(ENABLE_SAMPLES)
     else()
         add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 
-        # this is required only because of NPU plugin reused this
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
+        # this is required only because of NPU plugin reused this: export & install
+        ov_developer_package_export_targets(TARGET nlohmann_json
+                                            INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/thirdparty/json/nlohmann_json/include")
 
         # for nlohmann library versions older than v3.0.0
         if(NOT TARGET nlohmann_json::nlohmann_json)

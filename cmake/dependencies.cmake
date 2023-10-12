@@ -5,7 +5,7 @@
 cmake_policy(SET CMP0054 NEW)
 
 # TODO: fix it, outside of source dir MO cannot find TBB dependency
-set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
+ov_set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 ## Intel OMP package
 if(THREADING STREQUAL "OMP")
@@ -71,12 +71,16 @@ function(ov_download_tbb)
 
     if(NOT DEFINED ENV{TBBROOT} AND (DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR))
         if(DEFINED ENV{TBB_DIR})
-            set(TEMP_ROOT $ENV{TBB_DIR})
-        elseif (DEFINED TBB_DIR)
-            set(TEMP_ROOT ${TBB_DIR})
+            set(TBB_DIR "$ENV{TBB_DIR}")
         endif()
+        set(TEMP_ROOT "${TBB_DIR}")
         while(NOT EXISTS "${TEMP_ROOT}/include")
-            get_filename_component(TEMP_ROOT ${TEMP_ROOT} PATH)
+            get_filename_component(TEMP_ROOT_PARENT ${TEMP_ROOT} PATH)
+            if(TEMP_ROOT_PARENT STREQUAL TEMP_ROOT)
+                # to prevent recursion
+                message(FATAL_ERROR "${TBB_DIR} does not contain 'include' folder. Please, unset TBB_DIR")
+            endif()
+            set(TEMP_ROOT "${TEMP_ROOT_PARENT}")
         endwhile()
         set(TBBROOT ${TEMP_ROOT})
     endif()
