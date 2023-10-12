@@ -37,6 +37,11 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
                 input_shape.get_shape() != output_shape.get_shape())
                 return false;
 
+            if (!(input_shape.is_dynamic() || output_shape.is_dynamic() || softmax->get_output_partial_shape(0).is_dynamic())
+                    && (input_shape.rank() == 4) && (output_shape.rank() == 4) && (softmax->get_output_partial_shape(0).rank() == 3)) {
+                return false;
+            }
+
             const auto softmax_rank = softmax->get_input_partial_shape(0).rank();
             int64_t axis = 0;
             if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(softmax)) {
