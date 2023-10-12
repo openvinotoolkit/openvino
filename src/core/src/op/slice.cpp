@@ -120,14 +120,8 @@ bool Slice::has_evaluate() const {
 bool Slice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v8_Slice_evaluate);
 
-    auto input_shapes = std::vector<PartialShape>();
-    input_shapes.reserve(inputs.size());
-
-    for (const auto& t : inputs) {
-        input_shapes.emplace_back(t.get_shape());
-    }
-
-    const auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs));
+    const auto output_shapes =
+        shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));
     outputs[0].set_shape(output_shapes.front().to_shape());
 
     const auto starts = ov::get_tensor_data_as<int64_t>(inputs[1]);
