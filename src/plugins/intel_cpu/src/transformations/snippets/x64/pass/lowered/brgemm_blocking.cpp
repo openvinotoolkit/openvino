@@ -7,6 +7,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/insert_tail_loop.hpp"
@@ -28,8 +29,6 @@ void BrgemmBlocking::move_new_memory_buffer(snippets::lowered::LinearIR& linear_
     const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
     const auto wsp_buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(wsp_expr->get_node());
     OPENVINO_ASSERT(wsp_buffer && wsp_buffer->is_new_memory(), "Incorrect Scratchpad buffer for Brgemm AMX");
-    // [115164] Should be fully supported by explicit loops of blocking by K, N
-    OPENVINO_ASSERT(brgemm_expr->get_loop_ids().empty() && wsp_expr->get_loop_ids().empty(), "Incorrect blocking loop marking for Brgemm AMX");
     // If scratchpad with temp memory is not explicitly before Brgemm, need to move to there.
     if (wsp_expr != *std::prev(brgemm_it)) {
         const auto wsp_it = linear_ir.find(wsp_expr);
@@ -45,7 +44,7 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     auto blocking_loop_exists = [&](const ExpressionPtr& brgemm_expr, const std::shared_ptr<ov::intel_cpu::BrgemmCPU>& brgemm) {
         auto check_port = [&](const LoopPort& p) {
-            return p.expr_port->get_expr() == brgemm_expr && (p.dim_idx == 0 || p.dim_idx == 1);
+            return p.expr_port->get_expr() == brgemm_expr && ov::snippets::utils::one_of(p.dim_idx, 0ul, 1ul);
         };
 
         const auto& loop_ids = brgemm_expr->get_loop_ids();
@@ -88,11 +87,17 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                 *(input_0_subtensor.rbegin() + 1) = block_size_m;
                 *(output_subtensor.rbegin() + 1) = block_size_m;
 
-                std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true), LoopPort(brgemm_expr->get_input_port(1), false)};
-                if (brgemm->is_with_scratchpad())
+                auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
+                std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true),
+                                              LoopPort(brgemm_expr->get_input_port(1), false)};
+                if (brgemm->is_with_compensations()) {
                     entries.emplace_back(brgemm_expr->get_input_port(2), false);
+                } else if (brgemm->is_amx()) {
+                    move_new_memory_buffer(linear_ir, expr_it);
+                    loop_begin_it = std::prev(expr_it);
+                }
                 std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
-                loop_manager->mark_loop(expr_it, std::next(expr_it), m, block_size_m, 1, entries, exits);
+                loop_manager->mark_loop(loop_begin_it, loop_end_it, m, block_size_m, 1, entries, exits);
             }
         };
 
@@ -110,12 +115,17 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                 *input_1_subtensor.rbegin() = block_size_n;
                 *output_subtensor.rbegin() = block_size_n;
 
+                auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
                 std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), false),
                                               LoopPort(brgemm_expr->get_input_port(1), true)};
-                if (brgemm->is_with_scratchpad())
+                if (brgemm->is_with_compensations()) {
                     entries.emplace_back(brgemm_expr->get_input_port(2), true);
+                } else if (brgemm->is_amx()) {
+                    move_new_memory_buffer(linear_ir, expr_it);
+                    loop_begin_it = std::prev(expr_it);
+                }
                 std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
-                loop_manager->mark_loop(expr_it, std::next(expr_it), n, block_size_n, 0, entries, exits);
+                loop_manager->mark_loop(loop_begin_it, loop_end_it, n, block_size_n, 0, entries, exits);
             }
         };
 
@@ -133,16 +143,22 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                 *input_0_subtensor.rbegin() = block_size_k;
                 *(input_1_subtensor.rbegin() + 1) = block_size_k;
 
+                auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
                 std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 0),
                                               LoopPort(brgemm_expr->get_input_port(1), true, 1)};
-                if (brgemm->is_with_scratchpad())
+                if (brgemm->is_with_compensations()) {
                     entries.emplace_back(brgemm_expr->get_input_port(2), false, 1);
+                } else if (brgemm->is_amx()) {
+                    move_new_memory_buffer(linear_ir, expr_it);
+                    loop_begin_it = std::prev(expr_it);
+                }
                 std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
-                auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), k, block_size_k, entries, exits);
+                auto loop_id = loop_manager->mark_loop(loop_begin_it, loop_end_it, k, block_size_k, entries, exits);
                 const auto loop_info = loop_manager->get_loop_info(loop_id);
 
                 auto first_iter_handler = [](LinearIR& linear_ir, LinearIR::constExprIt expr_it) {
                     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr_it->get()->get_node());
+                    OPENVINO_ASSERT(loop_end, "First loop iteraton handler must be called on LoopEnd expression");
                     const auto loop_id = loop_end->get_id();
                     const auto& loop_manager = linear_ir.get_loop_manager();
                     const auto& loop_info = loop_manager->get_loop_info(loop_id);

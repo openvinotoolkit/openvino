@@ -22,7 +22,16 @@ public:
     struct LoopPort {
         LoopPort() = default;
         LoopPort(const ExpressionPort& port, bool is_incremented = true, size_t dim_idx = 0)
-            : expr_port(std::make_shared<ExpressionPort>(port)), is_incremented(is_incremented), dim_idx(dim_idx) {}
+            : expr_port(std::make_shared<ExpressionPort>(port)),
+              is_incremented(is_incremented),
+              dim_idx(dim_idx) {
+            OPENVINO_ASSERT(dim_idx < port.get_descriptor_ptr()->get_shape().size(),
+                            "LoopPort dim_idx (",
+                            dim_idx,
+                            ") must be less than the corresponding expression port shape rank (",
+                            port.get_descriptor_ptr()->get_shape().size(),
+                            ")");
+        }
 
         std::shared_ptr<LoopPort> clone_with_new_expr(const ExpressionPtr& new_expr) const;
 
@@ -97,12 +106,12 @@ public:
                      const std::vector<T>& entries,
                      const std::vector<T>& exits) {
         const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, entries, exits);
-        for (auto& entry : loop_info->entry_points) {
-            entry.dim_idx = dim_idx;
-        }
-        for (auto& exit : loop_info->exit_points) {
-            exit.dim_idx = dim_idx;
-        }
+        auto set_common_dim_idx = [dim_idx](std::vector<LoopPort>& ports) {
+            for (auto& port : ports)
+                port.dim_idx = dim_idx;
+        };
+        set_common_dim_idx(loop_info->entry_points);
+        set_common_dim_idx(loop_info->exit_points);
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
             insert_loop_id(*expr_it, loop_id);

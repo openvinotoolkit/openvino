@@ -19,8 +19,8 @@ bool OptimizeLoopSingleEvaluation::run(LinearIR& linear_ir) {
         return false;
 
     bool is_modified = false;
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
-        if (auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr_it->get()->get_node())) {
+    for (const auto& expr : linear_ir) {
+        if (auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
             // *1* solo vector/tail loop + empty outer loop
             //      => skip increments (both counter & ptr) : set evaluate_once flag
             // *2* solo vector/tail loop + non-empty outer loop

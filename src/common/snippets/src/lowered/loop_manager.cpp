@@ -66,8 +66,7 @@ std::shared_ptr<LoopManager> LoopManager::clone_with_new_expr(const ExressionMap
 }
 
 size_t LinearIR::LoopManager::LoopInfo::get_dim_idx() const {
-    if (entry_points.empty())
-        return SIZE_MAX;
+    OPENVINO_ASSERT(!entry_points.empty(), "Loop info must have at least one entry point");
     auto equal_dim_idxes = [&](const LinearIR::LoopManager::LoopPort& p) {
         return p.dim_idx == entry_points[0].dim_idx;
     };

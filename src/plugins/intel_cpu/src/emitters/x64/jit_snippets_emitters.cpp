@@ -852,20 +852,8 @@ std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(con
 }
 
 void BrgemmEmitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    std::set<size_t> unique_ids{in[0], in[1], out[0]};
-    size_t unique_ids_count = 3;
-    auto add_reg_to_unique_ids = [&](const size_t reg_number) {
-        unique_ids.insert(reg_number);
-        unique_ids_count++;
-    };
-
-    if (m_with_scratch) {
-        if (in.size() != 3)
-            OPENVINO_THROW("BRGEMM Emitter expects 3 inputs if there are compensations/wsp");
-        add_reg_to_unique_ids(in[2]);
-    }
-    if (unique_ids.size() != unique_ids_count) {
-        OPENVINO_THROW("BRGEMM Emitter expects that all input/output registers are unique");
+    if (m_with_scratch && in.size() != 3) {
+        IE_THROW() << "BRGEMM Emitter expects 3 inputs if there are compensations/wsp";
     }
 }
 

@@ -337,7 +337,7 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
             continue;
 
         const auto loop_info = loop_manager->get_loop_info(loop_end->get_id());
-        if (loop_info->fst_iter_handler != nullptr) {
+        if (loop_info->fst_iter_handler) {
             modified |= loop_info->fst_iter_handler(linear_ir, expr_it);
             continue;
         }
