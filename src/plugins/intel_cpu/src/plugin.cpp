@@ -148,6 +148,8 @@ std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
 
 Engine::SchedulerGuard::SchedulerGuard() {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+        arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+#else
         arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
 #endif
 }
