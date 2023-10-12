@@ -5,7 +5,6 @@
 #include "multinomial.hpp"
 
 #include <openvino/op/multinomial.hpp>
-#include <openvino/reference/multinomial.hpp>
 
 #include "ie_ngraph_utils.hpp"
 #include "ie_parallel.hpp"
@@ -94,7 +93,7 @@ void Multinomial::prepareParams() {
 
     m_probs_1d = probs_shape.size() == 1;
 
-    m_input_elements_count = std::accumulate(probs_shape.front(), probs_shape.back(), 1, std::multiplies<size_t>());
+    m_input_elements_count = std::accumulate(probs_shape.begin(), probs_shape.end(), 1, std::multiplies<size_t>());
     m_batches_count = probs_shape.size() == 2 ? probs_shape[0] : 1;
     m_probs_count = probs_shape.size() == 2 ? probs_shape[1] : probs_shape[0];
 
