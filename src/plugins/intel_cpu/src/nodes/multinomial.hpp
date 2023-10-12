@@ -17,19 +17,22 @@ class Multinomial : public Node {
 public:
     Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override; // done
-    void initSupportedPrimitiveDescriptors() override; // done
+    void getSupportedDescriptors() override;            // done
+    void initSupportedPrimitiveDescriptors() override;  // done
 
-    bool created() const override; // done
+    bool created() const override;  // done
 
-    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept; // done
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                     std::string& errorMessage) noexcept;  // done
 
-    void prepareParams() override; // done
+    void prepareParams() override;  // done
 
-    bool isExecutable() const override; // done
-    void execute(dnnl::stream strm) override; // done
-    void executeDynamicImpl(dnnl::stream strm) override; // done
-    bool canBeInPlace() const override { return false; } // done
+    bool isExecutable() const override;                   // done
+    void execute(dnnl::stream strm) override;             // done
+    void executeDynamicImpl(dnnl::stream strm) override;  // done
+    bool canBeInPlace() const override {
+        return false;
+    }  // done
 
 private:
     static constexpr size_t PROBS_PORT = 0lu;
@@ -43,8 +46,17 @@ private:
     uint64_t m_op_seed = 0;
 
     std::string m_errorPrefix;
+    bool m_probs_1d = false;
+    size_t m_input_elements_count = 0;
+    size_t m_batches_count = 0;
+    size_t m_probs_count = 0;
+    std::vector<float> m_input_vals;
+    std::vector<float> m_cdf;
+    std::vector<float> m_max_per_batch;
+    std::vector<double> m_random_samples;
+    std::vector<int> m_output_vals;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

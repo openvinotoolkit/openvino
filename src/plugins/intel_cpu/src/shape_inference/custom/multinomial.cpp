@@ -3,22 +3,22 @@
 //
 
 #include "multinomial.hpp"
+
 #include <openvino/op/multinomial.hpp>
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 using namespace InferenceEngine;
-Result MultinomialShapeInfer::infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+Result MultinomialShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                                    const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const VectorDims& input_shape = input_shapes[0].get();
     const auto& num_samples_mem = data_dependency.at(0);
 
     size_t num_samples;
     if (num_samples_mem->getDesc().getPrecision() == Precision::I32) {
         num_samples = reinterpret_cast<const int32_t*>(num_samples_mem->getData())[0];
-    } else { // equals I64 precision
+    } else {  // equals I64 precision
         num_samples = reinterpret_cast<const int64_t*>(num_samples_mem->getData())[0];
     }
 
@@ -38,6 +38,6 @@ ShapeInferPtr MultinomialShapeInferFactory::makeShapeInfer() const {
         OPENVINO_THROW("Unexpected operation type in the Multinomial shape inference factory");
     }
 }
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
