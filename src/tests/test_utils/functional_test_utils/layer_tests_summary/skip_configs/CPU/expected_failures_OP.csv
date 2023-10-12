@@ -1129,3 +1129,4 @@ conformance_PriorBox/ReadIRTest.ImportExport/Op=PriorBox.1_Type=f32_IR=PriorBox-
 conformance_PRelu/ReadIRTest.ImportExport/Op=PRelu.1_Type=f32_IR=20e7e74f55eb5fb78014cce7e0665d6925bbefd708dd9ccff12dbfbea2a330dd_Device=CPU_Shape=static_Config=(),5.69266e-06
 conformance_RegionYolo/ReadIRTest.ImportExport/Op=RegionYolo.1_Type=f32_IR=RegionYolo-1_750_Device=CPU_Shape=static_Config=(),5.06332e-06
 conformance_Add/ReadIRTest.ImportExport/Op=Add.1_Type=i32_IR=28f23780d4ca0d40671caf79d5cd9223ad8f6dc2fa5ade2521f3d99586eeeb7f_Device=CPU_Shape=static_Config=(),9.72615e-07
+conformance_Convolution/ReadIRTest.Inference/Op=Convolution.1_Type=f32_IR=c301804445f273eef62f41f02204711d9d6e571da28c76ab447d7d90983b0032_Device=CPU_Shape=dynamic_Config=(),0.000113281
