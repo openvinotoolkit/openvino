@@ -158,52 +158,14 @@ inline void fill_data_roi(InferenceEngine::Blob::Ptr& blob,
     fill_roi_raw_ptr<T>(data, blob->size(), range, height, width, omega, is_roi_max_mode, seed);
 }
 
-template <InferenceEngine::Precision::ePrecision PRC>
-inline void fill_data_roi(ov::runtime::Tensor& tensor,
-                          const uint32_t range,
-                          const int height,
-                          const int width,
-                          const float omega,
-                          const bool is_roi_max_mode,
-                          const int seed = 1) {
-    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    auto* data = static_cast<T*>(tensor.data());
-    std::default_random_engine random(seed);
-    std::uniform_int_distribution<int32_t> distribution(0, range);
+void fill_data_roi(ov::runtime::Tensor& tensor,
+                   const uint32_t range,
+                   const int height,
+                   const int width,
+                   const float omega,
+                   const bool is_roi_max_mode,
+                   const int seed = 1);
 
-    const int max_y = (is_roi_max_mode) ? (height - 1) : 1;
-    const int max_x = (is_roi_max_mode) ? (width - 1) : 1;
-
-    float center_h = (max_y) / 2.0f;
-    float center_w = (max_x) / 2.0f;
-
-    for (size_t i = 0; i < tensor.get_size(); i += 5) {
-        data[i] = static_cast<T>(distribution(random));
-        const float x0 = (center_w + width * 0.3f * sin(static_cast<float>(i + 1) * omega));
-        const float x1 = (center_w + width * 0.3f * sin(static_cast<float>(i + 3) * omega));
-        data[i + 1] = static_cast<T>(is_roi_max_mode ? std::floor(x0) : x0);
-        data[i + 3] = static_cast<T>(is_roi_max_mode ? std::floor(x1) : x1);
-        if (data[i + 3] < data[i + 1]) {
-            std::swap(data[i + 1], data[i + 3]);
-        }
-        if (data[i + 1] < 0)
-            data[i + 1] = 0;
-        if (data[i + 3] > max_x)
-            data[i + 3] = static_cast<T>(max_x);
-
-        const float y0 = (center_h + height * 0.3f * sin(static_cast<float>(i + 2) * omega));
-        const float y1 = (center_h + height * 0.3f * sin(static_cast<float>(i + 4) * omega));
-        data[i + 2] = static_cast<T>(is_roi_max_mode ? std::floor(y0) : y0);
-        data[i + 4] = static_cast<T>(is_roi_max_mode ? std::floor(y1) : y1);
-        if (data[i + 4] < data[i + 2]) {
-            std::swap(data[i + 2], data[i + 4]);
-        }
-        if (data[i + 2] < 0)
-            data[i + 2] = 0;
-        if (data[i + 4] > max_y)
-            data[i + 4] = static_cast<T>(max_y);
-    }
-}
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <class T>

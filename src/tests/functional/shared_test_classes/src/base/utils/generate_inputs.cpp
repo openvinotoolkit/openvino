@@ -856,6 +856,28 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v8::Softmax>& nod
 }
 
 ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v1::DeformablePSROIPooling>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 1) {
+        ov::Tensor tensor(elemType, targetShape);
+        auto data_input_shape = node->input(0).get_shape();
+        const auto batch_distrib = data_input_shape[0] - 1;
+        const auto height = data_input_shape[2] / node->get_spatial_scale();
+        const auto width  = data_input_shape[3] / node->get_spatial_scale();
+
+        ov::test::utils::fill_data_roi(tensor, batch_distrib, height, width, 1.0f, true);
+        return tensor;
+    } else if (port == 2) {
+        ov::Tensor tensor(elemType, targetShape);
+        ov::test::utils::fill_tensor_random(tensor, 1.8, -0.9);
+        return tensor;
+    }
+    return generate(std::static_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const
                              std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& node,
                              size_t port,
                              const ov::element::Type& elemType,
