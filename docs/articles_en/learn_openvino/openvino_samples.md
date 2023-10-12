@@ -106,7 +106,7 @@ The applications include:
 
 - **Large Language Model Sample** – Estimates performance for LLM based on pipelines provided by Optimum-Intel. Estimate performance for PyTorch and OpenVINO models using almost the same code and precollected models.
 
-  - :doc:`llm(Large Language Model) Python Sample <openvino_inference_engine_ie_bridges_python_sample_llm_README>`
+  - :doc:`Large Language Model Python Sample <openvino_inference_engine_ie_bridges_python_sample_llm_README>`
 
 .. note:: 
    
