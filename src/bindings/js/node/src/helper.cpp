@@ -201,7 +201,7 @@ ov::TensorVector parse_input_data(const Napi::Value& input) {
             parsed_input.push_back(tensor);
         }
     } else {
-        throw std::invalid_argument("parse_input_data(): wrong arg");
+        OPENVINO_THROW("parse_input_data(): wrong arg");
     }
     return parsed_input;
 }
@@ -219,7 +219,7 @@ ov::Tensor cast_to_tensor(Napi::Value value) {
         auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(value.ToObject());
         return tensor_wrap->get_tensor();
     } else {
-        throw std::invalid_argument("Cannot create a tensor from the passed Napi::Value.");
+        OPENVINO_THROW("Cannot create a tensor from the passed Napi::Value.");
     }
 }
 
@@ -227,12 +227,12 @@ ov::Tensor cast_to_tensor(Napi::TypedArray typed_array, const ov::Shape& shape, 
     /* The difference between TypedArray::ArrayBuffer::Data() and e.g. Float32Array::Data() is byteOffset
     because the TypedArray may have a non-zero `ByteOffset()` into the `ArrayBuffer`. */
     if (typed_array.ByteOffset() != 0) {
-        throw std::invalid_argument("TypedArray.byteOffset has to be equal to zero.");
+        OPENVINO_THROW("TypedArray.byteOffset has to be equal to zero.");
     }
     auto array_buffer = typed_array.ArrayBuffer();
     auto tensor = ov::Tensor(type, shape, array_buffer.Data());
     if (tensor.get_byte_size() != array_buffer.ByteLength()) {
-        throw std::invalid_argument("Memory allocated using shape and element::type mismatch passed data's size");
+        OPENVINO_THROW("Memory allocated using shape and element::type mismatch passed data's size");
     }
     return tensor;
 }

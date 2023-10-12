@@ -64,8 +64,7 @@ describe('Tensor data', () => {
     const view = new Float32Array(buffer);
     view.set(data);
     assert.throws( () => new ov.Tensor(ov.element.f32, shape, view),
-      {message: 'Invalid tensor argument. Memory allocated using shape '
-          + 'and element::type mismatch passed data\'s size'});
+      {message: /Memory allocated using shape and element::type mismatch/});
   });
 
   it('Third argument of a tensor cannot be an ArrayBuffer', () => {

@@ -68,12 +68,12 @@ describe('InferRequest', () => {
     it(`Test infer([data]) throws ${msg}`, () => {
       assert.throws(
         () => inferRequest.infer([tl]),
-        {message: msg});
+        {message: new RegExp(msg)});
     });
     it(`Test infer({ data: tl}) throws ${msg}`, () => {
       assert.throws(
         () => inferRequest.infer({data: tl}),
-        {message: msg});
+        {message: new RegExp(msg)});
     });
   });
 
