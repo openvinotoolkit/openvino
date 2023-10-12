@@ -188,17 +188,14 @@ ov::TensorVector parse_input_data(const Napi::Value& input) {
     if (input.IsArray()) {
         auto inputs = input.As<Napi::Array>();
         for (size_t i = 0; i < inputs.Length(); ++i) {
-            auto tensor = cast_to_tensor(static_cast<Napi::Value>(inputs[i]));
-            parsed_input.push_back(tensor);
+            parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(inputs[i])));
         }
     } else if (input.IsObject()) {
         auto inputs = input.ToObject();
         auto keys = inputs.GetPropertyNames();
         for (size_t i = 0; i < keys.Length(); ++i) {
-            auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-            auto value = inputs.Get(input_name);
-            auto tensor = cast_to_tensor(static_cast<Napi::Value>(value));
-            parsed_input.push_back(tensor);
+            auto value = inputs.Get(static_cast<Napi::Value>(keys[i]).ToString().Utf8Value());
+            parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(value)));
         }
     } else {
         OPENVINO_THROW("parse_input_data(): wrong arg");
