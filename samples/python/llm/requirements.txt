@@ -1,0 +1,14 @@
+argparse	 
+numpy
+openvino-dev>=2023.0.0
+pillow
+torch
+transformers>=4.28.0,<=4.33.3
+tokenizers<0.14.0    # for chatglm-6b
+diffusers	 
+optimum
+optimum-intel
+packaging
+psutil
+timm
+onnx

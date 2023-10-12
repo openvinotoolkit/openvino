@@ -1,0 +1,10 @@
+argparse
+diffusers
+openvino-dev>=2023.0.0
+optimum
+optimum-intel
+git+https://github.com/openvinotoolkit/nncf.git
+torch
+transformers>=4.28.0,<=4.33.3
+tokenizers<0.14.0    # for chatglm-6b
+onnx
