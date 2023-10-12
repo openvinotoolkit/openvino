@@ -28,12 +28,12 @@ U4BlockRepack::U4BlockRepack() {
     const auto m_reshape2 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_transpose, any_input()});
 
     auto pack_byte = [](uint8_t lo, uint8_t hi) {
-        return (lo << 4) | hi;
+        return (hi << 4) | (lo & 0x0F);
     };  // swap halfs because Convert op assumes this layout
 
     auto get_u4 = [](const uint8_t* src, size_t idx) {
         const size_t byte_idx = idx / 2;
-        const uint8_t bit_shift = 4 * ((idx + 1) % 2);  // swap halfs because Convert op assumes this layout
+        const uint8_t bit_shift = 4 * (idx % 2);
         return (src[byte_idx] >> bit_shift) & 0xF;
     };
 

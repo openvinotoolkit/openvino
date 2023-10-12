@@ -212,13 +212,7 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     auto new_const = std::make_shared<v0::Constant>(element::u4, u4_shape);
     auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));
 
-    auto swap_nibbles = [](uint8_t byte) {
-        return ((byte & 0x0F) << 4) | (byte >> 4);
-    };  // swap halfs because Convert op assumes this layout
-
-    // TODO: If pack_byte is implemented trivially (no exchange of the halfs of a byte) then the following
-    // transform is not needed and we can use the original constant as-is
-    std::transform(src, src + full_size, dst, swap_nibbles);
+    std::copy(src, src + full_size, dst);  // TODO: Avoid copying, reuse the same constant
     copy_runtime_info_and_name(weights_u8, {new_const}, {weights_u8, bitwise_and, bitwise_shift});
     return new_const;
 }
