@@ -6,9 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include <functional_test_utils/skip_tests_config.hpp>
-
 #include "base_reference_test.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
