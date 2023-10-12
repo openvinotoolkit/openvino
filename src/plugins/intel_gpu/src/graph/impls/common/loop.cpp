@@ -290,8 +290,8 @@ struct loop_impl : typed_primitive_impl<loop> {
             for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
                 const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
                 memory::ptr mem = concatenated_input->get_sliced_mem(current_iteration_idx);
-                OPENVINO_ASSERT(mem != nullptr, instance.id(), "sliced input memory of loop is not allocated properly");
-                body_network->set_input_data(concatenated_input->sliced_data_prim->id(), mem);
+                OPENVINO_ASSERT(mem != nullptr, instance.id(), " sliced input memory of loop is not allocated properly");
+                concatenated_input->sliced_data_prim->set_output_memory(mem);
             }
 
             // Set backedges and output memory
@@ -306,9 +306,7 @@ struct loop_impl : typed_primitive_impl<loop> {
                 // Set sliced output memory for static shape model
                 // because body network generate output memory during the body network execution in dynamic model
                 for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
-                    auto& sliced_mems = concat_output_mem_mapping->get_sliced_mems();
-                    auto sliced_data_prim_id = concat_output_mem_mapping->sliced_data_prim->id();
-                    body_network->set_output_memory(sliced_data_prim_id, sliced_mems.at(current_iteration_idx));
+                    concat_output_mem_mapping->setup_sliced_output_memory(current_iteration_idx);
                 }
             }
 
@@ -358,12 +356,10 @@ struct loop_impl : typed_primitive_impl<loop> {
 
             // execution condition is the result of body network execution
             if (body_execution_condition_mem != nullptr) {
-                if (is_dynamic) {
-                    auto execution_id = primitive->body_execution_condition_id;
-                    if (body_network->has_event(execution_id)) {
-                        auto ev = body_network->get_primitive_event(execution_id);
-                        if (ev) ev->wait();
-                    }
+                auto execution_id = primitive->body_execution_condition_id;
+                if (body_network->has_event(execution_id)) {
+                    auto ev = body_network->get_primitive_event(execution_id);
+                    if (ev) ev->wait();
                 }
                 execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
             }

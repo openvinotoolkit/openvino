@@ -241,6 +241,14 @@ public:
             return sliced_mems.at(idx);
         }
 
+        void setup_sliced_output_memory(uint64_t iteration) const {
+            if (sliced_data_prim) {
+                OPENVINO_ASSERT(iteration < sliced_mems.size(), "invalid index");
+                const auto& sliced_output_mem = sliced_mems.at(iteration);
+                sliced_data_prim->set_output_memory(sliced_output_mem);
+            }
+        }
+
         std::vector<memory::ptr>& get_sliced_mems() const { return sliced_mems; }
 
         void reset_data_for_shape_changed() {
