@@ -4,6 +4,7 @@
 
 #include "utils.hpp"
 
+#include "helper_ops/type_align.hpp"
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
@@ -11,7 +12,6 @@
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
-#include "helper_ops/type_align.hpp"
 
 namespace ov {
 namespace frontend {

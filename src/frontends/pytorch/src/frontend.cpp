@@ -20,6 +20,7 @@
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transforms.hpp"
+#include "transforms/align_types_removal.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
@@ -41,7 +42,6 @@
 #include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
-#include "transforms/align_types_removal.hpp"
 #include "translate_session.hpp"
 
 namespace ov {

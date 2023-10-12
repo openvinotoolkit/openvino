@@ -34,6 +34,7 @@ public:
         set_output_type(0, out_type, get_input_partial_shape(0));
         set_output_type(1, out_type, get_input_partial_shape(1));
     }
+
 private:
     const bool m_align_scalars;
 };
