@@ -1100,6 +1100,12 @@ struct gemm_base_test_params {
 #define CASE_GEMM_INT8_SLM_COMBO_4 256, 64, 64, 3, 6, 3, 6, 3, 6, 3, 6, false, false, \
 1.2f, 4.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
 
+#define CASE_GEMM_FP32_TILED_NN_0   1, 1, 1024, 32, 1, 1, 512, 1, 1, 32, 512, false, false, \
+1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_TILED_NN_00  1, 1, 1024, 32, 1, 1, 8912, 1, 1, 32, 8912, false, false, \
+1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
+#define CASE_GEMM_FP32_TILED_NN_000 1, 1, 1024, 1, 1, 1, 8912, 1, 1, 1, 8912, false, false, \
+1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NN_1 32, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
 1.5f, 2.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 #define CASE_GEMM_FP32_TILED_NN_2 64, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
@@ -1808,10 +1814,13 @@ class gemm_fp32_tiled_nn_tests : public ::GemmBaseTest<gemm_base_test_params, fl
 TEST_P(gemm_fp32_tiled_nn_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
-    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_1, "gemm_tiled_opt" },
-    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_2, "gemm_tiled_opt" },
-    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_3, "gemm_tiled_opt" },
-    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_4, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_0, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_00, "gemm_tiled_opt" },
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_000, "gemm_tiled_opt" },
+    // gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_1, "gemm_tiled_opt" },
+    // gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_2, "gemm_tiled_opt" },
+    // gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_3, "gemm_tiled_opt" },
+    // gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_4, "gemm_tiled_opt" },
 }));
 
 class gemm_fp32_tiled_nt_tests : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};

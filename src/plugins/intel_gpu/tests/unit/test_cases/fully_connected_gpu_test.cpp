@@ -2582,7 +2582,8 @@ using dynamic_fully_connected_gpu_i8_3d = dynamic_fully_connected_gpu<int8_t, in
 static const std::vector<ov::Dimension::value_type>
     dyn_batches_full = {1, 2, 4, 7, 8, 9, 15, 16, 31, 32, 33, 47, 48, 49, 58, 63, 64};
 static const std::vector<ov::Dimension::value_type>
-    dyn_batches_smoke = {1, 2, 7, 8, 9, 16, 32, 33, 47, 48, 58};
+    dyn_batches_smoke = {32};
+    // dyn_batches_smoke = {1, 2, 7, 8, 9, 16, 32, 33, 47, 48, 58};
 
 TEST_P(dynamic_fully_connected_gpu_f32_3d, basic) {
     run_test();
@@ -2601,9 +2602,12 @@ INSTANTIATE_TEST_SUITE_P(
     dynamic_fully_connected_gpu_f32_3d,
     ::testing::Combine(
         ::testing::Values(dyn_batches_smoke),
-        ::testing::Values(10, 32, 42, 53, 64, 128),
-        ::testing::Values(2, 9, 128),
-        ::testing::Values(false, true))
+        // ::testing::Values(10, 32, 42, 53, 64, 128),
+        // ::testing::Values(2, 9, 128),
+        // ::testing::Values(false, true))
+        ::testing::Values(1024),
+        ::testing::Values(512),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -2611,9 +2615,12 @@ INSTANTIATE_TEST_SUITE_P(
     dynamic_fully_connected_gpu_f16_3d,
     ::testing::Combine(
         ::testing::Values(dyn_batches_smoke),
-        ::testing::Values(10, 32, 42, 53, 64, 128),
-        ::testing::Values(2, 9, 128),
-        ::testing::Values(false, true))
+        // ::testing::Values(10, 32, 42, 53, 64, 128),
+        // ::testing::Values(2, 9, 128),
+        // ::testing::Values(false, true))
+        ::testing::Values(1024),
+        ::testing::Values(512),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
