@@ -482,7 +482,7 @@ jobs:
           # Find and install OV dev wheel
           pushd ${{ env.INSTALL_DIR }}/tools
             ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-            python3 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2]
+            python3 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2,pytorch]
           popd
 
       - name: nGraph and IE Python Bindings Tests
