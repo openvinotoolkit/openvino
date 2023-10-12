@@ -66,6 +66,10 @@ def patch_model(model):
             # already patched, skipping
             continue
         # TODO: Check module type
+        is_quantized = getattr(m, "is_quantized", None)
+        if not is_quantized is None:
+            m.is_quantized = False
+        m.float()
         if hasattr(m, "QUANT_TYPE") and m.QUANT_TYPE == "exllama":
             if m.bits != 4:
                 raise ValueError(
