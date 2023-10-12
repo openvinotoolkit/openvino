@@ -495,7 +495,6 @@ jobs:
           echo 0 > $HOME/intel/openvino_telemetry
 
       - name: nGraph and IE Python Bindings Tests
-
         run: |
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
