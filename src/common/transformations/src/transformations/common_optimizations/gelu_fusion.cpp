@@ -12,43 +12,38 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/erf.hpp"
-#include "openvino/op/gelu.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/tanh.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+
+using namespace ov::opset12;
 
 ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     MATCHER_SCOPE(GeluFusionWithErfOne);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
-    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
-    auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({div});
-    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
-    auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto div_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto div = ov::pass::pattern::wrap_type<Divide>({input, div_constant});
+    auto erf = ov::pass::pattern::wrap_type<Erf>({div});
+    auto add_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto add = ov::pass::pattern::wrap_type<Add>({add_constant, erf});
+    auto mul_constant = ov::pass::pattern::wrap_type<Constant>();
 
     // (0.5 * x) * (1 + erf(x / sqrt(2))
-    auto mul_first = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_constant});
-    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_first, add});
+    auto mul_first = ov::pass::pattern::wrap_type<Multiply>({input, mul_constant});
+    auto mul = ov::pass::pattern::wrap_type<Multiply>({mul_first, add});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
         auto div_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto mul_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -88,27 +83,27 @@ ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
-    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
-    auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({div});
-    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
-    auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto div_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto div = ov::pass::pattern::wrap_type<Divide>({input, div_constant});
+    auto erf = ov::pass::pattern::wrap_type<Erf>({div});
+    auto add_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto add = ov::pass::pattern::wrap_type<Add>({add_constant, erf});
+    auto mul_constant = ov::pass::pattern::wrap_type<Constant>();
 
     // 0.5 * (x * (1 + erf(x / sqrt(2)))
-    auto mul_first = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, add});
-    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_constant, mul_first});
+    auto mul_first = ov::pass::pattern::wrap_type<Multiply>({input, add});
+    auto mul = ov::pass::pattern::wrap_type<Multiply>({mul_constant, mul_first});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
         auto div_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto mul_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -148,27 +143,27 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
-    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
-    auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({div});
-    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
-    auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto div_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto div = ov::pass::pattern::wrap_type<Divide>({input, div_constant});
+    auto erf = ov::pass::pattern::wrap_type<Erf>({div});
+    auto add_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto add = ov::pass::pattern::wrap_type<Add>({add_constant, erf});
+    auto mul_constant = ov::pass::pattern::wrap_type<Constant>();
 
     // x * (0.5 * (1 + erf(x / sqrt(2)))
-    auto mul_first = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add, mul_constant});
-    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_first});
+    auto mul_first = ov::pass::pattern::wrap_type<Multiply>({add, mul_constant});
+    auto mul = ov::pass::pattern::wrap_type<Multiply>({input, mul_first});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
         auto div_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto mul_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -209,25 +204,25 @@ ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
     using namespace ov::pass::pattern;
 
     auto input = any_input();
-    auto mul1_constant = wrap_type<ov::op::v0::Constant>();
-    auto mul1 = wrap_type<ov::op::v1::Multiply>({input, mul1_constant});
-    auto erf = wrap_type<ov::op::v0::Erf>({mul1});
-    auto mul2_constant = wrap_type<ov::op::v0::Constant>();
-    auto mul2 = wrap_type<ov::op::v1::Multiply>({erf, mul2_constant});
-    auto add_constant = wrap_type<ov::op::v0::Constant>();
-    auto add = wrap_type<ov::op::v1::Add>({add_constant, mul2});
+    auto mul1_constant = wrap_type<Constant>();
+    auto mul1 = wrap_type<Multiply>({input, mul1_constant});
+    auto erf = wrap_type<Erf>({mul1});
+    auto mul2_constant = wrap_type<Constant>();
+    auto mul2 = wrap_type<Multiply>({erf, mul2_constant});
+    auto add_constant = wrap_type<Constant>();
+    auto add = wrap_type<Add>({add_constant, mul2});
 
     // x * (0.5 + 0.5 * erf(x * (1 / sqrt(2))))
-    auto mul3 = wrap_type<ov::op::v1::Multiply>({input, add});
+    auto mul3 = wrap_type<Multiply>({input, add});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         NodeRegistry rg;
         auto pattern_to_output = m.get_pattern_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto mul1_const_value = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul1_constant));
-        auto add_const_value = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant));
-        auto mul2_const_value = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul2_constant));
+        auto mul1_const_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(mul1_constant));
+        auto add_const_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(add_constant));
+        auto mul2_const_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(mul2_constant));
 
         if (!mul1_const_value || !add_const_value || !mul2_const_value) {
             return false;
@@ -261,41 +256,41 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     // x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]))
 
     auto input = pass::pattern::any_input();
-    auto pow_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto pow = ov::pass::pattern::wrap_type<ov::op::v1::Power>({input, pow_constant});
+    auto pow_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto pow = ov::pass::pattern::wrap_type<Power>({input, pow_constant});
 
-    auto mul_0_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_0 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({pow, mul_0_constant});
+    auto mul_0_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto mul_0 = ov::pass::pattern::wrap_type<Multiply>({pow, mul_0_constant});
 
-    auto add_0 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, mul_0});
+    auto add_0 = ov::pass::pattern::wrap_type<Add>({input, mul_0});
 
-    auto mul_1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_0, mul_1_constant});
+    auto mul_1_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto mul_1 = ov::pass::pattern::wrap_type<Multiply>({add_0, mul_1_constant});
 
-    auto tanh = ov::pass::pattern::wrap_type<ov::op::v0::Tanh>({mul_1});
+    auto tanh = ov::pass::pattern::wrap_type<Tanh>({mul_1});
 
-    auto add_1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add_1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({tanh, add_1_constant});
+    auto add_1_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto add_1 = ov::pass::pattern::wrap_type<Add>({tanh, add_1_constant});
 
-    auto mul_2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, mul_2_constant});
+    auto mul_2_constant = ov::pass::pattern::wrap_type<Constant>();
+    auto mul_2 = ov::pass::pattern::wrap_type<Multiply>({add_1, mul_2_constant});
 
-    auto mul_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_2});
+    auto mul_3 = ov::pass::pattern::wrap_type<Multiply>({input, mul_2});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
         auto pow_constant_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(pow_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(pow_constant).get_node_shared_ptr());
         auto mul_0_constant_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_0_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(mul_0_constant).get_node_shared_ptr());
         auto mul_1_constant_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_1_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(mul_1_constant).get_node_shared_ptr());
         auto mul_2_constant_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_2_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(mul_2_constant).get_node_shared_ptr());
         auto add_1_constant_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_1_constant).get_node_shared_ptr());
+            std::dynamic_pointer_cast<Constant>(pattern_to_output.at(add_1_constant).get_node_shared_ptr());
 
         if (!pow_constant_value || !add_1_constant_value || !mul_0_constant_value || !mul_1_constant_value ||
             !mul_2_constant_value) {
@@ -335,4 +330,80 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_3, matcher_name);
     register_matcher(m, callback);
+}
+
+ov::pass::GeluFusionWithTanhNoPower::GeluFusionWithTanhNoPower() {
+    MATCHER_SCOPE(GeluFusionWithTanhNoPower);
+    auto input = pattern::any_input();
+
+    auto const1 = pattern::wrap_type<Constant>();
+    auto mul1 = pattern::wrap_type<Multiply>({input, const1}, pattern::consumers_count(1));
+
+    auto mul2 = pattern::wrap_type<Multiply>({mul1, input}, pattern::consumers_count(1));
+
+    auto const2 = pattern::wrap_type<Constant>();
+    auto add1 = pattern::wrap_type<Add>({const2, mul2}, pattern::consumers_count(1));
+
+    auto const3 = pattern::wrap_type<Constant>();
+    auto mul3 = pattern::wrap_type<Multiply>({input, const3}, pattern::consumers_count(1));
+
+    auto mul4 = pattern::wrap_type<Multiply>({add1, mul3}, pattern::consumers_count(1));
+
+    auto tan = pattern::wrap_type<Tanh>({mul4}, pattern::consumers_count(1));
+
+    auto const4 = pattern::wrap_type<Constant>();
+    auto add2 = pattern::wrap_type<Add>({tan, const4}, pattern::consumers_count(1));
+
+    auto const5 = pattern::wrap_type<Constant>();
+    auto mul5 = pattern::wrap_type<Multiply>({input, const5}, pattern::consumers_count(1));
+
+    auto mul6 = pattern::wrap_type<Multiply>({add2, mul5}, pattern::consumers_count(1));
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto& pattern_to_output = m.get_pattern_value_map();
+        auto x_output = pattern_to_output.at(input);
+
+        auto const1_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(const1).get_node_shared_ptr());
+        auto const2_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(const2).get_node_shared_ptr());
+        auto const3_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(const3).get_node_shared_ptr());
+        auto const4_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(const4).get_node_shared_ptr());
+        auto const5_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(const5).get_node_shared_ptr());
+
+        if (!const1_value || !const2_value || !const3_value || !const4_value || !const5_value) {
+            return false;
+        }
+
+        constexpr float pi = 3.141592653589793238462643383279502884f;
+        bool valid_constant_values = op::util::has_constant_value<float>(const1_value, 0.044715f, 0.001f) &&
+                                     op::util::has_constant_value<float>(const2_value, 1.0f) &&
+                                     op::util::has_constant_value<float>(const3_value, std::sqrt(2.0f / pi), 0.01f) &&
+                                     op::util::has_constant_value<float>(const4_value, 1.0f) &&
+                                     op::util::has_constant_value<float>(const5_value, 0.5f);
+
+        if (!valid_constant_values) {
+            return false;
+        }
+
+        auto gelu = std::make_shared<ov::op::v7::Gelu>(x_output, op::GeluApproximationMode::TANH);
+
+        gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ov::copy_runtime_info(
+            {
+                pattern_to_output.at(mul1).get_node_shared_ptr(),
+                pattern_to_output.at(mul2).get_node_shared_ptr(),
+                pattern_to_output.at(add1).get_node_shared_ptr(),
+                pattern_to_output.at(mul3).get_node_shared_ptr(),
+                pattern_to_output.at(mul4).get_node_shared_ptr(),
+                pattern_to_output.at(tan).get_node_shared_ptr(),
+                pattern_to_output.at(add2).get_node_shared_ptr(),
+                pattern_to_output.at(mul5).get_node_shared_ptr(),
+                pattern_to_output.at(mul6).get_node_shared_ptr(),
+            },
+            gelu);
+        ov::replace_node(m.get_match_root(), gelu);
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(mul6, matcher_name);
+    this->register_matcher(m, callback);
 }
