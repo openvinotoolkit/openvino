@@ -148,9 +148,10 @@ std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
 
 Engine::SchedulerGuard::SchedulerGuard() {
 #if IE_THREAD == IE_THREAD_SEQ
-        arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+    // To save state for ACL cores in single-thread mode
+    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
 #else
-        arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
+    arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
 #endif
 }
 
@@ -164,6 +165,8 @@ std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
 }
 
 Engine::SchedulerGuard::~SchedulerGuard() {
+    // To save the state of scheduler after ACLScheduler has been executed
+    // TODO: find out the cause of the state
     std::lock_guard<std::mutex> lock{this->dest_mutex};
     arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
 }
