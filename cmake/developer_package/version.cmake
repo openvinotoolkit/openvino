@@ -43,7 +43,9 @@ endfunction()
 macro(ov_parse_ci_build_number repo_root)
     # provides OpenVINO version
     # 1. If CI_BUILD_NUMBER is defined, parses this information
-    # 2. Otherwise, parses openvino/core/version.hpp
+    # 2. Otherwise, either:
+    #  - parses openvino/core/version.hpp
+    #  - takes from OpenVINOConfig-version.cmake in case of relocatable Developer package
     if (DEFINED ENV{CI_BUILD_NUMBER})
         set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
     endif()
