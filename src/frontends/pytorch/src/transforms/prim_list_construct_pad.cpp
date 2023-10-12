@@ -71,11 +71,17 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
             input_node = pad_op->input_value(0);
             padding = pad_op->input_value(1);
             auto mode_node = pad_op->input_value(2).get_node_shared_ptr();
-            pad_value = pad_op->input_value(3);
             if (const auto& fw_node_mode = cast_fw_node(mode_node, "prim::Constant")) {
                 const auto& attrs = fw_node_mode->get_attrs();
                 if (attrs.find("string_value") != attrs.end()) {
                     mode = attrs.at("string_value");
+                }
+            }
+            pad_value = pad_op->input_value(3);
+            if (const auto& fw_node_mode = cast_fw_node(pad_value.get_node_shared_ptr(), "prim::Constant")) {
+                const auto& attrs = fw_node_mode->get_attrs();
+                if (attrs.find("none_value") != attrs.end()) {
+                    pad_value = v0::Constant::create(element::f32, Shape{}, {0});
                 }
             }
         } else if ((pad_op = cast_fw_node(m.get_match_root(), "aten::reflection_pad2d"))) {
