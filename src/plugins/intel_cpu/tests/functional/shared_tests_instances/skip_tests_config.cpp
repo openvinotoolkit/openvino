@@ -64,8 +64,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 
-        // TODO: 57562 No dynamic output shape support
-        R"(.*NonZeroLayerTest.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
         R"(.*OVCompiledModelBaseTest.*(CanGetInputsInfoAndCheck|canSetConfigToCompiledModel).*)",
