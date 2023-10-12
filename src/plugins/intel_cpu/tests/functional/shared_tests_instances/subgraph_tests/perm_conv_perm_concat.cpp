@@ -32,6 +32,7 @@ ov::AnyMap additional_config = {};
 
 namespace ov {
 namespace test {
+
 INSTANTIATE_TEST_SUITE_P(smoke_basic,
                          PermConvPermConcat,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
@@ -41,5 +42,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_basic,
                                             ::testing::ValuesIn(output_channels),
                                             ::testing::Values(additional_config)),
                          PermConvPermConcat::getTestCaseName);
-}
+}  // namespace test
 }  // namespace ov
