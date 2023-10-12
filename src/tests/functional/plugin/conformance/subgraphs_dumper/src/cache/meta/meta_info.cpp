@@ -169,7 +169,6 @@ void MetaInfo::update(const std::string& _model_path,
                       size_t _this_op_cnt,
                       const std::string& extractor,
                       const std::vector<std::string>& ignored_inputs) {
-    bool is_update_in_info = true;
     if (input_info.size() != _input_info.size()) {
         throw std::runtime_error("Incompatible input info!");
     }
@@ -192,9 +191,6 @@ void MetaInfo::update(const std::string& _model_path,
     }
     if (!extractor.empty()) {
         extractors.insert(extractor);
-    }
-    if (!is_update_in_info) {
-        return;
     }
     for (const auto& in : _input_info) {
         if (std::find(ignored_inputs.begin(), ignored_inputs.end(), in.first) != ignored_inputs.begin()) {
