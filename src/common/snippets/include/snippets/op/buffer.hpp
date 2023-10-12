@@ -44,9 +44,10 @@ public:
 
     size_t get_id() const { return m_id; }
     Type get_type() const { return m_type; }
-    ov::Shape get_allocation_shape() const { return m_shape; }
     int64_t get_offset() const { return m_offset; }
     void set_id(size_t id) { m_id = id; }
+    const ov::Shape& get_allocation_shape() const { return m_shape; }
+    void set_allocation_shape(const ov::Shape& allocation_shape) { m_shape = allocation_shape; }
     void set_offset(int64_t offset) { m_offset = offset; }
     size_t get_byte_size() const;
 
