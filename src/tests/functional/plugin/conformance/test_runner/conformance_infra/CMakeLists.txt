@@ -14,8 +14,8 @@ ov_add_target(
         ADD_CPPLINT
         INCLUDES
             PUBLIC
-                ${CMAKE_CURRENT_SOURCE_DIR}/include
-                ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/include/cache/meta/
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+                "$<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/include/cache/meta>"
         LINK_LIBRARIES
             PUBLIC
                 gflags
