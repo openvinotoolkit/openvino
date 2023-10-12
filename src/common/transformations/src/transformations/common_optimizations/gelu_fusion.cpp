@@ -333,6 +333,8 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
 }
 
 ov::pass::GeluFusionWithTanhNoPower::GeluFusionWithTanhNoPower() {
+    // Replaces a sub-graph with a Gelu (ov::op::v0::Tanh) op
+    // x * 0.5 * (1 + tanh((x * 0.044715 * x + 1) * x * sqrt(2 / pi)))
     MATCHER_SCOPE(GeluFusionWithTanhNoPower);
     auto input = pattern::any_input();
 

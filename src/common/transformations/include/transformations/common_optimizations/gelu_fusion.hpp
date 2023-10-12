@@ -82,7 +82,7 @@ public:
 /**
  * @ingroup ie_transformation_common_api
  * @brief GeluFusion transformation replaces a sub-graph
- * x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]))) with a Gelu (Tanh) op.
+ * x * 0.5 * (1 + tanh((x * 0.044715 * x + 1) * x * sqrt(2 / pi))) with a Gelu (Tanh) op.
  */
 class ov::pass::GeluFusionWithTanhNoPower : public ov::pass::MatcherPass {
 public:
