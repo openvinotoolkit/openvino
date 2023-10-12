@@ -77,6 +77,7 @@ def patch_model(model):
 
             int4_in_int32 = 8
             groups = m.qzeros.shape[0]
+            m.width = m.qweight.shape[1]
             assert m.group_size == m.qweight.shape[0] * int4_in_int32 // groups
 
             m._openvino_patch_orig_forward = m.forward
