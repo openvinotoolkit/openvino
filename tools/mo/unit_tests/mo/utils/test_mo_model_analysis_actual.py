@@ -107,12 +107,12 @@ class TestMoFallback(unittest.TestCase):
         self.models["test_model_3.onnx"] = model_3
 
         for name, model in self.models.items():
-            onnx.save(model, os.path.join(tempfile.TemporaryDirectory(), name))
+            onnx.save(model, os.path.join(tempfile.gettempdir(), name))
 
     def tearDown(self):
         del environ['MO_ENABLED_TRANSFORMS']
         for name in self.models.keys():
-            os.remove(os.path.join(tempfile.TemporaryDirectory(), name))
+            os.remove(os.path.join(tempfile.gettempdir(), name))
 
 
     @patch('openvino.tools.mo.moc_frontend.analysis.json_model_analysis_print')
