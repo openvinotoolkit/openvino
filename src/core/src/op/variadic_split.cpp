@@ -64,11 +64,6 @@ VariadicSplit::VariadicSplit(const Output<Node>& data, const Output<Node>& axis,
     constructor_validate_and_infer_types();
 }
 
-bool VariadicSplit::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_VariadicSplit_visit_attributes);
-    return true;
-}
-
 void VariadicSplit::validate_and_infer_types() {
     OV_OP_SCOPE(v1_VariadicSplit_validate_and_infer_types);
     for (size_t i = 0; i < get_input_size(); ++i) {

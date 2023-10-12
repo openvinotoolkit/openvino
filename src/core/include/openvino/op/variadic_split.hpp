@@ -29,8 +29,6 @@ public:
     /// outputs. The sum of split_lengths must match data.shape[axis]
     VariadicSplit(const Output<Node>& data, const Output<Node>& axis, const Output<Node>& split_lengths);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     size_t get_default_output_index() const override {
