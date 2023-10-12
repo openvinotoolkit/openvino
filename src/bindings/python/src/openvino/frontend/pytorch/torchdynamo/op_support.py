@@ -67,6 +67,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.hardswish_.default": None,
             "torch.ops.aten.hardtanh_.default": None,
             "torch.ops.aten.index.Tensor": None,
+            "torch.ops.aten.leaky_relu_.default": None,
             "torch.ops.aten.lift_fresh_copy.default": None,
             "torch.ops.aten.linalg_vector_norm.default": None,
             "torch.ops.aten.lt.Tensor": None,
