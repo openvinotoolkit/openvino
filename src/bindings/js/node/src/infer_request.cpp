@@ -258,11 +258,14 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     }
     Napi::Env env = info.Env();
 
-    auto parsed_input = parse_input_data(info[0]);
     auto context_data = new TsfnContext(env);
-
-    context_data->input_tensors = parsed_input;
     context_data->_context_ir = &_infer_request;
+    try {
+        auto parsed_input = parse_input_data(info[0]);
+        context_data->input_tensors = parsed_input;
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+    }
 
     context_data->tsfn = Napi::ThreadSafeFunction::New(env,
                                                        Napi::Function(),
