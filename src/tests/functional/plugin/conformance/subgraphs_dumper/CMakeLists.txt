@@ -18,7 +18,7 @@ ov_add_target(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}/src
         INCLUDES
             PRIVATE
-                ${CMAKE_CURRENT_SOURCE_DIR}/include
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         LINK_LIBRARIES
             PRIVATE
                 ${LIBRARIES}
@@ -34,7 +34,7 @@ ov_add_target(
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src"
         INCLUDES
             PUBLIC
-                ${CMAKE_CURRENT_SOURCE_DIR}/include
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         LINK_LIBRARIES
             PUBLIC
                 ${LIBRARIES}

@@ -36,25 +36,29 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 #
-# Create ov_core_dev library
+# Create openvino_core_dev library
 #
 
-add_library(ov_core_dev INTERFACE)
-add_library(openvino::core::dev ALIAS ov_core_dev)
+add_library(openvino_core_dev INTERFACE)
+add_library(openvino::core::dev ALIAS openvino_core_dev)
 
-target_include_directories(ov_core_dev INTERFACE
+target_include_directories(openvino_core_dev INTERFACE
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>)
 
-target_link_libraries(ov_core_dev INTERFACE openvino::itt openvino::util)
+target_link_libraries(openvino_core_dev INTERFACE openvino::itt openvino::util)
 
-set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
+set_target_properties(openvino_core_dev PROPERTIES EXPORT_NAME core::dev)
+ov_developer_package_export_targets(TARGET openvino::core::dev
+                                    INSTALL_INCLUDE_DIRECTORIES
+                                        "${OV_CORE_DEV_API_PATH}/"
+                                        "${OpenVINO_SOURCE_DIR}/src/common/transformations/include/"
+                                        "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include/")
 
 # Install interface libraries for case BUILD_SHARED_LIBS=OFF
-ov_install_static_lib(ov_core_dev ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(openvino_core_dev ${OV_CPACK_COMP_CORE})
 
 # Fix error LNK1248: image size (...) exceeds maximum allowable size (FFFFFFFF)
 # the symbolic debugging information will be stored in a separate .pdb file.

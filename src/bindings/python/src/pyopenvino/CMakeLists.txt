@@ -10,18 +10,16 @@ endif()
 # Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined by FindPython3
 set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
 
-if(OpenVINO_SOURCE_DIR)
-    if(OV_GENERATOR_MULTI_CONFIG)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python/openvino)
-    else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python/openvino)
-    endif()
-
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
-    set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
-    set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+if(OV_GENERATOR_MULTI_CONFIG)
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python/openvino)
+else()
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python/openvino)
 endif()
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 
 # compile options
 
@@ -64,15 +62,8 @@ list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch))
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
-if(TARGET offline_transformations)
-    set(OFFLINE_TRANSFORMATIONS_LIB offline_transformations)
-else()
-    set(OFFLINE_TRANSFORMATIONS_LIB openvino::offline_transformations)
-endif()
-
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    openvino::core::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations)
 set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
     OUTPUT_NAME "_pyopenvino")
@@ -96,58 +87,56 @@ if(OV_GENERATOR_MULTI_CONFIG)
 endif()
 
 # perform copy
-if(OpenVINO_SOURCE_DIR)
-    add_custom_command(TARGET ${PROJECT_NAME}
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-            COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
-            )
-endif()
+add_custom_command(TARGET ${PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
+        )
 
-if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
-    ov_python_minimal_api(${PROJECT_NAME})
-    ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
+ov_python_minimal_api(${PROJECT_NAME})
+ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
-    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
-                           HIDDEN)
+# install steps
 
-    install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/src/openvino
-            DESTINATION ${OV_CPACK_PYTHONDIR}
-            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
-            ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
-            USE_SOURCE_PERMISSIONS
-            PATTERN "test_utils" EXCLUDE
-            PATTERN "torchvision/requirements.txt" EXCLUDE)
+ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
+                        HIDDEN)
 
-    install(TARGETS ${PROJECT_NAME}
-            DESTINATION ${OV_CPACK_PYTHONDIR}/openvino
-            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
-            ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/src/openvino
+        DESTINATION ${OV_CPACK_PYTHONDIR}
+        COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
+        ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
+        USE_SOURCE_PERMISSIONS
+        PATTERN "test_utils" EXCLUDE
+        PATTERN "torchvision/requirements.txt" EXCLUDE)
 
-    ov_set_apple_rpath(${PROJECT_NAME} ${OV_CPACK_PYTHONDIR}/openvino
-        # path to OpenVINO C++ libraries
-        ${OV_CPACK_RUNTIMEDIR}
-        # pyopenvino also depends on TBB because of:
-        # pyopenvino => openvino::offline_transformations => TBB optimized openvino::reference
-        ${TBB_LIB_INSTALL_DIR})
+install(TARGETS ${PROJECT_NAME}
+        DESTINATION ${OV_CPACK_PYTHONDIR}/openvino
+        COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
+        ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
-    ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_REQ_FILES} HIDDEN)
+ov_set_apple_rpath(${PROJECT_NAME} ${OV_CPACK_PYTHONDIR}/openvino
+    # path to OpenVINO C++ libraries
+    ${OV_CPACK_RUNTIMEDIR}
+    # pyopenvino also depends on TBB because of:
+    # pyopenvino => openvino::offline_transformations => TBB optimized openvino::reference
+    ${TBB_LIB_INSTALL_DIR})
 
-    install(FILES ${OpenVINOPython_SOURCE_DIR}/requirements.txt
-            DESTINATION ${OV_CPACK_PYTHONDIR}
-            COMPONENT ${OV_CPACK_COMP_OPENVINO_REQ_FILES}
-            ${OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL})
-    
-    install(FILES ${OpenVINOPython_SOURCE_DIR}/src/openvino/preprocess/torchvision/requirements.txt
-            DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/preprocess/torchvision
-            COMPONENT ${OV_CPACK_COMP_OPENVINO_REQ_FILES}
-            ${OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL})
+ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_REQ_FILES} HIDDEN)
 
-    install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests
-            DESTINATION tests/${PROJECT_NAME}
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
-endif()
+install(FILES ${OpenVINOPython_SOURCE_DIR}/requirements.txt
+        DESTINATION ${OV_CPACK_PYTHONDIR}
+        COMPONENT ${OV_CPACK_COMP_OPENVINO_REQ_FILES}
+        ${OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL})
+
+install(FILES ${OpenVINOPython_SOURCE_DIR}/src/openvino/preprocess/torchvision/requirements.txt
+        DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/preprocess/torchvision
+        COMPONENT ${OV_CPACK_COMP_OPENVINO_REQ_FILES}
+        ${OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL})
+
+install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests
+        DESTINATION tests/${PROJECT_NAME}
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 if(TARGET ie_wheel)
     add_dependencies(ie_wheel ${PROJECT_NAME})

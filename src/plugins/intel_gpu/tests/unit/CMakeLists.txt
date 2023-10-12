@@ -23,14 +23,12 @@ file(GLOB_RECURSE SOURCES_MAIN
   )
 
 if (NOT ENABLE_ONEDNN_FOR_GPU)
-    set(EXCLUDE_DIR "/onednn/")
-    foreach (SOURCE_FILE ${SOURCES_MAIN})
-        string (FIND ${SOURCE_FILE} ${EXCLUDE_DIR} EXCLUDE_DIR_FOUND)
-        if (NOT ${EXCLUDE_DIR_FOUND} EQUAL -1)
-            message (Exclude : ${SOURCE_FILE})
+    set(EXCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn/")
+    foreach (SOURCE_FILE IN LISTS SOURCES_MAIN)
+        if (SOURCE_FILE MATCHES "${EXCLUDE_DIR}.*")
             list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
         endif ()
-    endforeach(SOURCE_FILE)
+    endforeach()
 endif()
 
 if (MSVC)

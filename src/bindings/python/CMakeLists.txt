@@ -20,7 +20,18 @@ project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINODeveloperPackage REQUIRED
                  PATHS "${InferenceEngineDeveloperPackage_DIR}")
+
+    # we assume that OpenVINODeveloperPackage is generated in OpenVINO build tree
     set(OpenVINO_BINARY_DIR "${OpenVINODeveloperPackage_DIR}")
+    # but this can be invalid for cases of OpenVINODeveloperPackage relocatable installation
+    # so, we need to disable wheen generation for this case
+    if(NOT EXISTS "${OpenVINO_BINARY_DIR}/cmake_install.cmake")
+        set(OpenVINODeveloperPackage_RELOCATABLE ON)
+    endif()
+endif()
+
+if(NOT DEFINED OpenVINODeveloperPackage_RELOCATABLE)
+    set(OpenVINODeveloperPackage_RELOCATABLE OFF)
 endif()
 
 #
@@ -141,11 +152,10 @@ function(ov_check_init_files_alignment init_files)
     endforeach()
 endfunction()
 
-set(INIT_FILES_RUNTIME
-"${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
-"${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
-"${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
-"${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py")
+set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
+                       "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
+                       "${OpenVINOPython_SOURCE_DIR}/../../../tools/ovc/openvino/__init__.py"
+                       "${OpenVINOPython_SOURCE_DIR}/../../../tools/benchmark_tool/openvino/__init__.py")
 
 ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")
 
@@ -193,7 +203,7 @@ endif()
 
 # this option should not be a part of OpenVINODeveloperPackage
 # since wheels can be built only together with main OV build
-ov_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON" OFF)
+ov_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON;NOT OpenVINODeveloperPackage_RELOCATABLE" OFF)
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
@@ -309,15 +319,15 @@ macro(ov_define_setup_py_dependencies)
         "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
         "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
         "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
-        "${OpenVINO_SOURCE_DIR}/LICENSE"
-        "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
-        "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
-        "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
-        "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
+        "${OpenVINOPython_SOURCE_DIR}/../../../LICENSE"
+        "${OpenVINOPython_SOURCE_DIR}/../../../licensing/onednn_third-party-programs.txt"
+        "${OpenVINOPython_SOURCE_DIR}/../../../licensing/runtime-third-party-programs.txt"
+        "${OpenVINOPython_SOURCE_DIR}/../../../licensing/tbb_third-party-programs.txt"
+        "${OpenVINOPython_SOURCE_DIR}/../../../docs/install_guides/pypi-openvino-rt.md")
 
     if(wheel_pre_release)
         list(APPEND ov_setup_py_deps
-            "${OpenVINO_SOURCE_DIR}/docs/install_guides/pre-release-note.md")
+            "${OpenVINOPython_SOURCE_DIR}/../../../docs/install_guides/pre-release-note.md")
     endif()
 endmacro()
 
@@ -394,8 +404,9 @@ if(ENABLE_TESTS)
 endif()
 
 if(OpenVINODeveloperPackage_FOUND)
+    # TODO: understand whether it's required
     # provides a callback function to describe each component in repo
-    include("${OpenVINO_SOURCE_DIR}/cmake/packaging/packaging.cmake")
+    include("${OpenVINOPython_SOURCE_DIR}/../../../cmake/packaging/packaging.cmake")
 
     ov_cpack(${OV_CPACK_COMPONENTS_ALL})
 endif()

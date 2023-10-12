@@ -9,11 +9,9 @@ ov_add_target(
     TYPE STATIC
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     ADD_CLANG_FORMAT
-    DEVELOPER_PACKAGE
-        tests
     INCLUDES
         PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     ADDITIONAL_SOURCE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     LINK_LIBRARIES
@@ -24,13 +22,17 @@ ov_add_target(
         PRIVATE
             ov_models
             openvino::pugixml
-    INCLUDES
-        PUBLIC
-            $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
 )
-
-install(DIRECTORY layer_tests_summary DESTINATION tests/functional_test_utils COMPONENT tests EXCLUDE_FROM_ALL)
 
 ov_build_target_faster(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
+
+# install & export
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/layer_tests_summary"
+        DESTINATION tests/functional_test_utils
+        COMPONENT tests EXCLUDE_FROM_ALL)
+
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")

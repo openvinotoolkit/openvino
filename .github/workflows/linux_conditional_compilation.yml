@@ -73,6 +73,7 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
+          ref: 'master'
 
       #
       # Dependencies
@@ -230,6 +231,7 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
+          ref: 'master'
 
       - name: Download selective build statistics package
         uses: actions/download-artifact@v3

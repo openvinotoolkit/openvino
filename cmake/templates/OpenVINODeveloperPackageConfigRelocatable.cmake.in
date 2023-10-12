@@ -6,8 +6,6 @@
 
 include(CMakeFindDependencyMacro)
 
-set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@")
-
 # Variables to export in plugin's projects
 
 set(ov_options "@OV_OPTIONS@")
@@ -48,15 +46,6 @@ load_cache("${cache_path}" READ_WITH_PREFIX "" TBB_INSTALL_DIR)
 # activate generation of plugins.xml
 set(ENABLE_PLUGINS_XML ON)
 
-# for samples in 3rd party projects
-if(ENABLE_SAMPLES)
-    if("@gflags_FOUND@")
-        set_and_check(gflags_DIR "@gflags_DIR@")
-    else()
-        set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
-    endif()
-endif()
-
 # Disable warning as error for private components
 set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 
@@ -64,12 +53,10 @@ set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 # Content
 #
 
-find_dependency(OpenVINODeveloperScripts
-                PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
-                NO_CMAKE_FIND_ROOT_PATH
-                NO_DEFAULT_PATH)
+# OpenVINO_DIR is supposed to be set as an environment variable
+find_dependency(OpenVINO)
 
-find_dependency(OpenVINO
+find_dependency(OpenVINODeveloperScripts
                 PATHS "${CMAKE_CURRENT_LIST_DIR}"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
@@ -77,17 +64,7 @@ find_dependency(OpenVINO
 _ov_find_tbb()
 _ov_find_pugixml()
 
-include("${CMAKE_CURRENT_LIST_DIR}/openvino_developer_package_targets.cmake")
-
-# inherit OpenCV from main OpenVINO project if enabled
-if("@OpenCV_FOUND@")
-    # Use OpenCV_DIR from cache only if user doesn't define OpenCV_DIR
-    if(NOT OpenCV_DIR)
-        load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
-    endif()
-    find_dependency(OpenCV)
-endif()
-
+include("${CMAKE_CURRENT_LIST_DIR}/OpenVINODeveloperPackageTargets.cmake")
 #
 # Extra Compile Flags
 #
