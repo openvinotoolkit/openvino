@@ -197,6 +197,9 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_TensorIteratorCommon/TensorIteratorTest.Inference.*_modelType=f16_targetDevice=CPU.*)");
     retVector.emplace_back(R"(.*smoke_CtcGreedyDecoderBasic/CTCGreedyDecoderLayerTest.Inference.*netPRC=f16.*trgDev=CPU.*)");
     retVector.emplace_back(R"(.*CTCGreedyDecoderSeqLenLayerTest.Inference.*dataPRC=f16.*trgDev=CPU.*)");
+    // Issue: 122177
+    retVector.emplace_back(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference.*_modelType=f16.*)");
+    retVector.emplace_back(R"(.*smoke_LSTMSequenceCommonZeroClip/LSTMSequenceTest.Inference.*_modelType=f16.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_X86)
