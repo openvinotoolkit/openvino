@@ -36,18 +36,12 @@ public:
     size_t get_default_output_index() const override {
         return no_default_index();
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool has_evaluate() const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
-
-private:
-    bool evaluate_variadic_split(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
-    bool has_axis_and_splits_bound_set() const;
 };
 }  // namespace v1
 }  // namespace op
