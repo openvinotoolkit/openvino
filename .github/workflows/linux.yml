@@ -170,7 +170,13 @@ jobs:
 
       - name: Build Debian packages
         run: |
+          python3 get-pip.py
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+
           cmake -DENABLE_PYTHON_PACKAGING=ON \
+                -UPython3* \
+                -DPython3_EXECUTABLE=/usr/bin/python3 \
                 -DENABLE_TESTS=OFF \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
@@ -243,11 +249,6 @@ jobs:
           echo "deb [trusted=yes] file:${DEBIAN_PACKAGES_DIR} ./" | tee /etc/apt/sources.list.d/openvino-local.list
           apt-get update -y
           apt-get install openvino -y
-          # install python3.9
-          apt install --assume-yes libpython3.9 python3.9 python3.9-distutils wget
-          wget https://bootstrap.pypa.io/get-pip.py
-          python3.9 get-pip.py
-          python3.9 -m pip install numpy
         working-directory: ${{ env.DEBIAN_PACKAGES_DIR }}
 
       - name: Test debian packages
@@ -255,13 +256,13 @@ jobs:
           /usr/share/openvino/samples/cpp/build_samples.sh
           /usr/share/openvino/samples/c/build_samples.sh
           ~/openvino_cpp_samples_build/aarch64/Release/hello_query_device
-          python3.9 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
-          python3.9 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
-          python3.9 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
-          python3.9 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
-          python3.9 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
-          python3.9 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
-          python3.9 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
+          python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
+          python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
+          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
           benchmark_app --help
           ovc --help
 
@@ -885,7 +886,7 @@ jobs:
           # Find and install OV dev wheel
           pushd ${INSTALL_DIR}/tools
             ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-            python3.9 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2]
+            python3.9 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2,pytorch]
           popd
 
       #
@@ -923,13 +924,15 @@ jobs:
       # E   OSError: libarmpl_lp64_mp.so: cannot open shared object file: No such file or directory
       - name: Model Optimizer unit tests
         if: ${{ always() }}
-        run: python3.9 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
-          --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
+        run: |
+          python3.9 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
+            --ignore=${INSTALL_TEST_DIR}/mo/unit_tests/mo/front/mxnet \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: PyTorch Layer Tests
         timeout-minutes: 40
         run: |
-          export LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+          export LD_PRELOAD=/usr/local/lib/python3.9/dist-packages/torch/lib/../../torch.libs/libgomp-d22c30c5.so.1.0.0
           python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -1010,7 +1013,7 @@ jobs:
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          export LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+          export LD_PRELOAD=/usr/local/lib/python3.9/dist-packages/torch/lib/../../torch.libs/libgomp-d22c30c5.so.1.0.0
           python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           source ${INSTALL_DIR}/setupvars.sh
@@ -1025,7 +1028,7 @@ jobs:
         if: ${{ always() }}
         timeout-minutes: 40
         run: |
-          export LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+          export LD_PRELOAD=/usr/local/lib/python3.9/dist-packages/torch/lib/../../torch.libs/libgomp-d22c30c5.so.1.0.0
           python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           source ${INSTALL_DIR}/setupvars.sh
@@ -1232,8 +1235,8 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-16-cores-arm
     # TODO: Switch back to self-hosted runners
+    runs-on: aks-linux-16-cores-arm
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:

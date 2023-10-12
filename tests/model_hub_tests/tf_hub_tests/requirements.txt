@@ -4,4 +4,4 @@ pytest
 pytest-html
 tensorflow
 tensorflow-hub
-tensorflow-text
+tensorflow-text; sys_platform == 'linux' and platform_machine == 'x86_64'
