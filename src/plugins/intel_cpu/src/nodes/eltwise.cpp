@@ -839,12 +839,15 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case ov::element::bf16:
-                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                             {static_cast<size_t>(ymm_dst.getIdx())});
-                if (isa == x64::avx512_core)
+                if (isa == x64::avx512_core) {
+                    uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                                 {static_cast<size_t>(ymm_dst.getIdx())});
                     vmovdqu16(op, ymm_dst);
-                else
-                    uni_vmovdqu(op, ymm_dst);
+                } else {
+                    uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                                 {static_cast<size_t>(xmm_dst.getIdx())});
+                    uni_vmovdqu(op, xmm_dst);
+                }
                 break;
             case ov::element::f16:
                 vcvtps2ph(op, vmm_dst, 0x4);
