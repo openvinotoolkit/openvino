@@ -19,3 +19,4 @@ TEST_P(SplitConvConcat, QueryModel) {
 
 }  // namespace test
 }  // namespace ov
+

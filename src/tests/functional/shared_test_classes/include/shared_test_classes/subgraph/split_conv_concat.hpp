@@ -25,3 +25,9 @@ protected:
 
 }  // namespace test
 }  // namespace ov
+
+namespace SubgraphTestsDefinitions {
+
+using ov::test::SplitConvConcat;
+
+}
