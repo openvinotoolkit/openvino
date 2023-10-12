@@ -376,7 +376,7 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     result->set_friendly_name(get_friendly_name());
     if (m_linear_ir)
         result->m_linear_ir = m_linear_ir->clone();
-    // Note: we don't update shapeInfer here, since it's initialized ihn the constructor
+    // Note: we don't update shapeInfer here, since it's initialized in the constructor
     if (m_generator)
         result->m_generator = m_generator->clone();
     return result;

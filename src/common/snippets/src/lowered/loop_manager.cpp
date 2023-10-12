@@ -26,7 +26,7 @@ std::shared_ptr<LoopPort> LoopPort::clone_with_new_expr(const ExpressionPtr& new
 }
 
 LoopInfo::LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
-                                          const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits)
+                   const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits)
     : work_amount(work_amount), increment(increment), dim_idx(dim_idx), outer_splited_loop(false) {
     entry_points.reserve(entries.size());
     exit_points.reserve(exits.size());
