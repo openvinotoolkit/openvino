@@ -22,7 +22,7 @@ int32_t ov::util::getenv_int(const char* env_var, int32_t default_value) {
     if (env_p && *env_p) {
         errno = 0;
         char* err;
-        env = strtol(env_p, &err, 0);
+        env = static_cast<int32_t>(strtol(env_p, &err, 0));
         // if conversion leads to an overflow
         if (errno) {
             std::stringstream ss;

@@ -136,8 +136,8 @@ void convolve_2D_channels(const ConvolutionParams& p,
     const int mask_size = static_cast<int>(shape_size(mask_shape));
     const int mask_spatial_size = static_cast<int>(shape_size(shape_reduce(mask_shape)));
 
-    const int group_idx_m = filter_channels_count * static_cast<int>(group_idx);
-    const int group_idx_d = filter_channels_count * groups / deformable_groups;
+    const int group_idx_m = static_cast<int>(filter_channels_count * static_cast<int>(group_idx));
+    const int group_idx_d = static_cast<int>(filter_channels_count * groups / deformable_groups);
 
     const int f_shift_inc = 2 * offsets_spatial_size;
 

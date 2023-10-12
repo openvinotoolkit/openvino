@@ -130,7 +130,7 @@ public:
           _results() {
         OPENVINO_ASSERT(_imageNames.size() == _batchSize, "Batch size should be equal to the number of images.");
 
-        topResults(_nTop, _outTensor, _results);
+        topResults(static_cast<unsigned int>(_nTop), _outTensor, _results);
     }
 
     /**

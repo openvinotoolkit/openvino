@@ -499,7 +499,7 @@ int main(int argc, char* argv[]) {
                         numFramesThisBatch = 1;
                     } else {
                         numFramesThisBatch =
-                            (numFrames - frameIndex < batchSize) ? (numFrames - frameIndex) : batchSize;
+                            (numFrames - frameIndex < batchSize) ? static_cast<uint32_t>((numFrames - frameIndex)) : batchSize;
                     }
 
                     /* waits until inference result becomes available */
@@ -611,7 +611,7 @@ int main(int argc, char* argv[]) {
                     frameIndex += numFramesThisBatch;
                     for (size_t j = 0; j < inputFiles.size(); j++) {
                         if (FLAGS_cw_l > 0 || FLAGS_cw_r > 0) {
-                            int idx = frameIndex - FLAGS_cw_l;
+                            int idx = static_cast<int>(frameIndex - FLAGS_cw_l);
                             if (idx > 0 && idx < static_cast<int>(numFramesFile)) {
                                 inputFrame[j] += sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
                             } else if (idx >= static_cast<int>(numFramesFile)) {

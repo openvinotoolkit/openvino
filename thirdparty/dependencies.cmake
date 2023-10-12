@@ -549,6 +549,12 @@ if(ENABLE_SNAPPY_COMPRESSION)
                 ov_add_compiler_flags(-Wno-sign-compare)
             endif()
 
+            if(AARCH64)
+              if(APPLE)
+                ov_add_compiler_flags(-Wno-shorten-64-to-32)
+              endif()
+            endif()
+
             add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
             # need to create alias openvino::snappy
             add_library(openvino::snappy ALIAS snappy)

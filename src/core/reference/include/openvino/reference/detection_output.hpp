@@ -444,7 +444,7 @@ public:
         offset = _attrs.normalized ? 0 : 1;
         numPriors = priorsShape[2] / priorSize;
         priorsBatchSize = priorsShape[0];
-        numClasses = classPredShape[1] / static_cast<int>(numPriors);
+        numClasses = static_cast<int>(classPredShape[1] / static_cast<int>(numPriors));
         numLocClasses = _attrs.share_location ? 1 : numClasses;
         numResults = outShape[2];
         outTotalSize = shape_size(outShape);

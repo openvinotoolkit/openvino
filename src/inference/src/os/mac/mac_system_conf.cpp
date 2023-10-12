@@ -101,7 +101,7 @@ int parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t
         } else {
             _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
             _proc_type_table[0][ALL_PROC] = _processors;
-            _proc_type_table[0][MAIN_CORE_PROC] = it->second;
+            _proc_type_table[0][MAIN_CORE_PROC] = static_cast<int>(it->second);
             _proc_type_table[0][PROC_NUMA_NODE_ID] = 0;
             _proc_type_table[0][PROC_SOCKET_ID] = 0;
         }
@@ -115,7 +115,7 @@ int parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t
         if (it == system_info_table.end()) {
             return 0;
         } else {
-            _proc_type_table[0][EFFICIENT_CORE_PROC] = it->second;
+            _proc_type_table[0][EFFICIENT_CORE_PROC] = static_cast<int>(it->second);
         }
     }
 

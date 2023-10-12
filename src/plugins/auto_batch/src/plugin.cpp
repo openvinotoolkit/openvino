@@ -43,7 +43,7 @@ DeviceInformation Plugin::parse_batch_device(const std::string& device_with_batc
 
     int batch = 0;
     if (closingBracket != std::string::npos && openingBracket < closingBracket) {
-        batch = std::stol(device_with_batch.substr(openingBracket + 1, closingBracket - 1));
+        batch = std::stoi(device_with_batch.substr(openingBracket + 1, closingBracket - 1));
 
         if (batch <= 0) {
             OPENVINO_THROW("Batch value for '", deviceName, "' must be > 0, while ", batch, "is passed");

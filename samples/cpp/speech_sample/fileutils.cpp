@@ -126,9 +126,9 @@ void NumpyFile::get_file_info(const char* fileName,
     auto it = my_npz1.begin();
     std::advance(it, numArrayToFindSize);
     if (it != my_npz1.end()) {
-        numArrays = my_npz1.size();
+        numArrays = static_cast<uint32_t>(my_npz1.size());
         cnpy::NpyArray my_npy = it->second;
-        numMemoryBytes = my_npy.data_holder->size();
+        numMemoryBytes = static_cast<uint32_t>(my_npy.data_holder->size());
 
         if (ptrNumArrays != NULL)
             *ptrNumArrays = numArrays;
@@ -152,8 +152,8 @@ void NumpyFile::load_file(const char* fileName,
     if (it != my_npz1.end()) {
         ptrName = it->first;
         cnpy::NpyArray my_npy = it->second;
-        *ptrNumRows = my_npy.shape[0];
-        *ptrNumColumns = my_npy.shape[1];
+        *ptrNumRows = static_cast<uint32_t>(my_npy.shape[0]);
+        *ptrNumColumns = static_cast<uint32_t>(my_npy.shape[1]);
 
         for (size_t i = 0; i < my_npy.data_holder->size(); i++) {
             memory.at(i) = my_npy.data_holder->at(i);

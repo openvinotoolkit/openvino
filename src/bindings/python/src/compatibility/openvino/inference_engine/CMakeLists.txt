@@ -33,6 +33,11 @@ if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
     ov_add_compiler_flags(-Wno-unused-but-set-variable)
 endif()
 
+if(AARCH64)
+    if(APPLE)
+        ov_add_compiler_flags(-Wno-shorten-64-to-32)
+    endif()
+endif()
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCES})

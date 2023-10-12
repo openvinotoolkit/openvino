@@ -758,13 +758,13 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
 
     for (size_t i = 0; i < logOutput.size(); i++) {
         slog::info << "Test Config " << i << slog::endl;
-        auto maxNameWidth = std::max_element(logOutput[i].begin(),
-                                             logOutput[i].end(),
-                                             [](const std::pair<std::string, std::string>& a,
-                                                const std::pair<std::string, std::string>& b) {
-                                                 return a.first.size() < b.first.size();
-                                             })
-                                ->first.size();
+        auto maxNameWidth = static_cast<int>(std::max_element(logOutput[i].begin(),
+                                                 logOutput[i].end(),
+                                                 [](const std::pair<std::string, std::string>& a,
+                                                    const std::pair<std::string, std::string>& b) {
+                                                     return a.first.size() < b.first.size();
+                                                 })
+                                ->first.size());
         for (const std::pair<const std::string, std::string>& inputLog : logOutput[i]) {
             slog::info << std::left << std::setw(maxNameWidth + 2) << inputLog.first << inputLog.second << slog::endl;
         }
@@ -946,13 +946,13 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
 
     for (size_t i = 0; i < logOutput.size(); i++) {
         slog::info << "Test Config " << i << slog::endl;
-        auto maxNameWidth = std::max_element(logOutput[i].begin(),
-                                             logOutput[i].end(),
-                                             [](const std::pair<std::string, std::string>& a,
-                                                const std::pair<std::string, std::string>& b) {
-                                                 return a.first.size() < b.first.size();
-                                             })
-                                ->first.size();
+        auto maxNameWidth = static_cast<int>(std::max_element(logOutput[i].begin(),
+                                                 logOutput[i].end(),
+                                                 [](const std::pair<std::string, std::string>& a,
+                                                    const std::pair<std::string, std::string>& b) {
+                                                     return a.first.size() < b.first.size();
+                                                 })
+                                ->first.size());
         for (auto inputLog : logOutput[i]) {
             slog::info << std::left << std::setw(maxNameWidth + 2) << inputLog.first << inputLog.second << slog::endl;
         }

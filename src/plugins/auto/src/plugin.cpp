@@ -222,7 +222,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 
         int num_requests = -1;
         if (closing_bracket != std::string::npos && opening_bracket < closing_bracket) {
-            num_requests = std::stol(d.substr(opening_bracket + 1, closing_bracket - 1));
+            num_requests = std::stoi(d.substr(opening_bracket + 1, closing_bracket - 1));
 
             if (num_requests <= 0) {
                 OPENVINO_THROW("Priority value for", device_name, "must be > 0, while ", num_requests, "is passed");

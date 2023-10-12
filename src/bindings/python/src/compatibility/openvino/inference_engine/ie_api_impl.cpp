@@ -489,7 +489,7 @@ void InferenceEnginePython::IdleInferRequestQueue::setRequestBusy(int index) {
 
 int InferenceEnginePython::IdleInferRequestQueue::getIdleRequestId() {
     std::lock_guard<std::mutex> lock(mutex);
-    return idle_ids.size() ? idle_ids.front() : -1;
+    return idle_ids.size() ? static_cast<int>(idle_ids.front()) : -1;
 }
 
 void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests) {

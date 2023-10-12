@@ -678,7 +678,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     w = reader->width();
                     shape = reader->shape();
                 }
-                currentFileCounters[item.get_any_name()] = fileIdx;
+                currentFileCounters[item.get_any_name()] = static_cast<int>(fileIdx);
                 if (shape.size() == 2) {  // Has only h and w
                     if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
                         info.dataShape[ov::layout::height_idx(info.layout)] = h;

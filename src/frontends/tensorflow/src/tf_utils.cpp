@@ -85,7 +85,7 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
                                        Tensor* values) {
     auto val_lastsaved = static_cast<T>(0);
     auto values_data = values->data<T>();
-    for (size_t i = 0; i < values->get_size(); i++) {
+    for (int i = 0; i < values->get_size(); i++) {
         if (val_size == 0) {
             values_data[i] = static_cast<T>(0);
         } else if (static_cast<int64_t>(i) < val_size) {
@@ -93,22 +93,22 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
             switch (values->get_element_type()) {
             // TODO: there are more element types to support here
             case boolean:
-                val_i = tensor_proto.bool_val()[i];
+                val_i = static_cast<T>(tensor_proto.bool_val()[i]);
                 break;
             case i32:
-                val_i = tensor_proto.int_val()[i];
+                val_i = static_cast<T>(tensor_proto.int_val()[i]);
                 break;
             case i64:
-                val_i = tensor_proto.int64_val()[i];
+                val_i = static_cast<T>(tensor_proto.int64_val()[i]);
                 break;
             case f16:
-                val_i = float16::from_bits(tensor_proto.half_val()[i]);
+                val_i = static_cast<T>(float16::from_bits(tensor_proto.half_val()[i]));
                 break;
             case f32:
-                val_i = tensor_proto.float_val()[i];
+                val_i = static_cast<T>(tensor_proto.float_val()[i]);
                 break;
             case f64:
-                val_i = tensor_proto.double_val()[i];
+                val_i = static_cast<T>(tensor_proto.double_val()[i]);
                 break;
             default:
                 FRONT_END_THROW("Encountered unknown element type " + values->get_element_type().get_type_name());
