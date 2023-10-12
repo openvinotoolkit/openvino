@@ -212,6 +212,7 @@ OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
 OP_CONVERTER(translate_layer_norm_fx);
 OP_CONVERTER(translate_max_poolnd_fx);
+OP_CONVERTER(translate_scaled_dot_product_attention_fx);
 OP_CONVERTER(translate_slice_fx);
 OP_CONVERTER(translate_softmax_fx);
 OP_CONVERTER(translate_transpose_fx);
@@ -602,6 +603,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.rsub.Scalar", op::translate_rsub},
+        {"aten._scaled_dot_product_flash_attention.default", op::translate_scaled_dot_product_attention_fx},
         {"aten.select.int", op::translate_select},
         {"aten.sigmoid.default", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
         {"aten.silu.default", op::translate_1to1_match_1_inputs<opset10::Swish>},

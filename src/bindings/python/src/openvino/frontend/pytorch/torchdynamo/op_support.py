@@ -91,6 +91,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.relu.default": None,
             "torch.ops.aten.relu_.default": None,
             "torch.ops.aten.rsub.Scalar": None,
+            "torch.ops.aten._scaled_dot_product_flash_attention.default": None,
             "torch.ops.aten.select.int": None,
             "torch.ops.aten.sigmoid.default": None,
             "torch.ops.aten.silu.default": None,
