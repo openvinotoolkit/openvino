@@ -14,6 +14,7 @@
 
    Interactive Tutorials (Python) <tutorials>
    Sample Applications (Python & C++) <openvino_docs_OV_UG_Samples_Overview>
+   Generative AI Optimization and Deployment <gen_ai_guide>
 
 
 This section will help you get a hands-on experience with OpenVINO even if you are just starting 
