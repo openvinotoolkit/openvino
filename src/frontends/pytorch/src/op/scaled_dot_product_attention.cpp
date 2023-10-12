@@ -118,7 +118,7 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
     // dropout_p=0., bool is_causal=False)
     num_inputs_check(context, 3, 6);
     auto scaled_atten = translate_scaled_dot_product_attention_common(context);
-    if (scaled_atten->get_shape().size() == 4) {
+    if (!(scaled_atten->is_dynamic()) && scaled_atten->get_output_partial_shape(0).rank() == 4) {
         const std::vector<size_t> *scaled_atten_v = &(scaled_atten->get_shape());
         std::vector<size_t> softmax_shape_v((*scaled_atten_v).begin()+1, (*scaled_atten_v).end());
         softmax_shape_v[0] *= (*scaled_atten_v)[0];
