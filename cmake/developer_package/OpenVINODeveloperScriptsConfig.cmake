@@ -140,7 +140,13 @@ endif()
 
 # allow to override default OUTPUT_ROOT root
 if(NOT DEFINED OUTPUT_ROOT)
-    set(OUTPUT_ROOT ${CMAKE_SOURCE_DIR})
+    if(DEFINED OpenVINO_SOURCE_DIR)
+        # For BW compatiblity, when extra modules are built separately
+        # but still write its artifacts to OpenVINO source directory
+        set(OUTPUT_ROOT ${OpenVINO_SOURCE_DIR})
+    else()
+        set(OUTPUT_ROOT ${CMAKE_SOURCE_DIR})
+    endif()
 endif()
 
 # Enable postfixes for Debug/Release builds
