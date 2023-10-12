@@ -66,6 +66,10 @@ def patch_model(model):
             # already patched, skipping
             continue
         # TODO: Check module type
+        is_quantized = getattr(m, "is_quantized", None)
+        if not is_quantized is None:
+            m.is_quantized = False
+        m.float()
         if hasattr(m, "QUANT_TYPE") and m.QUANT_TYPE == "exllama":
             if m.bits != 4:
                 raise ValueError(
@@ -73,6 +77,7 @@ def patch_model(model):
 
             int4_in_int32 = 8
             groups = m.qzeros.shape[0]
+            m.width = m.qweight.shape[1]
             assert m.group_size == m.qweight.shape[0] * int4_in_int32 // groups
 
             m._openvino_patch_orig_forward = m.forward
