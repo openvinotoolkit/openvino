@@ -664,7 +664,7 @@ private:
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::u4 || Type == element::Type_t::i4 ||
-                                          Type == element::Type_t::nf4 && std::is_integral<T>::value,
+                                          (Type == element::Type_t::nf4 && std::is_integral<T>::value),
                                       bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
