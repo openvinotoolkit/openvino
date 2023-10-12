@@ -179,7 +179,10 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [&n](descriptor::Tensor& t) -> bool {
-        // Todo: int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
+        // TODO [122585] Need to add dynamic rank support
+        if (t.get_partial_shape().rank().is_dynamic())
+            return false;
+        // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
         //  So i32 is supported exclusively for transposes and broadcast
         return TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0 ||
                 (t.get_element_type() == ov::element::i32 &&
