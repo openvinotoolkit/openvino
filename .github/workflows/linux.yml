@@ -839,7 +839,7 @@ jobs:
 
       - name: Setup pip cache dir
         run: |
-          apt install --assume-yes libpython3.9 python3.9 python3.9-distutils wget
+          apt install --assume-yes libpython3.9 python3.9 python3.9-distutils wget libgomp1
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
 
@@ -1152,12 +1152,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-16-cores-arm
-    # TODO: Switch back to self-hosted runners
-    # container:
-    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-    #   volumes:
-    #     - /mount/caches:/mount/caches
+    runs-on: aks-linux-16-cores-arm
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -1170,7 +1169,7 @@ jobs:
 
       - name: Install python
         run: |
-          sudo apt install --assume-yes libpython3.9 python3.9 python3.9-distutils wget
+          sudo apt install --assume-yes libpython3.9 python3.9 python3.9-distutils wget libgomp1
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
 
@@ -1235,10 +1234,10 @@ jobs:
         shell: bash
     runs-on: ubuntu-20.04-16-cores-arm
     # TODO: Switch back to self-hosted runners
-    # container:
-    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-    #   volumes:
-    #     - /mount/caches:/mount/caches
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -1251,7 +1250,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt install --assume-yes libpython3.9 python3.9 python3.9-distutils python3.9-dev wget
+          sudo apt install --assume-yes libpython3.9 python3.9 python3.9-distutils python3.9-dev wget libgomp1
           wget https://bootstrap.pypa.io/get-pip.py
           python3.9 get-pip.py
           # install git (required to build pip deps from the sources)
