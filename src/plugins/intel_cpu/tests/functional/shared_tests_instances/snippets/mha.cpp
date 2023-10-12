@@ -70,8 +70,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceBF16, MHA,
                                  ::testing::ValuesIn(precision_f32(4)),
                                  ::testing::Values(ov::element::bf16),
                                  ::testing::ValuesIn({false}),
-                                 ::testing::Values(7),
-                                 ::testing::Values(7),
+                                 ::testing::Values(7), // MHA + 5 Converts + 1 Transpose on output
+                                 ::testing::Values(6), // MHA + 5 Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(CPUTestUtils::cpuBF16PluginConfig)),
                          MHA::getTestCaseName);
