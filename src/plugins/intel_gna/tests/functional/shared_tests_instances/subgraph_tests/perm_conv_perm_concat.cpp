@@ -43,5 +43,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_basic,
                                             ::testing::ValuesIn(configs)),
                          PermConvPermConcat::getTestCaseName);
 
-}
+}  // namespace test
 }  // namespace ov
