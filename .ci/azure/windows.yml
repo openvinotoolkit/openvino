@@ -147,8 +147,8 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
-      mkdir -p "%LOCALAPPDATA%/Intel Corporation/"
-      echo 0 > "%LOCALAPPDATA%/Intel Corporation/openvino_telemetry"
+      mkdir "%LOCALAPPDATA%\\Intel Corporation\\"
+      echo 0 > "%LOCALAPPDATA%\\Intel Corporation\\openvino_telemetry"
     displayName: 'Disable Telemetry'
 
   - powershell: |

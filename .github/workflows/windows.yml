@@ -311,8 +311,8 @@ jobs:
 
       - name: Disable Telemetry
         run: |
-          mkdir -p "%LOCALAPPDATA%/Intel Corporation/"
-          echo 0 > "%LOCALAPPDATA%/Intel Corporation/openvino_telemetry"
+          mkdir "%LOCALAPPDATA%\\Intel Corporation\\"
+          echo 0 > "%LOCALAPPDATA%\\Intel Corporation\\openvino_telemetry"
 
       - name: Python API 1.0 Tests
         shell: cmd
