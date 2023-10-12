@@ -32,7 +32,7 @@ else()
     set(MLAS_LIBRARY "mlas")
 endif()
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
@@ -64,7 +64,7 @@ addIeTargetTest(
             ${MLAS_LIBRARY}
         ADD_CPPLINT
         LABELS
-            CPU
+            OV UNIT CPU
 )
 
 # LTO
