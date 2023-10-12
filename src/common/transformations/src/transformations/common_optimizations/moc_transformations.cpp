@@ -126,7 +126,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important
     // it looks like we need to combine these transformations into one.
     REGISTER_PASS(manager, EliminateDuplicateTIInputs);
-    // REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParamsResults)
+    REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParamsResults)
     REGISTER_PASS(manager, FoldSubgraphEmptyInputs)
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     REGISTER_PASS(manager, PushConstantToSubgraph)

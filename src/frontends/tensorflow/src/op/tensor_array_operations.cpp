@@ -52,7 +52,6 @@ Output<Node> create_initial_tensor_array_constant(int64_t tensor_element_rank,
     // create initial tensor array
     auto scalar_value = make_shared<v0::Constant>(element_type, Shape{}, vector<int32_t>{0});
     auto initial_tensor_array = make_shared<v3::Broadcast>(scalar_value, target_shape);
-    set_node_name(node_name, initial_tensor_array);
 
     return initial_tensor_array->output(0);
 }
@@ -67,9 +66,14 @@ OutputVector translate_tensor_array_v3_op(const NodeContext& node) {
     auto element_shape = node.get_attribute<PartialShape>("element_shape");
 
     if (element_shape.rank().is_static()) {
-        auto new_output =
+        auto node_name = node.get_name();
+        auto new_output1 =
             create_initial_tensor_array_constant(element_shape.rank().get_length(), dtype, size, node.get_name());
-        return OutputVector{new_output, new_output};
+        new_output1.set_names({node_name + ":0"});
+        auto new_output2 =
+            create_initial_tensor_array_constant(element_shape.rank().get_length(), dtype, size, node.get_name());
+        new_output2.set_names({node_name + ":1"});
+        return OutputVector{new_output1, new_output2};
     }
 
     // dynamic case when it is unable retrieve element rank from the attribute
