@@ -36,6 +36,7 @@ using namespace ov::op;
 std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const NodeContext& context) {
     auto query = context.get_input(0);
     auto key = context.get_input(1);
+    auto value = context.get_input(2);
     auto q_shape = context.mark_node(std::make_shared<v3::ShapeOf>(query, element::i32));
     auto k_shape = context.mark_node(std::make_shared<v3::ShapeOf>(key, element::i32));
     auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
@@ -100,24 +101,6 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
         }
         scaled_atten = context.mark_node(std::make_shared<v1::Add>(scaled_atten, atten_mask));
     }
-    return scaled_atten;
-}
-
-OutputVector translate_scaled_dot_product_attention(const NodeContext& context) {
-    // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
-    // dropout_p=0., bool is_causal=False)
-    num_inputs_check(context, 6, 6);
-    auto scaled_atten = translate_scaled_dot_product_attention_common(context);
-    scaled_atten = context.mark_node(std::make_shared<v8::Softmax>(scaled_atten, -1));
-    auto value = context.get_input(2);
-    return {context.mark_node(std::make_shared<v0::MatMul>(scaled_atten, value))};
-};
-
-OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& context) {
-    // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
-    // dropout_p=0., bool is_causal=False)
-    num_inputs_check(context, 3, 6);
-    auto scaled_atten = translate_scaled_dot_product_attention_common(context);
     if (!(scaled_atten->is_dynamic()) && scaled_atten->get_output_partial_shape(0).rank() == 4) {
         const std::vector<size_t> *scaled_atten_v = &(scaled_atten->get_shape());
         std::vector<size_t> softmax_shape_v((*scaled_atten_v).begin()+1, (*scaled_atten_v).end());
@@ -131,8 +114,21 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
     } else {
         scaled_atten = context.mark_node(std::make_shared<v8::Softmax>(scaled_atten, -1));
     }
-    auto value = context.get_input(2);
-    auto output = context.mark_node(std::make_shared<v0::MatMul>(scaled_atten, value));
+    return context.mark_node(std::make_shared<v0::MatMul>(scaled_atten, value));
+}
+
+OutputVector translate_scaled_dot_product_attention(const NodeContext& context) {
+    // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
+    // dropout_p=0., bool is_causal=False)
+    num_inputs_check(context, 6, 6);
+    return {translate_scaled_dot_product_attention_common(context)};
+};
+
+OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& context) {
+    // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
+    // dropout_p=0., bool is_causal=False)
+    num_inputs_check(context, 3, 6);
+    auto output = translate_scaled_dot_product_attention_common(context);
     // TODO: scaled_dot_product_flash_attention has 9 outputs but fort most cases only
     // the first input is used. Rest of the outputs should be returned properly as
     // needed.
