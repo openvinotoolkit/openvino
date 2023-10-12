@@ -45,7 +45,9 @@ function(ov_generate_dev_package_config)
     add_custom_target(ov_dev_targets DEPENDS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS})
 
     # filter out targets which are installed by OpenVINOConfig.cmake static build case
-    list(REMOVE_ITEM _OPENVINO_DEVELOPER_PACKAGE_TARGETS ${openvino_installed_targets})
+    if(openvino_installed_targets)
+        list(REMOVE_ITEM _OPENVINO_DEVELOPER_PACKAGE_TARGETS ${openvino_installed_targets})
+    endif()
     # export all developer targets with prefix and use them during extra modules build
     export(TARGETS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS} NAMESPACE openvino::
            APPEND FILE "${CMAKE_BINARY_DIR}/openvino_developer_package_targets.cmake")
