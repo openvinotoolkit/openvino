@@ -36,7 +36,10 @@ set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this r
 ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES} HIDDEN)
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt.in")
-set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
+set(EXTRAS_LIST _ caffe kaldi onnx pytorch tensorflow tensorflow2)
+if(NOT (APPLE AND AARCH64))
+    list(APPEND EXTRAS_LIST mxnet)
+endif()
 
 foreach(EXTRAS IN LISTS EXTRAS_LIST)
     if(EXTRAS STREQUAL "_")
