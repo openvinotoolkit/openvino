@@ -38,7 +38,7 @@ public:
 };
 
 /**
- * Shape inference class for Subgraph node (both nGraph and Linear IRs).
+ * Shape inference class for Subgraph node (both openvino and Linear IRs).
  * It stores the result of the last shape inference, so it can be reused in optimization pipeline.
  *
  */

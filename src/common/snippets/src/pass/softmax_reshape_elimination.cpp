@@ -10,7 +10,7 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include <ngraph/validation_util.hpp>
+#include "openvino/core/validation_util.hpp"
 
 ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
     MATCHER_SCOPE(SoftmaxReshapeElimination);

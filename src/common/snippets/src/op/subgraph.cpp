@@ -160,7 +160,7 @@ Subgraph::Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& b
     for (size_t i = 0; i < body->get_output_size(); ++i)
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
     m_transformations_allowed = false;
-    m_shape_infer = std::make_shared<NgraphShapeInfer>(body);
+    m_shape_infer = std::make_shared<OVShapeInfer>(body);
 }
 
 Subgraph::Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body)
@@ -292,7 +292,7 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 }
 
 void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor = target_output_node.get_tensor();
     const std::string new_name = ov::op::util::get_ie_output_name(replacement_output_node);
     if (ov::descriptor::get_ov_tensor_legacy_name(out_tensor).empty()) {
@@ -301,7 +301,7 @@ void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, c
     if (!replacement_output_node.get_names().empty()) {
         out_tensor.set_names(replacement_output_node.get_names());
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
@@ -484,18 +484,18 @@ IShapeInferSnippets::Result Subgraph::shape_infer(const std::vector<VectorDimsRe
     return m_shape_infer->infer(input_shapes);
 }
 
-Subgraph::NgraphShapeInfer::NgraphShapeInfer(const std::shared_ptr<ov::Model>& body) :
-    m_ngraph_body(body) {
-    OPENVINO_ASSERT(m_ngraph_body, "Can't initialize shape infer with empty body");
+Subgraph::OVShapeInfer::OVShapeInfer(const std::shared_ptr<ov::Model>& body) :
+    m_ov_body(body) {
+    OPENVINO_ASSERT(m_ov_body, "Can't initialize shape infer with empty body");
 }
 
-IShapeInferSnippets::Result Subgraph::NgraphShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
-    const ParameterVector& parameters = m_ngraph_body->get_parameters();
-    const ResultVector& results = m_ngraph_body->get_results();
+IShapeInferSnippets::Result Subgraph::OVShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    const ParameterVector& parameters = m_ov_body->get_parameters();
+    const ResultVector& results = m_ov_body->get_results();
     OPENVINO_ASSERT(parameters.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
     for (size_t i = 0; i < parameters.size(); ++i)
         parameters[i]->set_partial_shape(utils::vdims_to_pshape(input_shapes[i].get()));
-    m_ngraph_body->validate_nodes_and_infer_types();
+    m_ov_body->validate_nodes_and_infer_types();
     std::vector<VectorDims> outputDims;
     for (const auto& res : results)
         outputDims.emplace_back(utils::pshape_to_vdims(res->get_input_partial_shape(0)));
@@ -702,7 +702,7 @@ snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::Positione
                                       const void* compile_params) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
-    NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
+    OPENVINO_ASSERT(m_generator != nullptr, "generate is called while generator is not set");
 
     data_flow_transformations(data_flow_passes);
 

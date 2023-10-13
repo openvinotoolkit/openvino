@@ -40,13 +40,13 @@ std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) 
 LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, const size_t offset, std::vector<size_t> order)
                             : Load(x, count, offset), m_order(std::move(order)) {
     const auto& in_shape = x.get_partial_shape();
-    NGRAPH_CHECK(in_shape.is_static(), "LoadReshape supports only static input shapes");
+    OPENVINO_ASSERT(in_shape.is_static(), "LoadReshape supports only static input shapes");
     const auto in_shape_size = in_shape.size();
-    NGRAPH_CHECK(m_order.size() == in_shape_size, "LoadReshape got new_order of invalid size");
-    NGRAPH_CHECK(*std::max_element(m_order.begin(), m_order.end()) == in_shape_size - 1 &&
+    OPENVINO_ASSERT(m_order.size() == in_shape_size, "LoadReshape got new_order of invalid size");
+    OPENVINO_ASSERT(*std::max_element(m_order.begin(), m_order.end()) == in_shape_size - 1 &&
                  *std::min_element(m_order.begin(), m_order.end()) == 0, "LoadReshape detected invalid values in new_order");
     const std::set<size_t> unique_dims(order.begin(), order.end());
-    NGRAPH_CHECK(unique_dims.size() == order.size(), "LoadReshape order must not contain repeated elements");
+    OPENVINO_ASSERT(unique_dims.size() == order.size(), "LoadReshape order must not contain repeated elements");
     constructor_validate_and_infer_types();
 }
 

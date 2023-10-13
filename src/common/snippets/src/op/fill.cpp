@@ -32,7 +32,7 @@ std::shared_ptr<Node> Fill::clone_with_new_inputs(const OutputVector& new_args) 
 void Fill::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Fill_validate_and_infer_types);
     const auto in_type = get_input_element_type(0);
-    NGRAPH_CHECK(in_type.size() == 4, "Fill operation supports only element types with 4 byte size but got:" + std::to_string(in_type.size()));
+    OPENVINO_ASSERT(in_type.size() == 4, "Fill operation supports only element types with 4 byte size but got:" + std::to_string(in_type.size()));
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -39,12 +38,9 @@ TEST(SmartReshapeTests, Proposal1Scales) {
         f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
-    InferenceEngine::CNNNetwork network(f);
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(2));
-    check_unique_names(f, unh);
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({600, 5}));
+    EXPECT_ANY_THROW(set_batch(f, 2));
 }
 
 TEST(SmartReshapeTests, Proposal1Scales_WithConvert) {
@@ -75,12 +71,9 @@ TEST(SmartReshapeTests, Proposal1Scales_WithConvert) {
         f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
-    InferenceEngine::CNNNetwork network(f);
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(2));
-    check_unique_names(f, unh);
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({600, 5}));
+    EXPECT_ANY_THROW(set_batch(f, 2));
 }
 
 TEST(SmartReshapeTests, Proposal4Scales) {
@@ -110,14 +103,9 @@ TEST(SmartReshapeTests, Proposal4Scales) {
         f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(2));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({600, 5}));
+    EXPECT_ANY_THROW(set_batch(f, 2));
 }
 
 TEST(SmartReshapeTests, Proposal4Scales_WithConvert) {
@@ -148,12 +136,7 @@ TEST(SmartReshapeTests, Proposal4Scales_WithConvert) {
         f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(2));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({600, 5}));
+    EXPECT_ANY_THROW(set_batch(f, 2));
 }

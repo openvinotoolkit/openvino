@@ -5,11 +5,9 @@
 #include "low_precision/space_to_batch.hpp"
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <openvino/op/space_to_batch.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
@@ -21,7 +19,7 @@ SpaceToBatchTransformation::SpaceToBatchTransformation(const Params& params) : L
     MATCHER_SCOPE(SpaceToBatchTransformation);
     auto matcher = pattern::wrap_type<ov::op::v1::SpaceToBatch>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -29,7 +27,7 @@ SpaceToBatchTransformation::SpaceToBatchTransformation(const Params& params) : L
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -46,7 +44,7 @@ bool SpaceToBatchTransformation::canBeTransformed(const TransformationContext& c
     return dequantization.isPerTensor();
 }
 
-bool SpaceToBatchTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool SpaceToBatchTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }

@@ -26,7 +26,7 @@ using namespace ngraph::builder::subgraph;
 class GetDequantizationTestValues {
 public:
     FakeQuantizeOnData fakeQuantize;
-    // actual dequantization to create nGraph function to run NetworkHelper::getDequantization
+    // actual dequantization to create ov::Model to run NetworkHelper::getDequantization
     DequantizationOperations actualDequantization;
     DequantizationOperations expectedDequantization;
 };

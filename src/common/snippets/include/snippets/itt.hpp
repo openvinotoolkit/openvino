@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <openvino/cc/ngraph/itt.hpp>
+#include <openvino/cc/pass/itt.hpp>
 
 namespace ov {
 namespace pass {
@@ -26,7 +26,7 @@ OV_CC_DOMAINS(internal_op);
 /*
  * RUN_ON_FUNCTION_SCOPE macro allows to disable the run_on_function pass
  * MATCHER_SCOPE macro allows to disable the MatcherPass if matcher isn't applied
- * INTERNAL_OP_SCOPE macro allows to disable parts of internal nGraph operations if they are not used
+ * INTERNAL_OP_SCOPE macro allows to disable parts of internal openvino operations if they are not used
  */
 #if defined(SELECTIVE_BUILD_ANALYZER)
 

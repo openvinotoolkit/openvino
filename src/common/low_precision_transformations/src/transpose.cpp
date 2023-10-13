@@ -116,7 +116,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
             }
         }
         if (dequantization.multiply != nullptr) {
-            const auto mulConst = ov::as_type_ptr<ngraph::op::v0::Constant>(dequantization.multiplyConstant);
+            const auto mulConst = ov::as_type_ptr<ov::op::v0::Constant>(dequantization.multiplyConstant);
             if (!NetworkHelper::isScalarLike(mulConst)) {
                 return false;
             }

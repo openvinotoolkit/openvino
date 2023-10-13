@@ -19,7 +19,7 @@
 using namespace ov;
 using namespace testing;
 
-// LPT to nGraph migration: temporary disabling unexpected not reproduced fails on CI:
+// LPT to openvino migration: temporary disabling unexpected not reproduced fails on CI:
 // https://openvino-ci.intel.com/job/private-ci/job/ie/job/build-linux-ubuntu18_i386/478/
 TEST_F(TransformationTestsF, MishFusing) {
     {
