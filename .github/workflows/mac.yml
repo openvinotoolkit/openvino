@@ -417,8 +417,7 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
 
-      - name: Transformations Tests
-        if: ${{ always() }}
+      - name: Transformations func tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
@@ -435,6 +434,12 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-commonUtilsTests.xml
 
+      - name: Snippets func tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
+
       - name: CPU plugin unit tests
         if: ${{ always() }}
         run: |
@@ -449,8 +454,14 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_unit_tests.xml
 
-      - name: Template plugin tests
-        if: ${{ always() }}
+
+      - name: AUTO func Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
+
+      - name: Template plugin func tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 \
@@ -471,11 +482,31 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
 
+      - name: AutoBatch unit tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_unit_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_unit_tests.xml
+
       - name: AutoBatch func tests
         if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml
+
+      - name: Proxy Plugin func tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
+
+      - name: Hetero unit tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
+
+      - name: Hetero func tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
@@ -571,8 +602,7 @@ jobs:
             python3 -m pip install $ov_dev_wheel_name[$extras_to_install]
           popd
 
-      - name: Python API 1.0 tests
-        if: ${{ always() }}
+      - name: Python API 1.0 Tests
         run: |
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
@@ -589,9 +619,7 @@ jobs:
 
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
-            --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py \
-            --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_zoo_models.py \
-            --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_onnx/test_backend.py
+            --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: MO Python API Tests
         if: ${{ always() }}
@@ -602,6 +630,17 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: OVC Python API Tests
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -621,6 +660,17 @@ jobs:
           export PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: ONNX Layer Tests
+        run: |
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+          
+          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -664,6 +714,7 @@ jobs:
               --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
         env:
           TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         if: ${{ always() }}
@@ -674,6 +725,14 @@ jobs:
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: Python ONNX operators tests
+        run: |
+          # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
+          python3 -m pytest -sv ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests -k 'not cuda' \
+            --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx_frontend.xml \
+            --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_zoo_models.py
 
       - name: Python Frontend tests
         if: ${{ always() }}
@@ -684,6 +743,10 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
+
+      # TODO: install to 'tests' component via cpack
+      - name: OVC unit tests
+        run: python3 -m pytest -s ${{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
