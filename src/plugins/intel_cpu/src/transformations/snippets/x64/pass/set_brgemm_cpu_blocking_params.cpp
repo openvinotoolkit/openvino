@@ -22,18 +22,6 @@
 
 namespace ov {
 namespace intel_cpu {
-using namespace snippets::lowered;
-namespace {
-template <typename T>
-void change_desc_shape(const T& port) {
-    const auto desc = PortDescriptorUtils::get_port_descriptor_ptr(port);
-    const auto& shape = port.get_shape();
-    if (desc->get_shape() != shape) {
-        desc->set_shape(shape);
-    }
-}
-} // namespace
-
 pass::SetBrgemmCPUBlockingParams::SetBrgemmCPUBlockingParams() {
     MATCHER_SCOPE(SetBrgemmCPUBlockingParams);
 
@@ -73,7 +61,7 @@ pass::SetBrgemmCPUBlockingParams::SetBrgemmCPUBlockingParams() {
 
             const bool isAMXSupported = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx);
             const auto precision = brgemm_copy_b->get_src_element_type();
-            const auto brgemmVNNIFactor = 4 / precision.size();
+            const auto brgemmVNNIFactor = brgemm_copy_b->get_brgemm_vnni_factor();
             const bool use_amx = isAMXSupported && precision != ov::element::f32 && (K % brgemmVNNIFactor == 0) && (N % brgemmVNNIFactor == 0);
 
             const size_t copy_b_block_size_k = use_amx ? brgemm_block_size_k : K;
@@ -81,17 +69,7 @@ pass::SetBrgemmCPUBlockingParams::SetBrgemmCPUBlockingParams() {
 
             brgemm_copy_b->set_k_block_size(copy_b_block_size_k);
             brgemm_copy_b->set_n_block_size(copy_b_block_size_n);
-            // since N block size affects output shapes, the validation must be called explicitly right after the block size changing
-            brgemm_copy_b->validate_and_infer_types();
-            change_desc_shape(brgemm_copy_b->output(0));
-            if (brgemm_copy_b->is_with_compensations())
-                change_desc_shape(brgemm_copy_b->output(1));
         }
-
-        brgemm->validate_and_infer_types();
-        change_desc_shape(brgemm->input(1));
-        if (brgemm->is_with_scratchpad())
-            change_desc_shape(brgemm->input(2));
 
         return false;
     };
