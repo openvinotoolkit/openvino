@@ -46,6 +46,46 @@ describe('Core.compileModelSync()', () => {
 
 } );
 
+describe('Core.compileModel()', () => {
+    const tput = {'PERFORMANCE_HINT': 'THROUGHPUT'};
+    
+    it('compileModel(model:Model, deviceName: string, config: {}) ', () => {
+      core.compileModel(model, 'CPU', tput).then(cm => {
+        assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
+      });
+      
+    });
+    
+    it('compileModel(model:model_path, deviceName: string, config: {}) ', () => {
+      core.compileModel(testXml, 'CPU', tput).then(cm => {
+        assert.equal(cm.inputs.length, 1);
+      })
+      
+    });
+  
+    it('compileModel(model:model_path, deviceName: string) ', () => {
+      core.compileModel(testXml, 'CPU').then(cm => {
+        assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
+      });
+      
+    });
+  
+    it('compileModel(model, device, config) throws when config is a string', () => {
+      assert.throws(
+        () => core.compileModel(model, 'CPU', 'string').then(),
+        /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+      );
+    });
+  
+    it('compileModel(model, device, config) throws when config value is not a string', () => {
+      assert.throws(
+        () => core.compileModel(model, 'CPU', {"PERFORMANCE_HINT":tput}).then(),
+          /Cannot convert Napi::Value to ov::Any/
+      );
+    });
+  
+  } );
+
 describe('Output class', () => {
   const modelLike = [[model],
     [compiledModel]];
