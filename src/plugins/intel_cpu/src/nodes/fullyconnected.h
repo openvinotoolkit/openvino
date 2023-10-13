@@ -19,7 +19,11 @@ namespace node {
 class FullyConnected : public Node {
 public:
     FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
-
+#ifdef OV_CPU_WITH_GGML
+    ~FullyConnected() {
+        free(mem_buffer);
+    }
+#endif
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
     void execute(dnnl::stream strm) override;
@@ -119,6 +123,7 @@ private:
     void prepackMLASWeight();
 #endif
 #ifdef OV_CPU_WITH_GGML
+    void* mem_buffer;
     template <typename SrcType>
     void executeGGML();
 #endif

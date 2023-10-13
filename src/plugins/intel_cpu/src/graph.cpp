@@ -1353,11 +1353,16 @@ void Graph::InferDynamic(InferRequestBase* request) {
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
-            PERF(node, getConfig().collectPerfCounters);
+            //PERF(node, getConfig().collectPerfCounters);
 
             if (request)
                 request->ThrowIfCanceled();
+            node->PerfCounter().start_itr();
             ExecuteNode(node, stream);
+            node->PerfCounter().finish_itr();
+            if (node->getType() == Type::FullyConnected) {
+                std::cout << "[ExecuteNode]: " << node->PerfCounter().duration().count() << std::endl;
+            }
         }
     }
 }

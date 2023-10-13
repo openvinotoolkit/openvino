@@ -180,35 +180,35 @@ void ggml_mul_mat(int64_t M,
                   float* A_ptr,
                   SrcType* B_ptr,
                   float* dst_ptr,
-                  const SrcType* bias_ptr) {
+                  const SrcType* bias_ptr, void* mem_buffer) {
     ggml_type dst_type = GGML_TYPE_F32;
     ggml_type src1_type = GGML_TYPE_F32;
     ggml_type src0_type = std::is_same<SrcType, float>::value ? GGML_TYPE_F32 : GGML_TYPE_F16;
 
-    const size_t mem_size = GGML_PAD(256 * 1024 * 1024, GGML_MEM_ALIGN);
-    void* mem_buffer = ggml_aligned_malloc(mem_size);
+    //const size_t mem_size = GGML_PAD(256 * 1024 * 1024, GGML_MEM_ALIGN);
+    //void* mem_buffer = ggml_aligned_malloc(mem_size);
 
     //TODO: review this change carefully! Possible memory corruption?
     //size_t offs = sizeof(struct ggml_object);
-    uint8_t * work_data = reinterpret_cast<uint8_t *>(mem_buffer)/* + offs*/;
+    //uint8_t * work_data = reinterpret_cast<uint8_t *>(mem_buffer)/* + offs*/;
 
-    const int64_t ne[4] = {N, M, 1, 1};
-    size_t nb[4] = {0, 0, 0, 0};
-    nb[0] = type_traits[dst_type].type_size;
-    nb[1] = nb[0] * (ne[0] / type_traits[dst_type].blck_size);
-    for (int i = 2; i < GGML_MAX_DIMS; i++) {
-        nb[i] = nb[i - 1] * ne[i - 1];
-    }
+    //const int64_t ne[4] = {N, M, 1, 1};
+    //size_t nb[4] = {0, 0, 0, 0};
+    //nb[0] = type_traits[dst_type].type_size;
+    //nb[1] = type_traits[dst_type].type_size * (ne[0] / type_traits[dst_type].blck_size);
+    //for (int i = 2; i < GGML_MAX_DIMS; i++) {
+    //    nb[i] = nb[i - 1] * ne[i - 1];
+    //}
 
     const int64_t ne00 = K;
     const int64_t ne01 = N;
-    const int64_t ne02 = 1;
-    const int64_t ne03 = 1;
+    //const int64_t ne02 = 1;
+    //const int64_t ne03 = 1;
 
     const size_t nb00 = type_traits[src0_type].type_size;
     const size_t nb01 = nb00 * (K / type_traits[src0_type].blck_size);
     const size_t nb02 = nb01 * ne01;
-    const size_t nb03 = nb02 * ne02;
+    const size_t nb03 = nb02;// * ne02;
 
     const int64_t ne10 = K;
     const int64_t ne11 = M;
@@ -220,9 +220,9 @@ void ggml_mul_mat(int64_t M,
     const size_t nb12 = nb11 * ne11;
     const size_t nb13 = nb12 * ne12;
 
-    const size_t nb1 = nb[1];
-    const size_t nb2 = nb[2];
-    const size_t nb3 = nb[3];
+    const size_t nb1 = type_traits[dst_type].type_size * (N / type_traits[dst_type].blck_size);//nb[1];
+    const size_t nb2 = nb1 * M;//nb[2];
+    const size_t nb3 = nb2;//nb[3];
 
     const int ith = 0;//thread index
     const int nth = 1;//number of threads
@@ -239,11 +239,11 @@ void ggml_mul_mat(int64_t M,
     ggml_from_float_t const from_float_to_vec_dot = type_traits[vec_dot_type].from_float;
 
     // broadcast factors
-    const int64_t r2 = ne12/ne02;
-    const int64_t r3 = ne13/ne03;
+    const int64_t r2 = ne12;//ne02;
+    const int64_t r3 = ne13;//ne03;
 
         if (src1_type != vec_dot_type) {
-            char * wdata = reinterpret_cast<char *>(work_data);
+            char * wdata = reinterpret_cast<char *>(mem_buffer);
             const size_t row_size = ne10 * type_traits[vec_dot_type].type_size / type_traits[vec_dot_type].blck_size;
 
             for (int64_t i13 = 0; i13 < ne13; ++i13) {
@@ -257,7 +257,7 @@ void ggml_mul_mat(int64_t M,
             }
         }
 
-    const void * wdata    = (src1_type == vec_dot_type) ? reinterpret_cast<void* >(A_ptr) : work_data;
+    const void * wdata    = (src1_type == vec_dot_type) ? reinterpret_cast<void* >(A_ptr) : mem_buffer;
     const size_t row_size = ne10*type_traits[vec_dot_type].type_size/type_traits[vec_dot_type].blck_size;
 
     const int64_t nr0 = ne01;           // src0 rows
@@ -320,6 +320,7 @@ void ggml_mul_mat(int64_t M,
             }
         }
     }
+    //free(mem_buffer);
 }
 }  // namespace intel_cpu
 }  // namespace ov

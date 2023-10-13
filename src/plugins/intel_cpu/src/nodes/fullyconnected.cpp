@@ -138,6 +138,11 @@ FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const Gr
         minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
 
     expectedBiasDims = {getInputShapeAtPort(WEIGHTS_ID).getStaticDims()[0]};
+    //TODO: find right place to allocate buffer
+#ifdef OV_CPU_WITH_GGML
+    const size_t mem_size = GGML_PAD(256 * 1024 * 1024, GGML_MEM_ALIGN);
+    mem_buffer = ggml_aligned_malloc(mem_size);
+#endif
 }
 
 std::vector<memory::format_tag> FullyConnected::getAvailableFormatsForDims(const Shape &dims) const {
@@ -557,7 +562,7 @@ void FullyConnected::executeGGML() {
                             reinterpret_cast<float*>(src0MemPtr->getData()),
                             reinterpret_cast<SrcType*>(src1MemPtr->getData()),
                             reinterpret_cast<float*>(dstMemPtr->getData()),
-                            withBiases ? reinterpret_cast<SrcType*>(biasMemPtr->getData()) : nullptr);
+                            withBiases ? reinterpret_cast<SrcType*>(biasMemPtr->getData()) : nullptr, mem_buffer);
 }
 #endif
 
