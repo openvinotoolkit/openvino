@@ -10,6 +10,19 @@
 // ------------------------------CumuSchedule----------------------------
 namespace ov {
 namespace auto_plugin {
+std::string CumuSchedule::schedule_to_next_device(const std::vector<DeviceInformation>& devices,
+                                                  std::size_t current_device_index) {
+    m_n_ctput_schedule_nextdevice = m_n_ctput_schedule_nextdevice >= devices.size() ? 0 : m_n_ctput_schedule_nextdevice;
+    auto selected_device_name = devices[m_n_ctput_schedule_nextdevice].device_name;
+    auto schedule_policy = m_context->m_schedule_policy;
+    if (schedule_policy == ov::intel_auto::SchedulePolicy::ROUND_ROBIN) {
+        m_n_ctput_schedule_nextdevice++;
+    } else if (schedule_policy == ov::intel_auto::SchedulePolicy::DEVICE_POLICY) {
+        m_n_ctput_schedule_nextdevice = current_device_index;
+    }
+    return selected_device_name;
+}
+
 bool CumuSchedule::select_other_device(const std::string& cur_dev_name) {
     {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
@@ -217,14 +230,17 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
         devices = m_context->m_device_priorities;
     }
     lock.unlock();
-    for (auto&& device : devices) {
-        if (!preferred_device.empty() && (device.device_name != preferred_device)) {
-            continue;
-        }
-        if (run_pipeline_task(pipeline_task, m_idle_worker_requests[device.device_name], preferred_device)) {
+
+    std::size_t current_device_index = 0;
+    while (current_device_index < devices.size()) {
+        auto selected_device_name = schedule_to_next_device(devices, current_device_index);
+        if (run_pipeline_task(pipeline_task, m_idle_worker_requests[selected_device_name], preferred_device)) {
             return true;
+        } else {
+            current_device_index++;
         }
     }
+
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {
         m_infer_pipeline_tasks_device_specific[preferred_device]->push(std::move(pipeline_task));
