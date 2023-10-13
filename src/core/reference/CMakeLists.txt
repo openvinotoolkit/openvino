@@ -4,10 +4,10 @@
 
 set(TARGET_NAME "openvino_reference")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-
 set(REF_IMPL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${REF_IMPL_INCLUDE_DIR}/*.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -46,7 +46,9 @@ target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::core::de
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
+# install & export
+
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
-# developer package
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::reference)
+ov_developer_package_export_targets(TARGET openvino::reference
+                                    INSTALL_INCLUDE_DIRECTORIES "${REF_IMPL_INCLUDE_DIR}/")
