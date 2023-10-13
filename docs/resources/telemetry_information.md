@@ -6,7 +6,7 @@
    :description: Learn about OpenVINO™ telemetry, that collects anonymous usage data for the purpose of improving OpenVINO™ tools.
 
 
-To facilitate debugging and further development, OpenVINO� collects anonymous telemetry data. Anonymous telemetry data is collected by default,
+To facilitate debugging and further development, OpenVINO™ collects anonymous telemetry data. Anonymous telemetry data is collected by default,
 but you can stop data collection anytime by running the command ``opt_in_out --opt_out``.
 It does not extend to any other Intel software, hardware, website usage, or other products. 
 

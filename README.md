@@ -130,7 +130,7 @@ OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
 By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
 ## Telemetry
-OpenVINO� collects software performance and usage data for the purpose of improving OpenVINO� tools. This data is collected directly by OpenVINO� or through the use of Google Analytics 4.
+OpenVINO™ collects software performance and usage data for the purpose of improving OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4.
 You can opt-out at any time by running the command:
 
 opt_in_out --opt_out
