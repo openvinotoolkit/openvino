@@ -9,7 +9,6 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/util/evaluate_helpers.hpp"
 #include "openvino/reference/split.hpp"
 #include "split_shape_inference.hpp"
 
@@ -73,7 +72,8 @@ bool Split::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Split_evaluate);
     OPENVINO_ASSERT(outputs.size() == m_num_splits);
 
-    const auto output_shapes = shape_infer(this, util::get_tensors_shapes(inputs), make_tensor_accessor(inputs));
+    const auto output_shapes =
+        shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));
     const auto& axis_tensor = inputs[1];
     const auto result = validate::axis_type(axis_tensor.get_element_type());
     if (result) {
