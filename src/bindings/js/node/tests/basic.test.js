@@ -12,12 +12,22 @@ const core = new ov.Core();
 const model = core.readModelSync(testXml);
 const compiledModel = core.compileModelSync(model, 'CPU');
 
-describe('Core.compileModelSync(model:Model, deviceName: string, config: {})', () => {
+describe('Core.compileModelSync()', () => {
   const tput = {'PERFORMANCE_HINT': 'THROUGHPUT'};
   
-  it('compileModelSync(model, device, config) ', () => {
+  it('compileModelSync(model:Model, deviceName: string, config: {}) ', () => {
     const cm = core.compileModelSync(model, 'CPU', tput);
+    assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
+  });
+  
+  it('compileModelSync(model:model_path, deviceName: string, config: {}) ', () => {
+    const cm = core.compileModelSync(testXml, 'CPU', tput);
     assert.equal(cm.inputs.length, 1);
+  });
+
+  it('compileModelSync(model:model_path, deviceName: string) ', () => {
+    const cm = core.compileModelSync(testXml, 'CPU');
+    assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
   });
 
   it('compileModelSync(model, device, config) throws when config is a string', () => {
