@@ -191,14 +191,10 @@ def runCommandList(commit, cfgData, enforceClean=False):
         )
         proc = subprocess.Popen(
             formattedCmd, cwd=cwd, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
+            encoding="utf-8", errors="replace"
         )
         for line in proc.stdout:
-            # decode if line is byte-type
-            try:
-                line = line.decode("utf-8")
-            except (UnicodeDecodeError, AttributeError):
-                pass
             sys.stdout.write(line)
             commitLogger.info(line)
             if "catchMsg" in cmd:
