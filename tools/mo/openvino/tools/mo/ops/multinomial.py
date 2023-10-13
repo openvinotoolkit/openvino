@@ -47,7 +47,7 @@ class Multinomial(Op):
 
     @staticmethod
     def type_infer(node: Node):
-        print(node.convert_type)
+        assert node.has_valid('convert_type')
         if node['convert_type'] == 'i32':
             node.out_port(0).set_data_type(np.int32)
         else:
@@ -55,7 +55,6 @@ class Multinomial(Op):
 
     @staticmethod
     def infer(node: Node):
-        assert node.has_valid('convert_type')
 
         input_shape = node.in_node(0).shape
         output_shape = []
