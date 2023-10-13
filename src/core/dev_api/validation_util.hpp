@@ -78,5 +78,10 @@ bool try_apply_auto_padding(const PartialShape& image_shape,
                             CoordinateDiff& padding_above,
                             CoordinateDiff& padding_below);
 
+/// @brief Get the tensors shapes as ov::PartialShape.
+///
+/// @param tensors  Input tensors vector to get their shapes.
+/// @return Vector of partial shapes same size as input tensor vector.
+OPENVINO_API std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors);
 }  // namespace util
 }  // namespace ov
