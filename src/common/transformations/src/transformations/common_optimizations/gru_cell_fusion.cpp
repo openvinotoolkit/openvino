@@ -150,21 +150,11 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
 
         // perform additional check for applicability of the transformation
         // without this check, process_weights can fail
-        if (WR.get_partial_shape().rank().is_static()) {
-            if (WR.get_partial_shape().rank().get_length() < 2) {
-                return false;
-            }
-            if (WR.get_partial_shape()[1].is_static() && WR.get_partial_shape()[1] != (hidden_size + input_size)) {
-                return false;
-            }
+        if (WR.get_partial_shape()[1] != (hidden_size + input_size)) {
+            return false;
         }
-        if (WRh.get_partial_shape().rank().is_static()) {
-            if (WRh.get_partial_shape().rank().get_length() < 2) {
-                return false;
-            }
-            if (WRh.get_partial_shape()[1].is_static() && WRh.get_partial_shape()[1] != (hidden_size + input_size)) {
-                return false;
-            }
+        if (WRh.get_partial_shape()[1] != (hidden_size + input_size)) {
+            return false;
         }
 
         Output<Node> Wzrh, Rzrh, Bzrh;
