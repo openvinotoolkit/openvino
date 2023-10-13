@@ -844,6 +844,17 @@ bool ov::Node::visit_attributes(AttributeVisitor&) {
 }
 
 namespace ov {
+void check_new_args_count(const Node* const node, const OutputVector& new_args) {
+    NODE_VALIDATION_CHECK(node,
+                          new_args.size() == node->input_values().size(),
+                          "clone_with_new_inputs() expected ",
+                          node->input_values().size(),
+                          " argument",
+                          (node->input_values().size() == 1 ? "" : "s"),
+                          " but got ",
+                          new_args.size());
+}
+
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
 
 bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor& visitor) {
