@@ -4,15 +4,22 @@
 
 #pragma once
 
-#include <cstddef>
+#include <algorithm>
+#include <functional>
 
 namespace ov {
 namespace reference {
-template <typename T>
-void logical_not(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = static_cast<T>(!(arg[i]));
-    }
+
+/**
+ * @brief Reference implementation of LogicalNot operator.
+ *
+ * @param arg    Pointer to input data.
+ * @param out    Pointer to output data.
+ * @param count  Number of elements in input buffer.
+ */
+template <class T>
+void logical_not(const T* arg, T* out, const size_t count) {
+    std::transform(arg, std::next(arg, count), out, std::logical_not<T>());
 }
 }  // namespace reference
 }  // namespace ov
