@@ -1029,7 +1029,7 @@ jobs:
           # TODO: create wheel test packages and install them on the system
           export PIP_INSTALL_DIR=$(python3 -m site --user-site)
           export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino/test_utils
-          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -1042,7 +1042,7 @@ jobs:
           # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
           export PIP_INSTALL_DIR=$(python3 -m site --user-site)
           export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino/test_utils
-          export LD_LIBRARY_PATH=$PIP_INSTALL_DIR:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
