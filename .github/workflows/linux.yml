@@ -1354,7 +1354,7 @@ jobs:
       - name: TensorFlow Hub E2E Tests - TF FE
         run: |
           export PYTHONPATH=${E2E_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${E2E_HUB_TESTS_INSTALL_DIR}/test_ovc_mo.py -m ${TYPE} --html=${E2E_HUB_TESTS_INSTALL_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
+          python3 -m pytest ${E2E_HUB_TESTS_INSTALL_DIR}/test_ovc_mo.py --html=${E2E_HUB_TESTS_INSTALL_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v --modules=${E2E_HUB_TESTS_INSTALL_DIR}/pipelines/production/tf_hub/tf_hub.py
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
 

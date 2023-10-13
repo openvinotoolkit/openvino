@@ -27,14 +27,13 @@ from contextlib import contextmanager
 from inspect import getsourcefile
 from pathlib import Path
 import shutil
-from datetime import datetime
 
 # pylint:disable=import-error
 import pytest
 from jsonschema import validate, ValidationError
 
-from e2e_oss._utils.test_utils import get_framework_from_model_ex, copy_files_by_pattern, log_timestamp
-from utils.e2e.env_tools import Environment
+from tests.e2e_oss._utils.test_utils import copy_files_by_pattern, log_timestamp
+from tests.utils.e2e.env_tools import Environment
 
 
 @contextmanager

@@ -21,7 +21,6 @@ from tests.e2e_oss._utils.path_utils import DirLockingHandler
 from tests.e2e_oss._utils.test_utils import class_factory, BrokenTest, BrokenTestException
 from tests.e2e_oss.common_utils import hook_utils
 from tests.e2e_oss.common_utils.env_utils import fix_env_conf
-from tests.e2e_oss.common_utils.environment_info import EnvironmentInfo
 from tests.e2e_oss.common_utils.logger import get_logger
 from tests.e2e_oss.common_utils.marks import MarkRunType, MarkGeneral
 from tests.e2e_oss.common_utils.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
