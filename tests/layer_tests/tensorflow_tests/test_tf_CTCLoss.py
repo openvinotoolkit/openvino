@@ -56,7 +56,7 @@ class TestCTCLoss(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
+    @pytest.mark.xfail(platform == 'darwin', reason="Ticket - 122182")
     def test_ctcloss_placeholder_const(self, params, ie_device, precision, ir_version, temp_dir,
                                        use_new_frontend, use_old_api):
         self._test(*self.create_ctcloss_placeholder_const_net(**params),

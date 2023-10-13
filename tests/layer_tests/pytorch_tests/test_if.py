@@ -36,7 +36,7 @@ class TestIf(PytorchLayerTest):
                                    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 114818")
+    @pytest.mark.xfail(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 114818")
     def test_if(self, y, ie_device, precision, ir_version):
         self.y = y
         self._test(*self.create_model(), ie_device, precision, ir_version)

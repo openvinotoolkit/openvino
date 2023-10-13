@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import platform
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
@@ -41,6 +42,7 @@ class TestMaxPoolWithArgmax(CommonTFLayerTest):
              ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1]),
     ]
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="CVS-122728: accuracy issue")
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.parametrize("input_type", [
         np.float32, np.int32

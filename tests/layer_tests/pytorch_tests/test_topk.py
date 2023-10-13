@@ -61,7 +61,7 @@ class TestTopK(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 115085")
+    @pytest.mark.xfail(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 115085")
     def test_topK(self, input_tensor, k, dim, largest, sort, ie_device, precision, ir_version):
         self.input_tensor = input_tensor
         self._test(*self.create_model(k, dim, largest, sort), ie_device, precision, ir_version)

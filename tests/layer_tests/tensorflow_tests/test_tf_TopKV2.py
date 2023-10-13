@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import platform
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
@@ -43,6 +44,7 @@ class TestTopKV2(CommonTFLayerTest):
                           is_second_output=True), marks=pytest.mark.xfail(reason="101503")),
     ]
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="CVS-122734: accuracy issue")
     @pytest.mark.parametrize("params", test_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly

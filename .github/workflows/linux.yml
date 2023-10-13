@@ -855,6 +855,7 @@ jobs:
 
           # TODO: replace with Python API tests requirements
           python3.9 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
+          python3.9 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -963,8 +964,9 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
+      # requires newer version of 'jaxlib'
       - name: JAX Layer Tests - TF FE
-        if: ${{ always() }}
+        if: ${{ 'false' }}
         timeout-minutes: 40
         run: |
           python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt

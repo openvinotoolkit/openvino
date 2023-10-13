@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 import pytest
+import platform
 from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
 
@@ -214,7 +215,7 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Selu'
                                          ])
     @pytest.mark.nightly
-    @pytest.mark.skipif(sys.platform == 'darwin', reason="Ticket - 122182")
+    @pytest.mark.xfail(sys.platform == 'darwin', reason="Ticket - 122182")
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                       use_new_frontend, use_old_api):
         if ie_device == 'GPU':
@@ -224,6 +225,7 @@ class TestUnaryOps(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="tensorflow-addons is not available for Linux arm64")
     @pytest.mark.xfail(sys.version_info > (3, 10),
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data)

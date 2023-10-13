@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import platform
 from common.tf_layer_test_class import CommonTFLayerTest
 
 
@@ -26,6 +27,7 @@ class TestNormalizeL2(CommonTFLayerTest):
         dict(shape=[2, 3, 5], axes=[1, -1]),
     ]
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="CVS-122733: Accessing out-of-range dimension in Dimension[]")
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe

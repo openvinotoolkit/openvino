@@ -43,7 +43,7 @@ class TestRFFTN(PytorchLayerTest):
     @pytest.mark.parametrize("norm", ["forward", "backward", "ortho", None])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
+    @pytest.mark.xfail(platform == 'darwin', reason="Ticket - 122182")
     def test_rfftn(self, ie_device, precision, ir_version, input_shape, dim, s, norm):
         self.input_shape = input_shape
         # Unfrozen test would fail due to issues with prim::GetAttr containing lists, strings or none.

@@ -437,9 +437,9 @@ def test_resize_algorithm_work(device):
 @pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
 @pytest.mark.parametrize("data_type", ["FP32", "FP16", "I32"])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
-                    "Memory layers fully supported only on CPU")
+@pytest.mark.xfail(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                   reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                   "Memory layers fully supported only on CPU")
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     ie_core = ie.IECore()
 

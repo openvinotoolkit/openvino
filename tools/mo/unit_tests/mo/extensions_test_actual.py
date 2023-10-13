@@ -94,7 +94,7 @@ class TestMoFallback(unittest.TestCase):
         for name in self.models.keys():
             os.remove(name)
 
-    @pytest.mark.skipif(
+    @pytest.mark.xfail(
         len(get_builtin_extensions_path()) == 0,
         reason="The extension library path was not found",
     )

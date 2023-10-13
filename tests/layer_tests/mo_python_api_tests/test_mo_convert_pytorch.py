@@ -3,6 +3,7 @@
 
 import unittest
 from typing import Tuple
+import platform
 
 import numpy as np
 import openvino.runtime as ov
@@ -1233,6 +1234,7 @@ class TestPrecisionSensitive():
         create_pytorch_precision_sensitive_two_inp_2,
     ]
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="CVS-122710")
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit

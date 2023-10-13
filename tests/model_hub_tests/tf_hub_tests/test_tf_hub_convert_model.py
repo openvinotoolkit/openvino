@@ -8,13 +8,16 @@ import shutil
 import pytest
 import tensorflow as tf
 import tensorflow_hub as hub
-# noinspection PyUnresolvedReferences
-import tensorflow_text  # do not delete, needed for text models
 from models_hub_common.constants import tf_hub_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
 from tf_hub_tests.utils import type_map
 
+try:
+    # noinspection PyUnresolvedReferences
+    import tensorflow_text  # do not delete, needed for text models
+except ImportError:
+    pass
 
 class TestTFHubConvertModel(TestConvertModel):
     def load_model(self, model_name, model_link):

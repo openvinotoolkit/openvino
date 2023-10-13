@@ -115,7 +115,13 @@ public:
     }
 };
 
-TEST_P(FoldFakeQuantizeInTransformations, CompareFunctions) {
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: CVS-122394
+TEST_P(FoldFakeQuantizeInTransformations, DISABLED_CompareFunctions)
+#else
+TEST_P(FoldFakeQuantizeInTransformations, CompareFunctions)
+#endif
+{
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(actualFunction, referenceFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
