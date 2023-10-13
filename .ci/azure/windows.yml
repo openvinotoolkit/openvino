@@ -66,44 +66,23 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)\install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)\tests
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
-    PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.11.2\x64
     CMAKE_VERSION: 3.24.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
     OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
-    PYTHON_VENV_DIR: $(WORK_DIR)\.venv
-
+    PYTHON_EXE: C:\hostedtoolcache\windows\Python\3.8.2\x64\python.exe
 
   steps:
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
-      rd /Q /S $(WORK_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.11.2
-      rd /Q /S $(BUILD_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.11.2\x64
       rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
       rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Make dir'
 
-  - script: curl -O https://www.python.org/ftp/python/3.11.2/python-3.11.2-amd64.exe
-    displayName: 'Download Python'
-    workingDirectory: $(WORK_DIR)
-
-  - script: |
-      python-3.11.2-amd64.exe /passive InstallAllUsers=0 Include_launcher=0 TargetDir=C:\hostedtoolcache\windows\Python\3.11.2\x64 && ^
-      cp C:\hostedtoolcache\windows\Python\3.8.2\x64.complete C:\hostedtoolcache\windows\Python\3.11.2\x64.complete
-    displayName: 'Install Python'
-    workingDirectory: $(WORK_DIR)
-
-  - task: UsePythonVersion@0
-    displayName: 'Use Python'
-    inputs:
-      versionSpec: '3.11.2'
-      disableDownloadFromRegistry: true
-
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
-      tree C:\hostedtoolcache\windows\Python
-      where python
-      python --version
+      where $(PYTHON_EXE)
+      $(PYTHON_EXE) --version
       where java
       java -version
       wmic computersystem get TotalPhysicalMemory
@@ -124,20 +103,20 @@ jobs:
     path: openvino_contrib
 
   - script: |
-      python -m pip install --upgrade pip
+      $(PYTHON_EXE) -m pip install --upgrade pip
       rem For running Python API tests
-      python -m pip install -r $(REPO_DIR)\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
-      python -m pip install -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
-      python -m pip install -r $(REPO_DIR)\src\bindings\python\requirements.txt
+      $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
+      $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
+      $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\src\bindings\python\requirements.txt
       rem For running Paddle frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
+      $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
       rem For running ONNX frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\frontends\onnx\tests\requirements.txt
+      $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\src\frontends\onnx\tests\requirements.txt
       rem For running TensorFlow frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\frontends\tensorflow\tests\requirements.txt
+      $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\src\frontends\tensorflow\tests\requirements.txt
       rem For MO unit tests
-      python -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
-      python -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
+      $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
+      $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
       rem Speed up build
       powershell -command "Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION)-windows-x86_64.zip -OutFile cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
       powershell -command "Expand-Archive -Force cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
@@ -162,10 +141,10 @@ jobs:
         -DENABLE_TESTS=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
+        -DPython3_EXECUTABLE=$(PYTHON_EXE) ^
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
         -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" ^
-        -DPython3_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.11.2\x64\python.exe" ^
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
@@ -190,7 +169,7 @@ jobs:
   - script: dir $(INSTALL_DIR) /s
     displayName: 'List install files'
 
-  - script: python -m pip install openvino-dev --find-links=$(INSTALL_DIR)\tools
+  - script: $(PYTHON_EXE) -m pip install openvino-dev --find-links=$(INSTALL_DIR)\tools
     displayName: 'Install Wheels'
 
   - script: |
@@ -215,12 +194,12 @@ jobs:
       if not exist %USERPROFILE%\Documents\Intel\OpenVINO\openvino_c_samples_build\ exit 1
     displayName: 'Build c samples'
 
-  - script: python -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
+  - script: $(PYTHON_EXE) -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
     displayName: 'Install dependencies for samples smoke tests'
 
   - script: |
       call $(SETUPVARS) && ^
-      python -m pytest $(INSTALL_DIR)\tests\smoke_tests\  --env_conf $(INSTALL_TEST_DIR)\smoke_tests\env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
+      $(PYTHON_EXE) -m pytest $(INSTALL_DIR)\tests\smoke_tests\  --env_conf $(INSTALL_TEST_DIR)\smoke_tests\env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     env:
       IE_APP_PATH: $(INSTALL_DIR)\samples_bin
       IE_APP_PYTHON_PATH: $(INSTALL_DIR)\samples\python\
