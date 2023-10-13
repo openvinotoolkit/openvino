@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/multiply_add.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(MultiplyAddLayerTest, CompareWithRefs) {
-    Run();
+    run();
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
