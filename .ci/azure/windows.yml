@@ -142,6 +142,7 @@ jobs:
         -DENABLE_TESTS=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
+        -DPython3_EXECUTABLE=$(PYTHON_DIR)\python.exe ^
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
         -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" ^
