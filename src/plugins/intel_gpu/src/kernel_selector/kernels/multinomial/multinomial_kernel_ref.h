@@ -27,4 +27,18 @@ struct multinomial_params : public base_params {
 struct multinomial_optional_params : optional_params {
     multinomial_optional_params() : optional_params(KernelType::MULTINOMIAL) {}
 };
+
+class MultinomialKernelRef : public KernelBaseOpenCL {
+public:
+    MultinomialKernelRef() : KernelBaseOpenCL{"multinomial_ref"} {}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+
+private:
+    JitConstants GetJitConstants(const multinomial_params &params) const;
+    CommonDispatchData SetDefault(const multinomial_params &params,
+                                  const optional_params&) const;
+    bool Validate(const Params &p, const optional_params &o) const override;
+};
+
 } // namespace kernel_selector

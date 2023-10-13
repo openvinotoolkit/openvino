@@ -7,7 +7,7 @@
 namespace kernel_selector {
 
 multinomial_kernel_selector::multinomial_kernel_selector() {
-//    Attach<MultinomialKernelRef>();
+    Attach<MultinomialKernelRef>();
 }
 
 KernelsData multinomial_kernel_selector::GetBestKernels(const Params &params,
