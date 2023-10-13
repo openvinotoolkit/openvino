@@ -193,8 +193,6 @@ macro(ov_cpack)
     set(CPACK_PACKAGE_CONTACT "OpenVINO Developers <openvino@intel.com>")
     set(CPACK_VERBATIM_VARIABLES ON)
     set(CPACK_COMPONENTS_ALL ${ARGN})
-    # TODO: set proper license file for Windows installer
-    set(CPACK_RESOURCE_FILE_LICENSE "${OpenVINO_SOURCE_DIR}/LICENSE")
 
     # default permissions for directories creation
     set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS

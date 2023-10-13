@@ -23,7 +23,6 @@ public:
     /// \param repeats The node producing the per-dimension replication factor
     Tile(const Output<Node>& data, const Output<Node>& repeats);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -31,7 +30,7 @@ public:
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool has_evaluate() const override;
-    bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override;
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
 };
 }  // namespace v0
