@@ -63,7 +63,26 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
             break;
         }
     } else {
-        params = gen_params(INT32_MAX, INT32_MIN);
+        switch (type) {
+            case ov::element::i8:
+                params = gen_params(INT8_MAX, INT8_MIN);
+                break;
+            case ov::element::u8:
+                params = gen_params(UINT8_MAX, 0);
+                break;
+            case ov::element::i16:
+                params = gen_params(INT16_MAX, INT16_MIN);
+                break;
+            case ov::element::u16:
+                params = gen_params(UINT16_MAX, 0);
+                break;
+            case ov::element::u32:
+                params = gen_params(UINT32_MAX, 0);
+                break;
+            default:
+                params = gen_params(INT32_MAX, INT32_MIN);
+                break;
+        }
     }
     return ov::test::utils::create_and_fill_tensor(type, shape, params.range, params.start_from, params.resolution);
 }
@@ -157,13 +176,21 @@ void EltwiseLayerCPUTest::SetUp() {
                 }
             }
         }
-        if (netType == ElementType::i32) {
-            auto data_tensor = generate_eltwise_input(ElementType::i32, shape);
-            auto data_ptr = reinterpret_cast<int32_t*>(data_tensor.data());
-            std::vector<int32_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+
+        auto data_tensor = generate_eltwise_input(netType, shape);
+        if ((netType == ElementType::i8) || (netType == ElementType::u8)) {
+            auto data_ptr = reinterpret_cast<uint8_t*>(data_tensor.data());
+            std::vector<uint8_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+            secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+        } else if ((netType == ElementType::i16) || (netType == ElementType::u16)) {
+            auto data_ptr = reinterpret_cast<uint16_t*>(data_tensor.data());
+            std::vector<uint16_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+            secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+        } else if ((netType == ElementType::i32) || (netType == ElementType::i32)) {
+            auto data_ptr = reinterpret_cast<uint32_t*>(data_tensor.data());
+            std::vector<uint32_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
             secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
         } else {
-            auto data_tensor = generate_eltwise_input(ElementType::f32, shape);
             auto data_ptr = reinterpret_cast<float*>(data_tensor.data());
             std::vector<float> data(data_ptr, data_ptr + ngraph::shape_size(shape));
             secondaryInput = ngraph::builder::makeConstant(netType, shape, data);

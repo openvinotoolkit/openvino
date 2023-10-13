@@ -70,6 +70,18 @@ std::ostream& operator<<(std::ostream& os, const ov::test::utils::EltwiseTypes t
     case ov::test::utils::EltwiseTypes::ERF:
         os << "Erf";
         break;
+    case ov::test::utils::EltwiseTypes::BITWISE_AND:
+        os << "BitwiseAnd";
+        break;
+    case ov::test::utils::EltwiseTypes::BITWISE_NOT:
+        os << "BitwiseNot";
+        break;
+    case ov::test::utils::EltwiseTypes::BITWISE_OR:
+        os << "BitwiseOr";
+        break;
+    case ov::test::utils::EltwiseTypes::BITWISE_XOR:
+        os << "BitwiseXor";
+        break;
     default:
         throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }
@@ -97,6 +109,9 @@ std::ostream& operator<<(std::ostream& os, ov::test::utils::InputLayerType type)
         break;
     case ov::test::utils::InputLayerType::PARAMETER:
         os << "PARAMETER";
+        break;
+    case ov::test::utils::InputLayerType::NONE:
+        os << "NONE";
         break;
     default:
         throw std::runtime_error("NOT_SUPPORTED_INPUT_LAYER_TYPE");

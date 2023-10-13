@@ -38,6 +38,7 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/cpu_test_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/fusing_test_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/classes/eltwise.cpp
     ${CPU_SUBSET_TEST_ABS_PATH})
 
   ov_add_test_target(

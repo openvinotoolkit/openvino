@@ -56,7 +56,11 @@ enum EltwiseTypes {
     POWER,
     FLOOR_MOD,
     MOD,
-    ERF
+    ERF,
+    BITWISE_AND,
+    BITWISE_NOT,
+    BITWISE_OR,
+    BITWISE_XOR
 };
 
 enum SqueezeOpType {
@@ -67,6 +71,7 @@ enum SqueezeOpType {
 enum class InputLayerType {
     CONSTANT,
     PARAMETER,
+    NONE,
 };
 
 enum LogicalTypes {
