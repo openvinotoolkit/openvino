@@ -22,11 +22,7 @@ except ImportError:
 
 
 def init_mo_telemetry(app_name='Model Optimizer'):
-    return tm.Telemetry(tid=get_tid(),
-                        app_name=app_name,
-                        app_version=get_rt_version(),
-                        backend='ga4',
-                        enable_opt_in_dialog=False)
+    return tm.Telemetry(tid=get_tid(), app_name=app_name, app_version=get_rt_version(), backend='ga4')
 
 
 def send_framework_info(framework: str):
