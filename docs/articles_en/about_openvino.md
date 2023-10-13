@@ -8,7 +8,7 @@
 
    openvino_docs_performance_benchmarks
    compatibility_and_support
-   Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>
+   Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-1.html>
    prerelease_information
    system_requirements
    Additional Resources <resources>
