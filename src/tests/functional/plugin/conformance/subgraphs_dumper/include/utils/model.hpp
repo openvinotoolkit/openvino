@@ -33,7 +33,7 @@ static std::vector<std::regex> FROTEND_REGEXP = {
     std::regex(R"(.*__model__)"),
 #endif
 #ifdef ENABLE_OV_TF_FRONTEND
-    std::regex(R"(.*\.pb)"),
+    std::regex(R"(.*\model.pb)"),
 #endif
 #ifdef ENABLE_OV_IR_FRONTEND
     std::regex(R"(.*\.xml)"),
@@ -74,32 +74,24 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
 void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
                                const std::string& output_dir);
 
-inline bool is_dynamic_model(const std::shared_ptr<ov::Model>& model) {
-    for (const auto& parameter : model->get_parameters()) {
-        if (is_dynamic_node(parameter)) {
-            return true;
-        }
-    }
-    for (const auto& result : model->get_results()) {
-        if (is_dynamic_node(result)) {
-            return true;
-        }
-    }
-    return false;
-}
+bool is_dynamic_model(const std::shared_ptr<ov::Model>& model);
+std::string get_model_type(const std::shared_ptr<ov::Model>& model);
 
-inline std::string get_model_type(const std::shared_ptr<ov::Model>& model) {
-    if (is_dynamic_model(model)) {
-        return "dynamic";
-    }
-    return "static";
-}
+std::map<std::string, InputInfo>
+get_input_info_by_model(const std::shared_ptr<ov::Model>& model);
 
-inline ExtractedPattern
-generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
+std::map<std::string, InputInfo>
+align_input_info(const std::shared_ptr<ov::Model>& model,
+                 const std::shared_ptr<ov::Model>& model_ref,
+                 const std::map<std::string, InputInfo> &in_info,
+                 const std::map<std::string, InputInfo> &in_info_ref,
+                 const std::map<std::string, std::string> &matched_op = {});
+
+inline std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>
+generate_model(ov::NodeVector& nodes,
                std::unordered_set<std::string>& checked_ops,
-               const std::string& extractor_name,
-               bool is_copy_constants = true) {
+               bool is_copy_constants = true,
+               bool is_save_only_borders = false) {
     // map to recover graph using cloned nodes and original connections
     // { original_node_name, cloned_node }
     std::unordered_map<std::string, std::shared_ptr<ov::Node>> cloned_node_map;
@@ -214,27 +206,51 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
     // prepare unique model name based on operations from model
     std::string string_to_hash;
     for (const auto& op : model->get_ordered_ops()) {
+        bool is_erase_node = !is_save_only_borders;
         std::ostringstream result;
         result << op->get_type_info();
-        for (const auto& in : op->inputs()) { 
+        for (size_t i = 0; i < op->inputs().size(); ++i) {
+            const auto& in = op->input(i);
+            if (!is_node_to_skip(op->get_input_node_shared_ptr(i))) {
+                is_erase_node |= true;
+            }
             result << in.get_element_type();
             result << in.get_partial_shape().rank();
             result << in.get_partial_shape().is_static();
         }
         for (const auto& out : op->outputs()) {
+            for (const auto& target_input : out.get_target_inputs()) {
+                if (!is_node_to_skip(target_input.get_node()->shared_from_this())) {
+                    is_erase_node |= true;
+                    break;
+                }
+            }
             result << out.get_element_type();
             result << out.get_partial_shape().rank();
             result << out.get_partial_shape().is_static();
         }
         string_to_hash += result.str();
+        if (is_erase_node) {
+            cloned_node_map.erase(op->get_friendly_name());
+        }
     }
     for (const auto& in : model_input_info) {
         string_to_hash += (in.second.is_const ? "1" : "0");
     }
     auto h1 = std::hash<std::string>{}(string_to_hash);
     model->set_friendly_name(std::to_string(h1));
-
-    return { model, model_input_info, extractor_name };
+    {
+        auto it = nodes.begin();
+        while (it != nodes.end()) {
+            if (cloned_node_map.count((*it)->get_friendly_name())) {
+                nodes.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    
+    return { model, model_input_info };
 }
 
 }  // namespace subgraph_dumper
