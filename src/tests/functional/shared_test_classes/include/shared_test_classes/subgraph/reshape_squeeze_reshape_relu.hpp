@@ -4,30 +4,32 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
-#include <memory>
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 
-namespace SubgraphTestsDefinitions {
-using ShapeAxesTuple = std::pair<std::vector<size_t>, std::vector<int>>;
+#include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using ReshapeSqueezeReshapeReluTuple = typename std::tuple<
-    ShapeAxesTuple,                     // Input shapes & squeeze_indices
-    InferenceEngine::Precision,       // Network precision
-    std::string,                      // Device name
-    ngraph::helpers::SqueezeOpType    // SqueezeOpType
->;
+namespace ov {
+namespace test {
 
-class ReshapeSqueezeReshapeRelu
-        : public testing::WithParamInterface<ReshapeSqueezeReshapeReluTuple>,
-          virtual public LayerTestsUtils::LayerTestsCommon {
+using ShapeAxesTuple = std::pair<ov::Shape, std::vector<int>>;
+
+using ReshapeSqueezeReshapeReluTuple = typename std::tuple<ShapeAxesTuple,     // Input shapes & squeeze_indices
+                                                           ov::element::Type,  // Input element type
+                                                           std::string,        // Device name
+                                                           ov::test::utils::SqueezeOpType  // SqueezeOpType
+                                                           >;
+
+class ReshapeSqueezeReshapeRelu : public testing::WithParamInterface<ReshapeSqueezeReshapeReluTuple>,
+                                  virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ReshapeSqueezeReshapeReluTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReshapeSqueezeReshapeReluTuple>& obj);
+
 protected:
     void SetUp() override;
 };
-} // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

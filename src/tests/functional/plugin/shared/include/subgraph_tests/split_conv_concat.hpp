@@ -6,14 +6,17 @@
 
 #include "shared_test_classes/subgraph/split_conv_concat.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(SplitConvConcat, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
-TEST_P(SplitConvConcat, QueryNetwork) {
-    QueryNetwork();
+TEST_P(SplitConvConcat, QueryModel) {
+    query_model();
 }
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
+
