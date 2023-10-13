@@ -302,11 +302,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::intel_cpu::snippets_mode.name(),
                                ". Expected values: ov::intel_cpu::SnippetsMode::ENABLE/DISABLE/IGNORE_CALLBACK");
             }
-            else if (val == PluginConfigInternalParams::RDTSC)
-                snippetsPCMode = SnippetsPerfCountMode::Rdtsc;
-            else
-                IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_SNIPPETS_PERF_COUNT_MODE
-                            << ". Expected values: DISABLE/CHRONO/RDTSC";
         } else if (key == ov::hint::execution_mode.name()) {
             try {
                 executionMode = val.as<ov::hint::ExecutionMode>();

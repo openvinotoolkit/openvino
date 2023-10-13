@@ -8,7 +8,9 @@ using namespace ov;
 using namespace ov::intel_cpu;
 
 /////////////////////////PerfCountRdtscBegin//////////////////////
-PerfCountRdtscBegin::PerfCountRdtscBegin() : PerfCountBeginBase() {}
+PerfCountRdtscBegin::PerfCountRdtscBegin() : PerfCountBeginBase() {
+    validate_and_infer_types_except_PerfCountEnd();
+}
 
 std::shared_ptr<Node> PerfCountRdtscBegin::clone_with_new_inputs(const OutputVector& inputs) const {
     return std::make_shared<PerfCountRdtscBegin>();

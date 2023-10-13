@@ -14,10 +14,16 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
+// Snippets performance count mode
+// Disabled - default, w/o perf count for snippets
+// Chrono - perf count with chrono call. This is a universal method.
+// BackendSpecific - perf count provided by backend. This is for device specific requirment.
+// For example, in sake of more light overhead, x86 CPU specific mode via read RDTSC register take ~50ns,
+// while Chrono mode take 260ns for a pair of perf count start and perf count end execution, on ICX.
 enum PerfCountMode {
     Disabled,
     Chrono,
-    Rdtsc,
+    BackendSpecific,
 };
 
 class Config {
@@ -27,7 +33,7 @@ public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
-    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
+    PerfCountMode perf_count_mode = PerfCountMode::Chrono;
     // Some Subgraphs doesn't support domain optimization due to operations' semantics
     bool m_enable_domain_optimization = false;
     // Minimal advised work amount for parallel execution.

@@ -52,7 +52,7 @@ bool InsertPerfCount::run(LinearIR& linear_ir) {
     std::vector<PortConnectorPtr> pc_end_inputs;
     pc_end_inputs.push_back(perf_count_begin_expr->get_output_port_connector(0));
     const auto& perf_count_end_expr = linear_ir.create_expression(perf_count_end, pc_end_inputs);
-    // linear_ir.insert(perf_count_end_pos, perf_count_end_expr);
+    linear_ir.insert(perf_count_end_pos, perf_count_end_expr);
 
     return true;
 }

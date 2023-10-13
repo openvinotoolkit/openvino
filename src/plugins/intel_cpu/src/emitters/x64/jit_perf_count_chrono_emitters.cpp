@@ -60,7 +60,7 @@ void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t> &in_
     internal_call_preamble();
 
     const auto &set_accumulated_time_overload = static_cast<void (*)(snippets::op::PerfCountEnd*)>(set_accumulated_time);
-    h->mov(h->rax, reinterpret_cast<size_t>(&set_accumulated_time_overload));
+    h->mov(h->rax, reinterpret_cast<size_t>(set_accumulated_time_overload));
     h->mov(abi_param1, reinterpret_cast<size_t>(m_end_node.get()));
     internal_call_rsp_align();
     h->call(h->rax);

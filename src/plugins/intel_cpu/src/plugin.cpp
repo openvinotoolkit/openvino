@@ -513,19 +513,6 @@ static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const
 std::shared_ptr<ov::ICompiledModel>
 Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const{
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::compile_model");
-//         return Config::SnippetsPerfCountMode::Disabled; // disabled by default
-
-//     const auto& val = snippetsPCMode->second;
-//     if (val == PluginConfigInternalParams::CHRONO)
-//         return Config::SnippetsPerfCountMode::Chrono;
-//     else if (val == PluginConfigInternalParams::RDTSC)
-//         return Config::SnippetsPerfCountMode::Rdtsc;
-//     else if (val == PluginConfigInternalParams::DISABLED)
-//         return Config::SnippetsPerfCountMode::Disabled;
-//     else
-//         IE_THROW() << "Wrong value for property key SNIPPETS_PERF_COUNT_MODE. Expected values: DISABLED/CHRONO/RDTSC";
-// }
-
     CREATE_DEBUG_TIMER(debugLoadTimer);
 
     // verification of supported input
