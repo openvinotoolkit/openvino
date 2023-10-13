@@ -143,6 +143,4 @@ Feature Overview
    LEARN OPENVINO <learn_openvino>
    OPENVINO WORKFLOW <openvino_workflow>
    DOCUMENTATION <documentation>
-   RESOURCES <resources>
-   RELEASE NOTES <release_notes>
-
+   ABOUT OPENVINO <about_openvino>
