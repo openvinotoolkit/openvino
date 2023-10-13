@@ -422,7 +422,6 @@ def is_verbose(argv: argparse.Namespace):
 
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
-
     telemetry = init_mo_telemetry()
     telemetry.start_session('ovc')
     telemetry.send_event('ovc', 'version', simplified_ie_version)

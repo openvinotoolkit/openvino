@@ -825,7 +825,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         show_mo_convert_help()
         return None, None
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
-
     telemetry = init_mo_telemetry()
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
