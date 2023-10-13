@@ -759,7 +759,6 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: Build
-    if: ${{ matrix.arhitecture == 'arm64' }} # Functional tests are not finishing on x86_64, ticket: 122001
     defaults:
       run:
         shell: bash
@@ -768,9 +767,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: 'macOS x86_64'
-            arhitecture: 'x86_64'
-            machine: 'macos-13'
+        # ticket: 122001
+        #  - name: 'macOS x86_64'
+        #    arhitecture: 'x86_64'
+        #    machine: 'macos-13'
           - name: 'macOS ARM64 (M1)'
             arhitecture: 'arm64'
             machine: 'macos-13-xlarge'
