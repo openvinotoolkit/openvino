@@ -6,6 +6,8 @@
 
 #include "jit_kernel_base.hpp"
 
+#if defined(OPENVINO_ARCH_X86_64)
+
 namespace ov {
 namespace intel_cpu {
 namespace kernel {
@@ -93,3 +95,5 @@ private:
 }   // namespace kernel
 }   // namespace intel_cpu
 }   // namespace ov
+
+#endif // OPENVINO_ARCH_X86_64

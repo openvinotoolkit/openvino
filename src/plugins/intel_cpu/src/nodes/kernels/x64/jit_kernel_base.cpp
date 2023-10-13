@@ -1,12 +1,14 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_kernel_base.hpp"
 
-using namespace ov;
-using namespace intel_cpu;
 using namespace dnnl::impl::cpu;
+
+namespace ov {
+namespace intel_cpu {
+namespace kernel {
 
 JitKernelBase::JitKernelBase(const char* name, x64::cpu_isa_t isa)
         : x64::jit_generator(name, nullptr, x64::MAX_CODE_SIZE, true, isa), m_isa(isa) {
@@ -173,7 +175,7 @@ void JitKernelBase::uni_vmulpd(const Xbyak::Xmm& v_dst,
 void JitKernelBase::uni_vpmuludq(const Xbyak::Xmm& v_dst,
                                  const Xbyak::Xmm& v_src,
                                  const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx)) {
+    if (isValidIsa(x64::avx2)) {
         vpmuludq(v_dst, v_src, op);
     } else {
         if (v_dst.getIdx() != v_src.getIdx()) {
@@ -393,7 +395,7 @@ void JitKernelBase::uni_vcvtpd2dq(const Xbyak::Xmm& v_dst,
 
 void JitKernelBase::uni_vpmovzxdq(const Xbyak::Xmm& v_dst,
                                   const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx)) {
+    if (isValidIsa(x64::avx2)) {
         vpmovzxdq(v_dst, op);
     } else {
         pmovzxdq(v_dst, op);
@@ -704,3 +706,7 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
     }
     L(lEnd);
 }
+
+} // namespace kernel
+} // namespace intel_cpu
+} // namespace ov

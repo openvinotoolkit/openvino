@@ -10,8 +10,6 @@
 #include <openvino/op/random_uniform.hpp>
 #include "shape_inference/custom/random_uniform.hpp"
 
-using namespace dnnl::impl::cpu;
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -105,10 +103,11 @@ void RandomUniform::createPrimitive() {
 
         jcp.out_data_type = m_output_prc;
 
-        m_jit_kernel = RandomUniformJitKernel::createInstance<kernel::RandomUniform>(jcp);
+        m_jit_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>::createInstance<kernel::RandomUniform>(jcp);
 
         if (m_jit_kernel) {
             if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
+                using namespace dnnl::impl::cpu;
                 if (m_jit_kernel->getIsa() == x64::avx512_core) {
                     selected_pd->setImplementationType(jit_avx512);
                 } else if (m_jit_kernel->getIsa() == x64::avx2) {

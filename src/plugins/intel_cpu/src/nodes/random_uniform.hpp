@@ -112,8 +112,7 @@ private:
     uint64_t m_skip_count = 0lu;
     /////////////////////////////////////////////////////////////////////////////////
 
-    using RandomUniformJitKernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>;
-    std::shared_ptr<RandomUniformJitKernel> m_jit_kernel;
+    std::shared_ptr<kernel::JitKernelBase> m_jit_kernel;
 };
 
 }   // namespace node

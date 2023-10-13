@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@ using namespace dnnl::impl::cpu;
 
 namespace ov {
 namespace intel_cpu {
+namespace kernel {
 
 #define GET_OFF(field) offsetof(GridSamplesKernelExecArgs, field)
 
@@ -2085,5 +2086,6 @@ template class GridSampleKernel<x64::avx512_core>;
 template class GridSampleKernel<x64::avx2>;
 template class GridSampleKernel<x64::sse41>;
 
+}   // namespace kernel
 }   // namespace intel_cpu
 }   // namespace ov

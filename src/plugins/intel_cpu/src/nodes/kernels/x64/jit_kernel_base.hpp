@@ -1,14 +1,23 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/core/visibility.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
 #include "registers_pool.hpp"
+#endif // OPENVINO_ARCH_X86_64
 
 namespace ov {
 namespace intel_cpu {
+namespace kernel {
+
+class JitKernelBase;
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 #define getReg64() RegistersPool::Reg<Xbyak::Reg64>(registersPool)
 #define getReg32() RegistersPool::Reg<Xbyak::Reg32>(registersPool)
@@ -183,8 +192,6 @@ protected:
     };
 };
 
-namespace kernel {
-
 template<typename CompileParams, typename CallArgs>
 class JitKernel : public JitKernelBase {
 public:
@@ -247,7 +254,8 @@ private:
     KernelFunc m_func;
 };
 
-} // namespace kernel
+#endif // OPENVINO_ARCH_X86_64
 
+} // namespace kernel
 } // namespace intel_cpu
 } // namespace ov
