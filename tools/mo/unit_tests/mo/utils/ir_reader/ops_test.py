@@ -285,3 +285,88 @@ class TestOps(unittest.TestCase):
         self.assertEqual(ir_node['sort_result_descending'], False)
         self.assertEqual(ir_node['output_type'], "i32")
         self.assertEqual(ir_node['clockwise'], False)
+
+    def test_bitwise_and_13(self):
+        a = opset13.parameter([4, 1], name="A", dtype=np.int32)
+        b = opset13.parameter([1, 2], name="B", dtype=np.int32)
+
+        op = opset13.bitwise_and(a, b)
+        model = Model(op, [a, b])
+        graph = TestOps.check_graph_can_save(model, "bitwise_and_model")
+        op_node = graph.get_op_nodes(op="BitwiseAnd")[0]
+        self.assertListEqual(op_node.out_port(0).data.get_shape().tolist(), [4, 2])
+        self.assertEqual(op_node["version"], "opset13")
+        self.assertEqual(op_node["auto_broadcast"], "numpy")
+
+    def test_bitwise_or_13(self):
+        a = opset13.parameter([4, 1], name="A", dtype=np.int32)
+        b = opset13.parameter([1, 2], name="B", dtype=np.int32)
+
+        op = opset13.bitwise_or(a, b)
+        model = Model(op, [a, b])
+        graph = TestOps.check_graph_can_save(model, "bitwise_or_model")
+        op_node = graph.get_op_nodes(op="BitwiseOr")[0]
+        self.assertListEqual(op_node.out_port(0).data.get_shape().tolist(), [4, 2])
+        self.assertEqual(op_node["version"], "opset13")
+        self.assertEqual(op_node["auto_broadcast"], "numpy")
+
+    def test_bitwise_xor_13(self):
+        a = opset13.parameter([4, 1], name="A", dtype=np.int32)
+        b = opset13.parameter([1, 2], name="B", dtype=np.int32)
+
+        op = opset13.bitwise_xor(a, b)
+        model = Model(op, [a, b])
+        graph = TestOps.check_graph_can_save(model, "bitwise_xor_model")
+        op_node = graph.get_op_nodes(op="BitwiseXor")[0]
+        self.assertListEqual(op_node.out_port(0).data.get_shape().tolist(), [4, 2])
+        self.assertEqual(op_node["version"], "opset13")
+        self.assertEqual(op_node["auto_broadcast"], "numpy")
+
+    def test_bitwise_not_13(self):
+        a = opset13.parameter([4, 2], name="A", dtype=np.int32)
+
+        op = opset13.bitwise_not(a)
+        model = Model(op, [a])
+        graph = TestOps.check_graph_can_save(model, "bitwise_not_model")
+        op_node = graph.get_op_nodes(op="BitwiseNot")[0]
+        self.assertListEqual(op_node.out_port(0).data.get_shape().tolist(), [4, 2])
+        self.assertEqual(op_node["version"], "opset13")
+
+    def test_nms_rotated_13(self):
+        boxes_shape = [1, 100, 5]
+        scores_shape = [1, 1, 100]
+        max_output_boxes_val = 5
+        iou_threshold_val = 0.5
+        score_threshold_val = 0.4
+
+        boxes_parameter = opset13.parameter(
+            boxes_shape, name="Boxes", dtype=np.float32)
+        scores_parameter = opset13.parameter(
+            scores_shape, name="Scores", dtype=np.float32)
+
+        max_output_boxes = opset13.constant([max_output_boxes_val], np.int64)
+        iou_threshold = opset13.constant([iou_threshold_val], np.float32)
+        score_threshold = opset13.constant([score_threshold_val], np.float32)
+
+        sort_result_descending = False
+        output_type = "i32"
+        clockwise = False
+
+        node = opset13.nms_rotated(boxes_parameter, scores_parameter, max_output_boxes, iou_threshold,
+                                   score_threshold, sort_result_descending, output_type, clockwise)
+
+        model = Model(node, [boxes_parameter, scores_parameter])
+        graph = TestOps.check_graph_can_save(model, 'nms_rotated_model')
+        ir_node = graph.get_op_nodes(op="NMSRotated")[0]
+
+        self.assertListEqual(ir_node.out_port(
+            0).data.get_shape().tolist(), [1, 3, 3, 3])
+        self.assertListEqual(ir_node.out_port(
+            1).data.get_shape().tolist(), [1, 3, 3, 3])
+        self.assertListEqual(ir_node.out_port(
+            2).data.get_shape().tolist(), [1])
+
+        self.assertEqual(ir_node["version"], "opset13")
+        self.assertEqual(ir_node['sort_result_descending'], False)
+        self.assertEqual(ir_node['output_type'], "i32")
+        self.assertEqual(ir_node['clockwise'], False)
