@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import platform
 
 import onnx.backend.test
 from tests import (
@@ -71,6 +72,8 @@ from tests import (
     xfail_issue_119922,
     xfail_issue_119925,
     xfail_issue_119926,
+    xfail_issue_122775,
+    xfail_issue_122776
 )
 from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
@@ -682,6 +685,14 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_roialign_mode_max_cpu",
     ),
 ]
+
+if platform.system() == 'Linux' and platform.machine() == 'aarch64':
+    tests_expected_to_fail.extend(
+        [
+            (xfail_issue_122775, "test_resize_downsample_scales_linear_cpu"),
+            (xfail_issue_122776, "test_mish_expanded_cpu")
+        ]
+    )
 
 for test_group in tests_expected_to_fail:
     for test_case in test_group[1:]:
