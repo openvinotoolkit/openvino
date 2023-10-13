@@ -235,12 +235,11 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                    freeze_placeholder_with_value,
                    input_shape, only_conversion, True)
 
-    def test_conversion_failure_fallback_default(self):
+    def test_conversion_tf1_while_default(self):
         self.basic("ctc_model_based.pbtxt", None, None, None, None,
                    None, None, True, True, False, False)
 
-    @unittest.skipIf(platform == 'darwin', reason="Ticket - 122182")
-    def test_conversion_failure_fallback_use_new_frontend(self):
+    def test_conversion_tf1_while_use_new_frontend(self):
         self.basic("ctc_model_based.pbtxt", None, None, None, None,
                    None, None, True, True, True, False)
 
