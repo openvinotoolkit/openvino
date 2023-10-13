@@ -963,6 +963,34 @@ jobs:
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
+      - name: MO Python API Tests
+        run: |
+          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
+          # source ${INSTALL_DIR}/setupvars.sh
+          # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
+          # TODO: create wheel test packages and install them on the system
+          export PIP_INSTALL_DIR=$(python3 -m site --user-site)
+          echo "pip install dir: ${PIP_INSTALL_DIR}"
+          export PYTHONPATH=${INSTALL_DIR}/python/openvino
+          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: OVC Python API Tests
+        run: |
+          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
+          # source ${INSTALL_DIR}/setupvars.sh
+          # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
+          export PIP_INSTALL_DIR=$(python3 -m site --user-site)
+          export PYTHONPATH=${INSTALL_DIR}/python/openvino
+          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
       - name: PyTorch Layer Tests
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -1023,34 +1051,6 @@ jobs:
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
             --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py \
-
-      - name: MO Python API Tests
-        run: |
-          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          # source ${INSTALL_DIR}/setupvars.sh
-          # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-          # TODO: create wheel test packages and install them on the system
-          export PIP_INSTALL_DIR=$(python3 -m site --user-site)
-          echo "pip install dir: ${PIP_INSTALL_DIR}"
-          export PYTHONPATH=${INSTALL_DIR}/python/openvino/test_utils
-          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: OVC Python API Tests
-        run: |
-          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          # source ${INSTALL_DIR}/setupvars.sh
-          # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-          export PIP_INSTALL_DIR=$(python3 -m site --user-site)
-          export PYTHONPATH=${INSTALL_DIR}/python/openvino/test_utils
-          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
 
       - name: Python Frontend tests
         run: |
