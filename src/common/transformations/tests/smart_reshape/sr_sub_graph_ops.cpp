@@ -57,8 +57,8 @@ TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-                                            {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-                                            {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+                                 {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
 }
 
 TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
@@ -108,8 +108,8 @@ TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+                                 {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
 }
 
 TEST(SmartReshapeTests, LoopStaticParameters) {
@@ -156,19 +156,16 @@ TEST(SmartReshapeTests, LoopStaticParameters) {
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(
-        f->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     // concat output
-    ASSERT_TRUE(
-        f->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-    ASSERT_TRUE(
-        f->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+                                 {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
 }
 
 TEST(SmartReshapeTests, LoopDynamicParameters) {
@@ -215,19 +212,16 @@ TEST(SmartReshapeTests, LoopDynamicParameters) {
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(
-        f->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     // concat output
-    ASSERT_TRUE(
-        f->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-    ASSERT_TRUE(
-        f->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+                                 {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
 }
 
 TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
@@ -278,19 +272,16 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(
-        f->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     // concat output
-    ASSERT_TRUE(
-        f->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-    ASSERT_TRUE(
-        f->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {4, 3, 2}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {4, 3, 2}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {4, 3, 2}}}));
+                                 {f->get_parameters()[1]->get_friendly_name(), {4, 3, 2}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {4, 3, 2}}}));
 }
 
 TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
@@ -344,6 +335,6 @@ TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     EXPECT_ANY_THROW(f->reshape({{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-                                                  {f->get_parameters()[1]->get_friendly_name(), {1, 1, 1}},
-                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+                                 {f->get_parameters()[1]->get_friendly_name(), {1, 1, 1}},
+                                 {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
 }

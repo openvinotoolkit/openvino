@@ -52,8 +52,6 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end_mask) {
         f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
-
-
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({1, 768}))
         << f->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 128, 768}));
@@ -88,8 +86,6 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end) {
         f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
-
-
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({1, 768}))
         << f->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 1, 768}));
@@ -121,8 +117,6 @@ TEST(SmartReshapeTests, SS_Squeeze_mask_use_negative) {
         f = std::make_shared<ov::Model>(NodeVector{squeeze}, ParameterVector{input});
     }
 
-
-
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({1, 3}))
         << f->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
@@ -148,8 +142,6 @@ TEST(SmartReshapeTests, SS_Squeeze_negative_stride_negative) {
 
         f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
-
-
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3}))
         << f->get_results()[0]->get_output_partial_shape(0);
@@ -178,8 +170,6 @@ TEST(SmartReshapeTests, SS_SharedSqueezes) {
         f = std::make_shared<ov::Model>(NodeVector{relu_1, relu_2}, ParameterVector{input});
     }
 
-
-
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3}))
         << f->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
@@ -206,8 +196,6 @@ TEST(SmartReshapeTests, SS_SqueezeNegativeAxes) {
         f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
-
-
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2}))
         << f->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 3, 1, 8, 1, 2}));
@@ -232,8 +220,6 @@ TEST(SmartReshapeTests, Squeeze_SSNegativeAxes) {
 
         f = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{input});
     }
-
-
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2}))
         << f->get_results()[0]->get_output_partial_shape(0);

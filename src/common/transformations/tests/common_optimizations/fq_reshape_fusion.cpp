@@ -31,7 +31,7 @@ struct FQReshapeFusionTestCase {
 };
 
 class FQReshapeFusionTests : public ov::test::TestsCommon,
-                                   public testing::WithParamInterface<std::tuple<FQReshapeFusionTestCase>> {
+                             public testing::WithParamInterface<std::tuple<FQReshapeFusionTestCase>> {
 public:
     std::shared_ptr<ov::Model> f, ref_f;
 

@@ -18,8 +18,7 @@ TEST(SmartReshapeTests, Reshape1d) {
         f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
 
-    ASSERT_TRUE(
-        f->get_results()[0]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({5}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
@@ -40,8 +39,7 @@ TEST(SmartReshapeTests, Reshape1d_negative) {
         f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input, pattern});
     }
 
-    ASSERT_TRUE(
-        f->get_results()[0]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().is_dynamic());
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
