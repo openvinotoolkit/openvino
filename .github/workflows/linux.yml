@@ -945,7 +945,7 @@ jobs:
       - name: PyTorch Layer Tests
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical --dist loadscope -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
