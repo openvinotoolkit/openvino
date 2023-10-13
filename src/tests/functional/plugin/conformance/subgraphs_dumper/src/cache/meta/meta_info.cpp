@@ -15,8 +15,12 @@ namespace subgraph_dumper {
 unsigned long MetaInfo::MIN_MODEL_PRIORITY = std::numeric_limits<unsigned long>::max();
 unsigned long MetaInfo::MAX_MODEL_PRIORITY = std::numeric_limits<unsigned long>::min();
 
-MetaInfo::MetaInfo(const std::string& _model_path, const std::map<std::string, InputInfo>& _input_info,
-                   size_t _total_op_cnt, size_t _this_op_cnt, const std::string& extractor, size_t model_priority) {
+MetaInfo::MetaInfo(const std::string& _model_path,
+                   const std::map<std::string, InputInfo>& _input_info,
+                   size_t _total_op_cnt,
+                   size_t _this_op_cnt,
+                   const std::string& extractor,
+                   size_t model_priority) {
     unsigned long tmp_graph_priority = _total_op_cnt * model_priority;
     if (tmp_graph_priority < MIN_MODEL_PRIORITY) MIN_MODEL_PRIORITY = tmp_graph_priority;
     if (tmp_graph_priority > MAX_MODEL_PRIORITY) MAX_MODEL_PRIORITY = tmp_graph_priority;
@@ -44,6 +48,21 @@ double MetaInfo::get_graph_priority() {
     // return normilized graph priority from [0, 1]
     double diff = get_abs_graph_priority() - MIN_MODEL_PRIORITY;
     return diff / delta;
+}
+
+inline ov::PartialShape str_to_ov_shape(std::string str) {
+    str = str.replace(str.find('['), 1, "");
+    str = str.replace(str.find(']'), 1, "");
+
+    std::vector<size_t> shape_vec;
+    size_t pos = 0;
+    do {
+        pos = str.find('.');
+        std::string dim_str = str.substr(0, pos);
+        shape_vec.push_back(atoi(dim_str.c_str()));
+        str = str.replace(0, dim_str.length() + 1, "");
+    } while (pos != std::string::npos);
+    return ov::PartialShape{shape_vec};
 }
 
 MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
@@ -79,6 +98,12 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
                 in_info.ranges.max = input.attribute("max").as_double();
             } else {
                 in_info.ranges.max = DEFAULT_MAX_VALUE;
+            }
+            {
+                auto max_shape_str = std::string(input.attribute("max_shape").value());
+                in_info.max_shape = str_to_ov_shape(max_shape_str);
+                auto min_shape_str = std::string(input.attribute("min_shape").value());
+                in_info.min_shape = str_to_ov_shape(min_shape_str);
             }
             input_info.insert({in_name, in_info});
         }
@@ -132,6 +157,8 @@ void MetaInfo::serialize(const std::string& serialization_path) {
                 input_node.append_attribute("max").set_value(input.second.ranges.max);
             }
             input_node.append_attribute("convert_to_const").set_value(input.second.is_const);
+            input_node.append_attribute("max_shape").set_value(ov::test::utils::partialShape2str({ input.second.max_shape }).c_str());
+            input_node.append_attribute("min_shape").set_value(ov::test::utils::partialShape2str({ input.second.min_shape }).c_str());
         }
         doc.save_file(serialization_path.c_str());
 }
@@ -155,6 +182,16 @@ void MetaInfo::update(const std::string& _model_path,
     } else {
         model_info.insert({ model_name, ModelInfo(_model_path, _total_op_cnt) });\
     }
+
+    // update max and mib abs priority to normilize priorities when serialize
+    {
+        auto abs_graph_priority = get_abs_graph_priority();
+        if (abs_graph_priority > MAX_MODEL_PRIORITY) MAX_MODEL_PRIORITY = abs_graph_priority;
+        if (abs_graph_priority < MIN_MODEL_PRIORITY) MIN_MODEL_PRIORITY = abs_graph_priority;
+    }
+    if (!extractor.empty()) {
+        extractors.insert(extractor);
+    }
     for (const auto& in : _input_info) {
         if (std::find(ignored_inputs.begin(), ignored_inputs.end(), in.first) != ignored_inputs.begin()) {
             continue;
@@ -166,15 +203,6 @@ void MetaInfo::update(const std::string& _model_path,
         } else {
             input_info[in.first] = in.second;
         }
-    }
-    // update max and mib abs priority to normilize priorities when serialize
-    {
-        auto abs_graph_priority = get_abs_graph_priority();
-        if (abs_graph_priority > MAX_MODEL_PRIORITY) MAX_MODEL_PRIORITY = abs_graph_priority;
-        if (abs_graph_priority < MIN_MODEL_PRIORITY) MIN_MODEL_PRIORITY = abs_graph_priority;
-    }
-    if (!extractor.empty()) {
-        extractors.insert(extractor);
     }
 }
 
