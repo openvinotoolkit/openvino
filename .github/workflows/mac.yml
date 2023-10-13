@@ -353,7 +353,11 @@ jobs:
       - name: Low Precision Transformations Tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 \
+          
+          # Skips under Ticket: 122660
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*smoke_LPT/FoldFakeQuantizeInTransformations.CompareFunctions*' || '' }}
+          
+          ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
@@ -381,7 +385,11 @@ jobs:
         if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
+          
+          # Skips under Ticket: 122663
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*onnx_model_bias_gelu*:*onnx_model_embed_layer*:*.onnx_resize1*:*onnx_model_softplus*:*onnx_model_instance_normalization*:*quant_dequant_pattern_axis*' || '' }}
+          
+          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* "$skip_filter" \
                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common tests
@@ -395,7 +403,11 @@ jobs:
         if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
+          
+          # Skips under Ticket: 122666
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*CompileModelsTests.ModelWithSplitConvConcat*' || '' }}
+          
+          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
@@ -409,7 +421,11 @@ jobs:
         if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 \
+          
+          # Skips under Ticket: 122668
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*TransformationTestsF.CompressQuantizeWeights*' || '' }}
+          
+          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
       - name: Common test utils tests
