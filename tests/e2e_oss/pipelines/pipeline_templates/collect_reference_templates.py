@@ -4,15 +4,15 @@ import os
 from collections import OrderedDict
 from pathlib import Path
 
-from tests.e2e_oss._utils.kaldi_utils import read_ark_data
-from tests.e2e_oss.common_utils.decorators import wrap_ord_dict
-from tests.e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
-from tests.e2e_oss.pipelines.pipeline_templates.ir_gen_templates import ir_pregenerated
-from tests.e2e_oss.pipelines.pipeline_templates.postproc_template import assemble_postproc_mxnet, assemble_postproc_tf
-from tests.e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_caffe, assemble_preproc_mxnet, \
+from e2e_oss._utils.kaldi_utils import read_ark_data
+from e2e_oss.common_utils.decorators import wrap_ord_dict
+from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
+from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import ir_pregenerated
+from e2e_oss.pipelines.pipeline_templates.postproc_template import assemble_postproc_mxnet, assemble_postproc_tf
+from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_caffe, assemble_preproc_mxnet, \
     assemble_preproc, assemble_preproc_tf
-from tests.e2e_oss._utils.path_utils import proto_from_model, ref_from_model, symbol_from_model
-from tests.e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
+from e2e_oss._utils.path_utils import proto_from_model, ref_from_model, symbol_from_model
+from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
 
 
 def get_refs_caffe(proto, model):

@@ -32,8 +32,8 @@ import subprocess
 from pathlib import Path
 from distutils import spawn
 
-from tests.e2e_oss.common_utils.config import openvino_root_dir
-from tests.e2e_oss.common_utils.sys_info_utils import os_type_is_windows
+from e2e_oss.common_utils.config import openvino_root_dir
+from e2e_oss.common_utils.sys_info_utils import os_type_is_windows
 
 
 class OpenVINOResourceNotFound(Exception):

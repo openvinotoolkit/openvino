@@ -23,7 +23,7 @@ import sys
 
 from cpuinfo import get_cpu_info
 
-from .common_utils.logger import get_logger
+from e2e_oss.common_utils.logger import get_logger
 from .common_utils.sys_info_utils import get_sys_info
 from .common_utils.tf_helper import TFVersionHelper
 

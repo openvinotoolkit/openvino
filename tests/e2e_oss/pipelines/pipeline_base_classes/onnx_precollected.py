@@ -1,13 +1,13 @@
 import os
 from collections import OrderedDict
 
-from tests.e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
-from tests.e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
-from tests.e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
-from tests.e2e_oss.pipelines.pipeline_templates.input_templates import read_pb_input, read_npy_input
-from tests.e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
-from tests.e2e_oss._utils.path_utils import prepend_with_env_path
-from tests.e2e_oss.common_utils.pytest_utils import mark
+from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
+from e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
+from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
+from e2e_oss.pipelines.pipeline_templates.input_templates import read_pb_input, read_npy_input
+from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
+from e2e_oss._utils.path_utils import prepend_with_env_path
+from e2e_oss.common_utils.pytest_utils import mark
 
 
 class ONNXPrecollectedProtobufBaseClass(CommonConfig):

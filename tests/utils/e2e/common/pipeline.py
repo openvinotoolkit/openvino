@@ -1,15 +1,15 @@
-import tests.utils.e2e.readers
-import tests.utils.e2e.preprocessors
-import tests.utils.e2e.preprocessors_tf_hub
-import tests.utils.e2e.ir_provider
-import tests.utils.e2e.infer
-import tests.utils.e2e.postprocessors
-import tests.utils.e2e.ref_collector
-import tests.utils.e2e.model_loader
-import tests.utils.e2e.omz_pytorch_to_onnx_converter
+import utils.e2e.readers
+import utils.e2e.preprocessors
+import utils.e2e.preprocessors_tf_hub
+import utils.e2e.ir_provider
+import utils.e2e.infer
+import utils.e2e.postprocessors
+import utils.e2e.ref_collector
+import utils.e2e.model_loader
+import utils.e2e.omz_pytorch_to_onnx_converter
 from types import SimpleNamespace
 
-from tests.utils.e2e.common.base_provider import BaseStepProvider
+from utils.e2e.common.base_provider import BaseStepProvider
 
 
 class Pipeline:

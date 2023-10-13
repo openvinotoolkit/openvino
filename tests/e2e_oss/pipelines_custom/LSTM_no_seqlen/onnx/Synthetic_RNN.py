@@ -2,11 +2,11 @@ import itertools
 import os
 from collections import OrderedDict
 
-from tests.e2e_oss._utils.path_utils import prepend_with_env_path
-from tests.e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
-from tests.e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
-from tests.e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
-from tests.e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
+from e2e_oss._utils.path_utils import prepend_with_env_path
+from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
+from e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
+from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
+from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
 
 
 class ONNX_Synthetic_LSTM_Base(CommonConfig):

@@ -6,10 +6,10 @@ import logging as log
 import sys
 from copy import deepcopy
 
-from tests.e2e_oss._utils.kaldi_utils import read_ark_data
-from tests.e2e_oss._utils.path_utils import resolve_file_path
-from tests.e2e_oss._utils.test_utils import prepare_inputs, get_inputs_info
-from tests.utils.e2e.readers.provider import ClassProvider
+from e2e_oss._utils.kaldi_utils import read_ark_data
+from e2e_oss._utils.path_utils import resolve_file_path
+from e2e_oss._utils.test_utils import prepare_inputs, get_inputs_info
+from utils.e2e.readers.provider import ClassProvider
 
 try:
     from onnx import TensorProto, numpy_helper

@@ -1,7 +1,7 @@
 import logging as log
 import sys
 
-from utils.multiprocessing_utils import multiprocessing_run
+from e2e_oss.common_utils.multiprocessing_utils import multiprocessing_run
 from .provider import ClassProvider
 
 

@@ -15,16 +15,16 @@ import pytest
 import yaml
 from _pytest.runner import show_test_item, call_runtest_hook, check_interactive_exception
 
-import tests.e2e_oss.plugins.common.base_conftest as base
+import e2e_oss.plugins.common.base_conftest as base
 
-from tests.e2e_oss._utils.path_utils import DirLockingHandler
-from tests.e2e_oss._utils.test_utils import class_factory, BrokenTest, BrokenTestException
-from tests.e2e_oss.common_utils import hook_utils
-from tests.e2e_oss.common_utils.env_utils import fix_env_conf
-from tests.e2e_oss.common_utils.logger import get_logger
-from tests.e2e_oss.common_utils.marks import MarkRunType, MarkGeneral
-from tests.e2e_oss.common_utils.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
-from tests.utils.e2e.env_tools import Environment
+from e2e_oss._utils.path_utils import DirLockingHandler
+from e2e_oss._utils.test_utils import class_factory, BrokenTest, BrokenTestException
+from e2e_oss.common_utils import hook_utils
+from e2e_oss.common_utils.env_utils import fix_env_conf
+from e2e_oss.common_utils.logger import get_logger
+from e2e_oss.common_utils.marks import MarkRunType, MarkGeneral
+from e2e_oss.common_utils.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
+from utils.e2e.env_tools import Environment
 
 logger = get_logger(__name__)
 

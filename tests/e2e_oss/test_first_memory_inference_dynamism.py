@@ -19,9 +19,9 @@ import sys
 import pytest
 import yaml
 
-from tests.e2e_oss.plugins.first_inference_tests.common_utils import get_redef_ir, get_reformat_shapes, get_trend
-from tests.e2e_oss.plugins.first_inference_tests.memorytests_utils import run_memorytest, get_compared_memory_results
-from tests.e2e_oss.plugins.first_inference_tests.timetests_utils import get_compared_with_refs_results
+from e2e_oss.plugins.first_inference_tests.common_utils import get_redef_ir, get_reformat_shapes, get_trend
+from e2e_oss.plugins.first_inference_tests.memorytests_utils import run_memorytest, get_compared_memory_results
+from e2e_oss.plugins.first_inference_tests.timetests_utils import get_compared_with_refs_results
 
 pytest_plugins = 'e2e_oss.plugins.reshape_tests.conftest'
 

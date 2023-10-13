@@ -21,8 +21,7 @@
 from _pytest.python import Function
 
 from . import config
-from .config import bug_ids, components_ids, req_ids, test_run_id, test_session_build_number
-from .environment_info import EnvironmentInfo
+from .config import bug_ids, components_ids, req_ids
 from .logger import get_logger
 from .marks import MarkGeneral, MarkRunType
 

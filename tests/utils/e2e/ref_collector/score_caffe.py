@@ -2,8 +2,8 @@ import logging as log
 import os
 import sys
 
-from utils.multiprocessing_utils import multiprocessing_run
-from tests.e2e_oss._utils.path_utils import resolve_file_path
+from e2e_oss.common_utils.multiprocessing_utils import multiprocessing_run
+from e2e_oss._utils.path_utils import resolve_file_path
 from .provider import ClassProvider
 
 os.environ['GLOG_minloglevel'] = '3'

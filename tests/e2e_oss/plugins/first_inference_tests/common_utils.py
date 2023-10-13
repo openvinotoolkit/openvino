@@ -1,8 +1,8 @@
 import glob
 import os
-from tests.e2e_oss.plugins.first_inference_tests.conftest import redefine_mo_out_path, get_non_infer_config
-from tests.e2e_oss._utils.test_utils import check_mo_precision
-from tests.utils.e2e.common.pipeline import Pipeline
+from e2e_oss.plugins.first_inference_tests.conftest import redefine_mo_out_path, get_non_infer_config
+from e2e_oss._utils.test_utils import check_mo_precision
+from utils.e2e.common.pipeline import Pipeline
 
 
 def get_executable_cmd(args: dict):

@@ -1,12 +1,12 @@
 from collections import OrderedDict
 
-from tests.e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
-from tests.e2e_oss.pipelines.pipeline_templates.collect_reference_templates import get_refs_tf_hub
-from tests.e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
-from tests.e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
-from tests.e2e_oss.pipelines.pipeline_templates.input_templates import generate_tf_hub_inputs
-from tests.e2e_oss.pipelines.pipeline_templates.ir_gen_templates import ovc_ir_generation
-from tests.e2e_oss.pipelines.pipeline_templates.tf_hub_loader_template import tf_hub_loader
+from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
+from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import get_refs_tf_hub
+from e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
+from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step
+from e2e_oss.pipelines.pipeline_templates.input_templates import generate_tf_hub_inputs
+from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import ovc_ir_generation
+from e2e_oss.pipelines.pipeline_templates.tf_hub_loader_template import tf_hub_loader
 
 
 class TFHUB_eltwise_Base(CommonConfig):
