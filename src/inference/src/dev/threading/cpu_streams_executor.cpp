@@ -333,6 +333,9 @@ struct CPUStreamsExecutor::Impl {
     // will be counted by thread_local t_stream_count_map.
     // when the customer's thread is destoryed, the stream's count will became 1,
     // Call local() will reuse one of them, and release others.
+    // it's only a workaround for ticket CVS-111490, please be carefully when need to modify
+    // CustomeThreadLocal::local(), especially like operations that will affect the count of
+    // std::shared_ptr<std::thread::id>
     class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
     public:
         CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl)
