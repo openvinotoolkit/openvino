@@ -7,8 +7,6 @@
 #include <vector>
 #include <iostream>
 
-#include "ggml/ggml.h"
-
 namespace ov {
 namespace intel_cpu {
 

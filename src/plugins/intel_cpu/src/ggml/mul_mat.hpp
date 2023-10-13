@@ -12,12 +12,14 @@
 #include <iostream>
 #include <arm_neon.h>
 
-#include "ggml/ggml.h"
+//#include "ggml/ggml.h"
 #include "openvino/core/type/float16.hpp"
 
 
 namespace ov {
 namespace intel_cpu {
+
+#define GGML_MAX_DIMS          4
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -25,24 +27,13 @@ namespace intel_cpu {
 #define GGML_FP16_TO_FP32(x) (static_cast<float>(x))
 #define GGML_FP32_TO_FP16(x) (x)
 
-static inline void print_elements(const char* label, const struct ggml_tensor * t) {
-    if (!t) {
-        printf("%s: %s = null\n", __func__, label);
-        return;
-    }
-    const int nelements = ggml_nelements(t);
-    printf("%s: %s = [", __func__, label);
-    for (int k = 0; k < nelements; ++k) {
-        if (k > 0) { printf(", "); }
-        printf("%.5f", ggml_get_f32_1d(t, k));
-    }
-    printf("] shape: [");
-    for (int k = 0; k < t->n_dims; ++k) {
-        if (k > 0) { printf(", "); }
-        printf("%d", static_cast<int>(t->ne[k]));
-    }
-    printf("] (%d)\n", t->type);//0 - f32; 1 - f16
-}
+#define GGML_PAD(x, n) (((x) + (n) - 1) & ~((n) - 1))
+
+#if UINTPTR_MAX == 0xFFFFFFFF
+    #define GGML_MEM_ALIGN 4
+#else
+    #define GGML_MEM_ALIGN 16
+#endif
 
 static void ggml_vec_dot_f16(const int n, float * s, __fp16 * x, __fp16 * y) {
     double sumf = 0.0;
@@ -114,7 +105,7 @@ static void ggml_vec_dot_f32(const int n, float * s, const float * x, const floa
     *s = sumf;
 }
 
-/*void ggml_fp16_to_fp32_row(const __fp16 * x, float * y, int n) {
+void ggml_fp16_to_fp32_row(const __fp16 * x, float * y, int n) {
     for (int i = 0; i < n; i++) {
         y[i] = GGML_FP16_TO_FP32(x[i]);
     }
@@ -130,25 +121,6 @@ void ggml_fp32_to_fp16_row(const float * x, __fp16 * y, int n) {
     enum ggml_type {
         GGML_TYPE_F32  = 0,
         GGML_TYPE_F16  = 1,
-        GGML_TYPE_Q4_0 = 2,
-        GGML_TYPE_Q4_1 = 3,
-        // GGML_TYPE_Q4_2 = 4, support has been removed
-        // GGML_TYPE_Q4_3 (5) support has been removed
-        GGML_TYPE_Q5_0 = 6,
-        GGML_TYPE_Q5_1 = 7,
-        GGML_TYPE_Q8_0 = 8,
-        GGML_TYPE_Q8_1 = 9,
-        // k-quantizations
-        GGML_TYPE_Q2_K = 10,
-        GGML_TYPE_Q3_K = 11,
-        GGML_TYPE_Q4_K = 12,
-        GGML_TYPE_Q5_K = 13,
-        GGML_TYPE_Q6_K = 14,
-        GGML_TYPE_Q8_K = 15,
-        GGML_TYPE_I8,
-        GGML_TYPE_I16,
-        GGML_TYPE_I32,
-        GGML_TYPE_COUNT,
     };
 
     typedef void (*ggml_to_float_t)  (const void  * x, float * y, int k);
@@ -165,10 +137,10 @@ void ggml_fp32_to_fp16_row(const float * x, __fp16 * y, int n) {
         ggml_from_float_t from_float_reference;
         ggml_vec_dot_t    vec_dot;
         enum ggml_type    vec_dot_type;
-    } ggml_type_traits_t;*/
+    } ggml_type_traits_t;
 
-static const ggml_type_traits_t type_traits[GGML_TYPE_COUNT] = {
-    [GGML_TYPE_F32] = {
+static const ggml_type_traits_t type_traits[2] = {
+    /*[GGML_TYPE_F32] = */{
         .type_name                = "f32",
         .blck_size                = 1,
         .type_size                = sizeof(float),
@@ -176,7 +148,7 @@ static const ggml_type_traits_t type_traits[GGML_TYPE_COUNT] = {
         .vec_dot                  = (ggml_vec_dot_t) ggml_vec_dot_f32,
         .vec_dot_type             = GGML_TYPE_F32,
     },
-    [GGML_TYPE_F16] = {
+    /*[GGML_TYPE_F16] = */{
         .type_name                = "f16",
         .blck_size                = 1,
         .type_size                = sizeof(__fp16),
@@ -191,23 +163,11 @@ static const ggml_type_traits_t type_traits[GGML_TYPE_COUNT] = {
 
 inline static void * ggml_aligned_malloc(size_t size) {
     if (size == 0) {
-        //GGML_PRINT("WARNING: Behavior may be unexpected when allocating 0 bytes for ggml_aligned_malloc!\n");
         return NULL;
     }
     void * aligned_memory = NULL;
     int result = posix_memalign(&aligned_memory, 16, size);
     if (result != 0) {
-        // Handle allocation failure
-        const char *error_desc = "unknown allocation error";
-        switch (result) {
-            case EINVAL:
-                error_desc = "invalid alignment value";
-                break;
-            case ENOMEM:
-                error_desc = "insufficient memory";
-                break;
-        }
-        //GGML_PRINT("%s: %s (attempted to allocate %6.2f MB)\n", __func__, error_desc, size/(1024.0*1024.0));
         return NULL;
     }
     return aligned_memory;
@@ -223,29 +183,19 @@ void ggml_mul_mat(int64_t M,
                   const SrcType* bias_ptr) {
     ggml_type dst_type = GGML_TYPE_F32;
     ggml_type src1_type = GGML_TYPE_F32;
-    ggml_type src0_type;
-    if (std::is_same<SrcType, float>::value) {
-        src0_type = GGML_TYPE_F32;
-    } else if (std::is_same<SrcType, float16>::value) {
-        src0_type = GGML_TYPE_F16;
-    } else {
-        std::cout << "data type is not supported: " << typeid(SrcType).name() << std::endl;
-        return;
-    }
+    ggml_type src0_type = std::is_same<SrcType, float>::value ? GGML_TYPE_F32 : GGML_TYPE_F16;
 
     const size_t mem_size = GGML_PAD(256 * 1024 * 1024, GGML_MEM_ALIGN);
     void* mem_buffer = ggml_aligned_malloc(mem_size);
-    struct ggml_object * obj_cur = NULL;
-    const size_t cur_offs = obj_cur == NULL ? 0 : obj_cur->offs;
-    const size_t cur_size = obj_cur == NULL ? 0 : obj_cur->size;
-    const size_t cur_end  = cur_offs + cur_size;
-    size_t offs = cur_end + sizeof(struct ggml_object);
-    uint8_t * work_data = reinterpret_cast<uint8_t *>(mem_buffer) + offs;
+
+    //TODO: review this change carefully! Possible memory corruption?
+    //size_t offs = sizeof(struct ggml_object);
+    uint8_t * work_data = reinterpret_cast<uint8_t *>(mem_buffer)/* + offs*/;
 
     const int64_t ne[4] = {N, M, 1, 1};
     size_t nb[4] = {0, 0, 0, 0};
-    nb[0] = ggml_type_size(dst_type);
-    nb[1] = nb[0] * (ne[0] / ggml_blck_size(dst_type));
+    nb[0] = type_traits[dst_type].type_size;
+    nb[1] = nb[0] * (ne[0] / type_traits[dst_type].blck_size);
     for (int i = 2; i < GGML_MAX_DIMS; i++) {
         nb[i] = nb[i - 1] * ne[i - 1];
     }
@@ -255,8 +205,8 @@ void ggml_mul_mat(int64_t M,
     const int64_t ne02 = 1;
     const int64_t ne03 = 1;
 
-    const size_t nb00 = ggml_type_size(src0_type);
-    const size_t nb01 = ggml_type_size(src0_type) * (K / ggml_blck_size(src0_type));
+    const size_t nb00 = type_traits[src0_type].type_size;
+    const size_t nb01 = nb00 * (K / type_traits[src0_type].blck_size);
     const size_t nb02 = nb01 * ne01;
     const size_t nb03 = nb02 * ne02;
 
@@ -265,17 +215,11 @@ void ggml_mul_mat(int64_t M,
     const int64_t ne12 = 1;
     const int64_t ne13 = 1;
 
-    const size_t nb10 = ggml_type_size(src1_type);
-    const size_t nb11 = ggml_type_size(src1_type) * (K / ggml_blck_size(src1_type));
+    const size_t nb10 = type_traits[src1_type].type_size;
+    const size_t nb11 = nb10 * (K / type_traits[src1_type].blck_size);
     const size_t nb12 = nb11 * ne11;
     const size_t nb13 = nb12 * ne12;
 
-    const int64_t ne0 = ne[0];
-    const int64_t ne1 = ne[1];
-    const int64_t ne2 = ne[2];
-    const int64_t ne3 = ne[3];
-
-    const size_t nb0 = nb[0];
     const size_t nb1 = nb[1];
     const size_t nb2 = nb[2];
     const size_t nb3 = nb[3];
