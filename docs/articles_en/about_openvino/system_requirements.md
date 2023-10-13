@@ -35,7 +35,7 @@ Intel CPU processors
       * macOS* 10.15 and above, 64-bit 
       * Red Hat Enterprise Linux* 8, 64-bit
 
-Intel® Processor Graphics (GEN Graphics)
+Intel® Processor Graphics
 ###########################################
 
 .. tab-set::
@@ -64,7 +64,7 @@ Intel® Processor Graphics (GEN Graphics)
    | Not all Intel CPUs include the integrated graphics processor. See `Product Specifications <https://ark.intel.com/>`__
      for information about your processor. 
    | Although this release works with Ubuntu 20.04 for discrete graphic cards, the support is limited 
-     due to discrete graphics drivers . 
+     due to discrete graphics drivers. 
    | Recommended `OpenCL™ driver <https://github.com/intel/compute-runtime>`__ versions:
      22.43 for Ubuntu 22.04, 22.41 for Ubuntu 20.04 and 22.28 for Red Hat Enterprise Linux 8 
 
