@@ -11,6 +11,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/tile.hpp"
+#include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -19,16 +20,39 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
-
+bool compare_strides(const std::tuple<size_t, size_t>& a, const std::tuple<size_t, size_t>& b) {
+    return std::get<0>(a) > std::get<0>(b);
+}
 OutputVector translate_as_strided(const NodeContext& context) {
     // "aten::as_strided(Tensor(a) self, SymInt[] size, SymInt[] stride, SymInt? storage_offset=None) -> Tensor(a)"
     num_inputs_check(context, 3, 4);
+    auto decoder = context.get_decoder();
     auto input = context.get_input(0);
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-    auto flat_input = context.mark_node(std::make_shared<v1::Reshape>(input, const_neg_1, false));
+    auto input_strides = decoder->get_input_strides(0);
+    FRONT_END_OP_CONVERSION_CHECK(input_strides.size() != 0,
+                                  "aten::as_strided: Couldn't retrive input stride information from torchscript.");
 
+    std::vector<size_t> idxs(input_strides.size());
+    iota(idxs.begin(), idxs.end(), 0);
+    std::vector<std::tuple<size_t, size_t>> stride_idxs(idxs.size());
+    std::for_each(idxs.rbegin(), idxs.rend(), [&](size_t& idx) {
+        stride_idxs[idx] = {input_strides[idx], idx};
+    });
+
+    std::sort(stride_idxs.begin(), stride_idxs.end(), compare_strides);
+    std::vector<uint64_t> transpose_idx(idxs.size());
+    int transpose_counter = 0;
+    std::for_each(stride_idxs.begin(), stride_idxs.end(), [&](std::tuple<size_t, size_t>& pair) {
+        transpose_idx[transpose_counter] = uint64_t(std::get<1>(pair));
+        transpose_counter++;
+    });
+    auto transpose_idx_const =
+        context.mark_node(v0::Constant::create(element::i32, Shape{transpose_idx.size()}, transpose_idx));
+    auto transposed_input = context.mark_node(std::make_shared<v1::Transpose>(input, transpose_idx_const));
+    auto flat_input = context.mark_node(std::make_shared<v1::Reshape>(transposed_input, const_neg_1, false));
     std::deque<Output<Node>> sizes;
     std::deque<Output<Node>> strides;
     if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {

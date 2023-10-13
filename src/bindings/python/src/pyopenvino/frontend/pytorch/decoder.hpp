@@ -34,6 +34,10 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(ov::PartialShape, TorchDecoder, get_input_shape, index);
     }
 
+    const std::vector<size_t>& get_input_strides(size_t index) const override {
+        PYBIND11_OVERRIDE_PURE(const std::vector<size_t>&, TorchDecoder, get_input_strides, index);
+    }
+
     ov::Any get_input_type(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(ov::Any, TorchDecoder, get_input_type, index);
     }
