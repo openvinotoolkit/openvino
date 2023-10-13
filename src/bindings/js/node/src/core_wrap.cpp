@@ -86,19 +86,33 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info) {
-    if (info.Length() != 2) {
-        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-        return Napi::Value();
-    } else if (info[1].IsString()) {
+    if (info.Length() == 2 && info[1].IsString()) {
         Napi::Object obj = info[0].ToObject();
         auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(obj);
-        std::string device = info[1].ToString();
+        const std::string& device = info[1].ToString();
 
-        ov::CompiledModel compiled_model = _core.compile_model(m->get_model(), device);
+        const auto& compiled_model = _core.compile_model(m->get_model(), device);
         return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+    } else if (info.Length() == 3 && info[1].IsString()) {
+        Napi::Object obj = info[0].ToObject();
+        auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(obj);
+        const std::string& device = info[1].ToString();
+
+        try {
+            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+            const auto& compiled_model = _core.compile_model(m->get_model(), device, config);
+            return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+        } catch (std::exception& e) {
+            reportError(info.Env(), e.what());
+            return info.Env().Undefined();
+        }
+
+    } else if (info.Length() < 2 || info.Length() > 3) {
+        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
+        return info.Env().Undefined();
     } else {
         reportError(info.Env(), "Error while compiling model.");
-        return Napi::Value();
+        return info.Env().Undefined();
     }
 }
 

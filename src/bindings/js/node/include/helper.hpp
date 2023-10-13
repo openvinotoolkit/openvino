@@ -30,6 +30,9 @@ typedef std::variant<napi_valuetype, napi_typedarray_type, js_type> napi_types;
 template <typename TargetType>
 TargetType js_to_cpp(const Napi::CallbackInfo& info, const size_t idx, const std::vector<napi_types>& acceptable_types);
 
+template <typename TargetType>
+TargetType js_to_cpp(const Napi::Value, const std::vector<napi_types>& acceptable_types);
+
 template <>
 int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
                            const size_t idx,
@@ -78,6 +81,16 @@ ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info,
 /** @brief  A template specialization for TargetType ov::Shape */
 template <>
 ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
+                               const size_t idx,
+                               const std::vector<napi_types>& acceptable_types);
+
+/** @brief  A template specialization for TargetType ov::Any */
+template <>
+ov::Any js_to_cpp<ov::Any>(const Napi::Value, const std::vector<napi_types>& acceptable_types);
+
+/** @brief  A template specialization for TargetType std::map<std::string, ov::Any */
+template <>
+std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(const Napi::CallbackInfo& info,
                                const size_t idx,
                                const std::vector<napi_types>& acceptable_types);
 

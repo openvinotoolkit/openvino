@@ -153,6 +153,41 @@ ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
 }
 
 template <>
+ov::Any js_to_cpp<ov::Any>(Napi::Value value, const std::vector<napi_types>& acceptable_types) {
+    if (!acceptableType(value, acceptable_types)) {
+        OPENVINO_THROW(std::string("Cannot convert Napi::Value to ov::Any"));
+    }
+    if (value.IsString()) {
+        return value.ToString().Utf8Value();
+    } else if (value.IsNumber()) {
+        return value.ToNumber().Int32Value();
+    } else {
+        OPENVINO_THROW(std::string("The conversion is not supported yet."));
+    }
+}
+
+template <>
+std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(
+    const Napi::CallbackInfo& info,
+    const size_t idx,
+    const std::vector<napi_types>& acceptable_types) {
+    const auto elem = info[idx];
+    if (!acceptableType(elem, acceptable_types)) {
+        OPENVINO_THROW(std::string("Cannot convert Napi::Value to std::map<std::string, ov::Any>"));
+    }
+    std::map<std::string, ov::Any> properties_to_cpp;
+    const auto& config = elem.ToObject();
+    const auto& keys = config.GetPropertyNames();
+
+    for (size_t i = 0; i < keys.Length(); ++i) {
+        const std::string& option = static_cast<Napi::Value>(keys[i]).ToString();
+        properties_to_cpp[option] = js_to_cpp<ov::Any>(config.Get(option), {napi_string});
+    }
+
+    return properties_to_cpp;
+}
+
+template <>
 Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info,
                                                           const ov::element::Type_t type) {
     return Napi::String::New(info.Env(), ov::element::Type(type).to_string());
