@@ -8,17 +8,15 @@
 
 #include "common_test_utils/test_constants.hpp"
 
-using namespace SubgraphTestsDefinitions;
+using namespace ov::test;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                               InferenceEngine::Precision::FP16};
+const std::vector<ov::element::Type> netPrecisions = {ov::element::f32};
 
-const std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "81.9175"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
+const std::vector<ov::AnyMap> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "81.9175"}},
+                                         {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
-std::vector<std::vector<size_t>> input_shapes = {{1, 8}, {1, 42}, {1, 100}, {1, 128}, {1, 512}};
+std::vector<ov::Shape> input_shapes = {{1, 8}, {1, 42}, {1, 100}, {1, 128}, {1, 512}};
 
 std::vector<size_t> output_sizes = {1000, 512, 128, 42, 16, 8};
 

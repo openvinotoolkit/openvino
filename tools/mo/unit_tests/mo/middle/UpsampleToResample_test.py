@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.middle.UpsampleToResample import UpsampleToResample
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
@@ -41,7 +40,7 @@ new_ref_graph_node_attr = {
     'ss_stride_data': {'kind': 'data', 'value': int64_array([1]), 'shape': int64_array([1])},
     'strided_slice': {'type': 'StridedSlice', 'kind': 'op', 'op': 'StridedSlice'},
     'strided_slice_data': {'kind': 'data', 'shape': None, 'value': None},
-    'cast_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float},
+    'cast_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float32},
     'cast_to_float_d': {'kind': 'data', 'value': None, 'shape': None},
     'factor': {'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([5, 5]), 'shape': int64_array([2])},
     'factor_data': {'kind': 'data', 'value': int64_array([5, 5]), 'shape': int64_array([2])},
@@ -105,7 +104,7 @@ ref_graph_node_attrs = {
     'ss_end_data': {'kind': 'data', 'value': None, 'shape': None},
     'ss_stride': {'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([1]), 'shape': int64_array([1])},
     'ss_stride_data': {'kind': 'data', 'value': None, 'shape': None},
-    'cast_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float},
+    'cast_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float32},
     'cast_to_float_d': {'kind': 'data', 'value': None, 'shape': None},
     'mul': {'type': 'Multiply', 'kind': 'op', 'op': 'Multiply'},
     'mul_data': {'kind': 'data', 'shape': None, 'value': None},
@@ -143,9 +142,8 @@ ref_graph_edges = [
 ]
 
 
-@generator
-class UpsampleToResampleTest(unittest.TestCase):
-    @generate(*[([2, 10, 20, 30], [1, 1, 5, 5], [2, 3]),
+class TestUpsampleToResampleTest():
+    @pytest.mark.parametrize("input_shape, scales, axes",[([2, 10, 20, 30], [1, 1, 5, 5], [2, 3]),
                 ([2, 20, 30, 40], [1, 1, 3, 3], [2, 3]),
                 ([2, 10, 20, 30], [1, 1, 6, 5], [2, 3]),
                 ([2, 20, 30, 40], [1, 1, 3, 4], [2, 3]),
@@ -193,9 +191,9 @@ class UpsampleToResampleTest(unittest.TestCase):
                                 })
         UpsampleToResample().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
-    @generate(*[([2, 10, 20, 30], [1, 2, 5, 5],),
+    @pytest.mark.parametrize("input_shape, scales",[([2, 10, 20, 30], [1, 2, 5, 5],),
                 ([2, 3, 20, 30, 40], [1, 2, 3, 3, 3],),
                 ])
     def test_pattern_does_not_satisfy(self, input_shape, scales):
@@ -214,4 +212,4 @@ class UpsampleToResampleTest(unittest.TestCase):
 
         UpsampleToResample().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-        self.assertTrue(flag, resp)
+        assert flag, resp
