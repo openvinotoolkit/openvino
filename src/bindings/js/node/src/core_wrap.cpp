@@ -56,29 +56,29 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
     std::string bin_path;
 
     try {
-        switch(info.Length()) {
-            case 2:
-                if (!info[1].IsString())
-                    throw std::runtime_error("Second argument should be string");
+        switch (info.Length()) {
+        case 2:
+            if (!info[1].IsString())
+                throw std::runtime_error("Second argument should be string");
 
-                bin_path = info[1].ToString();
-                [[fallthrough]];
-            case 1:
-                if (!info[0].IsString())
-                    throw std::runtime_error("First argument should be string");
+            bin_path = info[1].ToString();
+            [[fallthrough]];
+        case 1:
+            if (!info[0].IsString())
+                throw std::runtime_error("First argument should be string");
 
-                model_path = info[0].ToString();
-                break;
+            model_path = info[0].ToString();
+            break;
 
-            default:
-                throw std::runtime_error("Invalid number of arguments -> " + std::to_string(info.Length()));
+        default:
+            throw std::runtime_error("Invalid number of arguments -> " + std::to_string(info.Length()));
         }
 
         ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), model_path, bin_path);
         _readerWorker->Queue();
 
         return _readerWorker->GetPromise();
-    } catch (std::runtime_error &err) {
+    } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
 
         return Napi::Value();
@@ -90,6 +90,13 @@ Napi::Value CoreWrap::compile_model_sync_helper(const Napi::CallbackInfo& info,
                                                 const Napi::String& device) {
     auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
     const auto& compiled_model = _core.compile_model(m->get_model(), device);
+    return CompiledModelWrap::Wrap(info.Env(), compiled_model);
+}
+
+Napi::Value CoreWrap::compile_model_sync_helper(const Napi::CallbackInfo& info,
+                                                const Napi::String& model_path,
+                                                const Napi::String& device) {
+    const auto& compiled_model = _core.compile_model(model_path, device);
     return CompiledModelWrap::Wrap(info.Env(), compiled_model);
 }
 
@@ -111,27 +118,26 @@ Napi::Value CoreWrap::compile_model_sync_helper(const Napi::CallbackInfo& info,
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info) {
-    if (info.Length() == 2 && info[1].IsString()) {
-        return compile_model_sync_helper(info, info[0].ToObject(), info[1].ToString());
-
-    } else if (info.Length() == 3 && info[1].IsString()) {
-        try {
+    try {
+        if (info.Length() == 2 && info[0].IsString() && info[1].IsString()) {
+            return compile_model_sync_helper(info, info[0].ToString(), info[1].ToString());
+        } else if (info.Length() == 2 && info[0].IsObject() && info[1].IsString()) {
+            return compile_model_sync_helper(info, info[0].ToObject(), info[1].ToString());
+        } else if (info.Length() == 3 && info[0].IsString() && info[1].IsString()) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
-            if (info[0].IsString()) {
-                return compile_model_sync_helper(info, info[0].ToString(), info[1].ToString(), config);
-            } else {
-                return compile_model_sync_helper(info, info[0].ToObject(), info[1].ToString(), config);
-            }
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
+            return compile_model_sync_helper(info, info[0].ToString(), info[1].ToString(), config);
+        } else if (info.Length() == 3 && info[0].IsObject() && info[1].IsString()) {
+            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+            return compile_model_sync_helper(info, info[0].ToObject(), info[1].ToString(), config);
+        } else if (info.Length() < 2 || info.Length() > 3) {
+            reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
+            return info.Env().Undefined();
+        } else {
+            reportError(info.Env(), "Error while compiling model.");
             return info.Env().Undefined();
         }
-
-    } else if (info.Length() < 2 || info.Length() > 3) {
-        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-        return info.Env().Undefined();
-    } else {
-        reportError(info.Env(), "Error while compiling model.");
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
         return info.Env().Undefined();
     }
 }
