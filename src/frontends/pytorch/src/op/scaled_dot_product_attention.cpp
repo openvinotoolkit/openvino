@@ -3,7 +3,6 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -24,6 +23,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
