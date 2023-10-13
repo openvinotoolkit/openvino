@@ -76,7 +76,8 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
         ["need_weights", "average_attn_weights"], 
         [[False, False], [True, False], [True, True]]
     )
-    @pytest.mark.skipif(platform.system() == 'Darwin' and platform.machine() == 'arm64', reason='Ticket - 122715')
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_native_multi_head_attention(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
         self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights), 
                    None, "aten::_native_multi_head_attention", ie_device, precision, ir_version) 

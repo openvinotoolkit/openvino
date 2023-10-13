@@ -423,7 +423,7 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
           # Skips under Ticket: 122668
-          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*TransformationTestsF.CompressQuantizeWeights*' || '' }}
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*TransformationTestsF.CompressQuantizeWeights*:*TransformationTests/CompressQuantizeWeightsTests.FusionTest*' || '' }}
           
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml

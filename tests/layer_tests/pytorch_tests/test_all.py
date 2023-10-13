@@ -70,7 +70,8 @@ class TestAll(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.skipif(platform.system() == 'Darwin' and platform.machine() == 'arm64', reason='Ticket - 122715')
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_all(self, input_tensor, keepdim, ie_device, precision, ir_version):
         self.input_tensor = input_tensor
         for dim in range(len(input_tensor.shape)):
