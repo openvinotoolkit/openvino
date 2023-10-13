@@ -13,10 +13,6 @@
 #include <thread>
 #include <vector>
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <immintrin.h>
-#endif
-
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
 #include "openvino/itt.hpp"
@@ -24,6 +20,9 @@
 #include "openvino/runtime/threading/cpu_streams_executor_internal.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <immintrin.h>
+#endif
 
 namespace ov {
 namespace threading {
@@ -144,7 +143,7 @@ struct CPUStreamsExecutor::Impl {
             _socketId = get_socket_by_numa_node(_numaNodeId);
 
 #    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-            unsigned int mxcsrOld = _mm_getcsr();
+            unsigned int mxcsr_old = _mm_getcsr();
             if (_impl->_config._opt_denormals_for_tbb) {
                 // Refer: src/plugins/intel_cpu/src/utils/denormals.hpp
                 unsigned int mxcsr = _mm_getcsr();
@@ -199,7 +198,7 @@ struct CPUStreamsExecutor::Impl {
 #    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
             if (_impl->_config._opt_denormals_for_tbb) {
                 // Recover the default setting to avoid impacting the custumer's application.
-                _mm_setcsr(mxcsrOld);
+                _mm_setcsr(mxcsr_old);
             }
 #    endif
         }

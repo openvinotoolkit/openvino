@@ -11,7 +11,7 @@
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
 #include <openvino/core/type/element_type.hpp>
-#include "openvino/core/parallel.hpp"
+#include <ie_parallel.hpp>
 
 #include <bitset>
 #include <string>

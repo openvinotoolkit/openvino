@@ -29,8 +29,6 @@
 #include "ie_icore.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "utils/denormals.hpp"
-#include <cpu/x64/cpu_isa_traits.hpp>
 
 #include <algorithm>
 #include <unordered_set>
