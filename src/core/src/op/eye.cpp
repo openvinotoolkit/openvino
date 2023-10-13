@@ -8,7 +8,6 @@
 #include "eye_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/util/evaluate_helpers.hpp"
 #include "openvino/reference/eye.hpp"
 
 namespace ov {
@@ -107,7 +106,7 @@ bool Eye::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OPENVINO_ASSERT(outputs.size() == 1);
 
     // Inputs size and shapes checked by shape_infer
-    const auto input_shapes = util::get_tensors_partial_shapes(inputs);
+    const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
     const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
 
     int64_t diagonal_index;
