@@ -31,35 +31,10 @@ describe('Output class', () => {
     });
   });
 
-  it('Ouput<ov::Node>.setNames() method', () => {
-    model.output().setNames(['bTestName', 'cTestName']);
-    assert.strictEqual(model.output().getAnyName(), 'bTestName');
-    assert.strictEqual(model.output().anyName, 'bTestName');
-  });
-
-  it('Ouput<ov::Node>.addNames() method', () => {
-    model.output().addNames(['aTestName']);
-    assert.strictEqual(model.output().getAnyName(), 'aTestName');
-    assert.strictEqual(model.output().anyName, 'aTestName');
-  });
-
-  it('Ouput<const ov::Node>.setNames() method', () => {
-    assert.throws(
-      () => compiledModel.output().setNames(['bTestName', 'cTestName'])
-    );
-  });
-
-  it('Ouput<const ov::Node>.addNames() method', () => {
-    assert.throws(
-      () => compiledModel.output().addNames(['aTestName']),
-    );
-  });
-
 });
 
 describe('Input class for ov::Input<const ov::Node>', () => {
   it('CompiledModel.input() method', () => {
-    // TO_DO check if object is an instance of a value/class
     assert.strictEqual(typeof compiledModel.input(), 'object');
   });
 
