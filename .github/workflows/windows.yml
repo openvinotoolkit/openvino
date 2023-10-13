@@ -56,6 +56,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
+          ref: 'master'
 
       #
       # Dependencies
