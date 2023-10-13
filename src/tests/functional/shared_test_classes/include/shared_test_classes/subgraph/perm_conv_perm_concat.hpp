@@ -27,7 +27,6 @@ public:
 
 protected:
     void SetUp() override;
-    void run() override;
 };
 
 }  // namespace test

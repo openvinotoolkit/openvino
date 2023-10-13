@@ -96,17 +96,5 @@ void PermConvPermConcat::SetUp() {
     function = std::make_shared<ov::Model>(reshape_out, input_parameter, "perm_conv_perm_concat");
 }
 
-void PermConvPermConcat::run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    compile_model();
-
-    inferRequest = compiledModel.create_infer_request();
-    inputs.clear();
-
-    inferRequest.infer();
-
-    validate();
-}
 }  // namespace test
 }  // namespace ov
