@@ -27,9 +27,9 @@ TEST_F(CompileModelsTests, NgramCompilation) {
 
 #ifdef OPENVINO_ARCH_ARM64
 // Ticket: CVS-122396
-TEST_P(CompileModelsTests, DISABLED_ModelWithSplitConvConcat)
+TEST_F(CompileModelsTests, DISABLED_ModelWithSplitConvConcat)
 #else
-TEST_P(CompileModelsTests, ModelWithSplitConvConcat)
+TEST_F(CompileModelsTests, ModelWithSplitConvConcat)
 #endif
 {
     {
