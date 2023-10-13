@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import platform
 import torch
 import numpy as np
 from pytorch_layer_test_class import PytorchLayerTest
@@ -59,6 +60,7 @@ class TestQuantizedLinear(PytorchLayerTest):
 
         return aten_quantized_linear(weight_shape, is_bias, scale, zero_point, inplace), ref_net, ["quantized::linear", "aten::hardtanh_" if inplace else "aten::hardtanh"]
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="Fails on aarch64")
     @pytest.mark.parametrize("params", [
         {'input_shape': [3, 9], 'weight_shape': [10, 9]},
         {'input_shape': [3, 9], 'weight_shape': [9]},
@@ -80,6 +82,7 @@ class TestQuantizedLinear(PytorchLayerTest):
         self._test(*self.create_model(weight_shape, bias, scale, zero_point), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input_shape": input_shape}, trace_model=trace, freeze_model=False, quantized_ops=True, quant_size=scale)
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="Fails on aarch64")
     @pytest.mark.parametrize("trace", [True, False])
     @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly

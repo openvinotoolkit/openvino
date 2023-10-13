@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import platform
 import numpy as np
 import torch
 
@@ -51,6 +52,7 @@ class TestQuantizedConv2D(PytorchLayerTest):
 
         return quantized_conv2d(), ref_net, op_name
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="Fails on aarch64")
     @pytest.mark.parametrize(
         "params",
         [

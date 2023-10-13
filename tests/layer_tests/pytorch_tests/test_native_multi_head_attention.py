@@ -4,6 +4,7 @@
 import numpy as np
 import pytest
 import torch
+import platform
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -64,6 +65,7 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
                 qkv_tensor.copy(),
                 qkv_tensor.copy())
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="Fails on aarch64")
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize(

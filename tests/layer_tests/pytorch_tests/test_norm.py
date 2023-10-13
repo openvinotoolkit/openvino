@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import platform
 import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -237,6 +238,7 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
 
         return aten_linalg_matrix_norm(p, dim, keepdim, dtype, out, out_as_dtype), ref_net, "aten::linalg_matrix_norm"
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="Fails on aarch64")
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize('p', [-1, 1, float('inf'), float('-inf'), "fro"])

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import platform
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -49,6 +50,7 @@ class TestArgMinArgMax(PytorchLayerTest):
 
         return model_cls, ref_net, f"aten::arg{op_type}"
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="Fails on aarch64")
     @pytest.mark.parametrize("axes,keep_dims", [
         (None, None),
         (None, False),

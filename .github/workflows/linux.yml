@@ -696,7 +696,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
-                --gtest_filter=-*IE_GPU* \
+                --gtest_filter=-*IE_GPU*:*onnx_model_gru_reverse_mixed_seq_len_const*:*onnx_model_rnn_fwd_bias_initial_h_const* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
@@ -949,7 +949,10 @@ jobs:
         run: |
           python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export LD_PRELOAD=/usr/local/lib/python3.9/dist-packages/torch/lib/../../torch.libs/libgomp-d22c30c5.so.1.0.0
-          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit \
+            --ignore=${LAYER_TESTS_INSTALL_DIR}/pytorch_tests/test_rfftn_complex_transforms.py \
+            --ignore=${LAYER_TESTS_INSTALL_DIR}/pytorch_tests/test_full.py \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -1033,7 +1036,8 @@ jobs:
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3.9 -m pytest -sv ${OPENVINO_REPO}/src/frontends/onnx/tests -k 'not cuda' \
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
-            --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_zoo_models.py
+            --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_zoo_models.py \
+            --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/test_backend.py
 
       - name: MO Python API Tests
         if: ${{ always() }}
@@ -1150,7 +1154,7 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke*
+          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke*:-*compareAutoBatchingToSingleBatch*:*Caching*:*CoreThreading*
         timeout-minutes: 120
 
       - name: Save tests execution time

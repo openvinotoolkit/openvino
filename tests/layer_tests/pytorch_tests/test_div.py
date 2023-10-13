@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import platform
 import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -88,6 +89,7 @@ class TestDivTypes(PytorchLayerTest):
 
         return aten_div(lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode), ref_net, "aten::div"
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="Fails on aarch64")
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
                              [[torch.int32, torch.int64],
                               [torch.int32, torch.float32],

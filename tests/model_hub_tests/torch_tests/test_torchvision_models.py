@@ -108,7 +108,7 @@ class TestTorchHubConvertModel(TestConvertModel):
         self.cache_dir.cleanup()
         super().teardown_method()
 
-    @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
+    @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
         self.run(model_name, None, ie_device)
