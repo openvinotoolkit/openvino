@@ -33,18 +33,9 @@ public:
     std::shared_ptr<dnnl::primitive_attr> initPrimitiveAttr() override;
 
     void execute(dnnl::stream strm) override;
-    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
-
 
     inline bool hasNativeOrder() const {
         return nativeOrder;
-    }
-    size_t descInputNumbers() override {
-        return getOriginalInputsNumber();
-    }
-
-    size_t descOutputNumbers() override {
-        return getOriginalOutputsNumber();
     }
 
     void cleanup() override;
@@ -76,7 +67,6 @@ private:
     void fillBiases(const int* gate_map);
 
     void copyWeightsData();
-    NodeConfig rnn_config;
 
     class RnnDnnlExecutor : public DnnlExecutor {
         public:
