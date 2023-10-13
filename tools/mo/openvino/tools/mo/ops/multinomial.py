@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
 from openvino.tools.mo.front.extractor import bool_to_str
-from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
+from openvino.tools.mo.graph.graph import Graph, Node
+
 from openvino.tools.mo.ops.op import Op
 
 
