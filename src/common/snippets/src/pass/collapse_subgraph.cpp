@@ -16,7 +16,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/core/validation_util.hpp"
 
 #include <memory>
