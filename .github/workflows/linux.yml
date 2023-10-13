@@ -1364,9 +1364,9 @@ jobs:
 
       - name: Install E2E TF Hub tests requirements
         run: |
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/model_hub_tests/tf_hub_tests/requirements.txt
+          python3 -m pip install -r ${E2E_TESTS_INSTALL_DIR}/requirements.txt
 
-      - name: TensorFlow Hub Tests - TF FE
+      - name: E2E TensorFlow Hub Tests - TF FE
         run: |
           export PYTHONPATH=${E2E_TESTS_INSTALL_DIR}:$PYTHONPATH
           pytest ${E2E_TESTS_INSTALL_DIR}/test_ovc_mo.py --html=${E2E_TESTS_INSTALL_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
