@@ -67,8 +67,6 @@ interface Output {
   getAnyName(): string;
   getShape(): number[];
   getPartialShape(): number[];
-  setNames(names: string[]): void;
-  getNames(): string[];
 }
 
 interface PrePostProcessor {
