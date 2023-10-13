@@ -102,8 +102,8 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
         scaled_atten = context.mark_node(std::make_shared<v1::Add>(scaled_atten, atten_mask));
     }
     if (!(scaled_atten->is_dynamic()) && scaled_atten->get_output_partial_shape(0).rank() == 4) {
-        const std::vector<size_t> *scaled_atten_v = &(scaled_atten->get_shape());
-        std::vector<size_t> softmax_shape_v((*scaled_atten_v).begin()+1, (*scaled_atten_v).end());
+        const std::vector<size_t>* scaled_atten_v = &(scaled_atten->get_shape());
+        std::vector<size_t> softmax_shape_v((*scaled_atten_v).begin() + 1, (*scaled_atten_v).end());
         softmax_shape_v[0] *= (*scaled_atten_v)[0];
         std::vector<size_t> matmul_shape_v(*scaled_atten_v);
         auto softmax_shape = context.mark_node(v0::Constant::create(element::i32, Shape{3}, softmax_shape_v));
