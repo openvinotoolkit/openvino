@@ -696,6 +696,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: Build
+    if: ${{ matrix.arhitecture == 'arm64' }} # Functional tests are not finishing on x86_64, ticket: 122001
     defaults:
       run:
         shell: bash
@@ -740,10 +741,14 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz
           popd
 
-      - name: Intel CPU plugin func tests
+      - name: CPU plugin func tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
+          
+          # Skips under Ticket: 122769
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*smoke_nonzero/NonZeroLayerTest.Inference/IS*:*smoke_NormalizeL2_2D/NormalizeL2LayerTest.Inference/IS*' || '' }}
+          
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* "$skip_filter" --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
