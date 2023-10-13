@@ -1,17 +1,16 @@
 from collections import OrderedDict
 from pathlib import Path
 
-from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
-from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import get_refs_mxnet, read_refs_pipeline
-from e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
-from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
-from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
 from tests.e2e_oss._utils.path_utils import prepend_with_env_path, ref_from_model
+from tests.e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
+from tests.e2e_oss.pipelines.pipeline_templates.collect_reference_templates import get_refs_mxnet, read_refs_pipeline
+from tests.e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
+from tests.e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
+from tests.e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
 
 
 class MXNET_Synthetic_LSTM_Base(CommonConfig):
     def __init__(self, batch, device, precision, api_2, **kwargs):
-
         infer_api = 'ie_sync_api_2' if api_2 else 'ie_sync'
         model_env_key = "mxnet_internal_models"
         input_file = str(Path("test_data/inputs/mxnet/synthetic_lstm_input_no_batch.npz"))
@@ -25,12 +24,12 @@ class MXNET_Synthetic_LSTM_Base(CommonConfig):
             ("postprocess", {"align_with_batch": {"batch": batch}})
         ]),
             'store_path': ref_from_model(self.model_name, framework='mxnet'),
-			'store_path_for_ref_save': ref_from_model(self.model_name, framework='mxnet', check_empty_ref_path=False)
-			}
-        
+            'store_path_for_ref_save': ref_from_model(self.model_name, framework='mxnet', check_empty_ref_path=False)
+        }
+
         self.ref_pipeline = read_refs_pipeline(ref_file=ref_from_model(model_name=self.model_name, framework='mxnet'),
-												   batch=batch)
-        
+                                               batch=batch)
+
         self.ie_pipeline = OrderedDict([
             # 1. Read Input data
             read_npz_input(path=input_file),

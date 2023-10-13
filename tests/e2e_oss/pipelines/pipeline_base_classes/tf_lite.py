@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from common_utils.ir_providers.tf_helper import TFVersionHelper
+from tests.e2e_oss.common_utils.tf_helper import TFVersionHelper
 from tests.e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
 from tests.e2e_oss.pipelines.pipeline_templates.comparators_template import classification_comparators
 from tests.e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_step

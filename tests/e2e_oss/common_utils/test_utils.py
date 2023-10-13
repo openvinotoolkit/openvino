@@ -1,4 +1,6 @@
 import logging as log
+import subprocess
+import sys
 from typing import Union
 import tensorflow as tf
 
@@ -111,3 +113,30 @@ def name_aligner(infer_result, reference, xml=None):
         infer_result[next(iter(reference))] = infer_result.pop(next(iter(infer_result)))
 
     return infer_result, reference
+
+
+def shell(cmd, env=None, cwd=None, out_format="plain", log=True):
+    """
+    Run command execution in specified environment
+
+    :param cmd: list containing command and its parameters
+    :param env: set of environment variables to set for this command
+    :param cwd: working directory from which execute call
+    :param out_format: 'plain' or 'html'. If 'html' all '\n; symbols are replaced by '<br>' tag
+    :param log: display output info into sys.stdout or not
+    :return: returncode, stdout, stderr
+    """
+    if sys.platform.startswith('linux') or sys.platform == 'darwin':
+        cmd = ['/bin/bash', '-c', "unset OMP_NUM_THREADS; " + " ".join(cmd)]
+    else:
+        cmd = " ".join(cmd)
+    if log:
+        sys.stdout.write("Running command:\n" + "".join(cmd) + "\n")
+    p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (stdout, stderr) = p.communicate()
+    stdout = str(stdout.decode('utf-8'))
+    stderr = str(stderr.decode('utf-8'))
+    if out_format == "html":
+        stdout = "<br>\n".join(stdout.split('\n'))
+        stderr = "<br>\n".join(stderr.split('\n'))
+    return p.returncode, stdout, stderr

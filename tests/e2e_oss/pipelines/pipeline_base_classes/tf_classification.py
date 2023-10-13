@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from common_utils.ir_providers.tf_helper import TFVersionHelper
+from tests.e2e_oss.common_utils.tf_helper import TFVersionHelper
 from tests.e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
 from tests.e2e_oss.pipelines.pipeline_templates.collect_reference_templates import collect_tf_refs_pipeline
 from tests.e2e_oss.pipelines.pipeline_templates.collect_reference_templates import read_refs_pipeline

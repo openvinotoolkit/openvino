@@ -4,8 +4,8 @@ import os
 import statistics
 import tempfile
 import yaml
-from utils.legacy.common_utils import shell
 from .common_utils import get_executable_cmd, deviation
+from ...common_utils.test_utils import shell
 
 
 def parse_stats(stats: dict, res: dict):

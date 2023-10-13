@@ -3,7 +3,7 @@ from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from utils.e2e.env_tools import Environment
+from tests.utils.e2e.env_tools import Environment
 
 
 def redefine_mo_out_path(instance, pipeline):

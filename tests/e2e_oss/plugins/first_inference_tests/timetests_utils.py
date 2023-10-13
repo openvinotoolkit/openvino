@@ -6,8 +6,8 @@ import tempfile
 import numpy as np
 import yaml
 
-from utils.legacy.common_utils import shell
 from .common_utils import get_executable_cmd
+from ...common_utils.test_utils import shell
 
 # Define a range to cut outliers which are < Q1 ? IQR_CUTOFF * IQR, and > Q3 + IQR_CUTOFF * IQR
 # https://en.wikipedia.org/wiki/Interquartile_range
