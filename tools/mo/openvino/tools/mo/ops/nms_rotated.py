@@ -5,8 +5,7 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value, \
-    set_input_shapes, undefined_shape_of_rank
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from openvino.tools.mo.front.extractor import bool_to_str
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
@@ -16,7 +15,7 @@ from openvino.tools.mo.utils.error import Error
 
 class NMSRotated(Op):
     op = 'NMSRotated'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
@@ -25,11 +24,7 @@ class NMSRotated(Op):
             'version': 'opset13',
 
             'infer': self.infer,
-            'reverse_infer': self.reverse_infer,
             'type_infer': self.type_infer,
-
-            # 'force_precision_in_ports': {
-            #     2: 'int64'},
 
             'sort_result_descending': True,
             'output_type': np.int64,
@@ -42,11 +37,8 @@ class NMSRotated(Op):
 
     def backend_attrs(self):
         return [('sort_result_descending', lambda node: bool_to_str(node, 'sort_result_descending')),
-                ('output_type', lambda node: np_data_type_to_destination_type(
-                    node.output_type)),
+                'output_type',
                 ('clockwise', lambda node: bool_to_str(node, 'clockwise'))]
-
-        # return ['sort_result_descending', 'output_type', 'clockwise']
 
     def supported_attrs(self):
         return [
@@ -77,14 +69,12 @@ class NMSRotated(Op):
             node.out_port(2).data.set_shape(shape_array([1]))
 
     @staticmethod
-    def type_infer(node):
-        node.out_port(0).set_data_type(node.output_type)
-        if node.has_port('out', 1):
-            node.out_port(1).set_data_type(np.float32)
-        if node.has_port('out', 2):
-            node.out_port(2).set_data_type(node.output_type)
-
-    @staticmethod
-    def reverse_infer(node):
-        set_input_shapes(node, undefined_shape_of_rank(3),
-                         undefined_shape_of_rank(3))
+    def type_infer(node: Node):
+        node.out_port(1).set_data_type(np.float32)
+        assert node.has_valid('output_type')
+        if node['output_type'] == 'i32':
+            node.out_port(0).set_data_type(np.int32)
+            node.out_port(2).set_data_type(np.int32)
+        else:
+            node.out_port(0).set_data_type(np.int64)
+            node.out_port(2).set_data_type(np.int64)
