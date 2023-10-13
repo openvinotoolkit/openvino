@@ -78,7 +78,7 @@ swin_b,none
 swin_s,none
 swin_t,none
 swin_v2_b,none
-swin_v2_s,none,xfail, ARM CPU fails
+swin_v2_s,none,xfail,ARM CPU fails
 swin_v2_t,none
 vgg11,none
 vgg11_bn,none

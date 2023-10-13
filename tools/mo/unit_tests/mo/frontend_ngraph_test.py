@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import unittest
+import platform
 from unittest.mock import patch
 
 from openvino.tools.mo.subprocess_main import setup_env, subprocess_main
@@ -110,7 +111,7 @@ def test_mo_extensions_test():
     status = subprocess.run(args, env=os.environ)
     assert not status.returncode
 
-
+@pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="CVS-122771")
 @pytest.mark.xfail(sys.version_info > (3, 10), reason="Ticket: 95904")
 def test_mo_fallback_test():
     setup_env()
