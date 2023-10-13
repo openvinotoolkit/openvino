@@ -43,19 +43,6 @@ public:
 };
 
 /**
- * @brief Number of elements in spanned by a shape
- * @ingroup ov_model_cpp_api
- */
-template <typename SHAPE_TYPE>
-size_t shape_size(const SHAPE_TYPE& shape) {
-    size_t size = 1;
-    for (auto d : shape) {
-        size *= d;
-    }
-    return size;
-}
-
-/**
  * Number of elements in a subset of dimensions of a shape.
  * Returns a product of dimensions in a range [start_dim;end_dim)
  * @ingroup ov_model_cpp_api
@@ -70,6 +57,15 @@ size_t shape_size(ForwardIt start_dim, const ForwardIt end_dim) {
                            end_dim,
                            typename std::iterator_traits<ForwardIt>::value_type{1},
                            std::multiplies<typename std::iterator_traits<ForwardIt>::value_type>());
+}
+
+/**
+ * @brief Number of elements in spanned by a shape
+ * @ingroup ov_model_cpp_api
+ */
+template <typename SHAPE_TYPE>
+size_t shape_size(const SHAPE_TYPE& shape) {
+    return shape_size(shape.begin(), shape.end());
 }
 
 /// Row-major strides for a shape
