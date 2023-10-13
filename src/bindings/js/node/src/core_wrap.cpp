@@ -142,31 +142,67 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info) {
     }
 }
 
-struct TsfnContext {
-    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
-
-    Napi::Promise::Deferred deferred;
-    std::shared_ptr<ov::Model> _model;
-    std::string _device;
+struct TsfnContextModel {
+    TsfnContextModel(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
     std::thread nativeThread;
 
-    ov::CompiledModel _compiled_model;
+    Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
+
+    std::shared_ptr<ov::Model> _model;
+    std::string _device;
+    ov::CompiledModel _compiled_model;
+    std::map<std::string, ov::Any> _config = {};
 };
 
-void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
+struct TsfnContextPath {
+    TsfnContextPath(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+    std::thread nativeThread;
+
+    Napi::Promise::Deferred deferred;
+    Napi::ThreadSafeFunction tsfn;
+
+    std::string _model;
+    std::string _device;
+    ov::CompiledModel _compiled_model;
+    std::map<std::string, ov::Any> _config = {};
+};
+
+void FinalizerCallbackModel(Napi::Env env, void* finalizeData, TsfnContextModel* context) {
     context->nativeThread.join();
     delete context;
 };
 
-void compileModelThread(TsfnContext* context) {
-    ov::Core core;
-    context->_compiled_model = core.compile_model(context->_model, context->_device);
+void FinalizerCallbackPath(Napi::Env env, void* finalizeData, TsfnContextPath* context) {
+    context->nativeThread.join();
+    delete context;
+};
 
-    auto callback = [](Napi::Env env, Napi::Function _, TsfnContext* context) {
+void compileModelThreadModel(TsfnContextModel* context) {
+    ov::Core core;
+    context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
+
+    auto callback = [](Napi::Env env, Napi::Function _, TsfnContextModel* context) {
         Napi::HandleScope scope(env);
-        Napi::Object obj = CompiledModelWrap::GetClassConstructor(env).New({});
-        CompiledModelWrap* cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
+        auto obj = CompiledModelWrap::GetClassConstructor(env).New({});
+        auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
+        cm->set_compiled_model(context->_compiled_model);
+
+        context->deferred.Resolve(obj);
+    };
+
+    context->tsfn.BlockingCall(context, callback);
+    context->tsfn.Release();
+}
+
+void compileModelThreadPath(TsfnContextPath* context) {
+    ov::Core core;
+    context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
+
+    auto callback = [](Napi::Env env, Napi::Function _, TsfnContextPath* context) {
+        Napi::HandleScope scope(env);
+        auto obj = CompiledModelWrap::GetClassConstructor(env).New({});
+        auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
         cm->set_compiled_model(context->_compiled_model);
 
         context->deferred.Resolve(obj);
@@ -178,14 +214,19 @@ void compileModelThread(TsfnContext* context) {
 
 Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    if (info.Length() != 2) {
-        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-        return Napi::Value();
-    } else if (info[1].IsString()) {
-        auto context_data = new TsfnContext(env);
+    if (info[0].IsObject() && info[1].IsString()) {
+        auto context_data = new TsfnContextModel(env);
         auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(info[0].ToObject());
         context_data->_model = m->get_model()->clone();
         context_data->_device = info[1].ToString();
+
+        if (info.Length() == 3) {
+            try {
+                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+            } catch (std::exception& e) {
+                reportError(env, e.what());
+            }
+        }
 
         context_data->tsfn = Napi::ThreadSafeFunction::New(env,
                                                            Napi::Function(),
@@ -193,11 +234,38 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
                                                            0,
                                                            1,
                                                            context_data,
-                                                           FinalizerCallback,
+                                                           FinalizerCallbackModel,
                                                            (void*)nullptr);
 
-        context_data->nativeThread = std::thread(compileModelThread, context_data);
+        context_data->nativeThread = std::thread(compileModelThreadModel, context_data);
         return context_data->deferred.Promise();
+    } else if (info[0].IsString() && info[1].IsString()) {
+        auto context_data = new TsfnContextPath(env);
+        context_data->_model = info[0].ToString();
+        context_data->_device = info[1].ToString();
+
+        if (info.Length() == 3) {
+            try {
+                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+            } catch (std::exception& e) {
+                reportError(env, e.what());
+            }
+        }
+
+        context_data->tsfn = Napi::ThreadSafeFunction::New(env,
+                                                           Napi::Function(),
+                                                           "TSFN",
+                                                           0,
+                                                           1,
+                                                           context_data,
+                                                           FinalizerCallbackPath,
+                                                           (void*)nullptr);
+
+        context_data->nativeThread = std::thread(compileModelThreadPath, context_data);
+        return context_data->deferred.Promise();
+    } else if (info.Length() < 2 && info.Length() > 3) {
+        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
+        return Napi::Value();
     } else {
         reportError(info.Env(), "Error while compiling model.");
         return Napi::Value();
