@@ -33,7 +33,10 @@ public:
                 const std::string& extractor = "",
                 const std::vector<std::string>& ignored_inputs = {});
     std::map<std::string, InputInfo> get_input_info() const;
-    void set_input_info(const std::map<std::string, InputInfo>& new_in_info) { input_info = new_in_info; };
+    void set_input_info(const std::map<std::string, InputInfo>& new_in_info) { 
+        input_info.clear();
+        input_info = new_in_info;
+    };
     std::map<std::string, ModelInfo> get_model_info() const;
     std::string get_any_extractor() const { return *extractors.begin(); }
 

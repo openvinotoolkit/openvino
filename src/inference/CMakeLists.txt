@@ -199,8 +199,8 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
-    frontend_common::static inference_engine_transformations openvino::pugixml)
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS}
+    openvino::runtime::dev openvino::pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
@@ -215,7 +215,8 @@ set_target_properties(${TARGET_NAME}_obj
 
 # Export for developer package
 
-openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME}_plugin_api)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}_s)
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}_plugin_api)
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 

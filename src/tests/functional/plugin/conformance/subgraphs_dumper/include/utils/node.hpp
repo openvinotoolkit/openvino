@@ -26,6 +26,9 @@ inline InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Const
     return InputInfo::Range(static_cast<double>(min), static_cast<double>(max));
 }
 
+InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& const_node,
+                                  ov::element::Type elem_type);
+
 std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov::Node>& node);
 
 // replace all input node by parameters and constants instead of non input mode types
@@ -110,6 +113,12 @@ inline size_t get_node_priority_by_version(const std::shared_ptr<ov::Node>& node
     }
 
     return priority;
+}
+                                
+inline bool is_node_to_skip(const std::shared_ptr<ov::Node>& node) {
+    return ov::op::util::is_parameter(node) ||
+           ov::op::util::is_constant(node) ||
+           ov::op::util::is_output(node);
 }
 
 }  // namespace subgraph_dumper
