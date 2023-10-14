@@ -5,23 +5,7 @@
 cmake_policy(SET CMP0054 NEW)
 
 # TODO: fix it, outside of source dir MO cannot find TBB dependency
-set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
-
-if(ENABLE_SAME_BRANCH_FOR_MODELS)
-    branchName(MODELS_BRANCH)
-else()
-    set(MODELS_BRANCH "master")
-endif()
-
-if(ENABLE_DATA)
-    add_models_repo(${ENABLE_DATA} "data:https://github.com/openvinotoolkit/testdata.git")
-    set(MODELS_PATH "${TEMP}/models/src/data")
-    set(DATA_PATH "${MODELS_PATH}")
-endif()
-
-message(STATUS "MODELS_PATH=" ${MODELS_PATH})
-
-fetch_models_and_validation_set()
+ov_set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 ## Intel OMP package
 if(THREADING STREQUAL "OMP")
@@ -87,12 +71,16 @@ function(ov_download_tbb)
 
     if(NOT DEFINED ENV{TBBROOT} AND (DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR))
         if(DEFINED ENV{TBB_DIR})
-            set(TEMP_ROOT $ENV{TBB_DIR})
-        elseif (DEFINED TBB_DIR)
-            set(TEMP_ROOT ${TBB_DIR})
+            set(TBB_DIR "$ENV{TBB_DIR}")
         endif()
+        set(TEMP_ROOT "${TBB_DIR}")
         while(NOT EXISTS "${TEMP_ROOT}/include")
-            get_filename_component(TEMP_ROOT ${TEMP_ROOT} PATH)
+            get_filename_component(TEMP_ROOT_PARENT ${TEMP_ROOT} PATH)
+            if(TEMP_ROOT_PARENT STREQUAL TEMP_ROOT)
+                # to prevent recursion
+                message(FATAL_ERROR "${TBB_DIR} does not contain 'include' folder. Please, unset TBB_DIR")
+            endif()
+            set(TEMP_ROOT "${TEMP_ROOT_PARENT}")
         endwhile()
         set(TBBROOT ${TEMP_ROOT})
     endif()
@@ -116,10 +104,10 @@ function(ov_download_tbb)
     elseif(LINUX AND X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-canary.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.3-lin.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "3a2c2ec79b3cce7e6a2484754ba6f029fa968db2eefc6659540792b7db8fea0c"
+                SHA256 "f3f2edd8e7875b02220f11ab5b201411d5af6822e525e8da5444b4a666514e8b"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB

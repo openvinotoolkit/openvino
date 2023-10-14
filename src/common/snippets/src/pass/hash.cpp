@@ -10,8 +10,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "ngraph/ops.hpp"
-#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
@@ -62,7 +60,7 @@ static uint64_t hash_combine(uint64_t seed, const T &v) {
 namespace rt_info {
 
 // some node attr is not type of ov::RuntimeAttribute, need dedicate visitor.
-const std::vector<std::string> list_of_names{
+static const std::vector<std::string> list_of_names{
     "PrimitivesPriority",
     "alt_width",
 };
@@ -169,7 +167,7 @@ public:
           m_node_type_name(node_type_name) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
-        if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_hash = hash_combine(hash_combine(m_hash, name), a->get()->get_info().variable_id);
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {

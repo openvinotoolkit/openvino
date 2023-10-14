@@ -82,8 +82,6 @@ struct activation : public primitive_base<activation> {
                    activation_function(activation_func::none),
                    additional_params({0.f, 0.f}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs Relu primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

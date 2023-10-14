@@ -1,0 +1,3 @@
+# EliminateFakeQuantizeTransformation transformation {#openvino_docs_OV_UG_lpt_EliminateFakeQuantizeTransformation}
+
+ov::pass::low_precision::EliminateFakeQuantizeTransformation class represents the `EliminateFakeQuantizeTransformation` transformation.

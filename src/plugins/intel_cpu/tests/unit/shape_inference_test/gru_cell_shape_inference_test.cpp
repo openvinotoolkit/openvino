@@ -30,7 +30,7 @@ TEST_F(GRUCellV3StaticShapeInferenceTest, default_ctor) {
                     StaticShape{gates_count * hidden_size, hidden_size},  // R
                     StaticShape{gates_count * hidden_size}};              // B
 
-    shape_inference(gru.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(gru.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
 }
 
@@ -54,7 +54,7 @@ TEST_F(GRUCellV3StaticShapeInferenceTest, default_bias) {
                     StaticShape{gates_count * hidden_size, hidden_size},  // R
                     StaticShape{gates_count * hidden_size}};              // B
 
-    shape_inference(gru.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(gru.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
 }
 
@@ -79,7 +79,7 @@ TEST_F(GRUCellV3StaticShapeInferenceTest, with_bias) {
 
     output_shapes = {StaticShape{}, StaticShape{}};
 
-    shape_inference(gru.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(gru.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
 }
 
@@ -115,7 +115,7 @@ TEST_F(GRUCellV3StaticShapeInferenceTest, linear_before) {
 
     output_shapes = {StaticShape{}, StaticShape{}};
 
-    shape_inference(gru.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(gru.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
 }
 
@@ -139,6 +139,6 @@ TEST_F(GRUCellV3StaticShapeInferenceTest, dynamic_rank_inputs) {
                     StaticShape{gates_count * hidden_size, hidden_size},  // R
                     StaticShape{gates_count * hidden_size}};              // B
 
-    shape_inference(gru.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(gru.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
 }

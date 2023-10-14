@@ -33,6 +33,7 @@ OutputVector translate_max(const NodeContext& context) {
     // torch.max(input, other)
     if (context.input_is_none(2)) {
         auto y = context.get_input(1);
+        align_eltwise_input_types(context, x, y, true);
         return {context.mark_node(std::make_shared<v1::Maximum>(x, y))};
     }
     // torch.max(input, dim, keepdim), returns values and indicies
@@ -62,6 +63,7 @@ OutputVector translate_min(const NodeContext& context) {
     // torch.min(input, other)
     if (context.input_is_none(2)) {
         auto y = context.get_input(1);
+        align_eltwise_input_types(context, x, y, true);
         return {context.mark_node(std::make_shared<v1::Minimum>(x, y))};
     }
     // torch.min(input, dim, keepdim), returns values and indicies
@@ -77,6 +79,68 @@ OutputVector translate_min(const NodeContext& context) {
     }
     return {values, indicies};
 };
+
+OutputVector translate_maximum(const NodeContext& context) {
+    // aten::maximum(Tensor self, Tensor other) -> Tensor
+
+    //  aten::maximum.out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
+
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    align_eltwise_input_types(context, x, y, true);
+    auto res = context.mark_node(std::make_shared<v1::Maximum>(x, y));
+    if (!context.input_is_none(2)) {
+        context.mutate_input(2, res);
+    }
+    return {res};
+}
+
+OutputVector translate_minimum(const NodeContext& context) {
+    // aten::minimum(Tensor self, Tensor other) -> Tensor
+
+    //  aten::minimum.out(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)
+
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    align_eltwise_input_types(context, x, y, true);
+    auto res = context.mark_node(std::make_shared<v1::Minimum>(x, y));
+    if (!context.input_is_none(2)) {
+        context.mutate_input(2, res);
+    }
+    return {res};
+}
+
+OutputVector translate_amin(const NodeContext& context) {
+    // aten::amin(Tensor self, int[1] dim=[], bool keepdim=False) -> Tensor
+
+    // aten::amin.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
+    num_inputs_check(context, 3, 4);
+    auto x = context.get_input(0);
+    auto dims = context.get_input(1);
+    auto keep_dims = context.const_input<bool>(2);
+    auto res = context.mark_node(std::make_shared<v1::ReduceMin>(x, dims, keep_dims));
+    if (!context.input_is_none(3)) {
+        context.mutate_input(3, res);
+    }
+    return {res};
+}
+
+OutputVector translate_amax(const NodeContext& context) {
+    // aten::amax(Tensor self, int[1] dim=[], bool keepdim=False) -> Tensor
+
+    // aten::amax.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
+    num_inputs_check(context, 3, 4);
+    auto x = context.get_input(0);
+    auto dims = context.get_input(1);
+    auto keep_dims = context.const_input<bool>(2);
+    auto res = context.mark_node(std::make_shared<v1::ReduceMax>(x, dims, keep_dims));
+    if (!context.input_is_none(3)) {
+        context.mutate_input(3, res);
+    }
+    return {res};
+}
 
 }  // namespace op
 }  // namespace pytorch

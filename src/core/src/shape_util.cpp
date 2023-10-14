@@ -6,12 +6,12 @@
 
 #include <algorithm>
 
-#include "shape_util.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape_util.hpp"
 
-using namespace ngraph;
-
+namespace ngraph {
 template <>
-PartialShape ngraph::project(const PartialShape& shape, const AxisSet& axes) {
+PartialShape project(const PartialShape& shape, const AxisSet& axes) {
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
@@ -28,7 +28,7 @@ PartialShape ngraph::project(const PartialShape& shape, const AxisSet& axes) {
 }
 
 template <>
-PartialShape ngraph::reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool keep_dims) {
+PartialShape reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool keep_dims) {
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
@@ -48,8 +48,8 @@ PartialShape ngraph::reduce(const PartialShape& shape, const AxisSet& deleted_ax
 }
 
 template <>
-PartialShape ngraph::inject_pairs(const PartialShape& shape,
-                                  std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs) {
+PartialShape inject_pairs(const PartialShape& shape,
+                          std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs) {
     if (shape.rank().is_dynamic()) {
         return shape;
     } else {
@@ -75,6 +75,7 @@ PartialShape ngraph::inject_pairs(const PartialShape& shape,
         return PartialShape{result_dims};
     }
 }
+}  // namespace ngraph
 
 namespace ov {
 template <class TContainer, class TAxes>
@@ -127,6 +128,13 @@ std::vector<size_t> reduce(const std::vector<size_t>& input, const AxisSet& axes
 
 Shape reduce_keep_dims(const Shape& input, const AxisSet& axes) {
     return ov::replace_container(input, axes);
+}
+
+Shape get_broadcast_shape(const Shape& first, const Shape& second, const op::AutoBroadcastSpec& broadcast_spec) {
+    auto out_shape = PartialShape(first);
+    OPENVINO_ASSERT(PartialShape::broadcast_merge_into(out_shape, second, broadcast_spec),
+                    "Argument shapes are inconsistent");
+    return out_shape.to_shape();
 }
 }  // namespace util
 }  // namespace ov

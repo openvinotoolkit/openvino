@@ -4,10 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/avg_pool.hpp>
-#include <low_precision/common/precisions_restriction.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/low_precision.hpp>
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/low_precision.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
@@ -15,8 +15,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -55,7 +55,7 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeTransformat
     return out << "_" << testValue.actual << "_" << testValue.expected;
 }
 
-typedef std::tuple<ov::element::Type, ngraph::PartialShape, bool, FakeQuantizeTransformationTestValues>
+typedef std::tuple<ov::element::Type, ov::PartialShape, bool, FakeQuantizeTransformationTestValues>
     FakeQuantizeTransformationParams;
 
 class FakeQuantizeTransformation : public LayerTransformation,
@@ -63,13 +63,13 @@ class FakeQuantizeTransformation : public LayerTransformation,
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
-        const ngraph::PartialShape shape = std::get<1>(GetParam());
+        const ov::PartialShape shape = std::get<1>(GetParam());
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizeTransformationTestValues fakeQuantizeOnData = std::get<3>(GetParam());
-        std::vector<element::Type> defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support;
+        std::vector<element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
 
         if (fakeQuantizeOnData.actual.quantizationLevel != 256) {
-            defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_int16_int32_support;
+            defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_int16_int32_support();
         }
 
         const auto params = TestTransformationParams(fakeQuantizeOnData.params)
@@ -83,14 +83,14 @@ public:
             fakeQuantizeOnData.actual,
             fakeQuantizeOnData.addNotPrecisionPreservedOperation);
 
-        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
-            {ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
+        auto supportedPrecisions = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
+            {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
                 {{{0}, params.precisionsOnActivations}})});
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions, {}, {ov::element::f32, defaultPrecisions});
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             params);
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(params);
+        transform.add<ov::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(
@@ -106,7 +106,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
         ov::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::PartialShape shape;
         bool updatePrecision;
         FakeQuantizeTransformationTestValues fakeQuantizeOnData;
         std::tie(precision, shape, updatePrecision, fakeQuantizeOnData) = obj.param;
@@ -133,7 +133,7 @@ const std::vector<ov::element::Type> precisions = {ov::element::f32,
 
 const std::vector<bool> updatePrecisions = {true, false};
 
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     {1, 3, 72, 48},
     {-1, -1, -1, -1},
     PartialShape::dynamic(),

@@ -1,9 +1,11 @@
 -c ../constraints.txt
 # paddlepaddle #  ticket 95904
 numpy
+onnxruntime
 requests
 torch
 torchvision
+transformers
 pytest
 tensorflow-addons; python_version <= '3.10'
 jax; sys_platform == "linux"

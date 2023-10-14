@@ -8,8 +8,6 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "precomp.hpp"
 
-#include "common_test_utils/float_util.hpp"
-
 namespace ov {
 namespace test {
 namespace utils {
@@ -153,10 +151,7 @@ bool close_f(double a, double b, int tolerance_bits, double min_signal) {
     return (distance <= tolerance) || (distance == DOUBLE_BELOW_MIN_SIGNAL);
 }
 
-std::vector<uint32_t> float_distances(const float* const a,
-                                 const float* const b,
-                                 size_t size,
-                                 float min_signal) {
+std::vector<uint32_t> float_distances(const float* const a, const float* const b, size_t size, float min_signal) {
     std::vector<uint32_t> distances(size);
     for (size_t i = 0; i < size; ++i) {
         distances[i] = float_distance(a[i], b[i], min_signal);
@@ -165,10 +160,7 @@ std::vector<uint32_t> float_distances(const float* const a,
     return distances;
 }
 
-std::vector<uint64_t> float_distances(const double* const a,
-                                 const double* const b,
-                                 size_t size,
-                                 double min_signal) {
+std::vector<uint64_t> float_distances(const double* const a, const double* const b, size_t size, double min_signal) {
     std::vector<uint64_t> distances(size);
     for (size_t i = 0; i < size; ++i) {
         distances[i] = float_distance(a[i], b[i], min_signal);
@@ -480,12 +472,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     return all_close_f(a.data(), b.data(), a.size(), tolerance_bits, min_signal);
 }
 
-
-template<typename T>
-::testing::AssertionResult all_close_f(const ov::Tensor& a,
-                                       const ov::Tensor& b,
-                                       int tolerance_bits,
-                                       float min_signal) {
+template <typename T>
+::testing::AssertionResult all_close_f(const ov::Tensor& a, const ov::Tensor& b, int tolerance_bits, float min_signal) {
     if (a.get_size() != b.get_size()) {
         return ::testing::AssertionFailure() << "a.size() != b.size() for all_close_f comparison.";
     }
@@ -493,38 +481,37 @@ template<typename T>
         return ::testing::AssertionSuccess() << "No elements to compare";
     }
 
-    return all_close_f(static_cast<const T*>(a.data()), static_cast<const T*>(b.data()), a.get_size(), tolerance_bits, min_signal);
+    return all_close_f(static_cast<const T*>(a.data()),
+                       static_cast<const T*>(b.data()),
+                       a.get_size(),
+                       tolerance_bits,
+                       min_signal);
 }
 
-
-::testing::AssertionResult all_close_f(const ov::Tensor& a,
-                                       const ov::Tensor& b,
-                                       int tolerance_bits,
-                                       float min_signal) {
-        if (a.get_element_type() != b.get_element_type()) {
+::testing::AssertionResult all_close_f(const ov::Tensor& a, const ov::Tensor& b, int tolerance_bits, float min_signal) {
+    if (a.get_element_type() != b.get_element_type()) {
         return ::testing::AssertionFailure() << "Cannot compare tensors with different element types";
     }
 
-#define all_close_f_ov_type(type)\
-    case ov::element::type:\
-         return all_close_f<ov::element_type_traits<ov::element::type>::value_type>(a, b, tolerance_bits, min_signal);\
+#define all_close_f_ov_type(type) \
+    case ov::element::type:       \
+        return all_close_f<ov::element_type_traits<ov::element::type>::value_type>(a, b, tolerance_bits, min_signal);
 
     switch (a.get_element_type()) {
-    // all_close_f_ov_type(u8)
-    // all_close_f_ov_type(u16)
-    // all_close_f_ov_type(u32)
-    // all_close_f_ov_type(u64)
-    // all_close_f_ov_type(i8)
-    // all_close_f_ov_type(i16)
-    // all_close_f_ov_type(i32)
-    // all_close_f_ov_type(i64)
-    // all_close_f_ov_type(bf16)
-    // all_close_f_ov_type(f16)
-    all_close_f_ov_type(f32)
-    all_close_f_ov_type(f64)
-    default:
-        return ::testing::AssertionFailure()
-               << "Cannot compare tensors with unsupported element type: " << a.get_element_type();
+        // all_close_f_ov_type(u8)
+        // all_close_f_ov_type(u16)
+        // all_close_f_ov_type(u32)
+        // all_close_f_ov_type(u64)
+        // all_close_f_ov_type(i8)
+        // all_close_f_ov_type(i16)
+        // all_close_f_ov_type(i32)
+        // all_close_f_ov_type(i64)
+        // all_close_f_ov_type(bf16)
+        // all_close_f_ov_type(f16)
+        all_close_f_ov_type(f32) all_close_f_ov_type(f64) default
+            : return ::testing::AssertionFailure()
+              << "Cannot compare tensors with unsupported element type: "
+              << a.get_element_type();
     }
 }
 
