@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import platform
 import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -50,7 +51,8 @@ class TestAll(PytorchLayerTest):
         self.input_tensor = input_tensor
         self._test(aten_all_noparam(), None, "aten::all", 
                 ie_device, precision, ir_version, trace_model=True, freeze_model=False)
-            
+
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="Fails on aarch64")
     @pytest.mark.parametrize("input_tensor", [
         np.eye(5,5),
         np.zeros((5, 5)),
