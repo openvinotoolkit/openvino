@@ -1136,13 +1136,14 @@ jobs:
         with:
           name: test-results-functional-cpu
           path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
             ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
+            ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'
 
   TensorFlow_Hub_Models_Tests:
