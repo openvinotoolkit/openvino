@@ -20,7 +20,7 @@ enum class ShapeInferStatus {
  */
 class IShapeInferSnippets {
 public:
-    enum {DYNAMIC_DIMENSION = 0xffffffffffffffff};
+    enum {DYNAMIC_DIMENSION = std::numeric_limits<size_t>::max()};
     struct Result {
         std::vector<VectorDims> dims;
         ShapeInferStatus status;
@@ -35,6 +35,18 @@ public:
      * @return Result instance that contains an array of calculated shapes (per each output port) and a status of the shape infer call
      */
     virtual Result infer(const std::vector<VectorDimsRef>& input_shapes) = 0;
+};
+
+/**
+ * Shape inference class for Subgraph node (both openvino and Linear IRs).
+ * It stores the result of the last shape inference, so it can be reused in optimization pipeline.
+ *
+ */
+class ShapeInferSnippetsNode : public IShapeInferSnippets {
+public:
+    const Result& get_last_result() {return m_last_result; }
+protected:
+    Result m_last_result{{}, ShapeInferStatus::success};
 };
 
 class IShapeInferSnippetsFactory {

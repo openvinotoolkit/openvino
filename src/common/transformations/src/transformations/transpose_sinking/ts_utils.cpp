@@ -59,6 +59,7 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
     copy_runtime_info(indices.get_node_shared_ptr(), gather);
     return gather;
 }
+
 Output<Node> ChangeAxes(const Output<Node>& indices,
                         const AxisVector& transpose_axis_order,
                         const std::shared_ptr<ov::op::v0::Constant>& axis) {
@@ -175,6 +176,9 @@ ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node,
 }  // namespace
 
 namespace sink_forward {
+
+namespace {
+
 AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputsInfo& transpose_input_info) {
     if (transpose_input_info.isEmpty()) {
         return {};
@@ -196,6 +200,8 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     }
     return new_transpose_order;
 }
+
+}  // namespace
 
 bool UpdateInputTransposes(const NodePtr& main_node,
                            const TransposeInputsInfo& transpose_input_info,

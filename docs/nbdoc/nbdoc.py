@@ -16,6 +16,7 @@ from consts import (
     no_binder_template,
     repo_directory,
     repo_name,
+    repo_branch,
     repo_owner,
 )
 from notebook import Notebook
@@ -79,6 +80,7 @@ class NbProcessor:
             "owner": repo_owner,
             "repo": repo_name,
             "folder": repo_directory,
+            "branch": repo_branch,
         }
         self.colab_data = {
             "owner": repo_owner,
@@ -164,7 +166,7 @@ def main():
     sourcedir = args.sourcedir
     outdir = args.outdir
 
-    main_tutorials_file = Path('../../docs/tutorials.md').resolve(strict=True)
+    main_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials.md').resolve(strict=True)
     add_glob_directive(main_tutorials_file)
 
     if args.download:

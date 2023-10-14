@@ -1,15 +1,15 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/reference/softsign.hpp"
+#include "openvino/op/softsign.hpp"
 
 #include <openvino/core/validation_util.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/op/softsign.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/reference/softsign.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "shape_util.hpp"
 
 namespace {
 template <ov::element::Type_t ET>
@@ -24,10 +24,10 @@ bool evaluate_softsign(const ov::Tensor& arg, const ov::Tensor& out) {
     size_t count = arg.get_size();
 
     switch (arg.get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_softsign, bf16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_softsign, f16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_softsign, f32, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_softsign, f64, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_softsign, bf16, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_softsign, f16, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_softsign, f32, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_softsign, f64, arg, out, count);
     default:
         rc = false;
         break;

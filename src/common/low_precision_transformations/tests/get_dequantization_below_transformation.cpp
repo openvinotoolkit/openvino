@@ -11,11 +11,11 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <low_precision/fake_quantize_decomposition.hpp>
+#include "low_precision/fake_quantize_decomposition.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/get_dequantization_function.hpp"
-#include <low_precision/common/fake_quantize_dequantization.hpp>
+#include "ov_lpt_models/get_dequantization.hpp"
+#include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace testing;
@@ -63,7 +63,7 @@ public:
             testValues.dequantization);
 
         auto const fakeQuantize = model->get_parameters()[0]->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
-        auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantizationBelow(fakeQuantize);
+        auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantizationBelow(fakeQuantize);
 
         actualFunction = ngraph::builder::subgraph::GetDequantizationFunction::get(
             precision,

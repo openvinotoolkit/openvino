@@ -11,8 +11,8 @@
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/max_pool.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/fuse_fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -38,7 +38,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationOperations2;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     TestTransformationParams params;
     Actual actual;
     Expected expected;
@@ -56,12 +56,12 @@ public:
                                                                                   testValues.actual.fakeQuantizeOnData2,
                                                                                   {});
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+        transformer.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
-        transformer.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
+        transformer.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
+        transformer.add<ov::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
-        transformer.add<ngraph::pass::low_precision::EliminateFakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
+        transformer.add<ov::pass::low_precision::EliminateFakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
         transformer.transform(actualFunction);
 

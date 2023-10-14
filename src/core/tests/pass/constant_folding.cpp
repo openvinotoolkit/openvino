@@ -18,12 +18,14 @@
 using namespace ov;
 using namespace std;
 
-static std::shared_ptr<op::v0::Constant> get_result_constant(std::shared_ptr<Model> m, size_t pos = 0) {
+namespace {
+
+std::shared_ptr<op::v0::Constant> get_result_constant(std::shared_ptr<Model> m, size_t pos = 0) {
     return ov::as_type_ptr<op::v0::Constant>(m->get_results().at(pos)->input_value(0).get_node_shared_ptr());
 }
 
 template <typename T>
-static std::vector<T> get_result_constant_data(std::shared_ptr<Model> m, size_t pos) {
+std::vector<T> get_result_constant_data(std::shared_ptr<Model> m, size_t pos) {
     auto new_const = get_result_constant(m, pos);
     return new_const->cast_vector<T>();
 }
@@ -62,10 +64,10 @@ void run_constant_folding(std::shared_ptr<ov::Model>& model) {
     pass_manager.run_passes(model);
 }
 
-static void check_names(const std::shared_ptr<ov::Node>& node,
-                        const std::vector<std::string>& expected_fused_names,
-                        const std::string expected_name = "test",
-                        bool exact = true) {
+void check_names(const std::shared_ptr<ov::Node>& node,
+                 const std::vector<std::string>& expected_fused_names,
+                 const std::string expected_name = "test",
+                 bool exact = true) {
     EXPECT_TRUE(node);
 
     // Check node name
@@ -101,6 +103,8 @@ static void check_names(const std::shared_ptr<ov::Node>& node,
         ASSERT_FALSE(is_expected_name_missed) << ss.str();
     }
 }
+
+}  // namespace
 
 TEST(constant_folding, acosh) {
     Shape shape_in{2, 4, 1};
@@ -848,7 +852,7 @@ TEST(constant_folding, shape_of_rank_dynamic_v3) {
     check_names(result_shape_of, {"test"});
 }
 
-void const_reverse(const element::Type& axes_elem_type) {
+static void const_reverse(const element::Type& axes_elem_type) {
     Shape input_shape{3, 3};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -3559,11 +3563,11 @@ TEST(constant_folding, constant_scatter_elements_update_one_elem) {
     range_test_check(result_node->cast_vector<int32_t>(), expected);
 }
 
-void test_constant_folding_reshape_v1(Shape& shape_in,
-                                      vector<float>& values_in,
-                                      Shape shape_shape,
-                                      vector<int32_t> values_shape,
-                                      bool zero_flag = false) {
+static void test_constant_folding_reshape_v1(Shape& shape_in,
+                                             vector<float>& values_in,
+                                             Shape shape_shape,
+                                             vector<int32_t> values_shape,
+                                             bool zero_flag = false) {
     auto constant_in = make_shared<ov::op::v0::Constant>(element::f32, shape_in, values_in);
     constant_in->set_friendly_name("constant_in");
     auto constant_shape = make_shared<ov::op::v0::Constant>(element::i64, shape_shape, values_shape);
@@ -3584,6 +3588,7 @@ void test_constant_folding_reshape_v1(Shape& shape_in,
 
     ASSERT_TRUE(ov::test::utils::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
+
 TEST(constant_folding, constant_dyn_reshape_v1_2d) {
     Shape shape_in{2, 5};
     vector<float> values_in{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -3842,7 +3847,7 @@ public:
         const ov::op::AutoBroadcastSpec& auto_broadcast = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY))
         : ov::op::v1::Add(arg0, arg1, auto_broadcast) {
         ON_CALL(*this, evaluate).WillByDefault([this](ov::TensorVector& outputs, const ov::TensorVector& inputs) {
-            return ov::Node::evaluate(outputs, inputs);
+            return ov::op::v1::Add::evaluate(outputs, inputs);
         });
     }
     MOCK_METHOD(bool,

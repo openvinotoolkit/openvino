@@ -4,9 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
 #include "base_reference_test.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -63,11 +62,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(
-        const PartialShape& input_shape,
-        const element::Type& input_type,
-        const std::shared_ptr<ov::op::v0::Constant> indices,
-        const std::shared_ptr<ov::op::v0::Constant> per_sample_weights) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const std::shared_ptr<ov::op::v0::Constant> indices,
+                                                 const std::shared_ptr<ov::op::v0::Constant> per_sample_weights) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
 
         if (per_sample_weights) {
@@ -86,7 +84,7 @@ TEST_P(ReferenceEmbeddingBagPackedSumLayerTest, CompareWithRefs) {
 
 template <class T>
 inline std::shared_ptr<ov::op::v0::Constant> CreateConstant(const std::vector<std::vector<T>>& val,
-                                                                  const ov::element::Type& element_type) {
+                                                            const ov::element::Type& element_type) {
     if (val.size() > 0) {
         ov::Shape i_shape({val.size(), val[0].size()});
 

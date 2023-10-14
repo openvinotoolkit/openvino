@@ -22,14 +22,18 @@ namespace op {
 
 TF_OP_CONVERTER(translate_assignvariable_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
+TF_OP_CONVERTER(translate_enter_op);
+TF_OP_CONVERTER(translate_exit_op);
 TF_OP_CONVERTER(translate_fifo_queue_op);
 TF_OP_CONVERTER(translate_gru_block_cell_op);
 TF_OP_CONVERTER(translate_hash_table_op);
 TF_OP_CONVERTER(translate_if_op);
 TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
+TF_OP_CONVERTER(translate_loop_cond_op);
 TF_OP_CONVERTER(translate_merge_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
+TF_OP_CONVERTER(translate_next_iteration_op);
 TF_OP_CONVERTER(translate_partitioned_call_op);
 TF_OP_CONVERTER(translate_placeholder_linked_op);
 TF_OP_CONVERTER(translate_queue_dequeue_op);
@@ -207,6 +211,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"NoOp", CreatorFunction(translate_no_op)},  // do nothing
         {"OneHot", CreatorFunction(translate_one_hot_op)},
         {"OneShotIterator", CreatorFunction(translate_iterator_op)},
+        {"OnesLike", CreatorFunction(translate_ones_like_op)},
         {"Pack", CreatorFunction(translate_pack_op)},
         {"Pad", CreatorFunction(translate_pad_op)},
         {"PadV2", CreatorFunction(translate_padv2_op)},
@@ -310,6 +315,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // XLA operations
         {"XlaConvV2", CreatorFunction(translate_xla_conv_v2_op)},
         {"XlaDotV2", CreatorFunction(translate_xla_dot_op)},
+
+        // TF1 Control Flow operations
+        {"Enter", CreatorFunction(translate_enter_op)},
+        {"Exit", CreatorFunction(translate_exit_op)},
+        {"LoopCond", CreatorFunction(translate_loop_cond_op)},
+        {"NextIteration", CreatorFunction(translate_next_iteration_op)},
     };
 };
 }  // namespace op

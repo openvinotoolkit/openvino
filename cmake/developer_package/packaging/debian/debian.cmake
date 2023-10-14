@@ -21,6 +21,10 @@ macro(ov_debian_cpack_set_dirs)
             set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/aarch64-linux-gnu")
         elseif(X86)
             set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/i386-linux-gnu")
+        elseif(X86_64)
+            set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/x86_64-linux-gnu")
+        elseif(RISCV64)
+            set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/riscv64-linux-gnu")
         endif()
     endif()
     set(OV_CPACK_LIBRARYDIR ${OV_CPACK_RUNTIMEDIR})
@@ -41,11 +45,6 @@ macro(ov_debian_cpack_set_dirs)
 
     # skipped during debian packaging
     set(OV_CPACK_WHEELSDIR "tools")
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
 ov_debian_cpack_set_dirs()
@@ -130,7 +129,9 @@ macro(ov_debian_specific_settings)
     # homepage
     set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://docs.openvino.ai/")
     # use lintian to check packages in post-build step
-    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/debian/post_build.cmake")
+    set(CPACK_POST_BUILD_SCRIPTS "${OpenVINODeveloperScripts_DIR}/packaging/debian/post_build.cmake")
+    # to make sure that lib/<multiarch-triplet> is created on Debian
+    set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
     # enable for debug cpack run
     if(NOT DEFINED CPACK_DEBIAN_PACKAGE_DEBUG)
         set(CPACK_DEBIAN_PACKAGE_DEBUG OFF)
@@ -144,7 +145,14 @@ macro(ov_debian_specific_settings)
     # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
 
     if(DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-        set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+        if(OV_GENERATOR_MULTI_CONFIG)
+            # $<CONFIG> generator expression does not work in this place, have to add all possible configs
+            foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
+                list(APPEND CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${config}")
+            endforeach()
+        else()
+            set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+        endif()
     else()
         message(FATAL_ERROR "CMAKE_LIBRARY_OUTPUT_DIRECTORY is empty")
     endif()
@@ -169,6 +177,10 @@ macro(ov_debian_specific_settings)
             set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE armhf)
         elseif(x86)
             set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
+        elseif(X86_64)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE x86_64)
+        elseif(RISCV64)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE riscv64)
         endif()
     endif()
 

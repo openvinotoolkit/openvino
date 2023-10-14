@@ -69,7 +69,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::op::
     OPENVINO_ASSERT(model != nullptr, "To create IOExpression from Result there must be inited model!");
     auto expr = std::shared_ptr<IOExpression>(new IOExpression(res, model->get_result_index(res), linear_ir.m_shape_infer_factory));
     create_expression_inputs(linear_ir, expr);
-    // The Result node don't need output port (because of sense of the node). But each node in ngraph must have one output at least.
+    // The Result node don't need output port (because of sense of the node). But each node in openvino must have one output at least.
     // The port descriptors are automatically created in constructor. We manually clean output ports.
     expr->m_output_port_descriptors.clear();
     expr->validate();
@@ -110,7 +110,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
     OPENVINO_ASSERT(ov::is_type<op::LoopBegin>(last_input.get_expr()->get_node()), "LoopEnd expression expects LoopBegin on last input");
     expr->m_input_port_descriptors[inputs.size() - 1] = last_input.get_descriptor_ptr()->clone();
     init_expression_inputs(expr, inputs);
-    // The LoopEnd node don't need output port (because of sense of the node). But each node in ngraph must have one output at least.
+    // The LoopEnd node don't need output port (because of sense of the node). But each node in openvino must have one output at least.
     // The port descriptors are automatically created in constructor. We manually clean output ports.
     expr->m_output_port_descriptors.clear();
     expr->validate();

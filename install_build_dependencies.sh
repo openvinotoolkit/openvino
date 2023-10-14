@@ -26,6 +26,8 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
 
     apt update
     apt-get install -y --no-install-recommends \
+        `# for python3-pip` \
+        ca-certificates \
         file \
         `# build tools` \
         build-essential \
@@ -53,6 +55,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         `# OpenCL for GPU` \
         ocl-icd-opencl-dev \
         opencl-headers \
+        rapidjson-dev \
         `# GPU plugin extensions` \
         libva-dev \
         `# For TF FE saved models` \
@@ -105,7 +108,6 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         make \
         `# to determine openvino version via git` \
         git \
-        git-lfs \
         `# to build and check pip packages` \
         patchelf \
         fdupes \
@@ -135,6 +137,7 @@ elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
     zypper install -y \
         file \
         `# build tools` \
+        patterns-devel-C-C++-devel_C_C++ \
         cmake \
         ccache \
         ninja \
@@ -144,7 +147,6 @@ elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
         make \
         `# to determine openvino version via git` \
         git \
-        git-lfs \
         `# to build and check pip packages` \
         patchelf \
         fdupes \

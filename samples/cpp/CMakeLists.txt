@@ -21,6 +21,14 @@ elseif(NOT OV_GENERATOR_MULTI_CONFIG)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
 endif()
 
+# disable FindPkgConfig.cmake for Android
+if(ANDROID)
+    # Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
+    # build system pkg-config executable, which finds packages on build system. Such
+    # libraries cannot be linked into Android binaries.
+    set(CMAKE_DISABLE_FIND_PACKAGE_PkgConfig ON)
+endif()
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if (NOT BIN_FOLDER)
@@ -41,18 +49,18 @@ endif()
 
 if(OpenVINO_SOURCE_DIR)
     # in case if samples are built from IE repo
-    set(IE_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
+    set(OV_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
     set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
 else()
     # in case if samples are built out of IE repo
-    set(IE_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
+    set(OV_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
-set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-set (CMAKE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
+set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
+set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
+set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
+set (CMAKE_PDB_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS")
@@ -147,7 +155,7 @@ if (DEFINED OpenVINO_SOURCE_DIR AND NOT ENABLE_SAMPLES)
     return()
 endif()
 
-function(add_samples_to_build)
+function(ov_add_samples_to_build)
     # check each passed sample subdirectory
     foreach (dir ${ARGN})
         if (IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${dir})
@@ -167,37 +175,37 @@ function(add_samples_to_build)
             endif()
         endif()
     endforeach()
-endfunction(add_samples_to_build)
+endfunction(ov_add_samples_to_build)
 
 include(CMakeParseArguments)
 
 #
-# ie_add_sample(NAME <target name>
+# ov_add_sample(NAME <target name>
 #               SOURCES <source files>
 #               [HEADERS <header files>]
 #               [INCLUDE_DIRECTORIES <include dir>]
 #               [DEPENDENCIES <dependencies>]
 #               [EXCLUDE_CLANG_FORMAT]
 #
-macro(ie_add_sample)
+macro(ov_add_sample)
     set(options EXCLUDE_CLANG_FORMAT)
     set(oneValueArgs NAME)
     set(multiValueArgs SOURCES HEADERS DEPENDENCIES INCLUDE_DIRECTORIES)
-    cmake_parse_arguments(IE_SAMPLE "${options}" "${oneValueArgs}"
+    cmake_parse_arguments(SAMPLE "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
     # Create named folders for the sources within the .vcproj
     # Empty name lists them directly under the .vcproj
-    source_group("src" FILES ${IE_SAMPLE_SOURCES})
-    if(IE_SAMPLE_HEADERS)
-        source_group("include" FILES ${IE_SAMPLE_HEADERS})
+    source_group("src" FILES ${SAMPLE_SOURCES})
+    if(SAMPLE_HEADERS)
+        source_group("include" FILES ${SAMPLE_HEADERS})
     endif()
 
     # Create executable file from sources
-    add_executable(${IE_SAMPLE_NAME} ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
+    add_executable(${SAMPLE_NAME} ${SAMPLE_SOURCES} ${SAMPLE_HEADERS})
 
     set(folder_name cpp_samples)
-    if(IE_SAMPLE_NAME MATCHES ".*_c$")
+    if(SAMPLE_NAME MATCHES ".*_c$")
         set(c_sample ON)
         set(folder_name c_samples)
     endif()
@@ -212,34 +220,48 @@ macro(ie_add_sample)
         set(ov_link_libraries openvino::runtime)
     endif()
 
-    set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
-                                                       COMPILE_PDB_NAME ${IE_SAMPLE_NAME})
+    set_target_properties(${SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
+                                                    COMPILE_PDB_NAME ${SAMPLE_NAME}
+                                                    # to ensure out of box LC_RPATH on macOS with SIP
+                                                    INSTALL_RPATH_USE_LINK_PATH ON)
 
-    if(IE_SAMPLE_INCLUDE_DIRECTORIES)
-        target_include_directories(${IE_SAMPLE_NAME} PRIVATE ${IE_SAMPLE_INCLUDE_DIRECTORIES})
+    if(SAMPLE_INCLUDE_DIRECTORIES)
+        target_include_directories(${SAMPLE_NAME} PRIVATE ${SAMPLE_INCLUDE_DIRECTORIES})
     endif()
-    target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
+    target_include_directories(${SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
-    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} Threads::Threads ${IE_SAMPLE_DEPENDENCIES})
+    target_link_libraries(${SAMPLE_NAME} PRIVATE ${ov_link_libraries} Threads::Threads ${SAMPLE_DEPENDENCIES})
 
-    install(TARGETS ${IE_SAMPLE_NAME}
+    install(TARGETS ${SAMPLE_NAME}
             RUNTIME DESTINATION samples_bin/
             COMPONENT samples_bin
             EXCLUDE_FROM_ALL)
 
     # create global target with all samples / demo apps
-    if(NOT TARGET ie_samples)
-        add_custom_target(ie_samples ALL)
+    if(NOT TARGET ov_samples)
+        add_custom_target(ov_samples ALL)
     endif()
-    add_dependencies(ie_samples ${IE_SAMPLE_NAME})
+    add_dependencies(ov_samples ${SAMPLE_NAME})
 
-    if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
-        add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
+    if(COMMAND ov_add_clang_format_target AND NOT SAMPLE_EXCLUDE_CLANG_FORMAT)
+        ov_add_clang_format_target(${SAMPLE_NAME}_clang FOR_SOURCES ${SAMPLE_SOURCES} ${SAMPLE_HEADERS})
     endif()
     if(COMMAND ov_ncc_naming_style AND NOT c_sample)
-        ov_ncc_naming_style(FOR_TARGET "${IE_SAMPLE_NAME}"
+        ov_ncc_naming_style(FOR_TARGET "${SAMPLE_NAME}"
                             SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
+
+    unset(options)
+    unset(oneValueArgs)
+    unset(multiValueArgs)
+    unset(c_sample)
+    unset(folder_name)
+    unset(ov_link_libraries)
+    unset(SAMPLE_NAME)
+    unset(SAMPLE_HEADERS)
+    unset(SAMPLE_DEPENDENCIES)
+    unset(SAMPLE_EXCLUDE_CLANG_FORMAT)
+    unset(SAMPLE_INCLUDE_DIRECTORIES)
 endmacro()
 
 # collect all samples subdirectories
@@ -251,4 +273,4 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
 endif()
 list(REMOVE_ITEM samples_dirs common)
 
-add_samples_to_build(${samples_dirs})
+ov_add_samples_to_build(${samples_dirs})

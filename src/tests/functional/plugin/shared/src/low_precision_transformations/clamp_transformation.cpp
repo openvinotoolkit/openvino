@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/clamp_function.hpp"
+#include "ov_lpt_models/clamp.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -16,7 +16,7 @@ std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<Cl
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ClampTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
@@ -31,7 +31,7 @@ std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<Cl
 void ClampTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ClampTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 

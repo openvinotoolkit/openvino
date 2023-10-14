@@ -23,8 +23,6 @@ struct prior_box : public primitive_base<prior_box> {
 
     prior_box() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     using PriorBoxV0Op = ov::op::v0::PriorBox;
     using PriorBoxV8Op = ov::op::v8::PriorBox;
     using PriorBoxClusteredOp = ov::op::v0::PriorBoxClustered;
