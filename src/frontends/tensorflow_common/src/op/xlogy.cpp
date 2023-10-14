@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/multiply.hpp"
@@ -23,6 +24,7 @@ OutputVector translate_xlogy_op(const NodeContext& node) {
 
     // prepare auxiliary zero constant of the same type as the input
     auto zero = make_shared<Constant>(x.get_element_type(), Shape{}, 0.0f)->output(0);
+    zero = make_shared<ConvertLike>(zero, x);
 
     // compute a mask to identify where x is equal to 0
     auto is_zero = make_shared<Equal>(x, zero);
