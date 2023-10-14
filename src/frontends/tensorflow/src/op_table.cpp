@@ -286,6 +286,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"While", CreatorFunction(translate_while_op)},
         {"Where", CreatorFunction(translate_where_op)},
         {"Xdivy", CreatorFunction(translate_x_div_y_op)},
+        {"Xlogy", CreatorFunction(translate_xlogy_op)},
         {"ZerosLike", CreatorFunction(translate_zeros_like_op)},
 
         // Translators for SavedModel and MetaGraph
