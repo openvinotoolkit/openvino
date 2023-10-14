@@ -6,14 +6,14 @@
 
 #include <string>
 #include <memory>
-#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "ov_lpt_models/fake_quantize.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/constant.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -52,7 +52,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     FakeQuantizeWithNotOptimalTransformationTestValues> FakeQuantizeTransformationParams;
 
 class FakeQuantizeWithNotOptimalTransformation :

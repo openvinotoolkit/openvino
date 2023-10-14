@@ -3,16 +3,16 @@
 //
 
 #include <common_test_utils/test_constants.hpp>
-#include "include/auto_unit_test.hpp"
 #include <thread>
+
+#include "include/auto_unit_test.hpp"
 
 using Config = std::map<std::string, std::string>;
 using namespace ov::mock_auto_plugin;
 
-using ConfigParams = std::tuple<
-        bool,                 // cpu load success
-        bool                  // hw device load success
-        >;
+using ConfigParams = std::tuple<bool,  // cpu load success
+                                bool   // hw device load success
+                                >;
 class AutoReleaseHelperTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
@@ -20,7 +20,7 @@ public:
         bool accSuccess;
         std::tie(cpuSuccess, accSuccess) = obj.param;
         std::ostringstream result;
-         if (!cpuSuccess) {
+        if (!cpuSuccess) {
             result << "cpuLoadFailure_";
         } else {
             result << "cpuLoadSuccess_";
@@ -42,33 +42,42 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     size_t decreaseCount = 0;
     // test auto plugin
     plugin->set_device_name("AUTO");
-    const std::string strDevices = ov::test::utils::DEVICE_GPU + std::string(",") +
-        ov::test::utils::DEVICE_CPU;
+    const std::string strDevices = ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU;
 
     if (accSuccess) {
-        ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)), _))
-                    .WillByDefault(InvokeWithoutArgs([this]() {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                        return mockExeNetworkActual; }));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
+                              _))
+            .WillByDefault(InvokeWithoutArgs([this]() {
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                return mockExeNetworkActual;
+            }));
     } else {
-        ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)), _))
-                    .WillByDefault(InvokeWithoutArgs([this]() {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                        OPENVINO_THROW("");
-                        return mockExeNetworkActual; }));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
+                              _))
+            .WillByDefault(InvokeWithoutArgs([this]() {
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                OPENVINO_THROW("");
+                return mockExeNetworkActual;
+            }));
     }
     if (cpuSuccess) {
-        ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)), _))
-                    .WillByDefault(Return(mockExeNetwork));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              _))
+            .WillByDefault(Return(mockExeNetwork));
         if (accSuccess)
             decreaseCount++;
     } else {
-        ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)), _))
-                    .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              _))
+            .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
     }
     metaDevices = {{ov::test::utils::DEVICE_CPU, {}, -1}, {ov::test::utils::DEVICE_GPU, {}, -1}};
     DeviceInformation devInfo;
@@ -79,15 +88,16 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
             return devices;
         });
     ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(2)), _, _))
-            .WillByDefault(Return(metaDevices[1]));
+        .WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _))
-            .WillByDefault(Return(metaDevices[0]));
+        .WillByDefault(Return(metaDevices[0]));
     config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + ov::test::utils::DEVICE_GPU));
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     if (cpuSuccess || accSuccess) {
         ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
         if (!cpuSuccess)
-            EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(), ov::test::utils::DEVICE_GPU);
+            EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(),
+                      ov::test::utils::DEVICE_GPU);
         else
             EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(), "(CPU)");
     } else {
@@ -100,19 +110,21 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     EXPECT_EQ(inferReqInternal.use_count(), requestsharedcount - decreaseCount);
     if (cpuSuccess || accSuccess) {
         if (accSuccess)
-            EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(), ov::test::utils::DEVICE_GPU);
+            EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(),
+                      ov::test::utils::DEVICE_GPU);
         else
-            EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(), ov::test::utils::DEVICE_CPU);
+            EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(),
+                      ov::test::utils::DEVICE_CPU);
     }
 }
 
 //
-const std::vector<ConfigParams> testConfigs = {ConfigParams {true, true},
-                                               ConfigParams {true, false},
-                                               ConfigParams {false, true},
-                                               ConfigParams {false, false}
-                                              };
+const std::vector<ConfigParams> testConfigs = {ConfigParams{true, true},
+                                               ConfigParams{true, false},
+                                               ConfigParams{false, true},
+                                               ConfigParams{false, false}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, AutoReleaseHelperTest,
-                ::testing::ValuesIn(testConfigs),
-            AutoReleaseHelperTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         AutoReleaseHelperTest,
+                         ::testing::ValuesIn(testConfigs),
+                         AutoReleaseHelperTest::getTestCaseName);

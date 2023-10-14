@@ -10,7 +10,6 @@
 #include "paddle_utils.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 TEST(FrontEndIncorrectCutModelTest, test_incorrect_cut) {
@@ -27,7 +26,7 @@ TEST(FrontEndIncorrectCutModelTest, test_incorrect_cut) {
     // remove second input
     inputModel->override_all_inputs({inputModel->get_inputs()[0]});
 
-    std::shared_ptr<ngraph::Function> function;
-    ASSERT_THROW(function = frontEnd->convert(inputModel), GeneralFailure);
-    ASSERT_EQ(function, nullptr);
+    std::shared_ptr<ov::Model> model;
+    ASSERT_THROW(model = frontEnd->convert(inputModel), GeneralFailure);
+    ASSERT_EQ(model, nullptr);
 }

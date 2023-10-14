@@ -1,69 +1,51 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <intel_gpu/plugin/variable_state.hpp>
-#include <blob_factory.hpp>
+
+#include "openvino/runtime/make_tensor.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/runtime/layout.hpp"
+
+#include <memory>
 
 namespace ov {
 namespace intel_gpu {
 
-VariableState::VariableState(const std::string &name,
-                             const std::vector<cldnn::network::VariableState::Ptr> &states,
-                             cldnn::engine& engine, int currentBatch)
-    : InferenceEngine::IVariableStateInternal {name}
-    , currentBatch_ {currentBatch}
-    , states_ {states}
-    , desc_ {
-        PrecisionFromDataType(states.front()->memory->get_layout().data_type),
-        AggregateShape(states.front()->memory->get_layout()),
-        InferenceEngine::Layout::ANY
+VariableState::VariableState(const std::string &name, cldnn::network::VariableState::Ptr state, cldnn::engine& engine)
+    : ov::IVariableState {name}
+    , m_variable_state(state)
+    , m_engine(engine) {
+    auto internal_memory = m_variable_state->memory;
+    auto internal_layout = internal_memory->get_layout();
+    auto shape = internal_layout.get_shape();
+    m_state = ov::make_tensor(internal_layout.data_type, shape);
+}
+
+void VariableState::reset() {
+    m_variable_state->is_set = false;
+}
+
+void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
+    const bool blocking = true;
+    auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(state._ptr);
+    if (remote_ptr != nullptr) {
+        auto user_memory = remote_ptr->get_memory();
+        cldnn::mem_lock<uint8_t> lock(user_memory, m_engine.get_service_stream());
+        m_variable_state->memory->copy_from(m_engine.get_service_stream(), lock.data(), blocking);
+    } else {
+        auto data = state->data();
+        m_variable_state->memory->copy_from(m_engine.get_service_stream(), data, blocking);
     }
-    , engine_(engine) { }
-
-void VariableState::Reset() {
-    IterateOverStates([](cldnn::network::VariableState &state) {
-        state.is_set = false;
-    });
+    m_variable_state->is_set = true;
 }
 
-void VariableState::SetState(const InferenceEngine::Blob::Ptr &newState) {
-    auto lock = std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(newState)->rmap();
-    auto data = lock.as<char*>();
-    IterateOverStates([&data, this](cldnn::network::VariableState &state) {
-        state.memory->copy_from(engine_.get_service_stream(), data);
-        data += state.memory->get_layout().bytes_count();
-        state.is_set = true;
-    });
-    engine_.get_service_stream().enqueue_barrier();
-}
+const ov::SoPtr<ov::ITensor>& VariableState::get_state() const {
+    auto internal_memory = m_variable_state->memory;
+    const bool blocking = true;
+    internal_memory->copy_to(m_engine.get_service_stream(), m_state->data(), blocking);
 
-InferenceEngine::Blob::CPtr VariableState::GetState() const {
-    auto blob = make_blob_with_precision(desc_, InferenceEngine::CreateDefaultAllocator());
-    blob->allocate();
-    auto blobLock = std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(blob)->wmap();
-    auto data = blobLock.as<char*>();
-    IterateOverStates([&data, this](cldnn::network::VariableState &state) {
-        cldnn::mem_lock<char, cldnn::mem_lock_type::read> lock { state.memory, engine_.get_service_stream() };
-        std::copy(lock.begin(), lock.end(), data);
-        data += state.memory->get_layout().bytes_count();
-    });
-    return blob;
-}
-
-InferenceEngine::SizeVector VariableState::AggregateShape(const cldnn::layout &layout) {
-    const auto& dims = layout.get_dims();
-    InferenceEngine::SizeVector shape {dims.begin(), dims.end()};
-    if (currentBatch_ != -1)
-        shape.front() = currentBatch_;
-    return shape;
-}
-
-void VariableState::IterateOverStates(std::function<void(cldnn::network::VariableState&)> f) const {
-    for (size_t i = 0; i < states_.size(); i++) {
-        auto batch = 1 << i;
-        if (batch & currentBatch_)
-            f(*states_[i]);
-    }
+    return m_state;
 }
 
 }  // namespace intel_gpu

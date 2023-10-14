@@ -50,10 +50,10 @@ bool evaluate_prelu(const ngraph::HostTensorPtr& arg,
                     const ngraph::HostTensorPtr& out) {
     bool rc = true;
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_prelu, i8, arg, slope, out);
-        NGRAPH_TYPE_CASE(evaluate_prelu, bf16, arg, slope, out);
-        NGRAPH_TYPE_CASE(evaluate_prelu, f16, arg, slope, out);
-        NGRAPH_TYPE_CASE(evaluate_prelu, f32, arg, slope, out);
+        OPENVINO_TYPE_CASE(evaluate_prelu, i8, arg, slope, out);
+        OPENVINO_TYPE_CASE(evaluate_prelu, bf16, arg, slope, out);
+        OPENVINO_TYPE_CASE(evaluate_prelu, f16, arg, slope, out);
+        OPENVINO_TYPE_CASE(evaluate_prelu, f32, arg, slope, out);
     default:
         rc = false;
         break;
@@ -66,7 +66,7 @@ bool evaluate_prelu(const ngraph::HostTensorPtr& arg,
 bool ov::op::v0::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_PRelu_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1) && ngraph::validate_host_tensor_vector(inputs, 2));
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1) && ngraph::validate_host_tensor_vector(inputs, 2));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }

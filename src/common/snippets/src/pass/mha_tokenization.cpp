@@ -40,7 +40,7 @@ auto is_valid_transpose(const std::shared_ptr<ov::opset1::Transpose>& node, std:
         return transpose_pattern->cast_vector<int64_t>() == expected_order;
     };
     auto is_supported_transpose_tensor = [](const ov::descriptor::Tensor& t) {
-        return is_supported_tensor(t) && ov::snippets::pass::TokenizeSnippets::supported_element_types.count(t.get_element_type()) != 0;
+        return is_supported_tensor(t) && ov::snippets::pass::TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0;
     };
 
     return node && node->get_output_target_inputs(0).size() == 1 && node->get_shape().size() == 4 &&
@@ -175,7 +175,7 @@ auto update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
         interm_op = interm_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
     }
     return true;
-};
+}
 }  // namespace
 
 bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul) {

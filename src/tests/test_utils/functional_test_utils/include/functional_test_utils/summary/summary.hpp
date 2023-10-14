@@ -4,26 +4,18 @@
 
 #pragma once
 
-#include <map>
 #include <fstream>
+#include <map>
 
-#include "openvino/openvino.hpp"
-
-#include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 namespace ov {
 namespace test {
 namespace utils {
 
 struct PassRate {
-    enum Statuses {
-        PASSED,
-        FAILED,
-        SKIPPED,
-        CRASHED,
-        HANGED
-    };
+    enum Statuses { PASSED, FAILED, SKIPPED, CRASHED, HANGED };
     unsigned long passed = 0;
     unsigned long failed = 0;
     unsigned long skipped = 0;
@@ -36,7 +28,13 @@ struct PassRate {
 
     PassRate() = default;
 
-    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c, unsigned long h, double rel_p = 0, double rel_a = 0);
+    PassRate(unsigned long p,
+             unsigned long f,
+             unsigned long s,
+             unsigned long c,
+             unsigned long h,
+             double rel_p = 0,
+             double rel_a = 0);
 
     void setImplementationStatus(bool implStatus);
 
@@ -57,7 +55,7 @@ protected:
     static bool isHangReported;
     static bool extendReport;
     static bool saveReportWithUniqueName;
-    static const char *outputFolder;
+    static const char* outputFolder;
 
     Summary() = default;
 
@@ -67,14 +65,6 @@ public:
     void setDeviceName(std::string device);
 
     std::string getDeviceName() const;
-
-
-    // #define IE_TEST_DEBUG
-
-#ifdef IE_TEST_DEBUG
-    void saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
-                         unsigned long skipped, unsigned long crashed, unsigned long hanged);
-#endif  //IE_TEST_DEBUG
 
     virtual void saveReport() {}
 
@@ -89,7 +79,7 @@ public:
     static void setSaveReportTimeout(size_t val);
     static size_t getSaveReportTimeout();
 
-    static void setOutputFolder(const std::string &val);
+    static void setOutputFolder(const std::string& val);
 };
 
 }  // namespace utils

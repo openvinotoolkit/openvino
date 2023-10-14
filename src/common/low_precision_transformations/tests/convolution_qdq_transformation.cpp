@@ -10,13 +10,13 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/convolution.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/convolution.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -41,7 +41,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     ConvolutionQDqTransformationTestValues> ConvolutionQDqTransformationParams;
 
 class ConvolutionQDqTransformation : public LayerTransformation, public testing::WithParamInterface<ConvolutionQDqTransformationParams> {
@@ -63,7 +63,7 @@ public:
             testValues.actual.dequantizationAfter);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
@@ -106,11 +106,11 @@ TEST_P(ConvolutionQDqTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> suitablePartialShapes = {
-    ngraph::PartialShape({ 1, 3, 72, 48 }),
-    ngraph::PartialShape({ 4, 3, 72, 48 }),
-    ngraph::PartialShape({ -1, 3, 72, 48 }),
-    ngraph::PartialShape({ -1, -1, -1, -1 }),
+const std::vector<ov::PartialShape> suitablePartialShapes = {
+    ov::PartialShape({ 1, 3, 72, 48 }),
+    ov::PartialShape({ 4, 3, 72, 48 }),
+    ov::PartialShape({ -1, 3, 72, 48 }),
+    ov::PartialShape({ -1, -1, -1, -1 }),
 };
 
 const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
@@ -513,7 +513,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> unsuitablePartialShapes = {
+const std::vector<ov::PartialShape> unsuitablePartialShapes = {
     PartialShape::dynamic(),
 };
 

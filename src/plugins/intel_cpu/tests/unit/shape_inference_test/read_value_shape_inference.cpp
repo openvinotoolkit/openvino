@@ -30,8 +30,8 @@ void readValueTest() {
     auto readValue = constructGraph<T>();
 
     // Test StaticShape
-    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 2, 64, 64}}, static_output_shapes = {StaticShape{}};
-    shape_inference(readValue.get(), static_input_shapes, static_output_shapes);
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 2, 64, 64}};
+    const auto static_output_shapes = shape_inference(readValue.get(), static_input_shapes);
     ASSERT_EQ(static_output_shapes[0], (StaticShape{1, 2, 64, 64}));
 }
 

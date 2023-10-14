@@ -29,7 +29,7 @@ if(WIN32)
     endif()
 endif()
 
-function(_ie_add_api_validator_post_build_step_recursive)
+function(_ov_add_api_validator_post_build_step_recursive)
     cmake_parse_arguments(API_VALIDATOR "" "TARGET" "" ${ARGN})
 
     get_target_property(LIBRARY_TYPE ${API_VALIDATOR_TARGET} TYPE)
@@ -55,9 +55,9 @@ function(_ie_add_api_validator_post_build_step_recursive)
                 continue()
             endif()
             if(TARGET "${orig_library}")
-                _ie_add_api_validator_post_build_step_recursive(TARGET ${orig_library})
+                _ov_add_api_validator_post_build_step_recursive(TARGET ${orig_library})
             else()
-                _ie_add_api_validator_post_build_step_recursive(TARGET ${library})
+                _ov_add_api_validator_post_build_step_recursive(TARGET ${library})
             endif()
         endif()
     endforeach()
@@ -113,10 +113,10 @@ function(_ov_add_api_validator_post_build_step)
     endif()
 
     # collect targets
-    _ie_add_api_validator_post_build_step_recursive(TARGET ${API_VALIDATOR_TARGET})
+    _ov_add_api_validator_post_build_step_recursive(TARGET ${API_VALIDATOR_TARGET})
     if (API_VALIDATOR_EXTRA)
         foreach(target IN LISTS API_VALIDATOR_EXTRA)
-            _ie_add_api_validator_post_build_step_recursive(TARGET ${target})
+            _ov_add_api_validator_post_build_step_recursive(TARGET ${target})
         endforeach()
     endif()
 
@@ -171,7 +171,7 @@ function(_ov_add_api_validator_post_build_step)
                 -D ONECORE_API_VALIDATOR_EXCLUSION=${ONECORE_API_VALIDATOR_EXCLUSION}
                 -D ONECORE_API_VALIDATOR_OUTPUT=${output_file}
                 -D CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-                -P "${IEDevScripts_DIR}/api_validator/api_validator_run.cmake")
+                -P "${OpenVINODeveloperScripts_DIR}/api_validator/api_validator_run.cmake")
         list(APPEND byproducts_files ${output_file})
 
         unset(target_name)
@@ -191,8 +191,15 @@ function(_ov_add_api_validator_post_build_step)
 endfunction()
 
 #
-# ie_add_api_validator_post_build_step(TARGET <name>)
+# ov_add_api_validator_post_build_step(TARGET <name>)
 #
-macro(ie_add_api_validator_post_build_step)
-    _ov_add_api_validator_post_build_step(${ARGV})
-endmacro()
+function(ov_add_api_validator_post_build_step)
+    _ov_add_api_validator_post_build_step(${ARGN})
+endfunction()
+
+# deprecated
+
+function(ie_add_api_validator_post_build_step)
+    message(WARNING "'ie_add_api_validator_post_build_step' is deprecated, use 'ov_add_api_validator_post_build_step' instead")
+    _ov_add_api_validator_post_build_step(${ARGN})
+endfunction()

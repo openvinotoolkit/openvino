@@ -34,7 +34,7 @@ TEST(StaticShapeInferenceTest, AUGRUCellTest_all_inputs_static_rank) {
 
     std::vector<StaticShape> static_output_shapes{StaticShape{}, StaticShape{}};
 
-    shape_inference(augru.get(), static_input_shapes, static_output_shapes);
+    static_output_shapes = shape_inference(augru.get(), static_input_shapes);
     EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, hidden_size}));
 }
 
@@ -62,6 +62,6 @@ TEST(StaticShapeInferenceTest, AUGRUCellTest_all_inputs_dynamic_rank) {
 
     std::vector<StaticShape> static_output_shapes{StaticShape{}, StaticShape{}};
 
-    shape_inference(augru.get(), static_input_shapes, static_output_shapes);
+    static_output_shapes = shape_inference(augru.get(), static_input_shapes);
     EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, hidden_size}));
 }

@@ -10,6 +10,16 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/util/file_util.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -55,8 +65,8 @@ public:
         std::tie(pluginName, target_device) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        pluginName += IE_BUILD_POSTFIX;
-        if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
+        pluginName += OV_BUILD_POSTFIX;
+        if (pluginName == (std::string("openvino_template_plugin") + OV_BUILD_POSTFIX)) {
             pluginName = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName);
         }
     }
@@ -86,7 +96,7 @@ class OVClassSetDevicePriorityConfigTest : public OVPluginTestBase,
 protected:
     std::string deviceName;
     ov::AnyMap configuration;
-    std::shared_ptr<ngraph::Function> actualNetwork;
+    std::shared_ptr<ov::Model> actualNetwork;
 
 public:
     void SetUp() override {
@@ -187,7 +197,7 @@ inline std::string getPluginFile() {
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
     stream << ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-        std::string("mock_engine") + IE_BUILD_POSTFIX);
+        std::string("mock_engine") + OV_BUILD_POSTFIX);
     stream << "\"></plugin></plugins></ie>";
     ov::test::utils::createFile(filename, stream.str());
     return filename;
@@ -795,29 +805,29 @@ TEST_P(OVClassSeveralDevicesTestQueryNetwork, QueryNetworkActualSeveralDevicesNo
 TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
     ov::Core ie = createCoreWithTemplate();
 
-    std::shared_ptr<ngraph::Function> func;
+    std::shared_ptr<ov::Model> func;
     {
-        ngraph::PartialShape shape({1, 84});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::opset6::Parameter>(type, shape);
-        auto matMulWeights = ngraph::opset6::Constant::create(ngraph::element::Type_t::f32, {10, 84}, {1});
-        auto shapeOf = std::make_shared<ngraph::opset6::ShapeOf>(matMulWeights);
-        auto gConst1 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i32, {1}, {1});
-        auto gConst2 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i64, {}, {0});
-        auto gather = std::make_shared<ngraph::opset6::Gather>(shapeOf, gConst1, gConst2);
-        auto concatConst = ngraph::opset6::Constant::create(ngraph::element::Type_t::i64, {1}, {1});
-        auto concat = std::make_shared<ngraph::opset6::Concat>(ngraph::NodeVector{concatConst, gather}, 0);
-        auto relu = std::make_shared<ngraph::opset6::Relu>(param);
-        auto reshape = std::make_shared<ngraph::opset6::Reshape>(relu, concat, false);
-        auto matMul = std::make_shared<ngraph::opset6::MatMul>(reshape, matMulWeights, false, true);
-        auto matMulBias = ngraph::opset6::Constant::create(ngraph::element::Type_t::f32, {1, 10}, {1});
-        auto addBias = std::make_shared<ngraph::opset6::Add>(matMul, matMulBias);
-        auto result = std::make_shared<ngraph::opset6::Result>(addBias);
+        ov::PartialShape shape({1, 84});
+        ov::element::Type type(ov::element::Type_t::f32);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto matMulWeights = ov::op::v0::Constant::create(ov::element::Type_t::f32, {10, 84}, {1});
+        auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(matMulWeights);
+        auto gConst1 = ov::op::v0::Constant::create(ov::element::Type_t::i32, {1}, {1});
+        auto gConst2 = ov::op::v0::Constant::create(ov::element::Type_t::i64, {}, {0});
+        auto gather = std::make_shared<ov::op::v1::Gather>(shapeOf, gConst1, gConst2);
+        auto concatConst = ov::op::v0::Constant::create(ov::element::Type_t::i64, {1}, {1});
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{concatConst, gather}, 0);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(relu, concat, false);
+        auto matMul = std::make_shared<ov::op::v0::MatMul>(reshape, matMulWeights, false, true);
+        auto matMulBias = ov::op::v0::Constant::create(ov::element::Type_t::f32, {1, 10}, {1});
+        auto addBias = std::make_shared<ov::op::v1::Add>(matMul, matMulBias);
+        auto result = std::make_shared<ov::op::v0::Result>(addBias);
 
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
+        ov::ParameterVector params = {param};
+        ov::ResultVector results = {result};
 
-        func = std::make_shared<ngraph::Function>(results, params);
+        func = std::make_shared<ov::Model>(results, params);
     }
 
     auto rl_map = ie.query_model(func, target_device);

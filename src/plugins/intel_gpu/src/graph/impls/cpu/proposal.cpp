@@ -49,11 +49,11 @@ struct proposal_t {
 
 inline float float_read_helper(const float* mem) { return *mem; }
 
-inline float float_read_helper(const half_t* mem) { return static_cast<float>(*mem); }
+inline float float_read_helper(const ov::float16* mem) { return static_cast<float>(*mem); }
 
 inline void float_write_helper(float* mem, float f) { *mem = f; }
 
-inline void float_write_helper(half_t* mem, float f) { *mem = static_cast<half_t>(f); }
+inline void float_write_helper(ov::float16* mem, float f) { *mem = static_cast<ov::float16>(f); }
 
 /****************************************************************************
  *                                                                          *
@@ -191,7 +191,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     explicit proposal_impl(const proposal_node& arg) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::proposal_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);
