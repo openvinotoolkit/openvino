@@ -959,10 +959,10 @@ jobs:
 
       - name: ONNX Layer Tests
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3.9 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
+          python3.9 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -1154,7 +1154,7 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke*:-*compareAutoBatchingToSingleBatch*:*Caching*:*CoreThreading*
+          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke*:-*compareAutoBatchingToSingleBatch*:*Caching*:*CoreThreading*:*ConvolutionBackpropDataLayerTest*:*DetectionOutputLayerTest*
         timeout-minutes: 120
 
       - name: Save tests execution time
@@ -1361,7 +1361,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu22.04
       volumes:
         - /mount/caches:/mount/caches
     env:

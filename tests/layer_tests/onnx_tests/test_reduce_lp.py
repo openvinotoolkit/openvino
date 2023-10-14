@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import platform
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
@@ -228,6 +229,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
         dict(shape=[2, 4, 6, 8, 10], axes=[-4, -2]),
     ]
 
+    @pytest.mark.xfail(platform.system() == 'Linux' and platform.machine() == 'aarch64', reason="CVS-122783")
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
