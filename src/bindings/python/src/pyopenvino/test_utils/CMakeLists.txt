@@ -50,10 +50,10 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/test_utils
         COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${OV_CPACK_PYTHONDIR}/tests/openvino/test_utils
+        LIBRARY DESTINATION tests/${OV_CPACK_PYTHONDIR}/openvino/test_utils
         COMPONENT tests EXCLUDE_FROM_ALL)
 
 install(PROGRAMS ${OpenVINOPython_SOURCE_DIR}/src/openvino/test_utils/__init__.py
-        DESTINATION ${OV_CPACK_PYTHONDIR}/tests/openvino/test_utils
+        DESTINATION tests/${OV_CPACK_PYTHONDIR}/openvino/test_utils
         COMPONENT tests
         EXCLUDE_FROM_ALL)
