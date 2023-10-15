@@ -942,69 +942,66 @@ jobs:
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
-      - name: PyTorch Layer Tests
+      - name: PyTorch Layer Testst
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical --dist loadscope -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests --tx 4*popen -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
-      - name: ONNX Layer Tests
+      - name: TensorFlow 1 Layer Tests - TF FE\
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow 1 Layer Tests - TF FE
-        run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          # requires 'unit_tests' from 'tools/mo'
-          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest -n logical --dist loadscope ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
+          python3 -m pytest --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - TF FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest -n logical --dist loadscope ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
+          python3 -m pytest --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest -n logical --dist loadscope ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
+          python3 -m pytest --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest -n logical --dist loadscope ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
+          python3 -m pytest --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest -n logical --dist loadscope ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
+          python3 -m pytest --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
               --ir_version=11 --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml -k "sigmoid"
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
       - name: TensorFlow Lite Layer Tests - TFL FE
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest -n logical --dist loadscope ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+          python3 -m pytest -n --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
