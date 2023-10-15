@@ -983,7 +983,7 @@ jobs:
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           PIP_INSTALL_DIR=$(python3 -m site --user-site)
           export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
-          export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino
+          export PYTHONPATH=${INSTALL_TEST_DIR}/python
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -993,7 +993,7 @@ jobs:
         run: |
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           PIP_INSTALL_DIR=$(python3 -m site --user-site)
-          export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino
+          export PYTHONPATH=${INSTALL_TEST_DIR}/python
           export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
