@@ -73,6 +73,7 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
+          ref: 'master'
 
       #
       # Dependencies
@@ -124,7 +125,7 @@ jobs:
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_INTEL_GNA=OFF \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
@@ -230,6 +231,7 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
+          ref: 'master'
 
       - name: Download selective build statistics package
         uses: actions/download-artifact@v3
