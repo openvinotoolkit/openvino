@@ -10,8 +10,8 @@
 #include <cstring>
 #include <numeric>
 
-#include "ngraph/op/experimental_detectron_roi_feature.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 #if defined(__GNUC__) && !defined(__clang__)
 #    if defined(__linux__) && defined(OPENVINO_ARCH_X86) && \
@@ -344,7 +344,7 @@ void experimental_detectron_roi_feature_extractor(
 
 void experimental_detectron_roi_feature_extractor_postprocessing(void* prois_features,
                                                                  void* prois,
-                                                                 const ngraph::element::Type output_type,
+                                                                 const element::Type output_type,
                                                                  const std::vector<float>& output_rois_features,
                                                                  const std::vector<float>& output_rois,
                                                                  const Shape& output_rois_features_shape,

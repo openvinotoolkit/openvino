@@ -161,7 +161,7 @@ void Transformations::UpToLpt() {
         ov::pass::low_precision::LowPrecision::isFunctionQuantized(model) &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
 
-    auto defaultPrecisions = useLpt ? ov::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
+    auto defaultPrecisions = useLpt ? ov::pass::low_precision::precision_set::get_int8_support() : std::vector<ov::element::Type>{};
     bool hasINT16orINT32Levels = false;
 
     if (useLpt) {
@@ -171,7 +171,7 @@ void Transformations::UpToLpt() {
             {ov::pass::low_precision::levels::int16, ov::pass::low_precision::levels::int16_narrow_range,
              ov::pass::low_precision::levels::int32, ov::pass::low_precision::levels::int32_narrow_range});
         if (hasINT16orINT32Levels) {
-            defaultPrecisions = ov::pass::low_precision::precision_set::int8_int16_int32_support;
+            defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_int16_int32_support();
         }
     }
 
@@ -207,9 +207,16 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     if (useLpt) {
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
     } else {
+        // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
+        const ov::element::TypeVector decompression_precisions{
+            ov::element::u8,
+            // TODO: Uncomment when group decompression is supported
+            // ov::element::nf4
+        };
         // MarkDequantizationSubgraph is used even in non-LPT pipeline on X64 platforms
-        // in order to keep compressed u8 MatMul weights with decompression operations as is
-        CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, ov::element::TypeVector{ov::element::u8}, true);
+        // in order to keep compressed MatMul weights with decompression operations as is
+        CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
         CPU_SET_CALLBACK_X64(manager, [](const_node_ptr &node) -> bool {
             auto get_single_consumer = [](const_node_ptr &node) -> std::shared_ptr<ov::Node> {
                 const auto consumers = node->get_output_target_inputs(0);
@@ -224,12 +231,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
             if (ov::is_type<ov::opset1::MatMul>(consumer)) {
                 return false;
-            } else if (ov::is_type<ov::opset1::Transpose>(consumer)) {
-                consumer = get_single_consumer(consumer);
-                if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-                    return false;
-                }
             }
+            // TODO: Uncomment when group decompression is supported
+            // else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
+            //     consumer = get_single_consumer(consumer);
+            //     if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+            //         return false;
+            //     }
+            // }
             return true;
         }, ov::pass::MarkDequantizationSubgraph);
     }
@@ -589,8 +598,12 @@ void Transformations::MainSnippets(void) {
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
+    // - MHA has BRGEMM that is supported only on AVX512 platforms
+    // - CPU Plugin Subgraph supports only f32, bf16 (and quantized) BRGEMM
+    //   [122494] Need to add support of f16
     const bool isMHASupported =
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+            one_of(inferencePrecision, ov::element::bf16, ov::element::f32);
     if (!isMHASupported) {
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::TokenizeMHASnippets);
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::ExtractReshapesFromMHA);

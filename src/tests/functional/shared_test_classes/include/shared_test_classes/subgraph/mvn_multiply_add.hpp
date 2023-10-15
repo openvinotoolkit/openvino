@@ -4,31 +4,34 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-typedef std::tuple<
-    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>,  // Input shape, Constant shape
-    InferenceEngine::Precision,                                           // Data precision
-    InferenceEngine::Precision,                                           // Axes precision
-    std::vector<int>,                                                     // Axes
-    bool,                                                                 // Normalize variance
-    float,                                                                // Epsilon
-    std::string,                                                          // Epsilon mode
-    std::string                                                           // Device name
-> mvnMultiplyAddParams;
+typedef std::tuple<std::pair<ov::Shape, ov::Shape>,  // Input shape, Constant shape
+                   ov::element::Type,                // Data precision
+                   ov::element::Type,                // Axes precision
+                   std::vector<int>,                 // Axes
+                   bool,                             // Normalize variance
+                   float,                            // Epsilon
+                   std::string,                      // Epsilon mode
+                   std::string                       // Device name
+                   >
+    mvnMultiplyAddParams;
 
-class MVNMultiplyAdd: public testing::WithParamInterface<mvnMultiplyAddParams>,
-                      virtual public LayerTestsUtils::LayerTestsCommon{
+class MVNMultiplyAdd : public testing::WithParamInterface<mvnMultiplyAddParams>,
+                       virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<mvnMultiplyAddParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<mvnMultiplyAddParams>& obj);
+
 protected:
     void SetUp() override;
 };
-}  // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

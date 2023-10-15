@@ -6,34 +6,34 @@ if(NOT COMMAND ov_check_pip_packages)
     message(FATAL_ERROR "Internal error: ncc_naming_style.cmake must be included after ov_check_pip_packages")
 endif()
 
-set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
+set(ncc_style_dir "${OpenVINODeveloperScripts_DIR}/ncc_naming_style")
 set(ncc_style_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style")
 
 # find python3
 
 if(ENABLE_NCC_STYLE)
-    find_host_package(PythonInterp 3 QUIET)
-    if(NOT PYTHONINTERP_FOUND)
+    find_host_package(Python3 QUIET COMPONENTS Interpreter)
+    if(NOT Python3_Interpreter_FOUND)
         message(WARNING "Python3 interpreter was not found (required for ncc naming style check)")
         set(ENABLE_NCC_STYLE OFF)
     endif()
 endif()
 
 if(ENABLE_NCC_STYLE)
-    if(PYTHON_VERSION_MINOR EQUAL 6)
+    if(Python3_VERSION_MINOR EQUAL 6)
         set(clang_version 10)
-    elseif(PYTHON_VERSION_MINOR EQUAL 7)
+    elseif(Python3_VERSION_MINOR EQUAL 7)
         set(clang_version 11)
-    elseif(PYTHON_VERSION_MINOR EQUAL 8)
+    elseif(Python3_VERSION_MINOR EQUAL 8)
         set(clang_version 12)
-    elseif(PYTHON_VERSION_MINOR EQUAL 9)
+    elseif(Python3_VERSION_MINOR EQUAL 9)
         set(clang_version 12)
-    elseif(PYTHON_VERSION_MINOR EQUAL 10)
+    elseif(Python3_VERSION_MINOR EQUAL 10)
         set(clang_version 14)
-    elseif(PYTHON_VERSION_MINOR EQUAL 11)
+    elseif(Python3_VERSION_MINOR EQUAL 11)
         set(clang_version 14)
     else()
-        message(WARNING "Cannot suggest clang package for python ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+        message(WARNING "Cannot suggest clang package for python ${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
     endif()
 endif()
 
@@ -170,7 +170,7 @@ function(ov_ncc_naming_style)
                 ${output_file}
             COMMAND
                 "${CMAKE_COMMAND}"
-                -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
+                -D "Python3_EXECUTABLE=${Python3_EXECUTABLE}"
                 -D "NCC_PY_SCRIPT=${ncc_script_py}"
                 -D "INPUT_FILE=${source_file}"
                 -D "OUTPUT_FILE=${output_file}"

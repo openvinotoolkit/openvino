@@ -59,8 +59,8 @@ bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_mish, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_mish, f32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_mish, f16, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_mish, f32, arg0, out, count);
     default:
         rc = false;
         break;
@@ -73,7 +73,7 @@ bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v4_Mish_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return mish::evaluate_mish(inputs[0], outputs[0]);
 }

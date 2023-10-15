@@ -5,3 +5,12 @@ pytest-html
 torch
 torchvision
 av
+transformers
+timm
+sacremoses
+sentencepiece
+datasets
+pyctcdecode
+protobuf
+soundfile
+pandas

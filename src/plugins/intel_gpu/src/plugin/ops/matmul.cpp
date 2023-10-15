@@ -46,8 +46,18 @@ static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
             return false;
 
         // dynamic shapes and 1D tensors are not transposed
-        if (shapes[0].is_dynamic() || shapes[1].is_dynamic() ||
-            shapes[0].size() < 2 || shapes[1].size() < 2)
+        if (shapes[0].is_dynamic() || shapes[1].is_dynamic()) {
+            // Currently, cldnn optimized gemm kernel (gemm_tiled_opt) does not support transposed input with shape unaligned for 16.
+            // If the shape is not aligned for 16, gemm_ref_kernel will be selected,
+            // but the perf is worse than permute + gemm_tiled_opt.
+            // So we'll use this permute + gemm_tiled_opt strategy as a temporal solution,
+            // until we have an essential solution, i.e., fixing the gemm_tiled_opt kernel to support unaligned shape.
+            if (p.get_engine().get_device_info().dev_type == cldnn::device_type::integrated_gpu)
+                return true;
+            else
+                return false;
+        }
+        if (shapes[0].size() < 2 || shapes[1].size() < 2)
             return false;
 
         // don't transpose inputs if they're aligned to 16

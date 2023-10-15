@@ -5,7 +5,7 @@
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "shared_test_classes/single_op/tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {
