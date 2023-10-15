@@ -8,8 +8,8 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/util/evaluate_helpers.hpp"
 #include "squeeze_shape_inference.hpp"
 
 namespace ov {
@@ -17,21 +17,6 @@ namespace op {
 namespace v0 {
 namespace validate {
 namespace {
-bool axes_type(const element::Type& et) {
-    switch (et) {
-    case element::i8:
-    case element::i16:
-    case element::i32:
-    case element::i64:
-    case element::u8:
-    case element::u16:
-    case element::u32:
-    case element::u64:
-        return true;
-    default:
-        return false;
-    }
-}
 
 bool axes_has_and_set_bound(const Node& op) {
     return (op.get_input_size() < 2) || op.get_input_tensor(1).has_and_set_bound();
@@ -78,7 +63,8 @@ bool Squeeze::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     OV_OP_SCOPE(v0_Squeeze_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
 
-    const auto output_shapes = shape_infer(this, util::get_tensors_shapes(inputs), make_tensor_accessor(inputs));
+    const auto output_shapes =
+        shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));
     outputs[0].set_shape(output_shapes.front().get_shape());
 
     std::memcpy(outputs[0].data(), inputs[0].data(), outputs[0].get_byte_size());
@@ -87,7 +73,23 @@ bool Squeeze::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
 bool Squeeze::has_evaluate() const {
     OV_OP_SCOPE(v0_Squeeze_has_evaluate);
-    return (get_input_size() < 2) || validate::axes_type(get_input_element_type(1));
+    const auto validate_axes_type = [](const element::Type& et) -> bool {
+        switch (et) {
+        case element::i8:
+        case element::i16:
+        case element::i32:
+        case element::i64:
+        case element::u8:
+        case element::u16:
+        case element::u32:
+        case element::u64:
+            return true;
+        default:
+            return false;
+        }
+    };
+
+    return (get_input_size() < 2) || validate_axes_type(get_input_element_type(1));
 }
 
 bool Squeeze::evaluate_lower(TensorVector& output_values) const {

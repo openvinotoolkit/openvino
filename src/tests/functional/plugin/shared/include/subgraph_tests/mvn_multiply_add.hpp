@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/mvn_multiply_add.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-TEST_P(MVNMultiplyAdd, CompareWithRefs){
-    Run();
+TEST_P(MVNMultiplyAdd, CompareWithRefs) {
+    run();
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
