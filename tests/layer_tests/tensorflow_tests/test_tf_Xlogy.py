@@ -14,10 +14,11 @@ class TestXlogy(CommonTFLayerTest):
         x_shape = inputs_info['x']
         y_shape = inputs_info['y']
         inputs_data = {}
+        # x = [-3 ,3] y = [1, 2]
         # generate x in way to have zeros
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type) * \
-                           np.random.randint(0, 2, x_shape).astype(self.input_type)
-        inputs_data['y'] = np.random.randint(-10, 10, y_shape).astype(self.input_type)
+        inputs_data['x'] = (6 * np.random.random(size=x_shape, dtype=np.float32) - 3) * \
+                            np.random.randint(2, size=x_shape, dtype=np.float32)
+        inputs_data['y'] = np.random.random(size=y_shape, dtype=np.float32) + 1
         return inputs_data
 
     def create_xlogy_net(self, input_shape, input_type):
