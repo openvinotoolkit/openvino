@@ -39,7 +39,7 @@ def output_comments(result, use_case, writer):
 def write_result(report_file, model, framework, device, use_case, iter_data_list, pretrain_time, model_precision):
     header = ['iteration', 'model', 'framework', 'device', 'pretrain_time(s)', 'input_size', 'infer_count', 'generation_time(s)',
               'output_size', 'latency(ms)', '1st_latency(ms)', '2nd_avg_latency(ms)', 'precision', 'max_rss_mem(MB)',
-              'max_shared_mem(MB)', 'prompt_idx', 'result_md5']
+              'max_shared_mem(MB)', 'prompt_idx', '1st_infer_latency(ms)', '2nd_infer_avg_latency(ms)', 'result_md5']
     out_file = Path(report_file)
 
     if len(iter_data_list) > 0:
@@ -53,6 +53,8 @@ def write_result(report_file, model, framework, device, use_case, iter_data_list
             total_infer_count = 0
             total_first_token_latency = 0
             total_other_tokens_avg_latency = 0
+            total_first_token_infer_latency = 0
+            total_other_tokens_infer_avg_latency = 0
             total_max_rss_mem_consumption = 0
             total_max_shared_mem_consumption = 0
             result = {}
@@ -70,7 +72,9 @@ def write_result(report_file, model, framework, device, use_case, iter_data_list
                 latency = iter_data['latency']
                 first_latency = iter_data['first_token_latency']
                 other_latency = iter_data['other_tokens_avg_latency']
-                rss_mem = iter_data['max_rss_mem_consumption']
+                first_token_infer_latency = iter_data['first_token_infer_latency']
+                other_token_infer_latency = iter_data['other_tokens_infer_avg_latency']
+                rss_mem = iter_data['max_rss_mem_consumption']                
                 shared_mem = iter_data['max_shared_mem_consumption']
                 result['iteration'] = str(iter_data['iteration'])
                 if i > 0:
@@ -84,6 +88,8 @@ def write_result(report_file, model, framework, device, use_case, iter_data_list
                 result['result_md5'] = iter_data['result_md5']
                 result['1st_latency(ms)'] = round(first_latency, 5) if first_latency != '' else first_latency
                 result['2nd_avg_latency(ms)'] = round(other_latency, 5) if other_latency != '' else other_latency
+                result['1st_infer_latency(ms)'] = round(first_token_infer_latency, 5) if first_token_infer_latency != '' else first_token_infer_latency
+                result['2nd_infer_avg_latency(ms)'] = round(other_token_infer_latency, 5) if other_token_infer_latency != '' else other_token_infer_latency
                 result['max_rss_mem(MB)'] = round(rss_mem, 5) if rss_mem != '' else rss_mem
                 result['max_shared_mem(MB)'] = round(shared_mem, 5) if shared_mem != '' else shared_mem
                 result['prompt_idx'] = iter_data['prompt_idx']
@@ -101,6 +107,10 @@ def write_result(report_file, model, framework, device, use_case, iter_data_list
                         total_first_token_latency += iter_data['first_token_latency']
                     if iter_data['other_tokens_avg_latency'] != '':
                         total_other_tokens_avg_latency += iter_data['other_tokens_avg_latency']
+                    if iter_data['first_token_infer_latency'] != '':
+                        total_first_token_infer_latency += iter_data['first_token_infer_latency']
+                    if iter_data['other_tokens_infer_avg_latency'] != '':
+                        total_other_tokens_infer_avg_latency += iter_data['other_tokens_infer_avg_latency']
                     if iter_data['infer_count'] != '':
                         total_infer_count += iter_data['infer_count']
                 else:
@@ -132,6 +142,10 @@ def write_result(report_file, model, framework, device, use_case, iter_data_list
                     result['1st_latency(ms)'] = round(total_first_token_latency / total_iters, 5)
                 if total_other_tokens_avg_latency > 0:
                     result['2nd_avg_latency(ms)'] = round(total_other_tokens_avg_latency / total_iters, 5)
+                if total_first_token_infer_latency > 0:
+                    result['1st_infer_latency(ms)'] = round(total_first_token_infer_latency / total_iters, 5)
+                if total_other_tokens_infer_avg_latency > 0:
+                    result['2nd_infer_avg_latency(ms)'] = round(total_other_tokens_infer_avg_latency / total_iters, 5)
                 if total_max_rss_mem_consumption > 0:
                     result['max_rss_mem(MB)'] = total_max_rss_mem_consumption
                 if total_max_shared_mem_consumption > 0:

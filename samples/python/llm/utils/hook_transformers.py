@@ -41,6 +41,7 @@ GreedySearchOutput = Union[
 ]
 
 tm_list = []
+tm_infer_list = []
 
 
 # Copied from https://github.com/huggingface/transformers/blob/6da93f5580e109fad5f7b523cf2b6e8a5bafb623/src/transformers/generation/utils.py#L2282
@@ -214,12 +215,14 @@ def new_greedy_search(
         model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
 
         # forward pass to get next token
+        tic_infer = time.time()
         outputs = self(
             **model_inputs,
             return_dict=True,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
         )
+        tm_infer_list.append(time.time() - tic_infer)
 
         if synced_gpus and this_peer_finished:
             continue  # don't waste resources running the code we don't need
@@ -311,6 +314,8 @@ class BenchHook:
         """Clear the time list."""
         global tm_list
         tm_list.clear()
+        global tm_infer_list
+        tm_infer_list.clear()
 
     def clear_time_list(self):
         """Clear the time list."""
@@ -319,15 +324,24 @@ class BenchHook:
 
     def get_time_list(self):
         """Return the time list."""
-        global tm_list
         return tm_list
+    
+    def clear_time_infer_list(self):
+        """Clear the infer time list."""
+        global tm_infer_list
+        tm_infer_list.clear()
+
+    def get_time_infer_list(self):
+        """Return the infer time list."""
+        global tm_infer_list
+        return tm_infer_list
 
     def new_forward(self, model, model_type=None):
         """Define a new greedy search function."""
         min_version = version.parse('4.28.0')
         trans_version = version.parse(transformers.__version__)
         if trans_version < min_version:
-            log.warning('The function of getting latency will not be available with current transformers version')
+            log.warning(f'The function of getting latency will not be available with current transformers version:{trans_version}')
         else:
             bound_method = new_greedy_search.__get__(model, model.__class__)
             model.greedy_search = bound_method

@@ -1,10 +1,15 @@
-argparse
-diffusers
-openvino-dev>=2023.0.0
-optimum
-optimum-intel
+git+https://github.com/huggingface/optimum-intel.git@4b8ed2404abf4408a16d251870a8deb25a4c448b
 git+https://github.com/openvinotoolkit/nncf.git
 torch
-transformers>=4.28.0,<=4.33.3
-tokenizers<0.14.0    # for chatglm-6b
-onnx
+torchvision
+numpy==1.23.5
+transformers
+tokenizers==0.13.3
+diffusers
+pillow
+timm
+tiktoken
+onnx==1.14.0
+protobuf==4.23.4
+onnxruntime
+einops

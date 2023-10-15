@@ -10,14 +10,23 @@ import PIL
 import numpy as np
 import torch
 from diffusers.schedulers import LMSDiscreteScheduler
-from diffusers.utils.torch_utils import randn_tensor
-from diffusers.utils import PIL_INTERPOLATION
-from diffusers.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+from diffusers.utils import randn_tensor, PIL_INTERPOLATION
+from diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from optimum.intel.openvino import OVModelForCausalLM
 from openvino.runtime import Model, Core, Tensor, Type
 from optimum.utils import NormalizedTextConfig, NormalizedConfigManager
 from transformers import PretrainedConfig
 from transformers.modeling_outputs import CausalLMOutputWithPast
+
+def register_normalized_configs():
+    NormalizedConfigManager._conf["mpt"] = NormalizedTextConfig.with_args(num_layers="n_layers", num_attention_heads="n_heads")
+    NormalizedConfigManager._conf["RefinedWebModel"] = NormalizedTextConfig.with_args(num_layers="n_layer", num_attention_heads="n_head")
+    NormalizedConfigManager._conf["falcon"] = NormalizedTextConfig.with_args(num_layers="num_hidden_layers", num_attention_heads="num_attention_heads")
+    NormalizedConfigManager._conf["RefinedWeb"] = NormalizedTextConfig.with_args(num_layers="n_layer", num_attention_heads="n_head")
+    NormalizedConfigManager._conf["chatglm"] = NormalizedTextConfig.with_args(num_layers="num_layers", num_attention_heads="num_attention_heads")
+    NormalizedConfigManager._conf["stablelm_epoch"] = NormalizedTextConfig.with_args(num_layers="num_hidden_layers", num_attention_heads="num_attention_heads")
+    NormalizedConfigManager._conf["stablelm-epoch"] = NormalizedTextConfig.with_args(num_layers="num_hidden_layers", num_attention_heads="num_attention_heads")
+    NormalizedConfigManager._conf["jais"] = NormalizedTextConfig.with_args(num_layers="n_layer", num_attention_heads="n_head", hidden_size="n_embd")
 
 
 class OVMPTModel(OVModelForCausalLM):

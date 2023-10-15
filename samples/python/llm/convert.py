@@ -10,6 +10,7 @@ from enum import Enum
 from functools import wraps
 from pathlib import Path
 from typing import Tuple
+import warnings
 
 import torch
 from diffusers import StableDiffusionPipeline, LDMSuperResolutionPipeline
@@ -17,6 +18,9 @@ from nncf import compress_weights
 from openvino import Type, PartialShape, save_model, convert_model
 from openvino.runtime import Core
 from optimum.exporters import TasksManager
+from optimum.exporters.tasks import make_backend_config_constructor_for_task
+from optimum.exporters.onnx.config import TextDecoderOnnxConfig
+from optimum.utils import NormalizedTextConfig, NormalizedConfigManager
 from optimum.exporters.onnx import get_encoder_decoder_models_for_export
 from optimum.exporters.openvino import export_models
 from optimum.intel.openvino import (OVModelForCausalLM, OVModelForSeq2SeqLM, OVStableDiffusionPipeline,
@@ -83,7 +87,10 @@ def convert_causal_lm(args):
         config=AutoConfig.from_pretrained(args.model_id, trust_remote_code=True),
     )
     end = time.perf_counter()
+
     log.info(f'Conversion total time {end - start}s')
+    if args.precision == 'FP16':
+        model.half()
     ov_out_dir = Path(args.output_dir) / 'pytorch/dldt' / args.precision
     save_tokenizer(tok, ov_out_dir)
 
@@ -103,7 +110,8 @@ def convert_causal_lm(args):
 
 
 def convert_seq2seq(args):
-    tok = AutoTokenizer.from_pretrained(args.model_id, trust_remote_code=True)
+    tokenizer_id = args.model_id if "blenderbot-9B" not in args.model_id else "facebook/blenderbot-3B"
+    tok = AutoTokenizer.from_pretrained(tokenizer_id, trust_remote_code=True)
     pt_compress_weights = args.compress_weights and BackendType.PYTORCH.value in args.compress_weights_backends
     start = time.perf_counter()
     if args.save_orig or pt_compress_weights:
@@ -128,13 +136,16 @@ def convert_seq2seq(args):
             output_names = [encoder_file_name, decoder_file_name, decoder_with_past_file_name]
             save_dir_path = Path(args.output_dir) / 'pytorch/dldt' / 'PT_compressed_weights'
 
-            export_models(
-                models_and_onnx_configs=models_and_onnx_configs,
-                opset=onnx_config.DEFAULT_ONNX_OPSET,
-                output_dir=save_dir_path,
-                output_names=output_names,
-            )
-            save_tokenizer(tok, save_dir_path)
+            try:
+                export_models(
+                    models_and_onnx_configs=models_and_onnx_configs,
+                    opset=onnx_config.DEFAULT_ONNX_OPSET,
+                    output_dir=save_dir_path,
+                    output_names=output_names,
+                )
+                save_tokenizer(tok, save_dir_path)
+            except Exception as ex:
+                warnings.warn(f"PT weights compression failed with {ex}, please use OpenVINO backend instead")
 
         del pt_model
         gc.collect()
@@ -190,6 +201,7 @@ def convert_sd(args):
                 monolith=False,
                 custom_onnx_configs={},
                 custom_architecture=False,
+                _variant="default"
             )
             output = Path(args.output_dir) / 'pytorch/dldt/' / 'PT_compressed_weights'
             for model_name in models_and_onnx_configs:
@@ -380,6 +392,71 @@ def convert_mpt(args):
             compress_ov_model_weights_helper(ov_model, tok, pt_model.config, ov_compressed_path, compress_to_fp16)
 
 
+def convert_stablelm(args):
+    def convert_to_ov(pt_model, tok, out_path, compress_to_fp16=False):
+        pt_model.config.use_cache = True
+        outs = pt_model(input_ids=torch.ones((1, 10), dtype=torch.long), attention_mask=torch.ones((1, 10), dtype=torch.long))
+        inputs = ["input_ids", "attention_mask"]
+        outputs = ["logits"]
+
+        dynamic_shapes = {"input_ids": {1: "seq_len"}, "attention_mask": {1: "seq_len"}}
+
+        for idx in range(len(outs.past_key_values)):
+            inputs.extend([f"past_key_values.{idx}.key", f"past_key_values.{idx}.value"])
+            dynamic_shapes[inputs[-1]] = {2: "past_sequence + sequence"}
+            dynamic_shapes[inputs[-2]] = {2: "past_sequence + sequence"}
+            outputs.extend([f"present.{idx}.key", f"present.{idx}.value"])
+        dummy_inputs = {"input_ids": torch.ones((1,2), dtype=torch.long), "attention_mask": torch.ones((1,12), dtype=torch.long), "past_key_values": outs.past_key_values}
+        pt_model.config.torchscript = True
+        ov_model = convert_model(pt_model, example_input=dummy_inputs)
+
+        for inp_name, m_input, input_data in zip(inputs, ov_model.inputs, flattenize_inputs(dummy_inputs.values())):
+            input_node = m_input.get_node()
+            if input_node.element_type == Type.dynamic:
+                m_input.get_node().set_element_type(Type.f32)
+            shape = list(input_data.shape)
+            if inp_name in dynamic_shapes:
+                for k in dynamic_shapes[inp_name]:
+                    shape[k] = -1
+            input_node.set_partial_shape(PartialShape(shape))
+            m_input.get_tensor().set_names({inp_name})
+
+        for out, out_name in zip(ov_model.outputs, outputs):
+            out.get_tensor().set_names({out_name})
+
+        save_ov_model_helper(ov_model, out_path, fp16=compress_to_fp16, tok=tok, config=pt_model.config)
+
+    config=AutoConfig.from_pretrained(args.model_id, trust_remote_code=True)
+    if not config.model_type.startswith("stablelm"):
+        return convert_causal_lm(args)
+    pt_model = AutoModelForCausalLM.from_pretrained(
+        args.model_id,
+        trust_remote_code=True,
+        config=AutoConfig.from_pretrained(args.model_id, trust_remote_code=True)
+    )
+    tok = AutoTokenizer.from_pretrained(args.model_id, trust_remote_code=True)
+    pt_model.config.use_cache = True
+    pt_model.eval()
+
+    if args.save_orig:
+        pt_out_dir = Path(args.output_dir) / "pytorch"
+        pt_model.save_pretrained(pt_out_dir)
+        save_tokenizer(tok, pt_out_dir)
+
+    ov_dir = Path(args.output_dir) / "pytorch/dldt" / args.precision
+    compress_to_fp16 = args.precision == "FP16"
+
+    convert_to_ov(pt_model, tok, ov_dir, compress_to_fp16)
+    if args.compress_weights:
+        if BackendType.PYTORCH.value in args.compress_weights_backends:
+            compressed_pt_model = compress_weights(pt_model)
+            pt_path = Path(args.output_dir) / "pytorch/dldt/PT_compressed_weights"
+            convert_to_ov(compressed_pt_model, tok, pt_path, compress_to_fp16)
+        if BackendType.OPENVINO.value in args.compress_weights_backends:
+            ov_model = Core().read_model(ov_dir / "openvino_model.xml")
+            ov_compressed_path = Path(args.output_dir) / "pytorch/dldt/INT8_compressed_weights"
+            compress_ov_model_weights_helper(ov_model, tok, pt_model.config, ov_compressed_path, compress_to_fp16)
+
 def convert_chatglm2(args):
     def convert_to_ov(pt_model, tok, out_path, compress_to_fp16=False):
         pt_model.config.torchscript = True
@@ -565,6 +642,20 @@ def convert_falcon(args):
         ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/INT8_compressed_weights'
         compress_ov_model_weights_helper(ov_model, tok, pt_model.config, ov_compressed_path, compress_to_fp16)
 
+def convert_jais(args):
+    normalized_config = NormalizedTextConfig.with_args(num_layers='n_layer', num_attention_heads='n_head', hidden_size='n_embd')
+    class JaisOpenVINOConfig(TextDecoderOnnxConfig):
+        DEFAULT_ONNX_OPSET = 13
+        NORMALIZED_CONFIG_CLASS = normalized_config
+    
+    TasksManager._SUPPORTED_MODEL_TYPE['jais'] = {
+        'onnx': {
+            'text-generation': make_backend_config_constructor_for_task(JaisOpenVINOConfig, 'text-generation'),
+            'text-generation-with-past': make_backend_config_constructor_for_task(JaisOpenVINOConfig, 'text-generation-with-past')
+        }
+    }
+    NormalizedConfigManager._conf['jais'] = normalized_config
+    return convert_causal_lm(args)
 
 converters = {
     'decoder': convert_causal_lm,
@@ -577,6 +668,8 @@ converters = {
     'chatglm2': convert_chatglm2,
     'chatglm': convert_chatglm,
     'falcon': convert_falcon,
+    'stablelm': convert_stablelm,
+    'jais': convert_jais
 }
 
 

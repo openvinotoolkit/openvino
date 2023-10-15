@@ -8,6 +8,7 @@ from utils.config_class import PT_MODEL_CLASSES_MAPPING, TOKENIZE_CLASSES_MAPPIN
 import os
 import time
 import logging as log
+import openvino.torch
 
 MAX_CONNECT_TIME = 50
 
@@ -15,13 +16,30 @@ MAX_CONNECT_TIME = 50
 def set_bf16(model, device, **kwargs):
     try:
         if len(kwargs['config']) > 0 and kwargs['config'].get('PREC_BF16') and kwargs['config']['PREC_BF16'] is True:
-            model = model.to(device, dtype=torch.bfloat16)
+            model = model.to(device.lower(), dtype=torch.bfloat16)
             log.info('Set inference precision to bf16')
     except Exception:
         log.error('Catch exception for setting inference precision to bf16.')
         raise RuntimeError('Set prec_bf16 fail.')
     return model
 
+
+def run_torch_compile(model, backend='openvino'):
+    if backend == 'pytorch':
+        log.info('Running torch.compile() with pytorch backend')
+        start = time.perf_counter()
+        compiled_model = torch.compile(model)
+        end = time.perf_counter()
+        compile_time = end - start
+        log.info(f'Compiling model via torch.compile() took: {compile_time}')
+    else:
+        log.info('Running torch.compile() with openvino backend')
+        start = time.perf_counter()
+        compiled_model = torch.compile(model, backend=backend)
+        end = time.perf_counter()
+        compile_time = end - start
+        log.info(f'Compiling model via torch.compile() took: {compile_time}')
+    return compiled_model
 
 def get_text_model_from_huggingface(model_path, connect_times, **kwargs):
     model_type = DEFAULT_MODEL_CLASSES[kwargs['use_case']]
@@ -61,7 +79,6 @@ def create_text_gen_model(model_path, device, **kwargs):
                 else:
                     raise RuntimeError('==Failure ==: the model id of huggingface should not be empty!')
             else:
-
                 log.info(f'Load text model from model path:{model_path}')
                 default_model_type = DEFAULT_MODEL_CLASSES[kwargs['use_case']]
                 model_type = kwargs.get('model_type', default_model_type)
@@ -79,27 +96,33 @@ def create_text_gen_model(model_path, device, **kwargs):
             raise RuntimeError(f'==Failure ==: model path:{model_path} is not directory')
     else:
         raise RuntimeError(f'==Failure ==: model path:{model_path} is not exist')
-
-    log.info(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
-
+    
+    log.info(f'model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
+    
     if device is not None:
-        gptjfclm = 'transformers.models.gptj.modeling_gptj.GPTJForCausalLM'
-        lfclm = 'transformers.models.llama.modeling_llama.LlamaForCausalLM'
-        bfclm = 'transformers.models.bloom.modeling_bloom.BloomForCausalLM'
-        gpt2lmhm = 'transformers.models.gpt2.modeling_gpt2.GPT2LMHeadModel'
-        gptneoxclm = 'transformers.models.gpt_neox.modeling_gpt_neox.GPTNeoXForCausalLM'
-        chatglmfcg = 'transformers_modules.pytorch_original.modeling_chatglm.ChatGLMForConditionalGeneration'
-        real_base_model_name = str(type(model))
-        log.info(f'Real base model={real_base_model_name}')
-        # bfclm will trigger generate crash.
-        if any(x in real_base_model_name for x in [gptjfclm, lfclm, bfclm, gpt2lmhm, gptneoxclm, chatglmfcg]):
+        GPTJFCLM = 'transformers.models.gptj.modeling_gptj.GPTJForCausalLM'
+        LFCLM = 'transformers.models.llama.modeling_llama.LlamaForCausalLM'
+        BFCLM = 'transformers.models.bloom.modeling_bloom.BloomForCausalLM'
+        GPT2LMHM = 'transformers.models.gpt2.modeling_gpt2.GPT2LMHeadModel'
+        GPTNEOXCLM = 'transformers.models.gpt_neox.modeling_gpt_neox.GPTNeoXForCausalLM'
+        ChatGLMFCG = 'transformers_modules.pytorch_original.modeling_chatglm.ChatGLMForConditionalGeneration'
+        REAL_BASE_MODEL_NAME = str(type(model))
+        log.info('Real base model=', REAL_BASE_MODEL_NAME)
+        # BFCLM will trigger generate crash.
+        if any([x in REAL_BASE_MODEL_NAME for x in [GPTJFCLM, LFCLM, BFCLM, GPT2LMHM, GPTNEOXCLM, ChatGLMFCG]]):
             model = set_bf16(model, device, **kwargs)
         else:
             if len(kwargs['config']) > 0 and kwargs['config'].get('PREC_BF16') and kwargs['config']['PREC_BF16'] is True:
                 log.info('Param [bf16/prec_bf16] will not work.')
-            model.to(device)
+            model.to(device.lower())
     else:
         raise RuntimeError('==Failure ==: no device to load')
+    
+    # torch.compile()
+    if kwargs['torch_compile_backend']:
+        backend = kwargs['torch_compile_backend']
+        compiled_model = run_torch_compile(model, backend)
+        model = compiled_model
     return model, tokenizer, from_pretrain_time
 
 
@@ -153,9 +176,15 @@ def create_image_gen_model(model_path, device, **kwargs):
     log.info(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
 
     if device is not None:
-        pipe.to(device)
+        pipe.to(device.lower())
     else:
         raise RuntimeError('==Failure ==: no device to load')
+
+    # torch.compile()
+    if kwargs['torch_compile_backend']:
+        backend = kwargs['torch_compile_backend']
+        compiled_model = run_torch_compile(pipe, backend)
+        pipe = compiled_model
     return pipe, from_pretrain_time
 
 
@@ -183,12 +212,18 @@ def create_image_classification_model(model_path, device, **kwargs):
         log.info(model.state_dict())
         torch.save(model.state_dict(), model_path / f'{model_id}.pth')
     if device:
-        model.to(device)
+        model.to(device.lower())
     else:
         raise RuntimeError('==Failure ==: no device to load')
     model.eval()
     data_config = timm.data.resolve_data_config([], model=model_id, use_test_size=True)
-    input_size = (1, ) + data_config['input_size']
+    input_size = (1,) + data_config['input_size']
+
+    # torch.compile()
+    if kwargs['torch_compile_backend']:
+        backend = kwargs['torch_compile_backend']
+        compiled_model = run_torch_compile(model, backend)
+        model = compiled_model
     return model, input_size
 
 
@@ -217,11 +252,16 @@ def create_ldm_super_resolution_model(model_path, device, **kwargs):
             raise RuntimeError(f'==Failure ==: model path:{model_path} is not directory')
     else:
         raise RuntimeError(f'==Failure ==: model path:{model_path} is not exist')
-
-    log.info(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
-
+    
+    print(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
     if device is not None:
-        pipe.to(device)
+        pipe.to(device.lower())
     else:
         raise RuntimeError('==Failure ==: no device to load')
+
+    # torch.compile()
+    if kwargs['torch_compile_backend']:
+        backend = kwargs['torch_compile_backend']
+        compiled_model = run_torch_compile(pipe, backend)
+        pipe = compiled_model
     return pipe, from_pretrain_time
