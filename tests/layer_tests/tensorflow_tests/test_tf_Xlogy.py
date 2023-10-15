@@ -15,9 +15,9 @@ class TestXlogy(CommonTFLayerTest):
         y_shape = inputs_info['y']
         inputs_data = {}
         # generate x in way to have zeros
-        inputs_data['x'] = np.random.randint(-10, 10, y_shape).astype(self.input_type) * \
-                           np.random.randint(0, 2, y_shape).astype(self.input_type)
-        inputs_data['y'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
+        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type) * \
+                           np.random.randint(0, 2, x_shape).astype(self.input_type)
+        inputs_data['y'] = np.random.randint(-10, 10, y_shape).astype(self.input_type)
         return inputs_data
 
     def create_xlogy_net(self, input_shape, input_type):

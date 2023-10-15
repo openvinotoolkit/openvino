@@ -23,8 +23,7 @@ OutputVector translate_xlogy_op(const NodeContext& node) {
     auto y = node.get_input(1);
 
     // prepare auxiliary zero constant of the same type as the input
-    auto zero = make_shared<Constant>(element::f32, Shape{}, 0.0f)->output(0);
-    zero = make_shared<ConvertLike>(zero, x);
+    auto zero = create_same_type_const_scalar<int32_t>(x, 0);
 
     // compute a mask to identify where x is equal to 0
     auto is_zero = make_shared<Equal>(x, zero);
