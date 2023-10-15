@@ -20,6 +20,12 @@ using ElementType = ov::element::Type_t;
 using Config = ov::AnyMap;
 using TargetDevice = std::string;
 
+typedef std::tuple<ov::element::Type,  // Input element type
+                   ov::Shape,          // Input Shape
+                   TargetDevice        // Target Device
+                   >
+    BasicParams;
+
 class SubgraphBaseTest : public ov::test::TestsCommon {
 public:
     virtual void run();
