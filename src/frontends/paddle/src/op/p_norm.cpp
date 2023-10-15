@@ -51,7 +51,9 @@ NamedOutputs p_norm(const NodeContext& node) {
         p_norm_node = std::make_shared<default_opset::Power>(reduce_sum, extract_factor);
     }
 
-    if ((axis == -1 || input_shape.size() == 1) && !keepdim) {
+    const auto output_info = node.get_output_port_infos("Out");
+    size_t output_size = output_info[0].second.size();
+    if ((axis == -1 || input_shape.size() == 1) && !keepdim && !output_size) {
         p_norm_node = std::make_shared<default_opset::Squeeze>(p_norm_node);
     }
     return node.default_single_output_mapping({p_norm_node}, {"Out"});
