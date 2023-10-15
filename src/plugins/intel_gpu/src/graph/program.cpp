@@ -3,6 +3,7 @@
 //
 
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -122,6 +123,31 @@ static void adjust_num_cores(ov::threading::IStreamsExecutor::Config& config) {
     }
 
     config._streams = std::min(config._streams, num_cores);
+
+    //create stream_info_table based on core type
+    const auto proc_type_table = ov::get_org_proc_type_table();
+    std::vector<int> stream_info(ov::CPU_STREAMS_TABLE_SIZE, 0);
+    stream_info[ov::THREADS_PER_STREAM] = 1;
+    stream_info[ov::STREAM_NUMA_NODE_ID] = 0;
+    stream_info[ov::STREAM_SOCKET_ID] = 0;
+    if (core_type == ov::threading::IStreamsExecutor::Config::BIG) {
+        if (proc_type_table[0][ov::MAIN_CORE_PROC] < config._streams) {
+            stream_info[ov::NUMBER_OF_STREAMS] = proc_type_table[0][ov::MAIN_CORE_PROC];
+            stream_info[ov::PROC_TYPE] = ov::MAIN_CORE_PROC;
+            config._streams_info_table.push_back(stream_info);
+            stream_info[ov::NUMBER_OF_STREAMS] = proc_type_table[0][ov::HYPER_THREADING_PROC];
+            stream_info[ov::PROC_TYPE] = ov::HYPER_THREADING_PROC;
+            config._streams_info_table.push_back(stream_info);
+        } else {
+            stream_info[ov::PROC_TYPE] = ov::MAIN_CORE_PROC;
+            stream_info[ov::NUMBER_OF_STREAMS] = config._streams;
+            config._streams_info_table.push_back(stream_info);
+        }
+    } else if (core_type == ov::threading::IStreamsExecutor::Config::LITTLE) {
+        stream_info[ov::PROC_TYPE] = ov::EFFICIENT_CORE_PROC;
+        stream_info[ov::NUMBER_OF_STREAMS] = config._streams;
+        config._streams_info_table.push_back(stream_info);
+    }
 }
 
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
