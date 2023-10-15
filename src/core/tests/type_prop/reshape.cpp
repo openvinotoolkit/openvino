@@ -1241,3 +1241,22 @@ TEST(type_prop, reshape_resolve_minus_one_when_static_product_same_value) {
     EXPECT_EQ(output_shape, PartialShape({120, 1}));
     EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, no_label));
 }
+
+TEST(type_prop, reshape_label_not_propagated_on_minus_one_dim_as_not_same_dynamic_dim) {
+    auto data_shape = PartialShape{-1, 2};
+    auto pattern_shape = PartialShape{-1, -1, 2};
+    set_shape_labels(data_shape, {90, no_label});
+    set_shape_labels(pattern_shape, {37, 87, 98});
+
+    auto pattern = make_shared<op::v0::Parameter>(element::i32, pattern_shape);
+    auto pattern_shape_of = make_shared<op::v3::ShapeOf>(pattern, element::i32);
+    auto dim_minus_one = ov::op::v0::Constant::create(element::i32, {1}, {-1});
+    dim_minus_one->get_default_output().get_tensor().set_value_label({93});
+    auto output_pattern = make_shared<op::v0::Concat>(OutputVector{dim_minus_one, pattern_shape_of}, 0);
+    auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, PartialShape({-1, -1, -1, 2}));
+    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(no_label, 37, 87, 98));
+}

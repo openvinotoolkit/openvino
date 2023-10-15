@@ -152,6 +152,10 @@ TDim resolve_minus_one_dim(const Product<TDim>& product) {
             minus_one_interval.set_min_val(
                 ceil_div(minus_one_interval.get_min_val(), product_out.get_interval().get_max_val()));
         }
+
+        if (product_out.get_min_length() != 1 || product_out.get_max_length() != 1) {
+            DimensionTracker::reset_tracking_info(minus_one_dim);
+        }
     }
     return minus_one_dim;
 }
