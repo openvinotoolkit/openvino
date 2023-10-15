@@ -1010,7 +1010,7 @@ jobs:
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # requires 'unit_tests' from 'tools/mo'
-          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
+          export PYTHONPATH=${INSTALL_TEST_DIR}/mo:$PYTHONPATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
         env:
           TEST_DEVICE: CPU
