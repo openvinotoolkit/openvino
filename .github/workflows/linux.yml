@@ -936,6 +936,9 @@ jobs:
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt
 
+      - name: Install Python API apt dependencies
+        run: |
+          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
       #
       # Tests
       #
@@ -965,14 +968,10 @@ jobs:
 
       - name: MO Python API Tests
         run: |
-          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          # source ${INSTALL_DIR}/setupvars.sh
-          # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-          # TODO: create wheel test packages and install them on the system
-          export PIP_INSTALL_DIR=$(python3 -m site --user-site)
-          echo "pip install dir: ${PIP_INSTALL_DIR}"
-          export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino
+          # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
+          PIP_INSTALL_DIR=$(python3 -m site --user-site)
           export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
+          export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -980,10 +979,8 @@ jobs:
 
       - name: OVC Python API Tests
         run: |
-          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          # source ${INSTALL_DIR}/setupvars.sh
-          # bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-          export PIP_INSTALL_DIR=$(python3 -m site --user-site)
+          # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
+          PIP_INSTALL_DIR=$(python3 -m site --user-site)
           export PYTHONPATH=${INSTALL_TEST_DIR}/python/openvino
           export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
