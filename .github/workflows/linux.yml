@@ -905,6 +905,8 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+        env:
+          PIP_CACHE_DIR: ${{ env.PIP_CACHE_PATH }}
       - name: Setup pip cache dir
         run: |
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
@@ -933,9 +935,6 @@ jobs:
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt
 
-      # - name: Install Python API apt dependencies
-      #   run: |
-      #     bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
       #
       # Tests
       #
@@ -1057,7 +1056,7 @@ jobs:
       - name: Python Frontend tests
         run: |
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
-          source ${INSTALL_DIR}/setupvars.sh
+          export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: Upload Test Results
