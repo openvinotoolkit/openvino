@@ -65,6 +65,7 @@ std::shared_ptr<Node> op::v13::ScaledDotProductAttention::clone_with_new_inputs(
 }
 
 bool op::v13::ScaledDotProductAttention::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v13_ScaledDotProductAttention_visit_attributes);
     visitor.on_attribute("causal", m_causal);
     return true;
 }
