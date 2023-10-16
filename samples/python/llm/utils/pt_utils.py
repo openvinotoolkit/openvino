@@ -117,8 +117,7 @@ def create_text_gen_model(model_path, device, **kwargs):
             model.to(device.lower())
     else:
         raise RuntimeError('==Failure ==: no device to load')
-    
-    # torch.compile()
+
     if kwargs['torch_compile_backend']:
         backend = kwargs['torch_compile_backend']
         compiled_model = run_torch_compile(model, backend)
@@ -180,7 +179,6 @@ def create_image_gen_model(model_path, device, **kwargs):
     else:
         raise RuntimeError('==Failure ==: no device to load')
 
-    # torch.compile()
     if kwargs['torch_compile_backend']:
         backend = kwargs['torch_compile_backend']
         compiled_model = run_torch_compile(pipe, backend)
@@ -219,7 +217,6 @@ def create_image_classification_model(model_path, device, **kwargs):
     data_config = timm.data.resolve_data_config([], model=model_id, use_test_size=True)
     input_size = (1,) + data_config['input_size']
 
-    # torch.compile()
     if kwargs['torch_compile_backend']:
         backend = kwargs['torch_compile_backend']
         compiled_model = run_torch_compile(model, backend)
@@ -252,14 +249,13 @@ def create_ldm_super_resolution_model(model_path, device, **kwargs):
             raise RuntimeError(f'==Failure ==: model path:{model_path} is not directory')
     else:
         raise RuntimeError(f'==Failure ==: model path:{model_path} is not exist')
-    
-    print(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
+
+    log.info(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
     if device is not None:
         pipe.to(device.lower())
     else:
         raise RuntimeError('==Failure ==: no device to load')
 
-    # torch.compile()
     if kwargs['torch_compile_backend']:
         backend = kwargs['torch_compile_backend']
         compiled_model = run_torch_compile(pipe, backend)
