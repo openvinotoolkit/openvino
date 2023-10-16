@@ -394,11 +394,11 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
-        if: ${{ !cancelled() && fromJSON(needs.smart_ci.outputs.affected_components).samples.test }}
+        if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'error'
+          if-no-files-found: 'warn'
 
   Conformance:
     needs: Build
@@ -847,7 +847,7 @@ jobs:
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'error'
+          if-no-files-found: 'warn'
 
   Python_Unit_Tests:
     name: Python unit tests
@@ -1082,7 +1082,7 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'error'
+          if-no-files-found: 'warn'
 
   CPU_Functional_Tests:
     name: CPU functional tests
