@@ -359,7 +359,7 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov
         selectedType = primitiveType;
     }
 
-    if (selectedType.find("_") != -1) {
+    if (selectedType.find("_") != std::string::npos) {
         return;
     }
 
