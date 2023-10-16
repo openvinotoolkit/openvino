@@ -148,7 +148,9 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                 }
             };
             auto update_op_inputs_desc = [&subgraphs_size](const std::shared_ptr<op::util::MultiSubGraphOp>& op,
+                                                           std::set<uint64_t>& required_inputs_indices,
                                                            uint64_t removed_loop_idx) {
+                std::set<uint64_t> new_required_inputs_indices;
                 for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
                     auto& descriptors = op->get_input_descriptions(static_cast<int>(body_idx));
                     for (auto& desc : descriptors) {
@@ -157,6 +159,14 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                         }
                     }
                 }
+                for (auto input_index : required_inputs_indices) {
+                    if (input_index > removed_loop_idx) {
+                        new_required_inputs_indices.insert(input_index - 1);
+                    } else {
+                        new_required_inputs_indices.insert(input_index);
+                    }
+                }
+                required_inputs_indices = new_required_inputs_indices;
             };
             // Remove dangling body params and input and update input descriptors
             for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
@@ -181,10 +191,10 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                                        std::end(required_inputs_indices),
                                        current_input_idx) == 0 &&
                             std::count(std::begin(op_inputs), std::end(op_inputs), current_input) > 0) {
-                            op_inputs.erase(std::next(op_inputs.begin(), body_in_descriptors[desc_idx]->m_input_index));
+                            op_inputs.erase(std::next(op_inputs.begin(), current_input_idx));
                             // Move all input indexes (in all bodies) which are after these indicated by
                             // to_remove_descriptors_indexes and are not used in any body
-                            update_op_inputs_desc(multi_subgraph_op, body_in_descriptors[desc_idx]->m_input_index);
+                            update_op_inputs_desc(multi_subgraph_op, required_inputs_indices, current_input_idx);
                         }
                     } else {
                         updated_body_in_descriptors.emplace_back(body_in_descriptors[desc_idx]);
