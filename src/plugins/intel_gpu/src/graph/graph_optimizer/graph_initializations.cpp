@@ -402,6 +402,7 @@ void graph_initializations::set_outputs(program& p) {
     auto custom_outputs = p.get_config().get_property(ov::intel_gpu::custom_outputs);
     if (!custom_outputs.empty()) {
         for (auto const& output : custom_outputs) {
+            OPENVINO_ASSERT(p.has_node(output), "not found custom output node in current cldnn::program: ", output);
             auto o_node = p.get_node_ptr(output);
             o_node->set_output(true);
             p.outputs.push_back(o_node.get());

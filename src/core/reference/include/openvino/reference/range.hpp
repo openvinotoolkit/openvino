@@ -14,7 +14,7 @@
 namespace ov {
 namespace reference {
 // Return type is `void`, only enabled if `T` is a built-in FP
-// type, or nGraph's `bfloat16` or `float16` type.
+// type, or OpenVINO's `bfloat16` or `float16` type.
 template <typename T>
 typename std::enable_if<std::is_floating_point<T>::value || std::is_same<T, bfloat16>::value ||
                         std::is_same<T, float16>::value>::type
