@@ -24,8 +24,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(QuantGroupConv3D).*)",
         // TODO: Issue: 34518
         R"(.*RangeLayerTest.*)",
-        R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
-        R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
+        R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*ET=f16.*)",
+        R"(.*(RangeNumpyAddSubgraphTest).*ET=f16.*)",
         // TODO: Issue: 43793
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
@@ -64,8 +64,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 
-        // TODO: 57562 No dynamic output shape support
-        R"(.*NonZeroLayerTest.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
         R"(.*OVCompiledModelBaseTest.*(CanGetInputsInfoAndCheck|canSetConfigToCompiledModel).*)",
@@ -223,6 +221,9 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_TensorIteratorCommon/TensorIteratorTest.Inference.*_modelType=f16_targetDevice=CPU.*)");
     retVector.emplace_back(R"(.*smoke_CtcGreedyDecoderBasic/CTCGreedyDecoderLayerTest.Inference.*netPRC=f16.*trgDev=CPU.*)");
     retVector.emplace_back(R"(.*CTCGreedyDecoderSeqLenLayerTest.Inference.*dataPRC=f16.*trgDev=CPU.*)");
+    // Issue: 122177
+    retVector.emplace_back(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference.*_modelType=f16.*)");
+    retVector.emplace_back(R"(.*smoke_LSTMSequenceCommonZeroClip/LSTMSequenceTest.Inference.*_modelType=f16.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_X86)
