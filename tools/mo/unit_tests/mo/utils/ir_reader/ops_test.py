@@ -23,15 +23,21 @@ class TestOps(unittest.TestCase):
     @staticmethod
     def check_graph_can_save(model, name):
         with tempfile.TemporaryDirectory() as tmp:
-            model_xml = Path(tmp) / (name + '.xml')
-            model_bin = Path(tmp) / (name + '.bin')
+            tmp_path = Path(tmp)
+            model_xml = tmp_path / (name + '.xml')
+            model_bin = tmp_path / (name + '.bin')
             serialize(model, model_xml, model_bin)
             graph, _ = restore_graph_from_ir(model_xml, model_bin)
-            save_restored_graph(graph, tmp, {}, name)
+            save_restored_graph(graph, tmp, {}, name + '_restored')
             # restore 2 times to validate that after save graph doesn't lose attributes etc.
-            graph, _ = restore_graph_from_ir(model_xml, model_bin)
+            restored_model_xml = tmp_path / (name + '_restored.xml')
+            restored_model_bin = tmp_path / (name + '_restored.bin')
+            graph, _ = restore_graph_from_ir(
+                restored_model_xml, restored_model_bin)
+            core = Core()
+            core.set_property({"ENABLE_MMAP": False})
             # check that re-saved model can be read in runtime
-            model = Core().read_model(model_xml)
+            model = core.read_model(restored_model_xml)
             return graph, model
 
     def test_topk_11(self):
