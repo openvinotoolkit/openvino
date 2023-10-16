@@ -172,7 +172,9 @@ function(ov_add_test_target)
     else()
         add_test(NAME ${ARG_NAME} COMMAND ${ARG_NAME})
     endif()
-    set_property(TEST ${ARG_NAME} PROPERTY LABELS ${ARG_LABELS})
+    if(ARG_LABELS)
+        set_property(TEST ${ARG_NAME} PROPERTY LABELS ${ARG_LABELS})
+    endif()
 
     install(TARGETS ${ARG_NAME}
             RUNTIME DESTINATION tests
