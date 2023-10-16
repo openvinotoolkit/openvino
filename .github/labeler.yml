@@ -48,6 +48,7 @@
 - 'scripts/**/*'
 - '.gitmodules'
 - '**/setup.py'
+- '**/*dependencies*.sh'
 - any: ['thirdparty/**/*',
         '!thirdparty/**/CMakeLists.txt']
 
