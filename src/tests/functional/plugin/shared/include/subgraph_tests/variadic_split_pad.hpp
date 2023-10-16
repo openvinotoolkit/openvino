@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/variadic_split_pad.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
-TEST_P(VariadicSplitPad, CompareWithRefs){
-    Run();
+TEST_P(VariadicSplitPad, CompareWithRefs) {
+    run();
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

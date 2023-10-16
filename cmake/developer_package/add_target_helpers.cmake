@@ -9,7 +9,6 @@ ov_add_target(
    NAME core_lib
    ADD_CPPLINT
    ADD_CLANG_FORMAT
-   DEVELOPER_PACKAGE <component>
    TYPE <SHARED / STATIC / EXECUTABLE>
    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
    ADDITIONAL_SOURCE_DIRS
@@ -44,9 +43,6 @@ function(ov_add_target)
         NAME # name of target
         ROOT # root directory to be used for recursive search of source files
         )
-    set(oneValueOptionalArgs
-        DEVELOPER_PACKAGE             # Enables exporting of the target through the developer package
-        )
     set(multiValueArgs
         INCLUDES                      # Extra include directories
         LINK_LIBRARIES                # Link libraries (in form of target name or file name)
@@ -58,7 +54,7 @@ function(ov_add_target)
         LINK_LIBRARIES_WHOLE_ARCHIVE  # list of static libraries to link, each object file should be used and not discarded
         LINK_FLAGS                    # list of extra commands to linker
         )
-    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN} )
+    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN} )
 
     # sanity checks
     foreach(argName IN LISTS oneValueRequiredArgs)
@@ -127,11 +123,6 @@ function(ov_add_target)
     if (ARG_ADD_CLANG_FORMAT)
         # code style
         ov_add_clang_format_target(${ARG_NAME}_clang FOR_TARGETS ${ARG_NAME})
-    endif()
-    if (ARG_DEVELOPER_PACKAGE)
-        # developer package
-        openvino_developer_export_targets(COMPONENT ${ARG_DEVELOPER_PACKAGE}
-                                          TARGETS ${ARG_NAME})
     endif()
     if(WIN32)
         # Provide default compile pdb name equal to target name
