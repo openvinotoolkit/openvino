@@ -13,10 +13,10 @@
 #include <limits>
 #include <string>
 #include <functional>
-#include <set>
 
-#include <openvino/core/partial_shape.hpp>
-#include <openvino/core/type/element_type.hpp>
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
@@ -28,32 +28,8 @@ namespace cldnn {
 /// @addtogroup cpp_memory Memory description and management
 /// @{
 
-constexpr size_t float_type_mask = 0x80;
-constexpr size_t uint_type_mask = 0x40;
-constexpr size_t bin_type_mask = 0x20;
-
 /// @brief Possible data types could be stored in memory.
 using data_types = ov::element::Type_t;
-
-/// Converts @ref data_types to C++ type.
-template <data_types Data_Type>
-struct data_type_to_type;
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-template <>
-struct data_type_to_type<data_types::u1> { typedef uint32_t type; };
-template <>
-struct data_type_to_type<data_types::u8> { typedef uint8_t type; };
-template <>
-struct data_type_to_type<data_types::i8> { typedef int8_t type; };
-template <>
-struct data_type_to_type<data_types::i32> { typedef int32_t type; };
-template <>
-struct data_type_to_type<data_types::i64> { typedef int64_t type; };
-template <>
-struct data_type_to_type<data_types::f16> { typedef ov::float16 type; };
-template <>
-struct data_type_to_type<data_types::f32> { typedef float type; };
-#endif
 
 /// Helper class to identify key properties for data_types.
 struct data_type_traits {
@@ -72,52 +48,27 @@ struct data_type_traits {
         return et.is_quantized() && et.bitwidth() == 8;
     }
 
-    static size_t align_of(data_types data_type) {
-        switch (data_type) {
-            case data_types::u1:
-                return alignof(data_type_to_type<data_types::u1>::type);
-            case data_types::i8:
-                return alignof(data_type_to_type<data_types::i8>::type);
-            case data_types::u8:
-                return alignof(data_type_to_type<data_types::u8>::type);
-            case data_types::i32:
-                return alignof(data_type_to_type<data_types::i32>::type);
-            case data_types::i64:
-                return alignof(data_type_to_type<data_types::i64>::type);
-            case data_types::f16:
-                return alignof(data_type_to_type<data_types::f16>::type);
-            case data_types::f32:
-                return alignof(data_type_to_type<data_types::f32>::type);
-            default:
-                return size_t(1);
-        }
+    static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {
+        if (t1 == ov::element::u1)
+            return t2;
+
+        if (t2 == ov::element::u1)
+            return t1;
+
+        if (t1.bitwidth() < t2.bitwidth())
+            return t2;
+
+        if (t1.bitwidth() > t2.bitwidth())
+            return t1;
+
+        if (t2.is_real())
+            return t2;
+
+        return t1;
     }
 
-    static std::string name(data_types data_type) {
-        return ov::element::Type(data_type).get_type_name();
-    }
-
-    static data_types max_type(data_types dt1, data_types dt2) {
-        if (dt1 == data_types::u1)
-            return dt2;
-
-        if (dt2 == data_types::u1)
-            return dt1;
-
-        if (size_of(dt1) < size_of(dt2))
-            return dt2;
-
-        if (size_of(dt1) > size_of(dt2))
-            return dt1;
-
-        if (is_floating_point(dt2))
-            return dt2;
-
-        return dt1;
-    }
-
-    static bool is_quantized(data_types dt) {
-        return is_i8_u8(dt);
+    static bool is_quantized(ov::element::Type t) {
+        return t.is_quantized();
     }
 
     template <typename T>
@@ -132,7 +83,7 @@ struct data_type_traits {
             case data_types::i64:
                 return static_cast<T>(std::numeric_limits<int64_t>::max());
             case data_types::f16:
-                return static_cast<T>(65504);
+                return static_cast<T>(std::numeric_limits<ov::float16>::max());
             case data_types::f32:
                 return static_cast<T>(std::numeric_limits<float>::max());
             default:
@@ -152,7 +103,7 @@ struct data_type_traits {
             case data_types::i64:
                 return static_cast<T>(std::numeric_limits<int64_t>::lowest());
             case data_types::f16:
-                return static_cast<T>(-65504);
+                return static_cast<T>(std::numeric_limits<ov::float16>::lowest());
             case data_types::f32:
                 return static_cast<T>(std::numeric_limits<float>::lowest());
             default:
@@ -170,42 +121,15 @@ inline data_types element_type_to_data_type(ov::element::Type t) {
     switch (t) {
     case ov::element::Type_t::i16:
     case ov::element::Type_t::u16:
-    case ov::element::Type_t::f32:
     case ov::element::Type_t::f64:
         return cldnn::data_types::f32;
-    case ov::element::Type_t::f16:
-        return cldnn::data_types::f16;
-    case ov::element::Type_t::u8:
-        return cldnn::data_types::u8;
-    case ov::element::Type_t::i8:
-        return cldnn::data_types::i8;
-    case ov::element::Type_t::i32:
     case ov::element::Type_t::u32:
     case ov::element::Type_t::u64:
         return cldnn::data_types::i32;
-    case ov::element::Type_t::i64:
-        return cldnn::data_types::i64;
     case ov::element::Type_t::boolean:
         return cldnn::data_types::u8;
-    case ov::element::Type_t::u1:
-        return cldnn::data_types::u1;
-    default:
-        throw std::runtime_error("Can't convert " + t.get_type_name() + " element type");
+    default: return t;
     }
-}
-
-/// Helper function to get both data_types and format::type in a single, unique value. Useable in 'case' statement.
-constexpr auto fuse(data_types dt, cldnn::format::type fmt) -> decltype(static_cast<std::underlying_type<data_types>::type>(dt) |
-                                                                        static_cast<std::underlying_type<format::type>::type>(fmt)) {
-    using dt_type = std::underlying_type<data_types>::type;
-    using fmt_type = std::underlying_type<cldnn::format::type>::type;
-    using fmt_narrow_type = int16_t;
-
-    return static_cast<fmt_type>(fmt) <= std::numeric_limits<fmt_narrow_type>::max() &&
-                   static_cast<dt_type>(dt) <= (std::numeric_limits<dt_type>::max() >> (sizeof(fmt_narrow_type) * 8))
-               ? (static_cast<dt_type>(dt) << (sizeof(fmt_narrow_type) * 8)) |
-                     (static_cast<fmt_type>(fmt) >= 0 ? static_cast<fmt_narrow_type>(fmt) : static_cast<fmt_narrow_type>(-1))
-               : throw std::invalid_argument("data_type and/or format values are too big to be fused into single value");
 }
 
 /// @brief Represents data padding information.
