@@ -116,7 +116,7 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
         }
         // Remove inputs
         bool pass_required = false;
-        std::set<ov::Output<ov::Node>> required_inputs;
+        std::set<uint64_t> required_inputs_indices;
         auto op_inputs = multi_subgraph_op->input_values();
         std::vector<std::vector<size_t>> to_remove_descriptors_indexes;
         to_remove_descriptors_indexes.resize(subgraphs_size);
@@ -133,7 +133,7 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                 } else {
                     // collecting required inputs is needed to detect cases where the input
                     // is not needed in a one body, but the other one uses it (for example If case)
-                    required_inputs.insert(op_inputs[body_in_descriptors[i]->m_input_index]);  // only unique
+                    required_inputs_indices.insert(body_in_descriptors[i]->m_input_index);
                 }
             }
         }
@@ -174,8 +174,12 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                         update_body_param_desc(body_in_descriptors,
                                                body_in_descriptors[desc_idx]->m_body_parameter_index);
                         // remove dangling input of MultiSubGraphOp which was not removed earlier
-                        auto& current_input = op_inputs[body_in_descriptors[desc_idx]->m_input_index];
-                        if (std::count(std::begin(required_inputs), std::end(required_inputs), current_input) == 0 &&
+                        auto current_input_idx = body_in_descriptors[desc_idx]->m_input_index;
+                        auto& current_input = op_inputs[current_input_idx];
+                        // the same input tensor can go to different input ports
+                        if (std::count(std::begin(required_inputs_indices),
+                                       std::end(required_inputs_indices),
+                                       current_input_idx) == 0 &&
                             std::count(std::begin(op_inputs), std::end(op_inputs), current_input) > 0) {
                             op_inputs.erase(std::next(op_inputs.begin(), body_in_descriptors[desc_idx]->m_input_index));
                             // Move all input indexes (in all bodies) which are after these indicated by
