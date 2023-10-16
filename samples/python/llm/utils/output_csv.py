@@ -27,7 +27,7 @@ def output_comments(result, use_case, writer):
     comment_list.append('generation_time: Time for one interaction. (e.g. The duration of  answering one question or generating one picture)')
     comment_list.append('iteration=0: warm-up; iteration=-1: average (exclude warm-up)')
     comment_list.append(
-        'max_rss_mem: max rss memory consumption;' 'the value in -1 iteration row is the maximum value of all available RSS memory numbers in iterations.'
+        'max_rss_mem: max rss memory consumption; the value in -1 iteration row is the maximum value of all available RSS memory numbers in iterations.'
     )
     comment_list.append(
         'max_shared_mem: max shared memory consumption;'

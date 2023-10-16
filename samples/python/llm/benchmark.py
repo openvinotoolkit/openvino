@@ -36,7 +36,7 @@ mem_consumption = MemConsumption()
 
 
 def gen_iterate_data(
-    iter_idx='', in_size='', infer_count='', out_size='', gen_time='', latency='', res_md5='', max_rss_mem='', max_shared_mem='', prompt_idx=''
+    iter_idx='', in_size='', infer_count='', out_size='', gen_time='', latency='', res_md5='', max_rss_mem='', max_shared_mem='', prompt_idx='',
 ):
     iter_data = {}
     iter_data['iteration'] = iter_idx
@@ -192,7 +192,7 @@ def run_image_generation(input_text, nsteps, num, image_id, pipe, args, iter_dat
     )
     iter_data_list.append(iter_data)
     utils.metrics_print.print_metrics(
-        num, iter_data, [], generated=rslt_img_fn, warm_up=(num == 0), max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption
+        num, iter_data, [], generated=rslt_img_fn, warm_up=(num == 0), max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption,
     )
 
 
@@ -277,7 +277,7 @@ def run_ldm_super_resolution(img, num, nsteps, pipe, args, framework, iter_data_
     )
     iter_data_list.append(iter_data)
     utils.metrics_print.print_metrics(
-        num, iter_data, [], generated=rslt_img_fn, warm_up=(num == 0), max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption
+        num, iter_data, [], generated=rslt_img_fn, warm_up=(num == 0), max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption,
     )
 
 
@@ -326,7 +326,7 @@ def get_argprser():
         '--model_id',
         default='',
         help='model id of huggingface, if model folder is empty, will try to download model from Hugging Face with this model_id.\n'
-        + 'e.g. the model id of dolly-v2-12b which get from https://huggingface.co/databricks/dolly-v2-12b is databricks/dolly-v2-12b',
+        'e.g. the model id of dolly-v2-12b which get from https://huggingface.co/databricks/dolly-v2-12b is databricks/dolly-v2-12b',
     )
     parser.add_argument('-d', '--device', default='cpu', help='inference device')
     parser.add_argument('-r', '--report', help='report csv')
@@ -340,8 +340,8 @@ def get_argprser():
         default=None,
         type=int,
         help='limit the output token size '
-        + f'(default {DEFAULT_OUTPUT_TOKEN_SIZE}) of text_gen and code_gen models, \n'
-        + f'or set inference/sampling steps (default {DEFAULT_INFERENCE_STEPS}) of Text2Image models.',
+        f'(default {DEFAULT_OUTPUT_TOKEN_SIZE}) of text_gen and code_gen models, \n'
+        f'or set inference/sampling steps (default {DEFAULT_INFERENCE_STEPS}) of Text2Image models.',
     )
     parser.add_argument(
         '-n',
@@ -349,8 +349,8 @@ def get_argprser():
         default=0,
         type=num_iters_type,
         help='number of benchmarking iterations, '
-        + 'if the value is greater than 0, the average numbers exclude the first(0th) iteration,\n'
-        + 'if the value equals 0 (default), execute the warm-up iteration(0th iteration).',
+        'if the value is greater than 0, the average numbers exclude the first(0th) iteration,\n'
+        'if the value equals 0 (default), execute the warm-up iteration(0th iteration).',
     )
     parser.add_argument('-i', '--images', default=None, help='test images for vision tasks. Can be directory or path to single image')
     parser.add_argument('-s', '--seed', type=int, default=42, required=False, help='specific random seed to generate fix result. Default 42.')
@@ -360,8 +360,8 @@ def get_argprser():
         default=None,
         required=False,
         help='path to JSON file to load customized configurations.\n'
-        + 'Example for OpenVINO: {\"INFERENCE_NUM_THREADS\":32,\"PERFORMANCE_HINT\":\"LATENCY\"}.\n'
-        + 'Example for Pytorch: {\"PREC_BF16\":true}. Pytorch currently only supports bf16 settings.\n',
+        'Example for OpenVINO: {\"INFERENCE_NUM_THREADS\":32,\"PERFORMANCE_HINT\":\"LATENCY\"}.\n'
+        'Example for Pytorch: {\"PREC_BF16\":true}. Pytorch currently only supports bf16 settings.\n',
     )
     parser.add_argument(
         '-mc',
@@ -370,7 +370,7 @@ def get_argprser():
         required=False,
         type=int,
         help='if the value is 1, output the maximum memory consumption in warm-up iterations. If the value is 2,'
-        + ' output the maximum memory consumption in all iterations.',
+        ' output the maximum memory consumption in all iterations.',
     )
     parser.add_argument('-bs', '--batch_size', type=int, default=1, required=False, help='Batch size value')
     parser.add_argument(
@@ -382,14 +382,14 @@ def get_argprser():
         '--make_stateful',
         action='store_true',
         help='Replace kv-cache inputs and outputs in the model by internal variables making a stateful model.'
-        + 'Original hf_model.forward function will be patched.',
+        'Original hf_model.forward function will be patched.',
     )
     parser.add_argument(
-        '--save_prepared_model', default=None, help='Path to .xml file to save IR used for inference with all pre-/post processing included'
+        '--save_prepared_model', default=None, help='Path to .xml file to save IR used for inference with all pre-/post processing included',
     )
     parser.add_argument('--num_beams', type=int, default=1, help='Number of beams in the decoding strategy, activates beam_search if greater than 1')
     parser.add_argument(
-        '--fuse_cache_reorder', action='store_true', help='Fuse ops related to cache reordering to the model, applied only when num_beams > 1'
+        '--fuse_cache_reorder', action='store_true', help='Fuse ops related to cache reordering to the model, applied only when num_beams > 1',
     )
     parser.add_argument(
         '--torch_compile_backend',
@@ -430,7 +430,7 @@ def main():
                     framework = framework + '(' + ir_conversion_frontend + ')'
                 model_precision = utils.model_utils.get_model_precision(model_path.parents._parts)
             utils.output_csv.write_result(
-                args.report, model_name, framework, args.device, model_args['use_case'], iter_data_list, pretrain_time, model_precision
+                args.report, model_name, framework, args.device, model_args['use_case'], iter_data_list, pretrain_time, model_precision,
             )
     except Exception:
         log.error('An exception occurred')
