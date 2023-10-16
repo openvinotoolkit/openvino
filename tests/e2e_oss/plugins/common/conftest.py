@@ -32,7 +32,7 @@ import shutil
 import pytest
 from jsonschema import validate, ValidationError
 
-from tests.e2e_oss._utils.test_utils import copy_files_by_pattern, log_timestamp
+from _utils.test_utils import copy_files_by_pattern, log_timestamp
 from utils.e2e.env_tools import Environment
 
 
