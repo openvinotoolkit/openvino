@@ -67,7 +67,6 @@ bool BatchToSpace::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool batch_to_space_evaluate(TensorVector& outputs, const TensorVector& inputs) {
     const auto& in = inputs[0];
@@ -93,7 +92,7 @@ bool batch_to_space_evaluate(TensorVector& outputs, const TensorVector& inputs) 
 
     auto* in_first = static_cast<const char*>(in.data());
 
-    // Copy input tensor to not overwrite evaluate input.
+    // Copy input tensor to not overwrite evaluate's inputs tensors passed as const.
     // The evaluate algorithm should be improved to avoid additional data copy.
     auto flat_in = Tensor(in.get_element_type(), data_shape);
     auto* flat_data = static_cast<char*>(flat_in.data());
