@@ -1136,4 +1136,5 @@ conformance/OpImplCheckTest.checkPluginImplementation/Function=BitwiseNot_opset1
 conformance/OpImplCheckTest.checkPluginImplementation/Function=Multinomial_opset13_Device=CPU_Config=(),1
 conformance/OpImplCheckTest.checkPluginImplementation/Function=NMSRotated_opset13_Device=CPU_Config=(),1
 conformance/OpImplCheckTest.checkPluginImplementation/Function=LSTMSequence_opset1_Device=CPU_Config=(),1
+
 conformance/OpImplCheckTest.checkPluginImplementation/Function=BitwiseXor_opset13_Device=CPU_Config=(),1
