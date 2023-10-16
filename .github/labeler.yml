@@ -8,6 +8,8 @@
 - 'cmake/**/*'
 - '**/CMakeLists.txt'
 - '**/*.cmake'
+- 'conan*'
+- 'vcpkg*'
 
 'category: C API':
 - 'src/bindings/c/**/*'
@@ -148,6 +150,34 @@
 'category: TF Model Hub Tests':
 - 'tests/model_hub_tests/tf_hub_tests/**/*'
 
+'category: Samples Tests':
+- 'tests/samples_tests/**/*'
+
+'category: Stress Tests':
+- 'tests/stress_tests/**/*'
+
+'category: Time Tests':
+- 'tests/time_tests/**/*'
+
+'category: Memory Tests':
+- 'tests/memory_tests/**/*'
+
+'category: Fuzz Tests':
+- 'tests/fuzz/**/*'
+
+'category: Layer Tests':
+- 'tests/layer_tests/**/*'
+
+'category: Conditional Compilation Tests':
+- 'tests/conditional_compilation/**/*'
+
+'category: Common Tests':
+- 'tests/lib/**/*'
+- 'tests/utils/**/*'
+
+'category: LSan':
+- '**/lsan/**/*'
+
 'category: tools':
 - any: ['tools/**',
         '!tools/pot/**/*',
@@ -156,3 +186,6 @@
 'category: transformations':
 - 'src/common/transformations/**/*'
 - 'src/common/offline_transformations/**/*'
+
+'category: licensing':
+- 'licensing/**/*'
