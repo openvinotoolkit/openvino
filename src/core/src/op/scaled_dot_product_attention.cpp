@@ -31,12 +31,6 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
 void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() == 3 || get_input_size() == 4);
-#if 0
-    auto outputs = decompose();
-    NODE_VALIDATION_CHECK(this, outputs.size() == 1);
-    auto output = outputs[0];
-    set_output_type(0, output.get_element_type(), output.get_partial_shape());
-#else
     // TODO: More checks and accurate deduction of dimensions in case when various
     // dynamic combinations appear.
     auto query = get_input_partial_shape(0);
@@ -55,8 +49,6 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     auto dimensions = std::vector<Dimension>(query.begin(), query.end() - 1);
     dimensions.push_back(*(value.end() - 1));
     set_output_type(0, get_input_element_type(0), PartialShape(dimensions));
-
-#endif
 }
 
 std::shared_ptr<Node> op::v13::ScaledDotProductAttention::clone_with_new_inputs(const OutputVector& new_args) const {
