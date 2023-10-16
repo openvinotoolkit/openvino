@@ -6,7 +6,7 @@ import json
 import jsonschema
 import logging
 from pathlib import Path
-from github import Github, PullRequest
+from ghapi.all import GhApi
 
 
 class ComponentConfig:
@@ -86,7 +86,7 @@ def component_name_from_label(label: str, component_pattern: str = None) -> str:
     return component
 
 
-def get_changed_component_names(pr: PullRequest, component_pattern: str = None) -> set:
+def get_changed_component_names(pr, component_pattern: str = None) -> set:
     """Returns component names changed in a given PR"""
     components = set()
     for label in pr.labels:
@@ -138,9 +138,9 @@ def main():
     with open(Path(args.components_config), 'r') as config:
         components_config = yaml.safe_load(config)
 
-    gh_api = Github(os.getenv("GITHUB_TOKEN"))
-    repository = gh_api.get_repo(args.repo)
-    pr = repository.get_pull(args.pr) if args.pr else None
+    owner, repository = args.repo.split('/')
+    gh_api = GhApi(owner=owner, repo=repository, token=os.getenv("GITHUB_TOKEN"))
+    pr = gh_api.pulls.get(args.pr) if args.pr else None
 
     # For now, we don't want to apply smart ci rules for post-commits
     is_postcommit = not pr
@@ -150,7 +150,8 @@ def main():
     # In post-commits - validate all components regardless of changeset
     # In pre-commits - validate only changed components with their dependencies
     all_defined_components = components_config.keys()
-    changed_component_names = all_defined_components if is_postcommit else get_changed_component_names(pr, args.pattern)
+    changed_component_names = set(all_defined_components) if is_postcommit else \
+        get_changed_component_names(pr, args.pattern)
     logger.info(f"changed_component_names: {changed_component_names}")
 
     with open(Path(args.components_config_schema), 'r') as schema_file:
