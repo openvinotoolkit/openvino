@@ -208,7 +208,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #endif
         impls.push_back(selected_impl->get_kernel_name());
 
-        if (get_preferred_impl_type() == impl_types::ocl) {
+        auto preferred_impl_type = get_preferred_impl_type();
+        if (preferred_impl_type != impl_types::onednn && preferred_impl_type != impl_types::cpu) {
             json_composite cl_dump_info;
             cl_dump_info.add("batch_hash", selected_impl->get_kernels_dump_info().first);
             cl_dump_info.add("kernel_entry", selected_impl->get_kernels_dump_info().second);

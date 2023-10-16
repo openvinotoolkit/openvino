@@ -80,6 +80,10 @@ std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
     // UniqueID = program_id + processing_index + additional weight/reorder tag
     kernelID += "_" + params.uniqueID + "_" + std::to_string(partID);
 
+    // Add "__sa" suffix for shape agnostic kernels
+    if (params.is_shape_agnostic)
+        kernelID += "__sa";
+
     return kernelID;
 }
 
