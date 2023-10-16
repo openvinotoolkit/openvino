@@ -307,26 +307,14 @@ OutputVector translate_tensor_array_write_v3_op(const NodeContext& node) {
 
     // compute element shape in the input tensor array
     auto tensor_array_shape = make_shared<v3::ShapeOf>(tensor_array, element::i32);
-    auto one_const = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    auto max_const = make_shared<v0::Constant>(element::i32, Shape{1}, numeric_limits<int32_t>::max());
-    auto old_element_shape = make_shared<v8::Slice>(tensor_array_shape, one_const, max_const, one_const);
 
     // compute the current size of tensor array
     auto zero_const = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
     auto tensor_array_size = make_shared<v8::Gather>(tensor_array_shape, zero_const, zero_const);
 
-    // append dummy tensor to achieve the required tensor array size for further insertion of value by index
-    auto index_plus_one = make_shared<v1::Add>(index, one_const);
-    auto new_tensor_array_size = make_shared<v1::Maximum>(tensor_array_size, index_plus_one);
-    auto dummy_size = make_shared<v1::Subtract>(new_tensor_array_size, tensor_array_size);
-    auto zero_const_elem = create_same_type_const_scalar<int32_t>(tensor_array, 0);
-    auto dummy_tensor_shape = make_shared<v0::Concat>(OutputVector{dummy_size, old_element_shape}, 0);
-    auto dummy_tensor = make_shared<v1::Broadcast>(zero_const_elem, dummy_tensor_shape);
-    tensor_array = make_shared<v0::Concat>(OutputVector{tensor_array, dummy_tensor}, 0);
-
     // adjust tensor array to have the correct shape [size, <real element shape>] before value insertion
     auto element_shape = make_shared<v3::ShapeOf>(value, element::i32);
-    auto new_tensor_array_shape = make_shared<v0::Concat>(OutputVector{new_tensor_array_size, element_shape}, 0);
+    auto new_tensor_array_shape = make_shared<v0::Concat>(OutputVector{tensor_array_size, element_shape}, 0);
     tensor_array = make_shared<v3::Broadcast>(tensor_array, new_tensor_array_shape);
 
     // update the resulted tensor using ScatterUpdate
