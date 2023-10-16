@@ -18,11 +18,6 @@ Transpose::Transpose(const Output<Node>& arg, const Output<Node>& input_order) :
     constructor_validate_and_infer_types();
 }
 
-bool Transpose::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_Transpose_visit_attributes);
-    return true;
-}
-
 void Transpose::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Transpose_validate_and_infer_types);
     const auto& input_order_et = get_input_element_type(ORDER);
