@@ -18,6 +18,7 @@ from optimum.utils import NormalizedTextConfig, NormalizedConfigManager
 from transformers import PretrainedConfig
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
+
 def register_normalized_configs():
     NormalizedConfigManager._conf["mpt"] = NormalizedTextConfig.with_args(num_layers="n_layers", num_attention_heads="n_heads")
     NormalizedConfigManager._conf["RefinedWebModel"] = NormalizedTextConfig.with_args(num_layers="n_layer", num_attention_heads="n_head")
@@ -77,18 +78,14 @@ class OVMPTModel(OVModelForCausalLM):
         inputs = {}
         if past_key_values is not None:
             # Flatten the past_key_values
-            past_key_values = tuple(
-                past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer
-            )
+            past_key_values = tuple(past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer)
             # Add the past_key_values to the decoder inputs
             inputs = dict(zip(self.key_value_input_names, past_key_values))
 
         # Create empty past_key_values for decoder_with_past first generation step
         elif self.use_cache:
             shape_input_ids = input_ids.shape
-            num_attention_heads = (
-                self.normalized_config.num_attention_heads if self.config.model_type == 'bloom' else 1
-            )
+            num_attention_heads = self.normalized_config.num_attention_heads if self.config.model_type == 'bloom' else 1
             for input_name in self.key_value_input_names:
                 model_inputs = self.model.input(input_name)
                 shape = model_inputs.get_partial_shape()
@@ -117,8 +114,7 @@ class OVMPTModel(OVModelForCausalLM):
             # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
             past_key_values = tuple(self.request.get_tensor(key).data for key in self.key_value_output_names)
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-            past_key_values = tuple(
-                past_key_values[i:i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv))
+            past_key_values = tuple(past_key_values[i : i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv))
         else:
             past_key_values = None
 
@@ -174,18 +170,14 @@ class OVFalconModel(OVModelForCausalLM):
         inputs = {}
         if past_key_values is not None:
             # Flatten the past_key_values
-            past_key_values = tuple(
-                past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer
-            )
+            past_key_values = tuple(past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer)
             # Add the past_key_values to the decoder inputs
             inputs = dict(zip(self.key_value_input_names, past_key_values))
 
         # Create empty past_key_values for decoder_with_past first generation step
         elif self.use_cache:
             shape_input_ids = input_ids.shape
-            num_attention_heads = (
-                self.normalized_config.num_attention_heads if self.config.model_type == 'bloom' else 1
-            )
+            num_attention_heads = self.normalized_config.num_attention_heads if self.config.model_type == 'bloom' else 1
             for input_name in self.key_value_input_names:
                 model_inputs = self.model.input(input_name)
                 shape = model_inputs.get_partial_shape()
@@ -212,9 +204,7 @@ class OVFalconModel(OVModelForCausalLM):
             # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
             past_key_values = tuple(self.request.get_tensor(key).data for key in self.key_value_output_names)
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-            past_key_values = tuple(
-                past_key_values[i:i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv)
-            )
+            past_key_values = tuple(past_key_values[i : i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv))
         else:
             past_key_values = None
 
@@ -222,7 +212,6 @@ class OVFalconModel(OVModelForCausalLM):
 
 
 class OVLDMSuperResolutionPipeline(DiffusionPipeline):
-
     def __init__(self, model_path: Path, core: Core, device: str):
         super().__init__()
         self.vqvae = core.compile_model(model_path / 'vqvae.xml', device)
@@ -392,15 +381,11 @@ class OVChatGLM2Model(OVModelForCausalLM):
             if self._pkv_precision == Type.bf16:
                 # numpy does not support bf16, pretending f16, should change to bf16
                 past_key_values = tuple(
-                    Tensor(past_key_value, past_key_value.shape, Type.bf16)
-                    for pkv_per_layer in past_key_values
-                    for past_key_value in pkv_per_layer
+                    Tensor(past_key_value, past_key_value.shape, Type.bf16) for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer
                 )
             else:
                 # Flatten the past_key_values
-                past_key_values = tuple(
-                    past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer
-                )
+                past_key_values = tuple(past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer)
             # Add the past_key_values to the decoder inputs
             inputs = dict(zip(self.key_value_input_names, past_key_values))
 
@@ -435,9 +420,7 @@ class OVChatGLM2Model(OVModelForCausalLM):
             # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
             past_key_values = tuple(self.request.get_tensor(key).data for key in self.key_value_output_names)
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-            past_key_values = tuple(
-                past_key_values[i:i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv)
-            )
+            past_key_values = tuple(past_key_values[i : i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv))
         else:
             past_key_values = None
 
@@ -506,13 +489,14 @@ class OVChatGLMModel(OVModelForCausalLM):
                 position_ids = position_ids[..., -1:]
             else:
                 context_lengths = [seq.index(self.bos_token_id) for seq in seqs]
-                if self.position_encoding_2d:    # position_encoding_2d = True
+                if self.position_encoding_2d:  # position_encoding_2d = True
                     position_ids = torch.tensor(
-                        [[mask_position, seq_length - context_length] for mask_position, context_length in
-                            zip(mask_positions, context_lengths)], dtype=torch.long, device=input_ids.device).unsqueeze(-1)
+                        [[mask_position, seq_length - context_length] for mask_position, context_length in zip(mask_positions, context_lengths)],
+                        dtype=torch.long,
+                        device=input_ids.device,
+                    ).unsqueeze(-1)
                 else:
-                    position_ids = torch.tensor([mask_position for mask_position in mask_positions], dtype=torch.long,
-                                                device=input_ids.device).unsqueeze(-1)
+                    position_ids = torch.tensor([mask_position for mask_position in mask_positions], dtype=torch.long, device=input_ids.device).unsqueeze(-1)
 
             if past is None:
                 past = self.get_past_key_values(past_key_values)
@@ -522,7 +506,7 @@ class OVChatGLMModel(OVModelForCausalLM):
                 'position_ids': position_ids,
                 'attention_mask': attention_mask,
                 'use_cache': self.use_cache,
-                'token_type_ids': None
+                'token_type_ids': None,
             }
         else:
             # First Step Inference
@@ -576,10 +560,15 @@ class OVChatGLMModel(OVModelForCausalLM):
             position_ids = torch.arange(seq_length, dtype=torch.long, device=device).unsqueeze(0).repeat(batch_size, 1)
             for i, context_length in enumerate(context_lengths):
                 position_ids[i, context_length:] = mask_positions[i]
-            block_position_ids = [torch.cat((
-                torch.zeros(context_length, dtype=torch.long, device=device),
-                torch.arange(seq_length - context_length, dtype=torch.long, device=device) + 1,
-            )) for context_length in context_lengths]
+            block_position_ids = [
+                torch.cat(
+                    (
+                        torch.zeros(context_length, dtype=torch.long, device=device),
+                        torch.arange(seq_length - context_length, dtype=torch.long, device=device) + 1,
+                    )
+                )
+                for context_length in context_lengths
+            ]
             block_position_ids = torch.stack(block_position_ids, dim=0)
             position_ids = torch.stack((position_ids, block_position_ids), dim=1)
         else:
@@ -630,9 +619,7 @@ class OVChatGLMModel(OVModelForCausalLM):
             # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
             past_key_values = tuple(self.request.get_tensor(key).data for key in self.key_value_output_names)
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-            past_key_values = tuple(
-                past_key_values[i:i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv)
-            )
+            past_key_values = tuple(past_key_values[i : i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv))
         else:
             past_key_values = None
 

@@ -23,9 +23,9 @@ class MemConsumption:
             self.g_event.wait()
             while True:
                 process = psutil.Process(os.getpid())
-                rss_mem_data = process.memory_info().rss / float(2 ** 20)
+                rss_mem_data = process.memory_info().rss / float(2**20)
                 try:
-                    shared_mem_data = process.memory_info().shared / float(2 ** 20)
+                    shared_mem_data = process.memory_info().shared / float(2**20)
                 except Exception:
                     shared_mem_data = -1
                 if rss_mem_data > self.g_maxRssMemConsumption:

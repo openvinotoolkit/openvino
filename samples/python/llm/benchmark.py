@@ -35,8 +35,9 @@ MAX_OUTPUT_TOKEN_SIZE = 64 * 1024
 mem_consumption = MemConsumption()
 
 
-def gen_iterate_data(iter_idx='', in_size='', infer_count='', out_size='', gen_time='', latency='',
-                     res_md5='', max_rss_mem='', max_shared_mem='', prompt_idx=''):
+def gen_iterate_data(
+    iter_idx='', in_size='', infer_count='', out_size='', gen_time='', latency='', res_md5='', max_rss_mem='', max_shared_mem='', prompt_idx=''
+):
     iter_data = {}
     iter_data['iteration'] = iter_idx
     iter_data['input_size'] = in_size
@@ -79,15 +80,14 @@ def run_text_generation(input_text, num, model, tokenizer, args, iter_data_list,
     if (args['mem_consumption'] == 1 and num == 0) or args['mem_consumption'] == 2:
         mem_consumption.start_collect_memory_consumption()
     start = time.perf_counter()
-    result = model.generate(**input_data, max_new_tokens=int(max_output_token_size),
-                            num_beams=args['num_beams'], use_cache=True)
+    result = model.generate(**input_data, max_new_tokens=int(max_output_token_size), num_beams=args['num_beams'], use_cache=True)
     end = time.perf_counter()
     if (args['mem_consumption'] == 1 and num == 0) or args['mem_consumption'] == 2:
         mem_consumption.end_collect_momory_consumption()
         max_rss_mem_consumption, max_shared_mem_consumption = mem_consumption.get_max_memory_consumption()
         mem_consumption.clear_max_memory_consumption()
 
-    generation_time = (end - start)
+    generation_time = end - start
     generated_text = tokenizer.batch_decode(result)
     # Only text_gen need to minus length of input_data, because generated_text may include input_text
     num_tokens = 0
@@ -103,23 +103,38 @@ def run_text_generation(input_text, num, model, tokenizer, args, iter_data_list,
         result_text = generated_text[i]
         result_md5_list.append(hashlib.md5(result_text.encode()).hexdigest())
     per_token_time = generation_time * 1000 / num_tokens
-    iter_data = gen_iterate_data(num, input_token_size * args['batch_size'], max_output_token_size * args['batch_size'],
-                                 num_tokens, generation_time, per_token_time, result_md5_list,
-                                 max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption, prompt_idx=prompt_index)
+    iter_data = gen_iterate_data(
+        num,
+        input_token_size * args['batch_size'],
+        max_output_token_size * args['batch_size'],
+        num_tokens,
+        generation_time,
+        per_token_time,
+        result_md5_list,
+        max_rss_mem=max_rss_mem_consumption,
+        max_shared_mem=max_shared_mem_consumption,
+        prompt_idx=prompt_index,
+    )
     iter_data_list.append(iter_data)
     tm_list = bench_hook.get_time_list()
     tm_infer_list = bench_hook.get_time_infer_list()
-    utils.metrics_print.print_metrics(num, iter_data, tm_list, tm_infer_list, generated=generated_text[0],
-                                      warm_up=(num == 0), max_rss_mem=max_rss_mem_consumption,
-                                      max_shared_mem=max_shared_mem_consumption)
+    utils.metrics_print.print_metrics(
+        num,
+        iter_data,
+        tm_list,
+        tm_infer_list,
+        generated=generated_text[0],
+        warm_up=(num == 0),
+        max_rss_mem=max_rss_mem_consumption,
+        max_shared_mem=max_shared_mem_consumption,
+    )
     bench_hook.clear_time_list()
     bench_hook.clear_time_infer_list()
 
 
 def run_text_generation_benchmark(model_path, framework, device, args, num_iters):
     bench_hook = HOOK_UTILS[framework].BenchHook()
-    model, tokenizer, pretrain_time = FW_UTILS[framework].create_text_gen_model(
-        model_path, device, **args)
+    model, tokenizer, pretrain_time = FW_UTILS[framework].create_text_gen_model(model_path, device, **args)
     # Override forward for statistic each forward time.
     default_model_type = DEFAULT_MODEL_CLASSES[args['use_case']]
     model_type = args.get('model_type', default_model_type)
@@ -166,16 +181,23 @@ def run_image_generation(input_text, nsteps, num, image_id, pipe, args, iter_dat
         res[i].save(rslt_img_fn)
         result_md5_list.append(hashlib.md5(Image.open(rslt_img_fn).tobytes()).hexdigest())
     generation_time = end - start
-    iter_data = gen_iterate_data(iter_idx=num, infer_count=nsteps, gen_time=generation_time, res_md5=result_md5_list,
-                                 max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption, prompt_idx=image_id)
+    iter_data = gen_iterate_data(
+        iter_idx=num,
+        infer_count=nsteps,
+        gen_time=generation_time,
+        res_md5=result_md5_list,
+        max_rss_mem=max_rss_mem_consumption,
+        max_shared_mem=max_shared_mem_consumption,
+        prompt_idx=image_id,
+    )
     iter_data_list.append(iter_data)
-    utils.metrics_print.print_metrics(num, iter_data, [], generated=rslt_img_fn, warm_up=(num == 0),
-                                      max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption)
+    utils.metrics_print.print_metrics(
+        num, iter_data, [], generated=rslt_img_fn, warm_up=(num == 0), max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption
+    )
 
 
 def run_image_generation_benchmark(model_path, framework, device, args, num_iters):
-    pipe, pretrain_time = FW_UTILS[framework].create_image_gen_model(
-        model_path, device, **args)
+    pipe, pretrain_time = FW_UTILS[framework].create_image_gen_model(model_path, device, **args)
     nsteps = int(DEFAULT_INFERENCE_STEPS if args['infer_count'] is None else args['infer_count'])
     iter_data_list = []
     input_text_list = utils.model_utils.get_prompts(args)
@@ -196,8 +218,7 @@ def run_image_generation_benchmark(model_path, framework, device, args, num_iter
 
 
 def run_image_classification(model_path, framework, device, args, num_iters=10):
-    model, input_size = FW_UTILS[framework].create_image_classification_model(
-        model_path, device, **args)
+    model, input_size = FW_UTILS[framework].create_image_classification_model(model_path, device, **args)
 
     data = torch.rand(input_size)
 
@@ -245,12 +266,19 @@ def run_ldm_super_resolution(img, num, nsteps, pipe, args, framework, iter_data_
         md5hash = ''
 
     generation_time = end - start
-    iter_data = gen_iterate_data(iter_idx=num, infer_count=nsteps, gen_time=generation_time,
-                                 res_md5=md5hash.hexdigest() if md5hash != '' else '',
-                                 max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption, prompt_idx=image_id)
+    iter_data = gen_iterate_data(
+        iter_idx=num,
+        infer_count=nsteps,
+        gen_time=generation_time,
+        res_md5=md5hash.hexdigest() if md5hash != '' else '',
+        max_rss_mem=max_rss_mem_consumption,
+        max_shared_mem=max_shared_mem_consumption,
+        prompt_idx=image_id,
+    )
     iter_data_list.append(iter_data)
-    utils.metrics_print.print_metrics(num, iter_data, [], generated=rslt_img_fn, warm_up=(num == 0),
-                                      max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption)
+    utils.metrics_print.print_metrics(
+        num, iter_data, [], generated=rslt_img_fn, warm_up=(num == 0), max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption
+    )
 
 
 def run_ldm_super_resolution_benchmark(model_path, framework, device, args, num_iters):
@@ -293,42 +321,82 @@ def num_iters_type(x):
 def get_argprser():
     parser = argparse.ArgumentParser('LLM benchmarking tool', add_help=True, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-m', '--model', help='model folder including IR files or Pytorch files', required=TabError)
-    parser.add_argument('-id', '--model_id', default='', help='model id of huggingface,'
-                        + 'if model folder is empty, will try to download model from Hugging Face with this model_id.\n'
-                        + 'e.g. the model id of dolly-v2-12b which get from https://huggingface.co/databricks/dolly-v2-12b is databricks/dolly-v2-12b')
+    parser.add_argument(
+        '-id',
+        '--model_id',
+        default='',
+        help='model id of huggingface, if model folder is empty, will try to download model from Hugging Face with this model_id.\n'
+        + 'e.g. the model id of dolly-v2-12b which get from https://huggingface.co/databricks/dolly-v2-12b is databricks/dolly-v2-12b',
+    )
     parser.add_argument('-d', '--device', default='cpu', help='inference device')
     parser.add_argument('-r', '--report', help='report csv')
     parser.add_argument('-f', '--framework', default='ov', help='framework')
     parser.add_argument('-t', '--text', default=None, help='prompts')
     parser.add_argument('-p', '--prompt', default=None, help='one prompt')
     parser.add_argument('-pf', '--prompt_file', default=None, help='prompt file in jsonl format')
-    parser.add_argument('-ic', '--infer_count', default=None, type=int, help=f'limit the output token size '
-                        + f'(default {DEFAULT_OUTPUT_TOKEN_SIZE}) of text_gen and code_gen models, \n'
-                        + f'or set inference/sampling steps (default {DEFAULT_INFERENCE_STEPS}) of Text2Image models.')
-    parser.add_argument('-n', '--num_iters', default=0, type=num_iters_type, help='number of benchmarking iterations, '
-                        + 'if the value is greater than 0, the average numbers exclude the first(0th) iteration,\n'
-                        + 'if the value equals 0 (default), execute the warm-up iteration(0th iteration).')
+    parser.add_argument(
+        '-ic',
+        '--infer_count',
+        default=None,
+        type=int,
+        help='limit the output token size '
+        + f'(default {DEFAULT_OUTPUT_TOKEN_SIZE}) of text_gen and code_gen models, \n'
+        + f'or set inference/sampling steps (default {DEFAULT_INFERENCE_STEPS}) of Text2Image models.',
+    )
+    parser.add_argument(
+        '-n',
+        '--num_iters',
+        default=0,
+        type=num_iters_type,
+        help='number of benchmarking iterations, '
+        + 'if the value is greater than 0, the average numbers exclude the first(0th) iteration,\n'
+        + 'if the value equals 0 (default), execute the warm-up iteration(0th iteration).',
+    )
     parser.add_argument('-i', '--images', default=None, help='test images for vision tasks. Can be directory or path to single image')
     parser.add_argument('-s', '--seed', type=int, default=42, required=False, help='specific random seed to generate fix result. Default 42.')
-    parser.add_argument('-lc', '--load_config', default=None, required=False, help='path to JSON file to load customized configurations.\n'
-                        + 'Example for OpenVINO: {\"INFERENCE_NUM_THREADS\":32,\"PERFORMANCE_HINT\":\"LATENCY\"}.\n'
-                        + 'Example for Pytorch: {\"PREC_BF16\":true}. Pytorch currently only supports bf16 settings.\n')
-    parser.add_argument('-mc', '--memory_consumption', default=0, required=False, type=int, help='if the value is 1, '
-                        + 'output the maximum memory consumption in warm-up iterations. If the value is 2, '
-                        + 'output the maximum memory consumption in all iterations.')
+    parser.add_argument(
+        '-lc',
+        '--load_config',
+        default=None,
+        required=False,
+        help='path to JSON file to load customized configurations.\n'
+        + 'Example for OpenVINO: {\"INFERENCE_NUM_THREADS\":32,\"PERFORMANCE_HINT\":\"LATENCY\"}.\n'
+        + 'Example for Pytorch: {\"PREC_BF16\":true}. Pytorch currently only supports bf16 settings.\n',
+    )
+    parser.add_argument(
+        '-mc',
+        '--memory_consumption',
+        default=0,
+        required=False,
+        type=int,
+        help='if the value is 1, output the maximum memory consumption in warm-up iterations. If the value is 2,'
+        + ' output the maximum memory consumption in all iterations.',
+    )
     parser.add_argument('-bs', '--batch_size', type=int, default=1, required=False, help='Batch size value')
-    parser.add_argument('--fuse_decoding_strategy', action='store_true', help='Add decoding postprocessing for next token selectio '
-                        + 'to the model as an extra ops. Original hf_model.generate function will be patched.')
-    parser.add_argument('--make_stateful', action='store_true', help='Replace kv-cache inputs and outputs in the model '
-                        + 'by internal variables making a stateful model. Original hf_model.forward function will be patched.')
-    parser.add_argument('--save_prepared_model', default=None, help='Path to .xml file to save IR used for inference '
-                        + 'with all pre-/post processing included')
-    parser.add_argument('--num_beams', type=int, default=1, help='Number of beams in the decoding strategy, '
-                        + 'activates beam_search if greater than 1')
-    parser.add_argument('--fuse_cache_reorder', action='store_true', help='Fuse ops related to cache reordering to the model, '
-                        + 'applied only when num_beams > 1')
-    parser.add_argument('--torch_compile_backend', default='openvino', required=False, help='Enables running '
-                        + 'the torch.compile() with specified backend: pytorch or openvino (default)')
+    parser.add_argument(
+        '--fuse_decoding_strategy',
+        action='store_true',
+        help='Add decoding postprocessing for next token selection to the model as an extra ops. Original hf_model.generate function will be patched.',
+    )
+    parser.add_argument(
+        '--make_stateful',
+        action='store_true',
+        help='Replace kv-cache inputs and outputs in the model by internal variables making a stateful model.'
+        + 'Original hf_model.forward function will be patched.',
+    )
+    parser.add_argument(
+        '--save_prepared_model', default=None, help='Path to .xml file to save IR used for inference with all pre-/post processing included'
+    )
+    parser.add_argument('--num_beams', type=int, default=1, help='Number of beams in the decoding strategy, activates beam_search if greater than 1')
+    parser.add_argument(
+        '--fuse_cache_reorder', action='store_true', help='Fuse ops related to cache reordering to the model, applied only when num_beams > 1'
+    )
+    parser.add_argument(
+        '--torch_compile_backend',
+        default='openvino',
+        required=False,
+        help='Enables running the torch.compile() with specified backend: pytorch or openvino (default)',
+    )
 
     return parser.parse_args()
 
@@ -361,10 +429,9 @@ def main():
                 if ir_conversion_frontend != '':
                     framework = framework + '(' + ir_conversion_frontend + ')'
                 model_precision = utils.model_utils.get_model_precision(model_path.parents._parts)
-            utils.output_csv.write_result(args.report, model_name, framework,
-                                          args.device, model_args['use_case'],
-                                          iter_data_list, pretrain_time,
-                                          model_precision)
+            utils.output_csv.write_result(
+                args.report, model_name, framework, args.device, model_args['use_case'], iter_data_list, pretrain_time, model_precision
+            )
     except Exception:
         log.error('An exception occurred')
         log.info(traceback.format_exc())

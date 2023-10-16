@@ -10,8 +10,6 @@ from enum import Enum
 from functools import wraps
 from pathlib import Path
 from typing import Tuple
-import warnings
-
 import torch
 from diffusers import StableDiffusionPipeline, LDMSuperResolutionPipeline
 from nncf import compress_weights
@@ -23,9 +21,16 @@ from optimum.exporters.onnx.config import TextDecoderOnnxConfig
 from optimum.utils import NormalizedTextConfig, NormalizedConfigManager
 from optimum.exporters.onnx import get_encoder_decoder_models_for_export
 from optimum.exporters.openvino import export_models
-from optimum.intel.openvino import (OVModelForCausalLM, OVModelForSeq2SeqLM, OVStableDiffusionPipeline,
-                                    OVQuantizer, OV_XML_FILE_NAME, OV_DECODER_NAME,
-                                    OV_DECODER_WITH_PAST_NAME, OV_ENCODER_NAME)
+from optimum.intel.openvino import (
+    OVModelForCausalLM,
+    OVModelForSeq2SeqLM,
+    OVStableDiffusionPipeline,
+    OVQuantizer,
+    OV_XML_FILE_NAME,
+    OV_DECODER_NAME,
+    OV_DECODER_WITH_PAST_NAME,
+    OV_ENCODER_NAME,
+)
 from optimum.exporters.onnx import __main__ as optimum_main
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModel
 
@@ -406,9 +411,11 @@ def convert_stablelm(args):
             dynamic_shapes[inputs[-1]] = {2: 'past_sequence + sequence'}
             dynamic_shapes[inputs[-2]] = {2: 'past_sequence + sequence'}
             outputs.extend([f'present.{idx}.key', f'present.{idx}.value'])
-        dummy_inputs = {'input_ids': torch.ones((1, 2), dtype = torch.long),
-                        'attention_mask': torch.ones((1, 12), dtype = torch.long),
-                        'past_key_values': outs.past_key_values,}
+        dummy_inputs = {
+            'input_ids': torch.ones((1, 2), dtype=torch.long),
+            'attention_mask': torch.ones((1, 12), dtype=torch.long),
+            'past_key_values': outs.past_key_values,
+        }
         pt_model.config.torchscript = True
         ov_model = convert_model(pt_model, example_input=dummy_inputs)
 
@@ -464,14 +471,12 @@ def convert_chatglm2(args):
     def convert_to_ov(pt_model, tok, out_path, compress_to_fp16=False):
         pt_model.config.torchscript = True
         pt_model.config.use_cache = True
-        outs = pt_model(input_ids=torch.ones((1, 10), dtype=torch.long),
-                        position_ids=torch.arange(0, 10, dtype=torch.long))
+        outs = pt_model(input_ids=torch.ones((1, 10), dtype=torch.long), position_ids=torch.arange(0, 10, dtype=torch.long))
         inputs = ['input_ids', 'position_ids']
         outputs = ['logits']
         dynamic_shapes = {'input_ids': {1: 'seq_len'}, 'position_ids': {1: 'seq_len'}}
         for idx in range(len(outs[1])):
-            inputs.extend(
-                [f'past_key_values.{idx}.key', f'past_key_values.{idx}.value'])
+            inputs.extend([f'past_key_values.{idx}.key', f'past_key_values.{idx}.value'])
             dynamic_shapes[inputs[-1]] = {0: 'past_sequence + 1'}
             dynamic_shapes[inputs[-2]] = {0: 'past_sequence + 1'}
             outputs.extend([f'present.{idx}.key', f'present.{idx}.value'])
@@ -481,8 +486,7 @@ def convert_chatglm2(args):
             'past_key_values': outs[1],
         }
         ov_model = convert_model(pt_model, example_input=dummy_inputs)
-        for inp_name, m_input, input_data in zip(inputs, ov_model.inputs,
-                                                 flattenize_inputs(dummy_inputs.values())):
+        for inp_name, m_input, input_data in zip(inputs, ov_model.inputs, flattenize_inputs(dummy_inputs.values())):
             input_node = m_input.get_node()
             if input_node.element_type == Type.dynamic:
                 m_input.get_node().set_element_type(Type.f32)
@@ -621,6 +625,7 @@ def convert_falcon(args):
             ov_model.outputs[idx].get_tensor().set_names({out_name})
         ov_model.validate_nodes_and_infer_types()
         save_ov_model_helper(ov_model, out_path, fp16=compress_to_fp16, tok=tok, config=pt_model.config)
+
     pt_model = AutoModelForCausalLM.from_pretrained(args.model_id, config=AutoConfig.from_pretrained(args.model_id))
     pt_model.config.use_cache = True
     pt_model.eval()

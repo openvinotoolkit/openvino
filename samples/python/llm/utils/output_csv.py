@@ -26,10 +26,13 @@ def output_comments(result, use_case, writer):
     comment_list.append('pretrain_time: Total time of load model and compile model')
     comment_list.append('generation_time: Time for one interaction. (e.g. The duration of  answering one question or generating one picture)')
     comment_list.append('iteration=0: warm-up; iteration=-1: average (exclude warm-up)')
-    comment_list.append('max_rss_mem: max rss memory consumption;'
-                        'the value in -1 iteration row is the maximum value of all available RSS memory numbers in iterations.')
-    comment_list.append('max_shared_mem: max shared memory consumption;'
-                        'the value in -1 iteration row is the maximum value of all available shared memory numbers in iterations.')
+    comment_list.append(
+        'max_rss_mem: max rss memory consumption;' 'the value in -1 iteration row is the maximum value of all available RSS memory numbers in iterations.'
+    )
+    comment_list.append(
+        'max_shared_mem: max shared memory consumption;'
+        'the value in -1 iteration row is the maximum value of all available shared memory numbers in iterations.'
+    )
 
     for comments in comment_list:
         result['iteration'] = comments
@@ -37,9 +40,27 @@ def output_comments(result, use_case, writer):
 
 
 def write_result(report_file, model, framework, device, use_case, iter_data_list, pretrain_time, model_precision):
-    header = ['iteration', 'model', 'framework', 'device', 'pretrain_time(s)', 'input_size', 'infer_count', 'generation_time(s)',
-              'output_size', 'latency(ms)', '1st_latency(ms)', '2nd_avg_latency(ms)', 'precision', 'max_rss_mem(MB)',
-              'max_shared_mem(MB)', 'prompt_idx', '1st_infer_latency(ms)', '2nd_infer_avg_latency(ms)', 'result_md5']
+    header = [
+        'iteration',
+        'model',
+        'framework',
+        'device',
+        'pretrain_time(s)',
+        'input_size',
+        'infer_count',
+        'generation_time(s)',
+        'output_size',
+        'latency(ms)',
+        '1st_latency(ms)',
+        '2nd_avg_latency(ms)',
+        'precision',
+        'max_rss_mem(MB)',
+        'max_shared_mem(MB)',
+        'prompt_idx',
+        '1st_infer_latency(ms)',
+        '2nd_infer_avg_latency(ms)',
+        'result_md5',
+    ]
     out_file = Path(report_file)
 
     if len(iter_data_list) > 0:
