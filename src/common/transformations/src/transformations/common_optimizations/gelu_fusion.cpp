@@ -29,7 +29,7 @@ ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
     auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto div = ov::pass::pattern::wrap_type<ov::op::v0::Constant>({input, div_constant});
+    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
     auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({div});
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
@@ -89,7 +89,7 @@ ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
     auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto div = ov::pass::pattern::wrap_type<ov::op::v0::Constant>({input, div_constant});
+    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
     auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({div});
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
@@ -149,7 +149,7 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
     auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto div = ov::pass::pattern::wrap_type<ov::op::v0::Constant>({input, div_constant});
+    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
     auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({div});
     auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
