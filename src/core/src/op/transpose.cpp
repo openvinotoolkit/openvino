@@ -30,19 +30,11 @@ void Transpose::validate_and_infer_types() {
                           input_order_et.is_dynamic() || input_order_et.is_integral_number(),
                           "Input order must have an integral number element type.");
 
-    const auto& input_order_shape = get_input_partial_shape(ORDER);
-    NODE_VALIDATION_CHECK(this, input_order_shape.rank().compatible(1), "Input order must be a vector.");
-
-    const auto& arg_shape = get_input_partial_shape(ARG);
-    NODE_VALIDATION_CHECK(
-        this,
-        input_order_shape.compatible(ov::PartialShape{arg_shape.rank()}) ||
-            (input_order_shape.is_static() && input_order_shape.rank() == 1 && input_order_shape[0] == 0),
-        "Input order must have shape [n], where n is the rank of arg.");
-
     set_input_is_relevant_to_shape(ORDER);
 
-    std::vector<ov::PartialShape> input_shapes{arg_shape, input_order_shape};
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(ARG, get_input_element_type(ARG), output_shapes[ARG_T]);
@@ -81,7 +73,7 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
 
 bool Transpose::has_evaluate() const {
     OV_OP_SCOPE(v1_Transpose_has_evaluate);
-    return get_input_element_type(1).is_integral_number();
+    return get_input_element_type(ORDER).is_integral_number();
 }
 
 bool Transpose::evaluate_lower(ov::TensorVector& output_values) const {
