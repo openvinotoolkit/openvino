@@ -796,10 +796,10 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
             inputPrecision = outputPrecision = Precision::BF16;
     }
 
-    if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
+    if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8)) {
         THROW_ERROR << "has unsupported input precision: " << inputPrecision;
     }
-    if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
+    if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8)) {
         THROW_ERROR << "has unsupported output precision: " << outputPrecision;
     }
 
@@ -1483,7 +1483,8 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
               OV_CASE2(Precision::U8, Precision::FP32, uint8_t, float),
               OV_CASE2(Precision::I8, Precision::FP32, int8_t, float),
               OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-              OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t));
+              OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t),
+              OV_CASE2(Precision::FP16, Precision::FP16, float16_t, float16_t));
 
     return ctx.executor;
 }
