@@ -64,15 +64,6 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
 
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.11.2'
-      addToPath: true
-      architecture: 'x64'
-      githubToken: $(auth_token)
-    displayName: Setup Python 3.11
-    name: setupPython
-
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       where python
