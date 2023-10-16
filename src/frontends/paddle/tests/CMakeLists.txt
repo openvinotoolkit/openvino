@@ -4,26 +4,6 @@
 
 set(TARGET_NAME "paddle_tests")
 
-ov_add_test_target(
-    NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDENCIES
-            paddle_test_models
-            openvino_paddle_frontend
-            paddle_fe_standalone_build_test
-        LINK_LIBRARIES
-            cnpy
-            frontend_shared_test_classes
-            openvino_paddle_frontend
-            openvino::runtime
-            gtest_main_manifest
-            func_test_utils
-        ADD_CLANG_FORMAT
-        LABELS
-            OV
-            PADDLE_FE
-)
-
 # Test model generating
 set(PADDLE_REQ "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt")
 if(Python3_Interpreter_FOUND)
@@ -43,6 +23,29 @@ endif()
 
 # PDPD 2.5.1 is not compatible with tests models we use
 set(paddlepaddle_FOUND OFF)
+
+if(paddlepaddle_FOUND)
+    set(ctest_labels OV UNIT)
+endif()
+
+ov_add_test_target(
+    NAME ${TARGET_NAME}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDENCIES
+            paddle_test_models
+            openvino_paddle_frontend
+            paddle_fe_standalone_build_test
+        LINK_LIBRARIES
+            cnpy
+            frontend_shared_test_classes
+            openvino_paddle_frontend
+            openvino::runtime
+            gtest_main_manifest
+            func_test_utils
+        ADD_CLANG_FORMAT
+        LABELS
+            ${ctest_labels} PADDLE_FE
+)
 
 set(TEST_PADDLE_MODELS_DIRNAME ${TEST_MODEL_ZOO}/paddle_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")

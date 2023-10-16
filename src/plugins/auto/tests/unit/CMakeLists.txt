@@ -18,17 +18,17 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
         LINK_LIBRARIES
-            ngraphFunctions
+            ov_models
             unit_test_utils
         ADD_CPPLINT
         DEPENDENCIES
             template_extension
             mock_engine
-            ngraphFunctions
+            ov_models
         LABELS
-            Multi
-            Auto
+            OV UNIT MULTI AUTO
 )
+
 ov_add_version_defines(${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin.cpp ${TARGET_NAME})
 
 ov_set_threading_interface_for(${TARGET_NAME})

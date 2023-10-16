@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/single_layer/pooling.hpp"

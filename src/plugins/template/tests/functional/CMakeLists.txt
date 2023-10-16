@@ -18,11 +18,11 @@ ov_add_test_target(
             openvino::funcSharedTests
             openvino::runtime::dev
         INCLUDES
-            "${TEMPLATE_PLUGIN_SOURCE_DIR}/include"
+            "${OpenVINOTemplatePlugin_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
         ADD_CLANG_FORMAT
         LABELS
-            TEMPLATE
+            OV UNIT TEMPLATE
 )
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)
