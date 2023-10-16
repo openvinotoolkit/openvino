@@ -266,26 +266,7 @@ if(NOT TARGET openvino::pugixml)
     function(ov_build_pugixml)
         function(ov_build_pugixml_static)
             set(BUILD_SHARED_LIBS OFF)
-            function(install)
-                cmake_parse_arguments(_install "" "EXPORT" "" ${ARGV})
-                if(_install_EXPORT STREQUAL "pugixml-targets")
-                    # does nothing!
-                    # we need to override 'export' command to prevent cmake issue with multiple
-                    # export sets for pugixml-target. Currently, it's installed only by OpenVINO
-                else()
-                    _install(${ARGV})
-                endif()
-            endfunction()
-            function(export)
-                cmake_parse_arguments(_export "" "EXPORT" "" ${ARGV})
-                if(_export_EXPORT STREQUAL "pugixml-targets")
-                    # does nothing!
-                    # we need to override 'export' command to prevent cmake issue with multiple
-                    # export sets for pugixml-target. Currently, it's installed only by OpenVINO
-                else()
-                    _export(${ARGV})
-                endif()
-            endfunction()
+            set(PUGIXML_INSTALL OFF CACHE BOOL "" FORCE)
             add_subdirectory(thirdparty/pugixml EXCLUDE_FROM_ALL)
         endfunction()
         ov_build_pugixml_static()
