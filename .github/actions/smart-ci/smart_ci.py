@@ -55,7 +55,9 @@ class ComponentConfig:
         # Else check changed components' dependencies and add them to affected
         for name in changed_components_names:
             component_data = self.config.get(name, dict())
-            dependent_components = component_data.get('dependent_components', dict()) if component_data else dict()
+            dependent_components = component_data.get('dependent_components', dict()) if component_data else \
+                {name: self.FullScope for name in self.all_possible_components}
+
             for dep_name, scope in dependent_components.items():
                 _scope = affected_components.get(dep_name, set()).union(scope)
                 affected_components.update({dep_name: _scope if scope else self.FullScope})

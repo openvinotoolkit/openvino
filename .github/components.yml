@@ -25,29 +25,43 @@ PyTorch_FE:
     Torch_Model_Hub_Tests: [build, test]
 
 TFL_FE:
+  dependent_components: {}
 
 ONNX_FE:
+  dependent_components: {}
 
 PDPD_FE:
+  dependent_components: {}
 
 IR_FE:
+  dependent_components: {}
 
 AUTO:
+  dependent_components: {}
 
 AUTO_BATCH:
+  dependent_components: {}
 
 TEMPLATE:
+  dependent_components: {}
 
 HETERO:
+  dependent_components: {}
 
 MO:
+  dependent_components: {}
 
 samples:
+  dependent_components: {}
 
 transformations:
+  dependent_components: {}
 
 LP_transformations:
+  dependent_components: {}
 
 Torch_Model_Hub_Tests:
+  dependent_components: {}
 
 TF_Model_Hub_Tests:
+  dependent_components: {}
