@@ -71,8 +71,7 @@ class NMSRotated(Op):
     @staticmethod
     def type_infer(node: Node):
         node.out_port(1).set_data_type(np.float32)
-        assert node.has_valid('output_type')
-        if node['output_type'] == 'i32':
+        if node.has_valid('output_type') and node['output_type'].lower() == 'i32':
             node.out_port(0).set_data_type(np.int32)
             node.out_port(2).set_data_type(np.int32)
         else:
