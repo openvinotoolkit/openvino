@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
+#include <atomic>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -335,19 +336,54 @@ struct CPUStreamsExecutor::Impl {
     // Call local() will reuse one of them, and release others.
     // it's only a workaround for ticket CVS-111490, please be carefully when need to modify
     // CustomeThreadLocal::local(), especially like operations that will affect the count of
-    // std::shared_ptr<std::thread::id>
+    // CustomThreadLocal::ThreadId
     class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
+        class ThreadId {
+        public:
+            explicit ThreadId(std::thread::id& id)
+                : _id_ptr(new std::thread::id(id)),
+                  _count_ptr(new std::atomic_int(1)) {}
+            ~ThreadId() {
+                if (_count_ptr->fetch_sub(1) == 1) {
+                    delete _id_ptr;
+                    delete _count_ptr;
+                }
+            }
+            ThreadId* copy() {
+                ThreadId* new_ptr = new ThreadId(*this);
+                auto pre_valule = new_ptr->_count_ptr->fetch_add(1);
+                OPENVINO_ASSERT(pre_valule == 1, "this value must be 1, please check code CustomThreadLocal::local()");
+                return new_ptr;
+            }
+            std::thread::id& get_id() {
+                return *_id_ptr;
+            }
+            int count() {
+                return *_count_ptr;
+            }
+
+        private:
+            // disable all copy and move semantics, user only can use copy()
+            // to create a new instance with a shared count num;
+            ThreadId(ThreadId const&) = default;
+            ThreadId(ThreadId&&) = delete;
+            ThreadId& operator=(ThreadId const&) = delete;
+            ThreadId& operator=(ThreadId&&) = delete;
+            std::thread::id* _id_ptr;
+            std::atomic_int* _count_ptr;
+        };
+
     public:
         CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl)
             : ThreadLocal<std::shared_ptr<Stream>>(callback_construct),
               _impl(impl) {}
         std::shared_ptr<Stream> local() {
             // maybe there are two CPUStreamsExecutors in the same thread.
-            static thread_local std::map<void*, std::shared_ptr<std::thread::id>> t_stream_count_map;
+            static thread_local std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadId>> t_stream_count_map;
             // fix the memory leak issue that CPUStreamsExecutor is already released,
             // but still exists thread id in t_stream_count_map
             for (auto it = t_stream_count_map.begin(); it != t_stream_count_map.end();) {
-                if (this != it->first && it->second.use_count() == 1) {
+                if (this != it->first && it->second->count() == 1) {
                     t_stream_count_map.erase(it++);
                 } else {
                     it++;
@@ -360,14 +396,13 @@ struct CPUStreamsExecutor::Impl {
             }
             std::lock_guard<std::mutex> guard(_stream_map_mutex);
             for (auto& item : _stream_map) {
-                if (*(item.first.get()) == id) {
-                    t_stream_count_map[(void*)this] = item.first;
+                if (item.first->get_id() == id) {
                     return item.second;
                 }
             }
             std::shared_ptr<Impl::Stream> stream = nullptr;
             for (auto it = _stream_map.begin(); it != _stream_map.end();) {
-                if (it->first.use_count() == 1) {
+                if (it->first->count() == 1) {
                     if (stream == nullptr) {
                         stream = it->second;
                     }
@@ -379,9 +414,10 @@ struct CPUStreamsExecutor::Impl {
             if (stream == nullptr) {
                 stream = std::make_shared<Impl::Stream>(_impl);
             }
-            auto id_ptr = std::make_shared<std::thread::id>(id);
+            auto id_ptr = std::make_shared<CustomThreadLocal::ThreadId>(id);
             t_stream_count_map[(void*)this] = id_ptr;
-            _stream_map[id_ptr] = stream;
+            std::shared_ptr<CustomThreadLocal::ThreadId> new_id_ptr(id_ptr->copy());
+            _stream_map[new_id_ptr] = stream;
             return stream;
         }
 
@@ -394,7 +430,7 @@ struct CPUStreamsExecutor::Impl {
     private:
         std::set<std::thread::id> _thread_ids;
         Impl* _impl;
-        std::map<std::shared_ptr<std::thread::id>, std::shared_ptr<Impl::Stream>> _stream_map;
+        std::map<std::shared_ptr<CustomThreadLocal::ThreadId>, std::shared_ptr<Impl::Stream>> _stream_map;
         std::mutex _stream_map_mutex;
     };
 
