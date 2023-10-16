@@ -1,4 +1,4 @@
-name: macOS (macOS 13, Python 3.11, x86_64 and ARM64)
+name: macOS (Python 3.11)
 on:
   workflow_dispatch:
   pull_request:
@@ -39,12 +39,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: 'macOS x86_64'
-            arhitecture: 'x86_64'
+          - arhitecture: 'x86_64'
             machine: 'macos-13-large'
             macos_deployment_target: '10.12'
-          - name: 'macOS ARM64 (M1)'
-            arhitecture: 'arm64'
+          - arhitecture: 'arm64'
             machine: 'macos-13-xlarge'
             macos_deployment_target: '11.0'
     runs-on: ${{ matrix.machine }}
