@@ -999,6 +999,16 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
+      - name: Python Frontend tests
+        run: |
+          # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
+          PIP_INSTALL_DIR=$(python3 -m site --user-site)
+          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
+          ldd /__w/openvino/openvino/install/tests/libtest_builtin_extensions.so
+          ls -la ${PIP_INSTALL_DIR}/openvino/libs
+          ldd ${PIP_INSTALL_DIR}/openvino/libs/libopenvino_onnx_frontend.so.2320
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
+
       - name: PyTorch Layer Tests
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -1051,16 +1061,6 @@ jobs:
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
-
-      - name: Python Frontend tests
-        run: |
-          # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
-          PIP_INSTALL_DIR=$(python3 -m site --user-site)
-          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
-          export REPO_DIR=${PIP_INSTALL_DIR}/openvino/libs
-          ldd /__w/openvino/openvino/install/tests/libtest_builtin_extensions.so
-          ldd ${PIP_INSTALL_DIR}/openvino/libs/libopenvino_onnx_frontend.so.2320
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
