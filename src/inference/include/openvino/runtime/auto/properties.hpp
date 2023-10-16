@@ -35,7 +35,7 @@ static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK
  */
 enum class SchedulePolicy {
     ROUND_ROBIN = 0,
-    DEVICE_POLICY = 1,
+    DEVICE_PRIORITY = 1,
     DEFAULT = ROUND_ROBIN,  //!<  Default schedule policy is ROUND_ROBIN
 };
 
@@ -44,8 +44,8 @@ inline std::ostream& operator<<(std::ostream& os, const SchedulePolicy& policy) 
     switch (policy) {
     case SchedulePolicy::ROUND_ROBIN:
         return os << "ROUND_ROBIN";
-    case SchedulePolicy::DEVICE_POLICY:
-        return os << "DEVICE_POLICY";
+    case SchedulePolicy::DEVICE_PRIORITY:
+        return os << "DEVICE_PRIORITY";
     default:
         OPENVINO_THROW("Unsupported schedule policy value");
     }
@@ -57,7 +57,7 @@ inline std::istream& operator>>(std::istream& is, SchedulePolicy& policy) {
     if (str == "ROUND_ROBIN") {
         policy = SchedulePolicy::ROUND_ROBIN;
     } else if (str == "DEVICE_PRIORITY") {
-        policy = SchedulePolicy::DEVICE_POLICY;
+        policy = SchedulePolicy::DEVICE_PRIORITY;
     } else if (str == "DEFAULT") {
         policy = SchedulePolicy::DEFAULT;
     } else {

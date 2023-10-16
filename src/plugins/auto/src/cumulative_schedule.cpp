@@ -12,12 +12,13 @@ namespace ov {
 namespace auto_plugin {
 std::string CumuSchedule::schedule_to_next_device(const std::vector<DeviceInformation>& devices,
                                                   std::size_t current_device_index) {
+    std::lock_guard<std::mutex> lock(m_context->m_mutex);
     m_n_ctput_schedule_nextdevice = m_n_ctput_schedule_nextdevice >= devices.size() ? 0 : m_n_ctput_schedule_nextdevice;
     auto selected_device_name = devices[m_n_ctput_schedule_nextdevice].device_name;
     auto schedule_policy = m_context->m_schedule_policy;
     if (schedule_policy == ov::intel_auto::SchedulePolicy::ROUND_ROBIN) {
         m_n_ctput_schedule_nextdevice++;
-    } else if (schedule_policy == ov::intel_auto::SchedulePolicy::DEVICE_POLICY) {
+    } else if (schedule_policy == ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY) {
         m_n_ctput_schedule_nextdevice = current_device_index;
     }
     return selected_device_name;
@@ -233,6 +234,9 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
 
     std::size_t current_device_index = 0;
     while (current_device_index < devices.size()) {
+        if (!preferred_device.empty() && (devices[current_device_index].device_name != preferred_device)) {
+            continue;
+        }
         auto selected_device_name = schedule_to_next_device(devices, current_device_index);
         if (run_pipeline_task(pipeline_task, m_idle_worker_requests[selected_device_name], preferred_device)) {
             return true;
