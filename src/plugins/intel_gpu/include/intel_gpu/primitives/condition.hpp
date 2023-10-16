@@ -54,8 +54,8 @@ struct condition : public primitive_base<condition> {
             const std::vector<input_info>& inputs,
             const branch& branch_true,
             const branch& branch_false,
-            const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}),
+            const size_t num_outputs = 1)
+        : primitive_base(id, inputs, {padding()}, {optional_data_type()}, num_outputs),
         branch_true(branch_true),
         branch_false(branch_false) {}
 

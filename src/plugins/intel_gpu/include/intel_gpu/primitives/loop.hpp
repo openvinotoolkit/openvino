@@ -7,8 +7,8 @@
 #include <functional>
 #include "primitive.hpp"
 #include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/graph/program.hpp"
 
-#define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
 
 ///
@@ -53,18 +53,35 @@ struct loop : public primitive_base<loop> {
     CLDNN_DECLARE_PRIMITIVE(loop)
 
     loop() : primitive_base("", {}),
-             max_iteration(0) {}
+             max_num_iterations(0) {}
 
     struct io_primitive_map {
         /// @brief Constructs a mapping from external input/output primitive to input/output primitive in body topology
-        ///
+        ///         or a mapping from output of body topology to input of body topology for the next iteration.
         /// @param external_id Primitive id of input of loop or output of body network.
         /// @param internal_id Primitive id of input of body network.
         /// @param axis Axis to iterate through. Negative value means the axis will not iterate through and start, end, stride arguments will be ignored.
         /// @param start Index where the iteration starts from. Applies only when axis >=0.
         /// @param end Index where iteration ends. Negative value means counting indexes from the end. Applies only when axis >=0.
         /// @param stride Step of iteration. Negative value means backward iteration. Applies only when axis >=0.
-        io_primitive_map(primitive_id external_id = "", primitive_id internal_id = "",
+        io_primitive_map(primitive_id external_id, primitive_id internal_id,
+            int64_t axis = -1, int64_t start = 0, int64_t end = -1, int64_t stride = 1) :
+            external_id(external_id, 0),
+            internal_id(internal_id, 0),
+            axis(axis),
+            start(start),
+            end(end),
+            stride(stride) {}
+
+        /// @brief Constructs a mapping from external input/output primitive to input/output primitive in body topology
+        ///         or a mapping from output of body topology to input of body topology for the next iteration.
+        /// @param external_id Primitive id of input of loop or output of body network.
+        /// @param internal_id Primitive id of input of body network.
+        /// @param axis Axis to iterate through. Negative value means the axis will not iterate through and start, end, stride arguments will be ignored.
+        /// @param start Index where the iteration starts from. Applies only when axis >=0.
+        /// @param end Index where iteration ends. Negative value means counting indexes from the end. Applies only when axis >=0.
+        /// @param stride Step of iteration. Negative value means backward iteration. Applies only when axis >=0.
+        io_primitive_map(input_info external_id = input_info(), input_info internal_id = input_info(),
             int64_t axis = -1, int64_t start = 0, int64_t end = -1, int64_t stride = 1) :
             external_id(std::move(external_id)),
             internal_id(std::move(internal_id)),
@@ -73,8 +90,8 @@ struct loop : public primitive_base<loop> {
             end(end),
             stride(stride) {}
 
-        primitive_id external_id;
-        primitive_id internal_id;
+        input_info external_id;
+        input_info internal_id;
         int64_t axis;
         int64_t start;
         int64_t end;
@@ -125,68 +142,69 @@ struct loop : public primitive_base<loop> {
     ///
     /// @param id This primitive id.
     /// @param inputs Input data primitive ids.
-    /// @param body Topology to be recurrently executed.
+    /// @param body_program body program to be recurrently executed.
     /// @param trip_count_id Data primitive id in external topology specifying maximum number of iterations.
     ///                      Its data primitive should have 1 integer element. Negative value means infinite
     ///                      number of iteration.
-    /// @param initial_condition_id Data primitive id in external topology specifying initial execution
+    /// @param first_execution_condition_id Data primitive id in external topology specifying initial execution
     ///                                       condition. Its data primitive should have 1 integer element. Zero means
     ///                                       loop will not be executed, otherwise loop will be executed.
     /// @param num_iteration_id mutable_data primitive id to get the actual number of loop iterations.
-    /// @param current_iteration_id Optional data primitive id in the body network to specify current iteration.
-    ///                             If current_iteration_id is specified but body does not have data whose primitive
-    ///                             id is same as current_iteration_id, data primitive will be added in the body network.
-    /// @param condition_id Optional data primitive id in the body network to specify execution condition
+    /// @param body_current_iteration_id Optional data primitive id in the body network to specify current iteration.
+    ///                             If body_current_iteration_id is specified but body does not have data whose primitive
+    ///                             id is same as body_current_iteration_id, data primitive will be added in the body network.
+    /// @param body_execution_condition_id Optional data primitive id in the body network to specify execution condition
     ///                               for the next iteration. Its data primitive should have 1 integer element. Zero means
-    ///                               loop will not be executed, otherwise loop will be executed.  If condition_id
-    ///                               is specified but body does not have data whose primitive id is same as condition_id,
+    ///                               loop will not be executed, otherwise loop will be executed.  If body_execution_condition_id
+    ///                               is specified but body does not have data whose primitive id is same as body_execution_condition_id,
     ///                               data primitive will be added in the body network.
     /// @param primitive_map Rules to map input of loop or output of body topology to input of the body topology
     /// @param back_edges Output data primitive id.
     /// @param output_padding     Optional padding for output from primitive.
     loop(const primitive_id& id,
          const std::vector<input_info>& inputs,
-         const topology& body,
+         const program::ptr body_program,
          const primitive_id& trip_count_id,
-         const primitive_id& initial_condition_id,
+         const primitive_id& first_execution_condition_id,
          const primitive_id& num_iteration_id,
          const std::vector<io_primitive_map>& input_primitive_maps,
          const std::vector<io_primitive_map>& output_primitive_maps,
          const std::vector<backedge_mapping>& back_edges,
-         int64_t max_iteration = -1,
-         const primitive_id& current_iteration_id = primitive_id(),
-         const primitive_id& condition_id = primitive_id(),
-         const padding& output_padding = padding())
-            : primitive_base(id, inputs, {output_padding}),
-              body(body),
+         int64_t max_num_iterations = -1,
+         const primitive_id& body_current_iteration_id = primitive_id(),
+         const primitive_id& body_execution_condition_id = primitive_id(),
+         const size_t num_outputs = 1)
+            : primitive_base(id, inputs, {padding()}, {optional_data_type()}, num_outputs),
+              body_program(std::move(body_program)),
               trip_count_id(trip_count_id),
-              initial_execution_id(initial_condition_id),
+              first_execution_condition_id(first_execution_condition_id),
               num_iteration_id(num_iteration_id),
-              current_iteration_id(current_iteration_id),
-              condition_id(condition_id),
+              body_current_iteration_id(body_current_iteration_id),
+              body_execution_condition_id(body_execution_condition_id),
               input_primitive_maps(input_primitive_maps),
               output_primitive_maps(output_primitive_maps),
               back_edges(back_edges),
-              max_iteration(max_iteration)
-              {}
+              max_num_iterations(max_num_iterations) {
+        OPENVINO_ASSERT(inputs.front().pid == num_iteration_id, "first input of inputs should be num_iteration_id");
+    }
 
-    /// @brief Topology to be recurrently executed.
-    topology body;
+    /// @brief Body program to be recurrently executed.
+    program::ptr body_program;
 
     /// @brief Data primitive id in external topology specifying maximum number of iterations.
     primitive_id trip_count_id;
 
     /// @brief Data primitive id in external topology specifying initial execution condition.
-    primitive_id initial_execution_id;
+    primitive_id first_execution_condition_id;
 
     /// @brief mutable_data primitive id to get the actual number of loop iterations.
     primitive_id num_iteration_id;
 
     /// @brief Data primitive id in the body network to store current iteration
-    primitive_id current_iteration_id;
+    primitive_id body_current_iteration_id;
 
     /// @brief Data primitive id in the body network to store execution condition
-    primitive_id condition_id;
+    primitive_id body_execution_condition_id;
 
     /// @brief Rules to map input or output data of loop layer onto input or output data of body topology.
     std::vector<io_primitive_map> input_primitive_maps;
@@ -195,7 +213,7 @@ struct loop : public primitive_base<loop> {
     /// @brief Rules to transfer data from body outputs at one iteration to body input at the next iteration.
     std::vector<backedge_mapping> back_edges;
 
-    int64_t max_iteration;
+    int32_t max_num_iterations;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -206,42 +224,43 @@ struct loop : public primitive_base<loop> {
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<loop>::save(ob);
         ob << trip_count_id;
-        ob << initial_execution_id;
+        ob << first_execution_condition_id;
         ob << num_iteration_id;
-        ob << current_iteration_id;
-        ob << condition_id;
+        ob << body_current_iteration_id;
+        ob << body_execution_condition_id;
         ob << input_primitive_maps;
         ob << output_primitive_maps;
         ob << back_edges;
-        ob << max_iteration;
+        ob << max_num_iterations;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<loop>::load(ib);
         ib >> trip_count_id;
-        ib >> initial_execution_id;
+        ib >> first_execution_condition_id;
         ib >> num_iteration_id;
-        ib >> current_iteration_id;
-        ib >> condition_id;
+        ib >> body_current_iteration_id;
+        ib >> body_execution_condition_id;
         ib >> input_primitive_maps;
         ib >> output_primitive_maps;
         ib >> back_edges;
-        ib >> max_iteration;
+        ib >> max_num_iterations;
     }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret{
-            std::ref(trip_count_id), std::ref(initial_execution_id), std::ref(num_iteration_id)
-        };
+        std::vector<std::reference_wrapper<const primitive_id>> ret;
+        ret.push_back(std::ref(num_iteration_id));
+        if (!trip_count_id.empty()) ret.push_back(std::ref(trip_count_id));
+        if (!first_execution_condition_id.empty()) ret.push_back(std::ref(first_execution_condition_id));
+
         // add external_id in dependencies if not exist
         for (const auto& mapping : input_primitive_maps) {
             auto target = std::find_if(input.begin(), input.end(),
-                                       [&](const input_info& info) {
-                                           return info.pid == mapping.external_id;
-                                       });
+                                    [&](const input_info& info) {
+                                        return info.pid == mapping.external_id.pid;});
             if (target == input.end()) {
-                ret.push_back(std::ref(mapping.external_id));
+                ret.push_back(std::ref(mapping.external_id.pid));
             }
         }
         return ret;

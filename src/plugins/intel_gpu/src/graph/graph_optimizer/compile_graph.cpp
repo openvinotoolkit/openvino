@@ -14,6 +14,7 @@
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
 #include "condition_inst.h"
+#include "loop_inst.h"
 #include "program_node.h"
 
 #include <iostream>
@@ -74,7 +75,7 @@ void compile_graph::run(program& p) {
         if (node->is_dynamic() && !is_planar)
             can_select_impl = false;
 
-        if (node->is_type<condition>() || node->is_type<proposal>())
+        if (node->is_type<condition>() || node->is_type<loop>() || node->is_type<proposal>())
             can_select_impl = true;
 
         if (can_select_impl) {

@@ -215,7 +215,7 @@ std::string condition_inst::to_string(condition_node const& node) {
 }
 
 /*
-Condition primitive is resuing memory with the input.
+Condition primitive is reusing memory with the input.
 */
 condition_inst::typed_primitive_inst(network& network, condition_node const& node)
     : parent(network, node),
