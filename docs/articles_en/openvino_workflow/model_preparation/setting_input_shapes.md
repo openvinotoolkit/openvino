@@ -1,26 +1,25 @@
 # Setting Input Shapes {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model}
 
-With model conversion API you can increase your model's efficiency by providing an additional shape definition using the ``input`` parameter.
-
 @sphinxdirective
 
 .. meta::
    :description: Learn how to increase the efficiency of a model by providing an additional shape definition with the ``input`` parameter of ``openvino.convert_model`` and ``ovc``.
 
-.. _when_to_specify_input_shapes:
 
-Specifying Shapes in the ``input`` Parameter
-#####################################################
+``openvino.convert_model`` supports conversion of models with dynamic input shapes that
+contain undefined dimensions. However, if the shape of data is not going to change from
+one inference request to another, it is recommended to **set up static shapes**
+(all dimensions are fully defined) for the inputs, using the the ``input`` parameter.
+Doing so at the model preparation stage, not at runtime, can be beneficial in terms of
+performance and memory consumption.
 
-``openvino.convert_model`` supports conversion of models with dynamic input shapes that contain undefined dimensions.
-However, if the shape of data is not going to change from one inference request to another,
-it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
-Doing it at this stage, instead of during inference in runtime, can be beneficial in terms of performance and memory consumption.
-To set up static shapes, model conversion API provides the ``input`` parameter.
-For more information on changing input shapes in runtime, refer to the :doc:`Changing input shapes <openvino_docs_OV_UG_ShapeInference>` guide.
-To learn more about dynamic shapes in runtime, refer to the :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>` guide.
+For more information on changing input shapes in runtime, refer to the 
+:doc:`Changing input shapes <openvino_docs_OV_UG_ShapeInference>` guide.
+To learn more about dynamic shapes in runtime, refer to the 
+:doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>` guide.
 
-The OpenVINO Runtime API may present certain limitations in inferring models with undefined dimensions on some hardware. See the :doc:`Features support matrix <openvino_docs_OV_UG_Working_with_devices>` for reference.
+The OpenVINO Runtime API may present certain limitations in inferring models with undefined dimensions on some hardware. 
+See the :doc:`Feature support matrix <openvino_docs_OV_UG_Working_with_devices>` for reference.
 In this case, the ``input`` parameter and the :doc:`reshape method <openvino_docs_OV_UG_ShapeInference>` can help to resolve undefined dimensions.
 
 For example, run model conversion for the TensorFlow MobileNet model with the single input
