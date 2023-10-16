@@ -57,7 +57,7 @@ std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolL
     result << "PE" << ov::test::utils::vec2str(pad_end) << "_";
     result << "Rounding=" << rounding_type << "_";
     result << "AutoPad=" << pad_type << "_";
-    result << "netPRC=" << model_type.get_type_name() << "_";
+    result << "modelType=" << model_type.get_type_name() << "_";
     result << "trgDev=" << targetDevice;
     return result.str();
 }
@@ -129,7 +129,7 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
     result << "A" << axis << "_";
     result << "Rounding=" << rounding_type << "_";
     result << "AutoPad=" << pad_type << "_";
-    result << "netPRC=" << model_type.get_type_name() << "_";
+    result << "modelType=" << model_type.get_type_name() << "_";
     result << "trgDev=" << target_device;
     return result.str();
 }
@@ -163,7 +163,7 @@ void MaxPoolingV8LayerTest::SetUp() {
     } else {
         results = { std::make_shared<ov::op::v0::Result>(max_pool->output(0)) };
     }
-    function = std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "MaxPoolV8");
+    function = std::make_shared<ov::Model>(max_pool->outputs(), ov::ParameterVector{param}, "MaxPoolV8");
 }
 
 }  // namespace test
