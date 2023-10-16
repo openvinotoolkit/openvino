@@ -2,17 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
-
-from generator import generator, generate
-
+import pytest
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.pipeline.common import determined_sort, get_fw_tensor_debug_info, get_sorted_outputs
 from unit_tests.utils.graph import build_graph_with_edge_attrs
 
 
-@generator
-class TestTopologicalSort(unittest.TestCase):
-    @generate(
+class TestTopologicalSort():
+    @pytest.mark.parametrize( "edges",[
         [('A', 'Ad', {'out': 0}),
          ('Ad', 'B', {'in': 0}),
          ('B', 'Bd', {'out': 0}),
@@ -92,7 +89,7 @@ class TestTopologicalSort(unittest.TestCase):
          ('Hd', 'J', {'in': 1}),
          ('Dd', 'F', {'in': 1}),
          ('Fd', 'H', {'in': 1}),
-         ('Gd', 'H', {'in': 0})]
+         ('Gd', 'H', {'in': 0})]]
     )
     def test_determined_topological_sort(self, edges):
         nodes = {'A': {'type': 'Identity', 'kind': 'op'},
@@ -123,8 +120,8 @@ class TestTopologicalSort(unittest.TestCase):
         outputs = [Node(graph, 'Kd')]
         for i in range(100):
             op_order, data_order = determined_sort(outputs)
-            self.assertListEqual(op_order, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'])
-            self.assertListEqual(data_order, ['Ad', 'Bd', 'Cd', 'Dd', 'Ed', 'Fd', 'Gd', 'Hd', 'Id', 'Jd', 'Kd'])
+            assert op_order == ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+            assert data_order == ['Ad', 'Bd', 'Cd', 'Dd', 'Ed', 'Fd', 'Gd', 'Hd', 'Id', 'Jd', 'Kd']
 
 
 class TestGetFWTensorName(unittest.TestCase):
