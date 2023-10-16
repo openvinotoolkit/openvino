@@ -401,12 +401,12 @@ void prior_box_node::calc_result() {
 
     // perform calculations
     if (get_output_layout().data_type == data_types::f16)
-        calculate_prior_box_output<data_type_to_type<data_types::f16>::type>(result,
+        calculate_prior_box_output<ov::element_type_traits<data_types::f16>::value_type>(result,
                                                                              get_program().get_stream(),
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
     else
-        calculate_prior_box_output<data_type_to_type<data_types::f32>::type>(result,
+        calculate_prior_box_output<ov::element_type_traits<data_types::f32>::value_type>(result,
                                                                              get_program().get_stream(),
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
