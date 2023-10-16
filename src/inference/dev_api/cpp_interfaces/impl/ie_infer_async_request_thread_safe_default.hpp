@@ -63,7 +63,9 @@ class INFERENCE_ENGINE_1_0_DEPRECATED AsyncInferRequestThreadSafeDefault : publi
         explicit ImmediateStreamsExecutor(const IStreamsExecutor::Ptr& streamsExecutor)
             : _streamsExecutor{streamsExecutor} {}
         void run(InferenceEngine::Task task) override {
-            _streamsExecutor->Execute(std::move(task));
+            std::vector<Task> tasks;
+            tasks.push_back(std::move(task));
+            _streamsExecutor->run_and_wait(tasks);
         }
         IStreamsExecutor::Ptr _streamsExecutor;
     };
