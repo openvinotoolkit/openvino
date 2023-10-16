@@ -10,7 +10,7 @@ ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirement
                       RESULT_VAR tensorflow_FOUND)
 
 if(tensorflow_FOUND)
-    set(ctest_labels LABELS OV UNIT)
+    set(ctest_labels OV UNIT)
 endif()
 
 ov_add_test_target(
