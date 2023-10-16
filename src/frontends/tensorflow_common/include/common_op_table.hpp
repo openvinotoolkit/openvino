@@ -149,6 +149,7 @@ OP_CONVERTER(translate_unravel_index_op);
 OP_CONVERTER(translate_unsorted_segment_sum_op);
 OP_CONVERTER(translate_where_op);
 OP_CONVERTER(translate_x_div_y_op);
+OP_CONVERTER(translate_xlogy_op);
 OP_CONVERTER(translate_zeros_like_op);
 
 // Translators for internal operations
