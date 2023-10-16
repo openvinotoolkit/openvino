@@ -1,15 +1,15 @@
 # GNA transformations documentation
 
-GNAPlugin has multiple methods, one of the most important is LoadNetwork. That method prepares input graph to execute on the GNA hardware. Input graph usually consists of variety of operations, i.e. Convolution, Add, Gather, LSTMSequence. GNA hardware provides limited number of operations. First of all LoadNetwork method converts input network to equivalent network with layers each of them could be executed on the GNA hardware.
-There is a work moving entire GNA plugin from legacy CNNNetwork API to the ngraph.
+GNA Plugin provides implementation of multiple methods required by OpenVINO plugin API. Input graph usually consists of variety of operations, i.e. Convolution, Add, Gather, LSTMSequence and so on. GNA Hardware is its own limitation and not all operations can be executed on GNA Hardware.
+One of the main functionalities for GNA Plugin is conversion of input network to equivalent network which could be executed on the GNA hardware. This conversion is realized by LoadNetwok method.
 
 ## LoadNetwork
 
-GNAPlugin::LoadNetwork will start with the next stages:
+GNAPlugin::LoadNetwork in the future should execute following stages:
 -	Converting input graph to fully GNA-supported graph (all in ngraph)
 -	Creating and connecting GNA primitives within libGNA from ngraph-based network
 
-More precisely:
+These stages include:
 -	Obtaining ngraph-based network from the CNNNetwork argument (if input is not ngraph-based, proceed to CNNNetwork passes stage)
 -	Pass ngraph-based network through ngraph-based transformations.
 -	Convert ngraph-based network to CNNNetwork-based
@@ -25,7 +25,7 @@ CNNNetwork transformations are so-called passes. They are placed in src/plugins/
 ```
 std::vector<InferenceEngine::CNNLayerPtr> * pLayers
 ```
-It is preferrable not to write new CNNNetwork transformations. All that code is considered as a legacy. Existed CNNNetwork passes are ported to ngraph.
+It is preferrable to write new transformations as nGraph passes and avoid implementing CNNNetwork passes. All CNNNetwork related code is considered as a legacy. Existed CNNNetwork passes are ported to ngraph.
 
 ## GNA ngraph-based layers
 
