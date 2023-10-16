@@ -4458,6 +4458,67 @@ TEST(scatter_nd_update_gpu, dynamic) {
     }
 }
 
+
+TEST(scatter_nd_update_gpu, dynamic_padded_output) {
+    //  Dictionary : 2x1x2x8
+    //  Indexes : 0x3
+    //  Updates : 0x8
+    //  Output : 2x1x2x8
+    //  Input values in fp32
+    //
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto input2_layout = layout{ ov::PartialShape::dynamic(2), data_types::f32, format::bfyx };
+    auto input3_layout = layout{ ov::PartialShape::dynamic(2), data_types::f32, format::bfyx };
+
+    auto input1 = engine.allocate_memory({ { 1, 1, 2, 8 }, data_types::f32, format::bfyx }); // Dictionary
+    auto input2 = engine.allocate_memory({ { 0, 3 },       data_types::f32, format::bfyx }); // Indexes
+    auto input3 = engine.allocate_memory({ { 0, 8 },       data_types::f32, format::bfyx }); // Updates
+
+    set_values(input1, {
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f,
+        8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f,
+    });
+
+    topology topology;
+    topology.add(input_layout("InputData", input1_layout));
+    topology.add(input_layout("InputIndices", input2_layout));
+    topology.add(input_layout("InputUpdates", input3_layout));
+    topology.add(
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2, padding({0, 0, 1, 1}))
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputData", input1);
+    network.set_input_data("InputIndices", input2);
+    network.set_input_data("InputUpdates", input3);
+
+    auto inst = network.get_primitive("scatter_nd_update");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("scatter_nd_update").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        0.f, 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 0.f,
+        0.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 0.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
 TEST(scatter_nd_update_gpu, dynamic_5d) {
     tests::random_generator rg(std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
                                std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
