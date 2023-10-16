@@ -112,6 +112,7 @@
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/apply_mha_fusion.hpp"
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -127,6 +128,8 @@
 #include "low_precision/recurrent_cell.hpp"
 
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+
 
 namespace {
 template<typename T>
@@ -146,10 +149,12 @@ namespace intel_gpu {
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     bool enableInt8;
+    bool enable_mha_fusion = true;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
         ov::pass::Manager manager;
@@ -640,6 +645,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+
+        manager.run_passes(func);
+    }
+
+    GPU_DEBUG_IF(debug_config->disable_mha_fusing) {
+        enable_mha_fusion = false;
+    }
+    if (enable_mha_fusion) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::intel_gpu::ApplyMHAFusion>();
 
         manager.run_passes(func);
     }

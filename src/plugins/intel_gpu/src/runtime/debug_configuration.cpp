@@ -152,6 +152,7 @@ static void print_help_messages() {
                                " Currently, other layers except input-layer('parameter' type) are loading binaries for only input."
                                " Different input or output tensors are seperated by ','. Different layers are separated by space. For example, "
                                " \"[input_layer_name1]:[binary_dumped_file1],[binary_dump_file2] [input_layer_name2]:[binary_dump_1],[binary_dump_2]\"");
+    message_list.emplace_back("OV_GPU_DisableMHAFusion", "Disable Multi-Head Attention Fusion");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
         [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
@@ -199,7 +200,8 @@ debug_configuration::debug_configuration()
         , disable_memory_reuse(0)
         , disable_build_time_weight_reorder_for_dynamic_nodes(0)
         , disable_runtime_skip_reorder(0)
-        , disable_primitive_fusing(0) {
+        , disable_primitive_fusing(0)
+        , disable_mha_fusing(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -239,6 +241,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableBuildTimeWeightReorderForDynamicNodes", disable_build_time_weight_reorder_for_dynamic_nodes);
     get_gpu_debug_env_var("DisableRuntimeSkipReorder", disable_runtime_skip_reorder);
     get_gpu_debug_env_var("DisablePrimitiveFusing", disable_primitive_fusing);
+    get_gpu_debug_env_var("DisableMHAFusion", disable_mha_fusing);
     std::string dump_iteration_str;
     get_gpu_debug_env_var("DumpIteration", dump_iteration_str);
     std::string mem_preallocation_params_str;

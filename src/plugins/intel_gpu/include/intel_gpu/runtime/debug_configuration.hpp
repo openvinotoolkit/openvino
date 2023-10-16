@@ -130,8 +130,10 @@ public:
     int disable_build_time_weight_reorder_for_dynamic_nodes;    // Disable build time weight reordering for dynamic nodes
     int disable_runtime_skip_reorder;                           // Disable runtime skip reorder
     int disable_primitive_fusing;                               // Disable primitive fusing
+    int disable_mha_fusing;                                     // Disable Multi-Head Attention Fusion
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
+
     static const debug_configuration *get_instance();
     std::vector<std::string> get_filenames_for_matched_layer_loading_binaries(const std::string& id) const;
     std::string get_name_for_dump(const std::string& file_name) const;
