@@ -44,7 +44,7 @@ bool Ceiling::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     outputs[0].set_shape(inputs[0].get_shape());
 
     using namespace ov::element;
-    return IfTypeOf<f32, i8, i16, i32, i64, u8, u16, u32, u64>::apply<ceiling::Evaluate>(
+    return IfTypeOf<f16, f32, i8, i16, i32, i64, u8, u16, u32, u64>::apply<ceiling::Evaluate>(
         inputs[0].get_element_type(),
         inputs[0],
         outputs[0],
@@ -62,6 +62,7 @@ bool Ceiling::has_evaluate() const {
     case element::u16:
     case element::u32:
     case element::u64:
+    case element::f16:
     case element::f32:
         return true;
     default:
