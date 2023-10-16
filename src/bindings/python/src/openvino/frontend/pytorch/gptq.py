@@ -67,7 +67,7 @@ def patch_model(model):
             continue
         # TODO: Check module type
         is_quantized = getattr(m, "is_quantized", None)
-        if not is_quantized is None:
+        if is_quantized is not None:
             m.is_quantized = False
         m.float()
         if hasattr(m, "QUANT_TYPE") and m.QUANT_TYPE == "exllama":
