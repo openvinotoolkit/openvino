@@ -97,8 +97,13 @@ void ov::auto_plugin::InferRequest::set_tensors_to_another_request(const SoAsync
         auto type = tensor->get_element_type();
         bool is_remote  = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
             std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
-        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type))
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
+            // some hacks for GPU
+            // for dynamic output model, the output tensor shape changes to upper bound in GPU graph
+            if (tensor->get_shape() == ov::Shape{0}) // output is dynamic
+                tensor->set_shape(req->get_tensor(it)->get_shape());
             req->set_tensor(it, tensor);
+        }
     }
 }
 
