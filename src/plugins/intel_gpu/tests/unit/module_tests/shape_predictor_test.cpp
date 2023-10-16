@@ -25,10 +25,10 @@ TEST_P(shape_predictor_tests, prediction) {
 
     ShapePredictor sp(&engine, p.buffers_preallocation_ratio);
     std::pair<bool, ov::Shape> result;
-    const auto dt_size = 4;
+    const auto dt_bitwidth = ov::element::f32.bitwidth();
 
     for (auto& shape : in_shapes)
-        result = sp.predict_preallocation_shape("dummy_name", shape, dt_size, p.can_reuse_buffer);
+        result = sp.predict_preallocation_shape("dummy_name", shape, dt_bitwidth, p.can_reuse_buffer);
 
     ASSERT_TRUE(result.first == !expected_predicted_shape.empty());
     ASSERT_EQ(result.second, expected_predicted_shape);

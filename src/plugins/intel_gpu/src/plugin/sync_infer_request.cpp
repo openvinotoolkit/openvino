@@ -167,11 +167,10 @@ bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
 }
 
 ov::Shape predict_shape(const std::string& name, const ov::Shape current_shape, ov::element::Type element_type, cldnn::ShapePredictor& shape_predictor) {
-    auto et_size = cldnn::ceil_div(element_type.bitwidth(), 8);
-    auto prealloc_info = shape_predictor.predict_preallocation_shape(name, current_shape, et_size, false);
+    auto prealloc_info = shape_predictor.predict_preallocation_shape(name, current_shape, element_type.bitwidth(), false);
     const auto& preallocation_shape = prealloc_info.second;
     auto can_preallocate_buffer = prealloc_info.first &&
-                                    shape_predictor.can_preallocate(ov::shape_size(preallocation_shape) * et_size);
+                                    shape_predictor.can_preallocate(cldnn::ceil_div(ov::shape_size(preallocation_shape) * element_type.bitwidth(), 8));
     if (can_preallocate_buffer) {
         return preallocation_shape;
     }

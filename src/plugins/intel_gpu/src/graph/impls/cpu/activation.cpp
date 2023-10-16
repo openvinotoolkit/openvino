@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/type/element_type_traits.hpp"
 #include "register.hpp"
 #include "activation_inst.h"
 #include "implementation_map.hpp"
@@ -108,7 +109,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         // Most of the evaluate functions expect same data type for all inputs, so we need to convert params from float
-        typename data_type_to_type<DT>::type param_a = static_cast<typename data_type_to_type<DT>::type>(additional_params.a);
+        auto param_a = static_cast<typename ov::element_type_traits<DT>::value_type>(additional_params.a);
 
         auto input_dt = instance.get_input_layout().data_type;
 
