@@ -43,6 +43,8 @@ U4BlockRepack::U4BlockRepack() {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto constant =
                 std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());
+            if (!constant)
+                return false;
             auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
             auto transpose = pattern_to_output[m_transpose].get_node_shared_ptr();
             auto reshape2 = pattern_to_output[m_reshape2].get_node_shared_ptr();
