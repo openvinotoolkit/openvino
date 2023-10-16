@@ -8,7 +8,6 @@ from utils.config_class import PT_MODEL_CLASSES_MAPPING, TOKENIZE_CLASSES_MAPPIN
 import os
 import time
 import logging as log
-import openvino.torch
 
 MAX_CONNECT_TIME = 50
 
@@ -40,6 +39,7 @@ def run_torch_compile(model, backend='openvino'):
         compile_time = end - start
         log.info(f'Compiling model via torch.compile() took: {compile_time}')
     return compiled_model
+
 
 def get_text_model_from_huggingface(model_path, connect_times, **kwargs):
     model_type = DEFAULT_MODEL_CLASSES[kwargs['use_case']]
@@ -98,18 +98,18 @@ def create_text_gen_model(model_path, device, **kwargs):
         raise RuntimeError(f'==Failure ==: model path:{model_path} is not exist')
     
     log.info(f'model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
-    
+
     if device is not None:
-        GPTJFCLM = 'transformers.models.gptj.modeling_gptj.GPTJForCausalLM'
-        LFCLM = 'transformers.models.llama.modeling_llama.LlamaForCausalLM'
-        BFCLM = 'transformers.models.bloom.modeling_bloom.BloomForCausalLM'
-        GPT2LMHM = 'transformers.models.gpt2.modeling_gpt2.GPT2LMHeadModel'
-        GPTNEOXCLM = 'transformers.models.gpt_neox.modeling_gpt_neox.GPTNeoXForCausalLM'
-        ChatGLMFCG = 'transformers_modules.pytorch_original.modeling_chatglm.ChatGLMForConditionalGeneration'
-        REAL_BASE_MODEL_NAME = str(type(model))
-        log.info('Real base model=', REAL_BASE_MODEL_NAME)
-        # BFCLM will trigger generate crash.
-        if any([x in REAL_BASE_MODEL_NAME for x in [GPTJFCLM, LFCLM, BFCLM, GPT2LMHM, GPTNEOXCLM, ChatGLMFCG]]):
+        gptjfclm = 'transformers.models.gptj.modeling_gptj.GPTJForCausalLM'
+        lfclm = 'transformers.models.llama.modeling_llama.LlamaForCausalLM'
+        bfclm = 'transformers.models.bloom.modeling_bloom.BloomForCausalLM'
+        gpt2lmhm = 'transformers.models.gpt2.modeling_gpt2.GPT2LMHeadModel'
+        gptneoxclm = 'transformers.models.gpt_neox.modeling_gpt_neox.GPTNeoXForCausalLM'
+        chatglmfcg = 'transformers_modules.pytorch_original.modeling_chatglm.ChatGLMForConditionalGeneration'
+        real_base_model_name = str(type(model)).lower()
+        log.info('Real base model=', real_base_model_name)
+        # bfclm will trigger generate crash.
+        if any(x in real_base_model_name for x in [gptjfclm, lfclm, bfclm, gpt2lmhm, gptneoxclm, chatglmfcg]):
             model = set_bf16(model, device, **kwargs)
         else:
             if len(kwargs['config']) > 0 and kwargs['config'].get('PREC_BF16') and kwargs['config']['PREC_BF16'] is True:

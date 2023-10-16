@@ -74,7 +74,7 @@ def write_result(report_file, model, framework, device, use_case, iter_data_list
                 other_latency = iter_data['other_tokens_avg_latency']
                 first_token_infer_latency = iter_data['first_token_infer_latency']
                 other_token_infer_latency = iter_data['other_tokens_infer_avg_latency']
-                rss_mem = iter_data['max_rss_mem_consumption']                
+                rss_mem = iter_data['max_rss_mem_consumption']
                 shared_mem = iter_data['max_shared_mem_consumption']
                 result['iteration'] = str(iter_data['iteration'])
                 if i > 0:
