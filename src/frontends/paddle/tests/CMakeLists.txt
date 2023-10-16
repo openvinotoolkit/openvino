@@ -22,29 +22,6 @@ else()
 endif()
 
 if(paddlepaddle_FOUND)
-    set(ctest_labels LABELS OV UNIT)
-endif()
-
-ov_add_test_target(
-    NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDENCIES
-            paddle_test_models
-            openvino_paddle_frontend
-            paddle_fe_standalone_build_test
-        LINK_LIBRARIES
-            cnpy
-            frontend_shared_test_classes
-            openvino_paddle_frontend
-            openvino::runtime
-            gtest_main_manifest
-            func_test_utils
-        ADD_CLANG_FORMAT
-        LABELS
-            ${ctest_labels} PADDLE_FE
-)
-
-if(paddlepaddle_FOUND)
     set(ctest_labels OV UNIT)
 endif()
 
