@@ -2,8 +2,6 @@
 
 @sphinxdirective
 
-.. _deep learning model optimizer:
-
 .. meta::
    :description: Model Conversion API provides several parameters to adjust model conversion.
 

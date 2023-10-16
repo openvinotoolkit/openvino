@@ -3,8 +3,8 @@
 @sphinxdirective
 
 .. meta::
-   :description: Learn how to convert a model from a
-                 TensorFlow format to the OpenVINO Model.
+   :description: Learn how to convert a model from a TensorFlow format to the OpenVINO Model.
+
 
 This page provides general instructions on how to run model conversion from a TensorFlow format to the OpenVINO IR format. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
 
