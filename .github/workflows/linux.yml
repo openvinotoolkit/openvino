@@ -912,17 +912,19 @@ jobs:
 
       - name: Python API 1.0 Tests
         run: |
-          python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
+          if: ${{ always() }}
+          python3 -m pytest --tx 4*popen -s ${INSTALL_TEST_DIR}/pyngraph \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py \
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
         run: |
+          if: ${{ always() }}
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
 
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
+          python3 -m pytest --tx 4*popen -sv ${INSTALL_TEST_DIR}/pyopenvino \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
@@ -1001,12 +1003,13 @@ jobs:
         if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest -n --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+          python3 -m pytest --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
       - name: Python ONNX operators tests
+        if: ${{ always() }}
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${OPENVINO_REPO}/src/frontends/onnx/tests -k 'not cuda' \
@@ -1014,36 +1017,39 @@ jobs:
             --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_zoo_models.py
 
       - name: MO Python API Tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           source ${INSTALL_DIR}/setupvars.sh
           bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
+          python3 -m pytest --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
       - name: OVC Python API Tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
           source ${INSTALL_DIR}/setupvars.sh
           bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
+          python3 -m pytest --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
       - name: Python Frontend tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
+          python3 -m pytest --tx 4*popen ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       # TODO: install to 'tests' component via cpack
       - name: OVC unit tests
