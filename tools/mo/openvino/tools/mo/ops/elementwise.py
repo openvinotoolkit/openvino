@@ -246,3 +246,27 @@ class Sqrt(UnaryElementwise):
         if np.issubdtype(a.dtype, np.signedinteger):
             return float32_array(a.astype(np.float32) ** 0.5)
         return a ** 0.5
+
+
+class BitwiseAnd(Elementwise):
+    op = 'BitwiseAnd'
+    op_type = 'BitwiseAnd'
+    version = 'opset13'
+
+
+class BitwiseOr(Elementwise):
+    op = 'BitwiseOr'
+    op_type = 'BitwiseOr'
+    version = 'opset13'
+
+
+class BitwiseXor(Elementwise):
+    op = 'BitwiseXor'
+    op_type = 'BitwiseXor'
+    version = 'opset13'
+
+
+class BitwiseNot(UnaryElementwise):
+    op = 'BitwiseNot'
+    op_type = 'BitwiseNot'
+    version = 'opset13'
