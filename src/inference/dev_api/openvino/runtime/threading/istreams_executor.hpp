@@ -117,8 +117,10 @@ public:
         std::vector<std::vector<int>> _stream_processor_ids;
         bool _cpu_reservation = false;
         bool _streams_changed = false;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
         bool _opt_denormals_for_tbb = true;
+#endif
 
         /**
          * @brief      A constructor with arguments

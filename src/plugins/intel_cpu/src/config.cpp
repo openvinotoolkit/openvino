@@ -218,20 +218,20 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, cons
             // as zero that means disabling the cache
             rtCacheCapacity = std::max(val_i, 0);
         } else if (CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION == key) {
-            streamExecutorConfig._opt_denormals_for_tbb = !changedDenormalsOptMode;
             if (val == PluginConfigParams::YES) {
                 denormalsOptMode = DenormalsOptMode::DO_On;
                 changedDenormalsOptMode = true;
-                streamExecutorConfig._opt_denormals_for_tbb = !changedDenormalsOptMode;
             } else if (val == PluginConfigParams::NO) {
                 denormalsOptMode = DenormalsOptMode::DO_Off;
                 changedDenormalsOptMode = true;
-                streamExecutorConfig._opt_denormals_for_tbb = !changedDenormalsOptMode;
             } else {
                 denormalsOptMode = DenormalsOptMode::DO_Keep;
                 IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION
                 << ". Expected only YES/NO";
             }
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+            streamExecutorConfig._opt_denormals_for_tbb = !changedDenormalsOptMode;
+#endif
         } else if (key == PluginConfigInternalParams::KEY_SNIPPETS_MODE) {
             if (val == PluginConfigInternalParams::ENABLE)
                 snippetsMode = SnippetsMode::Enable;
