@@ -91,13 +91,9 @@ jobs:
           python3 -m pip install conan
 
       - name: Install sccache
-        run: |
-          curl -LO https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz
-          curl -LO https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz.sha256
-          echo "$(cat sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz.sha256) sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz" | sha256sum --check
-          tar xvf sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz
-          cp sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/bin/
-          rm -rf sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz sccache-v0.5.4-x86_64-unknown-linux-musl/
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
 
       - name: Install RISC-V native debian packages
         run: |
@@ -182,7 +178,7 @@ jobs:
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel
 
       - name: Show ccache stats
-        run: sccache --show-stats
+        run: ${SCCACHE_PATH} --show-stats
 
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
