@@ -9,9 +9,7 @@ include(CMakeFindDependencyMacro)
 # Variables to export in plugin's projects
 
 set(ov_options "@OV_OPTIONS@")
-list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
-                       CMAKE_CXX_LINKER_LAUNCHER CMAKE_C_LINKER_LAUNCHER
-                       CMAKE_INSTALL_PREFIX CPACK_GENERATOR)
+list(APPEND ov_options CPACK_GENERATOR)
 
 if(APPLE)
     list(APPEND ov_options CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
