@@ -145,7 +145,7 @@ def convert_seq2seq(args):
                 )
                 save_tokenizer(tok, save_dir_path)
             except Exception as ex:
-                warnings.warn(f'PT weights compression failed with {ex}, please use OpenVINO backend instead')
+                log.warning(f'PT weights compression failed with {ex}, please use OpenVINO backend instead')
 
         del pt_model
         gc.collect()
@@ -201,7 +201,7 @@ def convert_sd(args):
                 monolith=False,
                 custom_onnx_configs={},
                 custom_architecture=False,
-                _variant='default'
+                _variant='default',
             )
             output = Path(args.output_dir) / 'pytorch/dldt/' / 'PT_compressed_weights'
             for model_name in models_and_onnx_configs:
@@ -406,7 +406,9 @@ def convert_stablelm(args):
             dynamic_shapes[inputs[-1]] = {2: 'past_sequence + sequence'}
             dynamic_shapes[inputs[-2]] = {2: 'past_sequence + sequence'}
             outputs.extend([f'present.{idx}.key', f'present.{idx}.value'])
-        dummy_inputs = {'input_ids': torch.ones((1,2), dtype=torch.long), 'attention_mask': torch.ones((1,12), dtype=torch.long), 'past_key_values': outs.past_key_values}
+        dummy_inputs = {'input_ids': torch.ones((1, 2), dtype = torch.long),
+                        'attention_mask': torch.ones((1, 12), dtype = torch.long),
+                        'past_key_values': outs.past_key_values,}
         pt_model.config.torchscript = True
         ov_model = convert_model(pt_model, example_input=dummy_inputs)
 
@@ -432,7 +434,7 @@ def convert_stablelm(args):
     pt_model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
         trust_remote_code=True,
-        config=AutoConfig.from_pretrained(args.model_id, trust_remote_code=True)
+        config=AutoConfig.from_pretrained(args.model_id, trust_remote_code=True),
     )
     tok = AutoTokenizer.from_pretrained(args.model_id, trust_remote_code=True)
     pt_model.config.use_cache = True

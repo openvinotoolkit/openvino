@@ -31,12 +31,12 @@ def print_metrics(iter_num, iter_data, tms=None, tms_infer=None, generated=None,
         iter_data['other_tokens_avg_latency'] = sum(tms[1:]) / (len(tms)-1) * 1000 if len(tms) > 1 else -1
         iter_data['first_token_infer_latency'] = tms_infer[0] * 1000 if len(tms_infer) > 0 else -1
         iter_data['other_tokens_infer_avg_latency'] = sum(tms_infer[1:]) / (len(tms_infer) - 1) * 1000 if len(tms_infer) > 1 else -1
-        log.info(f"[{iter_str}] First token time: {iter_data['first_token_latency']:.2f} ms, 
-                other tokens average time: {iter_data['other_tokens_avg_latency']:.2f} ms/token, 
-                len of tokens: {len(tms)}")
-        log.info(f"[{iter_str}] First token infer time: {iter_data['first_token_infer_latency']:.2f} ms, 
-                other tokens average infer time: {iter_data['other_tokens_infer_avg_latency']:.2f} ms/token, 
-                len of tokens: {len(tms)}")
+        log.info(f"[{iter_str}] First token time: {iter_data['first_token_latency']:.2f} ms,"
+                 + f" other tokens average time: {iter_data['other_tokens_avg_latency']:.2f} ms/token,"
+                 + f" len of tokens: {len(tms)}")
+        log.info(f"[{iter_str}] First token infer time: {iter_data['first_token_infer_latency']:.2f} ms,"
+                 + f" other tokens average infer time: {iter_data['other_tokens_infer_avg_latency']:.2f} ms/token,"
+                 + f" len of tokens: {len(tms)}")
     if max_rss_mem != '' and max_rss_mem > -1:
         log.info(f'[{iter_str}] max rss memory cost:\n{max_rss_mem}')
     if max_shared_mem != '' and max_shared_mem > -1:

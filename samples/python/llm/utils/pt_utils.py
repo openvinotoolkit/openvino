@@ -96,7 +96,7 @@ def create_text_gen_model(model_path, device, **kwargs):
             raise RuntimeError(f'==Failure ==: model path:{model_path} is not directory')
     else:
         raise RuntimeError(f'==Failure ==: model path:{model_path} is not exist')
-    
+
     log.info(f'model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
 
     if device is not None:
