@@ -39,16 +39,17 @@ jobs:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_Release/.conan
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_Release
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_riscv64_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
     steps:
@@ -88,6 +89,15 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           python3 -m pip install conan
+
+      - name: Install sccache
+        run: |
+          curl -LO https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz
+          curl -LO https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz.sha256
+          echo "$(cat sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz.sha256) sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz" | sha256sum --check
+          tar xvf sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz
+          cp sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/bin/
+          rm -rf sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz sccache-v0.5.4-x86_64-unknown-linux-musl/
 
       - name: Install RISC-V native debian packages
         run: |
@@ -160,8 +170,8 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_BUILD_DIR}/dependencies/conan_toolchain.cmake \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
             -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
             -S ${OPENVINO_REPO} \
@@ -172,7 +182,7 @@ jobs:
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel
 
       - name: Show ccache stats
-        run: ccache --show-stats
+        run: sccache --show-stats
 
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install

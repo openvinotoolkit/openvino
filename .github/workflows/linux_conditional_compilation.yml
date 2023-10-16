@@ -39,19 +39,20 @@ jobs:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_itt_clang_Release
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 20G
 
@@ -87,6 +88,15 @@ jobs:
           apt --assume-yes install clang
           update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
           update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
+
+      - name: Install sccache
+        run: |
+          curl -LO https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz
+          curl -LO https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz.sha256
+          echo "$(cat sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz.sha256) sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz" | sha256sum --check
+          tar xvf sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz
+          cp sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/bin/
+          rm -rf sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz sccache-v0.5.4-x86_64-unknown-linux-musl/
 
       - uses: actions/setup-python@v4
         with:
@@ -141,8 +151,8 @@ jobs:
           cmake --build ${BUILD_DIR} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
-      - name: Show ccache stats
-        run: ccache --show-stats
+      - name: Show sccache stats
+        run: sccache --show-stats
 
       - name: Cmake install - OpenVINO
         run: cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake

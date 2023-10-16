@@ -36,13 +36,14 @@ jobs:
       image: emscripten/emsdk
       volumes:
         - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
-      CCACHE_DIR: /mount/caches/ccache/webassembly_Release
+      SCCACHE_AZURE_KEY_PREFIX: webassembly_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
     steps:
@@ -55,8 +56,14 @@ jobs:
           path: 'openvino'
           submodules: 'true'
 
-      - name: Install ccache
-        run: apt-get install --assume-yes --no-install-recommends ccache
+      - name: Install sccache
+        run: |
+          curl -LO https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz
+          curl -LO https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz.sha256
+          echo "$(cat sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz.sha256) sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz" | sha256sum --check
+          tar xvf sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz
+          cp sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/bin/
+          rm -rf sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz sccache-v0.5.4-x86_64-unknown-linux-musl/
 
       - name: emcmake cmake - configure
         run: |
@@ -64,8 +71,8 @@ jobs:
             -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_C_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
@@ -74,4 +81,4 @@ jobs:
         run: emmake make -j$(nproc) hello_query_device -C ${OPENVINO_BUILD_DIR}
 
       - name: Show ccache stats
-        run: ccache --show-stats
+        run: sccache --show-stats

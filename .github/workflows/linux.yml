@@ -596,6 +596,9 @@ jobs:
         env:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
 
+      - name: Show sccache stats
+        run: sccache --show-stats
+
       - name: Run onnxruntime_test_all
         run: |
           source ${INSTALL_DIR}/setupvars.sh
