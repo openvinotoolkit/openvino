@@ -621,6 +621,10 @@ public:
         return same;
     }
 
+    bool operator!=(const TensorBaseT& t) const {
+        return !(*this == t);
+    }
+
     bool SameDims(const TensorBaseT& t) const {
         bool same = dtype == t.dtype && layout == t.layout && dims.size() == t.dims.size();
         if (same) {

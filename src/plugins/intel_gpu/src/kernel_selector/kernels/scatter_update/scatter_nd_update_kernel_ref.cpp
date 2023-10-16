@@ -170,6 +170,10 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
             kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+            // Do not skip copy stage if output buffer is not empty or requires modification
+            if (i == 0 && prim_params.outputs[0].LogicalSize() != 0 && prim_params.outputs[0] != prim_params.inputs[0])
+                kd.kernels[i].skip_execution = false;
         }
     };
 
@@ -178,6 +182,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
     for (int i = 0; i < 2; i++) {
         auto dispatchData = SetDefault(newParams, (i == 1));
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
+        auto inputs_number = i == 0 ? 1 : 3;
 
         if (i == 1) {
             size_t input0_rank = newParams.inputs[0].LogicalDims().size();
@@ -213,7 +218,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
         clKernelData& kernel = kd.kernels[i];
 
         FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                         "", false, false, 3, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                         "", false, false, inputs_number, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
     }
 
     return {kd};
