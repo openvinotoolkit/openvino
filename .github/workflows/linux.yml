@@ -863,7 +863,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-2-cores
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -1054,6 +1054,21 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
+      - name: Clone API snippets
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: openvino/docs/snippets
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'false'
+
+      - name: Docs Python snippets
+        run: |
+          # to find 'snippets' module in docs
+          export PYTHONPATH=${OPENVINO_REPO}/docs
+          # for 'template' extension
+          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
+          python3 ${OPENVINO_REPO}/docs/snippets/main.py
+
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
@@ -1230,82 +1245,6 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'
-
-  Python_Unit_Tests_Snippets:
-    needs: Build
-    defaults:
-      run:
-        shell: bash
-    runs-on: 'aks-linux-2-cores'
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount/caches:/mount/caches
-
-    steps:
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR} && rm openvino_package.tar.gz || exit 1
-          popd
-
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR} && rm openvino_tests.tar.gz || exit 1
-          popd
-
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-
-      - name: Install python dependencies
-        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
-
-      - name: Install Python wheels
-        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-* ${INSTALL_DIR}/tools/openvino_dev-*
-
-      - name: Clone API snippets
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: openvino/docs/snippets
-          path: ${{ env.OPENVINO_REPO }}
-          submodules: 'false'
-
-      - name: Docs Python snippets
-        run: |
-          # to find 'snippets' module in docs
-          export PYTHONPATH=${OPENVINO_REPO}/docs/:$PYTHONPATH
-          # for 'template' extension
-          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 ${OPENVINO_REPO}/docs/snippets/main.py
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v3
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-python
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-            if-no-files-found: 'error'
 
   PyTorch_Models_Tests:
     name: PyTorch Models tests
