@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
@@ -232,6 +234,8 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122846')
     def test_reduce_lp_precommit(self, params, keep_dims, reduce_p, ie_device, precision,
                                  ir_version, temp_dir, use_old_api):
         self._test(*self.create_reduce_lp(**params, keep_dims=keep_dims, reduce_p=reduce_p,
