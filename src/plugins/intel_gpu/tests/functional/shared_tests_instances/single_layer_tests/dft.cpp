@@ -19,10 +19,10 @@ const std::vector<ov::element::Type> inputPrecisions = {
     ov::element::f16,
 };
 
-const auto combine = [](const std::vector<std::vector<ov::test::InputShape>>& inputShapes,
+const auto combine = [](const std::vector<std::vector<ov::Shape>>& inputShapes,
                         const std::vector<std::vector<int64_t>>& axes,
                         const std::vector<std::vector<int64_t>>& signalSizes) {
-    return testing::Combine(testing::ValuesIn(inputShapes),
+    return testing::Combine(testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes)),
                             testing::ValuesIn(inputPrecisions),
                             testing::ValuesIn(axes),
                             testing::ValuesIn(signalSizes),
@@ -32,7 +32,7 @@ const auto combine = [](const std::vector<std::vector<ov::test::InputShape>>& in
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_2d,
                          DFTLayerTest,
-                         combine(ov::test::static_shapes_to_test_representation({{{10, 2}}}),   // input shapes
+                         combine({{{10, 2}}},   // input shapes
                                  {{0}},       // axes
                                  {{}, {3}}),  // signal sizes
                          DFTLayerTest::getTestCaseName);
