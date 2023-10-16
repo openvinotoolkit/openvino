@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include "helper_ops/type_align.hpp"
+#include "helper_ops/align_types.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
@@ -31,14 +31,22 @@ AlignTypesRemoval::AlignTypesRemoval() {
         auto align_types = std::dynamic_pointer_cast<AlignTypes>(m.get_match_root());
         if (!align_types)
             return false;
-        if (align_types->get_output_element_type(0).is_dynamic() ||
-            align_types->get_output_element_type(1).is_dynamic())
-            return false;
-        auto out1 = std::make_shared<v0::Convert>(align_types->input_value(0), align_types->get_output_element_type(0));
-        auto out2 = std::make_shared<v0::Convert>(align_types->input_value(1), align_types->get_output_element_type(1));
-        align_types->output(0).replace(out1);
-        align_types->output(1).replace(out2);
-        return true;
+        auto lhs_itype = align_types->get_input_element_type(0);
+        auto rhs_itype = align_types->get_input_element_type(1);
+        auto lhs_otype = align_types->get_output_element_type(0);
+        auto rhs_otype = align_types->get_output_element_type(1);
+        if (lhs_otype.is_static() && rhs_otype.is_static()) {
+            auto out1 = align_types->input_value(0);
+            auto out2 = align_types->input_value(1);
+            if (lhs_itype != lhs_otype)
+                out1 = std::make_shared<v0::Convert>(align_types->input_value(0), lhs_otype);
+            if (rhs_itype != rhs_otype)
+                out2 = std::make_shared<v0::Convert>(align_types->input_value(1), rhs_otype);
+            align_types->output(0).replace(out1);
+            align_types->output(1).replace(out2);
+            return true;
+        }
+        return false;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(align_types_pattern,

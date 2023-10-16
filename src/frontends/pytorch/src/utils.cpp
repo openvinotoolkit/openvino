@@ -4,7 +4,7 @@
 
 #include "utils.hpp"
 
-#include "helper_ops/type_align.hpp"
+#include "helper_ops/align_types.hpp"
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
