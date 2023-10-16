@@ -31,6 +31,8 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
         return util::normalize_single_value(const_node->get_vector<bfloat16>(), value, check_value_range);
     case element::Type_t::f64:
         return util::normalize_single_value(const_node->get_vector<double>(), value, check_value_range);
+    case element::Type_t::i4:
+        return util::normalize_single_value(const_node->cast_vector<int8_t>(), value, check_value_range);
     case element::Type_t::i8:
         return util::normalize_single_value(const_node->get_vector<int8_t>(), value, check_value_range);
     case element::Type_t::i16:
@@ -39,6 +41,8 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
         return util::normalize_single_value(const_node->get_vector<int32_t>(), value, check_value_range);
     case element::Type_t::i64:
         return util::normalize_single_value(const_node->get_vector<int64_t>(), value, check_value_range);
+    case element::Type_t::u4:
+        return util::normalize_single_value(const_node->cast_vector<int8_t>(), value, check_value_range);
     case element::Type_t::u8:
         return util::normalize_single_value(const_node->get_vector<uint8_t>(), value, check_value_range);
     case element::Type_t::u16:
