@@ -10,36 +10,43 @@
 
 namespace ov {
 namespace op {
-namespace v12 {
-/// \brief Scaled dot product attention from PyTorch
+namespace v13 {
+/// \brief Scaled dot product attention operation from PyTorch
 ///
 /// \ingroup ov_ops_cpp_api
 
 class OPENVINO_API ScaledDotProductAttention : public Op {
 public:
-    OPENVINO_OP("ScaledDotProductAttention", "opset12", op::Op);
+    OPENVINO_OP("ScaledDotProductAttention", "opset13", op::Op);
 
-    /// \brief Constructs a round operation.
+    /// \brief Constructs a ScaledDotProductAttention operation.
     ScaledDotProductAttention() = default;
 
+    ScaledDotProductAttention(const OutputVector& inputs, bool causal);
+
     ScaledDotProductAttention(const Output<Node>& query,
-            const Output<Node>& key,
-            const Output<Node>& value,
-            bool is_causal,
-            const Output<Node>& attn_mask = Output<Node>());
+                              const Output<Node>& key,
+                              const Output<Node>& value,
+                              const Output<Node>& attn_mask,
+                              bool causal);
+
+    ScaledDotProductAttention(const Output<Node>& query,
+                              const Output<Node>& key,
+                              const Output<Node>& value,
+                              bool causal);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
-    // Replace itself by decomposition
-    OutputVector decompose();
+    bool get_causal() const {
+        return m_causal;
+    }
 
 private:
-
-    bool m_is_causal;
+    bool m_causal;
 };
 
-}  // namespace v0
+}  // namespace v13
 }  // namespace op
 }  // namespace ov

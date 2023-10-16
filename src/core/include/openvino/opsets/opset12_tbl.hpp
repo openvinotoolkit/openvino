@@ -207,7 +207,3 @@ _OPENVINO_OP_REG(TopK, ov::op::v11)
 _OPENVINO_OP_REG(GroupNormalization, ov::op::v12)
 _OPENVINO_OP_REG(Pad, ov::op::v12)
 _OPENVINO_OP_REG(ScatterElementsUpdate, ov::op::v12)
-
-// Experimental operations added temporary
-_OPENVINO_OP_REG(ScaledDotProductAttention, ov::op::v12)
-

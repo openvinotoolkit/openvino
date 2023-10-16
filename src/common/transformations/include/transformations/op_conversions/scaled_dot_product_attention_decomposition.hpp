@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
@@ -15,9 +16,9 @@ class TRANSFORMATIONS_API ScaledDotProductAttentionDecomposition;
 }  // namespace pass
 }  // namespace ov
 
-
 class ov::pass::ScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ScaledDotProductAttentionDecomposition", "0");
     ScaledDotProductAttentionDecomposition();
+    OutputVector decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node) const;
 };

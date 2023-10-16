@@ -187,3 +187,36 @@ def nms_rotated(
     }
 
     return _get_node_factory_opset13().create("NMSRotated", inputs, attributes)
+
+
+@nameable_op
+def scaled_dot_product_attention(
+    query: NodeInput,
+    key: NodeInput,
+    value: NodeInput,
+    attention_mask: NodeInput = None,
+    causal: bool = False,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which implements Scaled Dot Product Attention.
+
+    Refer to https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html for
+    detailed information.
+
+    :param query: Query tensor of shape [N, ..., L, E].
+    :param key: Key tensor of shape [N, ..., S, E]
+    :param value: Value tensor of shape [N, ..., S, Ev).
+    :param attention_mask: Optional attention mask tensor of shape [N, ..., L, S]
+    :param causal: If true, then autogenerates causal attention mask instead of using attention_mask input,
+                        and expects attention_mask input is not set.
+    :param name: The optional new name for output node.
+
+    :return: The new node performing Scaled Dot Product Attention operation.
+    """
+    inputs = as_nodes(query, key, value, attention_mask) if attention_mask is not None else as_nodes(
+        query, key, value)
+
+    attributes = {
+        "causal": causal,
+    }
+    return _get_node_factory_opset13().create("ScaledDotProductAttention", inputs, attributes)
