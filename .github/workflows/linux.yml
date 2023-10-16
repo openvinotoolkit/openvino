@@ -915,6 +915,7 @@ jobs:
           PIP_INSTALL_DIR=$(python3 -m site --user-site)
           echo "pip install dir: ${PIP_INSTALL_DIR}"
           echo "PIP_INSTALL_PATH=${PIP_INSTALL_DIR}" >> $GITHUB_ENV
+          python3 -m site
 
       - name: Install OpenVINO Python wheels
         run: |
@@ -1003,7 +1004,7 @@ jobs:
         run: |
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           PIP_INSTALL_DIR=$(python3 -m site --user-site)
-          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=${PIP_INSTALL_DIR}/openvino/libs:${LD_LIBRARY_PATH}/openvino/libs:$LD_LIBRARY_PATH
           ldd /__w/openvino/openvino/install/tests/libtest_builtin_extensions.so
           ls -la ${PIP_INSTALL_DIR}/openvino/libs
           ldd ${PIP_INSTALL_DIR}/openvino/libs/libopenvino_onnx_frontend.so.2320
