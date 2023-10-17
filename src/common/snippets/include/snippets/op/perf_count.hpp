@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
+#include "openvino/runtime/threading/thread_local.hpp"
 
 namespace ov {
 namespace snippets {
@@ -59,7 +60,7 @@ public:
     std::chrono::high_resolution_clock::time_point& get_start_time();
 
 private:
-    std::chrono::high_resolution_clock::time_point start_time_stamp = {};
+    ov::threading::ThreadLocal<std::chrono::high_resolution_clock::time_point> start_time_stamp;
 };
 
 /**
@@ -73,17 +74,18 @@ public:
     PerfCountEnd(const Output<Node>& pc_begin);
     PerfCountEnd() = default;
     ~PerfCountEnd() {
-        uint64_t avg = iteration == 0 ? 0 : accumulation / iteration;
-        std::cout << "accumulation:" << accumulation << "ns, iteration:" << iteration << " avg:" << avg << "ns"<< std::endl;
+        output_perf_count();
     }
+    void output_perf_count();
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    std::shared_ptr<PerfCountBegin> get_pc_begin();
+    void init_pc_begin();
     void set_accumulated_time();
 
 private:
-    uint64_t accumulation = 0ul;
-    uint32_t iteration = 0u;
+    ov::threading::ThreadLocal<uint64_t> accumulation;
+    ov::threading::ThreadLocal<uint32_t> iteration;
+    std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
 };
 
 } // namespace op

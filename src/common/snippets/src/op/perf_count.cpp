@@ -53,16 +53,17 @@ std::shared_ptr<Node> PerfCountBegin::clone_with_new_inputs(const OutputVector& 
 }
 
 std::chrono::high_resolution_clock::time_point& PerfCountBegin::get_start_time() {
-    return start_time_stamp;
+    return start_time_stamp.local();
 }
 
 void PerfCountBegin::set_start_time() {
-    start_time_stamp = std::chrono::high_resolution_clock::now();
+    start_time_stamp.local() = std::chrono::high_resolution_clock::now();
 }
 
 //////////////////PerfCountEnd///////////////
 PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin) : PerfCountEndBase({pc_begin}), accumulation(0ul), iteration(0u) {
     constructor_validate_and_infer_types();
+    init_pc_begin();
 }
 
 std::shared_ptr<Node> PerfCountEnd::clone_with_new_inputs(const OutputVector& inputs) const {
@@ -71,15 +72,43 @@ std::shared_ptr<Node> PerfCountEnd::clone_with_new_inputs(const OutputVector& in
 
 void PerfCountEnd::set_accumulated_time() {
     auto current_time = std::chrono::high_resolution_clock::now();
-    auto& start_time = get_pc_begin()->get_start_time();
-    accumulation += std::chrono::duration_cast<std::chrono::nanoseconds>(current_time - start_time).count();
-    iteration++;
+    auto& start_time = m_pc_begin->get_start_time();
+    accumulation.local() += std::chrono::duration_cast<std::chrono::nanoseconds>(current_time - start_time).count();
+    iteration.local()++;
 }
 
-std::shared_ptr<PerfCountBegin> PerfCountEnd::get_pc_begin() {
-    const auto& pc_begin = ov::as_type_ptr<PerfCountBegin>(get_input_source_output(get_input_size() - 1).get_node_shared_ptr());
-    NODE_VALIDATION_CHECK(this, pc_begin != nullptr, "PerfCountEnd last input is not connected to PerfCountBegin");
-    return  pc_begin;
+void PerfCountEnd::init_pc_begin() {
+    m_pc_begin = ov::as_type_ptr<PerfCountBegin>(get_input_source_output(get_input_size() - 1).get_node_shared_ptr());
+    NODE_VALIDATION_CHECK(this, m_pc_begin != nullptr, "PerfCountEnd last input is not connected to PerfCountBegin");
+}
+
+void PerfCountEnd::output_perf_count() {
+    OPENVINO_ASSERT(accumulation.size() == iteration.size(), "accumulation size should be the same as iteration size in perf_count_end node.");
+    auto iterator_iter = iteration.begin();
+    auto iterator_acc = accumulation.begin();
+    int t_num = 0;
+    std::vector<uint64_t> avg_list;
+    std::string friendly_name = get_friendly_name();
+    std::cout << "Perf count data in perfCountEnd node with name " << get_friendly_name() << " is:"<< std::endl;
+    for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
+        const auto iter = *iterator_iter;
+        const auto acc = *iterator_acc;
+        uint64_t avg = iter == 0 ? 0 : acc / iter;
+        avg_list.push_back(avg);
+        std::cout << "accumulated time:" << acc << "ns, iteration:" << iter << " avg time:" << avg << "ns"<< " on thread:" << t_num << std::endl;
+        t_num++;
+    }
+
+    // max time of all threads: combine for reduce max
+    auto BinaryFunc = [](const uint64_t& a, const uint64_t& b) {
+        return a >= b ? a : b;
+    };
+    // max accumulation
+    uint64_t acc_max = accumulation.combine(BinaryFunc);
+    std::cout << "max accumulated time:" << acc_max << "ns" << std::endl;
+    // max avg
+    auto avg_max = std::max_element(avg_list.begin(), avg_list.end(), BinaryFunc);
+    std::cout << "max avg time:" << *avg_max << "ns" << std::endl;
 }
 
 } // namespace op

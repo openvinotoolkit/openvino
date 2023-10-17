@@ -16,10 +16,10 @@ namespace lowered {
 
 // Snippets performance count mode
 // Disabled - default, w/o perf count for snippets
-// Chrono - perf count with chrono call. This is a universal method.
+// Chrono - perf count with chrono call. This is a universal method, and support multi-thread case to output perf count data for each thread.
 // BackendSpecific - perf count provided by backend. This is for device specific requirment.
-// For example, in sake of more light overhead, x86 CPU specific mode via read RDTSC register take ~50ns,
-// while Chrono mode take 260ns for a pair of perf count start and perf count end execution, on ICX.
+// For example, in sake of more light overhead and more accurate result, x86 CPU specific mode via read RDTSC register is implemented,
+// which take ~50ns, while Chrono mode take 260ns for a pair of perf count start and perf count end execution, on ICX. This mode only support single thread.
 enum PerfCountMode {
     Disabled,
     Chrono,
@@ -33,7 +33,7 @@ public:
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
-    PerfCountMode perf_count_mode = PerfCountMode::Chrono;
+    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
     // Some Subgraphs doesn't support domain optimization due to operations' semantics
     bool m_enable_domain_optimization = false;
     // Minimal advised work amount for parallel execution.
