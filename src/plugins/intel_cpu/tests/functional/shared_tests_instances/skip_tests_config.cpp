@@ -198,6 +198,9 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue: 122177
     retVector.emplace_back(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference.*_modelType=f16.*)");
     retVector.emplace_back(R"(.*smoke_LSTMSequenceCommonZeroClip/LSTMSequenceTest.Inference.*_modelType=f16.*)");
+    // Issue 122699
+    retVector.emplace_back(R"(.*smoke_nonzero/NonZeroLayerTest.Inference.*inPRC=f16.*)");
+    retVector.emplace_back(R"(.*NormalizeL2LayerTest.Inference.*netPRC=f16.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_X86)
