@@ -1,14 +1,14 @@
 name: Windows (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
-  pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
+#  pull_request:
+#    paths-ignore:
+#      - '**/docs/**'
+#      - 'docs/**'
+#      - '**/**.md'
+#      - '**.md'
+#      - '**/layer_tests_summary/**'
+#      - '**/conformance/**'
   push:
     paths-ignore:
       - '**/docs/**'
@@ -401,7 +401,6 @@ jobs:
           --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_zoo_models.py
 
       - name: nGraph Tests
-        if: ${{ always() }}
         shell: cmd
         run: |
           python3 -m pytest -v ${{ env.OPENVINO_REPO }}/src/bindings/python/tests_compatibility/test_ngraph -k "not _cuda" ^
