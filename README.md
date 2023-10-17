@@ -33,7 +33,7 @@ OpenVINO™ is an open-source toolkit for optimizing and deploying AI inference.
  - Reduce resource demands and efficiently deploy on a range of Intel® platforms from edge to cloud
 
 
-This open-source version includes several components: namely [Model Optimizer], [OpenVINO™ Runtime], [Post-Training Optimization Tool], as well as CPU, GPU, GNA, multi device and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
+This open-source version includes several components: namely [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, GNA, multi device and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
 It supports pre-trained models from [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as TensorFlow, ONNX, PaddlePaddle, MXNet, Caffe, Kaldi.
 
@@ -48,8 +48,7 @@ source and public models in popular formats such as TensorFlow, ONNX, PaddlePadd
         * [python](./src/bindings/python) - Python API for OpenVINO™ Runtime
 * [Plugins](./src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, take a look at the [list of supported devices](#supported-hardware-matrix).
 * [Frontends](./src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
-* [Model Optimizer] - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
-* [Post-Training Optimization Tool] - is designed to accelerate the inference of deep learning models by applying special methods without model retraining or fine-tuning, for example, post-training 8-bit quantization. 
+* [OpenVINO Model Converter (OVC)] - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, and adjusts deep learning models for optimal execution on end-point target devices.
 * [Samples] - applications in C, C++ and Python languages that show basic OpenVINO use cases.
 
 ## Supported Hardware matrix
@@ -62,7 +61,7 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
             <th>Device</th>
             <th>Plugin</th>
             <th>Library</th>
-            <th>ShortDescription</th>
+            <th>Short Description</th>
         </tr>
     </thead>
     <tbody>
@@ -98,7 +97,7 @@ OpenVINO™ Toolkit also contains several plugins which simplify loading models 
         <tr>
             <th>Plugin</th>
             <th>Library</th>
-            <th>ShortDescription</th>
+            <th>Short Description</th>
         </tr>
     </thead>
     <tbody>
@@ -196,6 +195,5 @@ Report questions, issues and suggestions, using:
 
 [Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
 [OpenVINO™ Runtime]:https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html
-[Model Optimizer]:https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
-[Post-Training Optimization Tool]:https://docs.openvino.ai/2023.1/pot_introduction.html
+[OpenVINO Model Converter (OVC)]:https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-cli-ovc
 [Samples]:https://github.com/openvinotoolkit/openvino/tree/master/samples
