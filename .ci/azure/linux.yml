@@ -188,11 +188,6 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
-      mkdir -p $HOME/intel/
-      echo 0 > $HOME/intel/openvino_telemetry
-    displayName: 'Disable Telemetry'
-
-  - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
