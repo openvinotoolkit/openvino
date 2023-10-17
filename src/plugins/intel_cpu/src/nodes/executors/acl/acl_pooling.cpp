@@ -20,7 +20,8 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
                                      DataLayout dataLayout,
                                      const VectorDims* indDims,
                                      PoolingLayerInfo* pool_info,
-                                     Pooling3dLayerInfo* pool3d_info) {
+                                     Pooling3dLayerInfo* pool3d_info,
+                                     bool ignoreOutShapeErrors) {
     unsigned int pad_left   = (poolingAttrs.data_pad_begin.size() >= 2u) ? poolingAttrs.data_pad_begin[1] : poolingAttrs.data_pad_begin[0];
     unsigned int pad_right  = (poolingAttrs.data_pad_end.size() >= 2u) ?   poolingAttrs.data_pad_end[1]   : poolingAttrs.data_pad_end[0];
     unsigned int pad_top    = (poolingAttrs.data_pad_begin.size() >= 2u) ? poolingAttrs.data_pad_begin[0] : 0;
@@ -46,7 +47,12 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
     // The combination of parameters: NCHW + CEIL gives an accuracy problem in AvgPool.
     // One workaround is to disable the ACL executor for these parameters.
     // Then OneDNN will run this case in ACL backend as reorder -> NHWC -> reorder
-    if (dataLayout == arm_compute::DataLayout::NCHW && poolingAttrs.rounding == op::RoundingType::CEIL) return false;
+    if (pool_type == PoolingType::AVG &&
+        dataLayout == arm_compute::DataLayout::NCHW &&
+        poolingAttrs.rounding == op::RoundingType::CEIL) {
+        DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
+        return false;
+    }
     DimensionRoundingType round = (poolingAttrs.rounding == op::RoundingType::CEIL) ?
                                    DimensionRoundingType::CEIL : DimensionRoundingType::FLOOR;
 
@@ -82,12 +88,22 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
             arm_compute::Status s = arm_compute::NEPoolingLayer::validate(&srcTensorInfo, &dstTensorInfo, *pool_info, &indTensorInfo);
             if (!s) {
                 DEBUG_LOG("NEPoolingLayer validation with indices failed: ", s.error_description());
+                if (ignoreOutShapeErrors &&
+                    s.error_description().find("Tensors have different shapes") != std::string::npos) {
+                    DEBUG_LOG("Ignore shape error because the flag ignoreOutShapeErrors is set");
+                    return true;
+                }
                 return false;
             }
         } else {
             arm_compute::Status s = arm_compute::NEPoolingLayer::validate(&srcTensorInfo, &dstTensorInfo, *pool_info);
             if (!s) {
                 DEBUG_LOG("NEPoolingLayer validation without indices failed: ", s.error_description());
+                if (ignoreOutShapeErrors &&
+                    s.error_description().find("Tensors have different shapes") != std::string::npos) {
+                    DEBUG_LOG("Ignore shape error because the flag ignoreOutShapeErrors is set");
+                    return true;
+                }
                 return false;
             }
         }
