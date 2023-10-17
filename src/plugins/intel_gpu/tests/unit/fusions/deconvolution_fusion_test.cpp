@@ -240,6 +240,13 @@ TEST_P(deconv_actv, basic) {
         activation("act", input_info("deconv"), activation_func::relu),
         reorder("out", input_info("act"), p.default_format, data_types::f32)
     );
+
+    if (engine.get_device_info().supports_immad &&
+        p.default_type == data_types::f16 &&
+        p.weights_format == format::is_os_yx_isv16_osv16) {
+        GTEST_SKIP(); // Issue: 94154
+    }
+
     // Need much higher tolerance because of deconvolution -> convolution optimization
     tolerance = 1.f;
     execute(p);
@@ -334,6 +341,12 @@ TEST_P(deconv_bias, basic) {
         eltwise("bias_add", { input_info("deconv"), input_info("bias") }, eltwise_mode::sum),
         reorder("out", input_info("bias_add"), p.default_format, data_types::f32)
     );
+
+    if (engine.get_device_info().supports_immad &&
+        p.default_type == data_types::f16 &&
+        p.weights_format == format::is_os_yx_isv16_osv16) {
+        GTEST_SKIP(); // Issue: 94154
+    }
 
     // Need much higher tolerance because of deconvolution -> convolution optimization
     tolerance = 1.f;
@@ -457,6 +470,13 @@ public:
             activation("act2", input_info("eltw"), activation_func::relu),
             reorder("out", input_info("act2"), p.default_format, data_types::f32)
         );
+
+        if (engine.get_device_info().supports_immad &&
+            p.default_type == data_types::f16 &&
+            p.weights_format == format::is_os_yx_isv16_osv16) {
+            GTEST_SKIP(); // Issue: 94154
+        }
+
         // Need much higher tolerance because of deconvolution -> convolution optimization
         tolerance = 1.f;
         execute(p, is_caching_test);
@@ -570,6 +590,12 @@ TEST_P(deconv_scale_actv_quant_i8, basic) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
+    if (engine.get_device_info().supports_immad &&
+        p.default_type == data_types::f16 &&
+        p.weights_format == format::is_os_yx_isv16_osv16) {
+        GTEST_SKIP(); // Issue: 94154
+    }
+
     tolerance = 1.f;
     execute(p);
 }
@@ -681,6 +707,14 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
                  input_info("out2_lo"), input_info("out2_hi"), 255, data_types::i8),
         reorder("out", input_info("quant2"), p.default_format, data_types::f32)
     );
+
+    if (engine.get_device_info().supports_immad &&
+        p.default_type == data_types::f16 &&
+        (p.weights_format == format::is_os_yx_isv16_osv16 ||
+         p.weights_format == format::is_os_zyx_isv16_osv16)) {
+        GTEST_SKIP(); // Issue: 94154
+    }
+
     tolerance = 2.1f;
     execute(p);
 }
