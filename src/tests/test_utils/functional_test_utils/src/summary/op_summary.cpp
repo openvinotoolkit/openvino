@@ -8,7 +8,6 @@
 #include <pugixml.hpp>
 
 #include "common_test_utils/file_utils.hpp"
-
 #include "functional_test_utils/summary/op_info.hpp"
 
 using namespace ov::test::utils;
