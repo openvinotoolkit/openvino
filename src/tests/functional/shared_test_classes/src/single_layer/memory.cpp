@@ -184,7 +184,7 @@ namespace LayerTestsDefinitions {
     void MemoryTest::CreateCommonFunc() {
         ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         const auto variable_info = targetDevice == ov::test::utils::DEVICE_GPU ?
-            VariableInfo{Shape{inputShape}, ngPrc, "v0"} : VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
+            VariableInfo{Shape{inputShape}, ngPrc, "v0"} : VariableInfo{inputShape, ngPrc, "v0"};
         auto variable = std::make_shared<Variable>(variable_info);
         auto read_value = CreateReadValueOp(param.at(0), variable);
         auto add = std::make_shared<Add>(read_value, param.at(0));
