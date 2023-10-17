@@ -513,7 +513,7 @@ void TensorIterator::createPrimitive() {
         lastUsedCond = initial_cond_check->getStatus();
     }
 
-    if (isDynamicNode())
+    if (runAsDynamic())
         prepareDynamicBuffers();
 
     Node::createPrimitive();
@@ -549,14 +549,14 @@ void TensorIterator::prepareParams() {
     before_mappers.clear();
     back_mappers.clear();
 
-    if ((lastUsedCond && lastUsedTripCount != 0) || !isDynamicNode()) {
+    if ((lastUsedCond && lastUsedTripCount != 0) || !runAsDynamic()) {
         reshapeSubgraphInput();
 
         prepareInputPorts();
         prepareContinueCond();
         prepareLoopBodyCurrentIteration();
 
-        if (!isDynamicNode()) {
+        if (!runAsDynamic()) {
             prepareOutputPorts();
             prepareBackEdges();
         }
@@ -568,6 +568,12 @@ void TensorIterator::prepareParams() {
 }
 
 void TensorIterator::execute(dnnl::stream strm) {
+    //Special case, the subgraph is dynamic while the node has all static shapes
+    if (runAsDynamic()) {
+        executeDynamicImpl(strm);
+        return;
+    }
+
     sub_graph.ResetInferCount();
 
     bool continue_cond = initial_cond_check->getStatus();
@@ -870,6 +876,10 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap, co
     }
 
     return numIterations;
+}
+
+bool TensorIterator::runAsDynamic() const {
+    return isDynamicNode() || Graph::Status::ReadyDynamic == sub_graph.getStatus();
 }
 
 bool TensorIterator::created() const {
