@@ -22,6 +22,16 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+    if (!FLAGS_device.empty() && !FLAGS_plugin_lib_name.empty()) {
+        try {
+            core->register_plugin(FLAGS_plugin_lib_name + OV_BUILD_POSTFIX, FLAGS_device);
+            std::cout << "[ INFO ] Device: " << FLAGS_device << " is registred in OV core with " << FLAGS_plugin_lib_name << " lib" << std::endl;
+        } catch (const std::exception& e) {
+            std::cout << "[ ERROR ] Impossible to register device " << FLAGS_device << " with lib " << FLAGS_plugin_lib_name <<
+            std::endl << e.what() << std::endl;
+        }
+    }
+
     std::vector<std::string> local_cache_dirs = ov::test::utils::splitStringByDelimiter(FLAGS_local_cache);
     std::vector<std::string> dirs = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
 

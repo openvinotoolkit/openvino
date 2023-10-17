@@ -3,7 +3,6 @@
 //
 
 #include "openvino/util/file_util.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "utils/model.hpp"
 
 namespace ov {
@@ -46,7 +45,6 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
             try {
                 // models.emplace_back(file);
                 if (ov::util::file_exists(model_file)) {
-                    auto core = ov::test::utils::PluginCache::get().core();
                     auto model_size = core->read_model(model_file)->get_graph_size();
                     models_sorted_by_size.insert({ model_size, model_file});
                 } else {
@@ -102,7 +100,6 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
         { ModelCacheStatus::LARGE_MODELS_EXCLUDED, {} },
         { ModelCacheStatus::LARGE_MODELS_INCLUDED, {} },
     };
-    auto core = ov::test::utils::PluginCache::get().core();
     auto models_size = models.size();
 
     for (size_t i = 0; i < models_size; ++i) {
@@ -121,8 +118,8 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
                         cache_status[ModelCacheStatus::LARGE_MODELS_INCLUDED].push_back(model);
                     }
                     cache->update_cache(function, model, extract_body, from_cache);
-                } catch (std::exception) {
-                    // std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
+                } catch (std::exception& e) {
+                    std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
                     model_status = ModelCacheStatus::NOT_FULLY_CACHED;
                 }
             } catch (std::exception) {

@@ -15,7 +15,6 @@ namespace subgraph_dumper {
 class FusedNamesExtractor final : public SubgraphExtractor {
 public:
     FusedNamesExtractor(const std::string& device = "");
-    ~FusedNamesExtractor();
 
     std::vector<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &modele) override;
 
@@ -24,7 +23,6 @@ protected:
     void set_target_device(const std::string& _device);
 
     std::string device;
-    std::shared_ptr<ov::Core> core;
 };
 
 }  // namespace subgraph_dumper
