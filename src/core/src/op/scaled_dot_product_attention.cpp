@@ -7,7 +7,7 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ov;
+namespace ov {
 
 op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const OutputVector& inputs, bool causal)
     : op::Op(inputs),
@@ -59,3 +59,5 @@ bool op::v13::ScaledDotProductAttention::visit_attributes(AttributeVisitor& visi
     visitor.on_attribute("causal", m_causal);
     return true;
 }
+
+}  // namespace ov
