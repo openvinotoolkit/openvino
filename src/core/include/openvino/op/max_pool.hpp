@@ -43,13 +43,8 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
-
-private:
-    bool evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v1
 
@@ -119,10 +114,8 @@ public:
         m_axis = axis;
     }
 
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector&, const HostTensorVector&) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
 private:
     Strides m_dilations;
