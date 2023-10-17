@@ -35,6 +35,7 @@
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/grid_sample.hpp"
 #include "intel_gpu/primitives/grn.hpp"
+#include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
 #include "intel_gpu/primitives/lstm.hpp"
 #include "intel_gpu/primitives/lstm_dynamic.hpp"
@@ -120,6 +121,7 @@ REGISTER_OCL(gather_elements);
 REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
+REGISTER_OCL(group_normalization);
 REGISTER_OCL(lrn);
 REGISTER_OCL(lstm_gemm);
 REGISTER_OCL(lstm_elt);

@@ -61,5 +61,12 @@ public:
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
+class BrgemmShapeInfer : public IShapeInferSnippets {
+    std::vector<std::vector<size_t>> m_io_layouts;
+public:
+    explicit BrgemmShapeInfer(const std::shared_ptr<Node>& n);
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+};
+
 } // namespace snippets
 } // namespace ov
