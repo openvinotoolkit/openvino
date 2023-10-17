@@ -641,6 +641,7 @@ jobs:
             --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_zoo_models.py
 
       - name: nGraph Tests
+        if: ${{ always() }}
         run: |
           python3 -m pytest -v ${{ env.OPENVINO_REPO }}/src/bindings/python/tests_compatibility/test_ngraph -k 'not _cuda' \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ngraph.xml
