@@ -97,7 +97,7 @@ OpenVINO™ Toolkit also contains several plugins which simplify loading models 
         <tr>
             <th>Plugin</th>
             <th>Library</th>
-            <th>ShortDescription</th>
+            <th>Short Description</th>
         </tr>
     </thead>
     <tbody>
