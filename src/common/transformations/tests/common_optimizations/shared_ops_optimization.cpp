@@ -436,14 +436,14 @@ TEST_F(SharedTransformationTestsF, SharedShapeOfTestMixed) {
 
 namespace {
 template <typename T, typename... NodeArgTypes>
-OutputVector createNodesInMemory(const std::vector<size_t>& node_order,
+OutputVector createNodesInMemory(const std::vector<size_t>& node_order_in_memory,
                                  std::shared_ptr<T[]>& memory,
                                  const std::string& node_name_prefix,
                                  NodeArgTypes&&... node_args) {
     OutputVector outputs;
-    memory.reset(new T[node_order.size()]);
-    for (size_t i = 0; i < node_order.size(); ++i) {
-        T* node_addr = &(memory[node_order[i]]);
+    memory.reset(new T[node_order_in_memory.size()]);
+    for (size_t i = 0; i < node_order_in_memory.size(); ++i) {
+        T* node_addr = &(memory[node_order_in_memory[i]]);
         auto node_ptr = std::shared_ptr<T>(new (node_addr) T(std::forward<NodeArgTypes&&>(node_args)...), [](T*) {});
         std::stringstream ss;
         ss << node_name_prefix << i;
@@ -455,10 +455,10 @@ OutputVector createNodesInMemory(const std::vector<size_t>& node_order,
 }
 
 std::shared_ptr<Model> createModelWithShapes(const Shape& input_shape,
-                                             const std::vector<size_t>& shapes_order,
+                                             const std::vector<size_t>& node_order_in_memory,
                                              std::shared_ptr<v3::ShapeOf[]>& buffer) {
     auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
-    auto shape_nodes = createNodesInMemory<v3::ShapeOf>(shapes_order, buffer, "Shape_", input, element::i64);
+    auto shape_nodes = createNodesInMemory<v3::ShapeOf>(node_order_in_memory, buffer, "Shape_", input, element::i64);
 
     NodeVector inputs_of_concat;
     for (const auto& shape_node : shape_nodes) {
@@ -481,16 +481,21 @@ std::shared_ptr<Node> findNodeByName(const std::shared_ptr<Model>& model, const 
 }  // namespace
 
 TEST(TransformationTests, SharedShapeOfTestRandomOrder) {
-    // manager.register_pass<pass::SharedOpOptimization>();
     Shape input_shape{120, 4};
     std::shared_ptr<v3::ShapeOf[]> buffer;
+    std::vector<std::vector<size_t>> node_orders_in_memory = {{0, 1}, {1, 0}};
 
-    for (const auto& shapes_order : std::vector<std::vector<size_t>>{{0, 1}, {1, 0}}) {
-        auto model = createModelWithShapes(input_shape, shapes_order, buffer);
+    std::vector<std::shared_ptr<Model>> models;
+    for (const auto& node_order_in_memory : node_orders_in_memory) {
+        auto model = createModelWithShapes(input_shape, node_order_in_memory, buffer);
 
         ov::pass::Manager manager;
         manager.register_pass<pass::SharedOpOptimization>();
         manager.run_passes(model);
         ASSERT_TRUE(findNodeByName(model, "Shape_0") != nullptr) << "node Shape_0 is not found in model";
+        models.push_back(model);
     }
+
+    FunctionsComparator comparator = FunctionsComparator::with_default();
+    comparator.compare(models[0], models[1]);
 }
