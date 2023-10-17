@@ -29,8 +29,6 @@ bool Concat::visit_attributes(AttributeVisitor& visitor) {
 
 void Concat::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Concat_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
-
     element::Type inputs_et{element::dynamic};
     auto input_shapes = std::vector<PartialShape>();
 
@@ -38,35 +36,15 @@ void Concat::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               element::Type::merge(inputs_et, inputs_et, get_input_element_type(i)),
                               "Argument element types are inconsistent.");
-        const auto& input_shape = get_input_partial_shape(i);
-        const auto& input_rank = input_shape.rank();
-
-        if (input_rank.is_static() && (get_concatenation_axis() < 0)) {
-            set_concatenation_axis(get_axis() < 0 ? get_axis() + input_rank.get_length() : get_axis());
-        }
-
-        const auto concat_axis = get_concatenation_axis();
-
-        NODE_VALIDATION_CHECK(this,
-                              input_shape.is_dynamic() || (0 <= concat_axis && concat_axis < input_rank.get_length()),
-                              "Concatenation axis (",
-                              concat_axis,
-                              ") is out of bounds [",
-                              -input_rank.get_length(),
-                              ", ",
-                              input_rank.get_length() - 1,
-                              "] for ",
-                              "argument ",
-                              i,
-                              ", which has shape ",
-                              input_shape,
-                              ".");
-
-        input_shapes.push_back(input_shape);
+        input_shapes.push_back(get_input_partial_shape(i));
     }
 
-    const auto output_shapes = shape_infer(this, input_shapes);
-    set_output_type(0, inputs_et, output_shapes.front());
+    const auto output_shape = shape_infer(this, input_shapes).front();
+    if (output_shape.rank().is_static() && (get_concatenation_axis() < 0)) {
+        set_concatenation_axis(ov::util::normalize(get_axis(), output_shape.size()));
+    }
+
+    set_output_type(0, inputs_et, output_shape);
 }
 
 std::shared_ptr<Node> Concat::clone_with_new_inputs(const OutputVector& new_args) const {
