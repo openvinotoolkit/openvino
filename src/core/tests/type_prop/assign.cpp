@@ -82,7 +82,8 @@ TEST(type_prop, variable_comparison) {
 
 TEST(type_prop, assign_v6_static_shape_match) {
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 64, 64});
-    auto variable = std::make_shared<op::util::Variable>(op::util::VariableInfo{PartialShape{1, 2, 64, 64}, element::f32, "variable_id"});
+    auto variable = std::make_shared<op::util::Variable>(
+        op::util::VariableInfo{PartialShape{1, 2, 64, 64}, element::f32, "variable_id"});
     std::shared_ptr<ov::op::v6::Assign> assign;
     EXPECT_NO_THROW(assign = std::make_shared<ov::op::v6::Assign>(input, variable));
 
@@ -110,7 +111,8 @@ TEST(type_prop, assign_v6_dyn_shape_type_in_variable) {
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 64, 64});
 
     auto variable_info = op::util::VariableInfo{PartialShape{Dimension::dynamic(), 2, Dimension::dynamic(), 64},
-                                                element::dynamic, "variable_id"};
+                                                element::dynamic,
+                                                "variable_id"};
     auto variable = std::make_shared<op::util::Variable>(variable_info);
 
     std::shared_ptr<ov::op::v6::Assign> assign;
@@ -124,8 +126,8 @@ TEST(type_prop, assign_v6_dyn_shape_type_in_variable) {
 TEST(type_prop, assign_v6_init_shape_is_in_range) {
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, 64, 64});
 
-    auto variable_info = op::util::VariableInfo{PartialShape{{1, 10}, {2, 5}, {64, 64}, 64},
-                                                element::f32, "variable_id"};
+    auto variable_info =
+        op::util::VariableInfo{PartialShape{{1, 10}, {2, 5}, {64, 64}, 64}, element::f32, "variable_id"};
     auto variable = std::make_shared<op::util::Variable>(variable_info);
 
     std::shared_ptr<ov::op::v6::Assign> assign;
@@ -139,8 +141,7 @@ TEST(type_prop, assign_v6_init_shape_is_in_range) {
 TEST(type_prop, assign_v6_init_shape_is_not_in_range) {
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, 64, 64});
 
-    auto variable_info = op::util::VariableInfo{PartialShape{{2, 5}, {2, 5}, 64, 64},
-                                                element::f32, "variable_id"};
+    auto variable_info = op::util::VariableInfo{PartialShape{{2, 5}, {2, 5}, 64, 64}, element::f32, "variable_id"};
     auto variable = std::make_shared<op::util::Variable>(variable_info);
 
     std::shared_ptr<ov::op::v6::Assign> assign;
@@ -150,8 +151,7 @@ TEST(type_prop, assign_v6_init_shape_is_not_in_range) {
 TEST(type_prop, assign_v6_init_shape_is_not_in_range_2) {
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{{1, 2}, 2, 64, 64});
 
-    auto variable_info = op::util::VariableInfo{PartialShape{1, 2, 64, 64},
-                                                element::f32, "variable_id"};
+    auto variable_info = op::util::VariableInfo{PartialShape{1, 2, 64, 64}, element::f32, "variable_id"};
     auto variable = std::make_shared<op::util::Variable>(variable_info);
 
     std::shared_ptr<ov::op::v6::Assign> assign;

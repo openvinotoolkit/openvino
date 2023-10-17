@@ -83,10 +83,12 @@ void Assign::validate_and_infer_types() {
         }
     }
 
-    OPENVINO_ASSERT(compatible_shape, "The shape specified in the Variable doesn't match the shape "
-                                      "inferred from the initializing subgraph.");
-    OPENVINO_ASSERT(compatible_type, "The type specified in the Variable doesn't match the type "
-                                     "inferred from the initializing subgraph.");
+    OPENVINO_ASSERT(compatible_shape,
+                    "The shape specified in the Variable doesn't match the shape "
+                    "inferred from the initializing subgraph.");
+    OPENVINO_ASSERT(compatible_type,
+                    "The type specified in the Variable doesn't match the type "
+                    "inferred from the initializing subgraph.");
     set_output_type(0, input_type, input_shape);
 }
 

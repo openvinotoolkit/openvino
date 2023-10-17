@@ -48,7 +48,6 @@ public:
     OPENVINO_OP("ReadValue", "opset6", util::ReadValueBase);
     ReadValue() = default;
 
-
     /// \brief Constructs a ReadValue operation.
     ///
     /// \param variable Class for storing and synchronizing element types, shapes and

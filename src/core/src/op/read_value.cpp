@@ -64,7 +64,7 @@ void op::v6::ReadValue::validate_and_infer_types() {
     // If no inputs provided, it means this ReadValue doesn't have initial subgraph. This is valid.
     if (get_input_size() > 0) {
         const auto initial_type = get_input_element_type(0);
-        const auto &initial_shape = get_input_partial_shape(0);
+        const auto& initial_shape = get_input_partial_shape(0);
 
         // Variable shape/type determines a permissible range of values for shape/type inferred from initial_subgraph.
         // If initial_subgraph is set, then we need to check that shape/type inferred from initial_subgraph
@@ -77,14 +77,15 @@ void op::v6::ReadValue::validate_and_infer_types() {
             OPENVINO_ASSERT(initial_shape.rank().get_length() == variable_shape.rank().get_length(),
                             "Ranks of initial_shape and variable_shape do not match.");
             for (size_t i = 0; i < variable_shape.rank().get_length(); ++i) {
-                compatible_shape = compatible_shape
-                        && variable_shape[i].relaxes(initial_shape[i]);
+                compatible_shape = compatible_shape && variable_shape[i].relaxes(initial_shape[i]);
             }
         }
-        OPENVINO_ASSERT(compatible_shape, "The shape specified in the Variable doesn't match the shape "
-                                         "inferred from the initializing subgraph.");
-        OPENVINO_ASSERT(compatible_type, "The type specified in the Variable doesn't match the type "
-                                         "inferred from the initializing subgraph.");
+        OPENVINO_ASSERT(compatible_shape,
+                        "The shape specified in the Variable doesn't match the shape "
+                        "inferred from the initializing subgraph.");
+        OPENVINO_ASSERT(compatible_type,
+                        "The type specified in the Variable doesn't match the type "
+                        "inferred from the initializing subgraph.");
     }
 
     set_output_type(0, variable_type, variable_shape);
