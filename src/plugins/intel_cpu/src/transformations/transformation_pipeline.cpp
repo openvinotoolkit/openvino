@@ -225,12 +225,18 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 return false;
             }
             // TODO: Uncomment when group decompression is supported
-            // else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
+            // if (ov::is_type<ov::opset1::Reshape>(consumer)) {
             //     consumer = get_single_consumer(consumer);
             //     if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
             //         return false;
             //     }
             // }
+            if (ov::is_type<ov::opset1::Convert>(consumer)) {
+                consumer = get_single_consumer(consumer);
+                if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+                    return false;
+                }
+            }
             return true;
         }, ov::pass::MarkDequantizationSubgraph);
     }
