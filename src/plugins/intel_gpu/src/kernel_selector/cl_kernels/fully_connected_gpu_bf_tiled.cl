@@ -194,7 +194,7 @@ KERNEL(fc)(
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                         const uint w_idx = kii * TILE_OFM + fi;
-                        uint offset_ofm = out_f + fi*SIMD + get_sub_group_local_id();
+                        const uint offset_ofm = out_f + fi*SIMD + sglid;
                         #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                             const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
                                                      ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;

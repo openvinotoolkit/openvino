@@ -38,7 +38,8 @@ KERNEL(fc)(
             const uint input0_idx = INPUT0_GET_INDEX(b, ofm, y, x);
             #if COMPRESSED_WEIGHTS
                 #if DECOMPRESSION_ZP_TERM
-                    ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[DECOMPRESSION_ZP_GET_INDEX_SAFE(oym, y / DECOMPRESSION_SCALE_GROUP_SIZE, 0, 0)]);
+                    const uint zp_offset = DECOMPRESSION_ZP_GET_INDEX_SAFE(oym, y / DECOMPRESSION_ZP_GROUP_SIZE, 0, 0);
+                    ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
                 #else
                     ACCUMULATOR_TYPE zp = ACCUMULATOR_VAL_ZERO;
                 #endif
@@ -74,7 +75,8 @@ KERNEL(fc)(
                 const uint input0_idx = INPUT0_GET_INDEX(b, ifm, y, x);
                 #if COMPRESSED_WEIGHTS
                     #if DECOMPRESSION_ZP_TERM
-                        ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[DECOMPRESSION_ZP_GET_INDEX_SAFE(ofm, ifm / DECOMPRESSION_SCALE_GROUP_SIZE, 0, 0)]);
+                        const uint zp_offset = DECOMPRESSION_ZP_GET_INDEX_SAFE(ofm, ifm / DECOMPRESSION_ZP_GROUP_SIZE, 0, 0);
+                        ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
                     #else
                         ACCUMULATOR_TYPE zp = ACCUMULATOR_VAL_ZERO;
                     #endif
