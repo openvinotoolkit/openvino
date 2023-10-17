@@ -166,7 +166,8 @@ def main():
     sourcedir = args.sourcedir
     outdir = args.outdir
 
-    main_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials.md').resolve(strict=True)
+    # assume script is called from openvino repository root dir
+    main_tutorials_file = Path('docs/articles_en/learn_openvino/tutorials.rst').resolve(strict=True)
     add_glob_directive(main_tutorials_file)
 
     if args.download:
