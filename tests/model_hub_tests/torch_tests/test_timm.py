@@ -13,8 +13,8 @@ from openvino import convert_model
 def filter_timm(timm_list: list) -> list:
     unique_models = set()
     filtered_list = []
-    ignore_set = {"base", "mini", "small", "xxtiny", "xtiny", "tiny", "lite", "nano", "pico", "medium",
-                  "big", "large", "xlarge", "xxlarge", "huge", "gigantic", "giant", "xs", "xxs", "s", "m", "l", "xl"}
+    ignore_set = {"base", "mini", "small", "xxtiny", "xtiny", "tiny", "lite", "nano", "pico", "medium", "big",
+                  "large", "xlarge", "xxlarge", "huge", "gigantic", "giant", "enormous", "xs", "xxs", "s", "m", "l", "xl"}
     for name in timm_list:
         # first: remove datasets
         name_parts = name.split(".")
@@ -80,7 +80,7 @@ class TestTimmConvertModel(TestConvertModel):
     def test_convert_model_precommit(self, name, ie_device):
         self.run(name, None, ie_device)
 
-    @pytest.mark.precommit
+    @pytest.mark.nightly
     @pytest.mark.parametrize("name", get_all_models())
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)
