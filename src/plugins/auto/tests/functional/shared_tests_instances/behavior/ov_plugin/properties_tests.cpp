@@ -86,6 +86,7 @@ const std::vector<ov::AnyMap> default_properties = {{ov::enable_profiling(false)
                                                     {ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
                                                     {ov::intel_auto::device_bind_buffer(false)},
                                                     {ov::intel_auto::enable_startup_fallback(true)},
+                                                    {ov::intel_auto::schedule_policy(ov::intel_auto::SchedulePolicy::DEFAULT)},
                                                     {ov::device::priorities("")}};
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests,
                          OVPropertiesDefaultTests,
