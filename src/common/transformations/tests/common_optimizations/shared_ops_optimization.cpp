@@ -437,14 +437,16 @@ TEST_F(SharedTransformationTestsF, SharedShapeOfTestMixed) {
 namespace {
 template <typename T, typename... NodeArgTypes>
 OutputVector createNodesInMemory(const std::vector<size_t>& node_order_in_memory,
-                                 std::shared_ptr<T[]>& memory,
+                                 std::shared_ptr<void>& memory,
                                  const std::string& node_name_prefix,
                                  NodeArgTypes&&... node_args) {
     OutputVector outputs;
-    memory.reset(new T[node_order_in_memory.size()]);
+    memory.reset(::malloc(node_order_in_memory.size() * sizeof(T)), ::free);
     for (size_t i = 0; i < node_order_in_memory.size(); ++i) {
-        T* node_addr = &(memory[node_order_in_memory[i]]);
-        auto node_ptr = std::shared_ptr<T>(new (node_addr) T(std::forward<NodeArgTypes&&>(node_args)...), [](T*) {});
+        T* node_addr = static_cast<T*>(memory.get()) + node_order_in_memory[i];
+        auto node_ptr = std::shared_ptr<T>(new (node_addr) T(std::forward<NodeArgTypes&&>(node_args)...), [](T* t) {
+            t->~T();
+        });
         std::stringstream ss;
         ss << node_name_prefix << i;
         node_ptr->set_friendly_name(ss.str());
@@ -456,7 +458,7 @@ OutputVector createNodesInMemory(const std::vector<size_t>& node_order_in_memory
 
 std::shared_ptr<Model> createModelWithShapes(const Shape& input_shape,
                                              const std::vector<size_t>& node_order_in_memory,
-                                             std::shared_ptr<v3::ShapeOf[]>& buffer) {
+                                             std::shared_ptr<void>& buffer) {
     auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
     auto shape_nodes = createNodesInMemory<v3::ShapeOf>(node_order_in_memory, buffer, "Shape_", input, element::i64);
 
@@ -480,9 +482,13 @@ std::shared_ptr<Node> findNodeByName(const std::shared_ptr<Model>& model, const 
 }
 }  // namespace
 
+/**
+ * @brief Check that node address is not influenced on the transformation result
+ */
 TEST(TransformationTests, SharedShapeOfTestRandomOrder) {
     Shape input_shape{120, 4};
-    std::shared_ptr<v3::ShapeOf[]> buffer;
+    std::shared_ptr<void> buffer;
+    // nodes are placed into pre-allocated memory in order that is specified in next variable
     std::vector<std::vector<size_t>> node_orders_in_memory = {{0, 1}, {1, 0}};
 
     std::vector<std::shared_ptr<Model>> models;
@@ -493,7 +499,8 @@ TEST(TransformationTests, SharedShapeOfTestRandomOrder) {
         manager.register_pass<pass::SharedOpOptimization>();
         manager.run_passes(model);
         ASSERT_TRUE(findNodeByName(model, "Shape_0") != nullptr) << "node Shape_0 is not found in model";
-        models.push_back(model);
+        // we need to clone while memory will be reused on the next iteration for the new model
+        models.push_back(model->clone());
     }
 
     FunctionsComparator comparator = FunctionsComparator::with_default();
