@@ -89,10 +89,7 @@ shared_ptr<Node> reshape(const Output<Node>& source,
     return make_shared<v1::Reshape>(source, concat, false);
 }
 
-void get_dims(const ov::Output<ov::Node>& source,
-              const size_t& from,
-              const size_t& to,
-              ov::NodeVector& dims) {
+void get_dims(const ov::Output<ov::Node>& source, const size_t& from, const size_t& to, ov::NodeVector& dims) {
     std::vector<size_t> non_constant_ids;
     for (size_t i = from; i < to; ++i) {
         auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(source, {i});
@@ -117,7 +114,7 @@ ov::Output<ov::Node> get_target_shape_from_sources(const ov::Output<ov::Node>& b
     size_t non_batch_dims_start = non_batch_dims_source.get_partial_shape().size() - 2;
     get_dims(non_batch_dims_source, non_batch_dims_start, non_batch_dims_start + 2, dims);
 
-    size_t num_non_const_nodes = 0; // candidates for becoming a Constant -1 -- special value for Reshape pattern
+    size_t num_non_const_nodes = 0;  // candidates for becoming a Constant -1 -- special value for Reshape pattern
     for (size_t curr_i = 0; curr_i + 1 < dims.size(); ++curr_i) {
         auto curr_node = dims[curr_i], next_node = dims[curr_i + 1];
         bool curr_is_const = ov::op::util::is_constant(curr_node), next_is_const = ov::op::util::is_constant(next_node);
