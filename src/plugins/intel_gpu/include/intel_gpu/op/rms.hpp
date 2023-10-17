@@ -22,9 +22,11 @@ public:
     /// \param data Input tensor with data
     /// \param gamma Gamma values for weight
     /// \param eps Epsilon for not dividing by zero while normalizing the value
+    /// \param output_type Output element type
     RMS(const Output<Node>& data,
         const Output<Node>& gamma,
-        double epsilson);
+        double epsilson,
+        const ov::element::Type output_type = ov::element::undefined);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -38,6 +40,7 @@ public:
 
 private:
     double m_epsilon{0};
+    ov::element::Type m_output_type;
 };
 
 }   // namespace op

@@ -34,14 +34,15 @@ TEST_F(TransformationTestsF, RMSNormFusionTest1) {
         auto mul1 = std::make_shared<ov::opset10::Multiply>(input, div);
         auto gamma = ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
         auto mul2 = std::make_shared<ov::opset10::Multiply>(gamma, mul1);
+        auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul2}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{input});
         manager.register_pass<RMSFusion>();
     }
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
         auto rms_const = ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
-        auto rms = std::make_shared<op::RMS>(input, rms_const, 1e-5f);
+        auto rms = std::make_shared<op::RMS>(input, rms_const, 1e-5f, ov::element::f16);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{rms}, ov::ParameterVector{input});
     }
@@ -62,8 +63,9 @@ TEST_F(TransformationTestsF, RMSNormFusionTest2) {
         auto mul1 = std::make_shared<ov::opset10::Multiply>(input, div);
         auto gamma = ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
         auto mul2 = std::make_shared<ov::opset10::Multiply>(gamma, mul1);
+        auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul2}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{input});
         manager.register_pass<RMSFusion>();
     }
 }
@@ -83,8 +85,9 @@ TEST_F(TransformationTestsF, RMSNormFusionTest3) {
         auto mul1 = std::make_shared<ov::opset10::Multiply>(input, div);
         auto gamma = ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
         auto mul2 = std::make_shared<ov::opset10::Multiply>(gamma, mul1);
+        auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul2}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{input});
         manager.register_pass<RMSFusion>();
     }
 }
@@ -104,8 +107,9 @@ TEST_F(TransformationTestsF, RMSNormFusionTest4) {
         auto mul1 = std::make_shared<ov::opset10::Multiply>(input, div);
         auto gamma = ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
         auto mul2 = std::make_shared<ov::opset10::Multiply>(gamma, mul1);
+        auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul2}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{input});
         manager.register_pass<RMSFusion>();
     }
 }
@@ -125,14 +129,15 @@ TEST_F(TransformationTestsF, RMSNormFusionTest5) {
         auto mul1 = std::make_shared<ov::opset10::Multiply>(input, div);
         auto gamma = ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
         auto mul2 = std::make_shared<ov::opset10::Multiply>(gamma, mul1);
+        auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul2}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::NodeVector{comp}, ov::ParameterVector{input});
         manager.register_pass<RMSFusion>();
     }
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
         auto rms_const = ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
-        auto rms = std::make_shared<op::RMS>(input, rms_const, 1e-5f);
+        auto rms = std::make_shared<op::RMS>(input, rms_const, 1e-5f, ov::element::f16);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{rms}, ov::ParameterVector{input});
     }

@@ -27,6 +27,8 @@ namespace SubgraphTestsDefinitions {
  *  Const(F32) Multiply(F32)
  *         \    |
  *         Multiply(F32)
+ *              |
+ *          Convert(F16)
  */
 using RMSNormDecompositionParams = std::tuple<std::vector<InputShape>,             // input shapes
                                               ov::test::ElementType,               // input precision
@@ -101,7 +103,9 @@ protected:
         auto gamma = ngraph::builder::makeConstant<float>(input_precision, ov::Shape{dim}, std::vector<float>{}, true);
         auto mul2 = std::make_shared<ov::opset10::Multiply>(gamma, mul1);
 
-        return std::make_shared<ov::Model>(NodeVector{mul2}, params, "RMSNormDecomposition");
+        auto comp = std::make_shared<ov::opset10::Convert>(mul2, ov::element::f16);
+
+        return std::make_shared<ov::Model>(NodeVector{comp}, params, "RMSNormDecomposition");
     }
 
     void SetUp() override {

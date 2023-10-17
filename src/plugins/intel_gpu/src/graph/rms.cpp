@@ -12,11 +12,26 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(rms);
 
 layout rms_inst::calc_output_layout(rms_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<rms>();
     auto input_layout = impl_param.get_input_layout();
-    auto output_type = impl_param.desc->output_data_types[0].value_or(input_layout.data_type);
+    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
+    auto output_format = input_layout.format;
 
-    return layout(output_type, input_layout.format, input_layout.get_tensor());
+    return layout(output_type, output_format, input_layout.get_tensor());
 }
+
+template<typename ShapeType>
+std::vector<layout> rms_inst::calc_output_layouts(rms_node const& /*node*/, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<rms>();
+    auto input_layout = impl_param.get_input_layout();
+    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
+    auto output_format = input_layout.format;
+    auto output_shape = input_layout.get<ShapeType>();
+
+    return { layout(output_shape, output_type, output_format) };
+}
+
+template std::vector<layout> rms_inst::calc_output_layouts<ov::PartialShape>(rms_node const& node, const kernel_impl_params& impl_param);
 
 std::string rms_inst::to_string(rms_node const& node) {
     auto desc = node.get_primitive();

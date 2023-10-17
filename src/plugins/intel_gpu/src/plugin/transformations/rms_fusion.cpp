@@ -67,6 +67,9 @@ RMSFusion::RMSFusion() {
     auto gamma = wrap_type<ov::op::v0::Constant>(type_matches(element::f32));
     auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma, mul1});
 
+    // compress RMS result
+    auto comp = wrap_type<ov::op::v0::Convert>({mul2});
+
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto x_output = pattern_map.at(x);
@@ -84,17 +87,25 @@ RMSFusion::RMSFusion() {
             return false;
         }
 
+        auto comp_node =
+            std::dynamic_pointer_cast<ov::op::v0::Convert>(pattern_map.at(comp).get_node_shared_ptr());
+        if (!comp_node) {
+            return false;
+        }
+
         ov::NodeVector nodes_to_copy_info({pattern_map.at(power).get_node_shared_ptr(),
                                            pattern_map.at(mean).get_node_shared_ptr(),
                                            pattern_map.at(add_eps).get_node_shared_ptr(),
                                            pattern_map.at(sqrt).get_node_shared_ptr(),
                                            pattern_map.at(div).get_node_shared_ptr(),
                                            pattern_map.at(mul1).get_node_shared_ptr(),
-                                           pattern_map.at(mul2).get_node_shared_ptr()});
+                                           pattern_map.at(mul2).get_node_shared_ptr(),
+                                           pattern_map.at(comp).get_node_shared_ptr()});
 
         auto rms = std::make_shared<op::RMS>(x_output,
                                              gamma_node,
-                                             eps_value);
+                                             eps_value,
+                                             comp_node->get_destination_type());
         rms->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(nodes_to_copy_info, rms);
         ov::replace_node(m.get_match_root(), rms);
@@ -102,7 +113,7 @@ RMSFusion::RMSFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul2, "RMSFusion");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(comp, "RMSFusion");
     this->register_matcher(m, callback);
 }
 
