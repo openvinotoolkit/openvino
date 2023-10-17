@@ -7,6 +7,7 @@
 #include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/axes_util.hpp"
 #include "openvino/reference/reduce_prod.hpp"
@@ -19,7 +20,7 @@ bool has_positive_bounds_on_data(const Node* const op) {
     const auto& lb = op->get_input_tensor(0).get_lower_value();
     const auto& ub = op->get_input_tensor(0).get_upper_value();
 
-    return lb && ub && tensor_is_positive(lb) && tensor_is_positive(ub);
+    return lb && ub && tensor_is_non_negative(lb) && tensor_is_non_negative(ub);
 }
 }  // namespace
 
@@ -83,9 +84,29 @@ bool ReduceProd::evaluate_lower(ov::TensorVector& output_values) const {
 }
 
 bool ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
-    return reduce_prod::has_positive_bounds_on_data(this) && get_input_tensor(1).has_and_set_bound() &&
-           default_upper_bound_evaluator(this, output_values);
+    if (!reduce_prod::has_positive_bounds_on_data(this) || !get_input_tensor(1).has_and_set_bound())
+        return false;
+    // We need to cover a corner case: if an Upper Bound comes from ShapeOf and contains
+    // dynamic dimension (-1) - it has a value 0x7FFFFFFFFFFFFFFF, which points on
+    // a maximum possible value. For example, Upper Bound of shape [-1, 12] is
+    // [0x7FFFFFFFFFFFFFFF, 12].
+    // In such case we shouldn't evaluate a real ReduceProd because it'll cause an
+    // overflow and returns wrong value. We should return an Upper Bound as for [-1],
+    // which will be evaluated as [0x7FFFFFFFFFFFFFFF]
+    // In case dimensions has a zero dimension - it should return 0 in any case
+    if (tensor_has_max_value(get_input_tensor(0).get_upper_value()) &&
+        !tensor_has_zero_value(get_input_tensor(0).get_upper_value())) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        auto max_constant = ngraph::get_constant_max_of_type(get_output_element_type(0));
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_ASSERT(max_constant->get_byte_size() <= output_values[0].get_byte_size());
+        memcpy(output_values[0].data(), max_constant->get_data_ptr(), max_constant->get_byte_size());
+        return true;
+    }
+
+    return default_upper_bound_evaluator(this, output_values);
 }
+
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
