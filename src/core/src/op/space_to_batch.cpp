@@ -78,7 +78,7 @@ namespace {
 bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
     const auto& data = inputs[0];
     const auto& out = outputs[0];
-    const size_t elem_size = data.get_element_type().size();
+    const auto elem_size = data.get_element_type().size();
 
     auto data_shape = data.get_shape();
 
@@ -86,7 +86,7 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
         return false;
     }
 
-    const size_t block_values_size = shape_size(inputs[1].get_shape());
+    const auto block_values_size = shape_size(inputs[1].get_shape());
     const auto block_values = static_cast<const int64_t*>(inputs[1].data());
     const auto pads_begin = static_cast<const int64_t*>(inputs[2].data());
     const auto pads_end = static_cast<const int64_t*>(inputs[3].data());
