@@ -15,12 +15,9 @@ KERNEL(rms_gpu_ref)(
     const uint w = 0;
 
     ACCUMULATOR_TYPE rms = ACCUMULATOR_VAL_ZERO;
-    for (uint z = 0; z < INPUT0_SIZE_Z; z++)
-    {
-        for (uint y = 0; y < INPUT0_SIZE_Y; y++)
-        {
-            for (uint x = 0; x < INPUT0_SIZE_X; x++)
-            {
+    for (uint z = 0; z < INPUT0_SIZE_Z; z++) {
+        for (uint y = 0; y < INPUT0_SIZE_Y; y++) {
+            for (uint x = 0; x < INPUT0_SIZE_X; x++) {
                 const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
                 rms += pow(TO_ACCUMULATOR_TYPE(input[input_idx]), 2);
             }
@@ -30,12 +27,9 @@ KERNEL(rms_gpu_ref)(
     rms /= INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z;
     rms = pow(sqrt(rms + TO_ACCUMULATOR_TYPE(EPSILON)), -1);
 
-    for (uint z = 0; z < INPUT0_SIZE_Z; z++)
-    {
-        for (uint y = 0; y < INPUT0_SIZE_Y; y++)
-        {
-            for (uint x = 0; x < INPUT0_SIZE_X; x++)
-            {
+    for (uint z = 0; z < INPUT0_SIZE_Z; z++) {
+        for (uint y = 0; y < INPUT0_SIZE_Y; y++) {
+            for (uint x = 0; x < INPUT0_SIZE_X; x++) {
                 const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
                 const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
 #if INPUT0_DIMS == 4

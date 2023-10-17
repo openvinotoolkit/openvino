@@ -94,8 +94,18 @@ bool RMSKernelBfyxOpt::Validate(const Params& p, const optional_params& o) const
     const rms_params& params = static_cast<const rms_params&>(p);
     const auto& gamma = params.inputs[1];
 
-    if (!gamma.is_dynamic() && (gamma.LogicalSize() < 8))
-        return false;
+    if (!gamma.is_dynamic()) {
+        size_t data_size = gamma.LogicalSize();
+        if (data_size < 8) {
+            return false;
+        }
+        auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
+        auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
+        auto slm_size = data_size / 8;
+        if (slm_size > max_lws) {
+            return false;
+        }
+    }
 
     return true;
 }

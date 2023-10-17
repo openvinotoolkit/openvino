@@ -31,22 +31,20 @@ KERNEL(rms_gpu_bfyx_opt)(
     __local ACCUMULATOR_TYPE slm_buf[SLM_SIZE];
 
     INPUT_VEC_TYPE inputs = AS_INPUT_VEC_TYPE(VLOAD(0, input + in_data_offset));
-    ACCUMULATOR_VEC_TYPE square = pow(TO_ACCUMULATOR_VEC_TYPE(inputs), (ACCUMULATOR_VEC_TYPE)(2));
+    ACCUMULATOR_VEC_TYPE square = native_powr(TO_ACCUMULATOR_VEC_TYPE(inputs), (ACCUMULATOR_VEC_TYPE)(2));
     unroll_for (uint i = 0; i < VEC_SIZE; ++i) {
         rms += square[i];
     }
 
-    if (in_data_idx < leftovers)
-    {
+    if (in_data_idx < leftovers) {
         const uint input_idx = data_offset + total_items_num + in_data_idx;
-        rms += pow(TO_ACCUMULATOR_TYPE(input[input_idx]), 2);
+        rms += native_powr(TO_ACCUMULATOR_TYPE(input[input_idx]), 2);
     }
 
     slm_buf[in_data_idx] = rms;
 
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_idx == 0)
-    {
+    if (in_data_idx == 0) {
 #if !IS_DYNAMIC
         unroll_for (uint i = 1; i < LWS; ++i)
 #else
@@ -55,7 +53,7 @@ KERNEL(rms_gpu_bfyx_opt)(
             rms += slm_buf[i];
 
         rms = rms / data_size;
-        slm_buf[0] = pow(sqrt(rms + TO_ACCUMULATOR_TYPE(EPSILON)), -1);
+        slm_buf[0] = native_powr(sqrt(rms + TO_ACCUMULATOR_TYPE(EPSILON)), -1);
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -64,8 +62,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     OUTPUT_VEC_TYPE results = TO_OUTPUT_VEC_TYPE((ACCUMULATOR_VEC_TYPE)(rms) * TO_ACCUMULATOR_VEC_TYPE(inputs) * AS_ACCUMULATOR_VEC_TYPE(VLOAD(0, gamma + gamma_offset)));
     VSTORE(results, 0, output + in_data_offset);
 
-    if (in_data_idx < leftovers)
-    {
+    if (in_data_idx < leftovers) {
         const uint input_idx = data_offset + total_items_num + in_data_idx;
         const uint output_idx = data_offset + total_items_num + in_data_idx;
         const uint gamma_idx = total_items_num + in_data_idx;
