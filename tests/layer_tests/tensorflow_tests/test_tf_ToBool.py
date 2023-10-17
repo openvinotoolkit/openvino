@@ -13,17 +13,16 @@ class TestToBool(CommonTFLayerTest):
         x_shape = inputs_info['x']
         inputs_data = {}
         inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
-        # generate y in way to have zeros
         
         return inputs_data
 
-    def create_div_no_nan_net(self, input_shape, input_type):
+    def create_tobool_net(self, input_shape, input_type):
         self.input_type = input_type
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(input_type, input_shape, 'x')
-            tf.raw_ops.DivNoNan(x=x)
+            tf.raw_ops.ToBool(x=x)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
