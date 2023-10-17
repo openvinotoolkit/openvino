@@ -37,20 +37,17 @@ OutputVector translate_tobool_op(const NodeContext& node) {
 
     // compute (rank(x) == 0 && x != 0)
     auto logical_and = make_shared<v1::LogicalAnd>(is_zero, is_not_zero);
-    
     // compute rank(x) > 0
     auto greater_than_zero = make_shared<v1::Greater>(x_rank, zero);
 
     // compute ShapeOf(x)
     auto cond_shape = make_shared<v3::ShapeOf>(x, element::i32);
-    
     // compute ReduceProd(ShapeOf(x))) and axis
     auto axis = make_shared<v0::Constant>(element::i32, Shape{}, 0);
     auto reduce_prod = make_shared<v1::ReduceProd>(cond_shape, axis);
 
     // compute ReduceProd(ShapeOf(x))) > 0
     auto greater_than__zero_2 = make_shared<v1::Greater>(reduce_prod, zero);
-    
     // compute (rank > 0 && ReduceProd(ShapeOf(x))) > 0
     auto logical_and_2 = make_shared<v1::LogicalAnd>(greater_than_zero, greater_than__zero_2);
 
