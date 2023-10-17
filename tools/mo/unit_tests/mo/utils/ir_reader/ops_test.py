@@ -299,6 +299,65 @@ class TestOps(unittest.TestCase):
         self.assertListEqual(op_node.out_port(0).data.get_shape().tolist(), [4, 2])
         self.assertEqual(op_node["version"], "opset13")
 
+    def test_multinomial_13_param_inputs(self):
+        data_shape = [2, 8]
+        probs = opset13.parameter(
+            data_shape, name="probs", dtype=np.float32)
+        num_samples = opset13.parameter(
+            [1], name="num_samples", dtype=np.int32)
+
+        op = opset13.multinomial(probs, num_samples,
+                                 convert_type="i32",
+                                 with_replacement=True,
+                                 log_probs=True,
+                                 global_seed=456,
+                                 op_seed=213)
+
+        model = Model(op, [probs, num_samples])
+        graph, loaded_model = TestOps.check_graph_can_save(
+            model, 'multinomial_param_model')
+        graph_node = graph.get_op_nodes(op="Multinomial")[0]
+
+        self.assertEqual(graph_node["version"], "opset13")
+        self.assertListEqual(graph_node.out_port(
+            0).data.get_shape().tolist(), [2, None])
+        self.assertEqual(graph_node["convert_type"], "i32")
+        self.assertTrue(graph_node["with_replacement"])
+        self.assertTrue(graph_node["log_probs"])
+        self.assertEqual(graph_node["global_seed"], 456)
+        self.assertEqual(graph_node["op_seed"], 213)
+        self.assertEqual(loaded_model.get_output_element_type(0), Type.i32)
+        self.assertEqual(loaded_model.get_output_partial_shape(
+            0), PartialShape([2, -1]))
+
+    def test_multinomial_13_const_inputs(self):
+        probs = opset13.constant(
+            [[0.4, 0.5, 0.1], [0.3, 0.2, 0.5]], name="probs", dtype=np.float32)
+        num_samples = opset13.constant(
+            [3], name="num_samples", dtype=np.int64)
+
+        op = opset13.multinomial(probs, num_samples,
+                                 convert_type="i64",
+                                 with_replacement=False,
+                                 log_probs=False)
+
+        model = Model(op, [])
+        graph, loaded_model = TestOps.check_graph_can_save(
+            model, 'multinomial_const_model')
+        graph_node = graph.get_op_nodes(op="Multinomial")[0]
+
+        self.assertEqual(graph_node["version"], "opset13")
+        self.assertListEqual(graph_node.out_port(
+            0).data.get_shape().tolist(), [2, 3])
+        self.assertEqual(graph_node["convert_type"], "i64")
+        self.assertFalse(graph_node["with_replacement"])
+        self.assertFalse(graph_node["log_probs"])
+        self.assertEqual(graph_node["global_seed"], 0)
+        self.assertEqual(graph_node["op_seed"], 0)
+        self.assertEqual(loaded_model.get_output_element_type(0), Type.i64)
+        self.assertEqual(loaded_model.get_output_partial_shape(
+            0), PartialShape([2, 3]))
+
     def test_nms_rotated_13_attrs_false_i32(self):
         boxes_shape = [1, 100, 5]
         scores_shape = [1, 2, 100]
