@@ -20,6 +20,7 @@ std::string CumuSchedule::schedule_to_next_device(const std::vector<DeviceInform
         m_n_ctput_schedule_nextdevice++;
     } else if (schedule_policy == ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY) {
         m_n_ctput_schedule_nextdevice = current_device_index;
+        selected_device_name = devices[m_n_ctput_schedule_nextdevice].device_name;
     }
     return selected_device_name;
 }
