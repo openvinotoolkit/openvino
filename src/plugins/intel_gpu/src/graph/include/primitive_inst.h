@@ -543,10 +543,9 @@ private:
         }
 
         auto& e = typ_node.get_program().get_engine();
-        auto max_mem = e.get_max_memory_size();
-        auto required_mem = typ_node.get_output_layout().bytes_count();
+        auto output_layout = typ_node.get_output_layout();
         // When dynamic shape node has huge upper boundary which causes bigger mem size than system max mem size, return false.
-        if (required_mem >= max_mem) {
+        if (!e.check_allocatable(output_layout, e.get_lockable_preferred_memory_allocation_type(output_layout.format.is_image_2d()))) {
             return false;
         }
 

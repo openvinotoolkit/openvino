@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/strided_slice.hpp"
+#include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ov_models/builders.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -32,7 +33,7 @@ typedef std::tuple<
         std::map<std::string, std::string>              // Additional network configuration
 > StridedSliceLayerParamSet;
 
-class StridedSliceLayerGPUTest : public testing::WithParamInterface<StridedSliceLayerParamSet>,
+class DynamicShapeHugeRangeGPUTest : public testing::WithParamInterface<StridedSliceLayerParamSet>,
                                  virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceLayerParamSet>& obj) {
@@ -174,19 +175,21 @@ protected:
             strideInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{stride.size()}, stride);
         }
 
-        auto ss = std::make_shared<ngraph::op::v1::StridedSlice>(params[0], beginInput, endInput, strideInput, ssParams.beginMask, ssParams.endMask,
+        auto stridedSliceOp = std::make_shared<ngraph::op::v1::StridedSlice>(params[0], beginInput, endInput, strideInput, ssParams.beginMask, ssParams.endMask,
                                                                  ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
 
+        auto shapeOfOp = std::make_shared<ngraph::opset3::ShapeOf>(stridedSliceOp, ov::element::Type_t::i32);
+
         ngraph::ResultVector results;
-        for (size_t i = 0; i < ss->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(ss->output(i)));
+        for (size_t i = 0; i < shapeOfOp->get_output_size(); i++) {
+            results.push_back(std::make_shared<ngraph::opset1::Result>(shapeOfOp->output(i)));
         }
 
-        function = std::make_shared<ngraph::Function>(results, params, "StridedSlice");
+        function = std::make_shared<ngraph::Function>(results, params, "result");
     }
 };
 
-TEST_P(StridedSliceLayerGPUTest, CompareWithRefs) {
+TEST_P(DynamicShapeHugeRangeGPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
@@ -211,117 +214,22 @@ const std::vector<std::vector<ngraph::helpers::InputLayerType>> restInputTypes =
     {ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::CONSTANT},
 };
 
-const std::vector<InputShape> inputShapesDynamic2D = {
-        {{-1, -1},
-         {{32, 20}, {16, 16}, {24, 16}}},
-
-        {{-1, 16},
-         {{16, 16}, {20, 16}, {32, 16}}},
+const std::vector<InputShape> inputShapesDynamic2D_excessive_uppper_boundary = {
+        {{{0, 1000}, {0, 364000000}, 4},
+         {{640, 640, 4}}},
 };
 
-const std::vector<StridedSliceParams> paramsPlain2D = {
-        StridedSliceParams{ { 0, 10 }, { 16, 16 }, { 1, 1 }, { 0, 0 }, { 0, 0 },  { },  { },  { } },
-        StridedSliceParams{ { 2, 5 }, { 16, 16 }, { 1, 2 }, { 0, 1 }, { 1, 0 },  { },  { },  { } },
-        StridedSliceParams{ { 0, 0 }, { 16, 16 }, { 2, 1 }, { 0, 0 }, { 1, 0 },  { },  { },  { } },
+const std::vector<StridedSliceParams> paramsPlain2D_excessive_uppper_boundary = {
+        StridedSliceParams{ { 0, 1 }, { 0, 2147483647 }, { 1, 1 }, { 1, 0 }, { 1, 0 },  { },  { },  { } },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D, StridedSliceLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Dynamic_2D_excessive_uppper_boundary, DynamicShapeHugeRangeGPUTest,
                          ::testing::Combine(
-                             ::testing::ValuesIn(static_shapes_to_test_representation({{32, 20}})),
-                             ::testing::ValuesIn(paramsPlain2D),
+                             ::testing::ValuesIn(inputShapesDynamic2D_excessive_uppper_boundary),
+                             ::testing::ValuesIn(paramsPlain2D_excessive_uppper_boundary),
                              ::testing::ValuesIn(inputPrecisions),
                              ::testing::Values(restInputTypes[0]),
                              ::testing::Values(emptyAdditionalConfig)),
-                         StridedSliceLayerGPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_2D, StridedSliceLayerGPUTest,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(inputShapesDynamic2D),
-                             ::testing::ValuesIn(paramsPlain2D),
-                             ::testing::ValuesIn(inputPrecisions),
-                             ::testing::ValuesIn(restInputTypes),
-                             ::testing::Values(emptyAdditionalConfig)),
-                         StridedSliceLayerGPUTest::getTestCaseName);
-
-const std::vector<StridedSliceParams> testCasesCommon4D = {
-        StridedSliceParams{ { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },  { },  { },  { } },
-        StridedSliceParams{ { 0, 0, 10, 20 }, { 1, 5, 28, 26 }, { 1, 1, 1, 2 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },  { },  { },  { } },
-        StridedSliceParams{ { 0, 0, 0, 20 }, { 1, 2, 30, 30 }, { 1, 1, 2, 1 }, { 0, 0, 0, 1 }, { 0, 1, 0, 1 },  { },  { },  { } },
-        StridedSliceParams{ { 0, 1, 2, 10 }, { 1, 5, 32, 18 }, { 1, 1, 1, 2 }, { 0, 0, 1, 0 }, { 0, 0, 0, 1 },  { },  { },  { } },
-        StridedSliceParams{ { 0, 0, 2, 10 }, { 1, 8, 32, 18 }, { 1, 2, 1, 2 },  { 0, 0, 1, 0 }, { 0, 0, 0, 1 },  { },  { },  { } },
-};
-
-const std::vector<InputShape> inputShapesDynamic4D = {
-        {{-1, -1, -1, -1},
-         {{ 1, 5, 32, 32 }, { 2, 5, 32, 32 }, { 1, 5, 64, 64 }}},
-
-        {{1, 64, -1, -1},
-         {{ 1, 64, 16, 32 }, { 1, 64, 32, 64 }, { 1, 64, 64, 64 }}},
-
-        {{1, -1, 16, 32},
-        {{ 1, 16, 16, 32 }, { 1, 32, 16, 32 }, { 1, 64, 16, 32 }}},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D, StridedSliceLayerGPUTest,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(inputShapesDynamic4D),
-                             ::testing::ValuesIn(testCasesCommon4D),
-                             ::testing::ValuesIn(inputPrecisions),
-                             ::testing::ValuesIn(restInputTypes),
-                             ::testing::Values(emptyAdditionalConfig)),
-                         StridedSliceLayerGPUTest::getTestCaseName);
-
-
-const std::vector<StridedSliceParams> testCasesCommon5D = {
-        StridedSliceParams{ { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },  { },  { },  { } },
-        StridedSliceParams{ { 0, 0, 10, 20 }, { 1, 5, 28, 26 }, { 1, 1, 1, 2 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },  { },  { },  { } },
-        StridedSliceParams{ { 0, 0, 0, 20 }, { 1, 2, 30, 30 }, { 1, 1, 2, 1 }, { 0, 0, 0, 1 }, { 0, 1, 0, 1 },  { },  { },  { } },
-        StridedSliceParams{ { 0, 1, 2, 10 }, { 1, 5, 32, 18 }, { 1, 1, 1, 2 }, { 0, 0, 1, 0 }, { 0, 0, 0, 1 },  { },  { },  { } },
-        StridedSliceParams{ { 0, 0, 2, 10 }, { 1, 8, 32, 18 }, { 1, 2, 1, 2 },  { 0, 0, 1, 0 }, { 0, 0, 0, 1 },  { },  { },  { } },
-};
-
-const std::vector<InputShape> inputShapesDynamic5D = {
-        {{-1, -1, -1, -1, -1},
-         {{ 1, 5, 32, 32, 32 }, { 2, 5, 32, 32, 32 }, { 1, 5, 64, 64, 64 }}},
-
-        {{1, 64, -1, -1, -1},
-         {{ 1, 64, 1, 16, 32 }, { 1, 64, 1, 32, 64 }, { 1, 64, 1, 64, 64 }}},
-
-        {{1, -1, 16, 32, -1},
-        {{ 1, 16, 16, 32, 1 }, { 1, 32, 16, 32, 1 }, { 1, 64, 16, 32, 1 }}},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D, StridedSliceLayerGPUTest,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(inputShapesDynamic5D),
-                             ::testing::ValuesIn(testCasesCommon5D),
-                             ::testing::ValuesIn(inputPrecisions),
-                             ::testing::ValuesIn(restInputTypes),
-                             ::testing::Values(emptyAdditionalConfig)),
-                         StridedSliceLayerGPUTest::getTestCaseName);
-
-
-const std::vector<StridedSliceParams> testCasesCommon6D = {
-        StridedSliceParams{ { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },  { },  { },  { } },
-        StridedSliceParams{ { 0, 0, 10, 20 }, { 1, 5, 28, 26 }, { 1, 1, 1, 2 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 },  { },  { },  { } },
-};
-
-const std::vector<InputShape> inputShapesDynamic6D = {
-        {{-1, -1, -1, -1, -1, -1},
-         {{ 1, 5, 5, 32, 32, 32 }, { 2, 5, 7, 32, 32, 64 }, { 1, 3, 5, 64, 64, 64 }}},
-
-        {{1, -1, 16, 32, -1, -1},
-        {{ 1, 16, 16, 32, 1, 32 }, { 1, 32, 16, 32, 32, 64 }, { 1, 64, 16, 32, 32, 64 }}},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_6D, StridedSliceLayerGPUTest,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(inputShapesDynamic6D),
-                             ::testing::ValuesIn(testCasesCommon6D),
-                             ::testing::ValuesIn(inputPrecisions),
-                             ::testing::ValuesIn(restInputTypes),
-                             ::testing::Values(emptyAdditionalConfig)),
-                         StridedSliceLayerGPUTest::getTestCaseName);
-
+                         DynamicShapeHugeRangeGPUTest::getTestCaseName);
 } // namespace
 } // namespace GPULayerTestsDefinitions
