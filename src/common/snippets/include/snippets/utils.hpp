@@ -25,12 +25,6 @@ inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_no
     return ov::is_type<ov::opset1::Constant>(source_output_node) && ov::shape_size(source_output_node->get_shape()) == 1;
 }
 
-ov::PartialShape get_planar_pshape(const Input<Node>& out);
-ov::PartialShape get_planar_pshape(const Output<Node>& out);
-ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& layout);
-VectorDims pshape_to_vdims(const PartialShape&);
-ov::PartialShape vdims_to_pshape(const VectorDims&);
-
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;
 }
@@ -60,10 +54,21 @@ inline T div_up(const T a, const U b) {
     return static_cast<T>((a + b - 1) / b);
 }
 
-VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& layout);
-VectorDims get_planar_vdims(const snippets::lowered::PortDescriptorPtr& port_desc);
+/* ----- Shape `getters` ----- */
+// Note:
+//   - If `is_forward` is True, `result shape` is ordered `shape` by `layout`
+//   - If `is_forward` is False, `result shape` is original shape to which the `layout` was applied
+ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& layout, bool is_forward = true);
+ov::PartialShape get_planar_pshape(const Input<Node>& out);
+ov::PartialShape get_planar_pshape(const Output<Node>& out);
+
+VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& layout, bool is_forward = true);
 VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);
 bool is_dynamic_vdims(const VectorDims& shape);
+
+VectorDims pshape_to_vdims(const PartialShape&);
+ov::PartialShape vdims_to_pshape(const VectorDims&);
+/* --------------------------- */
 
 } // namespace utils
 } // namespace snippets

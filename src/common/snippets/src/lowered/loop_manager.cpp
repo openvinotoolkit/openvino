@@ -182,7 +182,7 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     std::vector<size_t> loop_tensor(loop_depth, 1);
     for (const auto& exit_point : loop_exit_points) {
         const auto& desc = exit_point.get_descriptor_ptr();
-        const auto shape = utils::get_planar_vdims(desc);
+        const auto shape = utils::get_planar_vdims(exit_point);
         auto subtensor = desc->get_subtensor();
         if (subtensor.empty()) {
             subtensor.resize(loop_depth, 1);
