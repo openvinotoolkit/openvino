@@ -461,9 +461,15 @@ void SyncInferRequest::wait() {
                 mem_shape = port.get_shape();
             }
             if (port.get_partial_shape().is_dynamic()) {
-                auto& shape_predictor = m_graph->get_network()->get_shape_predictor();
-                auto actual_memory_shape = predict_shape(name, mem_shape, output_tensor->get_element_type(), shape_predictor);
-                output_tensor->set_shape(actual_memory_shape);
+                bool need_reallocate = true;
+                if (auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor))
+                    need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
+
+                if (need_reallocate) {
+                    auto& shape_predictor = m_graph->get_network()->get_shape_predictor();
+                    auto actual_memory_shape = predict_shape(name, mem_shape, output_tensor->get_element_type(), shape_predictor);
+                    output_tensor->set_shape(actual_memory_shape);
+                }
             }
 
             output_tensor->set_shape(mem_shape);
@@ -685,7 +691,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(const std
 std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string& name,
                                                                const ov::Output<const ov::Node>& port,
                                                                const TensorWrapper& user_tensor_wrapper) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::prepare_input");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + name));
     auto pshape = port.get_partial_shape();
     auto is_dynamic = pshape.is_dynamic();
     auto user_tensor = user_tensor_wrapper.ptr;
