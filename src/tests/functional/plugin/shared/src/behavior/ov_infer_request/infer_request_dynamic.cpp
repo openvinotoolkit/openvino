@@ -76,6 +76,14 @@ bool OVInferRequestDynamicTests::checkOutput(const ov::runtime::Tensor& in, cons
         tensor.data<float>()[i] = in.data<float>()[i];
     }
     req.infer();
+    const auto reqShape = req.get_output_tensor(0).get_shape();
+    const auto actualShape = actual.get_shape();
+    if (reqShape.size() != actualShape.size()) {
+        return false;
+    }
+    if (!std::equal(reqShape.cbegin(), reqShape.cend(), actualShape.cbegin())) {
+        return false;
+    }
     for (int i = 0; i < actual.get_size(); i++) {
         if (fabs(req.get_output_tensor(0).data<float>()[i] - actual.data<float>()[i]) > std::numeric_limits<float>::epsilon())
             return false;
