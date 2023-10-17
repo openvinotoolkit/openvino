@@ -413,10 +413,6 @@ void RandomUniform::computeStl(void* out, size_t work_amount) {
             generateData<int64_t, std::uniform_int_distribution<int64_t>>(
                     std::uniform_int_distribution<int64_t>{m_min_val.i64, m_max_val.i64}, out, work_amount);
         } break;
-        case element::f64: {
-            generateData<double, std::uniform_real_distribution<double>>(
-                    std::uniform_real_distribution<double>{m_min_val.f64, m_max_val.f64}, out, work_amount);
-        } break;
         default:
             THROW_CPU_NODE_ERR("has unsupported output type: ", m_output_prc);
     }
