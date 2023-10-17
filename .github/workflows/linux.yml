@@ -7,17 +7,17 @@ on:
   pull_request:
     paths:
       - 'docs/snippets/**'
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
+      - '!**/docs/**'
+      - '!docs/**'
+      - '!**/**.md'
+      - '!**.md'
   push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
+    paths:
+      - 'docs/snippets/**'
+      - '!**/docs/**'
+      - '!docs/**'
+      - '!**/**.md'
+      - '!**.md'
     branches:
       - master
       - 'releases/**'
