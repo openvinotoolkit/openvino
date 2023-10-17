@@ -24,7 +24,7 @@ To use the C++ benchmark_app, you must first build it following the :doc:`Build 
 
    If you installed OpenVINO Runtime using PyPI or Anaconda Cloud, only the :doc:`Benchmark Python Tool <openvino_inference_engine_tools_benchmark_tool_README>` is available, and you should follow the usage instructions on that page instead.
 
-The benchmarking application works with models in the OpenVINO IR (``model.xml`` and ``model.bin``) and ONNX (``model.onnx``) formats. Make sure to :doc:`convert your models <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` if necessary.
+The benchmarking application works with models in the OpenVINO IR, TensorFlow, TensorFlow Lite, PaddlePaddle, PyTorch and ONNX formats. If you need it, OpenVINO also allows you to :doc:`convert your models <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
 To run benchmarking with default options on a model, use the following command:
 
