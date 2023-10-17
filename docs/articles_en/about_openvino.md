@@ -38,9 +38,9 @@ OpenVINO was initially released as Computer Vision SDK. In 2018, the toolkit was
 
 6. API 2.0 (2022): OpenVINO has introduced new API 2.0 to align the workflow for working with models in OpenVINO with the conventions used in the original frameworks.
 
-5. Integration with popular deep learning frameworks (Ongoing): OpenVINO continues to enhance its compatibility with popular deep learning frameworks like TensorFlow, PyTorch, and ONNX, simplifying model conversion and deployment.
+7. Integration with popular deep learning frameworks (Ongoing): OpenVINO continues to enhance its compatibility with popular deep learning frameworks like TensorFlow, PyTorch, and ONNX, simplifying model conversion and deployment.
 
-6. Hardware Enhancements (Ongoing): As new hardware technologies emerge, OpenVINO adapts to leverage the latest advancements, ensuring optimal performance for AI workloads.
+8. Hardware Enhancements (Ongoing): As new hardware technologies emerge, OpenVINO adapts to leverage the latest advancements, ensuring optimal performance for AI workloads.
 
 Features
 ##############################################################
@@ -49,25 +49,24 @@ One of the main purposes of OpenVINO is to streamline the deployment of deep lea
 
 * :doc:`Model Optimization <openvino_docs_model_optimization_guide>`
 
-   OpenVINO provides multiple optimization methods for both the training and post-training stages, including weight compression for Large Language models and Intel Optimum integration with Hugging Face.
+OpenVINO provides multiple optimization methods for both the training and post-training stages, including weight compression for Large Language models and Intel Optimum integration with Hugging Face.
 
 * :doc:`Model Conversion and Framework Compatibility <openvino_docs_model_processing_introduction>`
 
-   Supported models can be loaded directly or converted to the OpenVINO format to achieve better performance. Supported frameworks include ONNX, PyTorch, TensorFlow, TensorFlow Lite, Keras, and PaddlePaddle. 
+Supported models can be loaded directly or converted to the OpenVINO format to achieve better performance. Supported frameworks include ONNX, PyTorch, TensorFlow, TensorFlow Lite, Keras, and PaddlePaddle. 
 
 * :doc:`Model Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
 
-   OpenVINO accelerates deep learning models on various hardware platforms, ensuring real-time, efficient inference.
+OpenVINO accelerates deep learning models on various hardware platforms, ensuring real-time, efficient inference.
 
 * `Deployment on a server <https://github.com/openvinotoolkit/model_server>`__
 
-   A model can be deployed either locally using OpenVINO Runtime or on a model server. Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions. The model server enables quick model inference using external resources. 
+A model can be deployed either locally using OpenVINO Runtime or on a model server. Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions. The model server enables quick model inference using external resources. 
 
 Architecture
 ##############################################################
 
-To learn more about how OpenVINO works, read the Developer documentation on its `architecture <https://github.com/openvinotoolkit/openvino/blob/master/src/docs/architecture.md>`__ and `core components <https://github.com/openvinotoolkit/openvino/blob/master/src/README.md`__.
-
+To learn more about how OpenVINO works, read the Developer documentation on its `architecture <https://github.com/openvinotoolkit/openvino/blob/master/src/docs/architecture.md>`__ and `core components <https://github.com/openvinotoolkit/openvino/blob/master/src/README.md>`__.
 
 OpenVINO Ecosystem 
 ##############################################################
