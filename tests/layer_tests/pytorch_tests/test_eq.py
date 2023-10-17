@@ -45,4 +45,4 @@ class TestEq(PytorchLayerTest):
         self.input_type = types[0]
         self.other_array = other_array
         self.other_type = types[1]
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)

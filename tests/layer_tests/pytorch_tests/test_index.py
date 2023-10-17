@@ -150,4 +150,4 @@ class TestIndexMask(PytorchLayerTest):
                                                [2, 2, 3, 4]))
     def test_index_mask(self, input_shape, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={
-                   "input_shape": input_shape}, trace_model=True)
+                   "input_shape": input_shape}, trace_model=True, use_convert_model=True)

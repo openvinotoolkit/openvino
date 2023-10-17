@@ -55,7 +55,7 @@ class TestComp(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_comp(self, op, ie_device, precision, ir_version):
-        self._test(*self.create_model(op), ie_device, precision, ir_version)
+        self._test(*self.create_model(op), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestCompMixedTypes(PytorchLayerTest):

@@ -56,7 +56,8 @@ class TestDevice(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            trace_model=False
+            trace_model=False,
+            use_convert_model=True,
         )
 
     @pytest.mark.parametrize("device_string", ["cpu", "cuda"])
@@ -68,5 +69,6 @@ class TestDevice(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            trace_model=False
+            trace_model=False,
+            use_convert_model=True,
         )
