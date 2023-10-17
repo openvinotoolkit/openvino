@@ -858,16 +858,7 @@ static bool is_node_for_onednn(convolution_node const& node) {
     if (input_layout.is_dynamic() || output_layout.is_dynamic())
         return false;
 
-    bool onednn_valid_dt = layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
-
-    bool onednn_valid_params = onednn_valid_dt &&
-                               input_layout.feature() >= 16 &&
-                               prim->groups == 1 &&
-                               get_post_ops_count(node) <= 32;
-
-    auto spatial_dims_num = input_layout.get_spatial_rank();
-
-    return onednn_valid_dt && onednn_valid_params && spatial_dims_num <= 3;
+    return layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
 }
 
 static bool is_node_for_onednn(deconvolution_node const& node) {
@@ -916,10 +907,7 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
 }
 
 static bool is_node_for_onednn(gemm_node const& node) {
-    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
-        return false;
-
-    return true;
+    return layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
 }
 
 // This function is needed to avoid performance regressions for the convolutions with byxf layout
