@@ -428,6 +428,12 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
+    # DEBUG
+    ci_vars = ["CI", "TF_BUILD", "JENKINS_URL"]
+    for var in ci_vars:
+        if var in os.environ:
+            print("{}: {}".format(var, os.getenv(var)))
+    assert any([var in os.environ for var in ci_vars])
     argv = None
     # Minimize modifications among other places in case if multiple pieces are passed as input_model
     if python_api_used:
