@@ -89,12 +89,13 @@ class TorchScriptPythonDecoder (Decoder):
                     example_inputs, input_params, pt_module)
                 gptq_patched = False
 
-                try:
-                    gptq.patch_model(pt_module)
-                    gptq_patched = True
-                except:
-                    gptq.unpatch_model(pt_module)
-                    gptq_patched = False
+                if getattr(pt_module, "config", None) and getattr(pt_module.config, "quantization_config", None) and pt_module.config.quantization_config.quant_method == "gptq":
+                    try:
+                        gptq.patch_model(pt_module)
+                        gptq_patched = True
+                    except:
+                        gptq.unpatch_model(pt_module)
+                        gptq_patched = False
 
                 try:
                     scripted = torch.jit.trace(

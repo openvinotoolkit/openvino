@@ -69,7 +69,7 @@ def patch_model(model):
         is_quantized = getattr(m, "is_quantized", None)
         if is_quantized is not None:
             m.is_quantized = False
-        m.float()
+        m.float()  # enables tracing on CPU, applied for all modules
         if hasattr(m, "QUANT_TYPE") and m.QUANT_TYPE == "exllama":
             if m.bits != 4:
                 raise ValueError(
