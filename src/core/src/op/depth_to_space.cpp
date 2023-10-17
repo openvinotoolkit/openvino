@@ -49,34 +49,21 @@ void DepthToSpace::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace {
-bool evaluate_depth_to_space(const HostTensorVector& outputs,
-                             const HostTensorVector& inputs,
-                             const std::size_t block_size,
-                             const DepthToSpace::DepthToSpaceMode mode) {
+bool DepthToSpace::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v0_DepthToSpace_evaluate);
+    OPENVINO_ASSERT(outputs.size() == 1);
+
     const auto& in = inputs[0];
     const auto& out = outputs[0];
-    const size_t elem_size = in->get_element_type().size();
-    if (in->get_partial_shape().is_dynamic()) {
-        return false;
-    }
-    ov::reference::depth_to_space(in->get_data_ptr<char>(),
-                                  in->get_shape(),
-                                  out->get_data_ptr<char>(),
-                                  out->get_shape(),
-                                  block_size,
-                                  mode,
-                                  elem_size);
+    reference::depth_to_space(static_cast<const char*>(in.data()),
+                              in.get_shape(),
+                              static_cast<char*>(out.data()),
+                              out.get_shape(),
+                              m_blocksize,
+                              m_mode,
+                              in.get_element_type().size());
     return true;
 }
-}  // namespace
-
-bool DepthToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    OV_OP_SCOPE(v0_DepthToSpace_evaluate);
-    return evaluate_depth_to_space(outputs, inputs, m_blocksize, m_mode);
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool DepthToSpace::has_evaluate() const {
     OV_OP_SCOPE(v0_DepthToSpace_has_evaluate);
