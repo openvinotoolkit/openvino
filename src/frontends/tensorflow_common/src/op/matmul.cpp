@@ -53,7 +53,7 @@ OutputVector translate_batch_mat_mul_with_type_op(const NodeContext& node) {
     }
 
     set_node_name(node.get_name(), result.get_node_shared_ptr());
-    return result->outputs();
+    return {result};
 }
 }  // namespace op
 }  // namespace tensorflow
