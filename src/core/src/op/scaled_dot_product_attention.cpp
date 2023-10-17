@@ -52,10 +52,12 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
 }
 
 std::shared_ptr<Node> op::v13::ScaledDotProductAttention::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v13_ScaledDotProductAttention_clone_with_new_inputs);
     return std::make_shared<ScaledDotProductAttention>(new_args, m_causal);
 }
 
 bool op::v13::ScaledDotProductAttention::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v13_ScaledDotProductAttention_visit_attributes);
     visitor.on_attribute("causal", m_causal);
     return true;
 }
