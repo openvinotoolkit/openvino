@@ -6,10 +6,12 @@
 
 #include "shared_test_classes/subgraph/perm_conv_perm_concat.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 TEST_P(PermConvPermConcat, CompareWithRefs) {
-    Run();
+    run();
 }
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

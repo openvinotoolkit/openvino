@@ -190,10 +190,10 @@ private:
 
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
 
-    class NgraphShapeInfer : public ShapeInferSnippetsNode {
-        std::shared_ptr<ov::Model> m_ngraph_body;
+    class OVShapeInfer : public ShapeInferSnippetsNode {
+        std::shared_ptr<ov::Model> m_ov_body;
     public:
-        explicit NgraphShapeInfer(const std::shared_ptr<ov::Model>& body);
+        explicit OVShapeInfer(const std::shared_ptr<ov::Model>& body);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
 };
