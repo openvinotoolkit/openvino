@@ -194,9 +194,6 @@ class PytorchLayerTest:
         im = fe.load(decoder)
         om = fe.convert(im)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
-        # do normalize to resolve align_types nodes. In case of convert_model these
-        # types should be specified before conversion, so it won't be needed
-        fe.normalize(om)
         return smodel, om
 
     def _resolve_input_shape_dtype(self, om, ov_inputs, dynamic_shapes):
