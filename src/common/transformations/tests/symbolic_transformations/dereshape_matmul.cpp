@@ -89,13 +89,13 @@ shared_ptr<Node> reshape(const Output<Node>& source,
     return make_shared<v1::Reshape>(source, concat, false);
 }
 
-ov::Output<ov::Node> get_shape_from_sources(const ov::Output<ov::Node>& batch_dims_source,
-                                            const ov::Output<ov::Node>& non_batch_dims_source) {
-    ov::NodeVector dims;
-    size_t num_batch_dims = batch_dims_source.get_partial_shape().size() - 2;
+void get_dims(const ov::Output<ov::Node>& source,
+              const size_t& from,
+              const size_t& to,
+              ov::NodeVector& dims) {
     std::vector<size_t> non_constant_ids;
-    for (size_t i = 0; i < num_batch_dims; ++i) {
-        auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(batch_dims_source, {i});
+    for (size_t i = from; i < to; ++i) {
+        auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(source, {i});
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (auto constant = ov::get_constant_from_source(node)) {
             OPENVINO_SUPPRESS_DEPRECATED_END
@@ -105,30 +105,35 @@ ov::Output<ov::Node> get_shape_from_sources(const ov::Output<ov::Node>& batch_di
         }
         dims.push_back(node);
     }
-    if (non_constant_ids.size() == 1) {
-        dims[non_constant_ids[0]] = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    }
+}
+
+ov::Output<ov::Node> get_target_shape_from_sources(const ov::Output<ov::Node>& batch_dims_source,
+                                                   const ov::Output<ov::Node>& non_batch_dims_source) {
+    ov::NodeVector dims;
+    // batch dims here stand for MatMul batch dims -- leaving two last dims for Matrix Multiplication
+    size_t num_batch_dims = batch_dims_source.get_partial_shape().size() - 2;
+    get_dims(batch_dims_source, 0, num_batch_dims, dims);
 
     size_t non_batch_dims_start = non_batch_dims_source.get_partial_shape().size() - 2;
-    for (size_t i = non_batch_dims_start; i < non_batch_dims_start + 2; ++i) {
-        auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(non_batch_dims_source, {i});
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto constant = ov::get_constant_from_source(node)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            node = constant;
-        }
-        dims.push_back(node);
-    }
+    get_dims(non_batch_dims_source, non_batch_dims_start, non_batch_dims_start + 2, dims);
 
-    for (size_t curr_i = 1; curr_i < dims.size(); ++curr_i) {
-        const auto& curr_node = dims[curr_i];
-        if (ov::op::util::is_constant(curr_node)) {
-            size_t prev_i = curr_i - 1;
-            const auto& prev_node = dims[prev_i];
-            if (prev_node && ov::op::util::is_constant(prev_node)) {
-                dims[curr_i] = ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::NodeVector{prev_node, curr_node}, 0);
-                dims[prev_i] = nullptr;
-            }
+    size_t num_non_const_nodes = 0; // candidates for becoming a Constant -1 -- special value for Reshape pattern
+    for (size_t curr_i = 0; curr_i + 1 < dims.size(); ++curr_i) {
+        auto curr_node = dims[curr_i], next_node = dims[curr_i + 1];
+        bool curr_is_const = ov::op::util::is_constant(curr_node), next_is_const = ov::op::util::is_constant(next_node);
+        if (num_non_const_nodes == 0 && !curr_is_const && next_is_const) {
+            curr_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            curr_is_const = true;
+            num_non_const_nodes += 1;
+        }
+        if (num_non_const_nodes == 0 && !next_is_const && curr_is_const) {
+            next_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            next_is_const = true;
+            num_non_const_nodes += 1;
+        }
+        if (curr_is_const && next_is_const) {
+            dims[curr_i] = nullptr;
+            dims[curr_i + 1] = ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::NodeVector{curr_node, next_node}, 0);
         }
     }
     dims.erase(std::remove_if(dims.begin(),
@@ -323,7 +328,7 @@ public:
             const auto& another_pshape = make_concat_input_pshape(dims, lhs_reshape_idx);
             const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
 
-            auto target_shape_of_input = get_shape_from_sources(lhs_output, another_input);
+            auto target_shape_of_input = get_target_shape_from_sources(lhs_output, another_input);
             auto input_reshape = make_shared<v1::Reshape>(another_input, target_shape_of_input, false);
 
             if (set<size_t>{10, 300, 301}.count(concat_mode)) {  // reshape on 0 port
@@ -334,7 +339,7 @@ public:
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
             }
 
-            auto target_shape_of_output = get_shape_from_sources(input_reshape->input_value(0), lhs_output);
+            auto target_shape_of_output = get_target_shape_from_sources(input_reshape->input_value(0), lhs_output);
             auto output_reshape = make_shared<v1::Reshape>(lhs_output, target_shape_of_output, false);
 
             inputs.push_back(another_input);
@@ -352,7 +357,7 @@ public:
             const auto& another_pshape = make_concat_input_pshape(dims, rhs_reshape_idx);
             const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
 
-            auto target_shape_of_input = get_shape_from_sources(rhs_output, another_input);
+            auto target_shape_of_input = get_target_shape_from_sources(rhs_output, another_input);
             auto input_reshape = make_shared<v1::Reshape>(another_input, target_shape_of_input, false);
 
             if (set<size_t>{20, 300, 310}.count(concat_mode)) {  // reshape on 0 port
@@ -362,7 +367,7 @@ public:
             } else {
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
             }
-            auto target_shape_of_output = get_shape_from_sources(input_reshape->input_value(0), rhs_output);
+            auto target_shape_of_output = get_target_shape_from_sources(input_reshape->input_value(0), rhs_output);
             auto output_reshape = make_shared<v1::Reshape>(rhs_output, target_shape_of_output, false);
 
             inputs.push_back(another_input);

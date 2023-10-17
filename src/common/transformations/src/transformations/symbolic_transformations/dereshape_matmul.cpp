@@ -34,8 +34,9 @@ bool last_two_dims_are_equal(const ov::PartialShape& lhs, const ov::PartialShape
         return false;
     if (rhs.rank().is_dynamic() || rhs.size() < 2)
         return false;
-    for (size_t i = 2; i > 0; --i)
-        if (!dims_are_equal(lhs[lhs.size() - i], rhs[rhs.size() - i]))
+    auto lhs_dim = lhs.rbegin(), rhs_dim = rhs.rbegin();
+    for (int i = 0; i < 2; ++i, lhs_dim++, rhs_dim++)
+        if (!dims_are_equal(*lhs_dim, *rhs_dim))
             return false;
     return true;
 }
@@ -50,7 +51,7 @@ bool batches_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs,
     size_t num_dims_differ = 0;
     for (size_t i = 0; i < lhs.size() - 2; ++i)
         num_dims_differ += !dims_are_equal(lhs[i], rhs[i]);
-    return num_dims_differ <= static_cast<size_t>(one_dim_can_differ);
+    return num_dims_differ <= (one_dim_can_differ ? 1 : 0);
 }
 
 bool batches_are_equal(const std::shared_ptr<ov::Node>& op_0, const std::shared_ptr<ov::Node>& op_1) {
@@ -61,16 +62,15 @@ bool batches_are_equal(const std::shared_ptr<ov::Node>& op_0, const std::shared_
     return batches_are_equal(input_0, input_1, true) && batches_are_equal(output_0, output_1);
 }
 
-ov::Output<ov::Node> get_shape_from_sources(const ov::Output<ov::Node>& batch_dims_source,
-                                            const ov::Output<ov::Node>& non_batch_dims_source,
-                                            const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from) {
-    ov::NodeVector dims;
-    size_t num_batch_dims = batch_dims_source.get_partial_shape().size() - 2;
+void get_dims(const ov::Output<ov::Node>& source,
+              const size_t& from,
+              const size_t& to,
+              const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from,
+              ov::NodeVector& dims) {
     std::vector<size_t> non_constant_ids;
-    for (size_t i = 0; i < num_batch_dims; ++i) {
-        auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(batch_dims_source,
-                                                                                       {i},
-                                                                                       copy_rt_info_from);
+    for (size_t i = from; i < to; ++i) {
+        auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(
+                source, {i}, copy_rt_info_from);
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (auto constant = ov::get_constant_from_source(node)) {
             OPENVINO_SUPPRESS_DEPRECATED_END
@@ -80,32 +80,36 @@ ov::Output<ov::Node> get_shape_from_sources(const ov::Output<ov::Node>& batch_di
         }
         dims.push_back(node);
     }
-    if (non_constant_ids.size() == 1) {
-        dims[non_constant_ids[0]] = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    }
+}
+
+ov::Output<ov::Node> get_target_shape_from_sources(const ov::Output<ov::Node>& batch_dims_source,
+                                                   const ov::Output<ov::Node>& non_batch_dims_source,
+                                                   const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from) {
+    ov::NodeVector dims;
+    // batch dims here stand for MatMul batch dims -- leaving two last dims for Matrix Multiplication
+    size_t num_batch_dims = batch_dims_source.get_partial_shape().size() - 2;
+    get_dims(batch_dims_source, 0, num_batch_dims, copy_rt_info_from, dims);
 
     size_t non_batch_dims_start = non_batch_dims_source.get_partial_shape().size() - 2;
-    for (size_t i = non_batch_dims_start; i < non_batch_dims_start + 2; ++i) {
-        auto node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(non_batch_dims_source,
-                                                                                       {i},
-                                                                                       copy_rt_info_from);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (auto constant = ov::get_constant_from_source(node)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            node = constant;
-        }
-        dims.push_back(node);
-    }
+    get_dims(non_batch_dims_source, non_batch_dims_start, non_batch_dims_start + 2, copy_rt_info_from, dims);
 
-    for (size_t curr_i = 1; curr_i < dims.size(); ++curr_i) {
-        const auto& curr_node = dims[curr_i];
-        if (ov::op::util::is_constant(curr_node)) {
-            size_t prev_i = curr_i - 1;
-            const auto& prev_node = dims[prev_i];
-            if (prev_node && ov::op::util::is_constant(prev_node)) {
-                dims[curr_i] = ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::NodeVector{prev_node, curr_node}, 0);
-                dims[prev_i] = nullptr;
-            }
+    size_t num_non_const_nodes = 0; // candidates for becoming a Constant -1 -- special value for Reshape pattern
+    for (size_t curr_i = 0; curr_i + 1 < dims.size(); ++curr_i) {
+        auto curr_node = dims[curr_i], next_node = dims[curr_i + 1];
+        bool curr_is_const = ov::op::util::is_constant(curr_node), next_is_const = ov::op::util::is_constant(next_node);
+        if (num_non_const_nodes == 0 && !curr_is_const && next_is_const) {
+            curr_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            curr_is_const = true;
+            num_non_const_nodes += 1;
+        }
+        if (num_non_const_nodes == 0 && !next_is_const && curr_is_const) {
+            next_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            next_is_const = true;
+            num_non_const_nodes += 1;
+        }
+        if (curr_is_const && next_is_const) {
+            dims[curr_i] = nullptr;
+            dims[curr_i + 1] = ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::NodeVector{curr_node, next_node}, 0);
         }
     }
     dims.erase(std::remove_if(dims.begin(),
@@ -137,9 +141,9 @@ void pull_reshape_through_optional_concat_and_bea(const ov::pass::pattern::Patte
         auto idx_of_reshape_input = reshape_output == concat_node->input_value(0) ? 0 : 1;
         auto idx_of_non_reshape_input = static_cast<size_t>(!idx_of_reshape_input);
 
-        auto target_shape_of_input = get_shape_from_sources(original_reshape->input_value(0),
-                                                            concat_node->input_value(idx_of_non_reshape_input),
-                                                            {original_reshape});
+        auto target_shape_of_input = get_target_shape_from_sources(original_reshape->input_value(0),
+                                                                   concat_node->input_value(idx_of_non_reshape_input),
+                                                                   {original_reshape});
 
         auto input_reshape = original_reshape->clone_with_new_inputs(
             {concat_node->input_value(idx_of_non_reshape_input), target_shape_of_input});
@@ -155,7 +159,7 @@ void pull_reshape_through_optional_concat_and_bea(const ov::pass::pattern::Patte
         ov::copy_runtime_info({concat_node, original_reshape}, new_concat);
 
         auto target_shape_of_output =
-            get_shape_from_sources(input_reshape->input_value(0), new_concat->output(0), {original_reshape});
+                get_target_shape_from_sources(input_reshape->input_value(0), new_concat->output(0), {original_reshape});
         auto output_reshape = original_reshape->clone_with_new_inputs({new_concat->output(0), target_shape_of_output});
         ov::copy_runtime_info(original_reshape, output_reshape);
 
