@@ -23,7 +23,16 @@ const std::vector<bool> with_right_bound = {true, false};
 
 const std::vector<ov::element::Type> out_precision = {
     ov::element::i32,
+    ov::element::i64
+};
+
+const std::vector<ov::element::Type> in_buckets_precision = {
+    ov::element::f16,
+    ov::element::f32,
+    ov::element::i32,
     ov::element::i64,
+    ov::element::i8,
+    ov::element::u8
 };
 
 // We won't test FP32 and FP16 together as it won't make sense for now
@@ -62,12 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_i32,
                          testing::Combine(testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
                                           testing::ValuesIn(with_right_bound),
                                           testing::Values(ov::element::i32),
-                                          testing::Values(ov::element::f16,
-                                                          ov::element::f32,
-                                                          ov::element::i32,
-                                                          ov::element::i64,
-                                                          ov::element::i8,
-                                                          ov::element::u8),
+                                          testing::ValuesIn(in_buckets_precision),
                                           testing::ValuesIn(out_precision),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
@@ -77,12 +81,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_i64,
                          testing::Combine(testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
                                           testing::ValuesIn(with_right_bound),
                                           testing::Values(ov::element::i64),
-                                          testing::Values(ov::element::f16,
-                                                          ov::element::f32,
-                                                          ov::element::i32,
-                                                          ov::element::i64,
-                                                          ov::element::i8,
-                                                          ov::element::u8),
+                                          testing::ValuesIn(in_buckets_precision),
                                           testing::ValuesIn(out_precision),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
@@ -92,12 +91,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_i8,
                          testing::Combine(testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
                                           testing::ValuesIn(with_right_bound),
                                           testing::Values(ov::element::i8),
-                                          testing::Values(ov::element::f16,
-                                                          ov::element::f32,
-                                                          ov::element::i32,
-                                                          ov::element::i64,
-                                                          ov::element::i8,
-                                                          ov::element::u8),
+                                          testing::ValuesIn(in_buckets_precision),
                                           testing::ValuesIn(out_precision),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
@@ -107,12 +101,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_u8,
                          testing::Combine(testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
                                           testing::ValuesIn(with_right_bound),
                                           testing::Values(ov::element::u8),
-                                          testing::Values(ov::element::f16,
-                                                          ov::element::f32,
-                                                          ov::element::i32,
-                                                          ov::element::i64,
-                                                          ov::element::i8,
-                                                          ov::element::u8),
+                                          testing::ValuesIn(in_buckets_precision),
                                           testing::ValuesIn(out_precision),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
