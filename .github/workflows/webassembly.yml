@@ -67,8 +67,8 @@ jobs:
             -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_C_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
-            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
