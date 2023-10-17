@@ -36,7 +36,7 @@ void select_preferred_formats::run(program& p) {
 
     engine.create_onednn_engine(p.get_config());
     for (auto n : p.get_processing_order()) {
-        if (n->is_input() || !_lo.are_data_types_suitable_for_onednn(*n)) {
+        if (n->is_input() || !layout_optimizer::is_node_suitable_for_onednn(*n)) {
             continue;
         }
 

@@ -850,6 +850,26 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     return true;
 }
 
+static bool is_node_for_onednn(convolution_node const& node) {
+    auto prim = node.get_primitive();
+    auto input_layout = node.get_input_layout(0);
+    auto output_layout = node.get_output_layout(0);
+
+    if (input_layout.is_dynamic() || output_layout.is_dynamic())
+        return false;
+
+    bool onednn_valid_dt = layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
+
+    bool onednn_valid_params = onednn_valid_dt &&
+                               input_layout.feature() >= 16 &&
+                               prim->groups == 1 &&
+                               get_post_ops_count(node) <= 32;
+
+    auto spatial_dims_num = input_layout.get_spatial_rank();
+
+    return onednn_valid_dt && onednn_valid_params && spatial_dims_num <= 3;
+}
+
 static bool is_node_for_onednn(deconvolution_node const& node) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_input_layout(0);
@@ -872,6 +892,9 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
+    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
+        return false;
+
     auto fc_prim = node.get_primitive();
     // onednn impl doesn't support compressed weights for now
     if (fc_prim->compressed_weights)
@@ -888,6 +911,13 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
             return false;
         }
     }
+
+    return true;
+}
+
+static bool is_node_for_onednn(gemm_node const& node) {
+    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
+        return false;
 
     return true;
 }
@@ -1241,6 +1271,20 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     }
 
     return expected;
+}
+
+bool layout_optimizer::is_node_suitable_for_onednn(program_node& node) {
+    if (node.is_type<convolution>()) {
+        return is_node_for_onednn(node.as<convolution>());
+    } else if (node.is_type<deconvolution>()) {
+        return is_node_for_onednn(node.as<deconvolution>());
+    } else if (node.is_type<fully_connected>()) {
+        return is_node_for_onednn(node.as<fully_connected>());
+    } else if (node.is_type<gemm>()) {
+        return is_node_for_onednn(node.as<gemm>());
+    }
+
+    return false;
 }
 
 bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
