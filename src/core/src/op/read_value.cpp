@@ -76,7 +76,7 @@ void op::v6::ReadValue::validate_and_infer_types() {
         if (compatible_shape && initial_shape.rank().is_static() && variable_shape.rank().is_static()) {
             OPENVINO_ASSERT(initial_shape.rank().get_length() == variable_shape.rank().get_length(),
                             "Ranks of initial_shape and variable_shape do not match.");
-            for (size_t i = 0; i < variable_shape.rank().get_length(); ++i) {
+            for (int64_t i = 0; i < variable_shape.rank().get_length(); ++i) {
                 compatible_shape = compatible_shape && variable_shape[i].relaxes(initial_shape[i]);
             }
         }
