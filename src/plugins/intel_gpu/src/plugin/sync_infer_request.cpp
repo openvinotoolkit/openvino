@@ -696,8 +696,12 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto is_dynamic = pshape.is_dynamic();
     auto user_tensor = user_tensor_wrapper.ptr;
     auto element_type = user_tensor->get_element_type();
+
     auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor);
+    auto usm_host_ptr = std::dynamic_pointer_cast<USMHostTensor>(user_tensor);
     bool is_remote = remote_ptr != nullptr;
+    bool is_usm_host_tensor = usm_host_ptr != nullptr;
+
     GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << name << " ( is_remote ? " << is_remote << ")" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
@@ -715,15 +719,16 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                     user_tensor->get_shape(),
                     ") are incompatible");
 
+    auto device_tensor_et = convert_to_supported_device_type(element_type);
+    bool convert_needed = is_convert_required(element_type, device_tensor_et);
+
     if (is_remote) {
         m_plugin_inputs[name] = user_tensor_wrapper;
-    } else if (auto usm_host_ptr = std::dynamic_pointer_cast<USMHostTensor>(user_tensor)) {
+    } else if (is_usm_host_tensor && !convert_needed) {
         m_plugin_inputs[name] = {usm_host_ptr->get_impl(), user_tensor_wrapper.owner};
         is_remote = true;
     }
 
-    auto device_tensor_et = convert_to_supported_device_type(element_type);
-    bool convert_needed = is_convert_required(element_type, device_tensor_et);
     bool update_device_tensor = m_plugin_inputs.count(name) == 0 || (m_plugin_inputs[name].owner == TensorOwner::USER && !is_remote);
 
     if (update_device_tensor) {

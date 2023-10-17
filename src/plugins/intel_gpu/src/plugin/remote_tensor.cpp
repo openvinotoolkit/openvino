@@ -58,7 +58,6 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_surf(0)
     , m_plane(0) {
     update_hash();
-    allocate();
 }
 
 RemoteTensorImpl::~RemoteTensorImpl() {
