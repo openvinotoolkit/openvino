@@ -10,7 +10,6 @@ albert-base-v2,albert
 AlekseyKorshuk/test_reward_model,reward_model,skip,Load problem
 alibaba-damo/mgp-str-base,mgp-str,xfail,Compile error: unsupported Einsum
 allenai/hvila-block-layoutlm-finetuned-docbank,hierarchical_model,skip,Load problem
-allenai/longformer-base-4096,longformer,xfail,Unsupported op aten::as_strided
 ameya772/sentence-t5-base-atis-fine-tuned,T5,skip,Load problem
 andreasmadsen/efficient_mlm_m0.40,roberta-prelayernorm
 anton-l/emformer-base-librispeech,emformer,skip,Load problem
@@ -301,7 +300,6 @@ pie/example-re-textclf-tacred,TransformerTextClassificationModel,skip,Load probl
 pleisto/yuren-baichuan-7b,multimodal_llama,skip,Load problem
 predictia/europe_reanalysis_downscaler_convbaseline,convbilinear,skip,Load problem
 predictia/europe_reanalysis_downscaler_convswin2sr,conv_swin2sr,skip,Load problem
-pszemraj/led-large-book-summary,led,xfail,Unsupported op aten::as_strided
 qmeeus/whisper-small-ner-combined,whisper_for_slu,skip,Load problem
 raman-ai/pcqv2-tokengt-lap16,tokengt,skip,Load problem
 range3/pegasus-gpt2-medium,pegasusgpt2,skip,Load problem

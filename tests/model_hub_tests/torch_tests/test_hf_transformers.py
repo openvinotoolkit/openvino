@@ -292,7 +292,8 @@ class TestTransformersModel(TestConvertModel):
         cleanup_dir(hf_hub_cache_dir)
         super().teardown_method()
 
-    @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
+    @pytest.mark.parametrize("name,type", [("allenai/led-base-16384", "led"),
+                                           ("bert-base-uncased", "bert"),
                                            ("facebook/bart-large-mnli", "bart"),
                                            ("google/flan-t5-base", "t5"),
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
