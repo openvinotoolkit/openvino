@@ -157,8 +157,6 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 * `ENABLE_CLANG_FORMAT` enables [Clang format] code style check:
     * `ON` is default.
     * Used only for ngraph component.
-* `TREAT_WARNING_AS_ERROR` treats all warnings as an error:
-    * `OFF` is default.
 * `ENABLE_FASTER_BUILD` enables [precompiled headers] and [unity build] using CMake:
     * `OFF` is default.
 * `ENABLE_INTEGRITYCHECK` builds DLLs with [/INTEGRITYCHECK] flag:
