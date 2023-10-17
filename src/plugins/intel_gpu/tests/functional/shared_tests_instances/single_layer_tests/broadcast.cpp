@@ -57,7 +57,7 @@ std::vector<std::vector<size_t>> targetShapesNumpy1D = {
 };
 
 std::vector<std::vector<ov::Shape>> input_shapes_1d_static = {
-        {{ 1 }}
+        {{1}}
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast1D,
