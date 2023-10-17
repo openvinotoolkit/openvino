@@ -38,28 +38,28 @@ auto generate_input_static_shapes = [] (const std::vector<ov::Shape>& original_s
     return result_shapes;
 };
 
-auto in_shapes_single_plain_static     = generate_input_static_shapes(inShapes_nhwc, true);
-auto in_shapes_not_single_plain_static = generate_input_static_shapes(inShapes_nhwc, false);
+auto in_shapes_single_plane_static = generate_input_static_shapes(inShapes_nhwc, true);
+auto in_shapes_two_planes_static = generate_input_static_shapes(inShapes_nhwc, false);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_1Plain,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12SinglePlane,
                          ConvertColorNV12LayerTest,
-                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_single_plain_static)),
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_single_plane_static)),
                                             ::testing::ValuesIn(inTypes),
                                             ::testing::Bool(),
                                             ::testing::Values(true),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorNV12LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_3Plain,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12TwoPlane,
                          ConvertColorNV12LayerTest,
-                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_not_single_plain_static)),
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_two_planes_static)),
                                             ::testing::ValuesIn(inTypes),
                                             ::testing::Bool(),
                                             ::testing::Values(false),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorNV12LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_acc,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12SinglePlane_acc,
                          ConvertColorNV12LayerTest,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                                 generate_input_static_shapes({{1, 16 * 6, 16, 1}}, true))),
@@ -69,7 +69,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_acc,
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorNV12LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorNV12_acc,
+INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorNV12SinglePlane_acc,
                          ConvertColorNV12LayerTest,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                                 generate_input_static_shapes({{1, 256 * 256, 256, 1}}, true))),
