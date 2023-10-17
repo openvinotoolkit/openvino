@@ -19,7 +19,7 @@ Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
                                          const std::string& errorMessage) :
         Node(op, context, NgraphShapeInferFactory(op, FULL_PORT_MASK)), ovCoreNode(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
-        THROW_CPU_NODE_ERR("cannot fallback on ngraph reference implementation (ov::Node::evaluate() is not implemented)");
+        IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
     }
 
     setType(Type::Reference);
