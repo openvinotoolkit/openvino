@@ -30,12 +30,13 @@ static constexpr Property<bool> enable_startup_fallback{"ENABLE_STARTUP_FALLBACK
 static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK"};
 
 /**
- * @brief Enum to define schedult policy of inference request for MULTI
+ * @brief Enum to define the policy of scheduling inference request to target device in cumulative throughput mode on
+ * AUTO
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class SchedulePolicy {
-    ROUND_ROBIN = 0,
-    DEVICE_PRIORITY = 1,
+    ROUND_ROBIN = 0,        // will schedule the infer reqeust using round robin policy
+    DEVICE_PRIORITY = 1,    // will shcedule the infer request based on the device priority
     DEFAULT = ROUND_ROBIN,  //!<  Default schedule policy is ROUND_ROBIN
 };
 
