@@ -4,32 +4,33 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include <ngraph/shape.hpp>
-#include <ngraph/node.hpp>
 
-namespace SubgraphTestsDefinitions {
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-typedef std::tuple<
-        ngraph::NodeTypeInfo,       // Convolution type
-        ngraph::Shape,              // Input shape
-        ngraph::Shape,              // Weights shape
-        ngraph::Shape,              // Const shape
-        ngraph::element::Type,      // Network precision
-        bool,                       // True if test is negative
-        std::string                 // Device name
-        > MulConvFusionParams;
+namespace ov {
+namespace test {
 
-class MulConvFusion
-        : public testing::WithParamInterface<MulConvFusionParams>,
-          virtual public LayerTestsUtils::LayerTestsCommon {
+typedef std::tuple<ov::NodeTypeInfo,   // Convolution type
+                   ov::Shape,          // Input shape
+                   ov::Shape,          // Weights shape
+                   ov::Shape,          // Const shape
+                   ov::element::Type,  // Network precision
+                   bool,               // True if test is negative
+                   std::string         // Device name
+                   >
+    MulConvFusionParams;
+
+class MulConvFusion : public testing::WithParamInterface<MulConvFusionParams>,
+                      virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MulConvFusionParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MulConvFusionParams>& obj);
 
 protected:
     void SetUp() override;
 };
-} // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov
