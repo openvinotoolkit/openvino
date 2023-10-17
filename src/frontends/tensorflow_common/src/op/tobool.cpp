@@ -44,8 +44,9 @@ OutputVector translate_tobool_op(const NodeContext& node) {
     // compute ShapeOf(x)
     auto cond_shape = make_shared<v3::ShapeOf>(x, element::i32);
     
-    // compute ReduceProd(ShapeOf(x)))
-    auto reduce_prod = make_shared<v1::ReduceProd>(cond_shape);
+    // compute ReduceProd(ShapeOf(x))) and axis
+    auto axis = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+    auto reduce_prod = make_shared<v1::ReduceProd>(cond_shape, axis);
 
     // compute ReduceProd(ShapeOf(x))) > 0
     auto greater_than__zero_2 = make_shared<v1::Greater>(reduce_prod, zero);
