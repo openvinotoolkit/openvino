@@ -170,7 +170,6 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMPONENT tests EXCLUDE_FROM_ALL
         FILES_MATCHING
         PATTERN "*.py"
-        PATTERN "requirements.txt"
         PATTERN "*.onnx"
         PATTERN "*.data")
 
