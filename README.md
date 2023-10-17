@@ -61,7 +61,7 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
             <th>Device</th>
             <th>Plugin</th>
             <th>Library</th>
-            <th>ShortDescription</th>
+            <th>Short Description</th>
         </tr>
     </thead>
     <tbody>
