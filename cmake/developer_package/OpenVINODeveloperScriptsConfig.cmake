@@ -27,11 +27,12 @@ endmacro()
 set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
 set(CMAKE_MODULE_PATH "${OpenVINODeveloperScripts_DIR}")
 
-function(set_ci_build_number)
-    set(repo_root "${CMAKE_SOURCE_DIR}")
+function(ov_set_ci_build_number)
     include(version)
-    foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_SOVERSION OpenVINO_VERSION_SUFFIX OpenVINO_VERSION_BUILD
-                OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
+    ov_parse_ci_build_number("${CMAKE_SOURCE_DIR}")
+
+    foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_SOVERSION OpenVINO_VERSION_SUFFIX
+                OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH OpenVINO_VERSION_BUILD)
         if(NOT DEFINED ${var})
             message(FATAL_ERROR "${var} version component is not defined")
         endif()
@@ -44,7 +45,7 @@ ov_set_if_not_defined(Python3_FIND_STRATEGY LOCATION)
 
 include(features)
 
-set_ci_build_number()
+ov_set_ci_build_number()
 
 #
 # Detect target
@@ -139,10 +140,13 @@ endif()
 
 # allow to override default OUTPUT_ROOT root
 if(NOT DEFINED OUTPUT_ROOT)
-    if(NOT DEFINED OpenVINO_SOURCE_DIR)
-        message(FATAL_ERROR "OpenVINO_SOURCE_DIR is not defined")
+    if(DEFINED OpenVINO_SOURCE_DIR)
+        # For BW compatiblity, when extra modules are built separately
+        # but still write its artifacts to OpenVINO source directory
+        set(OUTPUT_ROOT ${OpenVINO_SOURCE_DIR})
+    else()
+        set(OUTPUT_ROOT ${CMAKE_SOURCE_DIR})
     endif()
-    set(OUTPUT_ROOT ${OpenVINO_SOURCE_DIR})
 endif()
 
 # Enable postfixes for Debug/Release builds

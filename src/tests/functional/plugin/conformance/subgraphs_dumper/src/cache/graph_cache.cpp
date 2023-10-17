@@ -56,77 +56,92 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
             return;
         }
         while (!extracted_patterns.empty()) {
-            auto it = *extracted_patterns.begin();
+            auto it = *extracted_patterns.rbegin();
             update_cache(std::get<0>(it), model_meta_data, std::get<1>(it), std::get<2>(it), model_total_op);
-            extracted_patterns.pop_front();
+            extracted_patterns.pop_back();
         }
     }
 }
 
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                               const std::string& model_path,
-                              std::map<std::string, InputInfo>& input_info,
+                              const std::map<std::string, InputInfo>& input_info,
                               const std::string& extractor_name,
                               size_t model_op_cnt) {
     auto graph_name = extracted_model->get_friendly_name();
     auto this_op_cnt = extracted_model->get_ops().size() -
         extracted_model->get_parameters().size() - extracted_model->get_results().size();
-    std::string serialized_model_path = "";
-    for (const auto& extractor : m_manager.get_extractors()) {
-        auto tmp_serialized_model_path = ov::util::path_join({ m_serialization_dir, m_cache_subdir, extractor.first, graph_name + ".xml" });
-        if (ov::util::file_exists(serialized_model_path)) {
-            serialized_model_path = tmp_serialized_model_path;
-            break;
+    std::map<std::string, InputInfo> updated_input_info;
+    if (!m_graph_cache.empty() && model_to_update != nullptr) {
+        auto comparator_res = m_model_comparator->match(extracted_model, model_to_update,
+                                                        input_info, m_graph_cache.at(model_to_update).get_input_info());
+        if (comparator_res.first) {
+            updated_input_info = comparator_res.second;
+        } else {
+            model_to_update = nullptr;
         }
     }
 
-    std::shared_ptr<ov::Model> model_to_update = nullptr;
-    // if cached model was serialized
-    if (!serialized_model_path.empty()) {
-        // std::cout << "[ GRAPH CACHE ][ INFO ] Reading cached model: " << serialized_model_path << std::endl;
-        auto bin_path = ov::test::utils::replaceExt(serialized_model_path, ".bin");
-        auto meta_path = ov::test::utils::replaceExt(serialized_model_path, ".meta");
-        auto cached_model = ov::test::utils::PluginCache::get().core()->read_model(serialized_model_path);
-        auto cached_meta = MetaInfo::read_meta_from_file(meta_path);
-
-        ov::test::utils::removeFile(serialized_model_path);
-        ov::test::utils::removeFile(bin_path);
-        ov::test::utils::removeFile(meta_path);
-
-        m_graph_cache.insert({ cached_model, cached_meta });
-        m_graph_cache_bytesize += cached_model->get_graph_size();
-
-        if (m_manager.match(extracted_model, cached_model,
-                            input_info, cached_meta.get_input_info())) {
-            model_to_update = cached_model;
-        }
-    } else {
-        for (const auto& cached_model : m_graph_cache) {
-            if (m_manager.match(extracted_model, cached_model.first,
-                                input_info, cached_model.second.get_input_info())) {
-                model_to_update = cached_model.first;
+    if (model_to_update == nullptr) {
+        std::string serialized_model_path = "";
+        for (const auto& extractor : m_manager.get_extractors()) {
+            auto tmp_serialized_model_path = ov::util::path_join({ m_serialization_dir, m_cache_subdir, extractor.first, graph_name + ".xml" });
+            if (ov::util::file_exists(serialized_model_path)) {
+                serialized_model_path = tmp_serialized_model_path;
                 break;
-            } else {
-                auto is_subgraph = m_manager.is_subgraph(extracted_model, cached_model.first,
-                                                         input_info, cached_model.second.get_input_info());
-                // in case if one model is subgraph of other to update model meta info and remove subgraph from cache
-                if (std::get<0>(is_subgraph)) {
-                    std::shared_ptr<ov::Model> graph, subgraph;
-                    std::map<std::string, InputInfo> graph_in_info, subgraph_in_info;
-                    std::tie(std::ignore, graph, subgraph, graph_in_info, subgraph_in_info) = is_subgraph;
-                    if (subgraph == cached_model.first) {
-                        auto meta = m_graph_cache[subgraph];
-                        meta.set_input_info(graph_in_info);
-                        m_graph_cache.erase(subgraph);
-                        m_graph_cache.insert({graph, meta});
-                        m_graph_cache_bytesize += (graph->get_graph_size() - subgraph->get_graph_size());
+            }
+        }
+        // if cached model was serialized
+        if (!serialized_model_path.empty()) {
+            // std::cout << "[ GRAPH CACHE ][ INFO ] Reading cached model: " << serialized_model_path << std::endl;
+            auto bin_path = ov::test::utils::replaceExt(serialized_model_path, ".bin");
+            auto meta_path = ov::test::utils::replaceExt(serialized_model_path, ".meta");
+            auto cached_model = ov::test::utils::PluginCache::get().core()->read_model(serialized_model_path);
+            auto cached_meta = MetaInfo::read_meta_from_file(meta_path);
+
+            ov::test::utils::removeFile(serialized_model_path);
+            ov::test::utils::removeFile(bin_path);
+            ov::test::utils::removeFile(meta_path);
+
+            m_graph_cache.insert({ cached_model, cached_meta });
+            m_graph_cache_bytesize += cached_model->get_graph_size();
+
+            auto comparator_res = m_model_comparator->match(extracted_model, cached_model,
+                                                            input_info, cached_meta.get_input_info());
+            if (comparator_res.first) {
+                model_to_update = cached_model;
+                updated_input_info = comparator_res.second;
+            }
+        } else {
+            for (const auto& cached_model : m_graph_cache) {
+                auto comparator_res = m_model_comparator->match(extracted_model, cached_model.first,
+                                                                input_info, cached_model.second.get_input_info());
+                if (comparator_res.first) {
+                    model_to_update = cached_model.first;
+                    updated_input_info = comparator_res.second;
+                    break;
+                } else {
+                    auto is_subgraph = m_model_comparator->is_subgraph(extracted_model, cached_model.first,
+                                                                       input_info, cached_model.second.get_input_info());
+                    // in case if one model is subgraph of other to update model meta info and remove subgraph from cache
+                    if (std::get<0>(is_subgraph)) {
+                        std::shared_ptr<ov::Model> graph, subgraph;
+                        std::map<std::string, InputInfo> graph_in_info, subgraph_in_info;
+                        std::tie(std::ignore, subgraph, graph, subgraph_in_info, graph_in_info) = is_subgraph;
+                        if (subgraph == cached_model.first) {
+                            auto meta = m_graph_cache[subgraph];
+                            meta.set_input_info(graph_in_info);
+                            m_graph_cache.erase(subgraph);
+                            m_graph_cache.insert({graph, meta});
+                            m_graph_cache_bytesize += (graph->get_graph_size() - subgraph->get_graph_size());
+                        }
+                        m_graph_cache[cached_model.first].update(model_path,
+                                                                subgraph_in_info,
+                                                                model_op_cnt,
+                                                                this_op_cnt,
+                                                                extractor_name);
+                        return;
                     }
-                    m_graph_cache[cached_model.first].update(model_path,
-                                                             subgraph_in_info,
-                                                             model_op_cnt,
-                                                             this_op_cnt,
-                                                             extractor_name);
-                    return;
                 }
             }
         }
@@ -134,18 +149,22 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 
     if (model_to_update == nullptr) {
         MetaInfo meta = MetaInfo(model_path, input_info, model_op_cnt, this_op_cnt, extractor_name);
-        m_graph_cache.insert({ extracted_model, meta });
+        model_to_update = extracted_model;
+        m_graph_cache.insert({ model_to_update, meta });
         m_graph_cache_bytesize += extracted_model->get_graph_size();
         return;
     }
-    m_graph_cache[model_to_update].update(model_path, input_info, model_op_cnt, this_op_cnt, extractor_name);
+    m_graph_cache[model_to_update].update(model_path, updated_input_info, model_op_cnt, this_op_cnt, extractor_name);
     auto cached_model_size = model_to_update->get_graph_size();
     auto pattern_model_size = extracted_model->get_graph_size();
     if (pattern_model_size < cached_model_size) {
         m_graph_cache_bytesize -= (cached_model_size - pattern_model_size);
         auto meta = m_graph_cache[model_to_update];
+        auto new_in_info = align_input_info(model_to_update, extracted_model, m_graph_cache.at(model_to_update).get_input_info(), input_info);
+        meta.set_input_info(new_in_info);
         m_graph_cache.erase(model_to_update);
-        m_graph_cache.insert({extracted_model, meta});
+        model_to_update = extracted_model;
+        m_graph_cache.insert({model_to_update, meta});
     }
 }
 
