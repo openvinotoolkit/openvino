@@ -5,6 +5,8 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
+    paths:
+      - 'docs/snippets/**'
     paths-ignore:
       - '**/docs/**'
       - 'docs/**'
