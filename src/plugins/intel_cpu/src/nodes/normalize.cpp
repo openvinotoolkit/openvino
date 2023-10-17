@@ -796,6 +796,12 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
             inputPrecision = outputPrecision = Precision::BF16;
     }
 
+    if (one_of(Precision::FP16, inputPrecision, outputPrecision) &&
+        (mayiuse(cpu::x64::avx512_core) || mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41))) {
+        inputPrecision = outputPrecision = Precision::FP32;
+    }
+
+
     if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8)) {
         THROW_ERROR << "has unsupported input precision: " << inputPrecision;
     }
