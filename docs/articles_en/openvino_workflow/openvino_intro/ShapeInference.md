@@ -9,7 +9,8 @@
    troubleshooting_reshape_errors
 
 .. meta::
-   :description: OpenVINO™ allows changing model input shape during the runtime when the provided input has a different size than the model's input shape.
+   :description: OpenVINO™ allows changing model input shape during the runtime when the provided
+                 input has a different size than the model's input shape.
 
 
 OpenVINO™ enables you to change model input shape during the application runtime.
@@ -24,7 +25,7 @@ The following instructions are for cases where you need to change the model inpu
 
 
 The reshape method
-++++++++++++++++++++
+########################
 
 The reshape method is used as ``ov::Model::reshape`` in C++ and
 `Model.reshape <api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__
@@ -166,7 +167,7 @@ You can find the usage scenarios of the ``reshape`` method in
    nor the ``reshape`` method.
 
 The set_batch method
-++++++++++++++++++++
+########################
 
 The meaning of the model batch may vary depending on the model design.
 To change the batch dimension of the model, :ref:`set the layout <declare_model_s_layout>` and call the ``set_batch`` method.
