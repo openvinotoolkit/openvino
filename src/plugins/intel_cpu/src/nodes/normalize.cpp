@@ -800,7 +800,6 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
         inputPrecision = outputPrecision = Precision::FP32;
     }
 
-
     if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8)) {
         THROW_ERROR << "has unsupported input precision: " << inputPrecision;
     }
