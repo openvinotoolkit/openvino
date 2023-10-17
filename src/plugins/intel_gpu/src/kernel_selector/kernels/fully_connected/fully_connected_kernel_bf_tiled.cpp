@@ -241,6 +241,9 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                     .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1,  1, EXE_MODE_AGE_BASED));
         }
 
+        if (params.compressed && batch == 1)
+            selector.Case(tune_params(1,  std::min(max_tile_ofm, 2u), 4, 2, 1, 1, EXE_MODE_AGE_BASED));
+
         selector.Case([&](const fully_connected_params&) -> tune_params {
             tune_params result(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, EXE_MODE_DEFAULT);
 
