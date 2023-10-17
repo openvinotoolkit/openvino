@@ -32,9 +32,6 @@ concurrency:
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
-  OPENVINO_REPO: /__w/openvino/openvino/openvino
-  INSTALL_DIR: /__w/openvino/openvino/install
-  INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
 
 jobs:
   Build:
