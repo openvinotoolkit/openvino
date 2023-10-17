@@ -46,6 +46,7 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # install
+
 ov_cpack_add_component(${OV_CPACK_COMP_CORE_C} HIDDEN)
 ov_cpack_add_component(${OV_CPACK_COMP_CORE_C_DEV} HIDDEN)
 
