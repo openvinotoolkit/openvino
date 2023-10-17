@@ -289,6 +289,7 @@ public:
             ss << "* iteration_elements             : " << iteration_elements << std::endl;
             ss << "* stride                         : " << stride << std::endl;
             ss << "* initial_offset                 : " << initial_offset << std::endl;
+            ss << "* input_info                     : " << concat_data_id.to_string() << std::endl;
             ss << "* sliced_mems                    :{ ";
             for (auto mem : sliced_mems) {
                 ss << mem->get_layout().to_short_string() << ",";
@@ -300,6 +301,7 @@ public:
         const int64_t axis;
         std::shared_ptr<primitive_inst> concat_data_prim;
         std::shared_ptr<primitive_inst> sliced_data_prim;
+        cldnn::input_info               concat_data_id;
 
 private:
         mutable memory::ptr concatenated_mem;
