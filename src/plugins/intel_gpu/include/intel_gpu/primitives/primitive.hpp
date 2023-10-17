@@ -47,6 +47,11 @@ struct input_info {
         return *this;
     }
 
+    /// @brief Compare
+    bool operator==(const input_info& rhs) const {
+        return ((pid == rhs.pid) && (idx == rhs.idx));
+    }
+
     primitive_id pid;
     int32_t idx;
     struct cmp {
@@ -113,8 +118,8 @@ public:
               const size_t num_outputs = 1)
         : type(type),
           id(id),
-          output_paddings(output_paddings),
-          output_data_types(output_data_types),
+          output_paddings(update_output_paddings(output_paddings, num_outputs)),
+          output_data_types(update_output_data_types(output_data_types, num_outputs)),
           input(input),
           num_outputs(num_outputs) {}
 
@@ -260,6 +265,24 @@ public:
     }
 
 protected:
+    // Fill empty padding when current output paddings less than num_outputs
+    virtual std::vector<padding> update_output_paddings(const std::vector<padding>& paddings, const size_t num_outputs) const {
+        std::vector<padding> updated_paddings(paddings);
+        if (num_outputs > updated_paddings.size()) {
+            updated_paddings.push_back(padding());
+        }
+        return updated_paddings;
+    }
+
+    // Fill empty data_types when current data_types less than num_outputs
+    virtual std::vector<optional_data_type> update_output_data_types(const std::vector<optional_data_type>& data_types, const size_t num_outputs) const {
+        std::vector<optional_data_type> update_data_types(data_types);
+        if (num_outputs > update_data_types.size()) {
+            update_data_types.push_back(optional_data_type());
+        }
+        return update_data_types;
+    }
+
     virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
     class condition;
     friend struct primitive_info;

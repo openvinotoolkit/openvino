@@ -1013,7 +1013,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     _mem_allocated = allocate_memory;
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
-        // suychronization, The output memory of such primitive will be fused with mutable_data
+        // synchronization, The output memory of such primitive will be fused with mutable_data
         auto users = node.get_users();
         auto user_count = users.size();
         uint32_t mutable_data_count = 0;

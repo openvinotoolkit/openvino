@@ -306,12 +306,7 @@ void loop_inst::update_input_mapped_memory() {
 }
 
 void loop_inst::update_output_mapped_memory() {
-    if (is_dynamic()) {
-        if (!outputs_allocated()) {
-            _outputs = allocate_outputs(_impl_params.get(), true, true);
-        }
-    }
-
+    OPENVINO_ASSERT(outputs_allocated(), "output buffer should be allocated");
     for (size_t i = 0; i < _output_primitive_maps.size(); ++i) {
         const auto& output_mapping = _output_primitive_maps.at(i);
         const primitive_id& external_id = output_mapping.external_id.pid;
@@ -469,6 +464,7 @@ void loop_inst::preprocess_output_memory(const int64_t trip_count) {
             if (iter == concatenated_output_mem_mappings.end()) {
                 auto memory_mapping_info = create_concat_memory_map(internal_id, output_mapping, memory, trip_count);
                 memory_mapping_info->concat_data_prim = get_network().get_primitive(external_id.pid);
+                memory_mapping_info->concat_data_id = external_id;
                 concatenated_output_mem_mappings.push_back(memory_mapping_info);
                 GPU_DEBUG_LOG << i << ") generate concat output memory mapping: " << memory_mapping_info->to_string() << std::endl;
             }
@@ -702,44 +698,47 @@ void loop_inst::load(BinaryInputBuffer& ib) {
 
 void loop_inst::postprocess_output_memory(bool is_dynamic) {
     if (is_dynamic) {
+        std::vector<cldnn::memory::ptr> external_outputs;
+        external_outputs.resize(outputs_memory_count());
         for (size_t i = 0; i < _output_primitive_maps.size(); ++i) {
             const auto& output_mapping = _output_primitive_maps.at(i);
             const auto& external_id = output_mapping.external_id;
             const auto& internal_id = output_mapping.internal_id;
+            bool output_allocated = (static_cast<size_t>(external_id.idx) < _outputs.size() && _outputs[external_id.idx] != nullptr);
             if (output_mapping.axis < 0) {
                 auto internalOutputPrim = get_body_network()->get_primitive(internal_id.pid);
                 auto internal_mem = internalOutputPrim->output_memory_ptr(internal_id.idx);
-                if (internal_mem == nullptr) {
-                    continue;
-                }
-                auto externalOutputPrim = _network.get_primitive(external_id.pid);
-                if (!externalOutputPrim->outputs_allocated()) {
-                    externalOutputPrim->set_output_memory(internal_mem, external_id.idx);
+                OPENVINO_ASSERT(internal_mem != nullptr, "internal_mem should not be nullptr");
+                if (!output_allocated) {
+                    external_outputs[external_id.idx] = internal_mem;
                 } else {
-                    auto external_mem = externalOutputPrim->output_memory_ptr(external_id.idx);
+                    auto external_mem = _outputs[external_id.idx];
                     if (external_mem->get_layout() != internal_mem->get_layout()) {
-                        externalOutputPrim->set_output_memory(internal_mem, external_id.idx);
+                        external_outputs[external_id.idx] = internal_mem;
                     } else if (external_mem != internal_mem) {
                         external_mem->copy_from(get_network().get_stream(), *internal_mem);
+                        external_outputs[external_id.idx] = external_mem;
                     }
                 }
             } else {
-                auto externalOutputPrim = _network.get_primitive(external_id.pid);
-                if (!externalOutputPrim->outputs_allocated() || shape_changed()) {
+                if (!output_allocated || shape_changed()) {
                     auto concat_layout = _impl_params->get_output_layout(external_id.idx);
                     auto concat_mem = _network.get_engine().allocate_memory(concat_layout, 0);
-                    externalOutputPrim->set_output_memory(concat_mem, external_id.idx);
+                    external_outputs[external_id.idx] = concat_mem;
                     auto iter = std::find_if(concatenated_output_mem_mappings.begin(),
                                                 concatenated_output_mem_mappings.end(),
                                                 [&](std::shared_ptr<loop_inst::concatenated_memory_mapping> &concat_output){
-                                                    return concat_output->concat_data_prim->id() == external_id.pid;
+                                                    return concat_output->concat_data_id == external_id;
                                                 });
                     if (iter != concatenated_output_mem_mappings.end()) {
                         (*iter)->update_concatenated_mem(concat_mem);
                     }
+                } else {
+                    external_outputs[external_id.idx] = _outputs[external_id.idx];
                 }
             }
         }
+        _outputs = external_outputs;
     }
 
     for (size_t i = 0; i < concatenated_output_mem_mappings.size(); ++i) {
