@@ -8,9 +8,6 @@ With model conversion API you can increase your model's efficiency by providing 
    :description: Learn how to increase the efficiency of a model with MO by providing an additional shape definition with the input_shape and static_shape parameters.
 
 
-.. _when_to_specify_input_shapes:
-
-
 Specifying input_shape parameter
 ################################
 
