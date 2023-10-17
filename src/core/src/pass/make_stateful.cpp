@@ -102,7 +102,7 @@ bool ov::pass::MakeStateful::run_on_model(const std::shared_ptr<ov::Model>& f) {
         // Create Variable
         std::string var_name = variable_names[i];
         auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{param->get_shape(), param->get_element_type(), var_name});
+            ov::op::util::VariableInfo{param->get_partial_shape(), param->get_element_type(), var_name});
         variables.push_back(variable);
 
         // Create ReadValue

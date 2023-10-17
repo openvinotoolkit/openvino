@@ -107,8 +107,6 @@ bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v6::ReadValue::revalidate_and_infer_types() {
-    VariableInfo var_info{ov::PartialShape::dynamic(), element::dynamic, m_variable->get_info().variable_id};
-    m_variable->update(var_info);
     Node::revalidate_and_infer_types();
 }
 
