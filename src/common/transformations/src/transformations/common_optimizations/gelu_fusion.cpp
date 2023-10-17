@@ -7,6 +7,7 @@
 #include "transformations/common_optimizations/gelu_fusion.hpp"
 
 #include <math.h>
+#include <cmath>
 
 #include <memory>
 
@@ -302,11 +303,10 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
             return false;
         }
 
-        constexpr float pi = 3.141592653589793238462643383279502884f;
         bool valid_constant_values =
             op::util::has_constant_value<float>(pow_constant_value, 3.0f) &&
             op::util::has_constant_value<float>(mul_0_constant_value, 0.044715f, 0.001f) &&
-            op::util::has_constant_value<float>(mul_1_constant_value, std::sqrt(2.0f / pi), 0.01f) &&
+            op::util::has_constant_value<float>(mul_1_constant_value, std::sqrt(2.0f / M_PI), 0.01f) &&
             op::util::has_constant_value<float>(mul_2_constant_value, 0.5f) &&
             op::util::has_constant_value<float>(add_1_constant_value, 1.0f);
 
@@ -356,10 +356,10 @@ ov::pass::GeluFusionWithTanhNoPower::GeluFusionWithTanhNoPower() {
 
     auto mul4 = pattern::wrap_type<ov::op::v1::Multiply>({add1, mul3});
 
-    auto tan = pattern::wrap_type<ov::op::v0::Tanh>({mul4});
+    auto tanh = pattern::wrap_type<ov::op::v0::Tanh>({mul4});
 
     auto const4 = pattern::wrap_type<ov::op::v0::Constant>();
-    auto add2 = pattern::wrap_type<ov::op::v1::Add>({tan, const4});
+    auto add2 = pattern::wrap_type<ov::op::v1::Add>({tanh, const4});
 
     auto const5 = pattern::wrap_type<ov::op::v0::Constant>();
     auto mul5 = pattern::wrap_type<ov::op::v1::Multiply>({input, const5});
@@ -385,10 +385,9 @@ ov::pass::GeluFusionWithTanhNoPower::GeluFusionWithTanhNoPower() {
             return false;
         }
 
-        constexpr float pi = 3.14159265358979323846;
         bool valid_constant_values = op::util::has_constant_value<float>(const1_value, 0.044715f, 0.001f) &&
                                      op::util::has_constant_value<float>(const2_value, 1.0f) &&
-                                     op::util::has_constant_value<float>(const3_value, std::sqrt(2.0f / pi), 0.01f) &&
+                                     op::util::has_constant_value<float>(const3_value, std::sqrt(2.0f / M_PI), 0.01f) &&
                                      op::util::has_constant_value<float>(const4_value, 1.0f) &&
                                      op::util::has_constant_value<float>(const5_value, 0.5f);
 
@@ -406,7 +405,7 @@ ov::pass::GeluFusionWithTanhNoPower::GeluFusionWithTanhNoPower() {
                 pattern_to_output.at(add1).get_node_shared_ptr(),
                 pattern_to_output.at(mul3).get_node_shared_ptr(),
                 pattern_to_output.at(mul4).get_node_shared_ptr(),
-                pattern_to_output.at(tan).get_node_shared_ptr(),
+                pattern_to_output.at(tanh).get_node_shared_ptr(),
                 pattern_to_output.at(add2).get_node_shared_ptr(),
                 pattern_to_output.at(mul5).get_node_shared_ptr(),
                 pattern_to_output.at(mul6).get_node_shared_ptr(),
