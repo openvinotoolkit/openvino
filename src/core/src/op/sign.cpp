@@ -42,12 +42,12 @@ bool evaluate_sign(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_sign, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sign, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sign, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sign, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sign, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sign, f32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, i32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, i64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, u32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, u64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, f16, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, f32, arg0, out, count);
     default:
         rc = false;
         break;
@@ -60,7 +60,7 @@ bool evaluate_sign(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Sign_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return signop::evaluate_sign(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }

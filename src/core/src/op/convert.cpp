@@ -52,7 +52,8 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
     }
     if (((INPUT_ET == element::u1) || (OUTPUT_ET == element::u1)) ||
         ((INPUT_ET == element::u4) || (OUTPUT_ET == element::u4)) ||
-        ((INPUT_ET == element::i4) || (OUTPUT_ET == element::i4))) {
+        ((INPUT_ET == element::i4) || (OUTPUT_ET == element::i4)) ||
+        ((INPUT_ET == element::nf4) || (OUTPUT_ET == element::nf4))) {
         ov::reference::detail::lp_convert(arg->get_data_ptr<INPUT_ET>(),
                                           out->get_data_ptr<OUTPUT_ET>(),
                                           element_count,
@@ -91,6 +92,7 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
         TYPE_OUT_CASE(f32, arg, out);
         TYPE_OUT_CASE(f64, arg, out);
         TYPE_OUT_CASE(boolean, arg, out);
+        TYPE_OUT_CASE(nf4, arg, out);
     default:
         rc = false;
         break;
@@ -101,22 +103,23 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
 bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
     bool rc = true;
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_convert, u1, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, u4, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, u8, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, u16, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, u32, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, u64, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, i4, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, i8, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, i16, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, i32, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, i64, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, bf16, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, f16, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, f32, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, f64, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, boolean, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u1, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u4, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u8, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u16, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u32, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u64, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, i4, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, i8, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, i16, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, i32, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, i64, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, bf16, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, f16, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, f32, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, f64, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, boolean, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, nf4, arg, out);
     default:
         rc = false;
         break;
@@ -125,7 +128,7 @@ bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
 }
 
 bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_upper) {
-    NGRAPH_CHECK(node, output_values.size() == 1);
+    OPENVINO_ASSERT(node, output_values.size() == 1);
     const auto& input = node->input_value(0);
     if (const auto& value = is_upper ? input.get_tensor().get_upper_value() : input.get_tensor().get_lower_value()) {
         if (is_vector(value.get_shape()) && (value.get_shape().front() == 0)) {
@@ -175,8 +178,8 @@ bool evaluate_bound(const Node* node, ov::TensorVector& output_values, bool is_u
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v0_Convert_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return convert::evaluate_convert(input_values[0], output_values[0]);
 }

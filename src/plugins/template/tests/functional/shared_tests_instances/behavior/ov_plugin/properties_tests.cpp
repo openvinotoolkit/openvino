@@ -16,8 +16,10 @@ const std::vector<ov::AnyMap> inproperties = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesIncorrectTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE, ov::test::utils::DEVICE_HETERO,
-                                                              ov::test::utils::DEVICE_MULTI, ov::test::utils::DEVICE_BATCH),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE,
+                                                              ov::test::utils::DEVICE_HETERO,
+                                                              ov::test::utils::DEVICE_MULTI,
+                                                              ov::test::utils::DEVICE_BATCH),
                                             ::testing::ValuesIn(inproperties)),
                          OVPropertiesIncorrectTests::getTestCaseName);
 

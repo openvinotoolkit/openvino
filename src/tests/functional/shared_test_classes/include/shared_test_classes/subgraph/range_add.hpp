@@ -4,36 +4,45 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-#include "shared_test_classes/single_layer/range.hpp"
+namespace ov {
+namespace test {
 
-namespace SubgraphTestsDefinitions {
+typedef std::tuple<float,              // start
+                   float,              // stop
+                   float,              // step
+                   ov::element::Type,  // Input type
+                   std::string         // Target device name
+                   >
+    RangeParams;
 
 // ------------------------------ V0 ------------------------------
 
-class RangeAddSubgraphTest : public testing::WithParamInterface<LayerTestsDefinitions::RangeParams>,
-                             virtual public LayerTestsUtils::LayerTestsCommon {
+class RangeAddSubgraphTest : public testing::WithParamInterface<RangeParams>,
+                             virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::RangeParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<RangeParams>& obj);
+
 protected:
     void SetUp() override;
 };
 
 // ------------------------------ V4 ------------------------------
 
-class RangeNumpyAddSubgraphTest : public testing::WithParamInterface<LayerTestsDefinitions::RangeParams>,
-                             virtual public LayerTestsUtils::LayerTestsCommon {
+class RangeNumpyAddSubgraphTest : public testing::WithParamInterface<RangeParams>,
+                                  virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::RangeParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<RangeParams>& obj);
+
 protected:
     void SetUp() override;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

@@ -7,6 +7,7 @@
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/core/graph_util.hpp>
+#include <openvino/core/dimension_tracker.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
@@ -57,6 +58,12 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
         auto idces_match = [](ov::Output<ov::Node> output) -> bool {
             return ov::pass::pattern::rank_equals(2)(output) && ov::pass::pattern::type_matches(ov::element::i32)(output);
         };
+        auto as_is_cropped_shape_match = [](ov::Output<ov::Node> output) -> bool {
+            const auto& labels = output.get_tensor().get_value_label();
+            return ov::pass::pattern::rank_equals(1)(output) && !labels.empty() && labels[0] != ov::no_label;
+        };
+
+        ov::label_t cropped_shape_label = ov::no_label;
 
         ov::Output<ov::Node> tokens;
         // "as_is" input validation
@@ -67,14 +74,11 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
                                             ? ov::OutputVector{tokens_m, wrap_type<Constant>()}
                                             : ov::OutputVector{wrap_type<Constant>(), tokens_m, wrap_type<Constant>()};
             auto padded_tokens_m = wrap_type<Concat>(padded_tokens_inputs);
-            auto shape_of_m = wrap_type<ShapeOf>({tokens_m});
-            auto cropped_shape_m = wrap_type<StridedSlice>({shape_of_m, wrap_type<Constant>(), wrap_type<Constant>(), wrap_type<Constant>()});
-
+            auto cropped_shape_m = any_input(as_is_cropped_shape_match);
             auto ss_bias = wrap_type<Constant>();
             auto ss_biased_shape_m =
                 as_is_idx == 0 ? cropped_shape_m : wrap_type<Add>({cropped_shape_m, ss_bias});
-            auto ss_end_reshape_m = wrap_type<Reshape>({ss_biased_shape_m, any_input()});
-            auto cropped_tokens_m = wrap_type<StridedSlice>({padded_tokens_m, wrap_type<Constant>(), ss_end_reshape_m, wrap_type<Constant>()});
+            auto cropped_tokens_m = wrap_type<StridedSlice>({padded_tokens_m, wrap_type<Constant>(), ss_biased_shape_m, wrap_type<Constant>()});
             Matcher matcher(cropped_tokens_m);
 
             if (!matcher.match(inputs[as_is_idx])) {
@@ -93,15 +97,27 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
                 concat_shape.rank() != tokens_shape.rank() || tokens_shape[1] * k != concat_shape[1]) {
                 return false;
             }
+            // save label of cropped_shape and check it against first dimension of tokens shape
+            cropped_shape_label = pattern_map.at(cropped_shape_m).get_tensor().get_value_label()[0];
+            if (ov::DimensionTracker::get_label(tokens_shape[0]) != cropped_shape_label)
+                return false;
         }
+
+        auto cropped_shape_label_match = [cropped_shape_label](ov::Output<ov::Node> output) -> bool {
+            const auto& labels = output.get_tensor().get_value_label();
+            return ov::pass::pattern::rank_equals(1)(output) && !labels.empty() && labels[0] != ov::no_label && labels[0] == cropped_shape_label;
+        };
+
+        auto tokens_label_match = [tokens_match, cropped_shape_label](ov::Output<ov::Node> output) -> bool {
+            return tokens_match(output) && ov::DimensionTracker::get_label(output.get_partial_shape()[0]) == cropped_shape_label;
+        };
 
         ov::Output<ov::Node> indices;
         // select branches validation
         {
             using namespace ov::opset1;
-            auto tokens_m = any_input(tokens_match);
-            auto shape_of_m = wrap_type<ShapeOf>({tokens_m});
-            auto cropped_shape_m = wrap_type<StridedSlice>({shape_of_m, wrap_type<Constant>(), wrap_type<Constant>(), wrap_type<Constant>()});
+            auto tokens_m = any_input(tokens_label_match);
+            auto cropped_shape_m = any_input(cropped_shape_label_match);
             auto idces_m = any_input(idces_match);
             auto idces_concat_inputs = as_is_idx == 0
                                             ? ov::OutputVector{idces_m, wrap_type<Constant>()}
@@ -111,17 +127,15 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
             // left equal branch
             auto crop_left_bias_m = wrap_type<Constant>();
             auto crop_left_cropped_shape_m = std::make_shared<ov::pass::pattern::op::Or>(
-                ov::OutputVector{cropped_shape_m, wrap_type<Add>({cropped_shape_m, crop_left_bias_m})});
-            auto crop_left_reshape_m = wrap_type<Reshape>({crop_left_cropped_shape_m, any_input()});
-            auto idxes_crop_left_concat_m = wrap_type<Concat>({crop_left_reshape_m, wrap_type<Constant>()});
+                ov::OutputVector{wrap_type<Add>({cropped_shape_m, crop_left_bias_m}), cropped_shape_m});
+            auto idxes_crop_left_concat_m = wrap_type<Concat>({crop_left_cropped_shape_m, wrap_type<Constant>()});
             auto idxes_crop_left_m = wrap_type<StridedSlice>({idces_concat_m, wrap_type<Constant>(), idxes_crop_left_concat_m, wrap_type<Constant>()});
 
             // right equal branch
             auto crop_right_bias_m = wrap_type<Constant>();
             auto crop_right_cropped_shape_m = std::make_shared<ov::pass::pattern::op::Or>(
-                ov::OutputVector{cropped_shape_m, wrap_type<Add>({cropped_shape_m, crop_right_bias_m})});
-            auto crop_right_reshape_m = wrap_type<Reshape>({crop_right_cropped_shape_m, any_input()});
-            auto idxes_crop_right_concat_m = wrap_type<Concat>({crop_right_reshape_m, wrap_type<Constant>()});
+                ov::OutputVector{wrap_type<Add>({cropped_shape_m, crop_right_bias_m}), cropped_shape_m});
+            auto idxes_crop_right_concat_m = wrap_type<Concat>({crop_right_cropped_shape_m, wrap_type<Constant>()});
             auto idxes_crop_right_m = wrap_type<StridedSlice>({idces_concat_m, wrap_type<Constant>(), idxes_crop_right_concat_m, wrap_type<Constant>()});
 
             auto equal_m = wrap_type<Equal>({idxes_crop_left_m, idxes_crop_right_m});
@@ -135,13 +149,11 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
 
             auto then_cropped_shape_bias_m = wrap_type<Constant>();
             auto then_cropped_shape_m = std::make_shared<ov::pass::pattern::op::Or>(
-                ov::OutputVector{cropped_shape_m, wrap_type<Add>({cropped_shape_m, then_cropped_shape_bias_m})});
-            auto then_crop_end_reshape_m = wrap_type<Reshape>({then_cropped_shape_m, wrap_type<Constant>()});
-            auto then_m = wrap_type<StridedSlice>({padded_tokens_m, wrap_type<Constant>(), then_crop_end_reshape_m, wrap_type<Constant>()});
+                ov::OutputVector{wrap_type<Add>({cropped_shape_m, then_cropped_shape_bias_m}), cropped_shape_m});
+            auto then_m = wrap_type<StridedSlice>({padded_tokens_m, wrap_type<Constant>(), then_cropped_shape_m, wrap_type<Constant>()});
 
             // else branch
-            auto else_target_shape_reshape_m = wrap_type<Reshape>({cropped_shape_m, any_input()});
-            auto else_target_shape_concat_m = wrap_type<Concat>({else_target_shape_reshape_m, wrap_type<Constant>()});
+            auto else_target_shape_concat_m = wrap_type<Concat>({cropped_shape_m, wrap_type<Constant>()});
             auto else_m = wrap_type<Broadcast>({wrap_type<Constant>(), else_target_shape_concat_m, wrap_type<Constant>()});
             auto select_m = wrap_type<Select>({condition_m, then_m, else_m});
             Matcher select_matcher(select_m);

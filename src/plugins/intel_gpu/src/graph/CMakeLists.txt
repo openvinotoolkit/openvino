@@ -61,8 +61,8 @@ endif()
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
 if(ENABLE_SSE42)
-  ie_sse42_optimization_flags(sse4_2_flags)
-  set_source_files_properties(impls/cpu/detection_output.cpp half.cpp PROPERTIES
+  ov_sse42_optimization_flags(sse4_2_flags)
+  set_source_files_properties(impls/cpu/detection_output.cpp PROPERTIES
     COMPILE_FLAGS "${sse4_2_flags}"
     COMPILE_DEFINITIONS "HAVE_SSE")
 endif()

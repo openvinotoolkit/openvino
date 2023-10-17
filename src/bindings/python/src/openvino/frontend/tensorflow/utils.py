@@ -6,9 +6,11 @@
 
 
 import logging as log
-import numpy as np
 import sys
 from distutils.version import LooseVersion
+from typing import List, Dict, Union
+
+import numpy as np
 from openvino.runtime import PartialShape, Dimension
 
 
@@ -264,10 +266,22 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
 
         input_needs_packing = True
 
+    def are_shapes_defined(shape: Union[List, Dict]):
+        if shape is None:
+            return False
+        assert hasattr(shape, '__len__')
+        if len(shape) == 0:
+            return False
+
+        if isinstance(shape, list):
+            return np.all([shape is not None for shape in input_shapes])
+        elif isinstance(shape, dict):
+            return np.all([shape is not None for name, shape in input_shapes.items()])
+
     if example_input is not None:
         concrete_func = get_concrete_func(tf_function, example_input, input_needs_packing,
                                           "Could not trace the TF model with the following error: {}")
-    elif input_shapes is not None:
+    elif are_shapes_defined(input_shapes):
         inp = create_example_input_by_user_shapes(input_shapes, input_types)
         concrete_func = get_concrete_func(tf_function, inp, input_needs_packing,
                                           "Could not trace the TF model with the following error: {}")
@@ -339,7 +353,7 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
         if hasattr(input_model, 'outputs') and hasattr(input_model, 'structured_outputs') and \
                 isinstance(input_model.structured_outputs, dict):
             external_names = sorted(list(input_model.structured_outputs.keys()))
-            internal_names = sorted([tensor.name for tensor in input_model.outputs])
+            internal_names = [tensor.name for tensor in input_model.outputs]
             if len(external_names) == len(internal_names):
                 for external_name, internal_name in zip(external_names, internal_names):
                     output_names_map = output_names_map or {}
