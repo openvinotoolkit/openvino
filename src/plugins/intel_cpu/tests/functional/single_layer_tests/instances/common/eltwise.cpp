@@ -219,15 +219,21 @@ const auto params_5D_dyn_param = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_5D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
 
-static const std::vector<std::vector<ov::Shape>> bitwise_in_shapes_4D = {
-    {{1, 3, 4, 4}, {1, 3, 4, 4}},
-    {{1, 3, 4, 4}, {1, 3, 1, 1}},
-    {{1, 1, 1, 1}, {1, 1, 1, 1}}
+static const std::vector<InputShape> bitwise_in_shapes_4D = {
+    {
+        {1, -1, -1, -1},
+        {
+            {1, 3, 4, 4},
+            {1, 3, 1, 1},
+            {1, 1, 1, 1}
+        }
+    },
+    {{1, 3, 4, 4}, {{1, 3, 4, 4}}}
 };
 
 const auto params_4D_bitwise = ::testing::Combine(
     ::testing::Combine(
-        ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_4D)),
+        ::testing::Values(bitwise_in_shapes_4D),
         ::testing::ValuesIn({
             ngraph::helpers::EltwiseTypes::BITWISE_AND,
             ngraph::helpers::EltwiseTypes::BITWISE_OR,
@@ -248,7 +254,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise, EltwiseLayerCPUTest, 
 
 const auto params_4D_bitwise_i16 = ::testing::Combine(
     ::testing::Combine(
-        ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_4D)),
+        ::testing::Values(bitwise_in_shapes_4D),
         ::testing::ValuesIn({
             ngraph::helpers::EltwiseTypes::BITWISE_AND,
             ngraph::helpers::EltwiseTypes::BITWISE_OR,
@@ -261,24 +267,17 @@ const auto params_4D_bitwise_i16 = ::testing::Combine(
         ::testing::Values(ov::element::Type_t::undefined),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(ov::AnyMap())),
-    ::testing::Values(CPUSpecificParams({ nhwc, nhwc }, { nhwc }, {}, "ref_I32")),
+    ::testing::Values(CPUSpecificParams({ nhwc, nhwc }, { nhwc }, {}, "ref_I32$/")),
     ::testing::Values(emptyFusingSpec),
     ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_i16, EltwiseLayerCPUTest, params_4D_bitwise_i16, EltwiseLayerCPUTest::getTestCaseName);
 
 
-static const std::vector<std::vector<ov::Shape>> bitwise_in_shapes_4D_NOT = {
-    {{1, 3, 4, 4}},
-    {{1, 1, 1, 1}}
-};
-
 const auto params_4D_bitwise_NOT = ::testing::Combine(
     ::testing::Combine(
-        ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_4D_NOT)),
-        ::testing::ValuesIn({
-            ngraph::helpers::EltwiseTypes::BITWISE_NOT
-        }),
+        ::testing::Values(bitwise_in_shapes_4D),
+        ::testing::ValuesIn({ ngraph::helpers::EltwiseTypes::BITWISE_NOT }),
         ::testing::ValuesIn({ ngraph::helpers::InputLayerType::NONE }),
         ::testing::ValuesIn({ ov::test::utils::OpType::VECTOR }),
         ::testing::ValuesIn({ ov::element::Type_t::i8, ov::element::Type_t::u8, ov::element::Type_t::i32 }),
@@ -286,7 +285,7 @@ const auto params_4D_bitwise_NOT = ::testing::Combine(
         ::testing::Values(ov::element::Type_t::undefined),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(ov::AnyMap())),
-    ::testing::Values(CPUSpecificParams({ nhwc }, { nhwc }, {}, {"ref"})),
+    ::testing::Values(CPUSpecificParams({ nhwc }, { nhwc }, {}, "ref")),
     ::testing::Values(emptyFusingSpec),
     ::testing::Values(false));
 
@@ -294,10 +293,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_NOT, EltwiseLayerCPUTe
 
 const auto params_4D_bitwise_NOT_i16 = ::testing::Combine(
     ::testing::Combine(
-        ::testing::ValuesIn(static_shapes_to_test_representation(bitwise_in_shapes_4D_NOT)),
-        ::testing::ValuesIn({
-            ngraph::helpers::EltwiseTypes::BITWISE_NOT
-            }),
+        ::testing::Values(bitwise_in_shapes_4D),
+        ::testing::ValuesIn({ ngraph::helpers::EltwiseTypes::BITWISE_NOT }),
         ::testing::ValuesIn({ ngraph::helpers::InputLayerType::NONE }),
         ::testing::ValuesIn({ ov::test::utils::OpType::VECTOR }),
         ::testing::ValuesIn({ ov::element::Type_t::i16, ov::element::Type_t::u16 }),
@@ -305,7 +302,7 @@ const auto params_4D_bitwise_NOT_i16 = ::testing::Combine(
         ::testing::Values(ov::element::Type_t::undefined),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(ov::AnyMap())),
-    ::testing::Values(CPUSpecificParams({ nhwc }, { nhwc }, {}, { "ref_I32" })),
+    ::testing::Values(CPUSpecificParams({ nhwc }, { nhwc }, {}, "ref_I32$/")),
     ::testing::Values(emptyFusingSpec),
     ::testing::Values(false));
 

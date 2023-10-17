@@ -158,42 +158,58 @@ void EltwiseLayerCPUTest::SetUp() {
         }
     ov::ParameterVector parameters{std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.front())};
     std::shared_ptr<ngraph::Node> secondaryInput;
-    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        auto param = std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.back());
-        secondaryInput = param;
-        parameters.push_back(param);
-    } else {
-        auto pShape = inputDynamicShapes.back();
-        ngraph::Shape shape;
-        if (pShape.is_static()) {
-            shape = pShape.get_shape();
-        } else {
-            ASSERT_TRUE(pShape.rank().is_static());
-            shape = std::vector<size_t>(pShape.rank().get_length(), 1);
-            for (size_t i = 0; i < pShape.size(); ++i) {
-                if (pShape[i].is_static()) {
-                    shape[i] = pShape[i].get_length();
+    switch (secondaryInputType) {
+        case ngraph::helpers::InputLayerType::PARAMETER: {
+            auto param = std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.back());
+            secondaryInput = param;
+            parameters.push_back(param);
+            break;
+        }
+        case ngraph::helpers::InputLayerType::CONSTANT: {
+            auto pShape = inputDynamicShapes.back();
+            ngraph::Shape shape;
+            if (pShape.is_static()) {
+                shape = pShape.get_shape();
+            } else {
+                ASSERT_TRUE(pShape.rank().is_static());
+                shape = std::vector<size_t>(pShape.rank().get_length(), 1);
+                for (size_t i = 0; i < pShape.size(); ++i) {
+                    if (pShape[i].is_static()) {
+                        shape[i] = pShape[i].get_length();
+                    }
                 }
             }
-        }
 
-        auto data_tensor = generate_eltwise_input(netType, shape);
-        if ((netType == ElementType::i8) || (netType == ElementType::u8)) {
-            auto data_ptr = reinterpret_cast<uint8_t*>(data_tensor.data());
-            std::vector<uint8_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
-            secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
-        } else if ((netType == ElementType::i16) || (netType == ElementType::u16)) {
-            auto data_ptr = reinterpret_cast<uint16_t*>(data_tensor.data());
-            std::vector<uint16_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
-            secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
-        } else if ((netType == ElementType::i32) || (netType == ElementType::i32)) {
-            auto data_ptr = reinterpret_cast<uint32_t*>(data_tensor.data());
-            std::vector<uint32_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
-            secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
-        } else {
-            auto data_ptr = reinterpret_cast<float*>(data_tensor.data());
-            std::vector<float> data(data_ptr, data_ptr + ngraph::shape_size(shape));
-            secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            auto data_tensor = generate_eltwise_input(netType, shape);
+            if ((netType == ElementType::i8) || (netType == ElementType::u8)) {
+                auto data_ptr = reinterpret_cast<uint8_t*>(data_tensor.data());
+                std::vector<uint8_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            } else if ((netType == ElementType::i16) || (netType == ElementType::u16)) {
+                auto data_ptr = reinterpret_cast<uint16_t*>(data_tensor.data());
+                std::vector<uint16_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            } else if ((netType == ElementType::i32) || (netType == ElementType::u32)) {
+                auto data_ptr = reinterpret_cast<uint32_t*>(data_tensor.data());
+                std::vector<uint32_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            } else if (netType == ElementType::f16) {
+                auto data_ptr = reinterpret_cast<ov::float16*>(data_tensor.data());
+                std::vector<ov::float16> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            } else {
+                auto data_ptr = reinterpret_cast<float*>(data_tensor.data());
+                std::vector<float> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            }
+            break;
+        }
+        case ngraph::helpers::InputLayerType::NONE: {
+            // the second input is absent
+            break;
+        }
+        default: {
+            FAIL() << "Unsupported InputLayerType";
         }
     }
     auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);

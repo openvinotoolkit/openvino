@@ -359,7 +359,9 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov
         selectedType = primitiveType;
     }
 
-    if (selectedType.find("_") != std::string::npos) {
+    if (selectedType.find("$/") != std::string::npos) {
+        // like as regex
+        selectedType = selectedType.substr(0, selectedType.find("$/"));
         return;
     }
 
