@@ -395,10 +395,16 @@ jobs:
       - name: Python ONNX operators tests
         shell: cmd
         run: |
-          :: Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
+          :: Skip test_onnx/test_zoo_models due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests -k "not cuda" ^
           --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx_frontend.xml ^
           --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_zoo_models.py
+
+      - name: nGraph Tests
+        shell: cmd
+        run: |
+          python3 -m pytest -v ${{ env.OPENVINO_REPO }}/src/bindings/python/tests_compatibility/test_ngraph -k "not _cuda" ^
+            --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ngraph.xml
 
       - name: MO Python API Tests
         shell: cmd
