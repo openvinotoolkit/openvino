@@ -20,5 +20,5 @@ class ov::pass::ScaledDotProductAttentionDecomposition : public ov::pass::Matche
 public:
     OPENVINO_RTTI("ScaledDotProductAttentionDecomposition", "0");
     ScaledDotProductAttentionDecomposition();
-    OutputVector decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node) const;
+    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node);
 };
