@@ -2,10 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
  
+#! [py_ov_property_import_header]
 import openvino as ov
 import openvino.properties as properties
 import openvino.properties.device as device
 import openvino.properties.hint as hints
+import openvino.properties.streams as streams
+import properties.enable_profiling as enable_profiling
+#! [py_ov_property_import_header]
 import openvino.properties.log as log
 
 from openvino.inference_engine import IECore
@@ -156,8 +160,23 @@ def part5():
     core = ov.Core()
 
     # gpu_config and cpu_config will load during compile_model()
-    compiled_model = core.compile_model(model=model)
-    compiled_model = core.compile_model(model=model, device_name="AUTO")
+    gpu_config = {
+        hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
+        streams.num: 4
+    }
+    cpu_config = {
+        hints.performance_mode: hints.PerformanceMode.LATENCY,
+        streams.num: 8,
+        enable_profiling: True
+    }
+    compiled_model = core.compile_model(
+        model=model,
+        device_name="AUTO",
+        config={
+            device.priorities: "GPU,CPU",
+            device.properties: {'CPU': cpu_config, 'GPU': gpu_config}
+        }
+    )
     #! [part5]
 
 
