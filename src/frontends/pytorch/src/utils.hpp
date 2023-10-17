@@ -7,6 +7,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/util/framework_node.hpp"
 
 namespace ov {
 
