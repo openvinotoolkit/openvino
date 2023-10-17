@@ -458,9 +458,11 @@ OutputVector createNodesInMemory(const std::vector<size_t>& node_order_in_memory
 
 std::shared_ptr<Model> createModelWithShapes(const Shape& input_shape,
                                              const std::vector<size_t>& node_order_in_memory,
+                                             const std::string& node_name_prefix,
                                              std::shared_ptr<void>& buffer) {
     auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
-    auto shape_nodes = createNodesInMemory<v3::ShapeOf>(node_order_in_memory, buffer, "Shape_", input, element::i64);
+    auto shape_nodes =
+        createNodesInMemory<v3::ShapeOf>(node_order_in_memory, buffer, node_name_prefix, input, element::i64);
 
     NodeVector inputs_of_concat;
     for (const auto& shape_node : shape_nodes) {
@@ -493,7 +495,7 @@ TEST(TransformationTests, SharedShapeOfTestRandomOrder) {
 
     std::vector<std::shared_ptr<Model>> models;
     for (const auto& node_order_in_memory : node_orders_in_memory) {
-        auto model = createModelWithShapes(input_shape, node_order_in_memory, buffer);
+        auto model = createModelWithShapes(input_shape, node_order_in_memory, "Shape_", buffer);
 
         ov::pass::Manager manager;
         manager.register_pass<pass::SharedOpOptimization>();
