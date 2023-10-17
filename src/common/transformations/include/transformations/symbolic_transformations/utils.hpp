@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace symbol {

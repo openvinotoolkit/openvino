@@ -4,9 +4,9 @@
 
 #include "transformations/symbolic_transformations/utils.hpp"
 
-#include <openvino/core/dimension_tracker.hpp>
-#include <openvino/core/node.hpp>
-#include <transformations/utils/utils.hpp>
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/node.hpp"
+#include "transformations/utils/utils.hpp"
 
 bool ov::symbol::util::get_labels(const ov::PartialShape& shape, ov::TensorLabel& labels) {
     if (shape.rank().is_dynamic())
