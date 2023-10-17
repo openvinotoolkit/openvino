@@ -796,8 +796,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
             inputPrecision = outputPrecision = Precision::BF16;
     }
 
-    if (one_of(Precision::FP16, inputPrecision, outputPrecision) &&
-        (mayiuse(cpu::x64::avx512_core) || mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41))) {
+    if (one_of(Precision::FP16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
         inputPrecision = outputPrecision = Precision::FP32;
     }
 
