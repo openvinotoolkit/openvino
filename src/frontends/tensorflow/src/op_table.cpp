@@ -130,6 +130,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AvgPool3D", CreatorFunction(translate_avg_pool_op)},
         {"BatchMatMul", CreatorFunction(translate_batch_mat_mul_op)},
         {"BatchMatMulV2", CreatorFunction(translate_batch_mat_mul_op)},
+        {"BatchMatMulV3", CreatorFunction(translate_batch_mat_mul_with_type_op)},
         {"BatchToSpaceND", CreatorFunction(translate_batch_to_space_nd_op)},
         {"BroadcastArgs", CreatorFunction(translate_broadcast_args_op)},
         {"BroadcastTo", CreatorFunction(translate_broadcast_to_op)},
