@@ -841,8 +841,8 @@ struct PrintToStringParamName {
         const auto& p = info.param;
         std::ostringstream result;
         result << p.test_name << "_";
-        result << "DataType=" << data_type_traits::name(ov::element::from<T>());
-        result << "_IndexType=" << data_type_traits::name(ov::element::from<T_IND>());
+        result << "DataType=" << ov::element::Type(ov::element::from<T>());
+        result << "_IndexType=" << ov::element::Type(ov::element::from<T_IND>());
         return result.str();
     }
 };
