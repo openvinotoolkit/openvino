@@ -213,14 +213,14 @@ jobs:
         - /mount/caches:/mount/caches
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_cc_Release
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_cc_Release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 20G
 
@@ -287,7 +287,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 8 --target benchmark_app
 
       - name: Show ccache stats
-        run: ccache --show-stats
+        run: ${SCCACHE_PATH} --show-stats
 
       - name: Run with CC-ed runtime
         run: ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
