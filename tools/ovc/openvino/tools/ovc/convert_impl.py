@@ -7,10 +7,10 @@ import logging as log
 import os
 import sys
 import traceback
+import tracemalloc
 from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
-import tracemalloc
 
 try:
     import openvino_telemetry as tm
@@ -492,18 +492,16 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         if argv.verbose:
             elapsed_time = datetime.datetime.now() - start_time
             print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
-            try:
-                snapshot = tracemalloc.take_snapshot()
 
-                # Statistics on allocated memory blocks per filename and per line number
-                stats = snapshot.statistics('lineno')
+            # Statistics on allocated memory blocks per filename and per line number
+            snapshot = tracemalloc.take_snapshot()
+            stats = snapshot.statistics('lineno')
 
-                # Sum of allocated memory in bytes
-                total = sum(stat.size for stat in stats)
+            # Sum of allocated memory in bytes
+            total = sum(stat.size for stat in stats)
 
-                print("[ SUCCESS ] Memory consumed: {:.2f} MB. ".format(total / (1024 * 1024)))
-            except ImportError:
-                pass
+            print("[ SUCCESS ] Memory consumed: {:.2f} MB. ".format(total / (1024 * 1024)))
+
 
         return ov_model, argv
 
