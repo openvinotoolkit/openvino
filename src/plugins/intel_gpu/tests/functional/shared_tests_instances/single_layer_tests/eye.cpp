@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/eye.hpp"
-
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/eye.hpp"
 
 namespace {
+using ov::test::EyeLayerTest;
 
-TEST_P(EyeLayerTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Run();
-}
-
-const std::vector<ov::element::Type_t> netPrecisions =
-    {ElementType::f32, ElementType::f16, ElementType::i32, ElementType::i8, ElementType::u8, ElementType::i64};
+const std::vector<ov::element::Type> model_types = {
+    ov::element::f32,
+    ov::element::f16,
+    ov::element::i32,
+    ov::element::i8,
+    ov::element::u8,
+    ov::element::i64};
 
 const std::vector<std::vector<int>> eyePars = {
     // rows, cols, diag_shift
@@ -40,7 +39,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_WithNonScalar_Test,
                          ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<ov::Shape>>{{{1}, {1}, {1}}}),
                                             ::testing::ValuesIn(emptyBatchShape),
                                             ::testing::ValuesIn(eyePars),
-                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(model_types),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          EyeLayerTest::getTestCaseName);
 
@@ -50,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_1DBatch_Test,
                                                 {{1}, {1}, {1}, {1}}}),
                                             ::testing::ValuesIn(batchShapes1D),
                                             ::testing::ValuesIn(eyePars),
-                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(model_types),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          EyeLayerTest::getTestCaseName);
 
@@ -60,7 +59,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test,
                                                 {{1}, {1}, {1}, {2}}}),
                                             ::testing::ValuesIn(batchShapes2D),
                                             ::testing::ValuesIn(eyePars),
-                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(model_types),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          EyeLayerTest::getTestCaseName);
 
@@ -70,7 +69,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test,
                                                 {{1}, {1}, {1}, {3}}}),
                                             ::testing::ValuesIn(batchShapes3D),
                                             ::testing::ValuesIn(eyePars),
-                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(model_types),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          EyeLayerTest::getTestCaseName);
 

@@ -1,4 +1,4 @@
-name: Tests on Linux (Ubuntu 20.04, Python 3.11)
+name: Linux (Ubuntu 20.04, Python 3.11)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -947,6 +947,16 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
+      - name: ONNX Layer Tests
+        run: |
+          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          # requires 'unit_tests' from 'tools/mo'
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
       - name: TensorFlow 1 Layer Tests - TF FE
         run: |
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
@@ -1126,13 +1136,14 @@ jobs:
         with:
           name: test-results-functional-cpu
           path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
             ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
+            ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'
 
   TensorFlow_Hub_Models_Tests:
