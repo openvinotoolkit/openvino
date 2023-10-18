@@ -164,6 +164,7 @@ private:
             {".xml", {"ir", "ir"}},
             {".onnx", {"onnx", "onnx"}},
             {".pb", {"tf", "tensorflow"}},
+            {".pbtxt", {"tf", "tensorflow"}},
             {".tflite", {"tflite", "tensorflow_lite"}},
             {".pdmodel", {"paddle", "paddle"}},
             // {".ts", {"pytorch", "pytorch"}},
