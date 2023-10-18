@@ -89,22 +89,22 @@ jobs:
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
-          key: ${{ github.job }}-windows-itt
+          key: ${{ github.job }}-${{ runner.os }}-itt
           restore-keys: |
-            ${{ github.job }}-windows-itt
+            ${{ github.job }}-${{ runner.os }}-itt
 
       - name: CMake configure - CC COLLECT
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
-            -DENABLE_CPPLINT=OFF `
             -DBUILD_SHARED_LIBS=OFF `
             -DENABLE_TESTS=ON `
+            -DENABLE_CPPLINT=OFF `
             -DENABLE_NCC_STYLE=OFF `
             -DENABLE_INTEL_GNA=OFF `
-            -DENABLE_GAPI_PREPROCESSING=OFF `
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
