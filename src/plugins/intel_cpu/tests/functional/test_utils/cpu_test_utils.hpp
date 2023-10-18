@@ -93,6 +93,7 @@ protected:
 // common parameters
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
+const ov::AnyMap empty_plugin_config{};
 const std::map<std::string, std::string> cpuFP32PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO } };
 const std::map<std::string, std::string> cpuBF16PluginConfig =
