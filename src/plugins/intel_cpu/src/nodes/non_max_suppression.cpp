@@ -15,7 +15,6 @@
 #include <queue>
 
 using namespace InferenceEngine;
-using namespace dnnl::impl::cpu;
 
 namespace ov {
 namespace intel_cpu {
@@ -108,44 +107,6 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
     for (size_t i = 0lu; i < op->get_output_size(); i++) {
         m_defined_outputs[i] = !op->get_output_target_inputs(i).empty();
     }
-
-    if (m_const_inputs[NMS_MAX_OUTPUT_BOXES_PER_CLASS] && op_inputs_num > NMS_MAX_OUTPUT_BOXES_PER_CLASS) {
-        int64_t val = 0l;
-        switch (op->get_input_element_type(NMS_MAX_OUTPUT_BOXES_PER_CLASS)) {
-            case element::i64: val = as_type<op::v0::Constant>(op->get_input_node_ptr(NMS_MAX_OUTPUT_BOXES_PER_CLASS))->get_data_ptr<int64_t>()[0]; break;
-            case element::i32: val = as_type<op::v0::Constant>(op->get_input_node_ptr(NMS_MAX_OUTPUT_BOXES_PER_CLASS))->get_data_ptr<int32_t>()[0]; break;
-            default: THROW_CPU_NODE_ERR("has input MAX_OUTPUT_BOXES_PER_CLASS with unsupported precision ",
-                                        op->get_input_element_type(NMS_MAX_OUTPUT_BOXES_PER_CLASS));
-        }
-        m_max_output_boxes_per_class = val <= 0l ? 0lu : static_cast<size_t>(val);
-    }
-    if (m_const_inputs[NMS_IOU_THRESHOLD] && op_inputs_num > NMS_IOU_THRESHOLD) {
-        auto const_op = as_type<op::v0::Constant>(op->get_input_node_ptr(NMS_IOU_THRESHOLD));
-        switch (op->get_input_element_type(NMS_IOU_THRESHOLD)) {
-            case element::f32: m_iou_threshold = const_op->get_data_ptr<float>()[0]; break;
-            case element::f16: m_iou_threshold = static_cast<float>(const_op->get_data_ptr<float16>()[0]); break;
-            case element::bf16: m_iou_threshold = static_cast<float>(const_op->get_data_ptr<bfloat16>()[0]); break;
-            default: THROW_CPU_NODE_ERR("has input IOU_THRESHOLD with unsupported precision ", op->get_input_element_type(NMS_IOU_THRESHOLD));
-        }
-    }
-    if (m_const_inputs[NMS_SCORE_THRESHOLD] && op_inputs_num > NMS_SCORE_THRESHOLD) {
-        auto const_op = as_type<op::v0::Constant>(op->get_input_node_ptr(NMS_SCORE_THRESHOLD));
-        switch (op->get_input_element_type(NMS_SCORE_THRESHOLD)) {
-            case element::f32: m_score_threshold = const_op->get_data_ptr<float>()[0]; break;
-            case element::f16: m_score_threshold = static_cast<float>(const_op->get_data_ptr<float16>()[0]); break;
-            case element::bf16: m_score_threshold = static_cast<float>(const_op->get_data_ptr<bfloat16>()[0]); break;
-            default: THROW_CPU_NODE_ERR("has input SCORE_THRESHOLD with unsupported precision ", op->get_input_element_type(NMS_SCORE_THRESHOLD));
-        }
-    }
-    if (m_const_inputs[NMS_SOFT_NMS_SIGMA] && op_inputs_num > NMS_SOFT_NMS_SIGMA) {
-        switch (op->get_input_element_type(NMS_SOFT_NMS_SIGMA)) {
-            case element::f32: m_soft_nms_sigma = as_type<op::v0::Constant>(op->get_input_node_ptr(NMS_SOFT_NMS_SIGMA))->get_data_ptr<float>()[0]; break;
-            default: THROW_CPU_NODE_ERR("has input SOFT_NMS_SIGMA with unsupported precision ", op->get_input_element_type(NMS_SOFT_NMS_SIGMA));
-        }
-        if (m_soft_nms_sigma > 0.f) {
-            m_scale = -0.5f / m_soft_nms_sigma;
-        }
-    }
 }
 
 void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
@@ -188,23 +149,51 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
         outDataConf.emplace_back(LayoutType::ncsp, outPrecision);
     }
 
-    // as only FP32 and ncsp is supported, and kernel is shape agnostic, we can create here. There is no need to recompilation.
+    impl_desc_type impl_type = impl_desc_type::ref;
+
+#if defined(OPENVINO_ARCH_X86_64)
+    using namespace dnnl::impl::cpu;
+
+    // As only FP32 and ncsp is supported, and kernel is shape agnostic, we can create here. There is no need to recompilation.
     createJitKernel();
 
     x64::cpu_isa_t actual_isa = x64::isa_undef;
     if (m_jit_kernel) {
         actual_isa = m_jit_kernel->getIsa();
     }
-
-    impl_desc_type impl_type;
     switch (actual_isa) {
         case x64::avx512_core: impl_type = impl_desc_type::jit_avx512; break;
         case x64::avx2:        impl_type = impl_desc_type::jit_avx2;   break;
         case x64::sse41:       impl_type = impl_desc_type::jit_sse42;  break;
         default:               impl_type = impl_desc_type::ref;
     }
+#endif // OPENVINO_ARCH_X86_64
 
     addSupportedPrimDesc(inDataConf, outDataConf, impl_type);
+}
+
+void NonMaxSuppression::createPrimitive() {
+    const auto inputs_num = inputShapes.size();
+
+    if (inputs_num > NMS_MAX_OUTPUT_BOXES_PER_CLASS && m_const_inputs[NMS_MAX_OUTPUT_BOXES_PER_CLASS]) {
+        auto val = getScalar<int64_t>(NMS_MAX_OUTPUT_BOXES_PER_CLASS);
+        m_max_output_boxes_per_class = val <= 0l ? 0lu : static_cast<size_t>(val);
+    }
+
+    if (inputs_num > NMS_IOU_THRESHOLD && m_const_inputs[NMS_IOU_THRESHOLD]) {
+        m_iou_threshold = getScalar<float>(NMS_IOU_THRESHOLD);
+    }
+
+    if (inputs_num > NMS_SCORE_THRESHOLD && m_const_inputs[NMS_SCORE_THRESHOLD]) {
+        m_score_threshold = getScalar<float>(NMS_SCORE_THRESHOLD);
+    }
+
+    if (inputs_num > NMS_SOFT_NMS_SIGMA && m_const_inputs[NMS_SOFT_NMS_SIGMA]) {
+        m_soft_nms_sigma = getScalar<float>(NMS_SOFT_NMS_SIGMA);
+        m_scale = m_soft_nms_sigma > 0.f ? -0.5f / m_soft_nms_sigma : 0.f;
+    }
+
+    Node::createPrimitive();
 }
 
 void NonMaxSuppression::prepareParams() {
@@ -262,30 +251,24 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
 
     size_t max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
     if (!m_const_inputs[NMS_MAX_OUTPUT_BOXES_PER_CLASS] && inputs_num > NMS_MAX_OUTPUT_BOXES_PER_CLASS) {
-        auto max_boxes_memory = getParentEdgeAt(NMS_MAX_OUTPUT_BOXES_PER_CLASS)->getMemoryPtr();
-        int64_t val = 0l;
-        switch (max_boxes_memory->getDesc().getPrecision()) {
-            case Precision::I32: val = reinterpret_cast<int32_t *>(max_boxes_memory->getData())[0]; break;
-            case Precision::I64: val = reinterpret_cast<int64_t *>(max_boxes_memory->getData())[0]; break;
-            default: THROW_CPU_NODE_ERR("has input MAX_OUTPUT_BOXES_PER_CLASS with unsupported precision ", max_boxes_memory->getDesc().getPrecision());
-        }
+        auto val = getScalar<int64_t>(NMS_MAX_OUTPUT_BOXES_PER_CLASS);
         m_max_output_boxes_per_class = val <= 0l ? 0lu : static_cast<size_t>(val);
-        if (m_max_output_boxes_per_class == 0lu) {
-            return;
-        }
         m_output_boxes_per_class = std::min(m_max_output_boxes_per_class, m_boxes_num);
         max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
         m_filtered_boxes.resize(max_number_of_boxes);
     }
+    if (m_max_output_boxes_per_class == 0lu) {
+        return;
+    }
 
     if (!m_const_inputs[NMS_IOU_THRESHOLD] && inputs_num > NMS_IOU_THRESHOLD) {
-        m_iou_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOU_THRESHOLD)->getMemoryPtr()->getData())[0];
+        m_iou_threshold = getScalar<float>(NMS_IOU_THRESHOLD);
     }
     if (!m_const_inputs[NMS_SCORE_THRESHOLD] && inputs_num > NMS_SCORE_THRESHOLD) {
-        m_score_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_SCORE_THRESHOLD)->getMemoryPtr()->getData())[0];
+        m_score_threshold = getScalar<float>(NMS_SCORE_THRESHOLD);
     }
     if (!m_const_inputs[NMS_SOFT_NMS_SIGMA] && inputs_num > NMS_SOFT_NMS_SIGMA) {
-        m_soft_nms_sigma = reinterpret_cast<float *>(getParentEdgeAt(NMS_SOFT_NMS_SIGMA)->getMemoryPtr()->getData())[0];
+        m_soft_nms_sigma = getScalar<float>(NMS_SOFT_NMS_SIGMA);
         m_scale = (m_soft_nms_sigma > 0.f) ? (-0.5f / m_soft_nms_sigma) : 0.f;
     }
 
@@ -438,6 +421,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float *boxes, const float *scores
             selectedBoxes.push_back({ candidateBox.score, batch_idx, class_idx, candidateBox.idx });
             if (maxSeletedBoxNum > 1) {
                 if (m_jit_kernel) {
+#if defined(OPENVINO_ARCH_X86_64)
                     std::vector<float> boxCoord0(maxSeletedBoxNum, 0.0f);
                     std::vector<float> boxCoord1(maxSeletedBoxNum, 0.0f);
                     std::vector<float> boxCoord2(maxSeletedBoxNum, 0.0f);
@@ -484,6 +468,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float *boxes, const float *scores
                             }
                         }
                     }
+#endif // OPENVINO_ARCH_X86_64
                 } else {
                     while (selectedBoxes.size() < m_output_boxes_per_class && !sorted_boxes.empty()) {
                         boxInfo candidateBox = sorted_boxes.top();
@@ -553,6 +538,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float *boxes, const float *sco
             io_selection_size++;
             if (sortedBoxSize > 1lu) {
                 if (m_jit_kernel) {
+#if defined(OPENVINO_ARCH_X86_64)
                     std::vector<float> boxCoord0(sortedBoxSize, 0.0f);
                     std::vector<float> boxCoord1(sortedBoxSize, 0.0f);
                     std::vector<float> boxCoord2(sortedBoxSize, 0.0f);
@@ -589,6 +575,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float *boxes, const float *sco
                             io_selection_size++;
                         }
                     }
+#endif // OPENVINO_ARCH_X86_64
                 } else {
                     for (size_t candidate_idx = 1; (candidate_idx < sortedBoxSize) && (io_selection_size < max_out_box); candidate_idx++) {
                         int candidateStatus = NMSCandidateStatus::SELECTED; // 0 for suppressed, 1 for selected
@@ -650,7 +637,7 @@ inline void getRotatedVertices(const float* box, Point2D (&pts)[4], bool clockwi
     pts[3].y = 2 * box[1] - pts[1].y;
 }
 
-inline float polygon_area(const Point2D (&q)[24], const int64_t& m) {
+inline float polygonArea(const Point2D (&q)[24], const int64_t& m) {
     if (m <= 2l) {
         return 0.f;
     }
@@ -664,17 +651,16 @@ inline float polygon_area(const Point2D (&q)[24], const int64_t& m) {
     return area / 2.f;
 }
 
-inline int convexHullGraham(const Point2D (&p)[24],
-                            const size_t num_in,
-                            Point2D (&q)[24],
-                            bool shift_to_zero = false) {
-    assert(num_in >= 2lu);
+inline size_t convexHullGraham(const Point2D (&p)[24],
+                               const size_t num_in,
+                               Point2D (&q)[24]) {
+    OPENVINO_ASSERT(num_in >= 2lu);
 
     // Step 1:
     // Find point with minimum y
     // if more than 1 points have the same minimum y,
     // pick the one with the minimum x.
-    size_t t = 0;
+    size_t t = 0lu;
     for (size_t i = 1lu; i < num_in; i++) {
         if (p[i].y < p[t].y || (p[i].y == p[t].y && p[i].x < p[t].x)) {
             t = i;
@@ -716,8 +702,8 @@ inline int convexHullGraham(const Point2D (&p)[24],
     // Step 4:
     // Make sure there are at least 2 points (that don't overlap with each other)
     // in the stack
-    size_t k;  // index of the non-overlapped second point
-    for (k = 1lu; k < num_in; k++) {
+    size_t k = 1lu;  // index of the non-overlapped second point
+    for (; k < num_in; k++) {
         if (dist[k] > 1e-8f) {
             break;
         }
@@ -725,10 +711,10 @@ inline int convexHullGraham(const Point2D (&p)[24],
     if (k == num_in) {
         // We reach the end, which means the convex hull is just one point
         q[0] = p[t];
-        return 1;
+        return 1lu;
     }
     q[1] = q[k];
-    int64_t m = 2;  // 2 points in the stack
+    size_t m = 2lu;  // 2 points in the stack
     // Step 5:
     // Finally we can start the scanning process.
     // When a non-convex relationship between the 3 points is found
@@ -736,23 +722,11 @@ inline int convexHullGraham(const Point2D (&p)[24],
     // we pop the previous point from the stack
     // until the 3-point relationship is convex again, or
     // until the stack only contains two points
-    for (size_t i = k + 1; i < num_in; i++) {
-        while (m > 1 && cross_2d(q[i] - q[m - 2], q[m - 1] - q[m - 2]) >= 0) {
+    for (size_t i = k + 1lu; i < num_in; i++) {
+        while (m > 1lu && cross_2d(q[i] - q[m - 2], q[m - 1] - q[m - 2]) >= 0) {
             m--;
         }
         q[m++] = q[i];
-    }
-
-    // Step 6 (Optional):
-    // In general sense we need the original coordinates, so we
-    // need to shift the points back (reverting Step 2)
-    // But if we're only interested in getting the area/perimeter of the shape
-    // We can simply return.
-    if (!shift_to_zero) {
-        size_t mlu = static_cast<size_t>(m);
-        for (size_t i = 0lu; i < mlu; i++) {
-            q[i] += start;
-        }
     }
 
     return m;
@@ -799,8 +773,8 @@ inline size_t getIntersectionPoints(const Point2D (&pts1)[4],
         auto ABdotAB = dot_2d(AB, AB);
         auto ADdotAD = dot_2d(DA, DA);
         for (size_t i = 0lu; i < 4lu; i++) {
-            // assume ABCD is the rectangle, and P is the point to be judged
-            // P is inside ABCD iff. P's projection on AB lies within AB
+            // Assume ABCD is the rectangle, and P is the point to be judged
+            // P is inside ABCD if P's projection on AB lies within AB
             // and P's projection on AD lies within AD
 
             auto AP = pts1[i] - pts2[0];
@@ -836,7 +810,7 @@ inline size_t getIntersectionPoints(const Point2D (&pts1)[4],
 }
 
 inline float rotatedBoxesIntersection(const Point2D (&vertices_0)[4], const float* box_1, const bool clockwise) {
-    // There are up to 4 x 4 + 4 + 4 = 24 intersections (including dups) returned
+    // There are up to 4 x 4 + 4 + 4 = 24 intersections (including duplicates) returned
     Point2D intersect_pts[24], ordered_pts[24];
 
     Point2D vertices_1[4];
@@ -848,8 +822,8 @@ inline float rotatedBoxesIntersection(const Point2D (&vertices_0)[4], const floa
         return 0.f;
     }
 
-    auto num_convex = convexHullGraham(intersect_pts, num, ordered_pts, true);
-    return polygon_area(ordered_pts, num_convex);
+    auto num_convex = convexHullGraham(intersect_pts, num, ordered_pts);
+    return polygonArea(ordered_pts, num_convex);
 }
 
 inline float NonMaxSuppression::rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], const float area_0, const float* box_1) {
@@ -866,6 +840,7 @@ inline float NonMaxSuppression::rotatedIntersectionOverUnion(const Point2D (&ver
 void NonMaxSuppression::nmsRotated(const float* boxes, const float* scores, const VectorDims& boxes_strides,
                                    const VectorDims& scores_strides, std::vector<FilteredBox>& filtered_boxes) {
     if (m_jit_kernel) {
+        THROW_CPU_NODE_ERR("does not have implementation of the JIT kernel for Rotated boxes.");
     } else {
         parallel_for2d(m_batches_num, m_classes_num, [&](int64_t batch_idx, int64_t class_idx) {
             const float *boxes_ptr = boxes + batch_idx * boxes_strides[0];
@@ -994,6 +969,26 @@ void NonMaxSuppression::checkOutput(const Shape& shape, const std::vector<Precis
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output rank: ", shape.getRank());
     if (shape.getDims()[1] != 3)
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output 2nd dimension size: ", MemoryDescUtils::dim2str(shape.getDims()[1]));
+}
+
+template<typename T>
+T NonMaxSuppression::getScalar(size_t port) {
+    auto memory = getParentEdgeAt(port)->getMemoryPtr();
+    T res;
+#define PRC_CASE(P) \
+    case P: res = static_cast<T>(reinterpret_cast<PrecisionTrait<P>::value_type *>(memory->getData())[0]); break;
+
+    switch (memory->getDesc().getPrecision()) {
+        PRC_CASE(Precision::FP32)
+        PRC_CASE(Precision::FP16)
+        PRC_CASE(Precision::BF16)
+        PRC_CASE(Precision::I32)
+        PRC_CASE(Precision::I64)
+        default: THROW_CPU_NODE_ERR("has input at port ", port, " with unsupported precision ", memory->getDesc().getPrecision());
+    }
+#undef PRC_CASE
+
+    return res;
 }
 
 bool NonMaxSuppression::isExecutable() const {

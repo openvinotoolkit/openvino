@@ -46,6 +46,8 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
+    void createPrimitive() override;
+
     void execute(dnnl::stream strm) override;
 
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -123,6 +125,9 @@ private:
                      const size_t port);
 
     void createJitKernel();
+
+    template<typename T>
+    T getScalar(size_t port);
 
 
     NMSBoxEncodeType boxEncodingType = NMSBoxEncodeType::CORNER;
