@@ -125,9 +125,10 @@ void Multinomial::execute(dnnl::stream strm) {
         }
     }
 
-    // TODO, MOCK RandomUniform
+    // TODO RandomUniform - requires RandomUniform kernel https://github.com/openvinotoolkit/openvino/pull/20171
+    std::srand(m_op_seed);
     parallel_for(m_input_elements_count, [&](size_t idx) {
-        m_random_samples[idx] = static_cast<double>(idx % m_probs_count) / m_probs_count;
+        m_random_samples[idx] = static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX);
     });
 
     // max (slice) & divide

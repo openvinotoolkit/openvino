@@ -9,6 +9,8 @@
 
 #include <string>
 
+#include "common/permute_kernel.h"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -55,6 +57,9 @@ private:
     std::vector<float> m_max_per_batch;
     std::vector<double> m_random_samples;
     std::vector<int> m_output_vals;
+
+    // std::unique_ptr<RandomUniform> random_uniform_kernel; // TODO waiting for kernel
+    // https://github.com/openvinotoolkit/openvino/pull/20171
 };
 
 }  // namespace node

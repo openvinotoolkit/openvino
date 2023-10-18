@@ -26,7 +26,7 @@ public:
 
 class MultinomialShapeInferFactory : public ShapeInferFactory {
 public:
-    explicit MultinomialShapeInferFactory(const std::shared_ptr<ov::Node>& op);
+    explicit MultinomialShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op){};
     ShapeInferPtr makeShapeInfer() const override;
 
 private:

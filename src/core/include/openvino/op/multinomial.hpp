@@ -33,7 +33,7 @@ public:
      */
     Multinomial(const Output<Node>& input,
                 const Output<Node>& num_samples,
-                const ov::element::Type_t output_type,
+                const ov::element::Type_t convert_type,
                 const bool with_replacement,
                 const bool log_probs,
                 const uint64_t global_seed = 0,
@@ -49,7 +49,7 @@ public:
     uint64_t get_global_seed() const;
     uint64_t get_op_seed() const;
 
-    void set_convert_type(const ov::element::Type_t output_type);
+    void set_convert_type(const ov::element::Type_t convert_type);
     void set_with_replacement(const bool with_replacement);
     void set_log_probs(const bool log_probs);
     void set_global_seed(const uint64_t global_seed);
