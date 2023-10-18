@@ -851,14 +851,15 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
 }
 
 static bool is_node_for_onednn(convolution_node const& node) {
-    auto prim = node.get_primitive();
+    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
+        return false;
+
     auto input_layout = node.get_input_layout(0);
     auto output_layout = node.get_output_layout(0);
-
     if (input_layout.is_dynamic() || output_layout.is_dynamic())
         return false;
 
-    return layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
+    return true;
 }
 
 static bool is_node_for_onednn(deconvolution_node const& node) {
