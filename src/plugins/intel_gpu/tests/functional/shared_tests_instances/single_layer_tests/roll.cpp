@@ -69,17 +69,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Roll_4d_negative_unordered_axes,
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          RollLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Roll_5d_repeating_axes,
-    RollLayerTest,
-    testing::Combine(testing::Values(std::vector<size_t>{2, 16, 32, 7, 32}),                    // Input shape
-                     testing::ValuesIn(inputPrecision),                                         // Precision
-                     testing::Values(std::vector<int64_t>{16, 15, 10, 2, 1, 7, 2, 8, 1, 1}),    // Shift
-                     testing::Values(std::vector<int64_t>{-1, -2, -3, 1, 0, 3, 3, 2, -2, -3}),  // Axes
-                     testing::Values(ov::test::utils::DEVICE_GPU)),
-    RollLayerTest::getTestCaseName);
+                        smoke_Roll_5d_repeating_axes,
+                        RollLayerTest,
+                        testing::Combine(testing::Values(ov::test::static_shapes_to_test_representation(
+                                                            std::vector<ov::Shape>{{2, 16, 32, 7, 32}})),                    // Input shape
+                                        testing::ValuesIn(inputPrecision),                                         // Precision
+                                        testing::Values(std::vector<int64_t>{16, 15, 10, 2, 1, 7, 2, 8, 1, 1}),    // Shift
+                                        testing::Values(std::vector<int64_t>{-1, -2, -3, 1, 0, 3, 3, 2, -2, -3}),  // Axes
+                                        testing::Values(ov::test::utils::DEVICE_GPU)),
+                        RollLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_Roll_6d_negative_shifts,
                          RollLayerTest,
-                         testing::Combine(testing::Values(std::vector<size_t>{4, 16, 3, 6, 5, 2}),  // Input shape
+                         testing::Combine(testing::Values(ov::test::static_shapes_to_test_representation(
+                                                            std::vector<ov::Shape>{{4, 16, 3, 6, 5, 2}})),  // Input shape
                                           testing::ValuesIn(inputPrecision),                        // Precision
                                           testing::Values(std::vector<int64_t>{-2, -15, -2, -1, -4, -1}),  // Shift
                                           testing::Values(std::vector<int64_t>{0, 1, 2, 3, 4, 5}),         // Axes
