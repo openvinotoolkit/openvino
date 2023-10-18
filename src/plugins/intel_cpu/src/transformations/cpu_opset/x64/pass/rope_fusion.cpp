@@ -224,6 +224,7 @@ ov::intel_cpu::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         rope_node->set_friendly_name(root->get_friendly_name());
         ov::replace_node(root, rope_node);
 
+        rope_node->validate_and_infer_types();
         register_new_node(rope_node);
         return true;
     };

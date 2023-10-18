@@ -9,7 +9,7 @@
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::RoPENode::RoPENode(const OutputVector& args, const Config& cfg) : Op(args), m_config(cfg) {
-    validate_and_infer_types();
+    constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<ngraph::Node> ov::intel_cpu::RoPENode::clone_with_new_inputs(
