@@ -183,8 +183,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
     manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenStackListConstructReplacer>();
-    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
-        element::TypeVector{element::u8, element::i8, element::u4, element::i4});
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
