@@ -52,7 +52,7 @@ public:
     ///
     /// \param variable Class for storing and synchronizing element types, shapes and
     /// identifiers between pairs of Assign/ReadValue nodes.
-    ReadValue(const std::shared_ptr<util::Variable>& variable);
+    explicit ReadValue(const std::shared_ptr<util::Variable>& variable);
 
     /// \brief Constructs a ReadValue operation.
     ///
