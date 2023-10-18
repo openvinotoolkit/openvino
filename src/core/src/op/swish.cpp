@@ -88,7 +88,7 @@ bool Swish::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto& arg1 = inputs.size() == 2 ? inputs[1] : Tensor();
 
     using namespace ov::element;
-    return IfTypeOf<ff32>::apply<swish::Evaluate>(inputs[0].get_element_type(),
+    return IfTypeOf<f32>::apply<swish::Evaluate>(inputs[0].get_element_type(),
                                                   inputs[0],
                                                   arg1,
                                                   outputs[0],

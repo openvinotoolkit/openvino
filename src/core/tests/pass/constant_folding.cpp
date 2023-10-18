@@ -30,7 +30,7 @@ std::vector<T> get_result_constant_data(std::shared_ptr<Model> m, size_t pos) {
     return new_const->cast_vector<T>();
 }
 
-void range_test_check(const vector<double>& values_out, const vector<double>& values_expected) {
+void range_test_check(const vector<float>& values_out, const vector<float>& values_expected) {
     ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
