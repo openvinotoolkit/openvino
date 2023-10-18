@@ -46,7 +46,6 @@ bool evaluate_sign(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
         OPENVINO_TYPE_CASE(evaluate_sign, i64, arg0, out, count);
         OPENVINO_TYPE_CASE(evaluate_sign, u32, arg0, out, count);
         OPENVINO_TYPE_CASE(evaluate_sign, u64, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_sign, f16, arg0, out, count);
         OPENVINO_TYPE_CASE(evaluate_sign, f32, arg0, out, count);
     default:
         rc = false;
@@ -72,7 +71,6 @@ bool op::Sign::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

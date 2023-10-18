@@ -87,8 +87,6 @@ std::shared_ptr<ov::Node> Eye::clone_with_new_inputs(const ov::OutputVector& new
 bool Eye::has_evaluate() const {
     OV_OP_SCOPE(v9_Eye_has_evaluate);
     switch (m_output_type) {
-    case element::bf16:
-    case element::f16:
     case element::f32:
     case element::f64:
     case element::i8:
@@ -125,10 +123,10 @@ bool Eye::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     outputs[0].set_shape(output_shape);
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32, f64, i8, i32, i64, u8>::apply<eye::Evaluate>(outputs[0].get_element_type(),
-                                                                                 outputs[0],
-                                                                                 output_shape,
-                                                                                 diagonal_index);
+    return IfTypeOf<f32, f64, i8, i32, i64, u8>::apply<eye::Evaluate>(outputs[0].get_element_type(),
+                                                                      outputs[0],
+                                                                      output_shape,
+                                                                      diagonal_index);
 }
 }  // namespace v9
 }  // namespace op

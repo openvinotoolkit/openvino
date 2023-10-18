@@ -84,12 +84,6 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         case Type_t::boolean:
             fill_data<Type_t::boolean>(stoi(values[0]));
             break;
-        case Type_t::bf16:
-            fill_data<Type_t::bf16>(ngraph::parse_string<float>(values[0]));
-            break;
-        case Type_t::f16:
-            fill_data<Type_t::f16>(ngraph::parse_string<float>(values[0]));
-            break;
         case Type_t::f32:
             fill_data<Type_t::f32>(ngraph::parse_string<float>(values[0]));
             break;
@@ -142,12 +136,6 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         switch (m_element_type) {
         case Type_t::boolean:
             write_buffer<Type_t::boolean>(ngraph::parse_string<uint8_t>(values));
-            break;
-        case Type_t::bf16:
-            write_buffer<Type_t::bf16>(ngraph::parse_string<float>(values));
-            break;
-        case Type_t::f16:
-            write_buffer<Type_t::f16>(ngraph::parse_string<float>(values));
             break;
         case Type_t::f32:
             write_buffer<Type_t::f32>(ngraph::parse_string<float>(values));
@@ -258,12 +246,6 @@ std::string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
     case Type_t::boolean:
         rc = std::to_string(get_element_value<Type_t::boolean>(index));
         break;
-    case Type_t::bf16:
-        rc = to_cpp_string(static_cast<float>(get_element_value<Type_t::bf16>(index)));
-        break;
-    case Type_t::f16:
-        rc = to_cpp_string(static_cast<float>(get_element_value<Type_t::f16>(index)));
-        break;
     case Type_t::f32:
         rc = to_cpp_string(get_element_value<Type_t::f32>(index));
         break;
@@ -328,16 +310,6 @@ std::vector<std::string> ov::op::v0::Constant::get_value_strings() const {
     case element::Type_t::boolean:
         for (int value : get_vector<char>()) {
             rc.push_back(std::to_string(value));
-        }
-        break;
-    case element::Type_t::bf16:
-        for (bfloat16 value : get_vector<bfloat16>()) {
-            rc.push_back(to_cpp_string(static_cast<float>(value)));
-        }
-        break;
-    case element::Type_t::f16:
-        for (float16 value : get_vector<float16>()) {
-            rc.push_back(to_cpp_string(static_cast<float>(value)));
         }
         break;
     case element::Type_t::f32:
@@ -512,8 +484,6 @@ bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
         rc = test_bitwise_identical<uint8_t>(get_data_ptr<uint8_t>(), shape_size(m_shape));
         break;
     }
-    case element::Type_t::bf16:
-    case element::Type_t::f16:
     case element::Type_t::i16:
     case element::Type_t::u16: {
         rc = test_bitwise_identical<uint16_t>(get_data_ptr<uint16_t>(), shape_size(m_shape));

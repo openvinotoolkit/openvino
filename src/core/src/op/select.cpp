@@ -100,8 +100,6 @@ bool evaluate_select(const HostTensorVector& output_values,
         OPENVINO_TYPE_CASE(evaluate_select, u16, output_values, input_values, autob);
         OPENVINO_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
         OPENVINO_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
-        OPENVINO_TYPE_CASE(evaluate_select, f16, output_values, input_values, autob);
         OPENVINO_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
         OPENVINO_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
         OPENVINO_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
@@ -144,8 +142,6 @@ bool op::v1::Select::has_evaluate() const {
     case ngraph::element::u16:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
     case ngraph::element::f32:
     case ngraph::element::f64:
     case ngraph::element::boolean:

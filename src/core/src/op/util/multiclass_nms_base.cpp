@@ -20,7 +20,7 @@ void op::util::MulticlassNmsBase::validate() {
     const auto keep_top_k = nms_attrs.keep_top_k;
 
     auto is_float_type_admissible = [](const element::Type& t) {
-        return t == element::f32 || t == element::f16 || t == element::bf16;
+        return t == element::f32;
     };
 
     // validate dtype of each input
@@ -30,11 +30,11 @@ void op::util::MulticlassNmsBase::validate() {
 
     NODE_VALIDATION_CHECK(this,
                           is_float_type_admissible(this->get_input_element_type(0)),
-                          "Expected bf16, fp16 or fp32 as element type for the 'boxes' input.");
+                          "Expected fp32 as element type for the 'boxes' input.");
 
     NODE_VALIDATION_CHECK(this,
                           is_float_type_admissible(this->get_input_element_type(1)),
-                          "Expected bf16, fp16 or fp32 as element type for the 'scores' input.");
+                          "Expected fp32 as element type for the 'scores' input.");
 
     NODE_VALIDATION_CHECK(this,
                           this->get_input_element_type(0).compatible(this->get_input_element_type(1)),

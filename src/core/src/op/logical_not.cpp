@@ -51,18 +51,16 @@ bool LogicalNot::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     outputs[0].set_shape(inputs[0].get_shape());
 
     using namespace ov::element;
-    return IfTypeOf<boolean, i32, i64, u32, u64, f16, f32>::apply<logical_not::Evaluate>(
-        inputs[0].get_element_type(),
-        inputs[0],
-        outputs[0],
-        shape_size(inputs[0].get_shape()));
+    return IfTypeOf<boolean, i32, i64, u32, u64, f32>::apply<logical_not::Evaluate>(inputs[0].get_element_type(),
+                                                                                    inputs[0],
+                                                                                    outputs[0],
+                                                                                    shape_size(inputs[0].get_shape()));
 }
 
 bool LogicalNot::has_evaluate() const {
     OV_OP_SCOPE(v1_LogicalNot_has_evaluate);
     switch (get_input_element_type(0)) {
     case element::boolean:
-    case element::f16:
     case element::f32:
     case element::i32:
     case element::i64:

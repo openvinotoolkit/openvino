@@ -101,12 +101,6 @@ shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_ar
 template <typename T>
 bool get_casted_value(const HostTensorPtr& tensor, T* val) {
     switch (tensor->get_element_type()) {
-    case element::Type_t::bf16:
-        *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::bf16>());
-        break;
-    case element::Type_t::f16:
-        *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::f16>());
-        break;
     case element::Type_t::f32:
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::f32>());
         break;
@@ -182,8 +176,6 @@ bool evaluate_power(const HostTensorPtr& out,
                     int version) {
     bool rc = true;
     switch (output_type) {
-        OPENVINO_TYPE_CASE(evaluate_range, bf16, out, start, stop, step, version);
-        OPENVINO_TYPE_CASE(evaluate_range, f16, out, start, stop, step, version);
         OPENVINO_TYPE_CASE(evaluate_range, f32, out, start, stop, step, version);
         OPENVINO_TYPE_CASE(evaluate_range, f64, out, start, stop, step, version);
         OPENVINO_TYPE_CASE(evaluate_range, i8, out, start, stop, step, version);
@@ -215,8 +207,6 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
 bool op::v4::Range::has_evaluate() const {
     OV_OP_SCOPE(v4_Range_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
     case ngraph::element::f32:
     case ngraph::element::f64:
     case ngraph::element::i8:
@@ -387,8 +377,6 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
 bool op::v0::Range::has_evaluate() const {
     OV_OP_SCOPE(v0_Range_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
     case ngraph::element::f32:
     case ngraph::element::f64:
     case ngraph::element::i8:

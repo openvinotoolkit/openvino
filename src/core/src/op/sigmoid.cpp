@@ -45,7 +45,6 @@ bool evaluate_sigmoid(const HostTensorPtr& arg0, const HostTensorPtr& out) {
         OPENVINO_TYPE_CASE(evaluate_sigmoid, i64, arg0, out, count);
         OPENVINO_TYPE_CASE(evaluate_sigmoid, u32, arg0, out, count);
         OPENVINO_TYPE_CASE(evaluate_sigmoid, u64, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_sigmoid, f16, arg0, out, count);
         OPENVINO_TYPE_CASE(evaluate_sigmoid, f32, arg0, out, count);
     default:
         rc = false;
@@ -71,7 +70,6 @@ bool ov::op::v0::Sigmoid::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

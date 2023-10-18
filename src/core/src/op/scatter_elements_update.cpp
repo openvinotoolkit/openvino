@@ -256,16 +256,6 @@ bool evaluate_scatter_elements_update(
                            reduction_type,
                            use_init_value);
         OPENVINO_TYPE_CASE(evaluate_scatter_element_update,
-                           f16,
-                           arg0,
-                           arg1,
-                           arg2,
-                           arg3,
-                           out,
-                           normalized_axis,
-                           reduction_type,
-                           use_init_value);
-        OPENVINO_TYPE_CASE(evaluate_scatter_element_update,
                            f32,
                            arg0,
                            arg1,

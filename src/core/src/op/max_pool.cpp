@@ -92,15 +92,15 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
     outputs[0].set_shape(output_shape.get_shape());
     using namespace ov::element;
-    return IfTypeOf<f16, f32, i32, i64, u32, u64>::apply<maxpool::Evaluate>(inputs[0].get_element_type(),
-                                                                            inputs[0],
-                                                                            outputs[0],
-                                                                            inputs[0].get_shape(),
-                                                                            outputs[0].get_shape(),
-                                                                            get_kernel(),
-                                                                            get_strides(),
-                                                                            get_pads_begin(),
-                                                                            get_pads_end());
+    return IfTypeOf<f32, i32, i64, u32, u64>::apply<maxpool::Evaluate>(inputs[0].get_element_type(),
+                                                                       inputs[0],
+                                                                       outputs[0],
+                                                                       inputs[0].get_shape(),
+                                                                       outputs[0].get_shape(),
+                                                                       get_kernel(),
+                                                                       get_strides(),
+                                                                       get_pads_begin(),
+                                                                       get_pads_end());
 }
 
 bool MaxPool::has_evaluate() const {
@@ -110,7 +110,6 @@ bool MaxPool::has_evaluate() const {
     case element::i64:
     case element::u32:
     case element::u64:
-    case element::f16:
     case element::f32:
         return true;
     default:
@@ -263,18 +262,18 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
     outputs[0].set_shape(output_shape.get_shape());
     using namespace ov::element;
-    return IfTypeOf<f16, f32, i8, i32, i64, u8, u32, u64>::apply<maxpool::Evaluate>(inputs[0].get_element_type(),
-                                                                                    inputs[0],
-                                                                                    outputs[0],
-                                                                                    outputs[1],
-                                                                                    inputs[0].get_shape(),
-                                                                                    outputs[0].get_shape(),
-                                                                                    get_kernel(),
-                                                                                    get_strides(),
-                                                                                    get_dilations(),
-                                                                                    get_pads_begin(),
-                                                                                    get_pads_end(),
-                                                                                    get_axis());
+    return IfTypeOf<f32, i8, i32, i64, u8, u32, u64>::apply<maxpool::Evaluate>(inputs[0].get_element_type(),
+                                                                               inputs[0],
+                                                                               outputs[0],
+                                                                               outputs[1],
+                                                                               inputs[0].get_shape(),
+                                                                               outputs[0].get_shape(),
+                                                                               get_kernel(),
+                                                                               get_strides(),
+                                                                               get_dilations(),
+                                                                               get_pads_begin(),
+                                                                               get_pads_end(),
+                                                                               get_axis());
 }
 
 bool MaxPool::has_evaluate() const {
@@ -286,7 +285,6 @@ bool MaxPool::has_evaluate() const {
     case element::u8:
     case element::u32:
     case element::u64:
-    case element::f16:
     case element::f32:
         return true;
     default:

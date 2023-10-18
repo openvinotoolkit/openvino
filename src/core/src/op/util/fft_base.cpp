@@ -25,9 +25,8 @@ void ov::op::util::FFTBase::validate_types() {
 
     element::Type input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          input_et == element::f32 || input_et == element::f16 || input_et == element::bf16 ||
-                              input_et == element::dynamic,
-                          "FFT op input element type must be f32, f16, or bf16");
+                          input_et == element::f32 || input_et == element::dynamic,
+                          "FFT op input element type must be f32");
 
     element::Type axes_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,

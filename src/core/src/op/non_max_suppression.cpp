@@ -406,7 +406,7 @@ constexpr size_t score_threshold_port = 4;
 constexpr size_t soft_nms_sigma_port = 5;
 
 inline bool is_float_type_admissible(const element::Type& t) {
-    return t == element::dynamic || t == element::f32 || t == element::f16 || t == element::bf16;
+    return t == element::dynamic || t == element::f32;
 }
 }  // namespace
 
@@ -417,30 +417,30 @@ namespace {
 void input_types(const Node* op) {
     NODE_VALIDATION_CHECK(op,
                           is_float_type_admissible(op->get_input_element_type(0)),
-                          "Expected bf16, fp16 or fp32 as element type for the 'boxes' input.");
+                          "Expected fp32 as element type for the 'boxes' input.");
 
     NODE_VALIDATION_CHECK(op,
                           is_float_type_admissible(op->get_input_element_type(1)),
-                          "Expected bf16, fp16 or fp32 as element type for the 'scores' input.");
+                          "Expected fp32 as element type for the 'scores' input.");
     const auto inputs_size = op->get_input_size();
     if (inputs_size > 3) {
         NODE_VALIDATION_CHECK(op,
                               is_float_type_admissible(op->get_input_element_type(3)),
-                              "Expected bf16, fp16 or fp32 as element type for the "
+                              "Expected fp32 as element type for the "
                               "'iou_threshold' input.");
     }
 
     if (inputs_size > 4) {
         NODE_VALIDATION_CHECK(op,
                               is_float_type_admissible(op->get_input_element_type(4)),
-                              "Expected bf16, fp16 or fp32 as element type for the "
+                              "Expected fp32 as element type for the "
                               "'score_threshold_ps' input.");
     }
 
     if (inputs_size > 5) {
         NODE_VALIDATION_CHECK(op,
                               is_float_type_admissible(op->get_input_element_type(5)),
-                              "Expected bf16, fp16 or fp32 as element type for the "
+                              "Expected fp32 as element type for the "
                               "'soft_nms_sigma' input.");
     }
 }

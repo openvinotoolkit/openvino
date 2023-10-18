@@ -24,8 +24,6 @@ bool evaluate_softsign(const ov::Tensor& arg, const ov::Tensor& out) {
     size_t count = arg.get_size();
 
     switch (arg.get_element_type()) {
-        OPENVINO_TYPE_CASE(evaluate_softsign, bf16, arg, out, count);
-        OPENVINO_TYPE_CASE(evaluate_softsign, f16, arg, out, count);
         OPENVINO_TYPE_CASE(evaluate_softsign, f32, arg, out, count);
         OPENVINO_TYPE_CASE(evaluate_softsign, f64, arg, out, count);
     default:
@@ -66,8 +64,6 @@ std::shared_ptr<ov::Node> ov::op::v9::SoftSign::clone_with_new_inputs(const Outp
 bool ov::op::v9::SoftSign::has_evaluate() const {
     OV_OP_SCOPE(v9_SoftSign_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ov::element::bf16:
-    case ov::element::f16:
     case ov::element::f32:
     case ov::element::f64:
         return true;
