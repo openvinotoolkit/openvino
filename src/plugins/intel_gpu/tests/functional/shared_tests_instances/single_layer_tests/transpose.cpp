@@ -2,29 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
-#include "single_layer_tests/transpose.hpp"
+#include "single_op_tests/transpose.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
+using ov::test::TransposeLayerTest;
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32,
 };
 
 /**
  * 4D permute tests
  */
-const std::vector<std::vector<size_t>> inputShapes = {
-        std::vector<size_t>{1, 3, 100, 100},
+const std::vector<std::vector<ov::Shape>> inputShapes = {
+        {{1, 3, 100, 100}},
         // use permute_8x8_4x4 kernel
-        std::vector<size_t>{2, 8, 64, 64},
-        std::vector<size_t>{2, 5, 64, 64},
-        std::vector<size_t>{2, 8, 64, 5},
-        std::vector<size_t>{2, 5, 64, 5},
+        {{2, 8, 64, 64}},
+        {{2, 5, 64, 64}},
+        {{2, 8, 64, 5}},
+        {{2, 5, 64, 5}},
 };
 
 const std::vector<std::vector<size_t>> inputOrder = {
@@ -39,22 +36,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose,
                          TransposeLayerTest,
                          testing::Combine(testing::ValuesIn(inputOrder),
                                           testing::ValuesIn(netPrecisions),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
-                                          testing::Values(InferenceEngine::Layout::ANY),
-                                          testing::ValuesIn(inputShapes),
+                                          testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes)),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          TransposeLayerTest::getTestCaseName);
 
 /**
  * 5D permute tests
  */
-const std::vector<std::vector<size_t>> inputShapes5D = {
-        std::vector<size_t>{2, 3, 4, 12, 64},
-        std::vector<size_t>{2, 5, 11, 32, 32},
-        std::vector<size_t>{2, 8, 64, 32, 5},
-        std::vector<size_t>{2, 5, 64, 32, 5},
+const std::vector<std::vector<ov::Shape>> inputShapes5D = {
+        {{2, 3, 4, 12, 64}},
+        {{2, 5, 11, 32, 32}},
+        {{2, 8, 64, 32, 5}},
+        {{2, 5, 64, 32, 5}},
 };
 
 const std::vector<std::vector<size_t>> inputOrder5D = {
@@ -71,22 +64,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose_5D,
                          TransposeLayerTest,
                          testing::Combine(testing::ValuesIn(inputOrder5D),
                                           testing::ValuesIn(netPrecisions),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
-                                          testing::Values(InferenceEngine::Layout::ANY),
-                                          testing::ValuesIn(inputShapes5D),
+                                          testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes5D)),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          TransposeLayerTest::getTestCaseName);
 
 /**
  * 6D permute tests
  */
-const std::vector<std::vector<size_t>> inputShapes6D = {
-        std::vector<size_t>{2, 8, 5, 13, 11, 16},
-        std::vector<size_t>{2, 11, 6, 2, 15, 10},
-        std::vector<size_t>{2, 13, 1, 3, 14, 32},
-        std::vector<size_t>{2, 14, 3, 4, 4, 22},
+const std::vector<std::vector<ov::Shape>> inputShapes6D = {
+        {{2, 8, 5, 13, 11, 16}},
+        {{2, 11, 6, 2, 15, 10}},
+        {{2, 13, 1, 3, 14, 32}},
+        {{2, 14, 3, 4, 4, 22}},
 };
 
 const std::vector<std::vector<size_t>> inputOrder6D = {
@@ -101,19 +90,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose_6D,
                          TransposeLayerTest,
                          testing::Combine(testing::ValuesIn(inputOrder6D),
                                           testing::ValuesIn(netPrecisions),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
-                                          testing::Values(InferenceEngine::Layout::ANY),
-                                          testing::ValuesIn(inputShapes6D),
+                                          testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes6D)),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          TransposeLayerTest::getTestCaseName);
 
 /**
  * 8D permute tests
  */
-const std::vector<std::vector<size_t>> inputShapes8D = {
-        std::vector<size_t>{1, 2, 3, 4, 5, 6, 7, 8},
+const std::vector<std::vector<ov::Shape>> inputShapes8D = {
+        {{1, 2, 3, 4, 5, 6, 7, 8}},
 };
 
 const std::vector<std::vector<size_t>> inputOrder8D = {
@@ -124,11 +109,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose_8D,
                          TransposeLayerTest,
                          testing::Combine(testing::ValuesIn(inputOrder8D),
                                           testing::ValuesIn(netPrecisions),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
-                                          testing::Values(InferenceEngine::Layout::ANY),
-                                          testing::ValuesIn(inputShapes8D),
+                                          testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes8D)),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          TransposeLayerTest::getTestCaseName);
 
