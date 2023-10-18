@@ -344,7 +344,7 @@ struct CPUStreamsExecutor::Impl {
                 : _id(id),
                   _count_ptr(std::make_shared<std::atomic_int>(1)) {}
             ~ThreadTracker() {
-                 _count_ptr->fetch_sub(1);
+                _count_ptr->fetch_sub(1);
             }
             std::shared_ptr<ThreadTracker> fetch() {
                 ThreadTracker* new_ptr = new ThreadTracker(*this);
