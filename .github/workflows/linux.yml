@@ -6,9 +6,10 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'docs/snippets/**'
+      - '**'
       - '!**/docs/**'
       - '!docs/**'
+      - 'docs/snippets/**'
       - '!**/**.md'
       - '!**.md'
   push:
