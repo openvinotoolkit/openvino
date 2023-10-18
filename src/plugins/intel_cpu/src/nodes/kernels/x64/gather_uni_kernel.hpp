@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "jit_kernel_base.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include <dnnl_types.h>
 

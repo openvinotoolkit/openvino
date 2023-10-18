@@ -30,7 +30,7 @@ template <x64::cpu_isa_t isa>
 void GridSampleKernel<isa>::create_ker() {
     auto code = x64::jit_generator::create_kernel();
     if (code != dnnl::impl::status::success)
-        IE_THROW() << "Could not create GridSample kernel. Error code: " << std::to_string(code);
+        OPENVINO_THROW("Could not create GridSample kernel. Error code: ", std::to_string(code));
     ker_ = (decltype(ker_))jit_ker();
 }
 

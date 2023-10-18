@@ -7,10 +7,6 @@
 #include <node.h>
 #include "kernels/x64/grid_sample.hpp"
 
-#include <memory>
-#include <string>
-#include <vector>
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
