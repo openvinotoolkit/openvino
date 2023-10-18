@@ -420,7 +420,6 @@ def get_common_cli_options(argv, is_python_api_used):
     if not is_python_api_used:
         model_name = get_model_name_from_args(argv)
         d['output_model'] = ['- IR output name', lambda _: model_name]
-    d['log_level'] = '- Log level'
     d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
     return d
