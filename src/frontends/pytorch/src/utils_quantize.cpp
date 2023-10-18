@@ -6,6 +6,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -13,6 +14,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/subtract.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -166,6 +168,53 @@ std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> no
         return nullptr;
     }
     return quant_node;
+}
+
+std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64_t axis) {
+    // Part 1: Detect pattern
+
+    if (list_elems.size() != 2)
+        return nullptr;
+    auto bitwise_and = cast_fw_node(list_elems[0].get_node_shared_ptr(), "aten::bitwise_and");
+    if (!bitwise_and)
+        return nullptr;
+    auto bitwise_shift = cast_fw_node(list_elems[1].get_node_shared_ptr(), "aten::bitwise_right_shift");
+    if (!bitwise_shift)
+        return nullptr;
+
+    auto weights_u8 = std::dynamic_pointer_cast<v0::Constant>(bitwise_and->get_input_node_shared_ptr(0));
+    if (weights_u8 != std::dynamic_pointer_cast<v0::Constant>(bitwise_shift->get_input_node_shared_ptr(0)))
+        return nullptr;
+
+    if (weights_u8->get_output_element_type(0) != element::u8)
+        return nullptr;
+
+    if (axis != -1 && static_cast<uint64_t>(axis) != weights_u8->get_shape().size() - 1)
+        return nullptr;
+
+    if (!ov::op::util::has_constant_value<uint64_t>(bitwise_and->get_input_node_shared_ptr(1), 0x0F))
+        return nullptr;
+
+    if (!ov::op::util::has_constant_value<uint64_t>(bitwise_shift->get_input_node_shared_ptr(1), 4))
+        return nullptr;
+
+    // Pattern detected, weights_u8 is target u8 packed constant with weights
+
+    // Part 2: Form u4 constant by repacking of the original weights_u8
+    // Repacking transformes half of lanes to interleaved representation.
+
+    auto u8_shape = weights_u8->get_shape();
+    size_t full_size = shape_size(u8_shape);
+    auto src = weights_u8->get_data_ptr<uint8_t>();
+
+    auto u4_shape = u8_shape;
+    u4_shape.push_back(2);
+    auto new_const = std::make_shared<v0::Constant>(element::u4, u4_shape);
+    auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));
+
+    std::copy(src, src + full_size, dst);  // TODO: Avoid copying, reuse the same constant
+    copy_runtime_info_and_name(weights_u8, {new_const}, {weights_u8, bitwise_and, bitwise_shift});
+    return new_const;
 }
 
 }  // namespace pytorch
