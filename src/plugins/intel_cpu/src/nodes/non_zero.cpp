@@ -57,7 +57,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
         return;
 
     const auto &inPrc = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(inPrc, Precision::FP32, Precision::BF16, Precision::I32, Precision::U32, Precision::I8,  Precision::U8)) {
+    if (!one_of(inPrc, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I32, Precision::U32, Precision::I8,  Precision::U8)) {
         IE_THROW() << "Can't create primitive descriptor for NonZero layer with name: " << getName() << " doesn't support "
                    << inPrc.name() << " precision on 0 port";
     }
@@ -123,6 +123,7 @@ void NonZero::execute(dnnl::stream strm) {
     OV_SWITCH(intel_cpu, NonZeroExecute, ctx, inputPrec,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::FP16, float16),
               OV_CASE(Precision::I32, int),
               OV_CASE(Precision::U32, uint32_t),
               OV_CASE(Precision::I8, int8_t),
