@@ -523,7 +523,8 @@ inline std::shared_ptr<Node> GenPattern(values_info vt) {
 template <class T, bool check_vt = false>
 std::shared_ptr<Node> GenPattern(const std::vector<GenPatternNode>& inputs,
                                  values_info vt = nullptr,
-                                 std::vector<attr> attrs = {}) {
+                                 std::vector<attr> attrs = {},
+                                 const char * mark_at_friendly_name = "") {
     auto* p_type_info = &(T::get_type_info_static());
 
     OutputVector output_vectors;
@@ -554,8 +555,7 @@ std::shared_ptr<Node> GenPattern(const std::vector<GenPatternNode>& inputs,
     auto& rt_info = pattern_node->get_rt_info();
     rt_info["pattern_attrs"] = std::vector<attr>(attrs);
 
-    pattern_node->set_predicate([p_type_info, vt, pattern_node, friendly_name](const Output<Node>& value) {
-        (void)friendly_name;
+    pattern_node->set_predicate([p_type_info, vt, pattern_node, friendly_name, mark_at_friendly_name](const Output<Node>& value) {
         if (!value.get_node_shared_ptr()->get_type_info().is_castable(*p_type_info)) {
             _VERBOSE_LOG("*mismatched GenPattern OP type: ", friendly_name, "vs", value);
             return false;
@@ -574,6 +574,10 @@ std::shared_ptr<Node> GenPattern(const std::vector<GenPatternNode>& inputs,
                 _VERBOSE_LOG("*mismatched GenPattern attr: ", friendly_name, "vs", value);
                 return false;
             }
+        }
+
+        if (std::string(mark_at_friendly_name) == value.get_node_shared_ptr()->get_friendly_name()) {
+           _VERBOSE_LOG("++++ ", mark_at_friendly_name, " ++++");
         }
         _VERBOSE_LOG(" matched GenPattern ", friendly_name, " == ", value);
         return true;

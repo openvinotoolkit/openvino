@@ -201,6 +201,18 @@ struct SymbolReference {
           is_integer(true),
           offset(offset),
           attr_name(attr_name) {}
+
+    SymbolReference(Symbol sym,
+                    std::shared_ptr<ov::Node> node,
+                    int64_t value,
+                    int32_t offset,
+                    std::string attr_name = {})
+        : sym(sym),
+          node(node),
+          value(value),
+          is_integer(true),
+          offset(offset),
+          attr_name(attr_name) {}
 };
 
 static bool collect_symbol_references(std::vector<SymbolReference>& svs,
@@ -239,6 +251,13 @@ static bool collect_symbol_references(std::vector<SymbolReference>& svs,
                 }
             } else if (ele_type == ov::element::f32) {
                 auto observed = constop->get_vector<float>();
+                if (observed.size() != symbols.size())
+                    return false;
+                for (size_t i = 0; i < symbols.size(); i++) {
+                    svs.emplace_back(symbols[i], matched_node, observed[i], i);
+                }
+            } else if (ele_type == ov::element::i64) {
+                auto observed = constop->get_vector<int64_t>();
                 if (observed.size() != symbols.size())
                     return false;
                 for (size_t i = 0; i < symbols.size(); i++) {
@@ -399,13 +418,13 @@ std::shared_ptr<Node> GenSlice(GenPatternNode data, Symbol start, Symbol stop, S
         (void)friendly_name;
         auto s1 = as_type_ptr<opset1::StridedSlice>(value.get_node_shared_ptr());
         if (!s1) {
-            _VERBOSE_LOG(" mismatch StridedSlice OP type: ", friendly_name, "vs", value);
+            _VERBOSE_LOG(" mismatch GenSlice(StridedSlice) OP type: ", friendly_name, "vs", value);
             return false;
         }
 
         if (!s1->get_new_axis_mask().empty() || !s1->get_shrink_axis_mask().empty() ||
             !s1->get_ellipsis_mask().empty()) {
-            _VERBOSE_LOG(" mismatch StridedSlice new/shrink/ellipsis mask: ", friendly_name, "vs", value);
+            _VERBOSE_LOG(" mismatch GenSlice(StridedSlice) new/shrink/ellipsis mask: ", friendly_name, "vs", value);
             return false;
         }
 
@@ -413,23 +432,23 @@ std::shared_ptr<Node> GenSlice(GenPatternNode data, Symbol start, Symbol stop, S
         auto& end_mask = s1->get_end_mask();
         auto mask_size = begin_mask.size();
         if (begin_mask.size() != end_mask.size()) {
-            _VERBOSE_LOG(" mismatch StridedSlice begin/end mask size: ", friendly_name, "vs", value);
+            _VERBOSE_LOG(" mismatch GenSlice(StridedSlice) begin/end mask size: ", friendly_name, "vs", value);
             return false;
         }
 
         if (mask_size < axis + 1) {
-            _VERBOSE_LOG(" mismatch StridedSlice too small mask size: ", friendly_name, "vs", value);
+            _VERBOSE_LOG(" mismatch GenSlice(StridedSlice) too small mask size: ", friendly_name, "vs", value);
             return false;
         }
 
         for (size_t i = 0; i < mask_size; i++) {
             auto expect_mask = (i == axis) ? 0 : 1;
             if (begin_mask[i] != expect_mask || end_mask[i] != expect_mask) {
-                _VERBOSE_LOG(" mismatch StridedSlice unexpected mask: ", friendly_name, "vs", value);
+                _VERBOSE_LOG(" mismatch GenSlice(StridedSlice) unexpected mask: ", friendly_name, "vs", value);
                 return false;
             }
         }
-        _VERBOSE_LOG(" matched StridedSlice ", friendly_name, "==", value);
+        _VERBOSE_LOG(" matched GenSlice(StridedSlice) ", friendly_name, "==", value);
         return true;
     });
     return opt1 | opt2;

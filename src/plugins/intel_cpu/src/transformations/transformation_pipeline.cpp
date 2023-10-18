@@ -320,6 +320,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
+    CPU_REGISTER_PASS_X64(manager, CausalMaskFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
@@ -633,12 +634,12 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
-    DEBUG_DUMP_MODEL_REGISTER_PASS(postLPTPassManager, "before.cpp");
+    CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
+    //DEBUG_DUMP_MODEL_REGISTER_PASS(postLPTPassManager, "before.cpp");
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskFusion);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPFusion);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, RemoveFusedAssign);
-    DEBUG_DUMP_MODEL_REGISTER_PASS(postLPTPassManager, "after.cpp");
+    //CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPFusion);
+    //CPU_REGISTER_PASS_X64(postLPTPassManager, RemoveFusedAssign);
+    //DEBUG_DUMP_MODEL_REGISTER_PASS(postLPTPassManager, "after.cpp");
 
     postLPTPassManager.run_passes(model);
 }

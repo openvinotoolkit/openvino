@@ -52,7 +52,7 @@ ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
     // rotate half : [-x2, x1]
     auto x2 = GenSlice(x, half_ndims, int32_max, 1, 3);
-    auto x2neg = GenPattern<opset1::Multiply>({x2, {-1}}, nullptr, {{"auto_broadcast", "numpy"}});
+    auto x2neg = GenPattern<opset1::Multiply>({x2, {-1.0f}}, nullptr, {{"auto_broadcast", "numpy"}});
     auto x1 = GenSlice(x, 0, half_ndims, 1, 3);
     auto x_rotate_half = GenPattern<opset1::Concat>({x2neg, x1}, nullptr, {{"axis", -1}});
 
