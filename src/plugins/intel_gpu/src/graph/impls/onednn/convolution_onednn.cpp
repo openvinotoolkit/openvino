@@ -121,9 +121,9 @@ protected:
             }
 
             if (a_zp_dtype == data_types::i8) {
-                set_activation_zero_points_attr<data_type_to_type<data_types::i8>::type>(attrs, a_zp.as<data>(), zero_point_mask);
+                set_activation_zero_points_attr<ov::element_type_traits<data_types::i8>::value_type>(attrs, a_zp.as<data>(), zero_point_mask);
             } else { // if (a_zp_dtype == data_types::u8)
-                set_activation_zero_points_attr<data_type_to_type<data_types::u8>::type>(attrs, a_zp.as<data>(), zero_point_mask);
+                set_activation_zero_points_attr<ov::element_type_traits<data_types::u8>::value_type>(attrs, a_zp.as<data>(), zero_point_mask);
             }
         }
 

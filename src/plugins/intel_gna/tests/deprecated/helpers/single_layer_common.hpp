@@ -20,10 +20,6 @@
 # include <regex>
 # define REPLACE_WITH_STR(SRC, PATTERN, STR) SRC = std::regex_replace(SRC, std::regex(PATTERN), STR)
 # define FIND_STR(SRC, PATTERN) std::regex_search(SRC, std::regex(PATTERN))
-#elif defined USE_BOOST_RE
-# include <boost/regex.hpp>
-# define REPLACE_WITH_STR(SRC, PATTERN, STR) SRC = boost::regex_replace(SRC, boost::regex(PATTERN), STR)
-# define FIND_STR(SRC, PATTERN) boost::regex_search(SRC, boost::regex(PATTERN))
 #else
 # error "Cannot implement regex"
 # define REPLACE_WITH_STR(SRC, PATTERN, STR)

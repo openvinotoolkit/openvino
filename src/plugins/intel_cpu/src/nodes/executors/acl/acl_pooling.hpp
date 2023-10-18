@@ -31,7 +31,8 @@ public:
                             arm_compute::DataLayout dataLayout,
                             const VectorDims* indDims,
                             arm_compute::PoolingLayerInfo* pool_info,
-                            arm_compute::Pooling3dLayerInfo* pool3d_info);
+                            arm_compute::Pooling3dLayerInfo* pool3d_info,
+                            bool ignoreOutShapeErrors = false);
 
     impl_desc_type getImplType() const override {
         return implType;
@@ -79,8 +80,8 @@ public:
 
         if (dstDescs.size() == 2u &&
             dstDescs[1]->getPrecision() != InferenceEngine::Precision::U32) {
-            DEBUG_LOG("AclPoolingExecutor does not support precisions:",
-                      " dst[1]=", dstDescs[1]->getPrecision());
+            DEBUG_LOG("AclPoolingExecutor supports U32 as indices precisions only. ",
+                      "Passed indices precision: ", dstDescs[1]->getPrecision());
                 return false;
             }
 
