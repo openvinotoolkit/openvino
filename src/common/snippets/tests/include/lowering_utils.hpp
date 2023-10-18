@@ -47,7 +47,6 @@ public:
     void SetUp() override;
     void TearDown() override;
 
-protected:
     static std::shared_ptr<ov::snippets::op::Subgraph> getSubgraph(const std::shared_ptr<Model>& f);
     static std::shared_ptr<ov::snippets::op::Subgraph>
             getLoweredSubgraph(const std::shared_ptr<Model>& f,
@@ -57,6 +56,8 @@ protected:
                                const ov::snippets::lowered::pass::PassPipeline& lowered_post_common = {},
                                const std::shared_ptr<ov::snippets::Generator>& generator = nullptr);
     static std::shared_ptr<ov::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
+
+protected:
     ov::PartialShape master_shape{};
 };
 

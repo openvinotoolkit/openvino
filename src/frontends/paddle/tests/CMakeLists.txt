@@ -4,26 +4,6 @@
 
 set(TARGET_NAME "paddle_tests")
 
-ov_add_test_target(
-    NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDENCIES
-            paddle_test_models
-            openvino_paddle_frontend
-            paddle_fe_standalone_build_test
-        LINK_LIBRARIES
-            cnpy
-            frontend_shared_test_classes
-            openvino_paddle_frontend
-            openvino::runtime
-            gtest_main_manifest
-            func_test_utils
-        ADD_CLANG_FORMAT
-        LABELS
-            OV
-            PADDLE_FE
-)
-
 # Test model generating
 set(PADDLE_REQ "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt")
 if(Python3_Interpreter_FOUND)
@@ -44,7 +24,30 @@ endif()
 # PDPD 2.5.1 is not compatible with tests models we use
 set(paddlepaddle_FOUND OFF)
 
-set(TEST_PADDLE_MODELS_DIRNAME test_model_zoo/paddle_test_models)
+if(paddlepaddle_FOUND)
+    set(ctest_labels OV UNIT)
+endif()
+
+ov_add_test_target(
+    NAME ${TARGET_NAME}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDENCIES
+            paddle_test_models
+            openvino_paddle_frontend
+            paddle_fe_standalone_build_test
+        LINK_LIBRARIES
+            cnpy
+            frontend_shared_test_classes
+            openvino_paddle_frontend
+            openvino::runtime
+            gtest_main_manifest
+            func_test_utils
+        ADD_CLANG_FORMAT
+        LABELS
+            ${ctest_labels} PADDLE_FE
+)
+
+set(TEST_PADDLE_MODELS_DIRNAME ${TEST_MODEL_ZOO}/paddle_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")
 
 set(PADDLEDET_OPS_URL "https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.1/ppdet/modeling/ops.py")
@@ -58,7 +61,7 @@ DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATA
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'paddlepaddle' installed to check code style
 if(paddlepaddle_FOUND AND PADDLEDET_RESULT)
-    set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_PADDLE_MODELS_DIRNAME}/)
+    set(TEST_PADDLE_MODELS ${TEST_MODEL_ZOO_OUTPUT_DIR}/paddle_test_models/)
 
     file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
     set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done.txt)

@@ -89,8 +89,8 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
 
     auto& engine = get_test_engine();
     tensor input_tensor( input_b, input_f, input_x, input_y );
-    auto input1 = engine.allocate_memory({ type_to_data_type<T>::value, test_input_fmt, input_tensor });
-    auto input2 = engine.allocate_memory({ type_to_data_type<T>::value, test_input_fmt, input_tensor });
+    auto input1 = engine.allocate_memory({ ov::element::from<T>(), test_input_fmt, input_tensor });
+    auto input2 = engine.allocate_memory({ ov::element::from<T>(), test_input_fmt, input_tensor });
     set_values(input1, input1_rnd_vec);
     set_values(input2, input2_rnd_vec);
 
@@ -164,7 +164,7 @@ void run_eltwise_generic_test(cldnn::eltwise_mode mode) {
 
     generic_eltwise_test<float>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, false, 0.f, 0, 0, 0, 0);
     if (f16_supported)
-        generic_eltwise_test<FLOAT16>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, false, (FLOAT16)0.f, 0, 0, 0, 0);
+        generic_eltwise_test<ov::float16>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, false, (ov::float16)0.f, 0, 0, 0, 0);
 
 }
 
@@ -233,8 +233,8 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
 
     auto& engine = get_test_engine();
     tensor input_tensor( input_b, input_f, input_x, input_y );
-    auto input1 = engine.allocate_memory({ type_to_data_type<T>::value, test_input_fmt, input_tensor });
-    auto input2 = engine.allocate_memory({ type_to_data_type<T>::value, test_input_fmt, input_tensor });
+    auto input1 = engine.allocate_memory({ ov::element::from<T>(), test_input_fmt, input_tensor });
+    auto input2 = engine.allocate_memory({ ov::element::from<T>(), test_input_fmt, input_tensor });
     set_values(input1, input1_rnd_vec);
     set_values(input2, input2_rnd_vec);
 
@@ -2482,7 +2482,7 @@ TEST(eltwise_gpu_int, div_gather_fusing) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(input_layout("Input3", input3->get_layout()));
-    topology.add(gather("gather", input_info("InputDictionary"), input_info("InputText"), 0, ov::Shape{2, 2, 2, 2}));
+    topology.add(gather("gather", input_info("InputDictionary"), input_info("InputText"), 0, 4, ov::Shape{2, 2, 2, 2}));
     topology.add(reorder("gather_reorder", input_info("gather"), { data_types::i32, format::bfyx, { 2, 2, 2, 2 } }));
     topology.add(eltwise("eltwise",
                  { input_info("gather_reorder"), input_info("Input3") },
@@ -3194,10 +3194,10 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
     tensor input_tensor(2, 2, 2, 2);
     auto fp16_bfyx_2x2x2x2_input =
     {
-        FLOAT16(1111),FLOAT16(1112),FLOAT16(1121),FLOAT16(1122),
-        FLOAT16(1211),FLOAT16(1212),FLOAT16(1221),FLOAT16(1222),
-        FLOAT16(2111),FLOAT16(2112),FLOAT16(2121),FLOAT16(2122),
-        FLOAT16(2211),FLOAT16(2212),FLOAT16(2221),FLOAT16(2222)
+        ov::float16(1111),ov::float16(1112),ov::float16(1121),ov::float16(1122),
+        ov::float16(1211),ov::float16(1212),ov::float16(1221),ov::float16(1222),
+        ov::float16(2111),ov::float16(2112),ov::float16(2121),ov::float16(2122),
+        ov::float16(2211),ov::float16(2212),ov::float16(2221),ov::float16(2222)
     };
 
     auto& engine = get_test_engine();
@@ -3225,7 +3225,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
 
     auto golden_outputs = golden_network.execute();
     auto golden_output = golden_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<FLOAT16> golden_ptr(golden_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> golden_ptr(golden_output, get_test_stream());
     // GOLDEN BFYX ELTWISE - END
     // FS_B_YX_FSV32 ELTWISE
     topology FSV32_topology;
@@ -3242,7 +3242,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
 
     auto FSV32_outputs = FSV32_network.execute();
     auto FSV32_output = FSV32_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<FLOAT16> FSV32_ptr(FSV32_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> FSV32_ptr(FSV32_output, get_test_stream());
     // FS_B_YX_FSV32 ELTWISE - END
 
     ASSERT_EQ(golden_ptr.size(), FSV32_ptr.size());
@@ -3270,11 +3270,11 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
     tensor input1_tensor(input_b, input_f, input1_x, input1_y);
     tensor input2_tensor(input_b, input_f, input2_x, input2_y);
 
-    VVVVF<FLOAT16> input1_rnd = rg.generate_random_4d<FLOAT16>(input_b, input_f, input1_y, input1_x, 1, 3);
-    VVVVF<FLOAT16> input2_rnd = rg.generate_random_4d<FLOAT16>(input_b, input_f, input2_y, input2_x, 1, 3);
+    VVVVF<ov::float16> input1_rnd = rg.generate_random_4d<ov::float16>(input_b, input_f, input1_y, input1_x, 1, 3);
+    VVVVF<ov::float16> input2_rnd = rg.generate_random_4d<ov::float16>(input_b, input_f, input2_y, input2_x, 1, 3);
 
-    VF<FLOAT16> input1_flatten = flatten_4d<FLOAT16>(format::bfyx, input1_rnd);
-    VF<FLOAT16> input2_flatten = flatten_4d<FLOAT16>(format::bfyx, input2_rnd);
+    VF<ov::float16> input1_flatten = flatten_4d<ov::float16>(format::bfyx, input1_rnd);
+    VF<ov::float16> input2_flatten = flatten_4d<ov::float16>(format::bfyx, input2_rnd);
 
     auto input1 = engine.allocate_memory({ data_types::f16,format::bfyx, input1_tensor });
     auto input2 = engine.allocate_memory({ data_types::f16,format::bfyx, input2_tensor });
@@ -3293,7 +3293,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
 
     auto ref_outputs = ref_network.execute();
     auto ref_output = ref_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<FLOAT16> ref_ptr(ref_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> ref_ptr(ref_output, get_test_stream());
 
     topology fsv32_topology;
     fsv32_topology.add(input_layout("input1", input1->get_layout()));
@@ -3309,7 +3309,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
 
     auto fsv32_outputs = fsv32_network.execute();
     auto fsv32_output = fsv32_outputs.at("reorder_bfyx").get_memory();
-    cldnn::mem_lock<FLOAT16> fsv32_ptr(fsv32_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> fsv32_ptr(fsv32_output, get_test_stream());
 
     ASSERT_EQ(ref_ptr.size(), fsv32_ptr.size());
 
@@ -3335,11 +3335,11 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
     tensor input1_tensor(input_b, input_f, input1_x, input1_y);
     tensor input2_tensor(1, input_f, 1, 1);
 
-    VVVVF<FLOAT16> input1_rnd = rg.generate_random_4d<FLOAT16>(input_b, input_f, input1_y, input1_x, 1, 3);
-    VVVVF<FLOAT16> input2_rnd = rg.generate_random_4d<FLOAT16>(1, input_f, 1, 1, 1, 3);
+    VVVVF<ov::float16> input1_rnd = rg.generate_random_4d<ov::float16>(input_b, input_f, input1_y, input1_x, 1, 3);
+    VVVVF<ov::float16> input2_rnd = rg.generate_random_4d<ov::float16>(1, input_f, 1, 1, 1, 3);
 
-    VF<FLOAT16> input1_flatten = flatten_4d<FLOAT16>(format::bfyx, input1_rnd);
-    VF<FLOAT16> input2_flatten = flatten_4d<FLOAT16>(format::bfyx, input2_rnd);
+    VF<ov::float16> input1_flatten = flatten_4d<ov::float16>(format::bfyx, input1_rnd);
+    VF<ov::float16> input2_flatten = flatten_4d<ov::float16>(format::bfyx, input2_rnd);
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, input1_tensor });
     auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, input2_tensor });
@@ -3358,7 +3358,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
 
     auto ref_outputs = ref_network.execute();
     auto ref_output = ref_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<FLOAT16> ref_ptr(ref_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> ref_ptr(ref_output, get_test_stream());
 
     topology fsv32_topology;
     fsv32_topology.add(input_layout("input1", input1->get_layout()));
@@ -3373,7 +3373,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
 
     auto fsv32_outputs = fsv32_network.execute();
     auto fsv32_output = fsv32_outputs.at("reorder_bfyx").get_memory();
-    cldnn::mem_lock<FLOAT16> fsv32_ptr(fsv32_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> fsv32_ptr(fsv32_output, get_test_stream());
 
     ASSERT_EQ(ref_ptr.size(), fsv32_ptr.size());
 
@@ -3441,8 +3441,8 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
     // Inputs are 32x96x2x2
     tests::random_generator rg(GET_SUITE_NAME);
     tensor input_tensor(32, 96, 20, 20);
-    VVVVF<FLOAT16> input_rnd = rg.generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
-    VF<FLOAT16> fp16_bfyx_32x96x2x2_input = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
+    VVVVF<ov::float16> input_rnd = rg.generate_random_4d<ov::float16>(32, 96, 20, 20, 1, 3);
+    VF<ov::float16> fp16_bfyx_32x96x2x2_input = flatten_4d<ov::float16>(format::bfyx, input_rnd);
 
     auto& engine = get_test_engine();
     bool f16_supported = engine.get_device_info().supports_fp16;
@@ -3469,7 +3469,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
 
     auto golden_outputs = golden_network.execute();
     auto golden_output = golden_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<FLOAT16> golden_ptr(golden_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> golden_ptr(golden_output, get_test_stream());
     // GOLDEN BFYX ELTWISE - END
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT
     topology FS_B_YX_FSV32_OUTPUT_topology;
@@ -3486,7 +3486,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
 
     auto FS_B_YX_FSV32_OUTPUT_outputs = FS_B_YX_FSV32_OUTPUT_network.execute();
     auto FS_B_YX_FSV32_OUTPUT_output = FS_B_YX_FSV32_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<FLOAT16> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT - END
     // MIXED INPUT, BYXF OUTPUT
     topology BYXF_OUTPUT_topology;
@@ -3503,7 +3503,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
 
     auto BYXF_OUTPUT_outputs = BYXF_OUTPUT_network.execute();
     auto BYXF_OUTPUT_output = BYXF_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<FLOAT16> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
     // MIXED INPUT, BYXF OUTPUT - END
 
     ASSERT_EQ(golden_ptr.size(), FS_B_YX_FSV32_OUTPUT_ptr.size());
@@ -3521,8 +3521,8 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     // Inputs are 32x96x2x2
     tests::random_generator rg(GET_SUITE_NAME);
     tensor input_tensor(32, 96, 20, 20);
-    VVVVF<FLOAT16> input_rnd = rg.generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
-    VF<FLOAT16> fp16_bfyx_32x96x2x2_input = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
+    VVVVF<ov::float16> input_rnd = rg.generate_random_4d<ov::float16>(32, 96, 20, 20, 1, 3);
+    VF<ov::float16> fp16_bfyx_32x96x2x2_input = flatten_4d<ov::float16>(format::bfyx, input_rnd);
 
     auto& engine = get_test_engine();
     bool f16_supported = engine.get_device_info().supports_fp16;
@@ -3549,7 +3549,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
 
     auto golden_outputs = golden_network.execute();
     auto golden_output = golden_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<FLOAT16> golden_ptr(golden_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> golden_ptr(golden_output, get_test_stream());
     // GOLDEN BFYX ELTWISE - END
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT
     topology FS_B_YX_FSV32_OUTPUT_topology;
@@ -3567,7 +3567,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
 
     auto FS_B_YX_FSV32_OUTPUT_outputs = FS_B_YX_FSV32_OUTPUT_network.execute();
     auto FS_B_YX_FSV32_OUTPUT_output = FS_B_YX_FSV32_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<FLOAT16> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT - END
     // MIXED INPUT, BYXF OUTPUT
     topology BYXF_OUTPUT_topology;
@@ -3585,7 +3585,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
 
     auto BYXF_OUTPUT_outputs = BYXF_OUTPUT_network.execute();
     auto BYXF_OUTPUT_output = BYXF_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<FLOAT16> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
     // MIXED INPUT, BYXF OUTPUT - END
 
     ASSERT_EQ(golden_ptr.size(), FS_B_YX_FSV32_OUTPUT_ptr.size());
@@ -3604,8 +3604,8 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
     // Inputs are 32x96x20x20
     tests::random_generator rg(GET_SUITE_NAME);
     tensor input_tensor(32, 96, 20, 20);
-    VVVVF<FLOAT16> input_rnd = rg.generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
-    VF<FLOAT16> fp16_bfyx_32x96x2x2_input = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
+    VVVVF<ov::float16> input_rnd = rg.generate_random_4d<ov::float16>(32, 96, 20, 20, 1, 3);
+    VF<ov::float16> fp16_bfyx_32x96x2x2_input = flatten_4d<ov::float16>(format::bfyx, input_rnd);
 
     auto& engine = get_test_engine();
     bool f16_supported = engine.get_device_info().supports_fp16;
@@ -3634,7 +3634,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
 
     auto golden_outputs = golden_network.execute();
     auto golden_output = golden_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<FLOAT16> golden_ptr(golden_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> golden_ptr(golden_output, get_test_stream());
     // GOLDEN BFYX ELTWISE - END
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT
     topology FS_B_YX_FSV32_OUTPUT_topology;
@@ -3651,7 +3651,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
 
     auto FS_B_YX_FSV32_OUTPUT_outputs = FS_B_YX_FSV32_OUTPUT_network.execute();
     auto FS_B_YX_FSV32_OUTPUT_output = FS_B_YX_FSV32_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<FLOAT16> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT - END
     // MIXED INPUT, BYXF OUTPUT
     topology BYXF_OUTPUT_topology;
@@ -3668,7 +3668,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
 
     auto BYXF_OUTPUT_outputs = BYXF_OUTPUT_network.execute();
     auto BYXF_OUTPUT_output = BYXF_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<FLOAT16> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
     // MIXED INPUT, BYXF OUTPUT - END
 
     ASSERT_EQ(golden_ptr.size(), FS_B_YX_FSV32_OUTPUT_ptr.size());
@@ -3899,7 +3899,7 @@ TEST(DISABLED_eltwise_gpu, generic_random) {
                                             for (int output_padding_x = 0; output_padding_x <= 1; ++output_padding_x) {
                                                 generic_eltwise_test<float>(test_input_fmt, input_b, input_f, input_yx.first, input_yx.second, mode, relu_activated, slope, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
                                                 if (!f16_supported) continue;
-                                                generic_eltwise_test<FLOAT16>(test_input_fmt, input_b, input_f, input_yx.first, input_yx.second, mode, relu_activated, (FLOAT16)slope, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
+                                                generic_eltwise_test<ov::float16>(test_input_fmt, input_b, input_f, input_yx.first, input_yx.second, mode, relu_activated, (ov::float16)slope, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
                                             }
                                         }
                                     }
@@ -3960,7 +3960,7 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -4031,7 +4031,7 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
             if (params.input_type == data_types::f32) {
                 compare_outputs<float>(output, input);
             } else if (params.input_type == data_types::f16) {
-                compare_outputs<FLOAT16>(output, input);
+                compare_outputs<ov::float16>(output, input);
             } else if (params.input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, input);
             } else if (params.input_type == data_types::u8) {
@@ -4536,7 +4536,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
     }
 
     static std::string PrintToString(const eltwise_random_test_params& params) {
-        std::string res = " data (" + cldnn::data_type_traits::name(params.input_type) + "), ";
+        std::string res = " data (" + ov::element::Type(params.input_type).get_type_name() + "), ";
         res += " format (" + format::traits(params.in_format).str + ") input1 : ";
         res += params.first_input_size.to_string() + " / input2 : ";
         res += params.second_input_size.to_string() + "\n";
@@ -4574,7 +4574,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -4670,7 +4670,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
             if (params.input_type == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
             } else if (params.input_type == data_types::f16) {
-                compare_outputs<FLOAT16>(output, output_opt);
+                compare_outputs<ov::float16>(output, output_opt);
             } else if (params.input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (params.input_type == data_types::u8) {

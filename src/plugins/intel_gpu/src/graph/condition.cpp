@@ -85,7 +85,7 @@ bool condition_inst::get_pred_from_memory(memory::ptr mem, stream& stream) {
         case cldnn::data_types::f32:
             return convert_data<float>(mem, stream);
         case cldnn::data_types::f16:
-            return convert_data<half_t>(mem, stream);
+            return convert_data<ov::float16>(mem, stream);
         case cldnn::data_types::i64:
             return convert_data<int64_t>(mem, stream);
         case cldnn::data_types::i32:
@@ -94,7 +94,7 @@ bool condition_inst::get_pred_from_memory(memory::ptr mem, stream& stream) {
             return convert_data<int8_t>(mem, stream);
         case cldnn::data_types::u8:
             return convert_data<uint8_t>(mem, stream);
-        case cldnn::data_types::bin:
+        case cldnn::data_types::u1:
         default:
             return convert_data<uint32_t>(mem, stream);
     }
@@ -215,7 +215,7 @@ std::string condition_inst::to_string(condition_node const& node) {
 }
 
 /*
-Condition primitive is resuing memory with the input.
+Condition primitive is reusing memory with the input.
 */
 condition_inst::typed_primitive_inst(network& network, condition_node const& node)
     : parent(network, node),

@@ -3,7 +3,7 @@ abcp4/mymodel-test,mymodel,skip,Load problem
 abeja/gpt-neox-japanese-2.7b,gpt_neox_japanese
 acl-submission-anonym/EAM-spectral,examuse,skip,Load problem
 adalbertojunior/modular-test,modular,skip,Load problem
-aerner/lm-v2,open-llama
+aerner/lm-v2,open-llama,xfail,Example input problem
 afonsosamarques/ardt-vanilla-combo_train_hopper_v2-2508_1336-33,decision_transformer,xfail,Tracing problem
 aihijo/gec-zh-gector-bert-large,gector,skip,Load problem
 albert-base-v2,albert
@@ -21,7 +21,7 @@ ArthurZ/jukebox-vqvae,jukebox_vqvae,skip,Load problem
 ArthurZ/persimmon-8b-base,persimmon,skip,Load problem
 ashishpatel26/span-marker-bert-base-fewnerd-coarse-super,span-marker,skip,Load problem
 asi/albert-act-tiny,albert_act,skip,Load problem
-BAAI/AltCLIP,altclip,xfail,Unsupported op aten::numpy_T
+BAAI/AltCLIP,altclip
 BAAI/AquilaCode-py,aquila,skip,Load problem
 bana513/opennmt-translator-en-hu,opennmt-translator,skip,Load problem
 benjamin/wtp-bert-mini,bert-char,skip,Load problem
@@ -79,7 +79,7 @@ facebook/musicgen-small,musicgen,skip,Load problem
 facebook/opt-125m,opt
 facebook/rag-token-nq,rag,skip,Load problem
 facebook/sam-vit-large,sam,xfail,No node with name original_sizes
-facebook/timesformer-base-finetuned-k400,timesformer,xfail,Shape inference of Add node failed: Eltwise shape infer input shapes dim index: 1 mismatch
+facebook/timesformer-base-finetuned-k400,timesformer
 facebook/vit-mae-base,vit_mae,xfail,Accuracy validation failed
 facebook/wmt19-ru-en,fsmt,xfail,Tracing problem
 facebook/xlm-roberta-xl,xlm-roberta-xl
@@ -199,7 +199,7 @@ kiddothe2b/hierarchical-transformer-base-4096-v2,hat,skip,Load problem
 k-l-lambda/clip-text-generator,clip_text_generator,skip,Load problem
 k-l-lambda/stable-diffusion-v1-4-inv-embed,inv_word_embed,skip,Load problem
 KoboldAI/fairseq-dense-13B-Janeway,xglm,skip,Large Model
-konverner/qdq-camembert-apolliner,qdqbert
+konverner/qdq-camembert-apolliner,qdqbert,xfail,Repository not found
 krasserm/perceiver-ar-clm-base,perceiver-ar-causal-language-model,skip,Load problem
 krasserm/perceiver-ar-sam-giant-midi,perceiver-ar-symbolic-audio-model,skip,Load problem
 krasserm/perceiver-io-img-clf,perceiver-io-image-classifier,skip,Load problem
@@ -242,7 +242,7 @@ microsoft/deberta-base,deberta
 microsoft/git-large-coco,git,skip,Load problem
 microsoft/layoutlm-base-uncased,layoutlm
 microsoft/layoutlmv2-base-uncased,layoutlmv2,skip,Load problem
-microsoft/layoutlmv3-base,layoutlmv3,xfail,Unsupported op aten::amax aten::clip
+microsoft/layoutlmv3-base,layoutlmv3
 microsoft/markuplm-base,markuplm
 microsoft/resnet-50,resnet
 microsoft/speecht5_hifigan,hifigan,skip,Load problem
@@ -251,7 +251,7 @@ microsoft/swinv2-tiny-patch4-window8-256,swinv2,xfail,Unsupported op aten::adapt
 microsoft/table-transformer-detection,table-transformer
 microsoft/wavlm-large,wavlm,skip,Load problem
 microsoft/xclip-base-patch32,xclip,skip,Load problem
-microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet,xfail,Unsupported op aten::fill_diagonal_
+microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet
 miguelvictor/python-fromzero-lstmlm,lstmlm,skip,Load problem
 mingzi151/test-hf-wav2vec2bert,wav2vec2bert,skip,Load problem
 MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer,skip,Load problem
@@ -309,7 +309,7 @@ regisss/bridgetower-newyorker-a100-8x,bridgetower
 rinna/japanese-cloob-vit-b-16,cloob,skip,Load problem
 Rocketknight1/tiny-random-falcon-7b,falcon
 RUCAIBox/mass-base-uncased,mass,skip,Load problem
-RWKV/rwkv-4-169m-pile,rwkv,xfail,Unsupported op aten::maximum
+RWKV/rwkv-4-169m-pile,rwkv
 sahasrarjn/interbert,BERT,skip,Load problem
 saibo/genkalm-medium-gpt2,genkalm,skip,Load problem
 SajjadAyoubi/clip-fa-vision,clip_vision_model
@@ -348,7 +348,7 @@ SteveZhan/my-resnet50d,resnet_steve,skip,Load problem
 suno/bark,bark,skip,Load problem
 surajnair/r3m-50,r3m,skip,Load problem
 susnato/clvp_dev,clvp,skip,Load problem
-Tanrei/GPTSAN-japanese,gptsan-japanese,xfail,Unsupported op aten::clip aten::index_put_ prim::TupleConstruct
+Tanrei/GPTSAN-japanese,gptsan-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
 tau/bart-large-sled-govreport,tau/sled,skip,Load problem
 taufeeque/best-cb-model,codebook,skip,Load problem
 Team-PIXEL/pixel-base,pixel,skip,Load problem
@@ -357,7 +357,7 @@ thomwolf/vqgan_imagenet_f16_1024,vqgan_model,skip,Load problem
 thu-ml/zh-clip-vit-roberta-large-patch14,zhclip,skip,Load problem
 tifa-benchmark/promptcap-coco-vqa,ofa,skip,Load problem
 tli8hf/robertabase_snli,transformerfornli,skip,Load problem
-transfo-xl-wt103,transfo-xl,xfail,Unsupported op aten::clamp_ aten::index_copy_
+transfo-xl-wt103,transfo-xl,xfail,Unsupported op aten::index_copy_
 transZ/BART_shared_clean,shared_bart,skip,Load problem
 transZ/BART_shared_v2,shared_bart_v2,skip,Load problem
 transZ/misecom,misecom,skip,Load problem

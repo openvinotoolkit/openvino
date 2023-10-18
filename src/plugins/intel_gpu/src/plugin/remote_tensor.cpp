@@ -2,16 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
-#include "intel_gpu/plugin/remote_allocators.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
 
 #include <memory>
 
 namespace ov {
 namespace intel_gpu {
+
+TensorType RemoteTensorImpl::allocation_type_to_tensor_type(cldnn::allocation_type t) {
+    switch (t) {
+    case cldnn::allocation_type::cl_mem: return TensorType::BT_BUF_INTERNAL;
+    case cldnn::allocation_type::usm_host: return TensorType::BT_USM_HOST_INTERNAL;
+    case cldnn::allocation_type::usm_device: return TensorType::BT_USM_DEVICE_INTERNAL;
+    default: return TensorType::BT_EMPTY;
+    }
+
+    return TensorType::BT_EMPTY;
+}
 
 RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    const ov::Shape& shape,
@@ -28,20 +40,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_mem(mem)
     , m_surf(surf)
     , m_plane(plane) {
-    if (supports_caching()) {
-        m_hash = cldnn::hash_combine(0, m_mem);
-        m_hash = cldnn::hash_combine(m_hash, m_surf);
-        m_hash = cldnn::hash_combine(m_hash, plane);
-        m_hash = cldnn::hash_combine(m_hash, m_shape.size());
-        m_hash = cldnn::hash_combine(m_hash, element_type.hash());
-        for (const auto& d : m_shape) {
-            m_hash = cldnn::hash_combine(m_hash, d);
-        }
-    }
-
-    update_strides();
+    update_hash();
     allocate();
-    init_properties();
 }
 
 RemoteTensorImpl::~RemoteTensorImpl() {
@@ -82,12 +82,15 @@ const AnyMap& RemoteTensorImpl::get_properties() const {
     m_shape = shape;
 
     if (ov::shape_size(shape) > m_memory_object->count()) {
-        OPENVINO_ASSERT(!is_shared(), "Cannot call setShape for Tensor created on top of preallocated memory if shape was increased.");
+        GPU_DEBUG_TRACE_DETAIL << "Remote realloc" << std::endl;
+        OPENVINO_ASSERT(!is_shared(), "Cannot call set_shape for Tensor created on top of preallocated memory if shape was increased.");
         if (!deallocate()) {
-            OPENVINO_THROW("Cannot deallocate tensor while an attempt to enlarge tensor area in setShape.");
+            OPENVINO_THROW("Cannot deallocate tensor while an attempt to enlarge tensor area in set_shape.");
         }
 
         allocate();
+    } else {
+        update_strides();
     }
 }
 
@@ -108,23 +111,39 @@ void RemoteTensorImpl::allocate() {
 
     if (enable_caching) {
         m_memory_object = context->try_get_cached_memory(m_hash);
-        if (m_memory_object)
+        if (m_memory_object) {
+            update_properties();
+            update_strides();
             return;
+        }
     }
 
     auto& engine = context->get_engine();
 
+    // Currently, clDeviceMemAllocINTEL returns memory address allocated to other input blob if the current blob is empty
+    // W/A for this issue:
+    // Allocate with non-empty shape and then reinterprete with original shape
+    auto shape_copy = m_shape;
+    for (auto &i : shape_copy) {
+        if (i == 0)
+            i = 1;
+    }
+
+    m_layout.set_partial_shape(shape_copy);
+
+    const bool reset = false;
+
     switch (m_mem_type) {
     case TensorType::BT_BUF_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem);
+        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
         break;
     }
     case TensorType::BT_USM_HOST_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_host);
+        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_host, reset);
         break;
     }
     case TensorType::BT_USM_DEVICE_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_device);
+        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_device, reset);
         break;
     }
     case TensorType::BT_BUF_SHARED: {
@@ -161,6 +180,9 @@ void RemoteTensorImpl::allocate() {
         m_memory_object.reset();
     }
 
+    update_properties();
+    update_strides();
+
     if (enable_caching)
         context->add_to_cache(m_hash, m_memory_object);
 }
@@ -169,7 +191,7 @@ const std::string& RemoteTensorImpl::get_device_name() const {
     return m_context->get_device_name();
 }
 
-bool RemoteTensorImpl::is_shared() const {
+bool RemoteTensorImpl::is_shared() const noexcept {
     return m_mem_type == TensorType::BT_BUF_SHARED ||
            m_mem_type == TensorType::BT_USM_SHARED ||
            m_mem_type == TensorType::BT_IMG_SHARED ||
@@ -179,6 +201,19 @@ bool RemoteTensorImpl::is_shared() const {
 
 bool RemoteTensorImpl::supports_caching() const {
     return is_shared();
+}
+
+void RemoteTensorImpl::update_hash() {
+    if (supports_caching()) {
+        m_hash = cldnn::hash_combine(0, m_mem);
+        m_hash = cldnn::hash_combine(m_hash, m_surf);
+        m_hash = cldnn::hash_combine(m_hash, m_plane);
+        m_hash = cldnn::hash_combine(m_hash, m_shape.size());
+        m_hash = cldnn::hash_combine(m_hash, m_element_type.hash());
+        for (const auto& d : m_shape) {
+            m_hash = cldnn::hash_combine(m_hash, d);
+        }
+    }
 }
 
 bool RemoteTensorImpl::is_surface() const noexcept {
@@ -196,11 +231,24 @@ cldnn::memory::ptr RemoteTensorImpl::get_original_memory() const {
     return m_memory_object;
 }
 
+void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {
+    auto engine = m_memory_object->get_engine();
+    m_layout = memory->get_layout();
+    m_shape = m_layout.get_shape();
+
+    auto actual_layout = m_layout;
+    actual_layout.set_partial_shape({ov::Dimension(actual_size)});
+    m_memory_object = engine->reinterpret_buffer(*memory, actual_layout);
+
+    update_properties();
+    update_strides();
+}
+
 std::shared_ptr<RemoteContextImpl> RemoteTensorImpl::get_context() const {
     return m_context;
 }
 
-void RemoteTensorImpl::init_properties() {
+void RemoteTensorImpl::update_properties() {
     OPENVINO_ASSERT(is_allocated(), "[GPU] Can't initialize RemoteTensorImpl parameters as memory was not allocated");
     auto params = m_memory_object->get_internal_params();
 

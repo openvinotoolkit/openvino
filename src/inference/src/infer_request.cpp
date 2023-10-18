@@ -30,6 +30,8 @@ OPENVINO_SUPPRESS_DEPRECATED_START
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
         ov::Busy::create(ex.what());                                        \
+    } catch (const ov::Busy&) {                                             \
+        throw;                                                              \
     } catch (const std::exception& ex) {                                    \
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
@@ -248,7 +250,7 @@ void InferRequest::wait() {
         _impl->wait();
     } catch (const ov::Cancelled&) {
         throw;
-    } catch (const ie::InferCancelled& e) {
+    } catch (const InferenceEngine::InferCancelled& e) {
         Cancelled::create(e.what());
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -263,7 +265,7 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     try {
         return _impl->wait_for(timeout);
-    } catch (const ie::InferCancelled& e) {
+    } catch (const InferenceEngine::InferCancelled& e) {
         Cancelled::create(e.what());
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
