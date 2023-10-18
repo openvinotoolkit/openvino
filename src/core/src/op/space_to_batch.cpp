@@ -98,8 +98,7 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
     } else {
         pad_value = pad_zero_value.data();
     }
-    CoordinateDiff pads_begin_vec(shape_size(inputs[2].get_shape()));
-    pads_begin_vec.assign(pads_begin, pads_begin + shape_size(inputs[2].get_shape()));
+    CoordinateDiff pads_begin_vec(pads_begin, pads_begin + shape_size(inputs[2].get_shape()));
     CoordinateDiff pads_end_vec(shape_size(inputs[2].get_shape()));
     pads_end_vec.assign(pads_end, pads_end + shape_size(inputs[2].get_shape()));
 
