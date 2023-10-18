@@ -36,7 +36,16 @@ mem_consumption = MemConsumption()
 
 
 def gen_iterate_data(
-    iter_idx='', in_size='', infer_count='', out_size='', gen_time='', latency='', res_md5='', max_rss_mem='', max_shared_mem='', prompt_idx='',
+    iter_idx='',
+    in_size='',
+    infer_count='',
+    out_size='',
+    gen_time='',
+    latency='',
+    res_md5='',
+    max_rss_mem='',
+    max_shared_mem='',
+    prompt_idx='',
 ):
     iter_data = {}
     iter_data['iteration'] = iter_idx
@@ -192,7 +201,13 @@ def run_image_generation(input_text, nsteps, num, image_id, pipe, args, iter_dat
     )
     iter_data_list.append(iter_data)
     utils.metrics_print.print_metrics(
-        num, iter_data, [], generated=rslt_img_fn, warm_up=(num == 0), max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption,
+        num,
+        iter_data,
+        [],
+        generated=rslt_img_fn,
+        warm_up=(num == 0),
+        max_rss_mem=max_rss_mem_consumption,
+        max_shared_mem=max_shared_mem_consumption,
     )
 
 
@@ -277,7 +292,13 @@ def run_ldm_super_resolution(img, num, nsteps, pipe, args, framework, iter_data_
     )
     iter_data_list.append(iter_data)
     utils.metrics_print.print_metrics(
-        num, iter_data, [], generated=rslt_img_fn, warm_up=(num == 0), max_rss_mem=max_rss_mem_consumption, max_shared_mem=max_shared_mem_consumption,
+        num,
+        iter_data,
+        [],
+        generated=rslt_img_fn,
+        warm_up=(num == 0),
+        max_rss_mem=max_rss_mem_consumption,
+        max_shared_mem=max_shared_mem_consumption,
     )
 
 
@@ -385,11 +406,15 @@ def get_argprser():
         'Original hf_model.forward function will be patched.',
     )
     parser.add_argument(
-        '--save_prepared_model', default=None, help='Path to .xml file to save IR used for inference with all pre-/post processing included',
+        '--save_prepared_model',
+        default=None,
+        help='Path to .xml file to save IR used for inference with all pre-/post processing included',
     )
     parser.add_argument('--num_beams', type=int, default=1, help='Number of beams in the decoding strategy, activates beam_search if greater than 1')
     parser.add_argument(
-        '--fuse_cache_reorder', action='store_true', help='Fuse ops related to cache reordering to the model, applied only when num_beams > 1',
+        '--fuse_cache_reorder',
+        action='store_true',
+        help='Fuse ops related to cache reordering to the model, applied only when num_beams > 1',
     )
     parser.add_argument(
         '--torch_compile_backend',
@@ -430,7 +455,14 @@ def main():
                     framework = framework + '(' + ir_conversion_frontend + ')'
                 model_precision = utils.model_utils.get_model_precision(model_path.parents._parts)
             utils.output_csv.write_result(
-                args.report, model_name, framework, args.device, model_args['use_case'], iter_data_list, pretrain_time, model_precision,
+                args.report,
+                model_name,
+                framework,
+                args.device,
+                model_args['use_case'],
+                iter_data_list,
+                pretrain_time,
+                model_precision,
             )
     except Exception:
         log.error('An exception occurred')

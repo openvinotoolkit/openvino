@@ -78,7 +78,7 @@ def convert_causal_lm(args):
         if pt_compress_weights:
             feature = 'text-generation'
             quantizer = OVQuantizer.from_pretrained(pt_model, task=feature)
-            pt_out_dir = Path(args.output_dir) / 'pytorch/dldt' / 'PT_compressed_weights'
+            pt_out_dir = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'PT_{args.precision}-INT8'
             quantizer.quantize(save_directory=pt_out_dir, weights_only=True)
             save_tokenizer(tok, pt_out_dir)
         del pt_model
@@ -105,10 +105,10 @@ def convert_causal_lm(args):
     log.info(f'Serialization total time {end1 - start1}s')
 
     if args.compress_weights and BackendType.OPENVINO.value in args.compress_weights_backends:
-        ov_out_dir = Path(args.output_dir) / 'pytorch/dldt' / 'INT8_compressed_weights'
+        ov_int8_dir = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'OV_{args.precision}-INT8'
         model.model = compress_weights(model.model)
-        model.save_pretrained(ov_out_dir)
-        save_tokenizer(tok, ov_out_dir)
+        model.save_pretrained(ov_int8_dir)
+        save_tokenizer(tok, ov_int8_dir)
 
     del model
     gc.collect()
@@ -139,8 +139,7 @@ def convert_seq2seq(args):
             decoder_with_past_file_name = Path('decoder_with_past') / OV_DECODER_WITH_PAST_NAME
 
             output_names = [encoder_file_name, decoder_file_name, decoder_with_past_file_name]
-            save_dir_path = Path(args.output_dir) / 'pytorch/dldt' / 'PT_compressed_weights'
-
+            save_dir_path = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'PT_{args.precision}-INT8'
             try:
                 export_models(
                     models_and_onnx_configs=models_and_onnx_configs,
@@ -174,13 +173,13 @@ def convert_seq2seq(args):
     save_tokenizer(tok, ov_out_dir)
 
     if args.compress_weights and BackendType.OPENVINO.value in args.compress_weights_backends:
-        ov_out_dir = Path(args.output_dir) / 'pytorch/dldt' / 'INT8_compressed_weights'
+        ov_int8_dir = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'OV_{args.precision}-INT8'
         model.encoder.model = compress_weights(model.encoder.model)
         model.decoder.model = compress_weights(model.decoder.model)
         if model.decoder_with_past:
             model.decoder_with_past.model = compress_weights(model.decoder_with_past.model)
-        model.save_pretrained(ov_out_dir)
-        save_tokenizer(tok, ov_out_dir)
+        model.save_pretrained(ov_int8_dir)
+        save_tokenizer(tok, ov_int8_dir)
 
     del model
     gc.collect()
@@ -208,7 +207,7 @@ def convert_sd(args):
                 custom_architecture=False,
                 _variant='default',
             )
-            output = Path(args.output_dir) / 'pytorch/dldt/' / 'PT_compressed_weights'
+            output = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'PT_{args.precision}-INT8'
             for model_name in models_and_onnx_configs:
                 subcomponent = models_and_onnx_configs[model_name][0]
                 if hasattr(subcomponent, 'save_config'):
@@ -256,11 +255,28 @@ def convert_sd(args):
     log.info(f'Serialization total time {end1 - start1}s')
 
     if args.compress_weights and BackendType.OPENVINO.value in args.compress_weights_backends:
-        ov_out_dir = Path(args.output_dir) / 'pytorch/dldt' / 'INT8_compressed_weights'
+        ov_int8_dir = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'OV_{args.precision}-INT8'
         model.text_encoder.model = compress_weights(model.text_encoder.model)
         model.unet.model = compress_weights(model.unet.model)
         model.vae_decoder.model = compress_weights(model.vae_decoder.model)
-        model.save_pretrained(ov_out_dir)
+        model.save_pretrained(ov_int8_dir)
+
+        # Saving the additional components needed to perform inference.
+        model.scheduler.save_pretrained(ov_int8_dir.joinpath("scheduler"))
+
+        feature_extractor = getattr(model, "feature_extractor", None)
+        if feature_extractor is not None:
+            feature_extractor.save_pretrained(ov_int8_dir.joinpath("feature_extractor"))
+
+        tokenizer = getattr(model, "tokenizer", None)
+        if tokenizer is not None:
+            tokenizer.save_pretrained(ov_int8_dir.joinpath("tokenizer"))
+
+        tokenizer_2 = getattr(model, "tokenizer_2", None)
+        if tokenizer_2 is not None:
+            tokenizer_2.save_pretrained(ov_int8_dir.joinpath("tokenizer_2"))
+
+        model.save_config(ov_int8_dir)
 
     del model
     gc.collect()
@@ -290,7 +306,7 @@ def convert_ldm_super_res(args):
         ov_compressed_unet.inputs[1].get_node().set_element_type(Type.i32)
         ov_compressed_unet.inputs[1].get_node().set_partial_shape(PartialShape([]))
         ov_compressed_unet.validate_nodes_and_infer_types()
-        pt_out_dir = Path(args.output_dir) / 'pytorch/dldt' / 'PT_compressed_weights'
+        pt_out_dir = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'PT_{args.precision}-INT8'
         save_model(ov_compressed_unet, pt_out_dir / 'unet.xml', compress_to_fp16=compress_to_fp16)
         pipeline.scheduler.save_config(pt_out_dir)
         # Couldn't compress decoder weights (RuntimeError: cdist only supports floating-point dtypes, X2 got: Byte)
@@ -309,12 +325,12 @@ def convert_ldm_super_res(args):
     pipeline.scheduler.save_config(save_dir)
 
     if args.compress_weights and BackendType.OPENVINO.value in args.compress_weights_backends:
-        ov_out_dir = Path(args.output_dir) / 'pytorch/dldt' / 'INT8_compressed_weights'
+        ov_int8_dir = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'OV_{args.precision}-INT8'
         compressed_ov_unet = compress_weights(ov_unet)
-        save_model(compressed_ov_unet, ov_out_dir / 'unet.xml', compress_to_fp16=compress_to_fp16)
+        save_model(compressed_ov_unet, ov_int8_dir / 'unet.xml', compress_to_fp16=compress_to_fp16)
         compressed_ov_decoder = compress_weights(ov_decoder)
-        save_model(compressed_ov_decoder, ov_out_dir / 'vqvae.xml', compress_to_fp16=compress_to_fp16)
-        pipeline.scheduler.save_config(save_dir)
+        save_model(compressed_ov_decoder, ov_int8_dir / 'vqvae.xml', compress_to_fp16=compress_to_fp16)
+        pipeline.scheduler.save_config(ov_int8_dir)
 
 
 def convert_mpt(args):
@@ -389,11 +405,11 @@ def convert_mpt(args):
     if args.compress_weights:
         if BackendType.PYTORCH.value in args.compress_weights_backends:
             compressed_pt_model = compress_weights(pt_model)
-            pt_path = Path(args.output_dir) / 'pytorch/dldt/PT_compressed_weights'
+            pt_path = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'PT_{args.precision}-INT8'
             convert_to_ov(compressed_pt_model, tok, pt_path, compress_to_fp16)
         if BackendType.OPENVINO.value in args.compress_weights_backends:
             ov_model = Core().read_model(ov_dir / 'openvino_model.xml')
-            ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/INT8_compressed_weights'
+            ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'OV_{args.precision}-INT8'
             compress_ov_model_weights_helper(ov_model, tok, pt_model.config, ov_compressed_path, compress_to_fp16)
 
 
@@ -524,13 +540,13 @@ def convert_chatglm2(args):
     pt_compress_weights = args.compress_weights and BackendType.PYTORCH.value in args.compress_weights_backends
     if pt_compress_weights:
         compressed_pt_model = compress_weights(pt_model)
-        pt_out_path = Path(args.output_dir) / 'pytorch/dldt/PT_compressed_weights'
+        pt_out_path = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'PT_{args.precision}-INT8'
         convert_to_ov(compressed_pt_model, tok, pt_out_path, compress_to_fp16=compress_to_fp16)
 
     if args.compress_weights and BackendType.OPENVINO.value in args.compress_weights_backends:
         ov_model_path = ov_out_path / 'openvino_model.xml'
         ov_model = Core().read_model(ov_model_path)
-        ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/INT8_compressed_weights'
+        ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'OV_{args.precision}-INT8'
         compress_ov_model_weights_helper(ov_model, tok, pt_model.config, ov_compressed_path, compress_to_fp16)
 
 
@@ -575,13 +591,13 @@ def convert_chatglm(args):
     pt_compress_weights = args.compress_weights and BackendType.PYTORCH.value in args.compress_weights_backends
     if pt_compress_weights:
         compressed_pt_model = compress_weights(pt_model)
-        pt_out_path = Path(args.output_dir) / 'pytorch/dldt/PT_compressed_weights'
+        pt_out_path = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'PT_{args.precision}-INT8'
         convert_to_ov(compressed_pt_model, tok, pt_out_path)
 
     if args.compress_weights and BackendType.OPENVINO.value in args.compress_weights_backends:
         ov_model_path = ov_out_path / 'openvino_model.xml'
         ov_model = Core().read_model(ov_model_path)
-        ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/INT8_compressed_weights'
+        ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'OV_{args.precision}-INT8'
         compress_ov_model_weights_helper(ov_model, tok, pt_model.config, ov_compressed_path, compress_to_fp16)
 
 
@@ -642,12 +658,12 @@ def convert_falcon(args):
 
     if args.compress_weights and BackendType.PYTORCH.value in args.compress_weights_backends:
         pt_compressed_model = compress_weights(pt_model)
-        pt_comp_path = Path(args.output_dir) / 'pytorch/dldt/PT_compressed_weights'
+        pt_comp_path = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'PT_{args.precision}-INT8'
         convert_to_ov(pt_compressed_model, tok, pt_comp_path, compress_to_fp16)
 
     if args.compress_weights and BackendType.OPENVINO.value in args.compress_weights_backends:
         ov_model = Core().read_model(ov_out_path / 'openvino_model.xml')
-        ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/INT8_compressed_weights'
+        ov_compressed_path = Path(args.output_dir) / 'pytorch/dldt/compressed_weights' / f'OV_{args.precision}-INT8'
         compress_ov_model_weights_helper(ov_model, tok, pt_model.config, ov_compressed_path, compress_to_fp16)
 
 

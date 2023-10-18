@@ -3,17 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 from pathlib import Path
 from transformers import AutoConfig
-from openvino.tools import mo
-from openvino.runtime import serialize, Core
+from openvino.runtime import Core
 import openvino as ov
 import logging as log
 import torch
-import timm
 import time
 import types
 
 from utils.config_class import OV_MODEL_CLASSES_MAPPING, TOKENIZE_CLASSES_MAPPING, DEFAULT_MODEL_CLASSES
-from utils.model_utils import get_config
 from .ov_model_classes import register_normalized_configs
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from openvino import Type, Tensor
@@ -297,42 +294,6 @@ def create_image_gen_model(model_path, device, **kwargs):
     from_pretrained_time = end - start
     log.info(f'From pretrained time: {from_pretrained_time:.2f}s')
     return ov_model, from_pretrained_time
-
-
-def create_image_classification_model(model_path, device, config=None, **kwargs):
-    core = Core()
-    if config is not None:
-        ov_config = get_config(config)
-        core.set_property(ov_config)
-    model_path = Path(model_path)
-    model_file = None
-    if model_path.exists():
-        if model_path.is_dir():
-            model_file = list(model_path.rglob('*.xml'))
-            if model_file:
-                model_file = model_file[0]
-        else:
-            model_file = model_path
-    model_id = model_path.name
-    data_config = timm.data.resolve_data_config([], model=model_id, use_test_size=True)
-    input_size = data_config['input_size']
-    input_size = (1,) + input_size
-    if model_file is None:
-        pt_model = timm.create_model(model_id, pretrained=True)
-        ov_model = mo.convert_model(pt_model, example_input=torch.randn(input_size))
-        serialize(ov_model, str(model_path / 'dldt' / 'FP32' / (model_path.name + '.xml')))
-    else:
-        start = time.perf_counter()
-        ov_model = core.read_model(model_file)
-        end = time.perf_counter()
-        load_model_time = end - start
-        log.info(f'Load model time: {load_model_time:.2f}s')
-    start = time.perf_counter()
-    compiled_model = core.compile_model(ov_model, device.upper())
-    end = time.perf_counter()
-    compile_model_time = end - start
-    log.info(f'Compile model time: {compile_model_time:.2f}s')
-    return compiled_model, input_size
 
 
 def create_ldm_super_resolution_model(model_path, device, **kwargs):

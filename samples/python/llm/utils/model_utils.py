@@ -143,6 +143,7 @@ def get_ir_conversion_frontend(model_name, model_name_list):
 
 def get_model_precision(model_name_list):
     precision_list = ['FP32', 'FP16', 'FP16-INT8', 'INT8', 'INT8_compressed_weights', 'INT8_quantized', 'PT_compressed_weights']
+    precision_list += ['OV_FP32-INT8', 'OV_FP16-INT8', 'PT_FP32-INT8', 'PT_FP16-INT8']
     model_precision = 'unknown'
     # Search from right to left of model path
     for i in range(len(model_name_list) - 1, -1, -1):

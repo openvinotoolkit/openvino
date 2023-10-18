@@ -10,7 +10,8 @@ import PIL
 import numpy as np
 import torch
 from diffusers.schedulers import LMSDiscreteScheduler
-from diffusers.utils import randn_tensor, PIL_INTERPOLATION
+from diffusers.utils.torch_utils import randn_tensor
+from diffusers.utils import PIL_INTERPOLATION
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from optimum.intel.openvino import OVModelForCausalLM
 from openvino.runtime import Model, Core, Tensor, Type
