@@ -431,13 +431,9 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
     # DEBUG
-    ci_vars = ["CI", "TF_BUILD", "JENKINS_URL"]
-    for var in ci_vars:
-        if var in os.environ:
-            print("{}: {}".format(var, os.getenv(var)))
-    if not any([var in os.environ for var in ci_vars]):
-        print(list(os.environ.keys()))
-    assert any([var in os.environ for var in ci_vars])
+    if telemetry_imported:
+        from openvino_telemetry.utils.opt_in_checker import OptInChecker
+        assert OptInChecker()._run_in_ci()
     argv = None
     # Minimize modifications among other places in case if multiple pieces are passed as input_model
     if python_api_used:

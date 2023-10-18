@@ -830,15 +830,9 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
     telemetry = init_mo_telemetry()
     # DEBUG
-    ci_vars = ["CI", "TF_BUILD", "JENKINS_URL"]
-    for var in ci_vars:
-        if var in os.environ:
-            if var == "CI":
-                assert os.getenv(var).lower() == "true"
-            print("{}: {}".format(var, os.getenv(var)))
-    if not any([var in os.environ for var in ci_vars]):
-        print(list(os.environ.keys()))
-    assert any([var in os.environ for var in ci_vars])
+    if telemetry_imported:
+        from openvino_telemetry.utils.opt_in_checker import OptInChecker
+        assert OptInChecker()._run_in_ci()
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
