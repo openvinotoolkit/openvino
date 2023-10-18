@@ -58,7 +58,7 @@ std::vector<TRShape> shape_infer(const Slice* op,
     const auto& input_rank = input_shape.rank();
 
     // it is not possible to define output shape if input data shape rank is undefined
-    // even the lengths of begin, end, or strides are defined
+    // even if lengths of begin, end, or strides are defined
     if (input_rank.is_dynamic()) {
         return {PartialShape::dynamic()};
     } else {
