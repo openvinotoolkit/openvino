@@ -199,34 +199,94 @@ jobs:
           path: 'testdata'
           lfs: 'true'
           ref: 'master'
-#      - name: CMake CC ON
-#        run: |
-#          cmake -G "Visual Studio 17 2022" `
-#            -DCMAKE_VERBOSE_MAKEFILE=ON `
-#            -DENABLE_CPPLINT=OFF `
-#            -DENABLE_GAPI_PREPROCESSING=OFF `
-#            -DENABLE_PROFILING_ITT=OFF `
-#            -DSELECTIVE_BUILD=ON `
-#            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
-#            -DSELECTIVE_BUILD_STAT=${{ env.BUILD_DIR }}\*.csv `
-#            -S ${{ env.OPENVINO_REPO }} `
-#            -B ${{ env.BUILD_DIR_2 }}
-#
-#      - name: Build CC ON
-#        run: |
-#          cmake --build ${{ env.BUILD_DIR_2 }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} `
-#            --target openvino_intel_cpu_plugin openvino_ir_frontend benchmark_app
-#
-#      - name: List bin files ON
-#        shell: cmd
-#        run: dir ${{ env.OPENVINO_REPO }}\bin\ /s
-#
-#      - name: Check conditional_compilation_gen.h header
-#        shell: cmd
-#        run: type ${{ env.BUILD_DIR_2 }}\src\common\conditional_compilation\conditional_compilation_gen.h
-#
-#      - name: Use OpenVINO after CC
-#        shell: cmd
-#        run: |
-#          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
-#          ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
+
+      - name: Download selective build statistics package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_selective_build_stat
+          path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+
+      - name: Extract selective build statistics package
+        run: Expand-Archive ${{ env.SELECTIVE_BUILD_STAT_DIR }}/openvino_selective_build_stat.zip -DestinationPath "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
+
+      - name: CMake configure - CC ON
+        run: |
+          cmake `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DENABLE_CPPLINT=OFF `
+            -DSELECTIVE_BUILD=ON `
+            -DENABLE_LTO=OFF `
+            -DENABLE_TEMPLATE=OFF `
+            -DENABLE_INTEL_GPU=OFF `
+            -DENABLE_INTEL_GNA=OFF `
+            -DENABLE_OV_TF_FRONTEND=OFF `
+            -DENABLE_OV_TF_LITE_FRONTEND=OFF `
+            -DENABLE_OV_PADDLE_FRONTEND=OFF `
+            -DENABLE_OV_PYTORCH_FRONTEND=OFF `
+            -DENABLE_OV_ONNX_FRONTEND=OFF `
+            -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
+            -S ${{ env.OPENVINO_REPO }} `
+            -B ${{ env.BUILD_DIR }}
+
+      - name: Cmake build - CC ON
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel --target benchmark_app
+
+      - name: Run with CC-ed runtime
+        shell: cmd
+        run: ${{ env.OPENVINO_REPO }}\bin\intel64\Release\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
+
+  CPU_Functional_Tests:
+    name: CPU functional tests
+    needs: Build
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: windows-latest-8-cores
+    env:
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
+      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\tests_install\\src\\tests\\test_utils\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
+      PARALLEL_TEST_CACHE: "${{ github.workspace }}\\tests_install\\test_cache.lst"
+
+    steps:
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO tests package
+        run: Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install python dependencies for run_parallel.py
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/src/tests/test_utils/functional_test_utils/layer_tests_summary/requirements.txt
+
+      # Windows pipeline is in nightly mode, uncomment once there is a consistent cache creation
+      # - name: Restore tests execution time
+      #   uses: actions/cache/restore@v3
+      #   with:
+      #     path: ${{ env.PARALLEL_TEST_CACHE }}
+      #     key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+      #     restore-keys: |
+      #      ${{ runner.os }}-tests-functional-cpu-stamp
+
+      - name: Intel CPU plugin func tests (parallel)
+        run: python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release/ov_cpu_func_tests -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
+        timeout-minutes: 40
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-functional-cpu
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
+          if-no-files-found: 'error'
