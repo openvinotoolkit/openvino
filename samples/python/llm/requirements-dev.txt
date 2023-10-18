@@ -1,0 +1,16 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+numpy
+openvino>=2023.1.0
+pillow
+torch
+transformers>=4.28.0
+tokenizers
+diffusers
+optimum
+git+https://github.com/huggingface/optimum-intel.git
+git+https://github.com/openvinotoolkit/nncf.git
+packaging
+psutil
+timm
+tiktoken
+onnx
