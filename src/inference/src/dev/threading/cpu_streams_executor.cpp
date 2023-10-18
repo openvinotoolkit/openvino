@@ -338,39 +338,36 @@ struct CPUStreamsExecutor::Impl {
     // CustomeThreadLocal::local(), especially like operations that will affect the count of
     // CustomThreadLocal::ThreadId
     class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
-        class ThreadId {
+        class ThreadTracker {
         public:
-            explicit ThreadId(std::thread::id& id)
-                : _id_ptr(new std::thread::id(id)),
-                  _count_ptr(new std::atomic_int(1)) {}
-            ~ThreadId() {
-                if (_count_ptr->fetch_sub(1) == 1) {
-                    delete _id_ptr;
-                    delete _count_ptr;
-                }
+            explicit ThreadTracker(const std::thread::id& id)
+                : _id(id),
+                  _count_ptr(std::make_shared<std::atomic_int>(1)) {}
+            ~ThreadTracker() {
+                 _count_ptr->fetch_sub(1);
             }
-            ThreadId* copy() {
-                ThreadId* new_ptr = new ThreadId(*this);
+            std::shared_ptr<ThreadTracker> fetch() {
+                ThreadTracker* new_ptr = new ThreadTracker(*this);
                 auto pre_valule = new_ptr->_count_ptr->fetch_add(1);
                 OPENVINO_ASSERT(pre_valule == 1, "this value must be 1, please check code CustomThreadLocal::local()");
-                return new_ptr;
+                return std::shared_ptr<ThreadTracker>(new_ptr);
             }
-            std::thread::id& get_id() {
-                return *_id_ptr;
+            const std::thread::id& get_id() const {
+                return _id;
             }
-            int count() {
-                return *_count_ptr;
+            int count() const {
+                return *(_count_ptr.get());
             }
 
         private:
-            // disable all copy and move semantics, user only can use copy()
+            // disable all copy and move semantics, user only can use fetch()
             // to create a new instance with a shared count num;
-            ThreadId(ThreadId const&) = default;
-            ThreadId(ThreadId&&) = delete;
-            ThreadId& operator=(ThreadId const&) = delete;
-            ThreadId& operator=(ThreadId&&) = delete;
-            std::thread::id* _id_ptr;
-            std::atomic_int* _count_ptr;
+            ThreadTracker(ThreadTracker const&) = default;
+            ThreadTracker(ThreadTracker&&) = delete;
+            ThreadTracker& operator=(ThreadTracker const&) = delete;
+            ThreadTracker& operator=(ThreadTracker&&) = delete;
+            std::thread::id _id;
+            std::shared_ptr<std::atomic_int> _count_ptr;
         };
 
     public:
@@ -379,9 +376,9 @@ struct CPUStreamsExecutor::Impl {
               _impl(impl) {}
         std::shared_ptr<Stream> local() {
             // maybe there are two CPUStreamsExecutors in the same thread.
-            static thread_local std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadId>> t_stream_count_map;
+            static thread_local std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadTracker>> t_stream_count_map;
             // fix the memory leak issue that CPUStreamsExecutor is already released,
-            // but still exists thread id in t_stream_count_map
+            // but still exists CustomThreadLocal::ThreadTracker in t_stream_count_map
             for (auto it = t_stream_count_map.begin(); it != t_stream_count_map.end();) {
                 if (this != it->first && it->second->count() == 1) {
                     t_stream_count_map.erase(it++);
@@ -414,10 +411,10 @@ struct CPUStreamsExecutor::Impl {
             if (stream == nullptr) {
                 stream = std::make_shared<Impl::Stream>(_impl);
             }
-            auto id_ptr = std::make_shared<CustomThreadLocal::ThreadId>(id);
-            t_stream_count_map[(void*)this] = id_ptr;
-            std::shared_ptr<CustomThreadLocal::ThreadId> new_id_ptr(id_ptr->copy());
-            _stream_map[new_id_ptr] = stream;
+            auto tracker_ptr = std::make_shared<CustomThreadLocal::ThreadTracker>(id);
+            t_stream_count_map[(void*)this] = tracker_ptr;
+            auto new_tracker_ptr = tracker_ptr->fetch();
+            _stream_map[new_tracker_ptr] = stream;
             return stream;
         }
 
@@ -430,7 +427,7 @@ struct CPUStreamsExecutor::Impl {
     private:
         std::set<std::thread::id> _thread_ids;
         Impl* _impl;
-        std::map<std::shared_ptr<CustomThreadLocal::ThreadId>, std::shared_ptr<Impl::Stream>> _stream_map;
+        std::map<std::shared_ptr<CustomThreadLocal::ThreadTracker>, std::shared_ptr<Impl::Stream>> _stream_map;
         std::mutex _stream_map_mutex;
     };
 
