@@ -25,7 +25,9 @@ void FrontEndLoadFromTest::SetUp() {
 
 TEST_P(FrontEndLoadFromTest, testLoadFromFilePath) {
     std::string model_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_file);
+    std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
+    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(model_path));
     ASSERT_NE(m_frontEnd, nullptr);
 
@@ -39,7 +41,9 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFilePath) {
 
 TEST_P(FrontEndLoadFromTest, testLoadFromFilePathWithExplicitVariants) {
     std::string model_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_file);
+    std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
+    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
 
     std::vector<ov::Any> variants;
     variants.emplace_back(model_path);
@@ -57,7 +61,9 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFilePathWithExplicitVariants) {
 TEST_P(FrontEndLoadFromTest, testLoadFromTwoFiles) {
     std::string model_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_files[0]);
     std::string weights_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_files[1]);
+    std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
+    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(model_path, weights_path));
     ASSERT_NE(m_frontEnd, nullptr);
 
