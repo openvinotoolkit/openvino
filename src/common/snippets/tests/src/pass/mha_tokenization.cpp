@@ -28,7 +28,6 @@ void TokenizeMHASnippetsTests::run() {
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
     manager.register_pass<ov::snippets::pass::TokenizeMHASnippets>();
     manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
-    manager.register_pass<ov::pass::Serialize>("model.xml", "model.bin");
     disable_rt_info_check();
 }
 

@@ -180,7 +180,7 @@ std::vector<int32_t> rescale_order(std::vector<int32_t> default_order, size_t ra
     OPENVINO_ASSERT(rank > 2, "Incorrect rank for testing");
     auto order = std::vector<int32_t>(rank);
     std::iota(order.begin(), order.end(), 0);
-    const auto diff = rank - default_order.size();
+    const auto diff = static_cast<int32_t>(rank - default_order.size());
     for (size_t i = 0; i < default_order.size(); ++i) {
         order[diff + i] = default_order[i] + diff;
     }

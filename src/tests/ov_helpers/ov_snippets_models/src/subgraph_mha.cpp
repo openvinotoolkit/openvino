@@ -33,20 +33,20 @@ std::vector<int64_t> get_decomposed_order(size_t rank) {
     return rescale_order({1, 2, 0}, rank);
 }
 std::vector<int64_t> get_fusion_order_after_split_m(size_t rank, bool is_input) {
-    OPENVINO_ASSERT(rank == 4 || rank == 5, "Incorrect rank for testing");
     if (rank == 4) {
         return is_input ? std::vector<int64_t>{2, 0, 1, 3} : std::vector<int64_t>{1, 2, 0, 3};
     } else if (rank == 5) {
         return is_input ? std::vector<int64_t>{0, 3, 1, 2, 4} : std::vector<int64_t>{0, 2, 3, 1, 4};
     }
+    OPENVINO_THROW("Incorrect rank for testing");
 }
 std::vector<int64_t> get_decomposed_order_after_split_m(size_t rank) {
-    OPENVINO_ASSERT(rank == 4 || rank == 5, "Incorrect rank for testing");
     if (rank == 4) {
         return std::vector<int64_t>{1, 2, 3, 0};
     } else if (rank == 5) {
         return std::vector<int64_t>{0, 2, 3, 4, 1};
     }
+    OPENVINO_THROW("Incorrect rank for testing");
 }
 } // namespace
 
