@@ -68,14 +68,14 @@ in the model preparation script for such a case.
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
-         :fragment: ov:preprocess:save
+         :fragment: ov:preprocess:save_model
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
          :language: cpp
-         :fragment: ov:preprocess:save
+         :fragment: ov:preprocess:save_model
 
 
 Application Code - Load Model to Target Device

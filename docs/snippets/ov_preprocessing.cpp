@@ -165,7 +165,7 @@ int main() {
  //! [ov:preprocess:save_headers]
 
 void save_example() {
- //! [ov:preprocess:save]
+ //! [ov:preprocess:save_model]
  // ========  Step 0: read original model =========
  ov::Core core;
  std::shared_ptr<ov::Model> model = core.read_model("/path/to/some_model.onnx");
@@ -200,7 +200,7 @@ void save_example() {
  std::string xml = "/path/to/some_model_saved.xml";
  std::string bin = "/path/to/some_model_saved.bin";
  ov::serialize(model, xml, bin);
- //! [ov:preprocess:save]
+ //! [ov:preprocess:save_model]
 
 }
 
