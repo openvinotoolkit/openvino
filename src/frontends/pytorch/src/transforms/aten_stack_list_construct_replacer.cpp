@@ -39,7 +39,10 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
         auto axis_node = pattern_map.at(axis).get_node_shared_ptr();
         auto axis_const = std::dynamic_pointer_cast<v0::Constant>(axis_node);
         auto axis = axis_const->cast_vector<int64_t>();
-        OPENVINO_ASSERT(axis.size() == 1);
+        if (axis.size() != 1) {
+            add_exception_to_fw_node(stack, "aten::stack has multiple axes, only one is supported.");
+            return false;
+        }
         // Check if ListConstruct is an input
         if (auto list_construct_node = cast_fw_node(input_node, "prim::ListConstruct")) {
             const auto& list_inputs = list_construct_node->input_values();
