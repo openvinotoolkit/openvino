@@ -1345,18 +1345,18 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
 }
 
 JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroName) {
-    std::string type;
-    std::string max_val;
-    std::string min_val;
-    std::string val_one;
-    std::string val_zero;
-    std::string to_type;
-    std::string to_type_sat;
-    std::string as_type;
-    std::string max_func;
-    std::string min_func;
-    std::string abs_func;
-    std::string type_size;
+    std::string type = "undefined";
+    std::string max_val = "undefined";
+    std::string min_val = "undefined";
+    std::string val_one = "undefined";
+    std::string val_zero = "undefined";
+    std::string to_type = "undefined";
+    std::string to_type_sat = "undefined";
+    std::string as_type = "undefined";
+    std::string max_func = "undefined";
+    std::string min_func = "undefined";
+    std::string abs_func = "undefined";
+    std::string type_size = "undefined";
     bool is_fp;
     switch (dataType) {
         case Datatype::INT8:
@@ -1482,31 +1482,11 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             break;
         case Datatype::INT4:
             type = "char";
-            max_val = "undefined";
-            min_val = "undefined";
-            val_one = "undefined";
-            val_zero = "undefined";
-            to_type = "undefined";
-            to_type_sat = "undefined";
-            as_type = "undefined";
-            max_func = "undefined";
-            min_func = "undefined";
-            abs_func = "undefined";
             type_size = "0.5f";
             is_fp = false;
             break;
         case Datatype::UINT4:
             type = "uchar";
-            max_val = "undefined";
-            min_val = "undefined";
-            val_one = "undefined";
-            val_zero = "undefined";
-            to_type = "undefined";
-            to_type_sat = "undefined";
-            as_type = "undefined";
-            max_func = "undefined";
-            min_func = "undefined";
-            abs_func = "undefined";
             type_size = "0.5f";
             is_fp = false;
             break;
