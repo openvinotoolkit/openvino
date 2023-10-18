@@ -7,8 +7,8 @@
 #include "transformations/common_optimizations/gelu_fusion.hpp"
 
 #include <math.h>
-#include <cmath>
 
+#include <cmath>
 #include <memory>
 
 #include "itt.hpp"
