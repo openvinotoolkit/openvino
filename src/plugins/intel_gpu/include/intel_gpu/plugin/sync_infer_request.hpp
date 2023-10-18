@@ -90,9 +90,7 @@ private:
                                                 bool need_lockable_mem) const;
     std::shared_ptr<ov::ITensor> reinterpret_device_tensor(std::shared_ptr<RemoteTensorImpl> tensor, const ov::Shape new_shape) const;
     std::shared_ptr<ov::ITensor> create_host_tensor(const ov::PartialShape& port_shape, const ov::element::Type& port_element_type) const;
-    std::shared_ptr<ov::ITensor> create_device_tensor(const ov::Shape& pshape, ov::element::Type element_type,
-                                                      bool need_lockable_memory = false, void* mem_ptr = nullptr) const;
-    std::shared_ptr<ov::ITensor> create_shared_device_tensor(const ov::Shape& pshape, ov::element::Type element_type, void* usm_host_mem) const;
+    std::shared_ptr<ov::ITensor> create_device_tensor(const ov::PartialShape& pshape, ov::element::Type element_type, bool need_lockable_memory = false) const;
 
     void allocate_inputs();
     void allocate_outputs();
