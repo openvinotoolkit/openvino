@@ -8,7 +8,7 @@ import openvino.properties as properties
 import openvino.properties.device as device
 import openvino.properties.hint as hints
 import openvino.properties.streams as streams
-import properties.enable_profiling as enable_profiling
+import openvino.properties.enable_profiling as enable_profiling
 #! [py_ov_property_import_header]
 import openvino.properties.log as log
 
