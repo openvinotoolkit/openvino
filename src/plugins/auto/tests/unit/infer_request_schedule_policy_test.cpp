@@ -89,10 +89,16 @@ const std::vector<ov::auto_plugin::DeviceInformation> metaDevices = {{"DEVICE_0"
                                                                      {"DEVICE_1", {}, -1, "01", "DEVICE_1_01", 1},
                                                                      {"DEVICE_2", {}, -1, "01", "DEVICE_2_01", 2}};
 const std::vector<ConfigParams> configs = {
-    ConfigParams{metaDevicesWithSingleDev,
-                 ov::intel_auto::SchedulePolicy::ROUND_ROBIN,
-                 {{"DEVICE_0", 6}},
-                 {"DEVICE_0", "DEVICE_0", "DEVICE_0", "DEVICE_0", "DEVICE_0", "DEVICE_0"}},
+    ConfigParams{
+        metaDevicesWithSingleDev,                     // param[in]: device candidate list for AUTO plugin
+        ov::intel_auto::SchedulePolicy::ROUND_ROBIN,  // param[in]: specified schedule policy
+        {{"DEVICE_0", 6}},  // param[in]: a map recorded the count of infer request on each hw device
+        {"DEVICE_0",
+         "DEVICE_0",
+         "DEVICE_0",
+         "DEVICE_0",
+         "DEVICE_0",
+         "DEVICE_0"}},  // param[output]: the expected device list where the next available infer request comes from
     ConfigParams{metaDevicesWithSingleDev,
                  ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY,
                  {{"DEVICE_0", 6}},
