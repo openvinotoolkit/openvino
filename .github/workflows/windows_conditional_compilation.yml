@@ -92,7 +92,6 @@ jobs:
           key: ${{ github.job }}-windows-itt
           restore-keys: |
             ${{ github.job }}-windows-itt
-            ${{ github.job }}-${{ runner.os }}-common
 
       - name: CMake configure - CC COLLECT
         run: |
