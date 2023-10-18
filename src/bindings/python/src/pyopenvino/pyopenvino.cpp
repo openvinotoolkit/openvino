@@ -30,6 +30,7 @@
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
 #include "pyopenvino/core/properties/properties.hpp"
+#include "pyopenvino/core/remote_context.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
@@ -162,12 +163,8 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     m.def(
         "save_model",
-        [](std::shared_ptr<ov::Model>& model,
-           const py::object& xml_path,
-           bool compress_to_fp16) {
-            ov::save_model(model,
-                          Common::utils::convert_path_to_string(xml_path),
-                          compress_to_fp16);
+        [](std::shared_ptr<ov::Model>& model, const py::object& xml_path, bool compress_to_fp16) {
+            ov::save_model(model, Common::utils::convert_path_to_string(xml_path), compress_to_fp16);
         },
         py::arg("model"),
         py::arg("output_model"),
@@ -246,6 +243,8 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     regclass_Core(m);
     regclass_Tensor(m);
+    regclass_RemoteTensor(m);
+    regclass_RemoteContext(m);
 
     regclass_CompiledModel(m);
     regclass_InferRequest(m);
