@@ -347,10 +347,10 @@ struct CPUStreamsExecutor::Impl {
                 _count_ptr->fetch_sub(1);
             }
             std::shared_ptr<ThreadTracker> fetch() {
-                ThreadTracker* new_ptr = new ThreadTracker(*this);
-                auto pre_valule = new_ptr->_count_ptr->fetch_add(1);
+                auto new_ptr = std::shared_ptr<ThreadTracker>(new ThreadTracker(*this));
+                auto pre_valule = new_ptr.get()->_count_ptr->fetch_add(1);
                 OPENVINO_ASSERT(pre_valule == 1, "this value must be 1, please check code CustomThreadLocal::local()");
-                return std::shared_ptr<ThreadTracker>(new_ptr);
+                return new_ptr;
             }
             const std::thread::id& get_id() const {
                 return _id;
