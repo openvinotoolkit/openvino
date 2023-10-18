@@ -11,7 +11,8 @@ namespace {
 using ov::test::GroupConvolutionLayerTest;
 
 const std::vector<ov::element::Type> netPrecisions = {
-    ov::element::f32};
+    ov::element::f32
+};
 
 /* ============= 1D GroupConvolution ============= */
 // 1D group convolution is not working correctly
