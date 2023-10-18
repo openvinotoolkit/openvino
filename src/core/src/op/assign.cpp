@@ -73,22 +73,18 @@ void Assign::validate_and_infer_types() {
     auto input_type = get_input_element_type(0);
     auto input_shape = get_input_partial_shape(0);
     bool compatible_type = variable_type.is_dynamic() || input_type == variable_type;
-    bool compatible_shape = variable_shape.rank().relaxes(input_shape.rank());
+    bool compatible_shape = input_shape.rank().compatible(variable_shape.rank());
 
     if (compatible_shape && input_shape.rank().is_static() && variable_shape.rank().is_static()) {
         OPENVINO_ASSERT(input_shape.rank().get_length() == variable_shape.rank().get_length(),
                         "Ranks of initial_shape and variable_shape do not match.");
         for (int64_t i = 0; i < variable_shape.rank().get_length(); ++i) {
-            compatible_shape = compatible_shape && variable_shape[i].relaxes(input_shape[i]);
+            compatible_shape = compatible_shape && variable_shape[i].compatible(input_shape[i]);
         }
     }
 
-    OPENVINO_ASSERT(compatible_shape,
-                    "The shape specified in the Variable doesn't match the shape "
-                    "inferred from the initializing subgraph.");
-    OPENVINO_ASSERT(compatible_type,
-                    "The type specified in the Variable doesn't match the type "
-                    "inferred from the initializing subgraph.");
+    OPENVINO_ASSERT(compatible_shape, "The shape specified in the Variable is not compatible with the input shape.");
+    OPENVINO_ASSERT(compatible_type, "The type specified in the Variable doesn't match the type of the input.");
     set_output_type(0, input_type, input_shape);
 }
 

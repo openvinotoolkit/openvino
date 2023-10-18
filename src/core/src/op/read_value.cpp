@@ -81,10 +81,10 @@ void op::v6::ReadValue::validate_and_infer_types() {
             }
         }
         OPENVINO_ASSERT(compatible_shape,
-                        "The shape specified in the Variable doesn't match the shape "
+                        "The shape specified in the Variable have to extend (relax) the shape "
                         "inferred from the initializing subgraph.");
         OPENVINO_ASSERT(compatible_type,
-                        "The type specified in the Variable doesn't match the type "
+                        "The type specified in the Variable have to extend (relax) the type "
                         "inferred from the initializing subgraph.");
     }
 
