@@ -79,8 +79,9 @@ public:
         // Load plugins until we found the right one
         for (auto& plugin : m_plugins) {
             OPENVINO_ASSERT(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
-            if (plugin.get_creator().m_name == framework) {
-                return make_frontend(plugin);
+            auto frontend = make_frontend(plugin);
+            if (frontend->get_name() == framework) {
+                return frontend;
             }
         }
         FRONT_END_INITIALIZATION_CHECK(false, "FrontEnd for Framework ", framework, " is not found");
@@ -95,7 +96,8 @@ public:
                 OPENVINO_DEBUG << "Frontend load failed: " << plugin_info.m_file_path << "\n";
                 continue;
             }
-            names.push_back(plugin_info.get_creator().m_name);
+            auto frontend = make_frontend(plugin_info);
+            names.push_back(frontend->get_name());
         }
         return names;
     }
@@ -112,9 +114,12 @@ public:
             if (!plugin.load()) {
                 continue;
             }
-            auto fe = plugin.get_creator().m_creator();
-            OPENVINO_ASSERT(fe, "Frontend error: frontend '", plugin.get_creator().m_name, "' created null FrontEnd");
-            if (fe->supported(variants)) {
+            auto frontend = make_frontend(plugin);
+            OPENVINO_ASSERT(frontend,
+                            "Frontend error: frontend '",
+                            plugin.get_creator().m_name,
+                            "' created null FrontEnd");
+            if (frontend->supported(variants)) {
                 return make_frontend(plugin);
             }
         }
@@ -219,10 +224,10 @@ private:
                 }
             }
             // Plugin from priority list is loaded, create FrontEnd and check if it supports model loading
-            auto fe = plugin_info.get_creator().m_creator();
-            if (fe && fe->supported(variants)) {
+            auto frontend = make_frontend(plugin_info);
+            if (frontend->supported(variants)) {
                 // Priority FE (e.g. IR) is found and is suitable
-                return make_frontend(*plugin_it);
+                return frontend;
             }
         }
         return {};
