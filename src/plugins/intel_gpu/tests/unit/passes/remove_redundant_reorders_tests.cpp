@@ -346,13 +346,13 @@ TEST(remove_redundant_reorders, not_to_fuse_concat_with_reorder_inside_shape_of_
     topology.add(data("data_1", data_1));
     topology.add(data("data_2", data_2));
     topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
-    topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, {}, {}, 0, true));
     topology.add(reorder("reorder0", input_info("gather0"), format::any, data_types::f32,
                          std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
     topology.add(eltwise("eltwise0", input_info("reorder0"), input_info("data_1"), eltwise_mode::prod, broadcast_spec));
     topology.add(reshape("reshape0", input_info("eltwise0"), false, {},
                          ov::PartialShape{1}, reshape::reshape_mode::unsqueeze));
-    topology.add(gather("gather1", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(gather("gather1", input_info("shape_of"), input_info("data_0"), 0, {}, {}, 0, true));
     topology.add(reorder("reorder1", input_info("gather1"), format::any, data_types::f32,
                          std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
     topology.add(eltwise("eltwise1", input_info("reorder1"), input_info("data_1"), eltwise_mode::prod, broadcast_spec));

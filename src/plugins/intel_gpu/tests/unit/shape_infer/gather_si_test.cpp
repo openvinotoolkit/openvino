@@ -37,7 +37,7 @@ TEST_P(gather_test, shape_infer) {
 
     auto input0_layout_prim = std::make_shared<input_layout>("input0", p.in0_layout);
     auto input1_layout_prim = std::make_shared<input_layout>("input1", p.in1_layout);
-    auto gather_prim = std::make_shared<gather>("output", input_info("input0"), input_info("input1"), p.axis, ov::Shape{}, p.batch_dim);
+    auto gather_prim = std::make_shared<gather>("output", input_info("input0"), input_info("input1"), p.axis, 0, ov::Shape{}, p.batch_dim);
 
     cldnn::program prog(engine);
 

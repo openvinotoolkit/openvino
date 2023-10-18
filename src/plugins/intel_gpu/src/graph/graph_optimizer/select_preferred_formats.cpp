@@ -32,11 +32,21 @@ void select_preferred_formats::run(program& p) {
         return;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    auto forcing_map = _lo.get_implementation_forcing();
+
     engine.create_onednn_engine(p.get_config());
     for (auto n : p.get_processing_order()) {
-        if (n->is_input() || !_lo.are_data_types_suitable_for_onednn(*n)) {
+        if (n->is_input() || !layout_optimizer::is_node_suitable_for_onednn(*n)) {
             continue;
         }
+
+        // skip to set preferred_formats if forcing_impl is not onednn.
+        if (std::find_if(forcing_map.begin(), forcing_map.end(),
+                [&n](std::map<primitive_id, std::pair<format::type, impl_types>>::value_type const& it) {
+                    return (it.first == n->id() && it.second.second != impl_types::onednn);
+                }) != forcing_map.end())
+            continue;
+
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
             if (n->is_type<convolution>()) {
