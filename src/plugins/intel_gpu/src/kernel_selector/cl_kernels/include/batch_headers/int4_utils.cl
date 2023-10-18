@@ -8,12 +8,12 @@ inline uchar2 cvt_uint4x2_to_uint8x2(uchar v) __attribute__((overloadable)) {
     return (uchar2)(v1, v0); // WARNING: inverted nibbles order! Should be (v0, v1)
 }
 
-inline uchar2 cvt_int4x2_to_int8x2(uchar v) __attribute__((overloadable)) {
+inline char2 cvt_int4x2_to_int8x2(char v) __attribute__((overloadable)) {
     const char s_bit = (v & convert_char(0x08));
     const char mask = s_bit > 0 ? convert_char(0xF0) : convert_char(0x00);
     const char v0 = (v & convert_char(0x0F)) | mask;
     const char v1 = v >> 4;
-    return (uchar2)(v1, v0); // WARNING: inverted nibbles order! Should be (v0, v1)
+    return (char2)(v1, v0); // WARNING: inverted nibbles order! Should be (v0, v1)
 }
 
 inline half2 unpack_to_half(uchar v) __attribute__((overloadable)) {

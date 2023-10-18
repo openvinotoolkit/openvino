@@ -9,7 +9,6 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     const unsigned i = (uint)get_global_id(1);
 
 #if defined(INPUT0_LAYOUT_IOYX) && defined(OUTPUT_LAYOUT_OIYX)
-    // load 2 adjucent input channels to store full byte
     const uint output_offset = (o*OUTPUT_IFM_NUM + 2*i);
 
     const uint input0_offset = o + (i*2+0)*INPUT0_OFM_NUM;

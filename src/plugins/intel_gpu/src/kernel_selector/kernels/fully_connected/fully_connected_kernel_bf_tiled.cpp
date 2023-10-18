@@ -152,6 +152,11 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         output_f = params.outputs[0].Y().v;
     }
 
+    if (params.compressed &&
+        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
+        tparams.tile_ofm != 2)
+        return false;
+
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0)
         return false;

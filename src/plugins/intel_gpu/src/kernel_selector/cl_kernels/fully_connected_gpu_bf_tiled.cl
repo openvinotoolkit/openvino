@@ -217,7 +217,7 @@ KERNEL(fc)(
                                                      ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                             ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
                         #else
-                            ACCUMULATOR_TYPE ds = d_scales[fi];
+                            ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                         #endif
 
                         #if DECOMPRESSION_ZP_TERM
@@ -226,7 +226,7 @@ KERNEL(fc)(
                                                     ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
                                 ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
                             #else
-                                ACCUMULATOR_TYPE dzp = d_zps[fi];
+                                ACCUMULATOR_TYPE dzp = d_zps[fi % DECOMPRESSION_ZP_LENGTH];
                             #endif
                         #else
                             ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
@@ -281,7 +281,7 @@ KERNEL(fc)(
                                                      ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                             ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
                         #else
-                            ACCUMULATOR_TYPE ds = d_scales[fi];
+                            ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                         #endif
 
                         #if DECOMPRESSION_ZP_TERM
@@ -290,7 +290,7 @@ KERNEL(fc)(
                                                     ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
                                 ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
                             #else
-                                ACCUMULATOR_TYPE dzp = d_zps[fi];
+                                ACCUMULATOR_TYPE dzp = d_zps[fi % DECOMPRESSION_ZP_LENGTH];
                             #endif
                         #else
                             ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
