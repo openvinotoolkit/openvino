@@ -2040,20 +2040,7 @@ void MVN::prepareParams() {
     }
 #endif
 
-    auto selectedPD = getSelectedPrimitiveDescriptor();
-    auto inMemDesc = selectedPD->getConfig().inConfs[0].getMemDesc();
-    auto outMemDesc = selectedPD->getConfig().outConfs[0].getMemDesc();
-    mvnAttrs.src_prc = inMemDesc->getPrecision();
-    mvnAttrs.dst_prc = outMemDesc->getPrecision();
-    if (inMemDesc->hasLayoutType(LayoutType::ncsp)) {
-        mvnAttrs.layout = MVNLayoutType::mvn_planar;
-    } else if (inMemDesc->hasLayoutType(LayoutType::nspc)) {
-        mvnAttrs.layout = MVNLayoutType::mvn_by_channel;
-    } else {
-        mvnAttrs.layout = MVNLayoutType::mvn_block;
-    }
     adjustCrossChannels(inputShapes[0].getRank());
-
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -2088,10 +2075,25 @@ void MVN::prepareParams() {
 }
 
 void MVN::createPrimitive() {
+    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto inMemDesc = selectedPD->getConfig().inConfs[0].getMemDesc();
+    auto outMemDesc = selectedPD->getConfig().outConfs[0].getMemDesc();
+    mvnAttrs.src_prc = inMemDesc->getPrecision();
+    mvnAttrs.dst_prc = outMemDesc->getPrecision();
+    if (inMemDesc->hasLayoutType(LayoutType::ncsp)) {
+        mvnAttrs.layout = MVNLayoutType::mvn_planar;
+    } else if (inMemDesc->hasLayoutType(LayoutType::nspc)) {
+        mvnAttrs.layout = MVNLayoutType::mvn_by_channel;
+    } else {
+        mvnAttrs.layout = MVNLayoutType::mvn_block;
+    }
 #if defined(OPENVINO_ARCH_X86_64)
     // create executor in load model stage in case
     // 1. static node
-    // 2. dynamic node without postOps or with onlyUnaryPostOps
+    // 2. dynamic node without postOps or with onlyUnaryPostOps.
+    //    This limitaion for dynamic node is because kernel is shape agnostic, but not post-ops attr agnostic.
+    //    Sometimes shape defined or changed will triger post-ops attr(such as entry.quantization.offset, entry.depthwise.offset) defined or changed.
+    //    These attr participate kernel compilation and need recompile in each infer stage. UnaryPostOps don't have such attr.
     if (!isDynamicNode() || fusedWith.empty() || onlyUnaryPostOps) {
         prepareParams();
     }
@@ -2120,7 +2122,7 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
             }
         case 2 :  // NC
             if (mvnAttrs.initAcrossChannels_) {
-                shape5D = {1, shape[0], 1, shape[1], 1}; // aligend shape as execAcrossChannels_ is set to false
+                shape5D = {1, shape[0], 1, shape[1], 1}; // aligned shape as execAcrossChannels_ is set to false
                 break;
             } else {
                 shape5D = {shape[0], shape[1], 1, 1, 1};
