@@ -58,7 +58,6 @@ jobs:
     MODELS_DIR: /mount/cinfsshare/onnxtestdata
     TMP_DIR: /mnt/tmp
     ONNX_MODEL_ZOO_SHA: "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
-    CI: True
 
 
   steps:
@@ -122,6 +121,7 @@ jobs:
       sudo docker run \
         --name openvino-onnx-ci-container \
         --volume $(MODELS_DIR)/models_data/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo \
-        --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image \
+        --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT \ 
+        --env CI=true openvino-onnx-ci-image \
         /bin/bash -c "$(TOX_COMMAND)"
     displayName: 'Docker run $(BUILD_TYPE)'

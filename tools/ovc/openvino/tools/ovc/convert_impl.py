@@ -11,9 +11,11 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
 
+telemetry_imported = False
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
+    telemetry_imported = True
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
@@ -433,6 +435,8 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     for var in ci_vars:
         if var in os.environ:
             print("{}: {}".format(var, os.getenv(var)))
+    if not any([var in os.environ for var in ci_vars]):
+        print(list(os.environ.keys()))
     assert any([var in os.environ for var in ci_vars])
     argv = None
     # Minimize modifications among other places in case if multiple pieces are passed as input_model
