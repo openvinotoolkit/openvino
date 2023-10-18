@@ -5,6 +5,7 @@
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/if.hpp"
+#include "openvino/op/loop.hpp"
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
@@ -56,14 +57,12 @@ FusedNamesExtractor::~FusedNamesExtractor() {
     core.reset();
 }
 
-std::list<ExtractedPattern>
-FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
-                             bool is_extract_body,
-                             bool is_copy_constants) {
+std::vector<ExtractedPattern>
+FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
     auto compiled_op_name = extract_compiled_model_names(model);
-    std::list<ExtractedPattern> matched_patterns;
+    std::vector<ExtractedPattern> matched_patterns;
     std::unordered_set<std::string> checked_ops;
-    std::set<std::shared_ptr<ov::Node>> nodes;
+    ov::NodeVector nodes;
     for (const auto& op : model->get_ordered_ops()) {
         auto op_name = op->get_friendly_name();
         if (is_node_to_skip(op) || checked_ops.count(op_name)) {
@@ -71,7 +70,8 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
         if (compiled_op_name.count(op_name)) {
             try {
-                matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name, is_copy_constants));
+                auto extracted_pattern = generate_model(nodes, checked_ops, is_save_const);
+                matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
             } catch(std::exception& e) {
                 if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
                     // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
@@ -79,7 +79,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
             }
             nodes.clear();
         } else {
-            nodes.insert(op);
+            nodes.push_back(op);
         }
         if (is_extract_body) {
             if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
@@ -104,7 +104,8 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
     }
     try {
-        matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name, is_copy_constants));
+        auto extracted_pattern = generate_model(nodes, checked_ops, is_save_const);
+        matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
     } catch(std::exception& e) {
         if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
             // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;

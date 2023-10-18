@@ -107,27 +107,27 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
 # Add openvino::runtine::dev target
 #
 
-add_library(${TARGET_NAME}_dev INTERFACE)
-add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
+add_library(openvino_runtime_dev INTERFACE)
+add_library(openvino::runtime::dev ALIAS openvino_runtime_dev)
 
-target_include_directories(${TARGET_NAME}_dev INTERFACE
+target_include_directories(openvino_runtime_dev INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
-    $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>>)
 
-target_compile_definitions(${TARGET_NAME}_dev INTERFACE
+target_compile_definitions(openvino_runtime_dev INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} openvino::core::dev)
+target_link_libraries(openvino_runtime_dev INTERFACE ${TARGET_NAME} openvino::core::dev)
 
-# TODO: remove once NPU will use explicltly `ov_set_threading_interface_for`
-ov_set_threading_interface_for(${TARGET_NAME}_dev)
-set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
+ov_set_threading_interface_for(openvino_runtime_dev)
+set_target_properties(openvino_runtime_dev PROPERTIES EXPORT_NAME runtime::dev)
 
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::runtime::dev)
+ov_developer_package_export_targets(TARGET openvino::runtime::dev
+                                    INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/inference/dev_api/")
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
-ov_install_static_lib(${TARGET_NAME}_dev ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(openvino_runtime_dev ${OV_CPACK_COMP_CORE})
 
 #
 # Install OpenVINO runtime

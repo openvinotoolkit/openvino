@@ -95,8 +95,6 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
       profiling(op->get_friendly_name()) {
-    const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
-
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &shape = op->get_input_partial_shape(i);
         if (shape.rank().is_dynamic()) {
@@ -479,6 +477,8 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(acl);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
+
+#undef SEARCH_TYPE
 
     if (type == impl_desc_type::unknown)
         str_type = "unknown";

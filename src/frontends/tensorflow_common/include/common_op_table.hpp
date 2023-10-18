@@ -38,6 +38,7 @@ OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
 OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
+OP_CONVERTER(translate_batch_mat_mul_with_type_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
 OP_CONVERTER(translate_broadcast_args_op);
@@ -97,6 +98,7 @@ OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
 OP_CONVERTER(translate_one_hot_op);
+OP_CONVERTER(translate_ones_like_op);
 OP_CONVERTER(translate_pack_op);
 OP_CONVERTER(translate_pad_op);
 OP_CONVERTER(translate_padv2_op);
@@ -148,6 +150,8 @@ OP_CONVERTER(translate_unravel_index_op);
 OP_CONVERTER(translate_unsorted_segment_sum_op);
 OP_CONVERTER(translate_where_op);
 OP_CONVERTER(translate_x_div_y_op);
+OP_CONVERTER(translate_xlog1py_op);
+OP_CONVERTER(translate_xlogy_op);
 OP_CONVERTER(translate_zeros_like_op);
 
 // Translators for internal operations
