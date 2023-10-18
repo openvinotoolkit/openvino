@@ -69,12 +69,6 @@ public:
 
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
-    class ShapeInfer : public Brgemm::ShapeInfer {
-    public:
-        explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
-    };
-
-
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c);
     void compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n);

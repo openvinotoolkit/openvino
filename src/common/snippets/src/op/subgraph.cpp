@@ -40,6 +40,7 @@
 #include "snippets/lowered/pass/identify_buffers.hpp"
 #include "snippets/lowered/pass/validate_loops.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
+#include "snippets/lowered/pass/optimize_domain.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -65,6 +66,14 @@ void Subgraph::set_generator(std::shared_ptr<ov::snippets::Generator> generator)
 
 void Subgraph::set_virtual_port_count(const size_t count) {
     m_virtual_port_count = count;
+}
+
+void Subgraph::set_min_jit_work_amount(const size_t jit_work_amount) {
+    config.m_min_jit_work_amount = jit_work_amount;
+}
+
+void Subgraph::set_min_parallel_work_amount(const size_t parallel_work_amount) {
+    config.m_min_parallel_work_amount = parallel_work_amount;
 }
 
 auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool {
@@ -151,6 +160,7 @@ Subgraph::Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& b
     for (size_t i = 0; i < body->get_output_size(); ++i)
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
     m_transformations_allowed = false;
+    m_shape_infer = std::make_shared<OVShapeInfer>(body);
 }
 
 Subgraph::Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body)
@@ -282,7 +292,7 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 }
 
 void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor = target_output_node.get_tensor();
     const std::string new_name = ov::op::util::get_ie_output_name(replacement_output_node);
     if (ov::descriptor::get_ov_tensor_legacy_name(out_tensor).empty()) {
@@ -291,7 +301,7 @@ void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, c
     if (!replacement_output_node.get_names().empty()) {
         out_tensor.set_names(replacement_output_node.get_names());
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
@@ -470,60 +480,25 @@ bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noex
 }
 
 IShapeInferSnippets::Result Subgraph::shape_infer(const std::vector<VectorDimsRef>& input_shapes) {
-    if (!m_shape_infer && !m_linear_ir) {
-        OPENVINO_ASSERT(body_ptr(), "Can't create shape infer for Subgraph with an empty body");
-        m_shape_infer = std::make_shared<NgraphShapeInfer>(body_ptr());
-    } else if (!std::dynamic_pointer_cast<LIRShapeInfer>(m_shape_infer) && m_linear_ir) {
-        m_shape_infer = std::make_shared<LIRShapeInfer>(m_linear_ir);
-    }
+    OPENVINO_ASSERT(m_shape_infer, "Attempt to call shape_infer when it's not initialized");
     return m_shape_infer->infer(input_shapes);
 }
 
-Subgraph::NgraphShapeInfer::NgraphShapeInfer(const std::shared_ptr<ov::Model>& body) :
-    m_ngraph_body(body), m_parameters(body->get_parameters()), m_results(body->get_results()) {
+Subgraph::OVShapeInfer::OVShapeInfer(const std::shared_ptr<ov::Model>& body) :
+    m_ov_body(body) {
+    OPENVINO_ASSERT(m_ov_body, "Can't initialize shape infer with empty body");
 }
 
-IShapeInferSnippets::Result Subgraph::NgraphShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
-    OPENVINO_ASSERT(m_parameters.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
-    for (size_t i = 0; i < m_parameters.size(); ++i)
-        m_parameters[i]->set_partial_shape(utils::vdims_to_pshape(input_shapes[i].get()));
-    m_ngraph_body->validate_nodes_and_infer_types();
+IShapeInferSnippets::Result Subgraph::OVShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    const ParameterVector& parameters = m_ov_body->get_parameters();
+    const ResultVector& results = m_ov_body->get_results();
+    OPENVINO_ASSERT(parameters.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
+    for (size_t i = 0; i < parameters.size(); ++i)
+        parameters[i]->set_partial_shape(utils::vdims_to_pshape(input_shapes[i].get()));
+    m_ov_body->validate_nodes_and_infer_types();
     std::vector<VectorDims> outputDims;
-    for (const auto& res : m_results)
+    for (const auto& res : results)
         outputDims.emplace_back(utils::pshape_to_vdims(res->get_input_partial_shape(0)));
-    m_last_result = {outputDims, ShapeInferStatus::success};
-    return m_last_result;
-}
-
-Subgraph::LIRShapeInfer::LIRShapeInfer(const std::shared_ptr<lowered::LinearIR>& body) :
-        m_lir_body(body) {
-    for (const auto& io_expr : m_lir_body->get_IO_ops()) {
-        switch (io_expr->get_type()) {
-            case IOExpression::io_type::INPUT : m_param_exprs.push_back(io_expr); break;
-            case IOExpression::io_type::OUTPUT : m_result_exprs.push_back(io_expr); break;
-            default : OPENVINO_THROW("Undefined io expression type");
-        }
-    }
-}
-
-IShapeInferSnippets::Result
-Subgraph::LIRShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
-    OPENVINO_ASSERT(m_param_exprs.size() == input_shapes.size(), "Got invalid number of input shapes in LIR ShapeInfer");
-    // todo: check that order of param_exprs is always the same as that of input_shapes
-    //  if not use io_expr index to sort in constructor
-
-    for (size_t i = 0; i < m_param_exprs.size(); ++i) {
-        m_param_exprs[i]->get_output_port_descriptor(0)->set_shape(input_shapes[i]);
-    }
-    for (const auto& expr : *m_lir_body) {
-        if (expr->needShapeInfer())
-            expr->updateShapes();
-    }
-    std::vector<VectorDims> outputDims;
-    outputDims.reserve(m_result_exprs.size());
-    for (const auto& r : m_result_exprs) {
-        outputDims.push_back(r->get_input_port_descriptor(0)->get_shape());
-    }
     m_last_result = {outputDims, ShapeInferStatus::success};
     return m_last_result;
 }
@@ -534,6 +509,9 @@ Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFac
     lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
+    lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
+    lowering_config.m_min_parallel_work_amount = config.m_min_parallel_work_amount;
+    lowering_config.m_min_kernel_work_amount = config.m_min_jit_work_amount;
 
     return std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
 }
@@ -650,6 +628,11 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
+    // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
+    size_t loop_depth = 1;
+    lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
+    linear_ir.set_loop_depth(loop_depth);
+
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
@@ -719,7 +702,7 @@ snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::Positione
                                       const void* compile_params) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
-    NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
+    OPENVINO_ASSERT(m_generator != nullptr, "generate is called while generator is not set");
 
     data_flow_transformations(data_flow_passes);
 
@@ -730,7 +713,13 @@ snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::Positione
     const auto& lowering_result = m_generator->generate(linear_ir, linear_ir.get_config(), compile_params);
     const auto ptr = lowering_result.binary_code;
 
-    return {master_shape, false /*canBeLinearized*/, ptr};
+
+    VectorDims parallel_exec_domain = linear_ir.get_master_shape();
+    const size_t loop_depth = linear_ir.get_config().m_loop_depth;
+    for (size_t i = 0; i < loop_depth; i++)
+        parallel_exec_domain[parallel_exec_domain.size() - 1 - i] = 1;
+
+    return {parallel_exec_domain, ptr};
 }
 
 void Subgraph::print() const {
