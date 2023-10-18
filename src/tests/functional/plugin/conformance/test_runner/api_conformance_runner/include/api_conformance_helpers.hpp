@@ -71,7 +71,8 @@ inline const std::vector<std::map<std::string, std::string>> generate_configs(co
 }
 
 inline const std::string generate_complex_device_name(const std::string& deviceName) {
-    if (deviceName == "BATCH") {
+    if (deviceName == "BATCH" && ov::test::conformance::targetDevice == "CPU") {
+        // when testing with BATCH:CPU, batch size should be given.
         return deviceName + ":" + ov::test::conformance::targetDevice + "(4)";
     }
     return deviceName + ":" + ov::test::conformance::targetDevice;
