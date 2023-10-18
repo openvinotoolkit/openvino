@@ -15,6 +15,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace ov {
@@ -171,6 +172,17 @@ public:
             m_hash = hash_combine(hash_combine(m_hash, name), a->get()->get_info().variable_id);
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+            if (name == "value" && m_node_type_name == "Constant") {
+                m_hash = hash_combine(m_hash, AttrType::constant);
+                const int64_t size = a->get()->size();
+                m_hash = hash_combine(hash_combine(m_hash, AttrType::size), size);
+                auto data = static_cast<const char*>(a->get()->get_ptr());
+                for (int64_t i = 0; i < size; i++) {
+                    m_hash = hash_combine(m_hash, data[i]);
+                }
+            }
+        } else if (const auto& a =
+                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && m_node_type_name == "Constant") {
                 m_hash = hash_combine(m_hash, AttrType::constant);
                 const int64_t size = a->get()->size();

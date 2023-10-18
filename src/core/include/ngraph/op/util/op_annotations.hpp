@@ -30,7 +30,6 @@ struct NGRAPH_API_DEPRECATED oi_pair {
 };
 
 /// \brief Base class for annotations added to graph ops
-
 class NGRAPH_API_DEPRECATED NGRAPH_API OpAnnotations {
     NGRAPH_SUPPRESS_DEPRECATED_START
 public:
