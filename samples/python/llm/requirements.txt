@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 numpy
 openvino>=2023.1.0
 pillow
