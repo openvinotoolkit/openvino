@@ -124,7 +124,8 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Build C samples - OpenVINO install tree
-        run: & ${{ env.INSTALL_DIR }}/samples/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+        run: |
+          & ${{ env.INSTALL_DIR }}/samples/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
 
       - name: Ctest - OpenVINO unit tests
         run: ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
