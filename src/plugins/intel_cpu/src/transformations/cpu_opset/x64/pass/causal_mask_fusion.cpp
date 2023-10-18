@@ -18,7 +18,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "utils/pattern_node.hpp"
 
-#define CALLBACK_LOG(m) std::cout << matcher_name << " " << m.get_match_root()->get_friendly_name() << std::endl;
+#define CALLBACK_LOG(m) if (0) std::cout << matcher_name << " " << m.get_match_root()->get_friendly_name() << std::endl;
 
 ov::intel_cpu::CausalMaskFusion::CausalMaskFusion() {
     MATCHER_SCOPE(CausalMaskFusion);
@@ -65,7 +65,7 @@ ov::intel_cpu::CausalMaskFusion::CausalMaskFusion() {
     auto Add_65111 = GenPattern<opset1::Add>({where_Select, attn_mask}, nullptr, {{"auto_broadcast", "numpy"}});
     auto ShapeOf_56185 = GenPattern<opset1::ShapeOf>({Add_65111}, "i32[4]");
     auto Maximum_65113 =
-        GenPattern<opset1::Maximum>({ShapeOf_56185, {1, 1, 1, 1}}, "i32[4]", {{"auto_broadcast", "numpy"}});
+        GenPattern<opset1::Maximum>({ShapeOf_56185, GenPattern("i32[4]")}, "i32[4]", {{"auto_broadcast", "numpy"}});
     auto Constant_51670 = GenConst({0}, "u8[]");
     auto add_Add_446 = GenPattern<opset1::Broadcast>({Add_65111, Maximum_65113, Constant_51670},
                                                      nullptr,
