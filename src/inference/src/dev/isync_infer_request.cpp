@@ -135,7 +135,7 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
         std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
     {
         std::lock_guard<std::mutex> lock(m_cache_mutex);
-        if (m_cached_ports.find(port_hash) == m_cached_ports.end()) {
+        if (m_cached_ports.find(port_hash) != m_cached_ports.end()) {
             // Cached port for the hash was found
             return m_cached_ports[port_hash];
         }
