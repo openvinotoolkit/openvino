@@ -189,16 +189,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
         // Issue: 122094
         R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
+        // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
+        R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
     };
-#if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
-    // Issue: 120950
-    retVector.emplace_back(R"(.*smoke_TensorIteratorCommon/TensorIteratorTest.Inference.*_modelType=f16_targetDevice=CPU.*)");
-    retVector.emplace_back(R"(.*smoke_CtcGreedyDecoderBasic/CTCGreedyDecoderLayerTest.Inference.*netPRC=f16.*trgDev=CPU.*)");
-    retVector.emplace_back(R"(.*CTCGreedyDecoderSeqLenLayerTest.Inference.*dataPRC=f16.*trgDev=CPU.*)");
-    // Issue: 122177
-    retVector.emplace_back(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference.*_modelType=f16.*)");
-    retVector.emplace_back(R"(.*smoke_LSTMSequenceCommonZeroClip/LSTMSequenceTest.Inference.*_modelType=f16.*)");
-#endif
 
 #if defined(OPENVINO_ARCH_X86)
     retVector.emplace_back(R"(.*DetectionOutputLayerTest.*)");
@@ -227,6 +220,18 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
+
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    // Issue: 123019
+    retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding.*modelType=f16.*)");
+    retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_FloorRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
+    retVector.emplace_back(R"(smoke_AvgPool_SameUpperPad_FloorRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
+    retVector.emplace_back(R"(smoke_AvgPool_SameLowerPad_CeilRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
+    retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(smoke_staticShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(smoke_dynamicShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
+#endif
+
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
