@@ -72,7 +72,7 @@ private:
     static constexpr size_t IN_DATA = 0;
     static constexpr size_t IN_GRID = 1;
 
-    std::shared_ptr<GridSampleKernelBase> jitKernel;
+    std::shared_ptr<kernel::GridSampleKernelBase> jitKernel;
 };
 
 }   // namespace node

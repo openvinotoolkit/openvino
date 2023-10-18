@@ -79,6 +79,7 @@
 #include "nodes/experimental_detectron_generate_proposals_single_image.h"
 #include "nodes/generate_proposals.h"
 #include "nodes/embedding_bag_packed_sum.h"
+#include "nodes/random_uniform.hpp"
 #include "nodes/reduce.h"
 #include "nodes/if.h"
 #include "nodes/ctc_greedy_decoder.h"
@@ -180,6 +181,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(Unique, Type::Unique);
     INTEL_CPU_NODE(Ngram, Type::Ngram);
     INTEL_CPU_NODE(Interpolate, Type::Interpolate);
+    INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);
     INTEL_CPU_NODE(Reduce, Type::Reduce);
     INTEL_CPU_NODE(Gather, Type::Gather);
     INTEL_CPU_NODE(NonMaxSuppression, Type::NonMaxSuppression);

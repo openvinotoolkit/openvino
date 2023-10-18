@@ -10,9 +10,11 @@
 #include <ngraph/opsets/opset1.hpp>
 
 using namespace InferenceEngine;
-using namespace dnnl::impl::cpu;
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
+#if defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu;
+#endif // OPENVINO_ARCH_X86_64
 
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
@@ -23,16 +25,22 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             errorMessage = "Not supported GridSample operation version. CPU plug-in supports only 9th version.";
             return false;
         }
+#if defined(OPENVINO_ARCH_X86_64)
         if (!x64::mayiuse(x64::sse41)) {
             errorMessage = "Not supported CPU instructions set.";
             return false;
         }
+#else
+        return false;
+#endif // OPENVINO_ARCH_X86_64
     } catch (...) {
         return false;
     }
 
     return true;
 }
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, PortMask(1))) {
@@ -110,7 +118,7 @@ void GridSample::initSupportedPrimitiveDescriptors() {
 }
 
 void GridSample::createPrimitive() {
-    GridSampleKernelConfParams jcp;
+    kernel::GridSampleKernelConfParams jcp;
 
     jcp.inDataPrc     = dataPrecision;
     jcp.gridPrc       = gridPrecision;
@@ -133,15 +141,13 @@ void GridSample::createPrimitive() {
         jcp.cannelNum      = jcp.dynamicChannel ? 1lu : srcDataDims[1];
     }
 
-#if defined(OPENVINO_ARCH_X86_64)
     if (x64::mayiuse(x64::avx512_core)) {
-        jitKernel.reset(new GridSampleKernel<x64::avx512_core>(jcp));
+        jitKernel.reset(new kernel::GridSampleKernel<x64::avx512_core>(jcp));
     } else if (x64::mayiuse(x64::avx2)) {
-        jitKernel.reset(new GridSampleKernel<x64::avx2>(jcp));
+        jitKernel.reset(new kernel::GridSampleKernel<x64::avx2>(jcp));
     } else if (x64::mayiuse(x64::sse41)) {
-        jitKernel.reset(new GridSampleKernel<x64::sse41>(jcp));
+        jitKernel.reset(new kernel::GridSampleKernel<x64::sse41>(jcp));
     }
-#endif // OPENVINO_ARCH_X86_64
     if (!jitKernel) {
         THROW_ERROR << " could not create JIT kernel.";
     }
@@ -268,7 +274,7 @@ void GridSample::execute(dnnl::stream strm) {
 
     auto threadBody = [&](const int ithr, const int nthr) {
         const auto& p = execParamsPerThread[ithr];
-        auto arg = GridSamplesKernelExecArgs();
+        auto arg = kernel::GridSamplesKernelExecArgs();
         if (p.workAmount == 0lu) {
             return;
         }
@@ -311,3 +317,5 @@ void GridSample::executeDynamicImpl(dnnl::stream strm) {
 bool GridSample::created() const {
     return getType() == Type::GridSample;
 }
+
+#endif // OPENVINO_ARCH_X86_64

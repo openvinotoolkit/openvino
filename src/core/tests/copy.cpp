@@ -447,12 +447,12 @@ TEST(copy, random_uniform) {
 
     const auto min_val_param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const auto max_val_param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
-    auto out_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 2, 3});
+    auto out_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, shape);
     auto ru =
         std::make_shared<ov::op::v8::RandomUniform>(out_shape, min_val_param, max_val_param, element::f32, 150, 10);
 
     // Call `evaluate` to update m_state
-    auto outputs = ov::TensorVector{{element::i64, out_shape->get_shape(), shape.data()}};
+    auto outputs = ov::TensorVector{{element::i64, {1lu, 2lu, 3lu}}};
     ru->evaluate(outputs,
                  ov::TensorVector{{element::i64, out_shape->get_shape(), shape.data()},
                                   {element::f32, min_val_param->get_shape(), &min},
