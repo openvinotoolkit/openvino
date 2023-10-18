@@ -181,7 +181,7 @@ from openvino.runtime.passes import Manager, Serialize
 
 model_path = get_path_to_model()
 
-# ! [ov:preprocess:save]
+# ! [ov:preprocess:save_model]
 # ========  Step 0: read original model =========
 core = Core()
 model = core.read_model(model='/path/to/some_model.onnx')
@@ -216,7 +216,7 @@ set_batch(model, 2)
 
 # ======== Step 3: Save the model ================
 serialize(model, model_path)
-# ! [ov:preprocess:save]
+# ! [ov:preprocess:save_model]
 
 path_to_cache_dir = get_temp_dir()
 
