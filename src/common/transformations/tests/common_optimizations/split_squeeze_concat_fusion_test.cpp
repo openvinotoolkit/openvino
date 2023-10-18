@@ -283,6 +283,7 @@ static std::vector<SplitReshapeConcatFusionParam> split_reshape_concat_fusion_pa
     {4, 0, Shape{4, 6, 5}, {6, 5}, 1, {1, 0, 2}, true},
     {5, 2, Shape{4, 6, 5}, {4, 6}, 0, {2, 0, 1}, true},
     {2, 2, Shape{3, 1, 4, 5}, {3, 2, 5}, 1, {0, 2, 1, 3}, false},
+    {2, 1, Shape{3, 2, 3, 4, 5}, {3, 3, 5, 4}, 1, {0, 2, 1, 3, 4}, false},
     {4, 2, Shape{3, 1, 4, 1, 5}, {3, 1, 5}, 1, {0, 2, 1, 3, 4}, false},
 };
 

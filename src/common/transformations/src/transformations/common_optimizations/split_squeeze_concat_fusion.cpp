@@ -125,22 +125,47 @@ bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int
     if (input_shape[axis].is_dynamic() || input_shape[axis] != 1)
         return false;
 
-    // check if the dimensions surrounding squeezed axis matches:
-    // input shape = [..., a, 1, b, ...]
-    // output shape = [..., x, y, ...]
-    // function returns false if a != x or b != y
-    if (axis > 0) {
-        const auto& input_dimension = input_shape[axis - 1];
-        const auto& output_dimension = output_shape[axis - 1];
-        if (input_dimension.is_dynamic() || output_dimension.is_dynamic() || input_dimension != output_dimension)
+    if (ov::is_type<ov::op::v1::Reshape>(squeeze_node)) {
+        // clang-format off
+        // check if the dimensions surrounding squeezed axis match
+        // function returns false if input_shape[:axis] != output_shape[:axis] or input_shape[(axis + 1):] != output_shape[axis:]
+        // clang-format on
+        if (input_shape.is_dynamic() || output_shape.is_dynamic())
             return false;
+
+        if (!std::equal(input_shape.begin(), input_shape.begin() + axis, output_shape.begin()))
+            return false;
+
+        if (!std::equal(input_shape.begin() + axis + 1, input_shape.end(), output_shape.begin() + axis))
+            return false;
+    } else {
+        if (squeeze_node->get_input_size() == 1) {
+            // The case when Squeeze has only one input so every dimension == 1 is squeezed
+            if (input_shape.is_dynamic())
+                return false;
+            size_t num_squeezed_axes = 0;
+            for (size_t i = 0; i < input_shape.size(); i++) {
+                if (input_shape[i].get_length() == 1) {
+                    num_squeezed_axes++;
+                    if (num_squeezed_axes > 1)
+                        return false;
+                    if (static_cast<int64_t>(i) != axis)
+                        return false;
+                }
+            }
+        } else {
+            // The second Squeeze input has explicit axes
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(squeeze_node->get_input_node_shared_ptr(1));
+            if (!constant)
+                return false;
+            if (ov::shape_size(constant->get_shape()) != 1)
+                return false;
+            auto squeezed_axis = constant->cast_vector<int64_t>()[0];
+            squeezed_axis = squeezed_axis < 0 ? squeezed_axis + input_rank : squeezed_axis;
+            if (axis != squeezed_axis)
+                return false;
+        }
     }
 
-    if (axis + 1 < input_rank) {
-        const auto& input_dimension = input_shape[axis + 1];
-        const auto& output_dimension = output_shape[axis];
-        if (input_dimension.is_dynamic() || output_dimension.is_dynamic() || input_dimension != output_dimension)
-            return false;
-    }
     return true;
 }
