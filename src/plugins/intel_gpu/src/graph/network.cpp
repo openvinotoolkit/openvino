@@ -758,7 +758,10 @@ void network::reset_execution(bool wait) {
             get_stream().wait_for_events(events);
         }
     }
-    _events.clear();
+
+    // Move events to temporarily map to deallocate them at the end of network::execute() call for better overlapping with
+    // kernels execution, since it may take significant time for high amount of events
+    _old_events = std::move(_events);
 }
 
 event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
@@ -1456,6 +1459,9 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
+
+    // Deallocate events from the previos iteration
+    _old_events.clear();
 
     GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
         get_memory_pool().dump(get_id());

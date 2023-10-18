@@ -283,6 +283,8 @@ private:
     size_t _weights_cache_capacity = 1;
 
     std::unordered_map<primitive_id, event::ptr> _events;
+    // This map is used to temporarily hold events that will be deallocated later
+    std::unordered_map<primitive_id, event::ptr> _old_events;
     output_chains_map _output_chains;
 
     std::unique_ptr<ShapePredictor> _shape_predictor;
