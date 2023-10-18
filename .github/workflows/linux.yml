@@ -873,7 +873,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-2-cores
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -1207,16 +1207,20 @@ jobs:
   TensorFlow_Hub_Models_Tests:
     name: TensorFlow Hub Models tests
     needs: Build
+
+    strategy:
+      matrix:
+        runner: [aks-linux-4-cores-16gb]
+        test_type: [precommit, nightly]
+
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
-    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 5 }}
-    # TODO: Switch back to self-hosted runners
-    # container:
-    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-    #   volumes:
-    #     - /mount/caches:/mount/caches
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -1276,7 +1280,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: ${{ matrix.test_type }}
           TEST_DEVICE: CPU
 
       - name: Upload Test Results
@@ -1292,15 +1296,20 @@ jobs:
     name: PyTorch Models tests
     needs: Build
     timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 30 }}
+
+    strategy:
+      matrix:
+        runner: [aks-linux-4-cores-16gb]
+        test_type: [precommit, nightly]
+
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
-    # TODO: Switch back to self-hosted runners
-    # container:
-    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-    #   volumes:
-    #     - /mount/caches:/mount/caches
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -1370,7 +1379,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: ${{ matrix.test_type }}
           TEST_DEVICE: CPU
 
       - name: Available storage after tests
