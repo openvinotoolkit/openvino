@@ -152,7 +152,13 @@ cross_compiled_file(${TARGET_NAME}
         NAME        proposal_exec
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
-
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/scaled_attn_softmax.cpp
+        API         src/nodes/scaled_attn_softmax.hpp
+        NAME        attn_softmax
+        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+)
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ov_set_threading_interface_for(${TARGET_NAME})
