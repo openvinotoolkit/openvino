@@ -111,6 +111,47 @@ def bitwise_xor(
 
 
 @nameable_op
+def multinomial(
+    probs: NodeInput,
+    num_samples: NodeInput,
+    convert_type: str,
+    with_replacement: bool,
+    log_probs: bool,
+    global_seed: int = 0,
+    op_seed: int = 0,
+) -> Node:
+    """Return a node which generates a sequence of class indices sampled from the multinomial distribution.
+
+    :param probs: Tensor with probabilities of floating-point type, and shape [class_size] or [batch_size, class_size].
+    :param num_samples: Tensor (scalar or 1D) a single element of type i32 or i64,
+                        specifying the number of samples to draw from the multinomial distribution.
+    :param convert_type: Specifies the output tensor type, possible values: 'i64', 'i32'.
+    :param with_replacement: Flag that specifies whether to sample with replacement.
+    :param log_probs: Flag that specifies whether *probs* should be treated as unnormalized log probabilities.
+    :param global_seed: Specifies global seed value. Required to be a positive integer or 0.
+    :param op_seed: Specifies operational seed value. Required to be a positive integer or 0.
+
+    :return: The new node performing Multinomial operation.
+    """
+    inputs = as_nodes(probs, num_samples)
+
+    if global_seed < 0:
+        raise RuntimeError(f"global_seed should be positive or 0. Got: {global_seed}")
+
+    if op_seed < 0:
+        raise RuntimeError(f"op_seed should be positive or 0. Got: {op_seed}")
+
+    attributes = {
+        "convert_type": convert_type,
+        "with_replacement": with_replacement,
+        "log_probs": log_probs,
+        "global_seed": global_seed,
+        "op_seed": op_seed,
+    }
+    return _get_node_factory_opset13().create("Multinomial", inputs, attributes)
+
+
+@nameable_op
 def nms_rotated(
     boxes: NodeInput,
     scores: NodeInput,

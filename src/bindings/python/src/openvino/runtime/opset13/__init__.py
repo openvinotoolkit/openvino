@@ -106,6 +106,7 @@ from openvino.runtime.opset1.ops import minimum
 from openvino.runtime.opset4.ops import mish
 from openvino.runtime.opset1.ops import mod
 from openvino.runtime.opset9.ops import multiclass_nms
+from openvino.runtime.opset13.ops import multinomial
 from openvino.runtime.opset1.ops import multiply
 from openvino.runtime.opset6.ops import mvn
 from openvino.runtime.opset1.ops import negative
