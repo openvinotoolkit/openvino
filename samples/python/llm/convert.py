@@ -262,19 +262,19 @@ def convert_sd(args):
         model.save_pretrained(ov_int8_dir)
 
         # Saving the additional components needed to perform inference.
-        model.scheduler.save_pretrained(ov_int8_dir.joinpath("scheduler"))
+        model.scheduler.save_pretrained(ov_int8_dir.joinpath('scheduler'))
 
-        feature_extractor = getattr(model, "feature_extractor", None)
+        feature_extractor = getattr(model, 'feature_extractor', None)
         if feature_extractor is not None:
-            feature_extractor.save_pretrained(ov_int8_dir.joinpath("feature_extractor"))
+            feature_extractor.save_pretrained(ov_int8_dir.joinpath('feature_extractor'))
 
-        tokenizer = getattr(model, "tokenizer", None)
+        tokenizer = getattr(model, 'tokenizer', None)
         if tokenizer is not None:
-            tokenizer.save_pretrained(ov_int8_dir.joinpath("tokenizer"))
+            tokenizer.save_pretrained(ov_int8_dir.joinpath('tokenizer'))
 
-        tokenizer_2 = getattr(model, "tokenizer_2", None)
+        tokenizer_2 = getattr(model, 'tokenizer_2', None)
         if tokenizer_2 is not None:
-            tokenizer_2.save_pretrained(ov_int8_dir.joinpath("tokenizer_2"))
+            tokenizer_2.save_pretrained(ov_int8_dir.joinpath('tokenizer_2'))
 
         model.save_config(ov_int8_dir)
 
