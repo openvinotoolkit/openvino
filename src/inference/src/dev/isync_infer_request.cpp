@@ -104,6 +104,7 @@ ov::ISyncInferRequest::ISyncInferRequest(const std::shared_ptr<const ov::ICompil
                 m_tensors[port.get_tensor_ptr()] = ov::SoPtr<ov::ITensor>();
             size_t port_hash = ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()),
                                                                           std::hash<size_t>()(port.get_index())});
+            std::lock_guard<std::mutex> lock(m_cache_mutex);
             m_cached_ports[port_hash] = {i, port_type};
         }
         port_type = ov::ISyncInferRequest::FoundPort::Type::OUTPUT;
@@ -133,9 +134,12 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
     // Calculate hash for the port
     size_t port_hash = ov::util::hash_combine(
         std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
-    if (m_cached_ports.find(port_hash) == m_cached_ports.end()) {
-        // Cached port for the hash was found
-        return m_cached_ports[port_hash];
+    {
+        std::lock_guard<std::mutex> lock(m_cache_mutex);
+        if (m_cached_ports.find(port_hash) == m_cached_ports.end()) {
+            // Cached port for the hash was found
+            return m_cached_ports[port_hash];
+        }
     }
     ov::ISyncInferRequest::FoundPort::Type type = ov::ISyncInferRequest::FoundPort::Type::INPUT;
     for (const auto& ports : {get_inputs(), get_outputs()}) {
@@ -144,6 +148,7 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
             // if (ports[i] == port) {
             if (ports[i].get_index() == port.get_index() && ports[i].get_names() == port.get_names() &&
                 check_nodes(ports[i].get_node(), port.get_node())) {
+                std::lock_guard<std::mutex> lock(m_cache_mutex);
                 m_cached_ports[port_hash] = {i, type};
                 return m_cached_ports[port_hash];
             }

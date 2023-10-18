@@ -159,6 +159,7 @@ private:
     mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::SoPtr<ov::ITensor>> m_tensors;
     // WA for fix performance of check_tensors and find port only for first find_port() call
     mutable std::unordered_map<size_t, FoundPort> m_cached_ports;
+    mutable std::mutex m_cache_mutex;
 
     /**
      * @brief Finds input or output port
