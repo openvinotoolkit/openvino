@@ -104,7 +104,6 @@ ov::ISyncInferRequest::ISyncInferRequest(const std::shared_ptr<const ov::ICompil
                 m_tensors[port.get_tensor_ptr()] = ov::SoPtr<ov::ITensor>();
             size_t port_hash = ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()),
                                                                           std::hash<size_t>()(port.get_index())});
-            std::lock_guard<std::mutex> lock(m_cache_mutex);
             m_cached_ports[port_hash] = {i, port_type};
         }
         port_type = ov::ISyncInferRequest::FoundPort::Type::OUTPUT;
