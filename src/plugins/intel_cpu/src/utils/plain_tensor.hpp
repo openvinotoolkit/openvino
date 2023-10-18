@@ -15,6 +15,10 @@
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#include <cstdlib>
+#endif
+
 namespace ov {
 namespace intel_cpu {
 
@@ -46,6 +50,11 @@ inline void assert_dt<int8_t>(dnnl::memory::data_type dt) {
 template <>
 inline void assert_dt<int32_t>(dnnl::memory::data_type dt) {
     IE_ASSERT(dt == dnnl::memory::data_type::s32);
+}
+
+template <>
+inline void assert_dt<float16>(dnnl::memory::data_type dt) {
+    IE_ASSERT(dt == dnnl::memory::data_type::f16);
 }
 
 template <typename T>
@@ -93,6 +102,11 @@ struct precision_of<uint8_t> {
     static constexpr InferenceEngine::Precision::ePrecision value = InferenceEngine::Precision::ePrecision::U8;
 };
 
+template <>
+struct precision_of<float16> {
+    static constexpr InferenceEngine::Precision::ePrecision value = InferenceEngine::Precision::ePrecision::FP16;
+};
+
 #define PLAINTENSOR_RANK_MAX 8
 struct PlainTensorBase {
     size_t m_strides[PLAINTENSOR_RANK_MAX];
@@ -106,7 +120,13 @@ struct PlainTensorBase {
         return static_cast<bool>(m_ptr);
     }
 
+    VectorDims shape() const {
+        return VectorDims(m_dims, m_dims + m_rank);
+    }
+
     size_t size(int i) const {
+        if (i < 0)
+            i += m_rank;
         assert(i < m_rank);
         return m_dims[i];
     }
@@ -128,6 +148,16 @@ struct PlainTensor : public PlainTensorBase {
 
     PlainTensor(bool _with_storage) {
         with_storage = _with_storage;
+    }
+
+    // copy construct (always not take ownership)
+    PlainTensor<DT> operator=(const PlainTensor<DT>& other) {
+        IE_ASSERT(!with_storage);
+        memcpy(&m_strides, &other.m_strides, sizeof(m_strides));
+        memcpy(&m_dims, &other.m_dims, sizeof(m_dims));
+        m_rank = other.m_rank;
+        m_ptr = other.m_ptr;
+        return *this;
     }
 
     ~PlainTensor() {
@@ -225,7 +255,7 @@ struct PlainTensor : public PlainTensorBase {
                 sub_tensor.m_strides[i] = m_strides[i];
                 sub_tensor.m_dims[i] = m_dims[i];
             }
-            sub_tensor.m_dims[axis] = (end - start - 1)/step + 1;
+            sub_tensor.m_dims[axis] = (end - start - 1) / step + 1;
         } else {
             // squeeze if end == start
             sub_tensor.m_rank = m_rank - 1;
@@ -277,7 +307,7 @@ struct PlainTensor : public PlainTensorBase {
         // only valid for dense memory
         PlainTensor<DT> new_tensor_view;
         assert(is_dense());
-        assert(shape_size(target_shape) == shape_size(m_dims));
+        //assert(shape_size(target_shape) == shape_size(m_dims));
         new_tensor_view.resize(VectorDims(target_shape), reinterpret_cast<DT*>(m_ptr));
         return new_tensor_view;
     }
@@ -300,10 +330,6 @@ struct PlainTensor : public PlainTensorBase {
     }
 
     void resize(const VectorDims& new_dims, DT* data = nullptr) {
-        if (!with_storage && !data) {
-            throw std::bad_alloc();
-        }
-
         // initialize strides for compact/dense tensor
         m_rank = new_dims.size();
         assert(m_rank <= PLAINTENSOR_RANK_MAX);
@@ -317,7 +343,14 @@ struct PlainTensor : public PlainTensorBase {
         if (!data) {
             auto capacity_new = m_strides[0] * m_dims[0] * sizeof(DT);
             if (capacity_new > m_capacity) {
-                m_ptr = aligned_alloc(64, capacity_new);
+                if (!with_storage) {
+                    throw std::bad_alloc();
+                }
+                #ifdef _WIN32
+                    m_ptr = _aligned_malloc(capacity_new, 64);
+                #else
+                    m_ptr = aligned_alloc(64, capacity_new);
+                #endif
                 m_capacity = capacity_new;
             }
         } else {
@@ -348,16 +381,49 @@ struct PlainTensor : public PlainTensorBase {
         return reinterpret_cast<DT*>(m_ptr)[off];
     }
 
-    DT& operator()(const std::initializer_list<size_t>& index) const {
-        return at(index);
+    PlainTensor<DT>& operator=(const DT& value) {
+        // assign every element to value
+        std::vector<size_t> index(m_rank, 0);
+        auto* dst = reinterpret_cast<DT*>(m_ptr);
+        while (1) {
+            size_t off = 0;
+            for (int i = m_rank - 1; i >= 0; i--) {
+                if (index[i] >= m_dims[i]) {
+                    // carry on
+                    if (i == 0)
+                        return *this;
+                    index[i] = 0;
+                    index[i - 1]++;
+                }
+                off += m_strides[i] * index[i];
+            }
+            dst[off] = value;
+            // move to next coordinate
+            index[m_rank - 1]++;
+        }
+        return *this;
     }
 
-    void assert_dims(const std::initializer_list<size_t>& expect_dims) const {
-        if (m_rank != expect_dims.size()) {
-            asm("int3");
-            IE_ASSERT(false);
+    DT& operator()(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
+        return at(index, allow_broadcast);
+    }
+
+    void assert_dims(const std::initializer_list<size_t>& expect_dims, bool special_zero = false) const {
+        bool match = false;
+        if (m_rank == expect_dims.size()) {
+            match = true;
+            auto it = expect_dims.begin();
+            for (size_t i = 0; i < m_rank; ++i, ++it) {
+                if (*it == 0 && special_zero)
+                    continue;
+                if (*it != m_dims[i]) {
+                    match = false;
+                    break;
+                }
+            }
         }
-        if (!std::equal(expect_dims.begin(), expect_dims.end(), m_dims)) {
+
+        if (!match) {
             std::stringstream ss;
             ss << " m_dims=[";
             for (size_t i = 0; i < m_rank; i++)
@@ -366,7 +432,7 @@ struct PlainTensor : public PlainTensorBase {
             for (auto& i : expect_dims)
                 ss << i << ",";
             ss << "]";
-            asm("int3");
+            // asm("int3");
             IE_ASSERT(false) << ss.str();
         }
     }
@@ -398,8 +464,8 @@ struct PlainTensor : public PlainTensorBase {
         auto last_dim_size = m_dims[m_rank - 1];
         int row_id = 0;
         int cur_row_lines_left = lines_per_row;
-        int cur_line_elecnt = 0;
-        int cur_row_elecnt = 0;
+        size_t cur_line_elecnt = 0;
+        size_t cur_row_elecnt = 0;
         size_t i;
         auto* p = reinterpret_cast<DT*>(m_ptr);
         for (i = 0; i < sz && max_total_lines > 0; i++) {
