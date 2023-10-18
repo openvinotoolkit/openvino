@@ -13,16 +13,8 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-void attn_softmax(float* a,
-                  void* a_dst,
-                  float scale,
-                  float* alibi,
-                  float* attn_mask,
-                  uint8_t* causal_mask,
-                  bool select_nfltmax_at_0,
-                  size_t len,
-                  size_t total_size,
-                  Precision dst_precision);
+void attn_acc_value(float* out, float weight, void* v, size_t S, Precision input_precision);
+
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions

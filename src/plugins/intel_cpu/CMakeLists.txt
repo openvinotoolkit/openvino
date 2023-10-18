@@ -159,6 +159,27 @@ cross_compiled_file(${TARGET_NAME}
         NAME        attn_softmax
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/scaled_attn_dot_product.cpp
+        API         src/nodes/scaled_attn_dot_product.hpp
+        NAME        attn_dot_product
+        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/scaled_attn_acc_value.cpp
+        API         src/nodes/scaled_attn_acc_value.hpp
+        NAME        attn_acc_value
+        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/scaled_attn_reduce.cpp
+        API         src/nodes/scaled_attn_reduce.hpp
+        NAME        attn_reduce
+        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+)
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ov_set_threading_interface_for(${TARGET_NAME})

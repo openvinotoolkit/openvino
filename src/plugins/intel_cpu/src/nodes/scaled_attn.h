@@ -39,7 +39,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     struct Executor {
-        virtual void execute(ScaledDotProductAttention* node) = 0;
+        virtual void execute(dnnl::stream strm, ScaledDotProductAttention* node) = 0;
     };
 
     bool is_causal() const {

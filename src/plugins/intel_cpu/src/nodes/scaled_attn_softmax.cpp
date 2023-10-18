@@ -1,19 +1,22 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "scaled_attn_softmax.hpp"
-
 #include <float.h>
 
 #include <cmath>
 #include <cstring>
 #include <iostream>
 #include <limits>
+#include <type_traits>
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
 #endif
+
+#include "openvino/core/type/bfloat16.hpp"
+#include "scaled_attn_softmax.hpp"
+#include "scaled_attn_common.hpp"
+
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
@@ -42,16 +45,6 @@ inline void hmax(__m256& x) {
     x = _mm256_max_ps(x, y);              // x: 0123 x x x   4567 x x x
     y = _mm256_permute2f128_ps(x, x, 1);  // y: 4567 x x x  0123 x x x
     x = _mm256_max_ps(x, y);              // x: 01234567 x x x x x x x
-}
-
-inline void hsum(__m256& x) {
-    __m256 y;                             // x:  0 1 2 3   4 5 6 7
-    y = _mm256_permute_ps(x, 0x39);       // y:  1 2 3 0   5 6 7 4
-    x = _mm256_add_ps(x, y);              // X:  01 12 23 30  45 56 67 74
-    y = _mm256_permute_ps(x, 0x4e);       // y:  23 30 01 12  67 74 45 56
-    x = _mm256_add_ps(x, y);              // x: 0123 x x x   4567 x x x
-    y = _mm256_permute2f128_ps(x, x, 1);  // y: 4567 x x x  0123 x x x
-    x = _mm256_add_ps(x, y);              // x: 01234567 x x x x x x x
 }
 
 inline void exp_ps_avx2(__m256& src) {
@@ -201,8 +194,6 @@ inline void scale_add2_reduce_max(float* a,
     auto v_max = _mm512_set1_ps(std::numeric_limits<float>::lowest());
     auto v_scale = _mm512_set1_ps(scale);
     auto v_a = v_max;
-    auto v_b = v_max;
-    auto v_c = v_max;
     size_t i = 0;
     auto v_zeroi32 = _mm512_setzero_epi32();
     auto v_nfltmax = _mm512_set1_ps(-FLT_MAX);
@@ -266,8 +257,6 @@ inline void scale_add2_reduce_max(float* a,
     auto v_max = _mm256_set1_ps(std::numeric_limits<float>::lowest());
     auto v_scale = _mm256_set1_ps(scale);
     auto v_a = v_max;
-    auto v_b = v_max;
-    auto v_c = v_max;
     auto v_zeroi32 = _mm256_setzero_si256();
     auto v_mask_xor = _mm256_set1_epi32(select_nfltmax_at_0 ? -1 : 0);
     auto v_nfltmax = _mm256_set1_ps(-FLT_MAX);
@@ -480,7 +469,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
 #endif
 }
 
-inline void multiply_scalar(float* a, const float val, const size_t size) {
+inline void multiply_scalar(float* a, float* a_dst, const float val, const size_t size) {
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(val);
     __m512 v_a = {0};
@@ -488,14 +477,14 @@ inline void multiply_scalar(float* a, const float val, const size_t size) {
     while (i + 16 < size) {
         v_a = _mm512_loadu_ps(a + i);
         v_a = _mm512_mul_ps(v_a, v_scale);
-        _mm512_storeu_ps(a + i, v_a);
+        _mm512_storeu_ps(a_dst + i, v_a);
         i += 16;
     }
     if (i < size) {
         __mmask16 mask = (1 << (size - i)) - 1;
         v_a = _mm512_maskz_loadu_ps(mask, a + i);
         v_a = _mm512_mul_ps(v_a, v_scale);
-        _mm512_mask_storeu_ps(a + i, mask, v_a);
+        _mm512_mask_storeu_ps(a_dst + i, mask, v_a);
     }
 #elif defined(HAVE_AVX2)
     auto v_scale = _mm256_set1_ps(val);
@@ -504,30 +493,56 @@ inline void multiply_scalar(float* a, const float val, const size_t size) {
     while (i + 8 <= size) {
         v_a = _mm256_loadu_ps(a + i);
         v_a = _mm256_mul_ps(v_a, v_scale);
-        _mm256_storeu_ps(a + i, v_a);
+        _mm256_storeu_ps(a_dst + i, v_a);
         i += 8;
     }
     if (i < size) {
         auto mask = get_mask(size - i);
         v_a = _mm256_maskload_ps(a + i, mask);
         v_a = _mm256_mul_ps(v_a, v_scale);
-        _mm256_maskstore_ps(a + i, mask, v_a);
+        _mm256_maskstore_ps(a_dst + i, mask, v_a);
     }
 #else
     for (size_t i = 0; i < size; i++) {
-        a[i] *= val;
+        a_dst[i] = a[i] * val;
+    }
+#endif
+}
+
+inline void multiply_scalar(float* a, ov::bfloat16* a_dst, const float val, const size_t size) {
+#if defined(HAVE_AVX512F)
+    auto v_scale = _mm512_set1_ps(val);
+    __m512 v_a = {0};
+    size_t i = 0;
+    while (i + 16 < size) {
+        v_a = _mm512_loadu_ps(a + i);
+        v_a = _mm512_mul_ps(v_a, v_scale);
+        mm512_uni_storeu_ps(a_dst + i, v_a);
+        i += 16;
+    }
+    if (i < size) {
+        __mmask16 mask = (1 << (size - i)) - 1;
+        v_a = _mm512_maskz_loadu_ps(mask, a + i);
+        v_a = _mm512_mul_ps(v_a, v_scale);
+        mm512_uni_mask_storeu_ps(a_dst + i, mask, v_a);
+    }
+#else
+    for (size_t i = 0; i < size; i++) {
+        a_dst[i] = a[i] * val;
     }
 #endif
 }
 
 void attn_softmax(float* a,
+                  void* a_dst,
                   float scale,
                   float* alibi,
                   float* attn_mask,
                   uint8_t* causal_mask,
                   bool select_nfltmax_at_0,
                   size_t len,
-                  size_t total_size) {
+                  size_t total_size,
+                  Precision dst_precision) {
     float max = std::numeric_limits<float>::lowest();
 
     int dispatch = (alibi ? 0x100 : 0) | (attn_mask ? 0x010 : 0) | (causal_mask ? 0x001 : 0);
@@ -566,11 +581,17 @@ void attn_softmax(float* a,
     exp_reduce_sum(a, max, len, sum);
     // divide sum
     float scalar = 1.0f / sum;
-    multiply_scalar(a, scalar, len);
-
-    // apply causual mask to final result instead of attn_score
-    if (total_size > len)
-        memset(a + len, 0, sizeof(float) * (total_size - len));
+    if (dst_precision == Precision::FP32) {
+        multiply_scalar(a, static_cast<float*>(a_dst), scalar, len);
+        // apply causual mask to final result instead of attn_score
+        if (total_size > len)
+            memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
+    } else {
+        multiply_scalar(a, static_cast<ov::bfloat16*>(a_dst), scalar, len);
+        // apply causual mask to final result instead of attn_score
+        if (total_size > len)
+            memset(static_cast<ov::bfloat16*>(a_dst) + len, 0, sizeof(ov::bfloat16) * (total_size - len));
+    }
 }
 }  // namespace XARCH
 }  // namespace Cpu
