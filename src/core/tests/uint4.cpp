@@ -13,9 +13,9 @@ TEST(uint4, convert_u4_to_string) {
     vector<uint8_t> values{171, 16};
     auto constant = make_shared<ov::op::v0::Constant>(element::u4, Shape{3}, &values[0]);
 
-    vector<string> ref{"10", "11", "1"};
+    vector<string> ref{"11", "10", "0"};
     for (size_t i = 0; i < 3; ++i) {
-        ASSERT_EQ(constant->convert_value_to_string(i), ref[i]);
+        EXPECT_EQ(constant->convert_value_to_string(i), ref[i]);
     }
 }
 

@@ -370,7 +370,7 @@ class TorchFXPythonDecoder (Decoder):
         return result
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
-        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d"]:
+        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d", "aten::matmul"]:
             # AliasDB::may_contain_alias sometimes return True for tensors produced by convnd, we have to workaround that
             return False
         try:
