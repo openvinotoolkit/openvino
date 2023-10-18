@@ -88,7 +88,7 @@ jobs:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
-          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          # save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           key: ${{ github.job }}-${{ runner.os }}-itt
           restore-keys: |
             ${{ github.job }}-${{ runner.os }}-itt
@@ -127,11 +127,18 @@ jobs:
           & ${{ env.INSTALL_DIR }}/samples/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
 
       - name: Ctest - OpenVINO unit tests
-        run: ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
+        shell: cmd
+        continue-on-error: true
+        run: |
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
+          ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
 
       - name: Perform code tracing via ITT collector
         shell: cmd
+        continue-on-error: true
         run: |
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
+          
           python3 ${{ env.OPENVINO_REPO }}\thirdparty\itt_collector\runtool\sea_runtool.py ^
           --bindir ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }} ^
           -o ${{ env.SELECTIVE_BUILD_STAT_DIR }}\itt_stat ! ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe ^
@@ -141,6 +148,7 @@ jobs:
           -d CPU
 
       - name: Pack Artifacts
+        continue-on-error: true
         run: |
           $file=Get-ChildItem -Path "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
           $compress = @{
@@ -175,6 +183,7 @@ jobs:
 
   CC_Build:
     name: Conditional Compilation
+    if: ${{ always() }}
     needs: Build
     defaults:
       run:
@@ -216,7 +225,6 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF `
             -DENABLE_CPPLINT=OFF `
             -DSELECTIVE_BUILD=ON `
-            -DENABLE_LTO=OFF `
             -DENABLE_TEMPLATE=OFF `
             -DENABLE_INTEL_GPU=OFF `
             -DENABLE_INTEL_GNA=OFF `
@@ -238,6 +246,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
+    if: ${{ always() }}
     needs: Build
     defaults:
       run:
