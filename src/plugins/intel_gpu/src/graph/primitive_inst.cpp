@@ -425,7 +425,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     auto current_shape = actual_layout.get_shape();
     auto& sp = get_network().get_shape_predictor();
-    auto dt_size = data_type_traits::size_of(actual_layout.data_type);
+    auto dt_size = ov::element::Type(actual_layout.data_type).bitwidth();
     auto prealloc_info = sp.predict_preallocation_shape(id(), current_shape, dt_size, can_reuse_buffer);
     if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {
         auto new_layout = actual_layout;
@@ -685,6 +685,7 @@ void primitive_inst::do_runtime_skip_reorder() {
             GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
             u->update_shape();
             u->update_shape_done_by_other = true;
+
             if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
                 std::function<void(std::vector<std::shared_ptr<primitive_inst>>)> update_memory_dependencies;
                 update_memory_dependencies = [&](std::vector<std::shared_ptr<primitive_inst>> users) {
@@ -699,6 +700,10 @@ void primitive_inst::do_runtime_skip_reorder() {
                 update_memory_dependencies(u->get_user_insts());
 
                 u->set_can_be_optimized(true);
+                // Opt out reorder which has _needs_completion_event = true causes syncronization failed in dGPU.
+                if (_needs_completion_event == false && u->_needs_completion_event == true) {
+                    _needs_completion_event = true;
+                }
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " cannot be optimized" << std::endl;

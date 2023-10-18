@@ -130,6 +130,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AvgPool3D", CreatorFunction(translate_avg_pool_op)},
         {"BatchMatMul", CreatorFunction(translate_batch_mat_mul_op)},
         {"BatchMatMulV2", CreatorFunction(translate_batch_mat_mul_op)},
+        {"BatchMatMulV3", CreatorFunction(translate_batch_mat_mul_with_type_op)},
         {"BatchToSpaceND", CreatorFunction(translate_batch_to_space_nd_op)},
         {"BroadcastArgs", CreatorFunction(translate_broadcast_args_op)},
         {"BroadcastTo", CreatorFunction(translate_broadcast_to_op)},
@@ -286,6 +287,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"While", CreatorFunction(translate_while_op)},
         {"Where", CreatorFunction(translate_where_op)},
         {"Xdivy", CreatorFunction(translate_x_div_y_op)},
+        {"Xlog1py", CreatorFunction(translate_xlog1py_op)},
+        {"Xlogy", CreatorFunction(translate_xlogy_op)},
         {"ZerosLike", CreatorFunction(translate_zeros_like_op)},
 
         // Translators for SavedModel and MetaGraph

@@ -23,6 +23,8 @@ bool can_shuffle_features(program_node& node, stream& stream) {
     if (node.is_type<convolution>()) {
         auto& conv_node = node.as<convolution>();
         auto& wei_node = conv_node.weights();
+        if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8)
+            return false;
 
         return conv_node.get_groups() == 1 &&
             conv_node.get_deformable_groups() == 1 && !conv_node.get_transposed() &&
@@ -32,6 +34,8 @@ bool can_shuffle_features(program_node& node, stream& stream) {
     if (node.is_type<fully_connected>()) {
         auto& fc_node = node.as<fully_connected>();
         auto& wei_node = fc_node.weights();
+        if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8)
+            return false;
 
         return wei_node.is_type<data>() && wei_node.is_constant() && !wei_node.is_output();
     }

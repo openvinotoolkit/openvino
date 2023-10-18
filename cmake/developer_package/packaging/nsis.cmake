@@ -5,6 +5,8 @@
 macro(ov_nsis_specific_settings)
     # installation directory
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "Intel")
+    # License to be embedded in the installer
+    set(CPACK_RESOURCE_FILE_LICENSE "${OpenVINO_SOURCE_DIR}/LICENSE")
 
     # TODO: provide icons
     # set(CPACK_NSIS_MUI_ICON "")
