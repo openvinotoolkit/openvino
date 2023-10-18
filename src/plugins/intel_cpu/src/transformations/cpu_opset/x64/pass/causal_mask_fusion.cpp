@@ -16,7 +16,7 @@
 
 #include "itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "utils/pattern_node.hpp"
+#include "utils/gen_pattern.hpp"
 
 #define CALLBACK_LOG(m) if (0) std::cout << matcher_name << " " << m.get_match_root()->get_friendly_name() << std::endl;
 

@@ -103,6 +103,7 @@
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #include "transformations/cpu_opset/x64/pass/rope_fusion.hpp"
 #include "transformations/cpu_opset/x64/pass/causal_mask_fusion.hpp"
+#include "transformations/cpu_opset/x64/pass/stateful_sdp_fusion.hpp"
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
@@ -632,10 +633,12 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
-    DEBUG_DUMP_MODEL_REGISTER_PASS(postLPTPassManager, "before");
+    DEBUG_DUMP_MODEL_REGISTER_PASS(postLPTPassManager, "before.cpp");
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskFusion);
-    DEBUG_DUMP_MODEL_REGISTER_PASS(postLPTPassManager, "after");
+    CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, RemoveFusedAssign);
+    DEBUG_DUMP_MODEL_REGISTER_PASS(postLPTPassManager, "after.cpp");
 
     postLPTPassManager.run_passes(model);
 }

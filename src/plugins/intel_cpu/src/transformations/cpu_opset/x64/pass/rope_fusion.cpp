@@ -17,7 +17,7 @@
 #include "itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/x64/op/rope.hpp"
-#include "utils/pattern_node.hpp"
+#include "utils/gen_pattern.hpp"
 
 #define CALLBACK_LOG(m) std::cout << matcher_name << " " << m.get_match_root()->get_friendly_name() << std::endl;
 
@@ -51,16 +51,16 @@ ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
     // rotate half : [-x2, x1]
-    auto x2 = GenSlice(x, half_ndims, int32_max, 1, 3, "x2");
-    auto x2neg = GenPattern<opset1::Multiply>({x2, {-1}}, nullptr, {{"auto_broadcast", "numpy"}}, "x2neg");
-    auto x1 = GenSlice(x, 0, half_ndims, 1, 3, "x1");
-    auto x_rotate_half = GenPattern<opset1::Concat>({x2neg, x1}, nullptr, {{"axis", -1}}, "x_rotate_half");
+    auto x2 = GenSlice(x, half_ndims, int32_max, 1, 3);
+    auto x2neg = GenPattern<opset1::Multiply>({x2, {-1}}, nullptr, {{"auto_broadcast", "numpy"}});
+    auto x1 = GenSlice(x, 0, half_ndims, 1, 3);
+    auto x_rotate_half = GenPattern<opset1::Concat>({x2neg, x1}, nullptr, {{"axis", -1}});
 
-    auto mul_cos = GenPattern<opset1::Multiply>({x_or_cos1, x_or_cos2}, nullptr, {{"auto_broadcast", "numpy"}}, "*cos");
-    auto mul_sin = GenPattern<opset1::Multiply>({x_rotate_half, t_sin}, nullptr, {{"auto_broadcast", "numpy"}}, "*sin");
+    auto mul_cos = GenPattern<opset1::Multiply>({x_or_cos1, x_or_cos2}, nullptr, {{"auto_broadcast", "numpy"}});
+    auto mul_sin = GenPattern<opset1::Multiply>({x_rotate_half, t_sin}, nullptr, {{"auto_broadcast", "numpy"}});
 
     // [x1, x2]*cos + [-x2, x1]*sin
-    auto result = GenPattern<opset1::Add>({mul_cos, mul_sin}, nullptr, {{"auto_broadcast", "numpy"}}, "final");
+    auto result = GenPattern<opset1::Add>({mul_cos, mul_sin}, nullptr, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         ROPE_cnt++;
