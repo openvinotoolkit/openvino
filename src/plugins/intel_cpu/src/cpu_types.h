@@ -111,6 +111,7 @@ enum class Type {
     PriorBoxClustered,
     Interaction,
     MHA,
+    RandomUniform,
     Unique,
     Ngram
 };
