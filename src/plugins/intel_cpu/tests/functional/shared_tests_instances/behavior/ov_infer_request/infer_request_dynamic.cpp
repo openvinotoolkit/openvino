@@ -11,11 +11,12 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-    {}
+    {{ov::hint::inference_precision.name(), ov::element::f32}}
 };
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
+    {{ov::hint::inference_precision.name(), ov::element::f32},
+     {ov::device::priorities(ov::test::utils::DEVICE_CPU)}},
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {
