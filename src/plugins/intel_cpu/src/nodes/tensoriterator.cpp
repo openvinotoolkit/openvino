@@ -549,7 +549,7 @@ void TensorIterator::prepareParams() {
     before_mappers.clear();
     back_mappers.clear();
 
-    if ((lastUsedCond && lastUsedTripCount != 0) || !runAsDynamic()) {
+    if ((lastUsedCond && lastUsedTripCount != 0) || !isDynamicNode()) {
         reshapeSubgraphInput();
 
         prepareInputPorts();
