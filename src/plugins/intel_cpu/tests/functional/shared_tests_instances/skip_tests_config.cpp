@@ -189,6 +189,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
         // Issue: 122094
         R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
+        // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
+        R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
