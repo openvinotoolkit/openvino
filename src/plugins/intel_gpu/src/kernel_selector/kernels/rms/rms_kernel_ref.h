@@ -16,8 +16,5 @@ public:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
-
-protected:
-    JitConstants GetJitConstants(const rms_params& params, DispatchData dispatchData) const override;
 };
 }  // namespace kernel_selector

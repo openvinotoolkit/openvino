@@ -25,11 +25,6 @@ ParamsKey RMSKernelRef::GetSupportedKey() const {
     return k;
 }
 
-JitConstants RMSKernelRef::GetJitConstants(const rms_params& params, DispatchData dispatchData) const {
-    auto jit = Parent::GetJitConstants(params, dispatchData);
-    return jit;
-}
-
 KernelsData RMSKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
