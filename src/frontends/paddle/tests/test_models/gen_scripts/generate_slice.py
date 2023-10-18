@@ -20,7 +20,7 @@ def slice(name : str, x, axes : list, start : list, end : list):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype = data_type)
-        out = paddle.fluid.layers.slice(node_x, axes = axes, starts = start, ends = end)
+        out = paddle.slice(node_x, axes = axes, starts = start, ends = end)
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
