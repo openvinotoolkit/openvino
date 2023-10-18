@@ -405,9 +405,8 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
     adapter.set(model);
 }
 
-std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(
-    const pugi::xml_node& root,
-    const std::shared_ptr<ov::AlignedBuffer>& weights) {
+std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_node& root,
+                                                               const std::shared_ptr<ov::AlignedBuffer>& weights) {
     // OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     struct FunctionNodes {
@@ -745,11 +744,10 @@ static const std::string& translate_type_name(const std::string& name) {
     return name;
 }
 
-std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(
-    const std::vector<ov::Output<ov::Node>>& inputs,
-    const pugi::xml_node& node,
-    const std::shared_ptr<ov::AlignedBuffer>& weights,
-    const GenericLayerParams& params) {
+std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov::Output<ov::Node>>& inputs,
+                                                           const pugi::xml_node& node,
+                                                           const std::shared_ptr<ov::AlignedBuffer>& weights,
+                                                           const GenericLayerParams& params) {
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())

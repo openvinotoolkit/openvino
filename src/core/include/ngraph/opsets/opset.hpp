@@ -28,7 +28,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 /// \brief Run-time opset information
-class NGRAPH_API_DEPRECATED NGRAPH_API OpSet : public ov::OpSet {
+class NGRAPH_API OpSet : public ov::OpSet {
 public:
     explicit OpSet(const ov::OpSet& opset);
     OpSet(const ngraph::OpSet& opset);

@@ -1730,10 +1730,10 @@ TEST(constant, lazy_bitwise_identical) {
     auto byte_size = shape_size(shape) * sizeof(int32_t);
     auto aligned_weights_buffer = std::make_shared<ov::AlignedBuffer>(byte_size);
     std::memset(aligned_weights_buffer->get_ptr<char>(), 1, byte_size);
-    auto weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
-        aligned_weights_buffer->get_ptr<char>(),
-        aligned_weights_buffer->size(),
-        aligned_weights_buffer);
+    auto weights =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(aligned_weights_buffer->get_ptr<char>(),
+                                                                               aligned_weights_buffer->size(),
+                                                                               aligned_weights_buffer);
 
     using namespace std::chrono;
     auto create_constant = [&]() {
