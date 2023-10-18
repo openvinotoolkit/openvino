@@ -52,19 +52,19 @@ void SpaceToDepth::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
-bool SpaceToDepth::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool SpaceToDepth::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_SpaceToDepth_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
 
     const auto& in = inputs[0];
     const auto& out = outputs[0];
-    reference::space_to_depth(in->get_data_ptr<char>(),
-                              in->get_shape(),
-                              out->get_data_ptr<char>(),
-                              out->get_shape(),
+    reference::space_to_depth(static_cast<const char*>(in.data()),
+                              in.get_shape(),
+                              static_cast<char*>(out.data()),
+                              out.get_shape(),
                               m_blocksize,
                               m_mode,
-                              in->get_element_type().size());
+                              in.get_element_type().size());
     return true;
 }
 
