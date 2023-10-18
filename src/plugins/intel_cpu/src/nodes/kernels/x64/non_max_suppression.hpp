@@ -5,6 +5,7 @@
 #pragma once
 
 #include "jit_kernel_base.hpp"
+
 #if defined(OPENVINO_ARCH_X86_64)
 #include "emitters/x64/jit_load_store_emitters.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
