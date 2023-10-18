@@ -1012,7 +1012,14 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
                 if (user->is_type<mutable_data>())
                     _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
         } else {
-            _outputs = allocate_outputs();
+            auto& e = network.get_engine();
+            auto output_layout = node.get_output_layout();
+            // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, return false.
+            if (!e.check_allocatable(output_layout, e.get_lockable_preferred_memory_allocation_type(output_layout.format.is_image_2d()))) {
+                _mem_allocated = false;
+            } else {
+                _outputs = allocate_outputs();
+            }
         }
     }
     if (_impl) {
