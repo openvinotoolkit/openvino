@@ -2482,7 +2482,7 @@ TEST(eltwise_gpu_int, div_gather_fusing) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(input_layout("Input3", input3->get_layout()));
-    topology.add(gather("gather", input_info("InputDictionary"), input_info("InputText"), 0, ov::Shape{2, 2, 2, 2}));
+    topology.add(gather("gather", input_info("InputDictionary"), input_info("InputText"), 0, 4, ov::Shape{2, 2, 2, 2}));
     topology.add(reorder("gather_reorder", input_info("gather"), { data_types::i32, format::bfyx, { 2, 2, 2, 2 } }));
     topology.add(eltwise("eltwise",
                  { input_info("gather_reorder"), input_info("Input3") },
