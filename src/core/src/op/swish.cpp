@@ -89,10 +89,10 @@ bool Swish::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     using namespace ov::element;
     return IfTypeOf<f32>::apply<swish::Evaluate>(inputs[0].get_element_type(),
-                                                  inputs[0],
-                                                  arg1,
-                                                  outputs[0],
-                                                  shape_size(inputs[0].get_shape()));
+                                                 inputs[0],
+                                                 arg1,
+                                                 outputs[0],
+                                                 shape_size(inputs[0].get_shape()));
 }
 
 bool Swish::has_evaluate() const {
