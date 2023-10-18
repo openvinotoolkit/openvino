@@ -3,10 +3,12 @@
 //
 
 #include "common_op_table.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace std;
 using namespace ov::opset10;
