@@ -35,6 +35,8 @@ class TestTruncateMod(CommonTFLayerTest):
     test_data_basic = [
         dict(input_shape=[10, 20], input_type=np.float32),
         dict(input_shape=[8, 5], input_type=np.float32),
+        dict(input_shape=[5, 3], input_type=np.int32),
+        dict(input_shape=[6, 4], input_type=np.int32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
