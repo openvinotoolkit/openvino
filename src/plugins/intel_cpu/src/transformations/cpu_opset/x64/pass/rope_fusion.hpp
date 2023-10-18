@@ -56,9 +56,6 @@ public:
     OPENVINO_RTTI("RoPEFusion", "0");
     RoPEFusion() {
         add_matcher<EliminateStridedSlice>();
-        if (std::getenv("USE_ROPE") && atoi(std::getenv("USE_ROPE")) == 0)
-            return;
-        std::cout << "============= RoPEFusion =============" << std::endl;
         add_matcher<RoPEFusionGPTNEOX>();
         add_matcher<RoPEFusionGPTJ>();
         // optional heads & tails are fused in separate matcher pass,

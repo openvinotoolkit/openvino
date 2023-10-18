@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <float.h>
+#include <assert.h>
 
 #include <cmath>
 #include <cstddef>
@@ -56,7 +56,8 @@ float attn_dot_product(void* a, void* b, size_t len, Precision input_precision) 
         auto a_ptr = static_cast<float*>(a);
         auto b_ptr = static_cast<float*>(b);
         return dot_product_inner(a_ptr, b_ptr, len);
-    } else if (input_precision == Precision::BF16) {
+    } else {
+        assert(input_precision == Precision::BF16);
         auto a_ptr = static_cast<ov::bfloat16*>(a);
         auto b_ptr = static_cast<ov::bfloat16*>(b);
         return dot_product_inner(a_ptr, b_ptr, len);

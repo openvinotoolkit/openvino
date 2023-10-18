@@ -203,7 +203,6 @@ void RoPE::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
     auto srcPrecision = getOriginalInputPrecisionAtPort(0);
-    auto dstPrecision = getOriginalOutputPrecisionAtPort(0);
 
     auto rtPrecision = srcPrecision;
     auto CosSinPrecision = InferenceEngine::Precision::FP32;  // rtPrecision

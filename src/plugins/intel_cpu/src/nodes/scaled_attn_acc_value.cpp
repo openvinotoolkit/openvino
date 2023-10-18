@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <float.h>
+#include <assert.h>
 
 #include <cmath>
 #include <cstddef>
@@ -52,7 +52,8 @@ void attn_acc_value(float* out, float weight, void* v, size_t S, Precision input
     if (input_precision == Precision::FP32) {
         auto v_ptr = static_cast<float*>(v);
         attn_acc_value_inner(out, weight, v_ptr, S);
-    } else if (input_precision == Precision::BF16) {
+    } else {
+        assert(input_precision == Precision::BF16);
         auto v_ptr = static_cast<ov::bfloat16*>(v);
         attn_acc_value_inner(out, weight, v_ptr, S);
     }

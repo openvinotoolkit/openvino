@@ -8,7 +8,7 @@
 #include <limits>
 #include <openvino/core/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset12.hpp>
+#include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
@@ -103,7 +103,7 @@ StatefulSDPFusion::StatefulSDPFusion() {
     //    GenPattern<opset6::Assign>({present_value});  // past_key_values.1.valuepresent.1.value[1,32,?,80]f32
 
     auto scaled_dot_product =
-        GenPattern<opset12::ScaledDotProductAttention>({query, present_key, present_value, attn_mask},
+        GenPattern<opset13::ScaledDotProductAttention>({query, present_key, present_value, attn_mask},
                                                        nullptr,
                                                        {{"causal", 1}});
 

@@ -32,8 +32,7 @@ public:
         bool ret = true;
         for (auto& a : attr_match) {
             if (!a.second) {
-                auto& attr = attr_map[a.first];
-                _VERBOSE_LOG("     AttributePredicate: failed at ", attr->to_string());
+                _VERBOSE_LOG("     AttributePredicate: failed at ", attr_map[a.first]->to_string());
             }
             ret = ret && a.second;
         }
@@ -397,6 +396,7 @@ std::shared_ptr<Node> GenSlice(GenPatternNode data, Symbol start, Symbol stop, S
 #endif
 
     opt2->set_predicate([axis, friendly_name](const Output<Node>& value) {
+        (void)friendly_name;
         auto s1 = as_type_ptr<opset1::StridedSlice>(value.get_node_shared_ptr());
         if (!s1) {
             _VERBOSE_LOG(" mismatch StridedSlice OP type: ", friendly_name, "vs", value);

@@ -262,7 +262,6 @@ ov::intel_cpu::RoPEFusionPreprocess::RoPEFusionPreprocess() {
             return false;
         }
         auto& config = rope_node->get_config();
-        auto arg_size = rope_node->get_input_size();
 
         if (pattern_map.count(input_to_slice)) {
             config.slice_start = symbol_name2value["slice_start"];

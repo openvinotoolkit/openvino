@@ -261,7 +261,7 @@ struct PlainTensor : public PlainTensorBase {
             sub_tensor.m_rank = m_rank - 1;
             size_t k = 0;
             for (size_t i = 0; i < m_rank; i++) {
-                if (i != axis) {
+                if (i != static_cast<size_t>(axis)) {
                     sub_tensor.m_strides[k] = m_strides[i];
                     sub_tensor.m_dims[k] = m_dims[i];
                     k++;

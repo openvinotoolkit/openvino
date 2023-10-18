@@ -8,7 +8,7 @@
 #include <limits>
 #include <openvino/core/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset12.hpp>
+#include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
@@ -71,7 +71,7 @@ ov::intel_cpu::CausalMaskFusion::CausalMaskFusion() {
                                                      nullptr,
                                                      {{"mode", "numpy"}});  // "f32[1,1,1..2048,?]"
     auto scaled_dot_product_attention =
-        GenPattern<opset12::ScaledDotProductAttention>({query, key, value, add_Add_446},
+        GenPattern<opset13::ScaledDotProductAttention>({query, key, value, add_Add_446},
                                                        nullptr,
                                                        {{"causal", 0}});  // "f32[1,8,?,64]"
 
@@ -87,7 +87,7 @@ ov::intel_cpu::CausalMaskFusion::CausalMaskFusion() {
         auto attn = pattern_map.at(attn_mask);
 
         auto old_node = root;
-        auto new_node = std::make_shared<opset12::ScaledDotProductAttention>(q, k, v, true, attn);
+        auto new_node = std::make_shared<opset13::ScaledDotProductAttention>(q, k, v, attn, true);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::replace_node(old_node, new_node);
 

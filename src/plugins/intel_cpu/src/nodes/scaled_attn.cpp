@@ -762,8 +762,8 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    const auto node = std::dynamic_pointer_cast<const ov::op::v12::ScaledDotProductAttention>(op);
-    m_is_causal = node->get_is_causal();
+    const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
+    m_is_causal = node->get_causal();
 }
 
 void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
@@ -803,7 +803,7 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto node = std::dynamic_pointer_cast<const ov::op::v12::ScaledDotProductAttention>(op);
+        const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
         if (!node) {
             errorMessage = "Only ScaledDotProductAttention operation is supported";
             return false;

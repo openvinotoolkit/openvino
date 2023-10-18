@@ -203,7 +203,7 @@ struct VM {
         }
         void show() {
             std::cout << "===== State.stack: " << stack.size() << " entries:" << std::endl;
-            for (int i = 0; i < stack.size(); i++)
+            for (size_t i = 0; i < stack.size(); i++)
                 std::cout << "\t[" << i << "]\t" << stack[i] << std::endl;
             std::cout << "===== State.vars: " << vars.size() << " entries:" << std::endl;
             for (auto& v : vars)
@@ -230,7 +230,7 @@ struct VM {
     VM& disassemble() {
         states.show();
         std::cout << "==== Disassemble:" << std::endl;
-        for (int i = 0; i < codes.size(); i++) {
+        for (size_t i = 0; i < codes.size(); i++) {
             auto& inst = codes[i];
             std::cout << "#" << i << ":\t" << inst.f.first;
             if (inst.dst)

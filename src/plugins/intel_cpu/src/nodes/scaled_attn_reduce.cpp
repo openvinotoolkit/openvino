@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <float.h>
+#include <assert.h>
 
 #include <cmath>
 #include <cstddef>
@@ -11,7 +11,6 @@
 #include <limits>
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-    #include <x86intrin.h>
     #include <immintrin.h>
 #endif
 
@@ -68,7 +67,8 @@ void attn_reduce(void* dst, float* temp, size_t M, size_t S, size_t temp_stride,
     if (input_precision == Precision::FP32) {
         auto dst_ptr = static_cast<float*>(dst);
         attn_reduce_inner(dst_ptr, temp, M, S, temp_stride);
-    } else if (input_precision == Precision::BF16) {
+    } else {
+        assert(input_precision == Precision::BF16);
         auto dst_ptr = static_cast<ov::bfloat16*>(dst);
         attn_reduce_inner(dst_ptr, temp, M, S, temp_stride);
     }

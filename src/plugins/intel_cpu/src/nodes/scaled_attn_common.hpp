@@ -78,8 +78,7 @@ namespace XARCH {
         x = _mm256_packus_epi32(x, x);
         x = _mm256_permute4x64_epi64(x, 0xd8);
         __m128i bf16_o = _mm256_extractf128_si256(x, 0);
-        _mm_storeu_si128(reinterpret_cast<__m128i *>(addr),
-                        reinterpret_cast<__m128i>(bf16_o));
+        _mm_storeu_si128(reinterpret_cast<__m128i *>(addr), bf16_o);
     }
 
     inline void hsum(__m256& x) {
