@@ -132,7 +132,9 @@ By contributing to the project, you agree to the license and copyright terms the
 OpenVINO™ collects software performance and usage data for the purpose of improving OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4.
 You can opt-out at any time by running the command:
 
+``` bash
 opt_in_out --opt_out
+```
 
 More Information is available at https://docs.openvino.ai/latest/openvino_docs_telemetry_information.html.
 
