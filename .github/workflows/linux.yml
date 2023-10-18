@@ -13,9 +13,10 @@ on:
       - '!**.md'
   push:
     paths:
-      - 'docs/snippets/**'
-      - '!**/docs/**'
+      - '**'
       - '!docs/**'
+      - '!**/docs/**'
+      - 'docs/snippets/**'
       - '!**/**.md'
       - '!**.md'
     branches:
