@@ -404,7 +404,6 @@ if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
     install(FILES constraints.txt
-                  requirements_test.txt
             DESTINATION tests/bindings/python
             COMPONENT tests
             EXCLUDE_FROM_ALL)
