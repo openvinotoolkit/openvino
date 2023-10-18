@@ -219,8 +219,8 @@ public:
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
         if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
-            auto& data = m_values.get<ngraph::HostTensorPtr>(name);
-            data->read(a->get()->get_ptr(), a->get()->size());
+            auto& data = m_values.get<ov::Tensor>(name);
+            std::memcpy(a->get()->get_ptr(), data.data(), a->get()->size());
         } else if (auto a = ov::as_type<
                        ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(
                        &adapter)) {
