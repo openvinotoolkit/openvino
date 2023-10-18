@@ -19,7 +19,7 @@ namespace op {
 OutputVector translate_tobool_op(const NodeContext& node) {
     // (rank(x) == 0 && x != 0) || (rank > 0 && ReduceProd(ShapeOf(x))) > 0
 
-    default_op_checks(node, 2, {"ToBool"});
+    default_op_checks(node, 1, {"ToBool"});
     auto x = node.get_input(0);
 
     // prepare auxiliary zero and one constants of the same type as the inputs
