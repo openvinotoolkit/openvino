@@ -307,7 +307,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
          (fmt_prev == format::b_fs_yx_fsv4 &&
           prev_output_layout.feature() % 32 == 0 &&
           prev_output_layout.spatial(0) == 1 &&
-          prev_output_layout.spatial(1) == 1)))
+          prev_output_layout.spatial(1) == 1)) && is_input_reorder(prev, next))
         return true;
 
     if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv4 && is_input_idx(0))
