@@ -39,11 +39,6 @@ public:
                      cldnn::shared_surface surf = 0,
                      uint32_t plane = 0);
 
-    RemoteTensorImpl(std::shared_ptr<RemoteContextImpl> context,
-                     const ov::Shape& shape,
-                     const ov::element::Type& element_type,
-                     cldnn::memory::ptr memory);
-
     ~RemoteTensorImpl() override;
     const AnyMap& get_properties() const override;
     const std::string& get_device_name() const override;

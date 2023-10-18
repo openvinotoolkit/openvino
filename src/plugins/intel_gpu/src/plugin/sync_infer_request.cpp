@@ -434,6 +434,7 @@ void SyncInferRequest::wait() {
             OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait::reinterpret_memory");
             OPENVINO_ASSERT(!output_memory->get_layout().data_padding, "[GPU] Unexpected padding in output buffer");
             output_memory = m_graph->get_engine().reinterpret_buffer(*output_memory, output_layout);
+            GPU_DEBUG_TRACE_DETAIL << name << " model output: " << output_memory->buffer_ptr() << std::endl;
         }
 
         OPENVINO_ASSERT(m_user_outputs.count(name) > 0, "[GPU] Output ", name, " is not found in output tensors map");
@@ -442,7 +443,6 @@ void SyncInferRequest::wait() {
         auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(output_tensor);
         bool is_remote = remote_ptr != nullptr;
 
-        GPU_DEBUG_TRACE_DETAIL << name << " model output: " << output_memory->buffer_ptr() << std::endl;
         if (is_remote) {
             GPU_DEBUG_TRACE_DETAIL << name << " handle output tensor (remote): " << remote_ptr->get_original_memory()->buffer_ptr() << std::endl;
         } else {
@@ -462,7 +462,8 @@ void SyncInferRequest::wait() {
             }
             if (port.get_partial_shape().is_dynamic()) {
                 bool need_reallocate = true;
-                if (auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor))
+                auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
+                if (usm_host_tensor && output_memory)
                     need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
 
                 if (need_reallocate) {

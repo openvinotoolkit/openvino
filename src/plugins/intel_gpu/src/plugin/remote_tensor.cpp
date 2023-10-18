@@ -44,22 +44,6 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     allocate();
 }
 
-RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
-                                   const ov::Shape& shape,
-                                   const ov::element::Type& element_type,
-                                   cldnn::memory::ptr memory)
-    : m_context(context)
-    , m_element_type(element_type)
-    , m_shape(shape)
-    , m_memory_object(memory)
-    , m_layout(make_layout(element_type, shape))
-    , m_mem_type(allocation_type_to_tensor_type(memory->get_allocation_type()))
-    , m_mem(nullptr)
-    , m_surf(0)
-    , m_plane(0) {
-    update_hash();
-}
-
 RemoteTensorImpl::~RemoteTensorImpl() {
     deallocate();
 }
