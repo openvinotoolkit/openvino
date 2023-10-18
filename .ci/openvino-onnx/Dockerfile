@@ -70,7 +70,7 @@ RUN ninja install
 
 # Run tests via tox
 WORKDIR /openvino/src/bindings/python
-ENV CI=True
+ENV TF_BUILD=True
 ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
 ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib/intel64:/openvino/dist/runtime/3rdparty/tbb/lib
 ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/python:/openvino/tools/mo:${PYTHONPATH}
