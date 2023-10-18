@@ -6718,87 +6718,139 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unique_3d_with_duplicates_and_axis_2) 
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_periodic) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/blackmanwindow_periodic.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/blackmanwindow_periodic.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>({10});
-    test_case.add_expected_output<float>(Shape{10}, {0.0000f, 0.0509f, 0.2580f, 0.6300f, 0.9511f, 0.9511f, 0.6300f, 0.2580f, 0.0509f, 0.0000f});
+    test_case.add_expected_output(Shape{10},
+                                  {-0.000000014901161f,
+                                   0.040212844f,
+                                   0.20077012f,
+                                   0.50978714f,
+                                   0.8492299f,
+                                   0.99999994f,
+                                   0.84922975f,
+                                   0.5097869f,
+                                   0.20077008f,
+                                   0.040212862f});
 
-    test_case.run();
+    test_case.run_with_tolerance_as_fp();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_symmetric) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/blackmanwindow_symmetric.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/blackmanwindow_symmetric.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>({10});
-    test_case.add_expected_output<float>(Shape{10}, {0.0000f, 0.0509f, 0.2580f, 0.6300f, 0.9511f, 0.9511f, 0.6300f, 0.2580f, 0.0509f, 0.0000f});
+    test_case.add_expected_output(Shape{10},
+                                  {-0.00000001f,
+                                   0.05086961f,
+                                   0.25800052f,
+                                   0.63f,
+                                   0.9511299f,
+                                   0.9511298f,
+                                   0.62999994f,
+                                   0.25800028f,
+                                   0.05086958f,
+                                   -0.00000001f});
 
-    test_case.run();
+    test_case.run_with_tolerance_as_fp();
 }
 
-
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_periodic) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/hammingwindow_periodic.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/hammingwindow_periodic.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>({10});
-    test_case.add_expected_output<float>(Shape{10}, {0.0800f, 0.2533f, 0.6424f, 1.0000f, 0.6424f, 0.2533f, 0.0800f, 0.0000f, 0.0800f, 0.2533f});
+    test_case.add_expected_output<float>(Shape{10},
+                                         {0.0869565f,
+                                          0.17413944f,
+                                          0.40238917f,
+                                          0.68452704f,
+                                          0.9127922f,
+                                          1.0000000f,
+                                          0.91284204f,
+                                          0.6846076f,
+                                          0.4024696f,
+                                          0.17418906f});
 
-    test_case.run();
+    test_case.run_with_tolerance_as_fp();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_symmetric) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/hammingwindow_symmetric.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/hammingwindow_symmetric.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>({10});
-    test_case.add_expected_output<float>(Shape{10}, {0.0800f, 0.2533f, 0.6424f, 1.0000f, 0.6424f, 0.2533f, 0.0800f, 0.0000f, 0.0800f, 0.2533f});
+    test_case.add_expected_output<float>(Shape{10},
+                                         {0.08695650f,
+                                          0.19375625f,
+                                          0.46418557f,
+                                          0.77171463f,
+                                          0.97245550f,
+                                          0.97248441f,
+                                          0.77178812f,
+                                          0.46426883f,
+                                          0.19381064f,
+                                          0.08695650f});
 
-    test_case.run();
+    test_case.run_with_tolerance_as_fp();
 }
 
-
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_periodic) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/hannwindow_periodic.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/hannwindow_periodic.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>({10});
-    test_case.add_expected_output<float>(Shape{10}, {0.0000f, 0.1908f, 0.5f, 0.8092f, 1.0000f, 0.8092f, 0.5f, 0.1908f, 0.0000f, 0.0000f});
+    test_case.add_expected_output<float>(Shape{10},
+                                         {0.00000000f,
+                                          0.09548607f,
+                                          0.34547389f,
+                                          0.65448201f,
+                                          0.90448672f,
+                                          1.00000000f,
+                                          0.90454125f,
+                                          0.65457022f,
+                                          0.34556198f,
+                                          0.09554043f});
 
-    test_case.run();
+    test_case.run_with_tolerance_as_fp();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_symmetric) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-                                                            SERIALIZED_ZOO,
-                                                            "onnx/hannwindow_symmetric.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/hannwindow_symmetric.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>({10});
-    test_case.add_expected_output<float>(Shape{10}, {0.0000f, 0.1908f, 0.5f, 0.8092f, 1.0000f, 0.8092f, 0.5f, 0.1908f, 0.0000f, 0.0000f});
+    test_case.add_expected_output<float>(Shape{10},
+                                         {0.00000000f,
+                                          0.11697116f,
+                                          0.41315565f,
+                                          0.74997318f,
+                                          0.96983224f,
+                                          0.96986389f,
+                                          0.75005364f,
+                                          0.41324684f,
+                                          0.11703071f,
+                                          0.00000000f});
 
-    test_case.run();
+    test_case.run_with_tolerance_as_fp();
 }

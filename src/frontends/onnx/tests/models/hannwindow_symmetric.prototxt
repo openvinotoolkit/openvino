@@ -17,18 +17,15 @@ graph {
     }
   }
   name: "test_hannwindow_symmetric"
-  initializer {
-    data_type: 7  # INT64
-    int64_data: 10
-    name: "size"
-  }
   input {
     name: "size"
     type {
       tensor_type {
         elem_type: 7  # INT64
         shape {
-
+          dim {
+            dim_value: 1
+          }
         }
       }
     }
