@@ -12,7 +12,7 @@ KERNEL(fc)(
 #if DECOMPRESSION_SCALE_TERM
     const __global DECOMPRESSION_SCALE_TYPE* decompression_scale,
 #endif
-#if DECOMPRESSION_ZP_TERM
+#if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
     const __global DECOMPRESSION_ZP_TYPE* decompression_zp,
 #endif
     __global OUTPUT_TYPE* output,
@@ -39,8 +39,12 @@ KERNEL(fc)(
             const uint input0_idx = INPUT0_GET_INDEX(b, ofm, y, x);
             #if COMPRESSED_WEIGHTS
                 #if DECOMPRESSION_ZP_TERM
-                    const uint zp_offset = DECOMPRESSION_ZP_GET_INDEX_SAFE(oym, y / DECOMPRESSION_ZP_GROUP_SIZE, 0, 0);
-                    ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                    #if DECOMPRESSION_ZP_SCALAR
+                        ACCUMULATOR_TYPE zp = DECOMPRESSION_ZP_VALUE;
+                    #else
+                        const uint zp_offset = DECOMPRESSION_ZP_GET_INDEX_SAFE(oym, y / DECOMPRESSION_ZP_GROUP_SIZE, 0, 0);
+                        ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                    #endif
                 #else
                     ACCUMULATOR_TYPE zp = ACCUMULATOR_VAL_ZERO;
                 #endif
@@ -84,8 +88,12 @@ KERNEL(fc)(
                 const uint input0_idx = INPUT0_GET_INDEX(b, ifm, y, x);
                 #if COMPRESSED_WEIGHTS
                     #if DECOMPRESSION_ZP_TERM
-                        const uint zp_offset = DECOMPRESSION_ZP_GET_INDEX_SAFE(ofm, ifm / DECOMPRESSION_ZP_GROUP_SIZE, 0, 0);
-                        ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                        #if DECOMPRESSION_ZP_SCALAR
+                            ACCUMULATOR_TYPE zp = DECOMPRESSION_ZP_VALUE;
+                        #else
+                            const uint zp_offset = DECOMPRESSION_ZP_GET_INDEX_SAFE(ofm, ifm / DECOMPRESSION_ZP_GROUP_SIZE, 0, 0);
+                            ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                        #endif
                     #else
                         ACCUMULATOR_TYPE zp = ACCUMULATOR_VAL_ZERO;
                     #endif

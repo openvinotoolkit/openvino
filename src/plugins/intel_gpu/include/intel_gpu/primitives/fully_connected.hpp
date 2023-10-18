@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "intel_gpu/runtime/optionals.hpp"
 #include "primitive.hpp"
 #include <vector>
 
@@ -110,6 +111,7 @@ struct fully_connected : public primitive_base<fully_connected> {
     bool compressed_weights = false;
     primitive_id decompression_scale = "";
     primitive_id decompression_zero_point = "";
+    optional_value<float> decompression_zero_point_scalar = {};
 
     /// @brief Primitive dimension size.
     size_t input_size = 2;
@@ -124,6 +126,8 @@ struct fully_connected : public primitive_base<fully_connected> {
         seed = hash_combine(seed, compressed_weights);
         seed = hash_combine(seed, !decompression_scale.empty());
         seed = hash_combine(seed, !decompression_zero_point.empty());
+        seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
+        seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0f));
         return seed;
     }
 
@@ -135,7 +139,8 @@ struct fully_connected : public primitive_base<fully_connected> {
 
         return input_size == rhs_casted.input_size &&
                weights_rank == rhs_casted.weights_rank &&
-               bias.empty() == rhs_casted.bias.empty();
+               bias.empty() == rhs_casted.bias.empty() &&
+               decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -147,6 +152,13 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << decompression_zero_point;
         ob << input_size;
         ob << weights_rank;
+
+        if (decompression_zero_point_scalar.has_value()) {
+            ob << true;
+            ob << make_data(&decompression_zero_point_scalar.value(), sizeof(float));
+        } else {
+            ob << false;
+        }
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -158,6 +170,16 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> decompression_zero_point;
         ib >> input_size;
         ib >> weights_rank;
+
+        bool has_value;
+        ib >> has_value;
+        if (has_value) {
+            float decompression_zero_point_value = 0.f;
+            ib >> make_data(&decompression_zero_point_value, sizeof(float));
+            decompression_zero_point_scalar = decompression_zero_point_value;
+        } else {
+            decompression_zero_point_scalar = {};
+        }
     }
 
 protected:
