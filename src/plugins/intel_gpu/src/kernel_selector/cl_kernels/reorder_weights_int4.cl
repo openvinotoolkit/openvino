@@ -14,13 +14,13 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     const uint input0_offset = o + (i*2+0)*INPUT0_OFM_NUM;
     const uint input1_offset = o + (i*2+1)*INPUT0_OFM_NUM;
 
-    const uint input0_idx = (input0_offset + 1) % 2; // INVERTED! Should be input0_offset % 2
-    const uint input1_idx = (input1_offset + 1) % 2; // INVERTED! Should be input1_offset % 2
+    const uint input0_idx = input0_offset % 2;
+    const uint input1_idx = input1_offset % 2;
 
     INPUT0_TYPE in0 = (input[input0_offset / 2] >> input0_idx*4) & 0x0F;
     INPUT0_TYPE in1 = (input[input1_offset / 2] >> input1_idx*4) & 0x0F;
 
-    INPUT0_TYPE packed_out_channels = in1 | (in0 << 4); // INVERTED! Should be in0 | (in1 << 4)
+    INPUT0_TYPE packed_out_channels = in0 | (in1 << 4);
     output[output_offset / 2] = packed_out_channels;
 #elif defined(OUTPUT_LAYOUT_OS_IYX_OSV32)
     const unsigned o0 = (o / 16) * 32 + (o % 16);
@@ -34,13 +34,13 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     const uint input1_offset = o1 + i*INPUT0_OFM_NUM;
 #endif
 
-    const uint input0_idx = (input0_offset + 1) % 2; // INVERTED! Should be input0_offset % 2
-    const uint input1_idx = (input1_offset + 1) % 2; // INVERTED! Should be input1_offset % 2
+    const uint input0_idx = input0_offset % 2;
+    const uint input1_idx = input1_offset % 2;
 
     INPUT0_TYPE in0 = (input[input0_offset / 2] >> input0_idx*4) & 0x0F;
     INPUT0_TYPE in1 = (input[input1_offset / 2] >> input1_idx*4) & 0x0F;
 
-    INPUT0_TYPE packed_out_channels = in1 | (in0 << 4); // INVERTED! Should be in0 | (in1 << 4)
+    INPUT0_TYPE packed_out_channels = in0 | (in1 << 4);
 
     const uint osv_size = 32;
     const uint osv_byte_size = osv_size / 2;
