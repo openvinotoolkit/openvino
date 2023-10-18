@@ -371,6 +371,47 @@ protected:
     }
 };
 
+class StaticLoopDynamicSubgraphCPUTest : public SubgraphBaseTest {
+    void SetUp() override {
+        InputShape input_shape = {{25, 1, 1}, {{25, 1, 1}}};
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        ElementType netType = ov::element::f32;
+        init_input_shapes({input_shape});
+
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+        }
+
+        // Body parameters
+        ov::ParameterVector body_params = {std::make_shared<ngraph::opset1::Parameter>(netType, ov::PartialShape{25, 1, -1})};
+
+        auto trip_count_input = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 2);
+        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto body_condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+
+        // Body
+        auto broadcast_target_shape = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{25, 1, 256});
+        auto broadcast_axis_mapping = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 0);
+        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(body_params[0], broadcast_target_shape);
+        auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, broadcast}, body_params);
+
+        auto loop = std::make_shared<ngraph::opset5::Loop>(trip_count_input, exec_condition);
+        loop->set_function(body);
+        loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+
+        loop->set_merged_input(body_params.front(), params.front(), broadcast);
+
+        auto out0 = loop->get_iter_value(body_condition_const, -1);
+        auto out1 = loop->get_iter_value(broadcast, -1);
+
+        auto result0 = std::make_shared<ngraph::opset5::Result>(out0);
+        auto result1 = std::make_shared<ngraph::opset5::Result>(out1);
+        function = std::make_shared<ov::Model>(ngraph::ResultVector{result0, result1}, params, "loop");
+    }
+};
+
+
 TEST_P(LoopLayerCPUTest, CompareWithRefs) {
     run();
 }
@@ -384,6 +425,10 @@ TEST_P(LoopForDiffShapesLayerCPUTest, CompareWithRefs) {
 }
 
 TEST_P(LoopForConcatLayerCPUTest, CompareWithRefs) {
+    run();
+}
+
+TEST_F(StaticLoopDynamicSubgraphCPUTest, smoke_StaticLoopWithDynSubgraph) {
     run();
 }
 
