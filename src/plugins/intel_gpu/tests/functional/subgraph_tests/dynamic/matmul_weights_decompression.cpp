@@ -260,14 +260,9 @@ protected:
 
 
         if (activations_precision == ov::element::f16) {
-            auto weights_size = ov::shape_size(shape_params.weights_shape);
-            auto weights_input_channels = weights_size / (transpose_weights ? shape_params.weights_shape[0] : shape_params.weights_shape.back());
-            // Absolute values range during accumulation may be quite big ( > 200) so fp16 representation & math error is larger than default threshold
-            if (weights_input_channels > 2048) {
-                abs_threshold = 4.0f;
-            } else {
-                abs_threshold = 1.0f;
-            }
+            abs_threshold = 1.0f;
+        } else {
+            abs_threshold = 1e-4f;
         }
     }
 

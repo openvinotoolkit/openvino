@@ -326,6 +326,10 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     size_t tile_k_ofm_packed = (dispatchData.tile_nk * dispatchData.tile_n);
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
+
+        const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+        if (scale_group_size % simd == 0)
+            jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     }
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));

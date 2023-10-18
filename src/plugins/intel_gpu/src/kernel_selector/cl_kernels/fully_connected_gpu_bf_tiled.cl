@@ -198,6 +198,10 @@ KERNEL(fc)(
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
+        #if DECOMPRESSION_SCALE_POST_OP
+            ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
+        #endif
+
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
             #if COMPRESSED_WEIGHTS_INT4
                 FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
@@ -212,12 +216,17 @@ KERNEL(fc)(
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                         const uint w_idx = kii * TILE_OFM + fi;
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
-                        #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
-                            const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
-                                                     ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
-                            ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                        #if !DECOMPRESSION_SCALE_POST_OP
+                            // Apply scales before FMA to avoid FP16 overflow in case of INT8
+                            #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                                const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
+                                                        ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                                ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                            #else
+                                ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                            #endif
                         #else
-                            ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                            ACCUMULATOR_TYPE ds = ACCUMULATOR_VAL_ONE;
                         #endif
 
                         #if DECOMPRESSION_ZP_TERM
@@ -244,11 +253,31 @@ KERNEL(fc)(
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
+#if DECOMPRESSION_SCALE_POST_OP
+                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
+#else
                         ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
+#endif
                     }
                 }
             }
         }
+#if DECOMPRESSION_SCALE_POST_OP
+        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                const uint offset_ofm = out_f + fi*SIMD + sglid;
+
+                #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                    const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
+                                                ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                    ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                #else
+                    ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                #endif
+                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+            }
+        }
+#endif
     }
     // =====================================================================================================================================
     // Leftovers
