@@ -541,14 +541,6 @@ private:
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
             return false;
         }
-
-        auto& e = typ_node.get_program().get_engine();
-        auto output_layout = typ_node.get_output_layout();
-        // When dynamic shape node has huge upper boundary which causes bigger mem size than system max mem size, return false.
-        if (!e.check_allocatable(output_layout, e.get_lockable_preferred_memory_allocation_type(output_layout.format.is_image_2d()))) {
-            return false;
-        }
-
         return true;
     }
 };
