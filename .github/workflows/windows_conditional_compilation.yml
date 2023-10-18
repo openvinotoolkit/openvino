@@ -1,9 +1,9 @@
-name: Tests on Windows Conditional Compilation (VS 2022, Python 3.11)
+name: Windows Conditional Compilation (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
-  schedule:
-    # run daily at 00:00
-    - cron: '0 0 * * *'
+#  schedule:
+#    # run daily at 00:00
+#    - cron: '0 0 * * *'
   pull_request:
     paths-ignore:
       - '**/docs/**'
@@ -12,19 +12,20 @@ on:
       - '**.md'
       - '**/layer_tests_summary/**'
       - '**/conformance/**'
-#  push:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#    branches:
-#      - master
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
 
 concurrency:
-  group: ${{ github.head_ref || github.run_id }}-windows-cc
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-cc
   cancel-in-progress: true
 
 env:
