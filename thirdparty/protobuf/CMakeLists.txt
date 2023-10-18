@@ -6,22 +6,26 @@
 # Configure Google Protobuf ...
 #------------------------------------------------------------------------------
 
-# set(BUILD_SHARED_LIBS OFF)
+# for ABSL
+set(CMAKE_CXX_VISIBILITY_PRESET default)
+set(CMAKE_C_VISIBILITY_PRESET default)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-all)
+    ov_add_compiler_flags(-Wno-all)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wno-stringop-overflow)
+        ov_add_compiler_flags(-Wno-stringop-overflow)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
-    ie_add_compiler_flags(/wd4703)
+    ov_add_compiler_flags(/wd4703)
 endif()
 
 set(protobuf_VERBOSE ON)
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
+set(protobuf_ABSL_PROVIDER "module" CACHE STRING "Protobuf ABSL provider" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "Abseil protogate CXX standard to dependent targets" FORCE)
 
 # note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, because it can work via Rosetta

@@ -44,8 +44,6 @@ struct space_to_depth : public primitive_base<space_to_depth> {
 
     space_to_depth() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     enum depth_mode {
         depth_first,
         blocks_first
@@ -64,10 +62,10 @@ struct space_to_depth : public primitive_base<space_to_depth> {
         : primitive_base(id, {input}, {output_padding}), mode(mode), block_size(block_size) {}
 
     /// @brief Depth mode.
-    depth_mode mode;
+    depth_mode mode = depth_mode::depth_first;
 
     /// @brief Block size.
-    size_t block_size;
+    size_t block_size = 1;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

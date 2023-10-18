@@ -41,7 +41,7 @@ void OneHotLayerTest::SetUp() {
     std::tie(depth_type, depth_val, set_type, on_val, off_val, axis, netPrecision, inputShape, targetDevice) =
     this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 

@@ -4,7 +4,7 @@
 
 #include <ngraph/op/parameter.hpp>
 #include "shared_test_classes/single_layer/random_uniform.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -63,13 +63,15 @@ void RandomUniformLayerTest::SetUp() {
     std::string targetName;
     std::tie(output_shape, randomUniformParams, global_seed, op_seed, targetDevice) = this->GetParam();
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(randomUniformParams.precision);
-    auto out_shape_ = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                             ov::Shape{output_shape.size()},
-                                                             output_shape);
+
+    // Use Parameter as input with desired precision to properly configure execution configuration
+    // in CoreConfiguration() function
+    auto input = std::make_shared<ov::op::v0::Parameter>(precision, output_shape);
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(input);
 
     auto min_value = createConstant(randomUniformParams.precision, randomUniformParams.min_value);
     auto max_value = createConstant(randomUniformParams.precision, randomUniformParams.max_value);
-    auto random_uniform = std::make_shared<ngraph::op::v8::RandomUniform>(out_shape_,
+    auto random_uniform = std::make_shared<ngraph::op::v8::RandomUniform>(shape_of,
                                                                           min_value,
                                                                           max_value,
                                                                           precision,
@@ -77,7 +79,7 @@ void RandomUniformLayerTest::SetUp() {
                                                                           op_seed);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(random_uniform)};
 
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "random_uniform");
+    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{input}, "random_uniform");
 }
 
 void RandomUniformLayerTest::ConvertRefsParams() {

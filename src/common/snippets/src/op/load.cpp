@@ -5,6 +5,7 @@
 #include "snippets/itt.hpp"
 
 #include "snippets/op/load.hpp"
+#include "snippets/utils.hpp"
 
 
 namespace ov {
@@ -39,13 +40,13 @@ std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) 
 LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, const size_t offset, std::vector<size_t> order)
                             : Load(x, count, offset), m_order(std::move(order)) {
     const auto& in_shape = x.get_partial_shape();
-    NGRAPH_CHECK(in_shape.is_static(), "LoadReshape supports only static input shapes");
+    OPENVINO_ASSERT(in_shape.is_static(), "LoadReshape supports only static input shapes");
     const auto in_shape_size = in_shape.size();
-    NGRAPH_CHECK(m_order.size() == in_shape_size, "LoadReshape got new_order of invalid size");
-    NGRAPH_CHECK(*std::max_element(m_order.begin(), m_order.end()) == in_shape_size - 1 &&
+    OPENVINO_ASSERT(m_order.size() == in_shape_size, "LoadReshape got new_order of invalid size");
+    OPENVINO_ASSERT(*std::max_element(m_order.begin(), m_order.end()) == in_shape_size - 1 &&
                  *std::min_element(m_order.begin(), m_order.end()) == 0, "LoadReshape detected invalid values in new_order");
     const std::set<size_t> unique_dims(order.begin(), order.end());
-    NGRAPH_CHECK(unique_dims.size() == order.size(), "LoadReshape order must not contain repeated elements");
+    OPENVINO_ASSERT(unique_dims.size() == order.size(), "LoadReshape order must not contain repeated elements");
     constructor_validate_and_infer_types();
 }
 
@@ -68,6 +69,15 @@ std::shared_ptr<Node> LoadReshape::clone_with_new_inputs(const OutputVector& new
     INTERNAL_OP_SCOPE(LoadReshape);
     check_new_args_count(this, new_args);
     return std::make_shared<LoadReshape>(new_args.at(0), get_count(), get_offset(), m_order);
+}
+LoadReshape::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
+    const auto& loadReshape = ov::as_type_ptr<LoadReshape>(n);
+    OPENVINO_ASSERT(loadReshape, "Got invalid node in LoadReshape::ShapeInfer");
+    m_order = loadReshape->m_order;
+}
+IShapeInferSnippets::Result LoadReshape::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
+    return {{utils::get_planar_vdims(input_shapes[0], m_order)}, ShapeInferStatus::success};
 }
 
 }// namespace op

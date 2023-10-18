@@ -1,4 +1,3 @@
-{}
 001-hello-world
 002-openvino-api
 003-hello-segmentation
@@ -11,6 +10,7 @@
 113-image-classification-quantization
 115-async-api
 120-tensorflow-object-detection-to-openvino
+121-convert-to-openvino
 201-vision-monodepth
 202-vision-superresolution-image
 202-vision-superresolution-video
@@ -24,10 +24,13 @@
 217-vision-deblur
 218-vehicle-detection-and-recognition
 219-knowledge-graphs-conve
+220-cross-lingual-books-alignment
 221-machine-translation
 222-vision-image-colorization
 229-distilbert-sequence-classification
 243-tflite-selfie-segmentation
+247-code-language-id
+250-music-generation
 401-object-detection
 402-pose-estimation
 403-action-recognition-webcam

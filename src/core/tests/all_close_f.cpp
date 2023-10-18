@@ -4,6 +4,8 @@
 
 #include "common_test_utils/all_close_f.hpp"
 
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <bitset>
 #include <cmath>
@@ -11,9 +13,6 @@
 #include <sstream>
 
 #include "common_test_utils/float_util.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/env_util.hpp"
-#include "ngraph/ngraph.hpp"
 
 using namespace std;
 

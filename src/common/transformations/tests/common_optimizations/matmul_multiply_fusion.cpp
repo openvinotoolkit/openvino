@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
+
 #include <gtest/gtest.h>
 
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/matmul_multiply_fusion.hpp>
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-
-using namespace ngraph;
+using namespace ov;
 
 TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantWeightsScalarConstant) {
     {
@@ -20,7 +20,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantWeightsScalarConstant) 
         auto matmul = std::make_shared<opset8::MatMul>(data, weights);
         auto mul_const = opset8::Constant::create(element::f32, Shape{}, {2});
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
-        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
 
         manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     }
@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantWeightsScalarConstant) 
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{4, 3});
         auto weights = opset8::Constant::create(element::f32, Shape{3, 2}, {2, 4, 6, 8, 10, 12});
         auto matmul = std::make_shared<opset8::MatMul>(data, weights);
-        function_ref = std::make_shared<Function>(NodeVector{matmul}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -41,7 +41,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantWeightsNonScalarConstan
         auto matmul = std::make_shared<opset8::MatMul>(data, weights);
         auto mul_const = opset8::Constant::create(element::f32, Shape{1, 1, 1, 2}, {2, 3});
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
-        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
 
         manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     }
@@ -50,7 +50,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantWeightsNonScalarConstan
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 2, 4, 3});
         auto weights = opset8::Constant::create(element::f32, Shape{1, 1, 3, 2}, {2, 6, 6, 12, 10, 18});
         auto matmul = std::make_shared<opset8::MatMul>(data, weights);
-        function_ref = std::make_shared<Function>(NodeVector{matmul}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -62,7 +62,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantTransposedWeightsNonSca
         auto matmul = std::make_shared<opset8::MatMul>(data, weights, false, true);
         auto mul_const = opset8::Constant::create(element::f32, Shape{1, 1, 1, 2}, {2, 3});
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
-        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
 
         manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     }
@@ -71,7 +71,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantTransposedWeightsNonSca
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 2, 4, 3});
         auto weights = opset8::Constant::create(element::f32, Shape{1, 1, 2, 3}, {2, 4, 6, 12, 15, 18});
         auto matmul = std::make_shared<opset8::MatMul>(data, weights, false, true);
-        function_ref = std::make_shared<Function>(NodeVector{matmul}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -83,7 +83,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionNonConstantTransposedWeightsNon
         auto matmul = std::make_shared<opset8::MatMul>(data, weights, false, true);
         auto mul_const = opset8::Constant::create(element::f32, Shape{1, 2}, {4, 5});
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
-        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data, weights});
+        model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data, weights});
 
         manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     }
@@ -94,7 +94,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionNonConstantTransposedWeightsNon
         auto mul_const = opset8::Constant::create(element::f32, Shape{2, 1}, {4, 5});
         auto mul = std::make_shared<opset8::Multiply>(weights, mul_const);
         auto matmul = std::make_shared<opset8::MatMul>(data, mul, false, true);
-        function_ref = std::make_shared<Function>(NodeVector{matmul}, ParameterVector{data, weights});
+        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data, weights});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -119,7 +119,7 @@ TEST_P(MatMulMultiplyFusionDynamicShapes, FusionTest) {
         auto matmul = std::make_shared<opset8::MatMul>(data, weights, false, transpose_b);
         auto mul_const = opset8::Constant::create(element::f32, const_shape, {4});
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
-        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
 
         manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     }
@@ -128,7 +128,7 @@ TEST_P(MatMulMultiplyFusionDynamicShapes, FusionTest) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
         auto weights = opset8::Constant::create(element::f32, new_weights_shape, {8});
         auto matmul = std::make_shared<opset8::MatMul>(data, weights, false, transpose_b);
-        function_ref = std::make_shared<Function>(NodeVector{matmul}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

@@ -69,7 +69,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const std::map<std::string, std::string> &prop) {
+void Config::readProperties(const std::map<std::string, std::string> &prop, const ModelType modelType) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
     for (const auto& kvp : prop) {
@@ -79,6 +79,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.SetConfig(key, val);
+            if (key == ov::affinity.name()) {
+                const auto affinity_val = ov::util::from_string(val, ov::affinity);
+                if (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) {
+                    enableCpuPinning = true;
+                    changedCpuPinning = true;
+                } else if (affinity_val == ov::Affinity::NUMA) {
+                    enableCpuPinning = false;
+                    changedCpuPinning = true;
+                }
+            }
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
@@ -245,10 +255,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     // when both execution_mode and inference_precision are specified
     if (!inferencePrecisionSetExplicitly) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
+            inferencePrecision = ov::element::f32;
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+            //fp16 precision is used as default precision on ARM for non-convolution networks
+            //fp16 ACL convolution is slower than fp32
+            if (modelType != ModelType::CNN)
+                inferencePrecision = ov::element::f16;
+#else
             if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;
-            else
-                inferencePrecision = ov::element::f32;
+#endif
         } else {
             inferencePrecision = ov::element::f32;
         }
@@ -267,6 +283,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     streamExecutorConfig._streams = 1;
     streamExecutorConfig._streams_changed = true;
 #endif
+    this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();

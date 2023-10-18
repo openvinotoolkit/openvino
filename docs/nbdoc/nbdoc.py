@@ -4,9 +4,7 @@ from pathlib import Path
 from utils import (
     create_content,
     add_content_below,
-    process_notebook_name,
     verify_notebook_name,
-    split_notebooks_into_sections,
 )
 from consts import (
     artifacts_link,
@@ -14,14 +12,12 @@ from consts import (
     colab_template,
     binder_colab_template,
     blacklisted_extensions,
-    notebooks_docs,
     notebooks_path,
     no_binder_template,
     repo_directory,
     repo_name,
+    repo_branch,
     repo_owner,
-    rst_template,
-    section_names,
 )
 from notebook import Notebook
 from section import Section
@@ -31,6 +27,7 @@ from jinja2 import Template
 from urllib.request import urlretrieve
 from requests import get
 import os
+import sys
 
 
 class NbTravisDownloader:
@@ -79,26 +76,11 @@ class NbTravisDownloader:
 class NbProcessor:
     def __init__(self, nb_path: str = notebooks_path):
         self.nb_path = nb_path
-        notebooks = [
-            Notebook(
-                name=process_notebook_name(notebook),
-                path=notebook,
-            )
-            for notebook in os.listdir(self.nb_path)
-            if verify_notebook_name(notebook)
-        ]
-        notebooks = split_notebooks_into_sections(notebooks)
-        self.rst_data = {
-            "sections": [
-                Section(name=section_name, notebooks=section_notebooks)
-                for section_name, section_notebooks in zip(section_names, notebooks)
-            ]
-
-        }
         self.binder_data = {
             "owner": repo_owner,
             "repo": repo_name,
             "folder": repo_directory,
+            "branch": repo_branch,
         }
         self.colab_data = {
             "owner": repo_owner,
@@ -164,18 +146,16 @@ class NbProcessor:
             if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
                 raise FileNotFoundError("Unable to modify file")
 
-    def render_rst(self, path: str = notebooks_docs, template: str = rst_template):
-        """Rendering rst file for all notebooks
-
-        :param path: Path to notebook main rst file. Defaults to notebooks_docs.
-        :type path: str
-        :param template: Template for default rst page. Defaults to rst_template.
-        :type template: str
-
-        """
-        with open(path, "w+") as nb_file:
-            nb_file.writelines(Template(template).render(self.rst_data))
-
+def add_glob_directive(tutorials_file):
+        with open(tutorials_file, 'r+', encoding='cp437') as mainfile:
+            readfile = mainfile.read()
+            if ':glob:' not in readfile:
+                add_glob = readfile\
+                    .replace(":hidden:\n", ":hidden:\n   :glob:\n")\
+                    .replace("notebooks_installation\n", "notebooks_installation\n   notebooks/*\n")
+                mainfile.seek(0)
+                mainfile.write(add_glob)
+                mainfile.truncate()
 
 def main():
     parser = argparse.ArgumentParser()
@@ -185,6 +165,10 @@ def main():
     args = parser.parse_args()
     sourcedir = args.sourcedir
     outdir = args.outdir
+
+    main_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials.md').resolve(strict=True)
+    add_glob_directive(main_tutorials_file)
+
     if args.download:
         outdir.mkdir(parents=True, exist_ok=True)
         # Step 2. Run default pipeline for downloading
@@ -196,7 +180,6 @@ def main():
     buttons_list = nbp.fetch_binder_list('notebooks_with_binder_buttons.txt')
     cbuttons_list = nbp.fetch_colab_list('notebooks_with_colab_buttons.txt')
     nbp.add_binder(buttons_list, cbuttons_list)
-    nbp.render_rst(outdir.joinpath(notebooks_docs))
 
 
 if __name__ == '__main__':

@@ -5,20 +5,20 @@
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecomposition() {
     MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition);
-    auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ov::op::v5::LSTMSequence>();
+    auto lstm_sequence_ov = ov::pass::pattern::wrap_type<ov::op::v5::LSTMSequence>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto lstm_sequence = std::dynamic_pointer_cast<ov::op::v5::LSTMSequence>(m.get_match_root());
@@ -26,7 +26,7 @@ ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecom
             return false;
         }
 
-        if (lstm_sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+        if (lstm_sequence->get_direction() != ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
 
         auto axis_0 = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
@@ -45,7 +45,7 @@ ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecom
                                                        R->output(0),
                                                        B->output(0),
                                                        lstm_sequence->get_hidden_size(),
-                                                       ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                                       ov::op::RecurrentSequenceDirection::FORWARD,
                                                        lstm_sequence->get_activations_alpha(),
                                                        lstm_sequence->get_activations_beta(),
                                                        lstm_sequence->get_activations(),
@@ -60,7 +60,7 @@ ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecom
                                                        R->output(1),
                                                        B->output(1),
                                                        lstm_sequence->get_hidden_size(),
-                                                       ngraph::op::RecurrentSequenceDirection::REVERSE,
+                                                       ov::op::RecurrentSequenceDirection::REVERSE,
                                                        lstm_sequence->get_activations_alpha(),
                                                        lstm_sequence->get_activations_beta(),
                                                        lstm_sequence->get_activations(),
@@ -75,23 +75,23 @@ ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecom
         auto concat_2 = std::make_shared<ov::op::v0::Concat>(
             OutputVector{lstm_sequence_forward->output(2), lstm_sequence_reverse->output(2)},
             1);
-        ngraph::copy_runtime_info(
+        ov::copy_runtime_info(
             lstm_sequence,
             {H, C, W, R, B, lstm_sequence_forward, lstm_sequence_reverse, concat_0, concat_1, concat_2});
         concat_0->set_friendly_name(lstm_sequence->get_friendly_name() + ".0");
         concat_1->set_friendly_name(lstm_sequence->get_friendly_name() + ".1");
         concat_2->set_friendly_name(lstm_sequence->get_friendly_name() + ".2");
-        ngraph::replace_node(lstm_sequence, {concat_0->output(0), concat_1->output(0), concat_2->output(0)});
+        ov::replace_node(lstm_sequence, {concat_0->output(0), concat_1->output(0), concat_2->output(0)});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_sequence_ngraph, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(lstm_sequence_ov, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecomposition() {
     MATCHER_SCOPE(BidirectionalGRUSequenceDecomposition);
-    auto gru_sequence_ngraph = ngraph::pattern::wrap_type<ov::op::v5::GRUSequence>();
+    auto gru_sequence_ov = ov::pass::pattern::wrap_type<ov::op::v5::GRUSequence>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto gru_sequence = std::dynamic_pointer_cast<ov::op::v5::GRUSequence>(m.get_match_root());
@@ -99,7 +99,7 @@ ov::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecompo
             return false;
         }
 
-        if (gru_sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+        if (gru_sequence->get_direction() != ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
 
         auto axis_0 = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
@@ -116,7 +116,7 @@ ov::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecompo
                                                       R->output(0),
                                                       B->output(0),
                                                       gru_sequence->get_hidden_size(),
-                                                      ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                                      ov::op::RecurrentSequenceDirection::FORWARD,
                                                       gru_sequence->get_activations(),
                                                       gru_sequence->get_activations_alpha(),
                                                       gru_sequence->get_activations_beta(),
@@ -131,7 +131,7 @@ ov::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecompo
                                                       R->output(1),
                                                       B->output(1),
                                                       gru_sequence->get_hidden_size(),
-                                                      ngraph::op::RecurrentSequenceDirection::REVERSE,
+                                                      ov::op::RecurrentSequenceDirection::REVERSE,
                                                       gru_sequence->get_activations(),
                                                       gru_sequence->get_activations_alpha(),
                                                       gru_sequence->get_activations_beta(),
@@ -144,21 +144,21 @@ ov::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecompo
         auto concat_1 = std::make_shared<ov::op::v0::Concat>(
             OutputVector{gru_sequence_forward->output(1), gru_sequence_reverse->output(1)},
             1);
-        ngraph::copy_runtime_info(gru_sequence,
-                                  {H, W, R, B, gru_sequence_forward, gru_sequence_reverse, concat_0, concat_1});
+        ov::copy_runtime_info(gru_sequence,
+                              {H, W, R, B, gru_sequence_forward, gru_sequence_reverse, concat_0, concat_1});
         concat_0->set_friendly_name(gru_sequence->get_friendly_name() + ".0");
         concat_1->set_friendly_name(gru_sequence->get_friendly_name() + ".1");
-        ngraph::replace_node(gru_sequence, {concat_0->output(0), concat_1->output(0)});
+        ov::replace_node(gru_sequence, {concat_0->output(0), concat_1->output(0)});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_sequence_ngraph, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gru_sequence_ov, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecomposition() {
     MATCHER_SCOPE(BidirectionalRNNSequenceDecomposition);
-    auto rnn_sequence_ngraph = ngraph::pattern::wrap_type<ov::op::v5::RNNSequence>();
+    auto rnn_sequence_ov = ov::pass::pattern::wrap_type<ov::op::v5::RNNSequence>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto rnn_sequence = std::dynamic_pointer_cast<ov::op::v5::RNNSequence>(m.get_match_root());
@@ -166,7 +166,7 @@ ov::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecompo
             return false;
         }
 
-        if (rnn_sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+        if (rnn_sequence->get_direction() != ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
 
         auto axis_0 = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
@@ -183,7 +183,7 @@ ov::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecompo
                                                       R->output(0),
                                                       B->output(0),
                                                       rnn_sequence->get_hidden_size(),
-                                                      ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                                      ov::op::RecurrentSequenceDirection::FORWARD,
                                                       rnn_sequence->get_activations(),
                                                       rnn_sequence->get_activations_alpha(),
                                                       rnn_sequence->get_activations_beta(),
@@ -197,7 +197,7 @@ ov::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecompo
                                                       R->output(1),
                                                       B->output(1),
                                                       rnn_sequence->get_hidden_size(),
-                                                      ngraph::op::RecurrentSequenceDirection::REVERSE,
+                                                      ov::op::RecurrentSequenceDirection::REVERSE,
                                                       rnn_sequence->get_activations(),
                                                       rnn_sequence->get_activations_alpha(),
                                                       rnn_sequence->get_activations_beta(),
@@ -209,14 +209,14 @@ ov::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecompo
         auto concat_1 = std::make_shared<ov::op::v0::Concat>(
             OutputVector{rnn_sequence_forward->output(1), rnn_sequence_reverse->output(1)},
             1);
-        ngraph::copy_runtime_info(rnn_sequence,
-                                  {H, W, R, B, rnn_sequence_forward, rnn_sequence_reverse, concat_0, concat_1});
+        ov::copy_runtime_info(rnn_sequence,
+                              {H, W, R, B, rnn_sequence_forward, rnn_sequence_reverse, concat_0, concat_1});
         concat_0->set_friendly_name(rnn_sequence->get_friendly_name() + ".0");
         concat_1->set_friendly_name(rnn_sequence->get_friendly_name() + ".1");
-        ngraph::replace_node(rnn_sequence, {concat_0->output(0), concat_1->output(0)});
+        ov::replace_node(rnn_sequence, {concat_0->output(0), concat_1->output(0)});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_sequence_ngraph, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(rnn_sequence_ov, matcher_name);
     this->register_matcher(m, callback);
 }

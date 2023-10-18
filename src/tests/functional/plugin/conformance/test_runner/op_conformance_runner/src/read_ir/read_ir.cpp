@@ -11,7 +11,7 @@
 
 #include "shared_test_classes/base/utils/ranges.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -55,6 +55,9 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
     std::reverse(splittedFilename.begin(), splittedFilename.end());
     bool is_valid_path_format = true;
 
+    std::string subgrapth_dir = "subgraph";
+    std::vector<std::string> graphConvertLogicTypes = { "fused_names", "repeat_pattern" };
+
     // Check that op is valid
     if (splittedFilename.size() > 2) {
         auto pos = splittedFilename[2].find('-');
@@ -72,22 +75,34 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
             }
             message += "_";
             result << message;
-        } else {
+        } else if (splittedFilename[2] != subgrapth_dir) {
             is_valid_path_format = false;
         }
     }
+
     // Check the element_type
     if (splittedFilename.size() > 1) {
         if (std::find(ov::test::conformance::element_type_names.begin(),
                       ov::test::conformance::element_type_names.end(),
                       splittedFilename[1]) != ov::test::conformance::element_type_names.end()) {
             result << "Type=" << splittedFilename[1] << "_";
+        } else if (std::find(graphConvertLogicTypes.begin(),
+                             graphConvertLogicTypes.end(),
+                             splittedFilename[1]) != graphConvertLogicTypes.end()) {
+            result << "ConvertLogic=" << splittedFilename[1] << "_";
         } else {
             is_valid_path_format = false;
         }
     }
     result << "IR=" << (is_valid_path_format ? ov::test::utils::replaceExt(splittedFilename[0], "") : path_to_model) << "_";
     result << "Device=" << deviceName << "_";
+
+    std::vector<std::string> shapeModes = { "static", "dynamic" };
+    // Check the shape type
+    if (splittedFilename.size() > 3 &&
+        std::find(shapeModes.begin(), shapeModes.end(), splittedFilename[3]) != shapeModes.end()) {
+        result << "Shape=" << splittedFilename[3] << "_";
+    }
     result << "Config=(";
     auto configItem = config.begin();
     while (configItem != config.end()) {
@@ -121,7 +136,7 @@ void ReadIRTest::query_model() {
         }
         s.setDeviceName(targetDevice);
 
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        if (ov::test::utils::current_test_is_disabled()) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED, rel_influence_coef);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
@@ -199,6 +214,9 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
 }
 
 void ReadIRTest::SetUp() {
+    // todo: find the optimal way to find TEST_P instances
+    // inference + query_model + import_export
+    summary.setDowngradeCoefficient(3);
     std::pair<std::string, std::string> model_pair;
     std::tie(model_pair, targetDevice, configuration) = this->GetParam();
     std::tie(path_to_model, path_to_cache) = model_pair;
@@ -239,6 +257,7 @@ void ReadIRTest::SetUp() {
             auto it = inputMap.find(next_node->get_type_info());
             auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
             auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
+            const_node->set_friendly_name(param->get_friendly_name());
             ov::replace_node(param, const_node);
             parameter_to_remove.push_back(param);
             utils::ConstRanges::reset();

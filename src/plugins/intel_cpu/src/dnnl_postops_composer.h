@@ -42,8 +42,8 @@ public:
     bool appendLinear(const std::vector<float>& scale, const std::vector<float>& shift, bool isLastPostOp, bool allowBinary = true);
     void appendClip(const std::vector<float>& low, const std::vector<float>& high);
 
-    void appendDecompressionScales(const std::vector<float>& scales);
-    void appendDecompressionZeroPoints(const std::vector<float>& zero_points);
+    void appendDecompressionScales(const MemoryCPtr& scales_ptr, size_t icBlock);
+    void appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr, size_t icBlock);
 
     const VectorDims& getOutputDims() {
         return outputDims;
@@ -69,6 +69,7 @@ private:
 
     void updateWeiScales();
     void updateDestScales();
+    MemoryPtr prepackDecompressionParams(const MemoryCPtr& params_ptr, size_t icBlock);
 };
 
 }  // namespace intel_cpu

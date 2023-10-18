@@ -13,6 +13,23 @@ namespace ov {
 namespace snippets {
 namespace op {
 
+namespace {
+std::vector<size_t> get_output_layout(const std::shared_ptr<const ov::Node>& n) {
+    const auto& key = lowered::PortDescriptorVectorAttribute::get_type_info_static();
+    auto& rt_info = n->get_rt_info();
+    const auto& found = rt_info.find(key);
+    if (found != rt_info.end()) {
+        const auto& out_descs = found->second.as<lowered::PortDescriptorVectorAttribute>().outputs;
+        if (out_descs.size() != n->get_output_size())
+            OPENVINO_THROW("Get output port descriptor is failed: incorrect count");
+        const auto& port_desc = out_descs[0];
+        return port_desc->get_layout();
+    }
+    return {};
+}
+
+} // namespace
+
 Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
                const size_t offset_a, const size_t offset_b, const size_t offset_c,
                std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
@@ -39,10 +56,10 @@ void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> lay
     // During ctor call, Brgemm doesn't know his port descriptors.
     // So we use explicit layouts from parameters
     const auto planar_input_shapes =
-            std::vector<ov::PartialShape>{ ov::snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_a),
-                                           ov::snippets::utils::get_reordered_planar_shape(get_input_partial_shape(1), layout_b) };
+            std::vector<ov::PartialShape>{ ov::snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
+                                           ov::snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
     auto output_shape = get_output_partial_shape(planar_input_shapes);
-    set_output_type(0, get_output_type(), ov::snippets::utils::get_reordered_planar_shape(output_shape, layout_c));
+    set_output_type(0, get_output_type(), ov::snippets::utils::get_planar_pshape(output_shape, layout_c));
 }
 
 void Brgemm::validate_inputs() const {
@@ -97,26 +114,20 @@ ov::element::Type Brgemm::get_output_type() const {
 
 std::vector<ov::PartialShape> Brgemm::get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const {
     OPENVINO_ASSERT(inputs.size() == 2, "Brgemm::get_planar_input_shapes() expects 2 inputs");
-    return { utils::get_port_planar_shape(inputs[0]), utils::get_port_planar_shape(inputs[1]) };
+    return {utils::get_planar_pshape(inputs[0]), utils::get_planar_pshape(inputs[1]) };
 }
 
 ov::PartialShape Brgemm::get_planar_output_shape(const ov::PartialShape& output_shape) const {
     // This method can be safely called from validate_and_infer_types() before output creation
-    const auto& key = lowered::PortDescriptorVectorAttribute::get_type_info_static();
-    auto& rt_info = get_rt_info();
-    const auto& found = rt_info.find(key);
-    if (found != rt_info.end()) {
-        const auto& out_descs = found->second.as<lowered::PortDescriptorVectorAttribute>().outputs;
-        if (out_descs.size() != get_output_size())
-            OPENVINO_THROW("Get output port descriptor is failed: incorrect count");
-        const auto& port_desc = out_descs[0];
-        return utils::get_reordered_planar_shape(output_shape, port_desc->get_layout());
-    }
+    const auto& out_layout  = get_output_layout(shared_from_this());
+    if (!out_layout.empty())
+        return utils::get_planar_pshape(output_shape, out_layout);
+
     return output_shape;
 }
 
 ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const {
-    NGRAPH_CHECK(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
+    OPENVINO_ASSERT(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
 
     // Note: All majors checks are missed because Brgemm is transformed from MatMul with whole shape infer support
 
@@ -177,7 +188,6 @@ ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialS
     }
     return output_shape;
 }
-
 } // namespace op
 } // namespace snippets
 } // namespace ov

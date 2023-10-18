@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief This is a header file for the Inference Engine plugin C++ API
+ * @brief This is a header file for the OpenVINO plugin C++ API
  *
  * @file plugin.hpp
  */
@@ -41,7 +41,7 @@ public:
 
     const ov::Version get_version() const;
 
-    void add_extension(const ie::IExtensionPtr& extension);
+    void add_extension(const InferenceEngine::IExtensionPtr& extension);
 
     void set_property(const ov::AnyMap& config);
 

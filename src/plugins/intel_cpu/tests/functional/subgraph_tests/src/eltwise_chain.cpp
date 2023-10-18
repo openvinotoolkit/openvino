@@ -8,7 +8,7 @@
 #include <memory>
 #include <debug.h>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -97,7 +97,7 @@ protected:
                 ngraphInputs.push_back(ngraphParam.back());
             }
         } else {
-            ngraphParam = ngraph::builder::makeDynamicParams(inputPrecisions[0], {inputDynamicShapes.front()});
+            ngraphParam = ov::ParameterVector {std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes.front())};
             for (size_t i = 1; i < inputPrecisions.size(); i++) {
                 std::vector<float> ngraphInput1Data(ngraph::shape_size(targetStaticShapes[0][i]));
                 ngraphInputs.push_back(ngraph::builder::makeConstant(inputPrecisions[i], targetStaticShapes[0][i],

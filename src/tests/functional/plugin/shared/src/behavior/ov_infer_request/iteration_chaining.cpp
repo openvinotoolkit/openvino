@@ -20,7 +20,7 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/core/model.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "behavior/ov_infer_request/iteration_chaining.hpp"
@@ -34,11 +34,11 @@ std::string OVIterationChaining::getTestCaseName(const testing::TestParamInfo<In
 
 std::shared_ptr<ov::Model> OVIterationChaining::getIterativeFunction() {
     const ov::PartialShape pshape{-1, 16};
-    auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {pshape});
-    params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
-    params[0]->set_friendly_name("param_0");
+    auto params = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, pshape);
+    params->get_output_tensor(0).set_names({"input_tensor_0"});
+    params->set_friendly_name("param_0");
     auto concat_const = ngraph::builder::makeConstant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
-    auto concat = ngraph::builder::makeConcat({params[0], concat_const}, 0 /*axis*/);
+    auto concat = ngraph::builder::makeConcat({params, concat_const}, 0 /*axis*/);
     auto eltwise_const = ngraph::builder::makeConstant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
     auto eltwise = ngraph::builder::makeEltwise(concat, eltwise_const, ngraph::helpers::EltwiseTypes::ADD);
     concat->get_output_tensor(0).set_names({"result_tensor_0"});
@@ -46,7 +46,7 @@ std::shared_ptr<ov::Model> OVIterationChaining::getIterativeFunction() {
     eltwise->get_output_tensor(0).set_names({"result_tensor_1"});
     eltwise->set_friendly_name("result_1");
 
-    return std::make_shared<ov::Model>(ov::NodeVector{concat, eltwise}, ov::ParameterVector(params));
+    return std::make_shared<ov::Model>(ov::NodeVector{concat, eltwise}, ov::ParameterVector{params});
 }
 
 void OVIterationChaining::SetUp() {

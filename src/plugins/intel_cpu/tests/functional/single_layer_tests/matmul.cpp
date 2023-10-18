@@ -6,7 +6,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 
 using namespace ngraph;
@@ -158,7 +158,7 @@ protected:
         cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
         selectedType = makeSelectedTypeStr(selectedType, outType);
 
-        auto params = builder::makeDynamicParams(netType, {inShapeA});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
 
         auto matrixB = builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {

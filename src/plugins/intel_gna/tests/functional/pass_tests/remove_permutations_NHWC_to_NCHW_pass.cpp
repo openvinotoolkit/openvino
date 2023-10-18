@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 
@@ -171,7 +171,7 @@ protected:
         ASSERT_LT(shape_size, 5);
         size_t in_total_dims_size =
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, in_total_dims_size}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
 
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
                                                                    ngraph::Shape{shape_size},
@@ -232,7 +232,7 @@ protected:
         ASSERT_GT(shape_size, 2);
         ASSERT_LT(shape_size, 5);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto permute1 = CreateTranspose(params[0], shape_size, true);
         auto conv = CreateConvolution(permute1, ngPrc, inputShape);
         auto permute2 = CreateTranspose(conv, shape_size, false);
@@ -309,7 +309,7 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, in_total_dims_size}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
 
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
                                                                    ngraph::Shape{shape_size},
@@ -396,7 +396,7 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, in_total_dims_size}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
 
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
                                                                    ngraph::Shape{shape_size},
@@ -479,7 +479,8 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 2 * in_total_dims_size}});
+        ov::ParameterVector params{
+            std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 2 * in_total_dims_size})};
         auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
@@ -576,7 +577,8 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, splits_num * in_total_dims_size}});
+        ov::ParameterVector params{
+            std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, splits_num * in_total_dims_size})};
 
         auto multipleInputShape = inputShape;
         size_t mul_dim = inputShape.size() == 4 && inputShape[1] > 1 ? 1 : (inputShape.size() - 2);

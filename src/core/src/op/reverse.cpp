@@ -13,19 +13,16 @@
 #include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/reverse.hpp"
+#include "openvino/reference/reverse.hpp"
 #include "reverse_shape_inference.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-op::v1::Reverse::Reverse(const Output<Node>& data, const Output<Node>& reversed_axes, const std::string& mode)
+ov::op::v1::Reverse::Reverse(const Output<Node>& data, const Output<Node>& reversed_axes, const std::string& mode)
     : Op({data, reversed_axes}),
       m_mode{mode_from_string(mode)} {
     constructor_validate_and_infer_types();
 }
 
-op::v1::Reverse::Reverse(const Output<Node>& data, const Output<Node>& reversed_axes, const Mode mode)
+ov::op::v1::Reverse::Reverse(const Output<Node>& data, const Output<Node>& reversed_axes, const Mode mode)
     : Op({data, reversed_axes}),
       m_mode{mode} {
     constructor_validate_and_infer_types();
@@ -37,7 +34,7 @@ bool ngraph::op::v1::Reverse::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v1::Reverse::validate_and_infer_types() {
+void ov::op::v1::Reverse::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Reverse_validate_and_infer_types);
     if (m_mode == Mode::MASK) {
         NODE_VALIDATION_CHECK(this,
@@ -56,13 +53,13 @@ void op::v1::Reverse::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
-shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_Reverse_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v1::Reverse>(new_args.at(0), new_args.at(1), m_mode);
+    return std::make_shared<op::v1::Reverse>(new_args.at(0), new_args.at(1), m_mode);
 }
 
-op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode) const {
+ov::op::v1::Reverse::Mode ov::op::v1::Reverse::mode_from_string(const std::string& mode) const {
     static const std::map<std::string, Mode> allowed_values = {{"index", Mode::INDEX}, {"mask", Mode::MASK}};
 
     NODE_VALIDATION_CHECK(this, allowed_values.count(mode) > 0, "Invalid 'mode' value passed in.");
@@ -72,8 +69,8 @@ op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode)
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reverseop {
-template <element::Type_t ET>
-void get_axes(AxisSet& axes, const HostTensorPtr& in) {
+template <ov::element::Type_t ET>
+void get_axes(ov::AxisSet& axes, const ngraph::HostTensorPtr& in) {
     auto axes_indices = in->get_data_ptr<ET>();
     size_t axes_rank = in->get_element_count();
     std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
@@ -86,7 +83,7 @@ void get_axes(AxisSet& axes, const HostTensorPtr& in) {
         reverseop::get_axes<element::Type_t::a>(__VA_ARGS__); \
     } break;
 
-bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     AxisSet axes{};
     if (get_mode() == op::v1::Reverse::Mode::INDEX) {
         switch (inputs[1]->get_element_type()) {
@@ -99,7 +96,7 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const Ho
             GET_AXES(u32, axes, inputs[1]);
             GET_AXES(u64, axes, inputs[1]);
         default:
-            NGRAPH_CHECK(false, "Not supported axes type", inputs[1]->get_element_type());
+            OPENVINO_ASSERT(false, "Not supported axes type", inputs[1]->get_element_type());
         }
     } else  // Mode::MASK
     {
@@ -110,21 +107,21 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const Ho
             }
         }
     }
-    ngraph::runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
-                                        outputs[0]->get_data_ptr<char>(),
-                                        inputs[0]->get_shape(),
-                                        outputs[0]->get_shape(),
-                                        axes,
-                                        inputs[0]->get_element_type().size());
+    ov::reference::reverse(inputs[0]->get_data_ptr<const char>(),
+                           outputs[0]->get_data_ptr<char>(),
+                           inputs[0]->get_shape(),
+                           outputs[0]->get_shape(),
+                           axes,
+                           inputs[0]->get_element_type().size());
     return true;
 }
 
-bool op::v1::Reverse::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v1::Reverse::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_Reverse_evaluate);
     return evaluate_reverse(outputs, inputs);
 }
 
-bool op::v1::Reverse::has_evaluate() const {
+bool ov::op::v1::Reverse::has_evaluate() const {
     OV_OP_SCOPE(v1_Reverse_has_evaluate);
 
     if (get_mode() == op::v1::Reverse::Mode::INDEX) {

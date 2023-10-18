@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "ie_common.h"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -27,7 +27,7 @@ protected:
         auto secondaryInputType = ngraph::helpers::InputLayerType::CONSTANT;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         std::shared_ptr<ngraph::Node> secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, inputShape);
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
 

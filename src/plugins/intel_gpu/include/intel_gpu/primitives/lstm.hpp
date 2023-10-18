@@ -53,8 +53,6 @@ struct lstm : public primitive_base<lstm> {
 
     lstm() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs lstm layer.
     /// @param id This primitive id.
     /// @param input Vector of primitive id.
@@ -111,17 +109,17 @@ struct lstm : public primitive_base<lstm> {
     /// @brief Primitive id containing peepholes data.
     primitive_id peepholes;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
-    float clip;
+    float clip = 0.0f;
     /// @brief Couple the input and forget gates if input_forget is 1. Default is 0.
-    bool input_forget;
+    bool input_forget = 0;
     /// @brief A list of 3 activation functions for the input, output, forget, cell, and hidden.
     std::vector<activation_func> activations;
     /// @brief Optional scaling values used by some activation functions. The values are consumed in the order of activation functions.
     std::vector<activation_additional_params> activation_params;
     /// @brief Output selection. Default the entire hidden sequence is returned.
-    lstm_output_selection output_selection;
+    lstm_output_selection output_selection = lstm_output_selection::sequence;
     /// @brief Weights, recurrent weights, and biases order. [iofz] : ONNX, [ifoz] : Caffe
-    lstm_weights_order offset_order;
+    lstm_weights_order offset_order = lstm_weights_order::izof;
 
     // NOT SUPPORTED YET
     // /// @brief Optional tensor specifying lengths of the sequences in a batch.
@@ -230,8 +228,6 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
     lstm_gemm() : primitive_base("", {}),
                   direction(0) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs lstm layer.
     /// @param id This primitive id.
     /// @param input input primitive id.
@@ -318,8 +314,6 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     CLDNN_DECLARE_PRIMITIVE(lstm_elt)
 
     lstm_elt() : primitive_base("", {}), clip(0), input_forget(0), offset_order(lstm_weights_order::iofz), direction(0) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;

@@ -9,8 +9,8 @@
 #include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/reference/sigmoid.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -31,7 +31,7 @@ namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::sigmoid<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::sigmoid<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 
@@ -41,12 +41,12 @@ bool evaluate_sigmoid(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_sigmoid, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sigmoid, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sigmoid, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sigmoid, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sigmoid, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sigmoid, f32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sigmoid, i32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sigmoid, i64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sigmoid, u32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sigmoid, u64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sigmoid, f16, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sigmoid, f32, arg0, out, count);
     default:
         rc = false;
         break;
@@ -59,7 +59,7 @@ bool evaluate_sigmoid(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 bool ov::op::v0::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Sigmoid_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return sigmoid::evaluate_sigmoid(inputs[0], outputs[0]);
 }

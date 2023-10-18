@@ -7,8 +7,8 @@
 #include <tuple>
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -54,7 +54,7 @@ protected:
         configuration.insert(config.begin(), config.end());
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto relu = std::make_shared<ngraph::opset8::Relu>(params[0]);
         auto fq1 = std::make_shared<ngraph::opset8::FakeQuantize>(
             relu,

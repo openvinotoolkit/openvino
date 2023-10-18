@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/mat_mul.hpp"
 
 namespace LayerTestsDefinitions {
@@ -61,7 +61,7 @@ void MatMulTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shapeRelatedParams.input1.first});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapeRelatedParams.input1.first))};
 
     auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shapeRelatedParams.input2.first);
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {

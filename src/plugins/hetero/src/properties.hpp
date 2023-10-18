@@ -13,5 +13,10 @@ namespace hetero {
  */
 static constexpr Property<std::string, PropertyMutability::RO> caching_device_properties{"CACHING_DEVICE_PROPERTIES"};
 
+/**
+ * @brief Read-only property showing number of compiled submodels
+ */
+static constexpr Property<size_t, PropertyMutability::RO> number_of_submodels{"HETERO_NUMBER_OF_SUBMODELS"};
+
 }  // namespace hetero
 }  // namespace ov

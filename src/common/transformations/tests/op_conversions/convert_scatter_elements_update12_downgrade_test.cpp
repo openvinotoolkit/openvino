@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/opsets/opset12.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset12.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/utils/utils.hpp"
+using namespace ov;
 using namespace testing;
 
 namespace {
@@ -53,26 +54,26 @@ std::shared_ptr<ov::Model> create_v3_model() {
 
 TEST_F(TransformationTestsF, ConvertScatterElementsUpdate12ToScatterElementsUpdate3_no_reduction_use_init_value) {
     manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
-    function = create_v12_model(Reduction::NONE, true);
-    function_ref = create_v3_model();
+    model = create_v12_model(Reduction::NONE, true);
+    model_ref = create_v3_model();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertScatterElementsUpdate12ToScatterElementsUpdate3_no_reduction) {
     manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
-    function = create_v12_model(Reduction::NONE, false);
-    function_ref = create_v3_model();
+    model = create_v12_model(Reduction::NONE, false);
+    model_ref = create_v3_model();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertScatterElementsUpdate12ToScatterElementsUpdate3_reduction_use_init_value) {
     manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
-    function = create_v12_model(Reduction::MEAN, true);
+    model = create_v12_model(Reduction::MEAN, true);
 }
 
 TEST_F(TransformationTestsF, ConvertScatterElementsUpdate12ToScatterElementsUpdate3_reduction) {
     manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
-    function = create_v12_model(Reduction::PROD, false);
+    model = create_v12_model(Reduction::PROD, false);
 }

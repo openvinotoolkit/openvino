@@ -1,5 +1,3 @@
-notebooks_docs = "notebooks.rst"
-
 notebooks_path = "notebooks"
 
 repo_directory = "notebooks"
@@ -8,12 +6,11 @@ repo_owner = "openvinotoolkit"
 
 repo_name = "openvino_notebooks"
 
-artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20230711220806/dist/rst_files/"
+repo_branch = "tree/main"
+
+artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20230815220807/dist/rst_files/"
 
 blacklisted_extensions = ['.xml', '.bin']
-
-section_names = ["Getting Started", "Convert & Optimize",
-                 "Model Demos", "Model Training", "Live Demos"]
 
 # Templates
 
@@ -34,7 +31,7 @@ To run without installing anything, click the "launch binder" button.
 
 .. |github_link| raw:: html
 
-   <a href="https://github.com/{{ owner }}/{{ repo }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
+   <a href="https://github.com/{{ owner }}/{{ repo }}/{{ branch }}/{{ folder }}/{{ notebook }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
 
 \n
 """
@@ -55,7 +52,7 @@ To run without installing anything, click the "Open in Colab" button.
 
 .. |github_link| raw:: html
 
-   <a href="https://github.com/{{ owner }}/{{ repo }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
+   <a href="https://github.com/{{ owner }}/{{ repo }}/{{ branch }}/{{ folder }}/{{ notebook }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
 
 \n
 """
@@ -80,7 +77,7 @@ To run without installing anything, click the "launch binder" or "Open in Colab"
 
 .. |github_link| raw:: html
 
-   <a href="https://github.com/{{ owner }}/{{ repo }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
+   <a href="https://github.com/{{ owner }}/{{ repo }}/{{ branch }}/{{ folder }}/{{ notebook }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
 
 \n
 """
@@ -96,23 +93,7 @@ See the |installation_link| for instructions to run this tutorial locally on Win
 
 .. |github_link| raw:: html
 
-   <a href="https://github.com/{{ owner }}/{{ repo }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
+   <a href="https://github.com/{{ owner }}/{{ repo }}/{{ branch }}/{{ folder }}/{{ notebook }}" target="_blank"><img src="https://badgen.net/badge/icon/github?icon=github&label" alt="Github"></a>
 
 \n
-"""
-
-rst_template = """
-OpenVINO notebooks documentation
-================================
-
-{% for section in sections %}
-{{section.name}}
---------------------------------
-
-.. toctree::
-   :maxdepth: 1
-
-{% for notebook in section.notebooks %}   {{notebook.path}}\n{% endfor %}
-{% endfor %}
-
 """

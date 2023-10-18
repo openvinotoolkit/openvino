@@ -4,8 +4,8 @@
 
 #include <ie_plugin_config.hpp>
 #include "shared_test_classes/single_layer/interpolate.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 using ngraph::helpers::operator<<;
 
@@ -73,7 +73,7 @@ void InterpolateLayerTest::SetUp() {
     std::tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto sizesConst = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
     auto sizesInput = std::make_shared<ngraph::opset3::Constant>(sizesConst);
@@ -147,7 +147,7 @@ void Interpolate1LayerTest::SetUp() {
              mode, axes, antialias, pads, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto sizesConst = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
     auto sizesInput = std::make_shared<ngraph::opset3::Constant>(sizesConst);
@@ -190,18 +190,18 @@ std::string InterpolateLayerTest::getTestCaseName(const testing::TestParamInfo<I
     double cubeCoef;
     std::tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "TS=" << ov::test::utils::vec2str(targetShapes) << "_";
     result << "InterpolateMode=" << mode << "_";
     result << "ShapeCalcMode=" << shapeCalcMode << "_";
     result << "CoordinateTransformMode=" << coordinateTransformMode << "_";
     result << "NearestMode=" << nearestMode << "_";
     result << "CubeCoef=" << cubeCoef << "_";
     result << "Antialias=" << antialias << "_";
-    result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE=" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "Axes=" << CommonTestUtils::vec2str(axes) << "_";
-    result << "Scales=" << CommonTestUtils::vec2str(scales) << "_";
+    result << "PB=" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE=" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "Axes=" << ov::test::utils::vec2str(axes) << "_";
+    result << "Scales=" << ov::test::utils::vec2str(scales) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
@@ -241,7 +241,7 @@ void InterpolateLayerTest::SetUp() {
     std::tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto scalesOrSizesInput = makeScalesOrSizesInput(shapeCalcMode, targetShape, scales);
 

@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <shared_test_classes/single_layer/ctc_greedy_decoder.hpp>
 #include <string>
 #include <tuple>
@@ -82,7 +82,10 @@ protected:
             targetStaticShapes.push_back({{T, N, C}, {T, N}});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto ctcGreedyDecoder = std::make_shared<ov::op::v0::CTCGreedyDecoder>(params[0], params[1], mergeRepeated);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoder)};

@@ -825,6 +825,9 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
 
     auto &weiDims = getInputShapeAtPort(WEI_ID).getDims();
     if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
+        // 1. strict fallback, until devising of multigroup handling in common case
+        defConvAttr.group != 1 ||
+        // 2. common fallback, except specific n_group / n_channel combinations
         (defConvAttr.group != 1 && ((weiDims[1] % simd_w != 0)  // in_channels_per_gr !% simd_w
         || ((weiDims[0] / defConvAttr.group) % simd_w != 0)))) {  // out_channels_per_gr !% simd_w
         enforceRef = true;
@@ -1140,10 +1143,24 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
                         const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
                         const int v21  = pSampledCoordsVector[sampledCoordIndex + 2];
                         const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
-                        float val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
-                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];  // v12
-                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];  // v21
-                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];  // v22
+
+                        float val = 0;
+                        float w11 = pInterpWeightsVector[sampledCoordIndex++];
+                        float w12 = pInterpWeightsVector[sampledCoordIndex++];
+                        float w21 = pInterpWeightsVector[sampledCoordIndex++];
+                        float w22 = pInterpWeightsVector[sampledCoordIndex++];
+
+                        // Prevent access to invalid memory in the case, when
+                        // data_im_ptr[v_i1_i2] is out of the input memory.
+                        // Logic of skipping of such points realized by nullifying
+                        // of corresponding weight, but we must explicitly check it, because
+                        // 0 * (*wrong_pointer) != 0 in common case, i.e.
+                        // 0 * NaN == NaN or throws segfault
+                        val += ((w11 == 0) ? 0 : w11 * data_im_ptr[v11]);
+                        val += ((w12 == 0) ? 0 : w12 * data_im_ptr[v12]);
+                        val += ((w21 == 0) ? 0 : w21 * data_im_ptr[v21]);
+                        val += ((w22 == 0) ? 0 : w22 * data_im_ptr[v22]);
+
                         d += val * weights[weiIndex + kh_off + kw_off];
                     } else {
                         sampledCoordIndex += sampledPointsPerPixel;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/detection_output.hpp"
 
 namespace LayerTestsDefinitions {
@@ -151,7 +151,10 @@ void DetectionOutputLayerTest::SetUp() {
         inShapes[i][0] = batch;
     }
 
-    auto params = ngraph::builder::makeParams(ngraph::element::f32, inShapes);
+    ov::ParameterVector params;
+    for (auto&& shape : inShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(shape)));
+    }
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
     auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};

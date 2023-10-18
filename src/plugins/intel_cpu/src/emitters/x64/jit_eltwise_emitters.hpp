@@ -574,7 +574,7 @@ public:
         prepare_table();
     }
     jit_is_finite_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa, const std::shared_ptr<ov::Node>& node,
-                    InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, node, execPrc) {
+                    InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, execPrc) {
         prepare_table();
     }
 
@@ -602,7 +602,7 @@ public:
         prepare_table();
     }
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa, const std::shared_ptr<ov::Node>& node,
-                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32): jit_emitter(host, hostIsa, node, execPrc) {
+                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32): jit_emitter(host, hostIsa, execPrc) {
         prepare_table();
     }
 
@@ -632,7 +632,7 @@ public:
         prepare_table();
     }
     jit_is_nan_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa, const std::shared_ptr<ov::Node>& node,
-                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, node, execPrc) {
+                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, execPrc) {
         prepare_table();
     }
 

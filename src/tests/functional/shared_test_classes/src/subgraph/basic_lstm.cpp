@@ -5,7 +5,7 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -62,7 +62,7 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
                                                            std::vector<float>* cell_memory_init_out) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecission);
 
-    auto params = ngraph::builder::makeParams(ngPrc, { {1, num_cells * thirdDimOut} });
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, num_cells * thirdDimOut})};
 
     const size_t batch_size = 1;
 

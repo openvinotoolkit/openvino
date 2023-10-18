@@ -4,12 +4,10 @@
 
 #include "transformations/op_conversions/fq_decomposition.hpp"
 
-#include <ngraph/builder/autobroadcast.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <numeric>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -21,6 +19,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
 
@@ -29,7 +28,7 @@ bool isValidRangesInputs(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
     auto ih = fq->input_value(2);
     auto greater_equal = std::make_shared<ov::op::v1::GreaterEqual>(il, ih);
 
-    ngraph::OutputVector result(1);
+    ov::OutputVector result(1);
     if (!greater_equal->constant_fold(result, greater_equal->input_values()))
         return false;
 
@@ -47,13 +46,13 @@ bool isValidRangesInputs(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
 ov::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     MATCHER_SCOPE(FakeQuantizeDecomposition);
     auto data = pattern::any_input();
-    auto il = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto ih = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto ol = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto oh = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto fake_quantize = ngraph::pattern::wrap_type<ov::op::v0::FakeQuantize>({data, il, ih, ol, oh});
+    auto il = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto ih = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto ol = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto oh = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto fake_quantize = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({data, il, ih, ol, oh});
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         const auto fake_quantize_node = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(
             pattern_to_output.at(fake_quantize).get_node_shared_ptr());
@@ -70,7 +69,7 @@ ov::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         const Output<Node> output_high{fake_quantize_node->input_value(4)};
         auto input_type = data.get_element_type();
 
-        ngraph::NodeVector decomp_ops;
+        ov::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
             input_type = input_low.get_element_type();
             data = std::make_shared<ov::op::v0::Convert>(data, input_type);
@@ -132,11 +131,11 @@ ov::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         }
 
         result->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(fake_quantize_node, decomp_ops);
-        ngraph::replace_node(m.get_match_root(), result);
+        ov::copy_runtime_info(fake_quantize_node, decomp_ops);
+        ov::replace_node(m.get_match_root(), result);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fake_quantize, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(fake_quantize, matcher_name);
     register_matcher(m, callback);
 }

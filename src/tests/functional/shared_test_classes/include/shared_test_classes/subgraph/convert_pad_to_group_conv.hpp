@@ -4,32 +4,32 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include <ngraph/shape.hpp>
-#include <ngraph/node.hpp>
 
-namespace SubgraphTestsDefinitions {
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-typedef std::tuple<
-        ngraph::Shape,              // input shape
-        std::vector<int64_t>,       // pad_begin
-        std::vector<int64_t>,       // pad_end
-        float,                      // pad_value
-        ngraph::op::PadMode,        // pad_mode
-        std::string                 // Device name
-        > PadParams;
+namespace ov {
+namespace test {
 
-class ConvertPadToConvTests
-        : public testing::WithParamInterface<PadParams>,
-          virtual public LayerTestsUtils::LayerTestsCommon {
+typedef std::tuple<ov::Shape,             // input shape
+                   std::vector<int64_t>,  // pad_begin
+                   std::vector<int64_t>,  // pad_end
+                   float,                 // pad_value
+                   ov::op::PadMode,       // pad_mode
+                   std::string            // Device name
+                   >
+    PadParams;
+
+class ConvertPadToConvTests : public testing::WithParamInterface<PadParams>,
+                              virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<PadParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<PadParams>& obj);
 
 protected:
     void SetUp() override;
 };
-} // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

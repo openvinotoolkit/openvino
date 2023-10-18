@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/system_conf.hpp"
+
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/graph/program.hpp"
-
-#include <ie_system_conf.h>
 
 #include "auto_tuner.h"
 #include "layout_optimizer.h"
@@ -105,12 +105,12 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 
 static void adjust_num_cores(ov::threading::IStreamsExecutor::Config& config) {
-    if (InferenceEngine::getAvailableCoresTypes().size() == 1) {
+    if (ov::get_available_cores_types().size() == 1) {
         return;
     }
 
-    const auto total_num_cores = InferenceEngine::getNumberOfLogicalCPUCores();
-    const auto total_num_big_cores = InferenceEngine::getNumberOfLogicalCPUCores(true);
+    const auto total_num_cores = ov::get_number_of_logical_cpu_cores();
+    const auto total_num_big_cores = ov::get_number_of_logical_cpu_cores(true);
     const auto total_num_little_cores = total_num_cores - total_num_big_cores;
     auto core_type = config._threadPreferredCoreType;
 
@@ -191,10 +191,11 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
-program::program(engine& engine)
+program::program(engine& engine,
+        const ExecutionConfig& config)
     : _engine(engine),
       _stream(_engine.create_stream({})),
-      _config(),
+      _config(config),
       processing_order() {
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
@@ -554,6 +555,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<pre_replace_deconv>(lo);
 
+        apply_opt_pass<reorder_transfer>();
+
 #ifdef GPU_DEBUG_CONFIG
         GPU_DEBUG_IF(!debug_config->disable_primitive_fusing) {
 #else
@@ -579,11 +582,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, optimize_data);
 
-    if (!is_internal) {
-        // ToDo remove hidden dependencies from propagate_constants pass
-        apply_opt_pass<propagate_constants>();
-    }
-
     // try to fuse buffers (i.e. depth_concat in bfyx format) after padding calculations
     if (optimize_data) {
         apply_opt_pass<prepare_buffer_fusing>();
@@ -591,6 +589,10 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
+
+    // Modify fused post operation to resolve overflow of fp16 output by adding clamp activation
+    // Currently, 'gemm-softmax' case is applied for clamping
+    apply_opt_pass<clamp_fp16_output>();
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
@@ -608,7 +610,12 @@ void program::post_optimize_graph(bool is_internal) {
     reorder_factory rf;
     layout_optimizer lo;
     set_layout_optimizer_attributes(lo);
-    apply_opt_pass<post_optimize_weights>(rf);
+
+    bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
+
+    if (!is_internal) {
+        apply_opt_pass<post_optimize_weights>(rf);
+    }
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
 
@@ -623,7 +630,7 @@ void program::post_optimize_graph(bool is_internal) {
         apply_opt_pass<propagate_constants>();
     }
 
-    if (_config.get_property(ov::intel_gpu::optimize_data))
+    if (optimize_data)
         apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
     // update inner program input/output primitive mappings
@@ -1657,6 +1664,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
                                                                       pool,
                                                                       *node,
                                                                       *node->get_kernel_impl_params(),
+                                                                      node->get_memory_dependencies(),
                                                                       0,
                                                                       false,
                                                                       0,

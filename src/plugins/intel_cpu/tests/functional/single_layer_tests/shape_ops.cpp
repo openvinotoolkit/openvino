@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace ngraph;
@@ -159,14 +159,15 @@ protected:
         init_input_shapes(inputShapes);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
-        auto inputs = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
+        ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front())};
         auto dataInput = inputs.front();
         dataInput->set_friendly_name("param_1");
         std::shared_ptr<ngraph::Node> secondaryInput;
         if (secondType == ngraph::helpers::InputLayerType::PARAMETER) {
-            secondaryInput = ngraph::builder::makeDynamicParams(secondInPrc, {inputDynamicShapes.back()}).front();
-            secondaryInput->set_friendly_name("param_2");
-            inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+            auto param = std::make_shared<ov::op::v0::Parameter>(secondInPrc, inputDynamicShapes.back());
+            param->set_friendly_name("param_2");
+            secondaryInput = param;
+            inputs.push_back(param);
         } else {
             secondaryInput = ngraph::builder::makeConstant(secondInPrc, {inpDesc.data[0].size()}, inpDesc.data[0]);
         }

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace intel_gpu {

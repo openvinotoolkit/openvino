@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/eye.hpp"
+#include "openvino/op/eye.hpp"
+#include "openvino/op/constant.hpp"
 
 #include <memory>
 
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 
@@ -16,19 +17,19 @@ namespace intel_gpu {
 
 namespace {
 
-static void CreateEyeOp(Program& p, const std::shared_ptr<ngraph::op::v9::Eye>& op) {
+static void CreateEyeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::Eye>& op) {
     validate_inputs_count(op, {3, 4});
 
-    const InferenceEngine::SizeVector& output_shapes = op->get_output_shape(0);
+    const ov::Shape& output_shapes = op->get_output_shape(0);
     auto os_sz = output_shapes.size();
     OPENVINO_ASSERT(2 <= os_sz && os_sz <= 5, "Incorrect output size: ", os_sz, " in op ", op->get_friendly_name());
 
     size_t dim_size = std::max(os_sz, static_cast<size_t>(4));
-    InferenceEngine::SizeVector dims(dim_size, 1);
+    ov::Shape dims(dim_size, 1);
     for (size_t i = dim_size, j = os_sz; i > 0 && j > 0; --i, --j) {
         dims[i - 1] = output_shapes[j - 1];
     }
-    const ngraph::op::v0::Constant* constant = dynamic_cast<const ngraph::op::v0::Constant*>(op->get_input_node_ptr(2));
+    const ov::op::v0::Constant* constant = dynamic_cast<ov::op::v0::Constant*>(op->get_input_node_ptr(2));
     OPENVINO_ASSERT(constant != nullptr, "Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     int32_t shift{};

@@ -11,10 +11,10 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov::opset10;
@@ -90,7 +90,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const ngraph::Shape shape = {1, 1, 128};
-        auto params = ngraph::builder::makeParams(ngPrc, {shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
         std::shared_ptr<ov::Node> test_node = params[0];
         switch (m_non_func_layer) {
         case NonFunctionalLayer::RESHAPE:

@@ -5,8 +5,8 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -102,7 +102,7 @@ protected:
     }
 
     std::shared_ptr<ngraph::Function> createFunction(bool secondInputConst) {
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, { inputDynamicShapes[0] });
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, inputDynamicShapes[0])};
         params.front()->set_friendly_name("ParamsInput");
         std::shared_ptr<ov::Node> secondInput;
         if (secondInputConst) {

@@ -5,7 +5,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -60,7 +60,10 @@ protected:
 
         init_input_shapes({ inputShapes });
 
-        auto params = ngraph::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
+        }
         auto extImgPatches = std::make_shared<ngraph::opset3::ExtractImagePatches>(params[0], kernelSize, strides, rates, padType);
         function = makeNgraphFunction(inputPrecision, params, extImgPatches, "ExtractImagePatches");
     }

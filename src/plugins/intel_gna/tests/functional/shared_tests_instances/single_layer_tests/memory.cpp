@@ -6,9 +6,9 @@
 
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
@@ -29,7 +29,7 @@ protected:
 };
 
 void MemoryTestGna::CreateCommonFunc() {
-    auto param = builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector param{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     const auto variable_info = VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
     auto variable = std::make_shared<Variable>(variable_info);
 

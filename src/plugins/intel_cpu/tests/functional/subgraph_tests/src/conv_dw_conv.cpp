@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -19,7 +19,10 @@ protected:
         init_input_shapes({input_shape});
 
 
-        auto params = ngraph::builder::makeDynamicParams(precision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(precision, shape));
+        }
         auto conv_weights = ngraph::builder::makeConstant(precision, std::vector<size_t>{32, 32, 1, 1}, std::vector<float>{}, true);
         auto conv = ngraph::builder::makeConvolution(params[0],
                                                      conv_weights,

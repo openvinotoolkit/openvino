@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/broadcast_transition.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/opsets/opset10.hpp>
 #include <string>
-#include <transformations/common_optimizations/broadcast_transition.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset10.hpp"
+using namespace ov;
 using namespace testing;
 
 std::shared_ptr<ov::Node> getOperation(

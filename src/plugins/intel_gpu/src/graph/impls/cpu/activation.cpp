@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/type/element_type_traits.hpp"
 #include "register.hpp"
 #include "activation_inst.h"
 #include "implementation_map.hpp"
@@ -44,6 +45,7 @@
 #include "openvino/op/sign.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/sqrt.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -57,7 +59,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
 
     std::shared_ptr<ov::op::Op> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::activation_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<activation_impl>(*this);
@@ -107,9 +109,9 @@ struct activation_impl : public typed_primitive_impl<activation> {
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         // Most of the evaluate functions expect same data type for all inputs, so we need to convert params from float
-        typename data_type_to_type<DT>::type param_a = static_cast<typename data_type_to_type<DT>::type>(additional_params.a);
+        auto param_a = static_cast<typename ov::element_type_traits<DT>::value_type>(additional_params.a);
 
-        auto input_dt = data_type_to_element_type(instance.get_input_layout().data_type);
+        auto input_dt = instance.get_input_layout().data_type;
 
         if (activation_function == activation_func::pow) {
             input_host_tensors.push_back(ov::Tensor(input_dt, {}, &param_a));
@@ -235,6 +237,8 @@ struct activation_impl : public typed_primitive_impl<activation> {
                 op = round_op;
                 break;
             }
+            case activation_func::sqrt:
+                op = std::make_shared<ov::op::v0::Sqrt>(); break;
             case activation_func::hard_sigmoid:
             case activation_func::selu:
             default:

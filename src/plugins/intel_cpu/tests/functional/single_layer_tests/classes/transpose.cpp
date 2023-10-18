@@ -55,19 +55,19 @@ void TransposeLayerCPUTest::SetUp() {
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-    selectedType = makeSelectedTypeStr("unknown", inType);
+    updateSelectedType("unknown", inType, configuration);
 
     init_input_shapes({inputShapes});
 
-    auto params = ngraph::builder::makeDynamicParams(inType, {inputDynamicShapes[0]});
+    auto params = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
 
     const auto inputOrderOp =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape({inputOrder.size()}), inputOrder);
-    const auto transpose = std::make_shared<ov::op::v1::Transpose>(params[0], inputOrderOp);
+    const auto transpose = std::make_shared<ov::op::v1::Transpose>(params, inputOrderOp);
     transpose->get_rt_info() = getCPUInfo();
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
 
-    function = std::make_shared<ngraph::Function>(results, params, "TransposeLayerCPUTest");
+    function = std::make_shared<ngraph::Function>(results, ov::ParameterVector{params}, "TransposeLayerCPUTest");
     functionRefs = ngraph::clone_function(*function);
 }
 

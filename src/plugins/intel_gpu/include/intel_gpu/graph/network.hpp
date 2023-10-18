@@ -244,10 +244,14 @@ public:
 
     using variables_state_info_map = std::map<std::string, cldnn::layout>;
     void set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout);
-
+    const variables_state_info_map& get_variables_state_info() const;
     const ExecutionConfig& get_config() const { return _config; }
 
     ShapePredictor& get_shape_predictor() { return *_shape_predictor; }
+
+#ifdef GPU_DEBUG_CONFIG
+    int64_t get_current_iteration_num() { return iteration; }
+#endif
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;

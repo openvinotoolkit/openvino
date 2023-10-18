@@ -16,7 +16,7 @@ using namespace ov;
 using namespace ov::onnx_editor;
 using namespace ngraph::test;
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 
 OPENVINO_TEST(onnx_editor, topological_sort_two_nodes_swap) {
     ONNXModelEditor editor{ov::util::path_join({ov::test::utils::getExecutableDirectory(),
@@ -38,6 +38,16 @@ OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2) {
                                                 "onnx/model_editor/topological_sort/completely_unsorted_2.onnx"})};
     ASSERT_NO_THROW(editor.get_function());
 }
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2_wstring) {
+    ONNXModelEditor editor{ov::util::string_to_wstring(
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
+                             "onnx/model_editor/topological_sort/completely_unsorted_2.onnx"}))};
+    ASSERT_NO_THROW(editor.get_function());
+}
+#endif
 
 OPENVINO_TEST(onnx_editor, topological_sort_constant_node_in_the_graph) {
     const std::string rel_path_to_model = "onnx/model_editor/topological_sort/add_abc_const_node_unsorted.onnx";

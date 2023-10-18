@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/frontend/extension/conversion.hpp>
-#include <openvino/frontend/extension/decoder_transformation.hpp>
-#include <openvino/op/util/framework_node.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/frontend/extension/conversion.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 #include "conversion_extension.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
@@ -30,7 +30,7 @@ void FrontEndConversionExtensionTest::initParamTest() {
 
 inline std::string get_lib_path(const std::string& lib_name) {
     return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
-                                                    lib_name + IE_BUILD_POSTFIX);
+                                                    lib_name + OV_BUILD_POSTFIX);
 }
 
 ///////////////////////////////////////////////////////////////////

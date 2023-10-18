@@ -3,8 +3,8 @@
 //
 
 #include "binary_ops.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/op/greater_eq.hpp"
 
-using Type = ::testing::Types<BinaryOperatorType<ngraph::opset1::GreaterEqual, ngraph::element::f32>>;
+using Type = ::testing::Types<BinaryOperatorType<ov::op::v1::GreaterEqual, ov::element::f32>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast, BinaryOperatorVisitor, Type, BinaryOperatorTypeName);

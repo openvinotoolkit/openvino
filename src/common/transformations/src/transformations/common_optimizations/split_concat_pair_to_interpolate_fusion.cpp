@@ -6,17 +6,15 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <numeric>
-#include <openvino/core/validation_util.hpp>
-#include <transformations/rt_info/disable_constant_folding.hpp>
 #include <tuple>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -26,6 +24,8 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 
 using namespace ov;
 
@@ -149,8 +149,8 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
     // by number of output ports of 'split'.
     //
     // Detect only concat, because we don't know how many inputs will go into concat.
-    auto concat_pattern = ngraph::pattern::wrap_type<ov::op::v0::Concat>();
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto concat = std::dynamic_pointer_cast<ov::op::v0::Concat>(m.get_match_root());
         if (!concat)
             return false;
@@ -248,6 +248,6 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, matcher_name);
     register_matcher(m, callback);
 }

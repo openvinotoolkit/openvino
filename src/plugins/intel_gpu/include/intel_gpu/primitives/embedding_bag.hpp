@@ -14,8 +14,6 @@ struct embedding_bag : public primitive_base<embedding_bag> {
 
     embedding_bag() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Select type of embedding_bag operation
     enum embedding_bag_type {
         packed_sum,
@@ -41,7 +39,7 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     /// @brief Shape of output layout
     tensor output_shape;
     /// @brief Default index
-    int32_t default_index;
+    int32_t default_index = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

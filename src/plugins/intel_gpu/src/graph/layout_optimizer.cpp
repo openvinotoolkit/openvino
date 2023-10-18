@@ -14,6 +14,7 @@
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
 #include "condition_inst.h"
+#include "strided_slice_inst.h"
 #include <sstream>
 
 #include "gemm_inst.h"
@@ -234,8 +235,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         }
     }
 
-    // Ref kernels are the main for depth_to_space and region_yolo. It can do anything.
-    if (next.is_type<depth_to_space>() || next.is_type<region_yolo>())
+    // Ref kernels are the main for depth_to_space and region_yolo and strided_slice. It can do anything.
+    if (next.is_type<depth_to_space>() || next.is_type<region_yolo>() ||
+        (next.is_type<strided_slice>() && next.get_preferred_impl_type() != cldnn::impl_types::cpu))
         return true;
 
     if (next.is_type<reorder>())
@@ -505,6 +507,10 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
         return false;
 
     // cases when NOT to use winograd
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_winograd_conv == 1)
+        return false;
+
     auto prim = node.get_primitive();
     if (input_layout.data_type != data_types::f16
         || input_layout.feature() % 64 != 0  // current algorithm is effective for ifm to be multiply of 64
@@ -866,6 +872,10 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
     auto fc_prim = node.get_primitive();
+    // onednn impl doesn't support compressed weights for now
+    if (fc_prim->compressed_weights)
+        return false;
+
     auto output_layout = node.get_output_layout();
     auto ps = output_layout.get_partial_shape();
     size_t non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
@@ -1063,7 +1073,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
 
-    if (use_onednn_impls && onednn_valid_post_ops) {
+    if (use_onednn_impls && onednn_valid_post_ops && node.get_preferred_output_fmt() != format::any) {
         expected_format = node.get_preferred_output_fmt();
     } else {
         /* *************************** Native impls format selection part ************************** */
@@ -1525,28 +1535,32 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         std::vector<format> onednn_optimized_formats = {
             format::byxf,
             format::bzyxf,
-            format::b_fs_zyx_fsv32,
-            format::b_fs_yx_fsv32,
-            format::b_fs_zyx_fsv16,
+            format::b_fs_yx_fsv8,
+            format::b_fs_zyx_fsv8,
             format::b_fs_yx_fsv16,
-            format::bs_fs_zyx_bsv16_fsv16,
-            format::bs_fs_yx_bsv16_fsv16,
-            format::bs_fs_zyx_bsv16_fsv32,
-            format::bs_fs_yx_bsv16_fsv32,
-            format::bs_fs_zyx_bsv32_fsv16,
-            format::bs_fs_yx_bsv32_fsv16,
-            format::bs_fs_zyx_bsv32_fsv32,
-            format::bs_fs_yx_bsv32_fsv32,
-            format::bs_fs_zyx_bsv8_fsv4,
+            format::b_fs_zyx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::b_fs_zyx_fsv32,
+            format::bs_fs_yx_bsv4_fsv2,
+            format::bs_fs_yx_bsv4_fsv4,
+            format::bs_fs_yx_bsv8_fsv2,
+            format::bs_fs_zyx_bsv8_fsv2,
             format::bs_fs_yx_bsv8_fsv4,
-            format::bs_fs_yx_bsv16_fsv4,
-            format::bs_fs_zyx_bsv16_fsv4,
+            format::bs_fs_zyx_bsv8_fsv4,
             format::bs_fs_yx_bsv16_fsv2,
             format::bs_fs_zyx_bsv16_fsv2,
-            format::bs_fs_zyx_bsv8_fsv2,
-            format::bs_fs_yx_bsv8_fsv2,
-            format::bs_fs_yx_bsv4_fsv4,
-            format::bs_fs_yx_bsv4_fsv2,
+            format::bs_fs_yx_bsv16_fsv4,
+            format::bs_fs_zyx_bsv16_fsv4,
+            format::bs_fs_yx_bsv16_fsv8,
+            format::bs_fs_zyx_bsv16_fsv8,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_zyx_bsv16_fsv16,
+            format::bs_fs_yx_bsv16_fsv32,
+            format::bs_fs_zyx_bsv16_fsv32,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_zyx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+            format::bs_fs_zyx_bsv32_fsv32,
         };
 
         impl_types impl_candidate = impl_types::onednn;
@@ -1590,7 +1604,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
-        if (node.get_output_layout().data_type == data_types::i32)
+        if (node.get_output_layout().data_type == data_types::i32 ||
+            node.get_output_layout().data_type == data_types::f32)
             return impl_types::ocl;
 
         for (auto& dep : node.get_dependencies()) {
@@ -1664,7 +1679,12 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 // Check if selected format can be adjusted to the required input rank
                 // If no, use default fotmat instead
                 try {
-                    format::adjust_to_rank(fmt, in_lay_rank);
+                    // 7-dimention and 8-dimention only support plain format
+                    if (in_lay_rank >= 7 || out_lay_rank >= 7) {
+                        fmt = format::get_default_format(in_lay_rank);
+                    } else {
+                        format::adjust_to_rank(fmt, in_lay_rank);
+                    }
                 } catch (ov::Exception&) {
                     fmt = format::get_default_format(in_lay_rank);
                 }
@@ -1699,9 +1719,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = get_expected_format(node.as<deconvolution>());
     } else if (node.is_type<mvn>()) {
         auto input_layout = node.get_input_layout(0);
-        if (input_layout.format.dimension() == 5 &&
-            (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16))
-            expected = format::bfzyx;
+        if (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) {
+            expected = format::get_default_format(input_layout.get_rank());
+        }
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.
@@ -1725,11 +1745,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         }
     } else if (node.is_type<reduce>()) {
         auto& reduce_node = node.as<reduce>();
-        auto input_layout = reduce_node.input().get_output_layout();
-        if (!use_onednn_impls && input_layout.is_dynamic()) {
-            if (input_layout.format.dimension() > 4) {
-                expected = format::get_default_format(input_layout.format.dimension());
-            } else if (input_layout.format.dimension() == 4) {
+        auto output_layout = reduce_node.get_output_layout();
+        if (!use_onednn_impls && output_layout.is_dynamic()) {
+            if (output_layout.format.dimension() > 4) {
+                expected = format::get_default_format(output_layout.format.dimension());
+            } else if (output_layout.format.dimension() == 4) {
                 expected = format::any;
             }
         }

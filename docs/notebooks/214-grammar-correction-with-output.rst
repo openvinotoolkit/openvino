@@ -41,8 +41,20 @@ It consists of the following steps:
    Optimum <https://huggingface.co/blog/openvino>`__.
 -  Create an inference pipeline for grammatical error checking
 
+**Table of contents:**
+
+- `How does it work? <#how-does-it-work>`__
+- `Prerequisites <#prerequisites>`__
+- `Download and Convert Models <#download-and-convert-models>`__
+
+  - `Select inference device <#select-inference-device>`__
+  - `Grammar Checker <#grammar-checker>`__
+  - `Grammar Corrector <#grammar-corrector>`__
+
+- `Prepare Demo Pipeline <#prepare-demo-pipeline>`__
+
 How does it work?
------------------
+###############################################################################################################################
 
 A Grammatical Error Correction task can be thought of as a
 sequence-to-sequence task where a model is trained to take a
@@ -62,10 +74,10 @@ paper discovers that overall instruction finetuning is a general method
 that improves the performance and usability of pre-trained language
 models.
 
-.. figure:: https://s3.amazonaws.com/moonup/production/uploads/1666363435475-62441d1d9fdefb55a0b7d12c.png
-   :alt: flan-t5 training
+.. figure:: https://production-media.paperswithcode.com/methods/a04cb14e-e6b8-449e-9487-bc4262911d74.png
+   :alt: flan-t5_training
 
-   flan-t5 training
+   flan-t5_training
 
 For more details about the model, please check out
 `paper <https://arxiv.org/abs/2210.11416>`__, original
@@ -92,7 +104,7 @@ documentation <https://huggingface.co/docs/transformers/model_doc/roberta>`__
 Now that we know more about FLAN-T5 and RoBERTa, let us get started. 🚀
 
 Prerequisites
--------------
+###############################################################################################################################
 
 First, we need to install the `Hugging Face
 Optimum <https://huggingface.co/docs/transformers/index>`__ library
@@ -104,17 +116,26 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    !pip install -q "git+https://github.com/huggingface/optimum-intel.git" onnx onnxruntime
+    !pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.0.0" onnx onnxruntime gradio
+
+
+.. parsed-literal::
+
+    
+    [notice] A new release of pip is available: 23.1.2 -> 23.2
+    [notice] To update, run: pip install --upgrade pip
+
 
 Download and Convert Models
----------------------------
+###############################################################################################################################
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
 create pipelines to run an inference with OpenVINO Runtime using Hugging
 Face APIs. The Optimum Inference models are API compatible with Hugging
 Face Transformers models. This means we just need to replace
-AutoModelForXxx class with the corresponding OVModelForXxx class.
+``AutoModelForXxx`` class with the corresponding ``OVModelForXxx``
+class.
 
 Below is an example of the RoBERTa text classification model
 
@@ -143,9 +164,10 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 
 .. parsed-literal::
 
-    2023-02-22 08:52:28.563283: I tensorflow/core/util/util.cc:169] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    /home/ea/work/my_ov/openvino/tmp_notebooks_env/lib/python3.8/site-packages/openvino/offline_transformations/__init__.py:10: FutureWarning: The module is private and following namespace `offline_transformations` will be removed in the future, use `openvino.runtime.passes` instead!
-      warnings.warn(
+    2023-07-17 14:43:08.812267: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-17 14:43:08.850959: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-07-17 14:43:09.468643: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -156,10 +178,41 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 .. parsed-literal::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    comet_ml is installed but `COMET_API_KEY` is not set.
+
+
+Select inference device
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    from openvino.runtime import Core
+    
+    core = Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+
 
 
 Grammar Checker
-~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -168,10 +221,17 @@ Grammar Checker
     grammar_checker_tokenizer = AutoTokenizer.from_pretrained(grammar_checker_model_id)
     
     if grammar_checker_dir.exists():
-        grammar_checker_model = OVModelForSequenceClassification.from_pretrained(grammar_checker_dir)
+        grammar_checker_model = OVModelForSequenceClassification.from_pretrained(grammar_checker_dir, device=device.value)
     else:
-        grammar_checker_model = OVModelForSequenceClassification.from_pretrained(grammar_checker_model_id, from_transformers=True)
+        grammar_checker_model = OVModelForSequenceClassification.from_pretrained(grammar_checker_model_id, export=True, device=device.value)
         grammar_checker_model.save_pretrained(grammar_checker_dir)
+
+
+.. parsed-literal::
+
+    Compiling the model...
+    Set CACHE_DIR to roberta-base-cola/model_cache
+
 
 Let us check model work, using inference pipeline for
 ``text-classification`` task. You can find more information about usage
@@ -190,6 +250,12 @@ Hugging Face inference pipelines in this
 
 .. parsed-literal::
 
+    Xformers is not installed correctly. If you want to use memory_efficient_attention to accelerate training use the following command to install Xformers
+    pip install xformers.
+
+
+.. parsed-literal::
+
     input text: They are moved by salar energy
     predicted label: contains_errors
     predicted score: 0.88
@@ -198,7 +264,7 @@ Hugging Face inference pipelines in this
 Great! Looks like the model can detect errors in the sample.
 
 Grammar Corrector
-~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The steps for loading the Grammar Corrector model are very similar,
 except for the model class that is used. Because FLAN-T5 is a
@@ -213,16 +279,34 @@ to run it.
     grammar_corrector_tokenizer = AutoTokenizer.from_pretrained(grammar_corrector_model_id)
     
     if grammar_corrector_dir.exists():
-        grammar_corrector_model = OVModelForSeq2SeqLM.from_pretrained(grammar_corrector_dir)
+        grammar_corrector_model = OVModelForSeq2SeqLM.from_pretrained(grammar_corrector_dir, device=device.value)
     else:
-        grammar_corrector_model = OVModelForSeq2SeqLM.from_pretrained(grammar_corrector_model_id, from_transformers=True)
+        grammar_corrector_model = OVModelForSeq2SeqLM.from_pretrained(grammar_corrector_model_id, export=True, device=device.value)
         grammar_corrector_model.save_pretrained(grammar_corrector_dir)
 
 
 .. parsed-literal::
 
+    The argument `from_transformers` is deprecated, and will be removed in optimum 2.0.  Use `export` instead
+    Framework not specified. Using pt to export to ONNX.
+    Using framework PyTorch: 1.13.1+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> False
+    Using framework PyTorch: 1.13.1+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> True
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/transformers/modeling_utils.py:850: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if causal_mask.shape[1] < attention_mask.shape[1]:
+    Using framework PyTorch: 1.13.1+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> True
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/transformers/models/t5/modeling_t5.py:507: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      elif past_key_value.shape[2] != key_value_states.shape[1]:
     In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
     In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    Compiling the encoder...
+    Compiling the decoder...
+    Compiling the decoder...
 
 
 .. code:: ipython3
@@ -245,7 +329,7 @@ to run it.
 Nice! The result looks pretty good!
 
 Prepare Demo Pipeline
----------------------
+###############################################################################################################################
 
 Now let us put everything together and create the pipeline for grammar
 correction. The pipeline accepts input text, verifies its correctness,
@@ -340,30 +424,26 @@ several steps:
     
         return corrected_text
 
-Let us see it in action. Enter text to be corrected in the text box and
-execute the following cells.
+Let us see it in action.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    default_text = (
+        "Most of the course is about semantic or  content of language but there are also interesting"
+        " topics to be learned from the servicefeatures except statistics in characters in documents.At"
+        " this point, He introduces herself as his native English speaker and goes on to say that if"
+        " you contine to work on social scnce"
+    )
     
-    text_widget = widgets.Textarea(value="Most of the course is about semantic or  content of language but there are also interesting topics to be learned from the servicefeatures except statistics in characters in documents."
-                                   "At this point, He introduces herself as his native English speaker and goes on to say that if you contine to work on social scnce", 
-                                   description='your text', layout=widgets.Layout(width="auto"))
-    text_widget
-
-
+    corrected_text = correct_text(default_text, grammar_checker_pipe, grammar_corrector_pipe)
 
 
 .. parsed-literal::
 
-    Textarea(value='Most of the course is about semantic or  content of language but there are also interesting to…
-
-
-
-.. code:: ipython3
-
-    corrected_text = correct_text(text_widget.value, grammar_checker_pipe, grammar_corrector_pipe)
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
 
 
 
@@ -374,7 +454,7 @@ execute the following cells.
 
 .. code:: ipython3
 
-    print(f"input text:     {text_widget.value}\n") 
+    print(f"input text:     {default_text}\n") 
     print(f'generated text: {corrected_text}') 
 
 
@@ -384,3 +464,30 @@ execute the following cells.
     
     generated text: Most of the course is about the semantic content of language but there are also interesting topics to be learned from the service features except statistics in characters in documents. At this point, she introduces herself as a native English speaker and goes on to say that if you continue to work on social science, you will continue to be successful.
 
+
+Interactive demo
+###############################################################################################################################
+
+.. code:: ipython3
+
+    import gradio as gr
+    
+    
+    def correct(text, _=gr.Progress(track_tqdm=True)):
+        return correct_text(text, grammar_checker_pipe, grammar_corrector_pipe)
+    
+    
+    demo = gr.Interface(
+        correct,
+        gr.Textbox(label="Text"),
+        gr.Textbox(label="Correction"),
+        examples=[default_text],
+        allow_flagging="never",
+    )
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/

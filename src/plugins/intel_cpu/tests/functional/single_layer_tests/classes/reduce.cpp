@@ -5,6 +5,7 @@
 #include "reduce.hpp"
 
 #include "gtest/gtest.h"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -86,20 +87,17 @@ void ReduceCPULayerTest::SetUp() {
     std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inputShapes) = basicParams;
     if (netPrecision == ElementType::boolean) {
         inPrc = outPrc = netPrecision;
-    } else {
-        if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
-            inPrc = outPrc = netPrecision = ElementType::bf16;
-        } else if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
-            inPrc = outPrc = netPrecision = ElementType::f16;
-        } else {
-            inPrc = outPrc = netPrecision;
-        }
     }
+
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
+    updateSelectedType(getPrimitiveType(), netPrecision == ElementType::boolean ? ElementType::i8 : netPrecision, configuration);
 
     init_input_shapes(inputShapes);
 
-    auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+    }
     auto paramOuts =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
@@ -119,9 +117,6 @@ void ReduceCPULayerTest::SetUp() {
         std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
     const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
-
-    selectedType = getPrimitiveType() + "_" +
-                   (inPrc == ElementType::boolean ? "I8" : InferenceEngine::details::convertPrecision(inPrc).name());
 
     // hybrid layouts
     if (inFmts.size() != 0 && outFmts.size() == 0) {

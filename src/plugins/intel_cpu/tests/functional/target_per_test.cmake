@@ -25,7 +25,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
     set(TEST_TARGET_NAME ${TARGET_PREFIX}_${TEST_FILE_WE})
 
     # create target
-    addIeTargetTest(
+    ov_add_test_target(
       NAME ${TEST_TARGET_NAME}
       ROOT ${TEST_DIR}
       INCLUDES ${INCLUDES}
@@ -35,11 +35,10 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
       DEPENDENCIES ${DEPENDENCIES}
       LINK_LIBRARIES ${LINK_LIBRARIES}
       ADD_CPPLINT
-      LABELS
-      CPU
+      LABELS OV CPU
     )
 
-    set_ie_threading_interface_for(${TEST_TARGET_NAME})
+    ov_set_threading_interface_for(${TEST_TARGET_NAME})
     # avoid building binaries for every test in case target 'all' is used
     set_target_properties(${TEST_TARGET_NAME} PROPERTIES
       EXCLUDE_FROM_ALL ON)
@@ -65,7 +64,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
     set(TEST_TARGET_NAME ${TARGET_PREFIX}_${TEST_CLASS})
 
     # create target
-    addIeTargetTest(
+    ov_add_test_target(
       NAME ${TEST_TARGET_NAME}
       ROOT ${TEST_DIR}
       INCLUDES ${INCLUDES}
@@ -74,11 +73,10 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
       DEFINES ${DEFINES}
       DEPENDENCIES ${DEPENDENCIES}
       LINK_LIBRARIES ${LINK_LIBRARIES}
-      LABELS
-      CPU
+      LABELS OV CPU
     )
 
-    set_ie_threading_interface_for(${TEST_TARGET_NAME})
+    ov_set_threading_interface_for(${TEST_TARGET_NAME})
     # avoid building binaries for every test in case target 'all' is used
     set_target_properties(${TEST_TARGET_NAME} PROPERTIES
       EXCLUDE_FROM_ALL ON)

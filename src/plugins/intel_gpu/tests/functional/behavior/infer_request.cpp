@@ -10,7 +10,7 @@
 #include "openvino/runtime/core.hpp"
 
 #include <common_test_utils/test_common.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
@@ -78,7 +78,7 @@ void InferRequestIOPrecision::SetUp() {
     float clamp_max = 5.0f;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
     params[0]->set_friendly_name("Input");
 
     auto activation = ngraph::builder::makeActivation(params[0],
@@ -139,8 +139,7 @@ TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
 }
 
 TEST(TensorTest, smoke_canSetScalarTensor) {
-    std::vector<std::vector<size_t>> scalar_shape = {{}};
-    auto params = ngraph::builder::makeParams(ngraph::element::f64, scalar_shape);
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f64, ov::Shape{})};
     params.front()->set_friendly_name("Scalar_1");
     params.front()->output(0).get_tensor().set_names({"scalar1"});
 
@@ -200,3 +199,26 @@ TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
     ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
     ASSERT_NO_THROW(inf_req.infer());
 }
+
+TEST(TensorTest, smoke_canReallocateDeviceInputForHostTensor) {
+    auto ov = ov::Core();
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+    auto function = p.build();
+
+    auto compiled_model = ov.compile_model(function, ov::test::utils::DEVICE_GPU);
+    auto inf_req = compiled_model.create_infer_request();
+
+    auto input = function->input();
+    ov::Tensor host_tensor(input.get_element_type(), input.get_shape());
+
+    // Infer with pre-allocated input tensor
+    ASSERT_NO_THROW(inf_req.infer());
+
+    // Infer with host_tensor
+    ASSERT_NO_THROW(inf_req.set_input_tensor(host_tensor));
+    ASSERT_NO_THROW(inf_req.infer());
+}
+

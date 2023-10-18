@@ -1,6 +1,8 @@
 Live 3D Human Pose Estimation with OpenVINO
 ===========================================
 
+
+
 This notebook demonstrates live 3D Human Pose Estimation with OpenVINO
 via a webcam. We utilize the model
 `human-pose-estimation-3d-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/human-pose-estimation-3d-0001>`__
@@ -11,25 +13,56 @@ of this notebook, you will see live inference results from your webcam
 out the algorithms. **Make sure you have properly installed
 the**\ `Jupyter
 extension <https://github.com/jupyter-widgets/pythreejs#jupyterlab>`__\ **and
-been using Jupyterlab to run the demo as suggested in the README.md**
+been using JupyterLab to run the demo as suggested in the
+``README.md``**
 
-   **NOTE**: *To use a webcam, you must run this Jupyter notebook on a
+.. note::
+
+   To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run on a remote server, the webcam
    will not work. However, you can still do inference on a video file in
-   the final step. This demo utilizes the Python interface in Three.js
-   integrated with WebGL to process data from the model inference. These
-   results are processed and displayed in the notebook.*
+   the final step. This demo utilizes the Python interface in
+   ``Three.js`` integrated with WebGL to process data from the model
+   inference. These results are processed and displayed in the
+   notebook.
 
-*To ensure that the results are displayed correctly, run the code in a
-recommended browser on one of the following operating systems:* *Ubuntu,
-Windows: Chrome* *macOS: Safari*
+To ensure that the results are displayed correctly, run the code in a
+recommended browser on one of the following operating systems: Ubuntu,
+Windows: Chrome, macOS: Safari.
 
-Prerequisites
--------------
+.. _top:
 
-**The Pythreejs extension may not display properly when using the latest
-Jupyter Notebook release (2.4.1). Therefore, it is recommended to use
-Jupyter Lab instead.**
+**Table of contents**:
+
+- `Prerequisites <#prerequisites>`__
+- `Imports <#imports>`__
+- `The model <#the-model>`__
+
+  - `Download the model <#download-the-model>`__
+  - `Convert Model to OpenVINO IR format <#convert-model-to-openvino-ir-format>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Load the model <#load-the-model>`__
+
+- `Processing <#processing>`__
+
+  - `Model Inference <#model-inference>`__
+  - `Draw 2D Pose Overlays <#draw-2d-pose-overlays>`__
+  - `Main Processing Function <#main-processing-function>`__
+
+- `Run <#run>`__
+
+  - `Run Live Pose Estimation <#run-live-pose-estimation>`__
+  - `Run Pose Estimation on a Video File <#run-pose-estimation-on-a-video-file>`__
+
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
+
+.. note::
+
+   The ``pythreejs`` extension may not display properly when using the latest 
+   Jupyter Notebook release (2.4.1). Therefore, it is recommended to use 
+   Jupyter Lab instead.
 
 .. code:: ipython3
 
@@ -40,53 +73,44 @@ Jupyter Lab instead.**
 
     Collecting pythreejs
       Using cached pythreejs-2.4.2-py3-none-any.whl (3.4 MB)
-    Requirement already satisfied: ipywidgets>=7.2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pythreejs) (8.0.7)
+    Requirement already satisfied: ipywidgets>=7.2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pythreejs) (8.1.0)
     Collecting ipydatawidgets>=1.1.1 (from pythreejs)
-      Using cached ipydatawidgets-4.3.5-py2.py3-none-any.whl (271 kB)
-    Requirement already satisfied: numpy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pythreejs) (1.23.5)
-    Requirement already satisfied: traitlets in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pythreejs) (5.9.0)
+      Obtaining dependency information for ipydatawidgets>=1.1.1 from https://files.pythonhosted.org/packages/f1/5b/e63c877c4c94382b66de5045e08ec8cd960e8a4d22f0d62a4dfb1f9e5ac6/ipydatawidgets-4.3.5-py2.py3-none-any.whl.metadata
+      Using cached ipydatawidgets-4.3.5-py2.py3-none-any.whl.metadata (1.4 kB)
+    Requirement already satisfied: numpy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pythreejs) (1.23.5)
+    Requirement already satisfied: traitlets in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pythreejs) (5.9.0)
     Collecting traittypes>=0.2.0 (from ipydatawidgets>=1.1.1->pythreejs)
       Using cached traittypes-0.2.1-py2.py3-none-any.whl (8.6 kB)
-    Requirement already satisfied: ipykernel>=4.5.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipywidgets>=7.2.1->pythreejs) (6.24.0)
-    Requirement already satisfied: ipython>=6.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipywidgets>=7.2.1->pythreejs) (8.12.2)
-    Requirement already satisfied: widgetsnbextension~=4.0.7 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipywidgets>=7.2.1->pythreejs) (4.0.8)
-    Requirement already satisfied: jupyterlab-widgets~=3.0.7 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipywidgets>=7.2.1->pythreejs) (3.0.8)
-    Requirement already satisfied: comm>=0.1.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (0.1.3)
-    Requirement already satisfied: debugpy>=1.6.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (1.6.7)
-    Requirement already satisfied: jupyter-client>=6.1.12 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (8.3.0)
-    Requirement already satisfied: jupyter-core!=5.0.*,>=4.12 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (5.3.1)
-    Requirement already satisfied: matplotlib-inline>=0.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (0.1.6)
-    Requirement already satisfied: nest-asyncio in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (1.5.6)
-    Requirement already satisfied: packaging in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (23.1)
-    Requirement already satisfied: psutil in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (5.9.5)
-    Requirement already satisfied: pyzmq>=20 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (25.1.0)
-    Requirement already satisfied: tornado>=6.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (6.3.2)
-    Requirement already satisfied: backcall in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.2.0)
-    Requirement already satisfied: decorator in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (4.4.2)
-    Requirement already satisfied: jedi>=0.16 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.18.2)
-    Requirement already satisfied: pickleshare in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.7.5)
-    Requirement already satisfied: prompt-toolkit!=3.0.37,<3.1.0,>=3.0.30 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (3.0.39)
-    Requirement already satisfied: pygments>=2.4.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (2.15.1)
-    Requirement already satisfied: stack-data in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.6.2)
-    Requirement already satisfied: typing-extensions in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (4.7.1)
-    Requirement already satisfied: pexpect>4.3 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (4.8.0)
-    Requirement already satisfied: parso<0.9.0,>=0.8.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jedi>=0.16->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.8.3)
-    Requirement already satisfied: importlib-metadata>=4.8.3 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jupyter-client>=6.1.12->ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (6.8.0)
-    Requirement already satisfied: python-dateutil>=2.8.2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jupyter-client>=6.1.12->ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (2.8.2)
-    Requirement already satisfied: platformdirs>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jupyter-core!=5.0.*,>=4.12->ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (3.8.1)
-    Requirement already satisfied: ptyprocess>=0.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pexpect>4.3->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.7.0)
-    Requirement already satisfied: wcwidth in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from prompt-toolkit!=3.0.37,<3.1.0,>=3.0.30->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.2.6)
-    Requirement already satisfied: executing>=1.2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from stack-data->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (1.2.0)
-    Requirement already satisfied: asttokens>=2.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from stack-data->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (2.2.1)
-    Requirement already satisfied: pure-eval in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from stack-data->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.2.2)
-    Requirement already satisfied: six in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from asttokens>=2.1.0->stack-data->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (1.16.0)
-    Requirement already satisfied: zipp>=0.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from importlib-metadata>=4.8.3->jupyter-client>=6.1.12->ipykernel>=4.5.1->ipywidgets>=7.2.1->pythreejs) (3.16.0)
+    Requirement already satisfied: comm>=0.1.3 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipywidgets>=7.2.1->pythreejs) (0.1.4)
+    Requirement already satisfied: ipython>=6.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipywidgets>=7.2.1->pythreejs) (8.12.2)
+    Requirement already satisfied: widgetsnbextension~=4.0.7 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipywidgets>=7.2.1->pythreejs) (4.0.8)
+    Requirement already satisfied: jupyterlab-widgets~=3.0.7 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipywidgets>=7.2.1->pythreejs) (3.0.8)
+    Requirement already satisfied: backcall in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.2.0)
+    Requirement already satisfied: decorator in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (4.4.2)
+    Requirement already satisfied: jedi>=0.16 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.19.0)
+    Requirement already satisfied: matplotlib-inline in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.1.6)
+    Requirement already satisfied: pickleshare in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.7.5)
+    Requirement already satisfied: prompt-toolkit!=3.0.37,<3.1.0,>=3.0.30 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (3.0.39)
+    Requirement already satisfied: pygments>=2.4.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (2.16.1)
+    Requirement already satisfied: stack-data in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.6.2)
+    Requirement already satisfied: typing-extensions in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (4.7.1)
+    Requirement already satisfied: pexpect>4.3 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (4.8.0)
+    Requirement already satisfied: parso<0.9.0,>=0.8.3 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jedi>=0.16->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.8.3)
+    Requirement already satisfied: ptyprocess>=0.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pexpect>4.3->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.7.0)
+    Requirement already satisfied: wcwidth in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from prompt-toolkit!=3.0.37,<3.1.0,>=3.0.30->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.2.6)
+    Requirement already satisfied: executing>=1.2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from stack-data->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (1.2.0)
+    Requirement already satisfied: asttokens>=2.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from stack-data->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (2.2.1)
+    Requirement already satisfied: pure-eval in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from stack-data->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (0.2.2)
+    Requirement already satisfied: six in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from asttokens>=2.1.0->stack-data->ipython>=6.1.0->ipywidgets>=7.2.1->pythreejs) (1.16.0)
+    Using cached ipydatawidgets-4.3.5-py2.py3-none-any.whl (271 kB)
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Installing collected packages: traittypes, ipydatawidgets, pythreejs
     Successfully installed ipydatawidgets-4.3.5 pythreejs-2.4.2 traittypes-0.2.1
 
 
-Imports
--------
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -108,11 +132,13 @@ Imports
     import engine.engine3js as engine
     from engine.parse_poses import parse_poses
 
-The model
----------
+The model `⇑ <#top>`__
+###############################################################################################################################
 
-Download the model
-~~~~~~~~~~~~~~~~~~
+
+Download the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 We use ``omz_downloader``, which is a command line tool from the
 ``openvino-dev`` package. ``omz_downloader`` automatically creates a
@@ -153,13 +179,14 @@ directory structure and downloads the selected model.
     
 
 
-Convert Model to OpenVINO IR format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert Model to OpenVINO IR format `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-The selected model comes from the public directory, which means it must
-be converted into OpenVINO Intermediate Representation (OpenVINO IR). We
-use ``omz_converter`` to convert the ONNX format model to the OpenVINO
-IR format.
+The selected model
+comes from the public directory, which means it must be converted into
+OpenVINO Intermediate Representation (OpenVINO IR). We use
+``omz_converter`` to convert the ONNX format model to the OpenVINO IR
+format.
 
 .. code:: ipython3
 
@@ -177,23 +204,52 @@ IR format.
 .. parsed-literal::
 
     ========== Converting human-pose-estimation-3d-0001 to ONNX
-    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py --model-path=model/public/human-pose-estimation-3d-0001 --model-name=PoseEstimationWithMobileNet --model-param=is_convertible_by_mo=True --import-module=model --weights=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.pth --input-shape=1,3,256,448 --input-names=data --output-names=features,heatmaps,pafs --output-file=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.onnx
+    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py --model-path=model/public/human-pose-estimation-3d-0001 --model-name=PoseEstimationWithMobileNet --model-param=is_convertible_by_mo=True --import-module=model --weights=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.pth --input-shape=1,3,256,448 --input-names=data --output-names=features,heatmaps,pafs --output-file=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.onnx
     
     ONNX check passed successfully.
     
     ========== Converting human-pose-estimation-3d-0001 to IR (FP32)
-    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=/tmp/tmp2rmla_sx --model_name=human-pose-estimation-3d-0001 --input=data '--mean_values=data[128.0,128.0,128.0]' '--scale_values=data[255.0,255.0,255.0]' --output=features,heatmaps,pafs --input_model=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.onnx '--layout=data(NCHW)' '--input_shape=[1, 3, 256, 448]' --compress_to_fp16=False
+    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=/tmp/tmpgwxi10io --model_name=human-pose-estimation-3d-0001 --input=data '--mean_values=data[128.0,128.0,128.0]' '--scale_values=data[255.0,255.0,255.0]' --output=features,heatmaps,pafs --input_model=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.onnx '--layout=data(NCHW)' '--input_shape=[1, 3, 256, 448]' --compress_to_fp16=False
     
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /tmp/tmp2rmla_sx/human-pose-estimation-3d-0001.xml
-    [ SUCCESS ] BIN file: /tmp/tmp2rmla_sx/human-pose-estimation-3d-0001.bin
+    [ SUCCESS ] XML file: /tmp/tmpgwxi10io/human-pose-estimation-3d-0001.xml
+    [ SUCCESS ] BIN file: /tmp/tmpgwxi10io/human-pose-estimation-3d-0001.bin
     
 
 
-Load the model
-~~~~~~~~~~~~~~
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    core = Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+Load the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Converted models are located in a fixed structure, which indicates
 vendor, model name and precision.
@@ -209,8 +265,8 @@ created to infer the compiled model.
     ie_core = Core()
     # read the network and corresponding weights from file
     model = ie_core.read_model(model=ir_model_path, weights=model_weights_path)
-    # load the model on the CPU (you can also use GPU)
-    compiled_model = ie_core.compile_model(model=model, device_name="CPU")
+    # load the model on the specified device
+    compiled_model = ie_core.compile_model(model=model, device_name=device.value)
     infer_request = compiled_model.create_infer_request()
     input_tensor_name = model.inputs[0].get_any_name()
     
@@ -234,15 +290,15 @@ heat maps, PAF (part affinity fields) and features.
 
 
 
-Processing
-----------
+Processing `⇑ <#top>`__
+###############################################################################################################################
 
-Model Inference
-~~~~~~~~~~~~~~~
+Model Inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Frames captured from video files or the live webcam are used as the
-input for the 3D model. This is how you obtain the output heat maps, PAF
-(part affinity fields) and features.
+Frames captured from video files or the live webcam are used as the input for the 3D
+model. This is how you obtain the output heat maps, PAF (part affinity
+fields) and features.
 
 .. code:: ipython3
 
@@ -275,14 +331,13 @@ input for the 3D model. This is how you obtain the output heat maps, PAF
     
         return results
 
-Draw 2D Pose Overlays
-~~~~~~~~~~~~~~~~~~~~~
+Draw 2D Pose Overlays `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-We need to define some connections between the joints in advance, so
-that we can draw the structure of the human body in the resulting image
-after obtaining the inference results. Joints are drawn as circles and
-limbs are drawn as lines. The code is based on the `3D Human Pose
-Estimation
+We need to define some connections between the joints in advance, so that we can draw the structure of the
+human body in the resulting image after obtaining the inference results.
+Joints are drawn as circles and limbs are drawn as lines. The code is
+based on the `3D Human Pose Estimation
 Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/human_pose_estimation_3d_demo/python>`__
 from Open Model Zoo.
 
@@ -357,8 +412,9 @@ from Open Model Zoo.
     
         return frame
 
-Main Processing Function
-~~~~~~~~~~~~~~~~~~~~~~~~
+Main Processing Function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Run 3D pose estimation on the specified source. It could be either a
 webcam feed or a video file.
@@ -521,11 +577,13 @@ webcam feed or a video file.
             if skeleton_set:
                 engine3D.scene_remove(skeleton_set)
 
-Run
----
+Run `⇑ <#top>`__
+###############################################################################################################################
 
-Run Live Pose Estimation
-~~~~~~~~~~~~~~~~~~~~~~~~
+
+Run Live Pose Estimation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Run, using a webcam as the video input. By default, the primary webcam
 is set with ``source=0``. If you have multiple webcams, each one will be
@@ -534,7 +592,7 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering, set
 ``use_popup=True``.
 
-   **NOTE**:
+.. note::
 
    *1. To use this notebook with a webcam, you need to run the notebook
    on a computer with a webcam. If you run the notebook on a server
@@ -543,6 +601,7 @@ Firefox, may cause flickering. If you experience flickering, set
    *2. Popup mode may not work if you run this notebook on a remote
    computer (e.g. Binder).*
 
+
 Using the following method, you can click and move your mouse over the
 picture on the left to interact.
 
@@ -550,8 +609,9 @@ picture on the left to interact.
 
     run_pose_estimation(source=0, flip=True, use_popup=False)
 
-Run Pose Estimation on a Video File
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Pose Estimation on a Video File `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by

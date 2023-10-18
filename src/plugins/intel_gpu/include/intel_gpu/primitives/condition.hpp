@@ -26,19 +26,17 @@ struct condition : public primitive_base<condition> {
 
         std::string str() {
             std::stringstream ss;
-            ss << "branch: { " << std::endl;
-            ss<< "* input_map : [(outer_id,inner_id),";
+            ss << "branch: {input_map : [(outer_id,inner_id),";
             for (auto& in_iter : input_map) {
                 ss << "(" << in_iter.first << "," << in_iter.second << "),";
             }
-            ss << "]," << std::endl;
+            ss << "],";
 
-            ss << "* output_map : [(outer_idx,inner_id),";
+            ss << " output_map : [(outer_idx,inner_id),";
             for (auto& out_iter : output_map) {
                 ss << "(" << out_iter.first << ","<< out_iter.second << "),";
             }
-            ss << "]" << std::endl;
-            ss << "}" << std::endl;
+            ss << "]}";
             return ss.str();
         }
     };
@@ -56,8 +54,8 @@ struct condition : public primitive_base<condition> {
             const std::vector<input_info>& inputs,
             const branch& branch_true,
             const branch& branch_false,
-            const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}),
+            const size_t num_outputs = 1)
+        : primitive_base(id, inputs, {padding()}, {optional_data_type()}, num_outputs),
         branch_true(branch_true),
         branch_false(branch_false) {}
 

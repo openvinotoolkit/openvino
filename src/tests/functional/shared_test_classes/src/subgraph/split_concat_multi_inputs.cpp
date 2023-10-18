@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/split_concat_multi_inputs.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -38,7 +38,7 @@ void SplitConcatMultiInputsTest::SetUp() {
 
     inputShape[1] *= splitsNum;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, 1);
     ngraph::OutputVector concatInputs = split->outputs();

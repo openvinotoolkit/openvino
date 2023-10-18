@@ -93,6 +93,7 @@ protected:
 
         void update() {
             m_proxyMemMngr->setMemMngr(currentMemMngr());
+            m_blob->allocate(); // WA: update handle
         }
 
     private:

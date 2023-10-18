@@ -3,9 +3,9 @@
 //
 
 #include "common_test_utils/common_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -50,7 +50,10 @@ protected:
         configuration.insert(common_conf.begin(), common_conf.end());
         configuration.insert(conf.begin(), conf.end());
 
-        auto params = ngraph::builder::makeParams(net_type, shapes);
+        ov::ParameterVector params;
+        for (auto&& shape : shapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(net_type, ov::Shape(shape)));
+        }
         auto add_const = ngraph::builder::makeConstant(net_type, ov::Shape{1}, std::vector<float>{0.01f});
         ov::ResultVector results;
 

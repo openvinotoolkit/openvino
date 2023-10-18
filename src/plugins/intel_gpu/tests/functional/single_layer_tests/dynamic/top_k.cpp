@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/topk.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -85,7 +85,7 @@ protected:
             }
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
         std::shared_ptr<ngraph::opset4::TopK> topk;
         if (inputType == ngraph::helpers::InputLayerType::CONSTANT) {

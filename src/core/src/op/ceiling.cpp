@@ -2,90 +2,73 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/ceiling.hpp"
+#include "openvino/op/ceiling.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/op/util/eval_copy.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/ceiling.hpp"
-#include "ngraph/runtime/reference/copy.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/reference/ceiling.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace op {
+namespace ceiling {
 
-op::Ceiling::Ceiling(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t ET>
+    static result_type visit(const Tensor& arg0, Tensor& out, const size_t count) {
+        using T = typename element_type_traits<ET>::value_type;
+        reference::ceiling(arg0.data<const T>(), out.data<T>(), count);
+        return true;
+    }
+};
+}  // namespace ceiling
+
+namespace v0 {
+Ceiling::Ceiling(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::Ceiling::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Ceiling::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Ceiling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<Ceiling>(new_args.at(0));
+    return std::make_shared<Ceiling>(new_args.at(0));
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ceiling {
-namespace {
-// function used by TYPE_CASE
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::ceiling<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
-// function used by COPY_TENSOR
-template <element::Type_t ET>
-inline bool copy_tensor(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
-bool evaluate_ceiling(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    bool rc = true;
-    out->set_unary(arg0);
-
-    switch (arg0->get_element_type()) {
-        NGRAPH_COPY_TENSOR(evaluate_ceiling, i8, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_ceiling, i16, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_ceiling, i32, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_ceiling, i64, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_ceiling, u8, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_ceiling, u16, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_ceiling, u32, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_ceiling, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_ceiling, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_ceiling, f32, arg0, out, count);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-}  // namespace ceiling
-
-bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool Ceiling::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Ceiling_evaluate);
-    return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 1);
+
+    outputs[0].set_shape(inputs[0].get_shape());
+
+    using namespace ov::element;
+    return IfTypeOf<f16, f32, i8, i16, i32, i64, u8, u16, u32, u64>::apply<ceiling::Evaluate>(
+        inputs[0].get_element_type(),
+        inputs[0],
+        outputs[0],
+        shape_size(inputs[0].get_shape()));
 }
 
-bool op::Ceiling::has_evaluate() const {
+bool Ceiling::has_evaluate() const {
     OV_OP_SCOPE(v0_Ceiling_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i8:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+}  // namespace v0
+}  // namespace op
+}  // namespace ov

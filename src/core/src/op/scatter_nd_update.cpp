@@ -7,8 +7,8 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/scatter_nd_update.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -33,21 +33,21 @@ bool evaluate(const HostTensorPtr& arg0,
     out->set_shape(arg0->get_shape());
 
     if (arg1->get_element_type() == element::i64) {
-        runtime::reference::scatterNdUpdate<T, int64_t>(arg0->get_data_ptr<ET>(),
-                                                        arg1->get_data_ptr<int64_t>(),
-                                                        arg2->get_data_ptr<ET>(),
-                                                        out->get_data_ptr<ET>(),
-                                                        arg0->get_shape(),
-                                                        arg1->get_shape(),
-                                                        arg2->get_shape());
+        ov::reference::scatterNdUpdate<T, int64_t>(arg0->get_data_ptr<ET>(),
+                                                   arg1->get_data_ptr<int64_t>(),
+                                                   arg2->get_data_ptr<ET>(),
+                                                   out->get_data_ptr<ET>(),
+                                                   arg0->get_shape(),
+                                                   arg1->get_shape(),
+                                                   arg2->get_shape());
     } else if (arg1->get_element_type() == element::i32) {
-        runtime::reference::scatterNdUpdate<T, int32_t>(arg0->get_data_ptr<ET>(),
-                                                        arg1->get_data_ptr<int32_t>(),
-                                                        arg2->get_data_ptr<ET>(),
-                                                        out->get_data_ptr<ET>(),
-                                                        arg0->get_shape(),
-                                                        arg1->get_shape(),
-                                                        arg2->get_shape());
+        ov::reference::scatterNdUpdate<T, int32_t>(arg0->get_data_ptr<ET>(),
+                                                   arg1->get_data_ptr<int32_t>(),
+                                                   arg2->get_data_ptr<ET>(),
+                                                   out->get_data_ptr<ET>(),
+                                                   arg0->get_shape(),
+                                                   arg1->get_shape(),
+                                                   arg2->get_shape());
     } else {
         OPENVINO_THROW("Unexpected type ",
                        arg1->get_element_type().c_type_string(),
@@ -64,13 +64,13 @@ bool evaluate_scatter(const HostTensorPtr& arg0,
     bool rc = true;
 
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_scatter, i32, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, i64, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, u32, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, u64, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, f16, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, f32, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, boolean, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, i32, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, i64, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, u32, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, u64, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, f16, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, f32, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, boolean, arg0, arg1, arg2, out);
     default:
         rc = false;
         break;
@@ -82,10 +82,10 @@ bool evaluate_scatter(const HostTensorPtr& arg0,
 
 bool op::v3::ScatterNDUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate);
-    NGRAPH_CHECK(!inputs.empty());
+    OPENVINO_ASSERT(!inputs.empty());
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, 3));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     return scatter::evaluate_scatter(inputs[0], inputs[1], inputs[2], outputs[0]);

@@ -18,8 +18,8 @@ add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLI
 
 # Find OpenCV components if exist
 find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
-if(NOT OpenCV_FOUND)
-    message(WARNING "OpenCV is disabled or not found, ${TARGET_NAME} will be built without OpenCV support")
+if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 3)
+    message(WARNING "OpenCV ver. 3.0+ is not found, ${TARGET_NAME} will be built without OpenCV support")
 else()
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES} ie_samples_utils)
     if(UNIX AND NOT APPLE)
@@ -30,11 +30,11 @@ else()
     target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
 endif()
 
-target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+target_include_directories(${TARGET_NAME} PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER cpp_samples)
 
-if(COMMAND add_clang_format_target)
-    add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+if(COMMAND ov_add_clang_format_target)
+    ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 endif()

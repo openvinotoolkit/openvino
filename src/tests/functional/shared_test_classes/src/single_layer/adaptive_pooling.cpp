@@ -4,7 +4,7 @@
 
 #include <ngraph/opsets/opset8.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/adaptive_pooling.hpp"
 
 using namespace InferenceEngine;
@@ -39,7 +39,7 @@ void AdaPoolLayerTest::SetUp() {
     std::tie(inputShape, pooledSpatialShape, poolingMode, netPrecision, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     ngraph::Shape pooledShape = {pooledSpatialShape.size() };
     auto pooledParam = ngraph::builder::makeConstant<int32_t>(ngraph::element::i32, pooledShape, pooledSpatialShape);

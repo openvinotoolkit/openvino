@@ -8,6 +8,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
@@ -53,7 +54,7 @@ struct primitive_impl {
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
     virtual void set_node_params(const program_node&) {}
-    virtual std::string get_type() const = 0;
+    virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
     virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
@@ -167,6 +168,7 @@ public:
         }
         return _network.get_primitives(users);
     }
+    std::set<primitive_id> get_runtime_memory_dependencies() { return _runtime_memory_dependencies; }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -234,8 +236,19 @@ public:
     bool has_node() const { return _node != nullptr; }
     bool has_inner_networks() const;
     void allocate_internal_buffers(bool reset = true);
-    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params, uint32_t net_id,
-            bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false, memory* curr_memory = nullptr, bool runtime_alloc = false);
+
+    static memory::ptr allocate_output(engine& engine,
+                                       memory_pool& pool,
+                                       const program_node& _node,
+                                       const kernel_impl_params& impl_params,
+                                       const std::set<primitive_id>& memory_dependencies,
+                                       uint32_t net_id,
+                                       bool is_internal,
+                                       size_t idx = 0,
+                                       bool reset_mem = true,
+                                       bool is_output_buffer = false,
+                                       memory* curr_memory = nullptr,
+                                       bool runtime_alloc = false);
 
     std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
 
@@ -247,7 +260,7 @@ public:
         std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
     std::string get_implementation_name() const;
 
-    void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time);
+    void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time, bool per_iter_mode = false);
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
@@ -297,6 +310,9 @@ protected:
     // executed and memories which are used by this primitive
     std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
     std::vector<cldnn::primitive_id> _exec_dep_ids;
+
+    // List of primitive ids that this primitive can't share memory buffers with
+    std::set<primitive_id> _runtime_memory_dependencies;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,

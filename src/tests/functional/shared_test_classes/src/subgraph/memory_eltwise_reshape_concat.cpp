@@ -4,7 +4,7 @@
 
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/memory_eltwise_reshape_concat.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -51,7 +51,7 @@ void MemoryEltwiseReshapeConcatTest::SetUp() {
 
 void MemoryEltwiseReshapeConcatTest::initTestModel() {
     InferenceEngine::SizeVector input_dims = {1, inputSize * concatSize};
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");
@@ -86,7 +86,7 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
 
 void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     InferenceEngine::SizeVector input_dims = {1, inputSize * concatSize};
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");

@@ -7,32 +7,30 @@
 #include <fstream>
 #include <map>
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/op/depth_to_space.hpp>
-#include <ngraph/op/space_to_depth.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_depth_to_space.hpp>
-#include <transformations/op_conversions/convert_space_to_depth.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-
+#include "openvino/core/model.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/space_to_depth.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/op_conversions/convert_depth_to_space.hpp"
+#include "transformations/op_conversions/convert_space_to_depth.hpp"
+using namespace ov;
 using namespace testing;
 
 TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
-    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
+    std::shared_ptr<ov::Model> f(nullptr);
 
     {
         auto depth_to_space =
-            std::make_shared<ngraph::op::DepthToSpace>(input,
-                                                       ngraph::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-                                                       2);
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{depth_to_space}, ngraph::ParameterVector{input});
-        ngraph::pass::Manager m;
+            std::make_shared<op::v0::DepthToSpace>(input, op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
+        f = std::make_shared<ov::Model>(NodeVector{depth_to_space}, ParameterVector{input});
+        pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertDepthToSpace>();
         m.run_passes(f);
@@ -69,16 +67,14 @@ TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
 }
 
 TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
-    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
+    std::shared_ptr<ov::Model> f(nullptr);
 
     {
         auto depth_to_space =
-            std::make_shared<ngraph::op::DepthToSpace>(input,
-                                                       ngraph::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST,
-                                                       2);
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{depth_to_space}, ngraph::ParameterVector{input});
-        ngraph::pass::Manager m;
+            std::make_shared<op::v0::DepthToSpace>(input, op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
+        f = std::make_shared<ov::Model>(NodeVector{depth_to_space}, ParameterVector{input});
+        pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertDepthToSpace>();
         m.run_passes(f);
@@ -115,16 +111,14 @@ TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
 }
 
 TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
-    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
+    std::shared_ptr<ov::Model> f(nullptr);
 
     {
         auto space_to_depth =
-            std::make_shared<ngraph::op::SpaceToDepth>(input,
-                                                       ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST,
-                                                       2);
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{space_to_depth}, ngraph::ParameterVector{input});
-        ngraph::pass::Manager m;
+            std::make_shared<op::v0::SpaceToDepth>(input, op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
+        f = std::make_shared<ov::Model>(NodeVector{space_to_depth}, ParameterVector{input});
+        pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
         m.run_passes(f);
@@ -161,16 +155,14 @@ TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
 }
 
 TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
-    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
+    std::shared_ptr<ov::Model> f(nullptr);
 
     {
         auto space_to_depth =
-            std::make_shared<ngraph::op::SpaceToDepth>(input,
-                                                       ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST,
-                                                       2);
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{space_to_depth}, ngraph::ParameterVector{input});
-        ngraph::pass::Manager m;
+            std::make_shared<op::v0::SpaceToDepth>(input, op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, 2);
+        f = std::make_shared<ov::Model>(NodeVector{space_to_depth}, ParameterVector{input});
+        pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
         m.run_passes(f);
@@ -207,32 +199,28 @@ TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
 }
 
 TEST(TransformationTests, TestSpaceToDepthDynamic) {
-    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    std::shared_ptr<ov::Model> f(nullptr);
 
     {
         auto space_to_depth =
-            std::make_shared<ngraph::op::SpaceToDepth>(input,
-                                                       ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST,
-                                                       2);
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{space_to_depth}, ngraph::ParameterVector{input});
-        ngraph::pass::Manager m;
+            std::make_shared<op::v0::SpaceToDepth>(input, op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, 2);
+        f = std::make_shared<ov::Model>(NodeVector{space_to_depth}, ParameterVector{input});
+        pass::Manager m;
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
         ASSERT_NO_THROW(m.run_passes(f));
     }
 }
 
 TEST(TransformationTests, TestDepthToSpaceDynamic) {
-    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    std::shared_ptr<ov::Model> f(nullptr);
 
     {
         auto depth_to_space =
-            std::make_shared<ngraph::op::DepthToSpace>(input,
-                                                       ngraph::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-                                                       2);
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{depth_to_space}, ngraph::ParameterVector{input});
-        ngraph::pass::Manager m;
+            std::make_shared<op::v0::DepthToSpace>(input, op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
+        f = std::make_shared<ov::Model>(NodeVector{depth_to_space}, ParameterVector{input});
+        pass::Manager m;
         m.register_pass<ov::pass::ConvertDepthToSpace>();
         ASSERT_NO_THROW(m.run_passes(f));
     }

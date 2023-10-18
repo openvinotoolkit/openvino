@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -66,7 +66,7 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(splitInputShape), std::end(splitInputShape), 1, std::multiplies<size_t>());
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, in_total_dims_size}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, in_total_dims_size})};
         auto pattern1 =
             std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, splitInputShape);
         auto reshape1 = std::make_shared<ngraph::opset8::Reshape>(params[0], pattern1, false);

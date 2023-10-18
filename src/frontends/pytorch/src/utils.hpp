@@ -39,9 +39,7 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
-std::shared_ptr<Node> normalize_axis(const NodeContext& context,
-                                     const Output<Node>& axis,
-                                     const Output<Node>& input_node);
+Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& input_node);
 
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x);
 
@@ -138,7 +136,7 @@ inline OutputVector return_false_scalar(const NodeContext& context) {
 }
 
 inline OutputVector skip_node(const NodeContext& context) {
-    return {context.get_input(0).get_node_shared_ptr()};
+    return {context.get_input(0)};
 }
 
 }  // namespace op
@@ -163,9 +161,6 @@ public:
     virtual Any get_input_type(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_input_type);
     }
-    virtual const std::vector<size_t>& get_input_transpose_order(size_t index) const override {
-        FRONT_END_NOT_IMPLEMENTED(get_input_transpose_order);
-    }
     virtual const std::string& get_output_debug_name(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_output_debug_name);
     }
@@ -174,9 +169,6 @@ public:
     }
     virtual Any get_output_type(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_output_type);
-    }
-    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const override {
-        FRONT_END_NOT_IMPLEMENTED(get_output_transpose_order);
     }
     virtual bool input_is_none(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(input_is_none);

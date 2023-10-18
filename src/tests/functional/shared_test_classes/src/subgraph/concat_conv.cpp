@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/concat_conv.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -61,7 +61,7 @@ void ConcatConvTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(params[0]);
 
     auto const_values = ov::test::utils::generate_float_numbers(inputShape[1], -2.0f, 2.0f);

@@ -4,39 +4,39 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/split.hpp>
+#include "low_precision/split.hpp"
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "transformations/init_node_info.hpp"
+
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/split_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/split.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class SplitTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         std::vector<ngraph::builder::subgraph::DequantizationOperations> dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::int64_t splitedAxis;
     size_t numSplits;
     TestTransformationParams params;
@@ -44,12 +44,12 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<ngraph::element::Type, SplitTransformationTestValues> SplitTransformationParams;
+typedef std::tuple<ov::element::Type, SplitTransformationTestValues> SplitTransformationParams;
 
 class SplitTransformation : public LayerTransformation, public testing::WithParamInterface<SplitTransformationParams> {
 public:
     void SetUp() override {
-        ngraph::element::Type precision = std::get<0>(GetParam());
+        ov::element::Type precision = std::get<0>(GetParam());
         SplitTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction =
@@ -61,7 +61,7 @@ public:
                                                                   testValues.numSplits);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
+        transformer.add<ov::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =
@@ -76,7 +76,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SplitTransformationParams> obj) {
-        ngraph::element::Type precision = std::get<0>(obj.param);
+        ov::element::Type precision = std::get<0>(obj.param);
         SplitTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -98,7 +98,7 @@ TEST_P(SplitTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ngraph::element::Type> precisions = {ngraph::element::f32, ngraph::element::f16};
+const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
 
 const std::vector<SplitTransformationTestValues> testValues = {
     // U8 per tensor quantization
@@ -107,14 +107,14 @@ const std::vector<SplitTransformationTestValues> testValues = {
      size_t{2},
      LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ngraph::element::u8, {{ngraph::element::f32}, {128.f}, {3.f}}},
+     {ov::element::u8, {{ov::element::f32}, {128.f}, {3.f}}},
      // ExpectedValues
-     {ngraph::element::u8,
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {128.f}, {3.f}},
-          {{ngraph::element::f32}, {128.f}, {3.f}},
+          {{ov::element::f32}, {128.f}, {3.f}},
+          {{ov::element::f32}, {128.f}, {3.f}},
       }}},
     // U8 per tensor quantization / int8 subtraction with Convert from u8 to fp32
     {{1, 3, 16, 16},
@@ -122,15 +122,15 @@ const std::vector<SplitTransformationTestValues> testValues = {
      size_t{2},
      LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}}},
+     {ov::element::u8,
+      {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}}},
      // ExpectedValues
-     {ngraph::element::u8,
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}},
-          {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}},
       }}},
     // U8 per tensor quantization / int8 subtraction with Convert from fp16 -> fp32
     {{1, 3, 16, 16},
@@ -138,339 +138,339 @@ const std::vector<SplitTransformationTestValues> testValues = {
      size_t{2},
      LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}}},
+     {ov::element::u8,
+      {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}}},
      // ExpectedValues
-     {ngraph::element::u8,
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}},
-          {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}},
+          {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}},
       }}},
     {{-1, -1, -1, -1},
      std::int64_t{2},
      size_t{2},
      LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ngraph::element::u8, {{ngraph::element::f32}, {128.f}, {3.f}}},
+     {ov::element::u8, {{ov::element::f32}, {128.f}, {3.f}}},
      // ExpectedValues
-     {ngraph::element::u8,
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {128.f}, {3.f}},
-          {{ngraph::element::f32}, {128.f}, {3.f}},
+          {{ov::element::f32}, {128.f}, {3.f}},
+          {{ov::element::f32}, {128.f}, {3.f}},
       }}},
     {PartialShape::dynamic(),
      std::int64_t{2},
      size_t{2},
      LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ngraph::element::u8, {{ngraph::element::f32}, {128.f}, {3.f}}},
+     {ov::element::u8, {{ov::element::f32}, {128.f}, {3.f}}},
      // ExpectedValues
-     {ngraph::element::u8, {{ngraph::element::f32}, {128.f}, {3.f}}, ngraph::element::f32, {}}},
+     {ov::element::u8, {{ov::element::f32}, {128.f}, {3.f}}, ov::element::f32, {}}},
     // I8 per tensor quantization
     {{1, 3, 16, 16},
      std::int64_t{2},
      size_t{2},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::i8, {{ngraph::element::f32}, {128.f}, {3.f}}},
-     {ngraph::element::i8,
+     {ov::element::i8, {{ov::element::f32}, {128.f}, {3.f}}},
+     {ov::element::i8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {128.f}, {3.f}},
-          {{ngraph::element::f32}, {128.f}, {3.f}},
+          {{ov::element::f32}, {128.f}, {3.f}},
+          {{ov::element::f32}, {128.f}, {3.f}},
       }}},
     // U8 per channel quantization with different values
     {{1, 3, 16, 16},
      std::int64_t{1},
      size_t{3},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-       {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+       {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {1.f}, {11.f}},
-          {{ngraph::element::f32}, {2.f}, {22.f}},
-          {{ngraph::element::f32}, {3.f}, {33.f}},
+          {{ov::element::f32}, {1.f}, {11.f}},
+          {{ov::element::f32}, {2.f}, {22.f}},
+          {{ov::element::f32}, {3.f}, {33.f}},
       }}},
     // U8 per channel quantization with different values and dynamic shapes
     {{-1, 3, -1, -1},
      std::int64_t{1},
      size_t{3},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-       {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+       {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {1.f}, {11.f}},
-          {{ngraph::element::f32}, {2.f}, {22.f}},
-          {{ngraph::element::f32}, {3.f}, {33.f}},
+          {{ov::element::f32}, {1.f}, {11.f}},
+          {{ov::element::f32}, {2.f}, {22.f}},
+          {{ov::element::f32}, {3.f}, {33.f}},
       }}},
     // U8 per channel quantization with different values and dynamic shapes (dynamic channels)
     {{-1, -1, -1, -1},
      std::int64_t{1},
      size_t{3},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-       {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+       {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {1.f}, {11.f}},
-          {{ngraph::element::f32}, {2.f}, {22.f}},
-          {{ngraph::element::f32}, {3.f}, {33.f}},
+          {{ov::element::f32}, {1.f}, {11.f}},
+          {{ov::element::f32}, {2.f}, {22.f}},
+          {{ov::element::f32}, {3.f}, {33.f}},
       }}},
     // U8 per channel quantization with different values (constants without batch)
     {{1, 3, 16, 16},
      std::int64_t{-3},
      size_t{3},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{1.f, 2.f, 3.f}, ngraph::element::f32, {3, 1, 1}},
-       {{11.f, 22.f, 33.f}, ngraph::element::f32, {3, 1, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{1.f, 2.f, 3.f}, ov::element::f32, {3, 1, 1}},
+       {{11.f, 22.f, 33.f}, ov::element::f32, {3, 1, 1}}}},
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {1.f}, {11.f}},
-          {{ngraph::element::f32}, {2.f}, {22.f}},
-          {{ngraph::element::f32}, {3.f}, {33.f}},
+          {{ov::element::f32}, {1.f}, {11.f}},
+          {{ov::element::f32}, {2.f}, {22.f}},
+          {{ov::element::f32}, {3.f}, {33.f}},
       }}},
     // I8 per channel quantization with different values
     {{1, 3, 16, 16},
      std::int64_t{1},
      size_t{3},
      LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32},
-       {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-       {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32},
+       {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+       {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::i8,
       {},
-      ngraph::element::i8,
+      ov::element::i8,
       {
-          {{ngraph::element::f32}, {1.f}, {11.f}},
-          {{ngraph::element::f32}, {2.f}, {22.f}},
-          {{ngraph::element::f32}, {3.f}, {33.f}},
+          {{ov::element::f32}, {1.f}, {11.f}},
+          {{ov::element::f32}, {2.f}, {22.f}},
+          {{ov::element::f32}, {3.f}, {33.f}},
       }}},
     // per channel quantization with different values, split by batch
     {{2, 3, 16, 16},
      std::int64_t{0},
      size_t{2},
      LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32},
-       {{2.f, 3.f}, ngraph::element::f32, {2, 1, 1, 1}},
-       {{22.f, 33.f}, ngraph::element::f32, {2, 1, 1, 1}}}},
-     {ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32},
+       {{2.f, 3.f}, ov::element::f32, {2, 1, 1, 1}},
+       {{22.f, 33.f}, ov::element::f32, {2, 1, 1, 1}}}},
+     {ov::element::i8,
       {},
-      ngraph::element::i8,
+      ov::element::i8,
       {
-          {{ngraph::element::f32}, {2.f}, {22.f}},
-          {{ngraph::element::f32}, {3.f}, {33.f}},
+          {{ov::element::f32}, {2.f}, {22.f}},
+          {{ov::element::f32}, {3.f}, {33.f}},
       }}},
     // per channel quantization with different values, split by spatial dimension
     {{-1, -1, -1, -1},
      std::int64_t{2},
      size_t{3},
      LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32},
-       {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}},
-       {{11.f, 22.f, 33.f, 44.f, 55.f, 66.f}, ngraph::element::f32, {1, 1, 6, 1}}}},
-     {ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32},
+       {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}},
+       {{11.f, 22.f, 33.f, 44.f, 55.f, 66.f}, ov::element::f32, {1, 1, 6, 1}}}},
+     {ov::element::i8,
       {},
-      ngraph::element::i8,
+      ov::element::i8,
       {
-          {{ngraph::element::f32},
-           {{1.f, 2.f}, ngraph::element::f32, {1, 1, 2, 1}},
-           {{11.f, 22.f}, ngraph::element::f32, {1, 1, 2, 1}}},
-          {{ngraph::element::f32},
-           {{3.f, 4.f}, ngraph::element::f32, {1, 1, 2, 1}},
-           {{33.f, 44.f}, ngraph::element::f32, {1, 1, 2, 1}}},
-          {{ngraph::element::f32},
-           {{5.f, 6.f}, ngraph::element::f32, {1, 1, 2, 1}},
-           {{55.f, 66.f}, ngraph::element::f32, {1, 1, 2, 1}}},
+          {{ov::element::f32},
+           {{1.f, 2.f}, ov::element::f32, {1, 1, 2, 1}},
+           {{11.f, 22.f}, ov::element::f32, {1, 1, 2, 1}}},
+          {{ov::element::f32},
+           {{3.f, 4.f}, ov::element::f32, {1, 1, 2, 1}},
+           {{33.f, 44.f}, ov::element::f32, {1, 1, 2, 1}}},
+          {{ov::element::f32},
+           {{5.f, 6.f}, ov::element::f32, {1, 1, 2, 1}},
+           {{55.f, 66.f}, ov::element::f32, {1, 1, 2, 1}}},
       }}},
     // U8 per channel quantization with the same values
     {{1, 3, 16, 16},
      std::int64_t{1},
      size_t{3},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{1.f, 1.f, 1.f}, ngraph::element::f32, {1, 3, 1, 1}},
-       {{11.f, 11.f, 11.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{1.f, 1.f, 1.f}, ov::element::f32, {1, 3, 1, 1}},
+       {{11.f, 11.f, 11.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {1.f}, {11.f}},
-          {{ngraph::element::f32}, {1.f}, {11.f}},
-          {{ngraph::element::f32}, {1.f}, {11.f}},
+          {{ov::element::f32}, {1.f}, {11.f}},
+          {{ov::element::f32}, {1.f}, {11.f}},
+          {{ov::element::f32}, {1.f}, {11.f}},
       }}},
     // I8 per channel quantization with the same values
     {{1, 3, 16, 16},
      std::int64_t{1},
      size_t{3},
      LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32},
-       {{1.f, 1.f, 1.f}, ngraph::element::f32, {1, 3, 1, 1}},
-       {{11.f, 11.f, 11.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32},
+       {{1.f, 1.f, 1.f}, ov::element::f32, {1, 3, 1, 1}},
+       {{11.f, 11.f, 11.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::i8,
       {},
-      ngraph::element::i8,
-      {{{ngraph::element::f32}, {1.f}, {11.f}},
-       {{ngraph::element::f32}, {1.f}, {11.f}},
-       {{ngraph::element::f32}, {1.f}, {11.f}}}}},
+      ov::element::i8,
+      {{{ov::element::f32}, {1.f}, {11.f}},
+       {{ov::element::f32}, {1.f}, {11.f}},
+       {{ov::element::f32}, {1.f}, {11.f}}}}},
     // U8 split second dimension
     {{1, 3, 16, 16},
      std::int64_t{-1},
      size_t{2},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-       {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+       {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
-      {{{ngraph::element::f32},
-        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-       {{ngraph::element::f32},
-        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-       {{ngraph::element::f32},
-        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}}}},
+      ov::element::u8,
+      {{{ov::element::f32},
+        {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+        {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}},
+       {{ov::element::f32},
+        {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+        {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}},
+       {{ov::element::f32},
+        {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+        {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}}}},
     // I8 split second dimension
     {{1, 3, 16, 16},
      std::int64_t{-1},
      size_t{2},
      LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32},
-       {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-       {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32},
+       {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+       {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::i8,
       {},
-      ngraph::element::i8,
-      {{{ngraph::element::f32},
-        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-       {{ngraph::element::f32},
-        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-       {{ngraph::element::f32},
-        {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-        {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}}}},
+      ov::element::i8,
+      {{{ov::element::f32},
+        {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+        {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}},
+       {{ov::element::f32},
+        {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+        {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}},
+       {{ov::element::f32},
+        {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1, 1}},
+        {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}}}},
     // U8 without subtract
     {{1, 3, 16, 16},
      std::int64_t{-3},
      size_t{3},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8, {{ov::element::f32}, {}, {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {}, {11.f}},
-          {{ngraph::element::f32}, {}, {22.f}},
-          {{ngraph::element::f32}, {}, {33.f}},
+          {{ov::element::f32}, {}, {11.f}},
+          {{ov::element::f32}, {}, {22.f}},
+          {{ov::element::f32}, {}, {33.f}},
       }}},
     // U8 without subtract, dynamic shape
     {{-1, 3, -1, -1},
      std::int64_t{-3},
      size_t{3},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8, {{ov::element::f32}, {}, {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {}, {11.f}},
-          {{ngraph::element::f32}, {}, {22.f}},
-          {{ngraph::element::f32}, {}, {33.f}},
+          {{ov::element::f32}, {}, {11.f}},
+          {{ov::element::f32}, {}, {22.f}},
+          {{ov::element::f32}, {}, {33.f}},
       }}},
     // U8 without subtract, dynamic shape (dynamic channels)
     {{-1, -1, -1, -1},
      std::int64_t{-3},
      size_t{3},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8, {{ov::element::f32}, {}, {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
       {},
-      ngraph::element::u8,
+      ov::element::u8,
       {
-          {{ngraph::element::f32}, {}, {11.f}},
-          {{ngraph::element::f32}, {}, {22.f}},
-          {{ngraph::element::f32}, {}, {33.f}},
+          {{ov::element::f32}, {}, {11.f}},
+          {{ov::element::f32}, {}, {22.f}},
+          {{ov::element::f32}, {}, {33.f}},
       }}},
     // I8 without subtract
     {{1, 3, 16, 16},
      std::int64_t{-3},
      size_t{3},
      LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8, {{ngraph::element::f32}, {}, {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}},
-     {ngraph::element::i8,
+     {ov::element::i8, {{ov::element::f32}, {}, {{11.f, 22.f, 33.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::i8,
       {},
-      ngraph::element::i8,
+      ov::element::i8,
       {
-          {{ngraph::element::f32}, {}, {11.f}},
-          {{ngraph::element::f32}, {}, {22.f}},
-          {{ngraph::element::f32}, {}, {33.f}},
+          {{ov::element::f32}, {}, {11.f}},
+          {{ov::element::f32}, {}, {22.f}},
+          {{ov::element::f32}, {}, {33.f}},
       }}},
     // I8 dequantization in second dimension
     {{1, 4, 3, 3},
      std::int64_t{1},
      size_t{2},
      LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32},
-       {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}},
-       {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 4, 1, 1}}}},
-     {ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32},
+       {{1.f, 2.f, 3.f, 4.f}, ov::element::f32, {1, 4, 1, 1}},
+       {{11.f, 22.f, 33.f, 44.f}, ov::element::f32, {1, 4, 1, 1}}}},
+     {ov::element::i8,
       {},
-      ngraph::element::i8,
-      {{{ngraph::element::f32},
-        {{1.f, 2.f}, ngraph::element::f32, {1, 2, 1, 1}},
-        {{11.f, 22.f}, ngraph::element::f32, {1, 2, 1, 1}}},
-       {{ngraph::element::f32},
-        {{3.f, 4.f}, ngraph::element::f32, {1, 2, 1, 1}},
-        {{33.f, 44.f}, ngraph::element::f32, {1, 2, 1, 1}}}}}},
+      ov::element::i8,
+      {{{ov::element::f32},
+        {{1.f, 2.f}, ov::element::f32, {1, 2, 1, 1}},
+        {{11.f, 22.f}, ov::element::f32, {1, 2, 1, 1}}},
+       {{ov::element::f32},
+        {{3.f, 4.f}, ov::element::f32, {1, 2, 1, 1}},
+        {{33.f, 44.f}, ov::element::f32, {1, 2, 1, 1}}}}}},
     // without Convert
     {{1, 4, 3, 3},
      std::int64_t{1},
      size_t{2},
      LayerTransformation::createParamsI8I8(),
-     {ngraph::element::f32,
+     {ov::element::f32,
       {{},
-       {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}},
-       {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 4, 1, 1}}}},
-     {ngraph::element::f32,
+       {{1.f, 2.f, 3.f, 4.f}, ov::element::f32, {1, 4, 1, 1}},
+       {{11.f, 22.f, 33.f, 44.f}, ov::element::f32, {1, 4, 1, 1}}}},
+     {ov::element::f32,
       {},
-      ngraph::element::f32,
-      {{{}, {{1.f, 2.f}, ngraph::element::f32, {1, 2, 1, 1}}, {{11.f, 22.f}, ngraph::element::f32, {1, 2, 1, 1}}},
-       {{}, {{3.f, 4.f}, ngraph::element::f32, {1, 2, 1, 1}}, {{33.f, 44.f}, ngraph::element::f32, {1, 2, 1, 1}}}}}},
+      ov::element::f32,
+      {{{}, {{1.f, 2.f}, ov::element::f32, {1, 2, 1, 1}}, {{11.f, 22.f}, ov::element::f32, {1, 2, 1, 1}}},
+       {{}, {{3.f, 4.f}, ov::element::f32, {1, 2, 1, 1}}, {{33.f, 44.f}, ov::element::f32, {1, 2, 1, 1}}}}}},
     // no dequantization
-    {ngraph::Shape({1, 3, 4, 4}), std::int64_t{2}, size_t{2}, LayerTransformation::createParamsI8I8(), {}, {}},
+    {ov::Shape({1, 3, 4, 4}), std::int64_t{2}, size_t{2}, LayerTransformation::createParamsI8I8(), {}, {}},
 };
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          SplitTransformation,

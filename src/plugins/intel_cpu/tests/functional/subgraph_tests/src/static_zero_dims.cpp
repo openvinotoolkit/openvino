@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
 
@@ -21,8 +21,10 @@ protected:
         init_input_shapes({inputShapes});
 
         auto ngPrc = ngraph::element::f32;
-        auto inputParams = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
-
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
+        }
         auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{0});
         std::vector<int> splitLenght = {1, 0, 6};
         auto splitLengthsOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i32, ngraph::Shape{splitLenght.size()}, splitLenght);

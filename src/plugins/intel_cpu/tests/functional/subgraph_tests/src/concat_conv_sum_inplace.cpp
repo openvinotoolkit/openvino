@@ -4,8 +4,8 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace CPUTestUtils;
 using namespace InferenceEngine;
@@ -49,8 +49,8 @@ public:
         const auto targetFormat = with_cpu_x86_avx512_core() ? nChw16c : nChw8c;
 
 
-        auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShape, inputShape});
-
+        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShape)),
+                                        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShape))};
         auto Relu1 = std::make_shared<ngraph::opset3::Relu>(inputParams[0]);
         Relu1->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
         auto Relu2 = std::make_shared<ngraph::opset3::Relu>(inputParams[1]);

@@ -38,12 +38,12 @@ public:
         StaticShape tmp_exp_shape;
         std::tie(tmp_input_shapes, tmp_data, tmp_begin_mask, tmp_end_mask, tmp_exp_shape) = obj.param;
         std::ostringstream result;
-        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
-        result << "begin" << CommonTestUtils::vec2str(tmp_data[BEGIN]) << "_";
-        result << "end" << CommonTestUtils::vec2str(tmp_data[END]) << "_";
-        result << "stride" << CommonTestUtils::vec2str(tmp_data[STRIDE]) << "_";
-        result << "begin_mask" << CommonTestUtils::vec2str(tmp_begin_mask) << "_";
-        result << "end_mask" << CommonTestUtils::vec2str(tmp_end_mask) << "_";
+        result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
+        result << "begin" << ov::test::utils::vec2str(tmp_data[BEGIN]) << "_";
+        result << "end" << ov::test::utils::vec2str(tmp_data[END]) << "_";
+        result << "stride" << ov::test::utils::vec2str(tmp_data[STRIDE]) << "_";
+        result << "begin_mask" << ov::test::utils::vec2str(tmp_begin_mask) << "_";
+        result << "end_mask" << ov::test::utils::vec2str(tmp_end_mask) << "_";
         result << "exp_shape(" << tmp_exp_shape << ")";
         return result.str();
     }
@@ -78,15 +78,10 @@ TEST_P(StridedSliceCpuShapeInferenceTest , shape_inference_in_const_map) {
     const auto stride = std::make_shared<op::v0::Parameter>(element::i32, input_shapes[3].get_shape());
     const auto op = make_op(arg, begin, end, stride, begin_mask, end_mask);
 
-    const auto begin_const = std::make_shared<op::v0::Constant>(element::i32, input_shapes[1].get_shape(), data[BEGIN]);
-    const auto end_const = std::make_shared<op::v0::Constant>(element::i32, input_shapes[2].get_shape(), data[END]);
-    const auto stride_const = std::make_shared<op::v0::Constant>(element::i32, input_shapes[3].get_shape(), data[STRIDE]);
-    const auto begin_tensor = std::make_shared<ov::HostTensor>(begin_const);
-    const auto end_tensor = std::make_shared<ov::HostTensor>(end_const);
-    const auto stride_tensor = std::make_shared<ov::HostTensor>(stride_const);
-    const std::map<size_t, ov::HostTensorPtr>& constant_data = {{1, begin_tensor},
-                                                                                           {2, end_tensor},
-                                                                                           {3, stride_tensor}};
+    const auto begin_tensor = ov::Tensor(element::i32, input_shapes[1].get_shape(), data[BEGIN].data());
+    const auto end_tensor = ov::Tensor(element::i32, input_shapes[2].get_shape(), data[END].data());
+    const auto stride_tensor = ov::Tensor(element::i32, input_shapes[3].get_shape(), data[STRIDE].data());
+    const std::unordered_map<size_t, ov::Tensor> constant_data = {{1, begin_tensor}, {2, end_tensor}, {3, stride_tensor}};
     // implementation depends on some output information of the op
     op->set_output_type(0, element::i32, {-1, -1, -1});
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
@@ -95,7 +90,7 @@ TEST_P(StridedSliceCpuShapeInferenceTest , shape_inference_in_const_map) {
 INSTANTIATE_TEST_SUITE_P(
     CpuShapeInfer,
     StridedSliceCpuShapeInferenceTest,
-    Values(make_tuple(unit_test::ShapeVector{{3, 4, 5}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{100}, {-100}, {-1}},
+    Values(make_tuple(unit_test::ShapeVector{{3, 4, 5}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{100, 100, 100}, {-100, -100, -100}, {-1, -1, -1}},
                       std::vector<int64_t>(4, 0), std::vector<int64_t>(4, 0), StaticShape({3, 4, 5})),
            make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{1, 0, 0}, {2, 1, 3}, {1, 1, 1}},
                       std::vector<int64_t>(4, 0), std::vector<int64_t>(4, 0), StaticShape({1, 1, 3})),
@@ -106,31 +101,12 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{1, 0, 0}, {0, 0, 0}, {1, 1, 1}},
                       std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>(3, 1), StaticShape({2, 2, 3})),
            make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 1, 0}, {2, 0, 0}, {1, 1, 2}},
-                      std::vector<int64_t>{1, 0, 1}, std::vector<int64_t>{0, 1, 1}, StaticShape({2, 1, 2}))),
-           // TODO  108946, can't pass;
-           // make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 0, 0}, {1, 0, 0}, {1, 1, -1}},
-           //            std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>{0, 1, 1}, StaticShape({1, 1, 3}))),
+                      std::vector<int64_t>{1, 0, 1}, std::vector<int64_t>{0, 1, 1}, StaticShape({2, 1, 2})),
+           make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 0, 0}, {1, 0, 0}, {1, 1, -1}},
+                      std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>{0, 1, 1}, StaticShape({1, 2, 3}))),
     StridedSliceCpuShapeInferenceTest::getTestCaseName);
 
-TEST(CpuShapeInfer, StridedSliceDefault_stride) {
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
-    const auto mask = std::vector<int64_t>{0, 1, 0};
-
-    const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    // only supprot i32
-    const auto begin = op::v0::Constant::create(element::i32, ov::Shape{3}, {0, 0, 0});
-    const auto end = op::v0::Constant::create(element::i32, ov::Shape{3}, {1, 0, 2});
-    const auto op = std::make_shared<op::v1::StridedSlice>(data, begin, end, mask, mask);
-
-    std::vector<StaticShape> static_input_shapes = {{3, 2, 3}, {3}, {3}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{1, 2, 2}};
-    //  implementation depends on some output information of the op
-    op->set_output_type(0, element::i32, {-1, -1, -1});
-    // TODO 108946,there is some issue in implementation, this test case can't pass
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
-}
 } // namespace cpu_shape_infer
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
-

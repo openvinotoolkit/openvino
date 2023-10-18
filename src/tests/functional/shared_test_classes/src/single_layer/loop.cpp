@@ -62,7 +62,10 @@ namespace LayerTestsDefinitions {
         /*      auto X = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{32, 1, 10});
         auto Y = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{32, 1, 10});
         auto M = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{32, 1, 10});*/
-        auto params = ngraph::builder::makeParams(ngPrc, inputs_separate);
+        ov::ParameterVector params;
+        for (auto&& shape : inputs_separate) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+        }
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters

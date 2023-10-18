@@ -38,6 +38,11 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <itt.h>
 
+#if defined(OV_CPU_WITH_ACL)
+#include "nodes/executors/acl/acl_ie_scheduler.hpp"
+#include "arm_compute/runtime/CPP/CPPScheduler.h"
+#endif
+
 using namespace InferenceEngine;
 
 #define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
@@ -137,11 +142,44 @@ public:
 };
 #endif // __linux__
 
+#if defined(OV_CPU_WITH_ACL)
+std::mutex Engine::SchedulerGuard::mutex;
+std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
+
+Engine::SchedulerGuard::SchedulerGuard() {
+#if IE_THREAD == IE_THREAD_SEQ
+    // To save state for ACL cores in single-thread mode
+    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+#else
+    arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
+#endif
+}
+
+std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
+    std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
+    auto scheduler_guard_ptr = SchedulerGuard::ptr.lock();
+    if (scheduler_guard_ptr == nullptr) {
+        SchedulerGuard::ptr = scheduler_guard_ptr = std::make_shared<SchedulerGuard>();
+    }
+    return scheduler_guard_ptr;
+}
+
+Engine::SchedulerGuard::~SchedulerGuard() {
+    // To save the state of scheduler after ACLScheduler has been executed
+    // TODO: find out the cause of the state
+    std::lock_guard<std::mutex> lock{this->dest_mutex};
+    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+}
+#endif
+
 Engine::Engine() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
+#if defined(OV_CPU_WITH_ACL)
+    scheduler_guard = SchedulerGuard::instance();
+#endif
 }
 
 Engine::~Engine() {
@@ -433,10 +471,18 @@ static bool shouldEnableLPT(const std::map<std::string, std::string>& modelConfi
         IE_THROW() << "Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO";
 }
 
-static ov::element::Type getInferencePrecision(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
+static ov::element::Type getInferencePrecision(const std::map<std::string, std::string>& modelConfig,
+                                               const Config& engineConfig,
+                                               Config::ModelType modelType) {
     Config tempConf = engineConfig;
-    tempConf.readProperties(modelConfig);
+    tempConf.readProperties(modelConfig, modelType);
     return tempConf.inferencePrecision;
+}
+
+static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
+    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
+           op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model) ?
+           Config::ModelType::CNN : Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
@@ -484,12 +530,15 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
     const bool enableLPT = shouldEnableLPT(config, engConfig);
-    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig);
-    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
-
     auto nGraphFunc = clonedNetwork.getFunction();
+    Config::ModelType modelType = getModelType(nGraphFunc);
+    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig, modelType);
+    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig); 
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
+
+    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
+    transformations.UpToLpt();
 
     if (!is_cpu_map_available()) {
         ApplyPerformanceHints(config, nGraphFunc);
@@ -499,11 +548,11 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
 
-    conf.readProperties(config);
+    conf.readProperties(config, modelType);
     CalculateStreams(conf, nGraphFunc);
 
-    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, conf);
-    transformations.UpToCpuSpecificOpSet();
+    transformations.PostLpt();
+    transformations.Snippets();
 
     // need to check that all outputs have static shapes
     // checking that all inputs have static shapes is performed in the common part
@@ -755,18 +804,19 @@ void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
 QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     WeightsSharing::Ptr fake_w_cache;
 
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
+
     Config conf = engConfig;
-    conf.readProperties(config);
+    Config::ModelType modelType = getModelType(model);
+    conf.readProperties(config, modelType);
 
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
-
-    auto model = network.getFunction();
-    if (model == nullptr) {
-        IE_THROW() << "Only ngraph-based models are supported!";
-    }
 
     auto context =
         std::make_shared<GraphContext>(conf, extensionManager, fake_w_cache, false);
@@ -774,7 +824,9 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
                                            Transformations transformation(model, enableLPT, conf.inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
-                                           transformation.UpToCpuSpecificOpSet();
+                                           transformation.UpToLpt();
+                                           transformation.PostLpt();
+                                           transformation.Snippets();
                                            transformation.CpuSpecificOpSet();
                                        },
                                        [&](const std::shared_ptr<ngraph::Node>& op) {
@@ -807,10 +859,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     CNNNetwork cnnnetwork;
     deserializer >> cnnnetwork;
 
-    Config conf = engConfig;
-    conf.readProperties(config);
-
     auto function = cnnnetwork.getFunction();
+    Config::ModelType modelType = getModelType(function);
+    Config conf = engConfig;
+    conf.readProperties(config, modelType);
 
     CalculateStreams(conf, function, true);
 

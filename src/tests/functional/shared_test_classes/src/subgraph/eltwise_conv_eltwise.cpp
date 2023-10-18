@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/eltwise_conv_eltwise.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -61,7 +61,7 @@ void EltwiseAfterConvTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
     auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
@@ -146,7 +146,7 @@ void EltwiseBeforeConvTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto scale = ov::test::utils::generate_float_numbers(inputShape[1], -2.0f, 2.0f);
     auto shift = ov::test::utils::generate_float_numbers(inputShape[1], -2.0f, 2.0f);
@@ -230,7 +230,8 @@ void EltwiseWithTwoConvsAsInputsTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape, inputShape });
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
     auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);

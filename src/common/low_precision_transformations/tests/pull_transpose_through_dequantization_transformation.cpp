@@ -4,29 +4,29 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/pull_reshape_through_dequantization.hpp>
-#include <low_precision/pull_transpose_through_dequantization.hpp>
+#include "low_precision/pull_reshape_through_dequantization.hpp"
+#include "low_precision/pull_transpose_through_dequantization.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class PullTransposeThroughDequantizationTestValues {
 public:
     class Values {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
         ngraph::builder::subgraph::Constant weights;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
@@ -34,7 +34,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations::Multiply multiply;
         ngraph::builder::subgraph::Transpose transpose;
         ngraph::builder::subgraph::Reshape reshape2;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -43,7 +43,7 @@ public:
     Values expected;
 };
 
-typedef std::tuple<ngraph::Shape, std::pair<ngraph::Shape, ngraph::Shape>, PullTransposeThroughDequantizationTestValues>
+typedef std::tuple<ov::Shape, std::pair<ov::Shape, ov::Shape>, PullTransposeThroughDequantizationTestValues>
     PullTransposeThroughDequantizationParams;
 
 class PullTransposeThroughDequantizationTransformation
@@ -79,11 +79,11 @@ public:
             testValues.actual.dequantizationAfter,
             "GroupConvolution");
 
-        ngraph::pass::Manager manager;
-        auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-        const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
-        decomp->add_matcher<ngraph::pass::low_precision::PullReshapeThroughDequantization>(supportedTypes);
-        decomp->add_matcher<ngraph::pass::low_precision::PullTransposeThroughDequantization>(supportedTypes);
+        ov::pass::Manager manager;
+        auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
+        const std::vector<ov::element::Type> supportedTypes = {ov::element::i8, ov::element::u8};
+        decomp->add_matcher<ov::pass::low_precision::PullReshapeThroughDequantization>(supportedTypes);
+        decomp->add_matcher<ov::pass::low_precision::PullTransposeThroughDequantization>(supportedTypes);
         decomp->add_matcher<ov::pass::LinOpSequenceFusion>();
         manager.run_passes(actualFunction);
 
@@ -128,14 +128,14 @@ TEST_P(PullTransposeThroughDequantizationTransformation, CompareFunctions) {
 
 // clang-format off
 
-const std::vector<ngraph::Shape> inputShapes = {
-    ngraph::Shape({1, 960, 7, 7}),
-    ngraph::Shape({4, 960, 7, 7})
+const std::vector<ov::Shape> inputShapes = {
+    ov::Shape({1, 960, 7, 7}),
+    ov::Shape({4, 960, 7, 7})
 };
 
-const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> dequantizationOnWeightElementwiseConstantShapes = {
-    {ngraph::Shape({}), ngraph::Shape({1, 1, 1, 1})},
-    {ngraph::Shape({1}), ngraph::Shape({1, 1, 1, 1})}};
+const std::vector<std::pair<ov::Shape, ov::Shape>> dequantizationOnWeightElementwiseConstantShapes = {
+    {ov::Shape({}), ov::Shape({1, 1, 1, 1})},
+    {ov::Shape({1}), ov::Shape({1, 1, 1, 1})}};
 
 const std::vector<PullTransposeThroughDequantizationTestValues> testValues = {
     // Actual:
@@ -187,15 +187,15 @@ const std::vector<PullTransposeThroughDequantizationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32, false},
+                {ov::element::f32, false},
                 {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
                 {{0.02f}, element::f32, {}, false}
             },
-            {std::vector<float>{2.f}, ngraph::element::i8, {3, 3, 960, 1}},
+            {std::vector<float>{2.f}, ov::element::i8, {3, 3, 960, 1}},
             {
-                {ngraph::element::f32, false},
+                {ov::element::f32, false},
                 {{127.f}, element::f32, {/* from parameter */}, false},
                 {{0.03f}, element::f32, {/* from parameter */}, false}
             },
@@ -203,20 +203,20 @@ const std::vector<PullTransposeThroughDequantizationTestValues> testValues = {
             {},  // multiply
             {{2, 3, 0, 1}},
             {{960, 1, 1, 3, 3}},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32, false},
+                {ov::element::f32, false},
                 {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
                 {{0.02f}, element::f32, {}, false}
             },
-            {std::vector<float>{2.f}, ngraph::element::i8, {960, 1, 3, 3}},
+            {std::vector<float>{2.f}, ov::element::i8, {960, 1, 3, 3}},
             {
-                {ngraph::element::f32, false},
+                {ov::element::f32, false},
                 {{127.f}, element::f32, {/* from parameter */}, false},
                 {{0.03f}, element::f32, {/* from parameter */}, false}
             },
@@ -224,7 +224,7 @@ const std::vector<PullTransposeThroughDequantizationTestValues> testValues = {
             {},
             {},
             {{960, 1, 1, 3, 3}},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         }
     }

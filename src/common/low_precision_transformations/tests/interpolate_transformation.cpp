@@ -10,19 +10,19 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/opsets/opset4.hpp>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "openvino/opsets/opset4.hpp"
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/interpolate.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/interpolate_function.hpp"
+#include "ov_lpt_models/interpolate.hpp"
 
 using namespace testing;
-using namespace ngraph::pass;
-using namespace ngraph;
+using namespace ov::pass;
+using namespace ov;
 using namespace ngraph::builder::subgraph;
 
 class interpAttributes {
@@ -67,21 +67,21 @@ class InterpolateTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
-    ngraph::Shape outputShape;
-    ngraph::Shape scalesShape;
+    ov::PartialShape inputShape;
+    ov::Shape outputShape;
+    ov::Shape scalesShape;
     TestTransformationParams params;
     interpAttributes interpAttrs;
     interp4Attributes interp4Attrs;
@@ -112,7 +112,7 @@ public:
                 testValues.actual.dequantization);
 
             SimpleLowPrecisionTransformer transformer;
-            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ov::op::v0::Interpolate>(testValues.params);
+            transformer.add<ov::pass::low_precision::InterpolateTransformation, ov::op::v0::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
             referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
@@ -139,7 +139,7 @@ public:
                 testValues.actual.dequantization);
 
             SimpleLowPrecisionTransformer transformer;
-            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::opset4::Interpolate>(testValues.params);
+            transformer.add<ov::pass::low_precision::InterpolateTransformation, ov::opset4::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
             referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
@@ -202,8 +202,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     // nearest mode - move dequantization
     {
         { 1, 4, 16, 16 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{},
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -215,22 +215,22 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         interp4Attributes(),
         1,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         }
     },
 
     // nearest mode - move dequantization
     {
         { -1, -1, -1, -1 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{},
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -242,22 +242,22 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         interp4Attributes(),
         1,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         }
     },
 
     // per-channel dequantization
     {
         { -1, 4, -1, -1 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{},
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -269,22 +269,22 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         interp4Attributes(),
         1,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
         }
     },
 
     // per-channel dequantization and dynamic channels
     {
         { -1, -1, -1, -1 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{},
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -296,22 +296,22 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         interp4Attributes(),
         1,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}},
+            ov::element::u8,
+            {{ov::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}},
         }
     },
 
     // mode is not nearest - not transformed
     {
         { 1, 4, 16, 16 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{},
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -323,13 +323,13 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         interp4Attributes(),
         1,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::u8,
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}},
+            ov::element::u8,
             {{}, {}, {}}
         }
     },
@@ -337,8 +337,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     // AxisSet is not {2,3} - not transformed
     {
         { 1, 4, 16, 16 },
-        ngraph::Shape{ 1, 8, 32, 32 },
-        ngraph::Shape{},
+        ov::Shape{ 1, 8, 32, 32 },
+        ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{1, 2, 3},
@@ -350,13 +350,13 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         interp4Attributes(),
         1,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::u8,
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}},
+            ov::element::u8,
             {{}, {}, {}}
         }
     },
@@ -364,8 +364,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     // align_corners set to true - not transformed
     {
         { 1, 4, 16, 16 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{},
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -377,13 +377,13 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         interp4Attributes(),
         1,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::u8,
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}},
+            ov::element::u8,
             {{}, {}, {}}
         }
     },
@@ -391,8 +391,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     // have pads - not transformed
     {
         { 1, 4, 16, 16 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{},
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -404,13 +404,13 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         interp4Attributes(),
         1,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::u8,
+            ov::element::u8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}},
+            ov::element::u8,
             {{}, {}, {}}
         }
     },
@@ -419,8 +419,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     // nearest mode - move dequantization
     {
         { 1, 4, 16, 16 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{ 1, 1, 2, 2 },
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
@@ -430,22 +430,22 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             {0, 0, 0, 0}),
         4,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         }
     },
 
     // nearest mode - move dequantization
     {
         { -1, -1, -1, -1 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{ 1, 1, 2, 2 },
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
@@ -455,22 +455,22 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             {0, 0, 0, 0}),
         4,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         }
     },
 
     // per-channel dequantization
     {
         { -1, 4, -1, -1 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{ 1, 1, 2, 2 },
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
@@ -480,22 +480,22 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             {0, 0, 0, 0}),
         4,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
         }
     },
 
     // per-channel dequantization and dynamic channels
     {
         { -1, -1, -1, -1 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{ 1, 1, 2, 2 },
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
@@ -505,22 +505,22 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             {0, 0, 0, 0}),
         4,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}},
+            ov::element::i8,
+            {{ov::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}},
         }
     },
 
     // mode is not nearest - not transformed
     {
         { 1, 4, 16, 16 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{ 1, 1, 2, 2 },
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
@@ -530,13 +530,13 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             {0, 0, 0, 0}),
         4,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::i8,
+            ov::element::i8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}},
+            ov::element::i8,
             {{}, {}, {}}
         }
     },
@@ -544,8 +544,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     // align_corners set to true - not transformed
     {
         { 1, 4, 16, 16 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{ 1, 1, 2, 2 },
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
@@ -555,13 +555,13 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             {0, 0, 0, 0}),
         4,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::i8,
+            ov::element::i8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}},
+            ov::element::i8,
             {{}, {}, {}}
         }
     },
@@ -569,8 +569,8 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     // have pads - not transformed
     {
         { 1, 4, 16, 16 },
-        ngraph::Shape{ 1, 4, 32, 32 },
-        ngraph::Shape{ 1, 1, 2, 2 },
+        ov::Shape{ 1, 4, 32, 32 },
+        ov::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
         interpAttributes(),
         interp4Attributes(
@@ -580,13 +580,13 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             {0, 0, 1, 0}),
         4,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {-0.32f}, {0.1f}},
-            ngraph::element::i8,
+            ov::element::i8,
+            {{ov::element::f32}, {-0.32f}, {0.1f}},
+            ov::element::i8,
             {{}, {}, {}}
         }
     },

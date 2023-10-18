@@ -101,7 +101,7 @@ std::vector<layout> space_to_batch_inst::calc_output_layouts(space_to_batch_node
         end_shape
     };
 
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
     if (desc->shape_constant) {
         auto block_sizes = tensor_to_vec(block_data, input0_format);
         auto begin_sizes = tensor_to_vec(begin_data, input0_format);
@@ -111,9 +111,9 @@ std::vector<layout> space_to_batch_inst::calc_output_layouts(space_to_batch_node
         auto begin_values = static_cast<void*>(begin_sizes.data());
         auto end_values = static_cast<void*>(end_sizes.data());
 
-        auto block_tensor = make_host_tensor({ block_shape, data_types::i32, input0_format }, block_values);
-        auto begin_tensor = make_host_tensor({ begin_shape, data_types::i32, input0_format }, begin_values);
-        auto end_tensor = make_host_tensor({ end_shape, data_types::i32, input0_format }, end_values);
+        auto block_tensor = make_tensor({ block_shape, data_types::i32, input0_format }, block_values);
+        auto begin_tensor = make_tensor({ begin_shape, data_types::i32, input0_format }, begin_values);
+        auto end_tensor = make_tensor({ end_shape, data_types::i32, input0_format }, end_values);
 
         const_data.emplace(1, block_tensor);
         const_data.emplace(2, begin_tensor);
@@ -129,9 +129,9 @@ std::vector<layout> space_to_batch_inst::calc_output_layouts(space_to_batch_node
         cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(begin_mem, impl_param.get_stream());
         cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(end_mem, impl_param.get_stream());
 
-        auto block_tensor = make_host_tensor(block_mem->get_layout(), lock1.data());
-        auto begin_tensor = make_host_tensor(begin_mem->get_layout(), lock2.data());
-        auto end_tensor = make_host_tensor(end_mem->get_layout(), lock3.data());
+        auto block_tensor = make_tensor(block_mem->get_layout(), lock1.data());
+        auto begin_tensor = make_tensor(begin_mem->get_layout(), lock2.data());
+        auto end_tensor = make_tensor(end_mem->get_layout(), lock3.data());
 
         const_data.emplace(1, block_tensor);
         const_data.emplace(2, begin_tensor);

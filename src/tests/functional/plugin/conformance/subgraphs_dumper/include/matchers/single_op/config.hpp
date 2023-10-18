@@ -20,14 +20,14 @@ public:
     explicit iMatcherConfig(bool is_fallback_config) : is_fallback_config(is_fallback_config) {}
 
     iMatcherConfig(
-            std::vector<std::string> ignored_attributes,
-            std::vector<size_t> ignored_ports,
+            const std::vector<std::string>& ignored_attributes,
+            const std::vector<size_t>& ignored_ports,
             bool is_fallback_config,
-            bool ignore_matching = false)
-            : ignored_attributes(std::move(ignored_attributes)),
-              ignored_ports(std::move(ignored_ports)),
-              is_fallback_config(is_fallback_config),
-              ignore_matching(ignore_matching) {}
+            bool ignore_matching = false) :
+            ignored_attributes(ignored_attributes),
+            ignored_ports(ignored_ports),
+            is_fallback_config(is_fallback_config),
+            ignore_matching(ignore_matching) {}
 
     // Empty vectors stands for any of possible values
     std::vector<std::string> ignored_attributes;
@@ -43,8 +43,10 @@ struct MatcherConfig : public iMatcherConfig {
 public:
     MatcherConfig() : iMatcherConfig(sizeof...(OPTypes) == 0) {}
 
-    MatcherConfig(std::vector<std::string> ignored_attributes, std::vector<size_t> ignored_ports, bool ignore_matching = false) :
-                  iMatcherConfig(std::move(ignored_attributes), std::move(ignored_ports), sizeof...(OPTypes) == 0, ignore_matching) {}
+    MatcherConfig(const std::vector<std::string>& ignored_attributes,
+                  const std::vector<size_t>& ignored_ports,
+                  bool ignore_matching = false) :
+                  iMatcherConfig(ignored_attributes, ignored_ports, sizeof...(OPTypes) == 0, ignore_matching) {}
 
     MatcherConfig(bool ignore_matching) : iMatcherConfig({}, {}, sizeof...(OPTypes) == 0, ignore_matching) {}
 

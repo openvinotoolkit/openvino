@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<std::vector<size_t>,                 // Input shape
@@ -118,7 +118,7 @@ protected:
         std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto relu1 = std::make_shared<ngraph::opset1::Relu>(params[0]);
 
         size_t num_out_channels = 8;

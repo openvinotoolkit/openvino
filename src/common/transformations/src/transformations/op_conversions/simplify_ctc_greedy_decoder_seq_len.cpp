@@ -4,10 +4,8 @@
 
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -24,12 +22,13 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
     MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLen);
     auto decoder = pattern::wrap_type<ov::op::v6::CTCGreedyDecoderSeqLen>();
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto decoder_seq_len = std::dynamic_pointer_cast<ov::op::v6::CTCGreedyDecoderSeqLen>(m.get_match_root());
         if (!decoder_seq_len) {
             return false;
@@ -125,37 +124,37 @@ ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         auto output_seq_len = std::make_shared<ov::op::v1::ReduceSum>(output_seq_mask, seq_mask_axis);
         // Receive the second output with correct seq_len_type
         auto output_seq_len_i = std::make_shared<ov::op::v0::Convert>(output_seq_len->output(0), sl_type);
-        ngraph::copy_runtime_info(decoder_seq_len,
-                                  {transpose,
-                                   decoder,
-                                   data_shape,
-                                   T,
-                                   N,
-                                   plusT,
-                                   plusT_scalar,
-                                   range1T,
-                                   mask_shape,
-                                   upper_bounds,
-                                   squeeze2_output_f,
-                                   squeeze1_output_f,
-                                   transpose_upper_bounds,
-                                   bool_seq_mask,
-                                   seq_mask,
-                                   transpose_seq_mask,
-                                   transpose_seq_mask_f,
-                                   output_i,
-                                   where_equal_minus1,
-                                   output_seq_mask,
-                                   output_seq_len,
-                                   output_seq_len_i});
+        ov::copy_runtime_info(decoder_seq_len,
+                              {transpose,
+                               decoder,
+                               data_shape,
+                               T,
+                               N,
+                               plusT,
+                               plusT_scalar,
+                               range1T,
+                               mask_shape,
+                               upper_bounds,
+                               squeeze2_output_f,
+                               squeeze1_output_f,
+                               transpose_upper_bounds,
+                               bool_seq_mask,
+                               seq_mask,
+                               transpose_seq_mask,
+                               transpose_seq_mask_f,
+                               output_i,
+                               where_equal_minus1,
+                               output_seq_mask,
+                               output_seq_len,
+                               output_seq_len_i});
 
         output_i->set_friendly_name(decoder_seq_len->get_friendly_name() + ".0");
         output_seq_len_i->set_friendly_name(decoder_seq_len->get_friendly_name() + ".1");
-        ngraph::replace_node(decoder_seq_len, {output_i->output(0), output_seq_len_i->output(0)});
+        ov::replace_node(decoder_seq_len, {output_i->output(0), output_seq_len_i->output(0)});
 
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(decoder, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(decoder, matcher_name);
     register_matcher(m, callback);
 }

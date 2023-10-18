@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -92,7 +92,7 @@ protected:
         auto inputLowNode2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMin2});
         auto inputHighNode2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMax2});
 
-        auto inputVector = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector inputVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         auto inputFQ = std::make_shared<ngraph::opset1::FakeQuantize>(inputVector[0],
                                                                       inputLowNode1,

@@ -12,7 +12,7 @@
 #include <string>
 
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -98,7 +98,7 @@ protected:
         std::tie(filter, stride, padBegin, padEnd, dilation, padType, numOutChannels, numGroups, bias) = params;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto input = builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto transposeInOrder = op::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(filter), std::end(filter), 1ull, std::multiplies<size_t>());

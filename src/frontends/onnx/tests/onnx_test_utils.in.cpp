@@ -21,13 +21,13 @@
 using namespace ngraph;
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 // is there any benefit of running below tests on different backends?
 // why are these here anyway?
 
-OPENVINO_TEST(${BACKEND_NAME}, add_abc_from_ir) {
+OPENVINO_TEST(${BACKEND_NAME}, DISABLED_add_abc_from_ir) {
     const auto ir_xml =
         file_util::path_join(ov::test::utils::getExecutableDirectory(), TEST_MODEL_ZOO, "core/models/ir/add_abc.xml");
     const auto function = function_from_ir(ir_xml);

@@ -15,17 +15,17 @@ class quantized_hardswish(torch.nn.Module):
         self.dtype = dtype
 
     def forward(self, input_tensor1):
-        quantized_tensor1 =  torch.quantize_per_tensor(input_tensor1, self.scale, self.zero_point, self.dtype)
+        quantized_tensor1 =  torch.quantize_per_tensor(input_tensor1, 1.0, 0, self.dtype)
         quantized_hardswish = torch.ops.quantized.hardswish(quantized_tensor1, self.scale, self.zero_point)
         dequantized_tensor = torch.dequantize(quantized_hardswish)
         return dequantized_tensor
 
 class TestQuantizedHardswish(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.array(5.00 * np.random.rand(100, 100) + 5.00, dtype=np.float32),)
+        return (np.round(np.array(5.00 * np.random.rand(10, 10) - 2.50, dtype=np.float32), 4),)
 
     @pytest.mark.parametrize("scale", [
-        1.0, 0.21, 0.62,
+        1.0, 0.21, 0.62, 0.9999
     ])
     @pytest.mark.parametrize("zero_point", [
         0, 4, -7

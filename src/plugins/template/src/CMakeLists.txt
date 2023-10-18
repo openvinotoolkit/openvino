@@ -26,12 +26,12 @@ ov_mark_target_as_cc(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${TEMPLATE_PLUGIN_SOURCE_DIR}/include")
+    "${OpenVINOTemplatePlugin_SOURCE_DIR}/include")
 
-# link common Inference Engine libraries
+# link common OpenVINO Runtime libraries
 target_link_libraries(${TARGET_NAME} PRIVATE
     openvino::interpreter_backend
-    openvino::ngraph_reference)
+    openvino::reference)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -42,4 +42,4 @@ endif()
 # [cmake:plugin]
 
 install(TARGETS ${TARGET_NAME}
-    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

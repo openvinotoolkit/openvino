@@ -13,7 +13,7 @@
 
 #include <gtest/gtest.h>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -161,7 +161,7 @@ inline ov::Core createCoreWithTemplate() {
     ov::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "openvino_template_plugin";
-    pluginName += IE_BUILD_POSTFIX;
+    pluginName += OV_BUILD_POSTFIX;
     core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
         ov::test::utils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY

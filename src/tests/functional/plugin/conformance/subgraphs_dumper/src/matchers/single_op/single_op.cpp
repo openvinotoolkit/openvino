@@ -4,8 +4,10 @@
 
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "matchers/single_op/single_op.hpp"
+#include "utils/node.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
@@ -23,6 +25,10 @@ iMatcherConfig::Ptr SingleOpMatcher::get_config(const std::shared_ptr<ov::Node> 
     return std::make_shared<MatcherConfig<>>();
 }
 
+void SingleOpMatcher::set_strict_shape_match(bool strict_shape_match) {
+    is_strict_shape_match = strict_shape_match;
+}
+
 bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
                                    const std::shared_ptr<ov::Node> &ref) const {
     if (node->get_input_size() != ref->get_input_size()) {
@@ -34,18 +40,17 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
         if (std::find(ignored_ports.begin(), ignored_ports.end(), port_id) != ignored_ports.end()) {
             continue;
         }
-        const auto &cur_node_input_type = node->input_value(port_id).get_node_shared_ptr()->get_type_info();
-        const auto &ref_node_input_type = ref->input_value(port_id).get_node_shared_ptr()->get_type_info();
-        if (cur_node_input_type != ref_node_input_type) {
+        if (node->get_input_element_type(port_id) != ref->get_input_element_type(port_id)) {
             return false;
         }
-        if (node->get_input_tensor(port_id).get_partial_shape().rank() != ref->get_input_tensor(port_id).get_partial_shape().rank()) {
+        const auto& partial_shape = node->get_input_partial_shape(port_id);
+        const auto& ref_partial_shape = ref->get_input_partial_shape(port_id);
+        if (is_strict_shape_match && partial_shape != ref_partial_shape) {
+            return false;
+        } else if (partial_shape.rank() != ref_partial_shape.rank()) {
             return false;
         }
-        if (node->get_input_tensor(port_id).get_element_type() != ref->get_input_tensor(port_id).get_element_type()) {
-            return false;
-        }
-        if (node->get_input_partial_shape(port_id).is_dynamic() != ref->get_input_partial_shape(port_id).is_dynamic()) {
+        if (partial_shape.is_dynamic() != ref_partial_shape.is_dynamic()) {
             return false;
         }
     }
@@ -59,13 +64,18 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
         return false;
     }
     for (size_t port_id = 0; port_id < node->get_output_size(); ++port_id) {
-        if (node->get_output_tensor(port_id).get_element_type() != ref->get_output_tensor(port_id).get_element_type()) {
+        if (node->get_output_element_type(port_id) != ref->get_output_element_type(port_id)) {
             return false;
         }
-        if (node->get_output_tensor(port_id).get_partial_shape().is_dynamic() != ref->get_output_tensor(port_id).get_partial_shape().is_dynamic()) {
+
+        const auto& partial_shape = node->get_output_partial_shape(port_id);
+        const auto& ref_partial_shape = ref->get_output_partial_shape(port_id);
+        if (partial_shape.is_dynamic() != ref_partial_shape.is_dynamic()) {
             return false;
         }
-        if (node->get_output_tensor(port_id).get_partial_shape().rank()!= ref->get_output_tensor(port_id).get_partial_shape().rank()) {
+        if (is_strict_shape_match && partial_shape != ref_partial_shape) {
+            return false;
+        } else if (partial_shape.rank() != ref_partial_shape.rank()) {
             return false;
         }
     }
@@ -87,17 +97,16 @@ bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
     if (cfg->ignore_matching) {
         return false;
     }
-
     if (!same_op_type(node, ref)) {
         return false;
     }
     if (!match_inputs(node, ref)) {
         return false;
     }
-    if (!match_attrs(node, ref)) {
+    if (!match_outputs(node, ref)) {
         return false;
     }
-    if (!match_outputs(node, ref)) {
+    if (!match_attrs(node, ref) && !is_node_to_skip(node)) {
         return false;
     }
     return true;
@@ -110,9 +119,6 @@ bool SingleOpMatcher::same_op_type(const std::shared_ptr<ov::Node> &node,
 
 SingleOpMatcher::SingleOpMatcher() {
     default_configs = {
-            // std::make_shared<MatcherConfig<>>(std::vector<std::string>{}, std::vector<size_t>{0}),
-            // std::make_shared<MatcherConfig<ov::opset8::FakeQuantize>>(std::vector<std::string>{},
-            //                                                           std::vector<size_t>{0, 1, 2, 3, 4}),
             std::make_shared<MatcherConfig<
                     ov::op::v1::Convolution,
                     ov::op::v1::ConvolutionBackpropData,

@@ -7,7 +7,6 @@
 #include <memory>
 #include <unordered_map>
 
-#include "cpp_interfaces/plugin_itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/parallel.hpp"
@@ -16,6 +15,7 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/plugin_itt.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace {
@@ -185,12 +185,12 @@ ov::SoPtr<ov::ITensor>& ov::ISyncInferRequest::get_tensor_ptr(const ov::Output<c
 }
 
 ov::SoPtr<ov::ITensor> ov::ISyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensor");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "get_tensor");
     return get_tensor_ptr(port);
 }
 
 void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_tensor");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "set_tensor");
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found(), "Cannot find tensor for port ", port);
     try {
@@ -207,7 +207,7 @@ void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, c
 }
 
 std::vector<ov::SoPtr<ov::ITensor>> ov::ISyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensors");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "get_tensors");
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found(), "Cannot find input tensors for port ", port);
     if (found_port.is_input() && m_batched_tensors.count(get_inputs().at(found_port.idx).get_tensor_ptr()))
@@ -217,7 +217,7 @@ std::vector<ov::SoPtr<ov::ITensor>> ov::ISyncInferRequest::get_tensors(const ov:
 
 void ov::ISyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                                         const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_tensors");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "set_tensors");
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found() && found_port.is_input(), "Cannot find input tensors for port ", port);
     if (tensors.size() == 1) {

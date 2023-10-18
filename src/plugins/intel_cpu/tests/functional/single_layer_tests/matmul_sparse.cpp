@@ -6,7 +6,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 #include <ov_ops/type_relaxed.hpp>
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
@@ -129,11 +129,11 @@ protected:
                                             bool transpose_b,
                                             const std::vector<int8_t>& weiData) {
         using namespace ngraph;
-        auto inputParamsFP32 = builder::makeDynamicParams(element::f32, {A.get_partial_shape()});
+        auto inputParamsFP32 = std::make_shared<ov::op::v0::Parameter>(element::f32, A.get_partial_shape());
         auto matrixBFP32 = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
 
         auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<opset3::MatMul>>(
-            *as_type_ptr<opset3::MatMul>(builder::makeMatMul(inputParamsFP32[0], matrixBFP32, transpose_a, transpose_b)),
+            *as_type_ptr<opset3::MatMul>(builder::makeMatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b)),
             element::f32);
 
         auto matrixB = ngraph::builder::makeConstant<int8_t>(weiType, inShapeB.get_shape(), weiData);
@@ -189,7 +189,7 @@ protected:
         cpuNodeType = "FullyConnected";
         selectedType = makeSelectedTypeStr(selectedType, element::i8);
 
-        auto params = builder::makeDynamicParams(inType, {inShapeA});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
 
         auto matrixB = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);

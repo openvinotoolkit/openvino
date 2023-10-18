@@ -5,14 +5,12 @@
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 
 #include <memory>
-#include <ngraph/graph_util.hpp>
-#include <ngraph/node.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -30,18 +28,20 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
 bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIterator>& ti,
                                      const std::shared_ptr<ov::op::util::RNNCellBase>& found_cell,
-                                     const ngraph::Output<ngraph::Node>& data,
-                                     const ngraph::Output<ngraph::Node>& h_pattern,
-                                     const ngraph::Output<ngraph::Node>& c_pattern,
-                                     const ngraph::Output<ngraph::Node>& w_pattern,
-                                     const ngraph::Output<ngraph::Node>& r_pattern,
-                                     const ngraph::Output<ngraph::Node>& b_pattern,
-                                     const ngraph::Output<ngraph::Node>& unsqueeze_after_cell) {
+                                     const ov::Output<ov::Node>& data,
+                                     const ov::Output<ov::Node>& h_pattern,
+                                     const ov::Output<ov::Node>& c_pattern,
+                                     const ov::Output<ov::Node>& w_pattern,
+                                     const ov::Output<ov::Node>& r_pattern,
+                                     const ov::Output<ov::Node>& b_pattern,
+                                     const ov::Output<ov::Node>& unsqueeze_after_cell) {
     const auto& func = ti->get_function();
     const auto& params = func->get_parameters();
 
@@ -99,18 +99,18 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIte
     const auto ti_inputs = ti->input_values();
     auto X = ti_inputs[ordered_in_descs[0]->m_input_index];
     if (slice_axis == 0) {
-        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 0, 2});
+        auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 0, 2});
         X = std::make_shared<ov::op::v1::Transpose>(ti_inputs[ordered_in_descs[0]->m_input_index], order);
     }
 
     // We must prepare cell inputs to sequence creation: insert num_directions elem via unsqueeze where needed (please,
     // see specification)
-    auto axis_1 = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+    auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
     auto initial_hidden_state =
         std::make_shared<ov::op::v0::Unsqueeze>(ti_inputs[ordered_in_descs[1]->m_input_index], axis_1);
 
     // LSTM case
-    std::shared_ptr<ngraph::Node> initial_cell_state =
+    std::shared_ptr<ov::Node> initial_cell_state =
         c_pattern.get_node_shared_ptr() == nullptr
             ? nullptr
             : std::make_shared<ov::op::v0::Unsqueeze>(ti_inputs[ordered_in_descs[2]->m_input_index], axis_1);
@@ -118,80 +118,76 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIte
     auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(X);
     auto batch_dimension =
         std::make_shared<ov::op::v1::Gather>(shape_of,
-                                             ov::op::v0::Constant::create(ngraph::element::i64, {1}, {0}),
-                                             ov::op::v0::Constant::create(ngraph::element::i64, {}, {0}));
-    auto seq_len_dim =
-        std::make_shared<ov::op::v1::Gather>(shape_of,
-                                             ov::op::v0::Constant::create(ngraph::element::i64, {1}, {1}),
-                                             ov::op::v0::Constant::create(ngraph::element::i64, {}, {0}));
+                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                                             ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+    auto seq_len_dim = std::make_shared<ov::op::v1::Gather>(shape_of,
+                                                            ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                            ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
     auto seq_lengths = std::make_shared<ov::op::v3::Broadcast>(seq_len_dim, batch_dimension);
-    auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, ngraph::Shape{1}, {0});
+    auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     auto W = ov::op::util::make_try_fold<ov::op::v0::Unsqueeze>(w_pattern, axis_0);
     auto R = ov::op::util::make_try_fold<ov::op::v0::Unsqueeze>(r_pattern, axis_0);
     auto B = ov::op::util::make_try_fold<ov::op::v0::Unsqueeze>(b_pattern, axis_0);
 
-    std::shared_ptr<ngraph::Node> sequence;
-    if (ngraph::is_type<ov::op::v4::LSTMCell>(found_cell) || ngraph::is_type<ov::op::v0::LSTMCell>(found_cell)) {
-        sequence =
-            std::make_shared<ov::op::v5::LSTMSequence>(X,
-                                                       initial_hidden_state,
-                                                       initial_cell_state,
-                                                       seq_lengths,
-                                                       W,
-                                                       R,
-                                                       B,
-                                                       found_cell->get_hidden_size(),
-                                                       stride > 0 ? ngraph::op::RecurrentSequenceDirection::FORWARD
-                                                                  : ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                       found_cell->get_activations_alpha(),
-                                                       found_cell->get_activations_beta(),
-                                                       found_cell->get_activations(),
-                                                       found_cell->get_clip());
-    } else if (ngraph::is_type<ov::op::v0::RNNCell>(found_cell)) {
-        sequence =
-            std::make_shared<ov::op::v5::RNNSequence>(X,
-                                                      initial_hidden_state,
-                                                      seq_lengths,
-                                                      W,
-                                                      R,
-                                                      B,
-                                                      found_cell->get_hidden_size(),
-                                                      stride > 0 ? ngraph::op::RecurrentSequenceDirection::FORWARD
-                                                                 : ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                      found_cell->get_activations(),
-                                                      found_cell->get_activations_alpha(),
-                                                      found_cell->get_activations_beta(),
-                                                      found_cell->get_clip());
-    } else if (ngraph::is_type<ov::op::v3::GRUCell>(found_cell)) {
-        const auto gru_cell = ngraph::as_type_ptr<ov::op::v3::GRUCell>(found_cell);
-        sequence =
-            std::make_shared<ov::op::v5::GRUSequence>(X,
-                                                      initial_hidden_state,
-                                                      seq_lengths,
-                                                      W,
-                                                      R,
-                                                      B,
-                                                      gru_cell->get_hidden_size(),
-                                                      stride > 0 ? ngraph::op::RecurrentSequenceDirection::FORWARD
-                                                                 : ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                      gru_cell->get_activations(),
-                                                      gru_cell->get_activations_alpha(),
-                                                      gru_cell->get_activations_beta(),
-                                                      gru_cell->get_clip(),
-                                                      gru_cell->get_linear_before_reset());
+    std::shared_ptr<ov::Node> sequence;
+    if (ov::is_type<ov::op::v4::LSTMCell>(found_cell) || ov::is_type<ov::op::v0::LSTMCell>(found_cell)) {
+        sequence = std::make_shared<ov::op::v5::LSTMSequence>(
+            X,
+            initial_hidden_state,
+            initial_cell_state,
+            seq_lengths,
+            W,
+            R,
+            B,
+            found_cell->get_hidden_size(),
+            stride > 0 ? ov::op::RecurrentSequenceDirection::FORWARD : ov::op::RecurrentSequenceDirection::REVERSE,
+            found_cell->get_activations_alpha(),
+            found_cell->get_activations_beta(),
+            found_cell->get_activations(),
+            found_cell->get_clip());
+    } else if (ov::is_type<ov::op::v0::RNNCell>(found_cell)) {
+        sequence = std::make_shared<ov::op::v5::RNNSequence>(
+            X,
+            initial_hidden_state,
+            seq_lengths,
+            W,
+            R,
+            B,
+            found_cell->get_hidden_size(),
+            stride > 0 ? ov::op::RecurrentSequenceDirection::FORWARD : ov::op::RecurrentSequenceDirection::REVERSE,
+            found_cell->get_activations(),
+            found_cell->get_activations_alpha(),
+            found_cell->get_activations_beta(),
+            found_cell->get_clip());
+    } else if (ov::is_type<ov::op::v3::GRUCell>(found_cell)) {
+        const auto gru_cell = ov::as_type_ptr<ov::op::v3::GRUCell>(found_cell);
+        sequence = std::make_shared<ov::op::v5::GRUSequence>(
+            X,
+            initial_hidden_state,
+            seq_lengths,
+            W,
+            R,
+            B,
+            gru_cell->get_hidden_size(),
+            stride > 0 ? ov::op::RecurrentSequenceDirection::FORWARD : ov::op::RecurrentSequenceDirection::REVERSE,
+            gru_cell->get_activations(),
+            gru_cell->get_activations_alpha(),
+            gru_cell->get_activations_beta(),
+            gru_cell->get_clip(),
+            gru_cell->get_linear_before_reset());
     } else {
         OPENVINO_THROW("Unsupported sequence type");
     }
 
-    ngraph::Output<ngraph::Node> out = sequence->output(0);
+    ov::Output<ov::Node> out = sequence->output(0);
     if (slice_axis == 0) {
-        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {2, 1, 0, 3});
+        auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {2, 1, 0, 3});
         out = std::make_shared<ov::op::v1::Transpose>(out, order);
     }
 
-    ngraph::NodeVector outputs;
+    ov::NodeVector outputs;
     // We must remove num_directions dimension that was added before sequence creation
-    auto axis_out = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+    auto axis_out = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
     auto out_0 = std::make_shared<ov::op::v0::Squeeze>(out, axis_out);
     auto out_1 = std::make_shared<ov::op::v0::Squeeze>(sequence->output(1), axis_out);
     out_0->set_friendly_name(ti->get_friendly_name() + ".0");
@@ -211,7 +207,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIte
         }
     }
 
-    ngraph::NodeVector new_nodes = outputs;
+    ov::NodeVector new_nodes = outputs;
     new_nodes.emplace_back(initial_hidden_state);
     new_nodes.emplace_back(W);
     new_nodes.emplace_back(R);
@@ -247,22 +243,22 @@ ov::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequen
             return false;
 
         // create a pattern for the TensorIterator body
-        auto data = ngraph::pattern::wrap_type<ov::op::v0::Parameter>(ngraph::pattern::rank_equals(3));
-        auto pattern_1 = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(1));
-        auto squeeze = ngraph::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze>({data, pattern_1});
+        auto data = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::rank_equals(3));
+        auto pattern_1 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(1));
+        auto squeeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze>({data, pattern_1});
 
-        auto input_H_state = ngraph::pattern::wrap_type<ov::op::v0::Parameter>(ngraph::pattern::rank_equals(2));
-        auto input_C_state = ngraph::pattern::wrap_type<ov::op::v0::Parameter>(ngraph::pattern::rank_equals(2));
-        auto input_W = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(2));
-        auto input_R = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(2));
-        auto input_B = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(1));
+        auto input_H_state = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::rank_equals(2));
+        auto input_C_state = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::rank_equals(2));
+        auto input_W = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(2));
+        auto input_R = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(2));
+        auto input_B = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(1));
 
-        ngraph::OutputVector cell_inputs{squeeze, input_H_state, input_C_state, input_W, input_R, input_B};
-        auto cell = ngraph::pattern::wrap_type<ov::op::v0::LSTMCell, ov::op::v4::LSTMCell>(cell_inputs);
+        ov::OutputVector cell_inputs{squeeze, input_H_state, input_C_state, input_W, input_R, input_B};
+        auto cell = ov::pass::pattern::wrap_type<ov::op::v0::LSTMCell, ov::op::v4::LSTMCell>(cell_inputs);
 
-        auto pattern_2 = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({cell, pattern_2});
-        ngraph::pattern::Matcher matcher(unsqueeze);
+        auto pattern_2 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(1));
+        auto unsqueeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({cell, pattern_2});
+        ov::pass::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
         auto func = ti->get_body();
@@ -293,7 +289,7 @@ ov::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequen
                                                pattern_map.at(unsqueeze));
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(tensor_iterator, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -307,21 +303,21 @@ ov::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequence
             return false;
 
         // create a pattern for the TensorIterator body
-        auto data = ngraph::pattern::wrap_type<ov::op::v0::Parameter>(ngraph::pattern::rank_equals(3));
-        auto pattern_1 = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(1));
-        auto squeeze = ngraph::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze>({data, pattern_1});
+        auto data = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::rank_equals(3));
+        auto pattern_1 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(1));
+        auto squeeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze>({data, pattern_1});
 
-        auto input_H_state = ngraph::pattern::wrap_type<ov::op::v0::Parameter>(ngraph::pattern::rank_equals(2));
-        auto input_W = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(2));
-        auto input_R = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(2));
-        auto input_B = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(1));
+        auto input_H_state = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::rank_equals(2));
+        auto input_W = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(2));
+        auto input_R = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(2));
+        auto input_B = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(1));
 
-        ngraph::OutputVector cell_inputs{squeeze, input_H_state, input_W, input_R, input_B};
-        auto cell = ngraph::pattern::wrap_type<ov::op::v0::RNNCell>(cell_inputs);
+        ov::OutputVector cell_inputs{squeeze, input_H_state, input_W, input_R, input_B};
+        auto cell = ov::pass::pattern::wrap_type<ov::op::v0::RNNCell>(cell_inputs);
 
-        auto pattern_2 = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({cell, pattern_2});
-        ngraph::pattern::Matcher matcher(unsqueeze);
+        auto pattern_2 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(1));
+        auto unsqueeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({cell, pattern_2});
+        ov::pass::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
         auto func = ti->get_body();
@@ -345,14 +341,14 @@ ov::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequence
                                                rnn_cell,
                                                pattern_map.at(data),
                                                pattern_map.at(input_H_state),
-                                               ngraph::Output<ngraph::Node>(),
+                                               ov::Output<ov::Node>(),
                                                pattern_map.at(input_W),
                                                pattern_map.at(input_R),
                                                pattern_map.at(input_B),
                                                pattern_map.at(unsqueeze));
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(tensor_iterator, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -366,22 +362,22 @@ ov::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence
             return false;
 
         // create a pattern for the TensorIterator body
-        auto data = ngraph::pattern::wrap_type<ov::op::v0::Parameter>(ngraph::pattern::rank_equals(3));
-        auto pattern_1 = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(1));
-        auto squeeze = ngraph::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze>({data, pattern_1});
+        auto data = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::rank_equals(3));
+        auto pattern_1 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(1));
+        auto squeeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze>({data, pattern_1});
 
-        auto input_H_state = ngraph::pattern::wrap_type<ov::op::v0::Parameter>(ngraph::pattern::rank_equals(2));
-        auto input_W = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(2));
-        auto input_R = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(2));
-        auto input_B = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(1));
+        auto input_H_state = ov::pass::pattern::wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::rank_equals(2));
+        auto input_W = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(2));
+        auto input_R = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(2));
+        auto input_B = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(1));
 
-        ngraph::OutputVector cell_inputs{squeeze, input_H_state, input_W, input_R, input_B};
-        auto cell = ngraph::pattern::wrap_type<ov::op::v3::GRUCell>(cell_inputs);
+        ov::OutputVector cell_inputs{squeeze, input_H_state, input_W, input_R, input_B};
+        auto cell = ov::pass::pattern::wrap_type<ov::op::v3::GRUCell>(cell_inputs);
 
-        auto pattern_2 = ngraph::pattern::wrap_type<ov::op::v0::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({cell, pattern_2});
+        auto pattern_2 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::rank_equals(1));
+        auto unsqueeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({cell, pattern_2});
 
-        ngraph::pattern::Matcher matcher(unsqueeze);
+        ov::pass::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
         auto func = ti->get_body();
@@ -405,14 +401,14 @@ ov::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence
                                                gru_cell,
                                                pattern_map.at(data),
                                                pattern_map.at(input_H_state),
-                                               ngraph::Output<ngraph::Node>(),
+                                               ov::Output<ov::Node>(),
                                                pattern_map.at(input_W),
                                                pattern_map.at(input_R),
                                                pattern_map.at(input_B),
                                                pattern_map.at(unsqueeze));
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(tensor_iterator, matcher_name);
     register_matcher(m, callback);
 }
 

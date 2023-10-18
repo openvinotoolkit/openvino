@@ -15,8 +15,6 @@ struct roi_align : public primitive_base<roi_align> {
 
     roi_align() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Pooling mode for the @ref roi_align
     enum PoolingMode { max, avg };
 
@@ -51,18 +49,18 @@ struct roi_align : public primitive_base<roi_align> {
           aligned_mode{aligned_mode} {}
 
     /// @brief Height of the ROI output feature map.
-    int pooled_h;
+    int pooled_h = 0;
     /// @brief Width of the ROI output feature map.
-    int pooled_w;
+    int pooled_w = 0;
     /// @brief Number of bins over height and width to use to calculate each output feature map element.
-    int sampling_ratio;
+    int sampling_ratio = 0;
     /// @brief multiplicative spatial scale factor to translate ROI coordinates
     /// from their input spatial scale to the scale used when pooling.
-    float spatial_scale;
+    float spatial_scale = false;
     /// @brief Method to perform pooling to produce output feature map elements.
-    PoolingMode pooling_mode;
+    PoolingMode pooling_mode = PoolingMode::max;
     /// @brief Method to coordinate alignment.
-    AlignedMode aligned_mode;
+    AlignedMode aligned_mode = AlignedMode::asymmetric;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

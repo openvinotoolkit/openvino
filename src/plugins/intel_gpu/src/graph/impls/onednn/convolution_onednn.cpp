@@ -26,7 +26,7 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
     using parent = typed_primitive_onednn_impl<convolution>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::convolution_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -53,33 +53,40 @@ protected:
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
-            auto dnnl_mem = a_zp->get_onednn_memory(desc);
-            void *mapped_ptr = dnnl_mem.map_data();
-            if (mapped_ptr) {
-                GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: ";
-                for (size_t i = 0; i < desc.get_size(); ++i) {
-                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
+                auto dnnl_mem = a_zp->get_onednn_memory(desc);
+                void *mapped_ptr = dnnl_mem.map_data();
+                if (mapped_ptr) {
+                    GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: ";
+                    for (size_t i = 0; i < desc.get_size(); ++i) {
+                        GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+                    }
+                    GPU_DEBUG_TRACE_DETAIL << std::endl;
+                    dnnl_mem.unmap_data(mapped_ptr);
                 }
-                GPU_DEBUG_TRACE_DETAIL << std::endl;
-                dnnl_mem.unmap_data(mapped_ptr);
             }
         }
 
         if (instance.weights_zero_points_term()) {
-            auto w_zp = instance.weights_zero_points_memory();
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
-            args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
+            throw std::runtime_error("Convolution oneDNN primitive doesn't support asymmetric weights quantization");
+            // auto w_zp = instance.weights_zero_points_memory();
+            // dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
+            // args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
-            auto dnnl_mem = w_zp->get_onednn_memory(desc);
-            void *mapped_ptr = dnnl_mem.map_data();
-            if (mapped_ptr) {
-                GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
-                for (size_t i = 0; i < desc.get_size(); ++i) {
-                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-                }
-                GPU_DEBUG_TRACE_DETAIL << std::endl;
-                dnnl_mem.unmap_data(mapped_ptr);
-            }
+            // GPU_DEBUG_GET_INSTANCE(debug_config);
+            // GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
+            //     auto dnnl_mem = w_zp->get_onednn_memory(desc);
+            //     void *mapped_ptr = dnnl_mem.map_data();
+            //     if (mapped_ptr) {
+            //         GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
+            //         for (size_t i = 0; i < desc.get_size(); ++i) {
+            //             GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+            //         }
+            //         GPU_DEBUG_TRACE_DETAIL << std::endl;
+            //         dnnl_mem.unmap_data(mapped_ptr);
+            //     }
+            // }
         }
 
         return args;
@@ -114,9 +121,9 @@ protected:
             }
 
             if (a_zp_dtype == data_types::i8) {
-                set_activation_zero_points_attr<data_type_to_type<data_types::i8>::type>(attrs, a_zp.as<data>(), zero_point_mask);
+                set_activation_zero_points_attr<ov::element_type_traits<data_types::i8>::value_type>(attrs, a_zp.as<data>(), zero_point_mask);
             } else { // if (a_zp_dtype == data_types::u8)
-                set_activation_zero_points_attr<data_type_to_type<data_types::u8>::type>(attrs, a_zp.as<data>(), zero_point_mask);
+                set_activation_zero_points_attr<ov::element_type_traits<data_types::u8>::value_type>(attrs, a_zp.as<data>(), zero_point_mask);
             }
         }
 
@@ -255,6 +262,8 @@ attach_convolution_onednn::attach_convolution_onednn() {
         format::b_fs_zyx_fsv2,
         format::b_fs_yx_fsv4,
         format::b_fs_zyx_fsv4,
+        format::b_fs_yx_fsv8,
+        format::b_fs_zyx_fsv8,
         format::b_fs_yx_fsv16,
         format::b_fs_zyx_fsv16,
         format::b_fs_zyx_fsv32,
@@ -269,9 +278,11 @@ attach_convolution_onednn::attach_convolution_onednn() {
         format::bs_fs_zyx_bsv32_fsv32,
         format::bs_fs_yx_bsv4_fsv4,
         format::bs_fs_yx_bsv8_fsv4,
+        format::bs_fs_yx_bsv16_fsv8,
         format::bs_fs_yx_bsv16_fsv4,
         format::bs_fs_yx_bsv16_fsv2,
         format::bs_fs_zyx_bsv8_fsv4,
+        format::bs_fs_zyx_bsv16_fsv8,
         format::bs_fs_zyx_bsv16_fsv4,
         format::bs_fs_zyx_bsv16_fsv2,
         format::bs_fs_yx_bsv8_fsv2,

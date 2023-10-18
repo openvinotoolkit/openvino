@@ -4,9 +4,7 @@
 
 #include "transformations/common_optimizations/align_eltwise_input_ranks.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
@@ -14,6 +12,7 @@
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/util/binary_elementwise_comparison.hpp"
 #include "openvino/op/util/binary_elementwise_logical.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto eltwise_pattern = pattern::wrap_type<ov::op::v0::SquaredDifference,
@@ -27,10 +26,10 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
 
         auto fq = as_type<ov::op::v0::FakeQuantize>(node.get());
         if (fq) {
-            if (fq->get_auto_broadcast() != ngraph::op::AutoBroadcastType::NUMPY) {
+            if (fq->get_auto_broadcast() != ov::op::AutoBroadcastType::NUMPY) {
                 return false;
             }
-        } else if (node->get_autob() != ngraph::op::AutoBroadcastType::NUMPY) {
+        } else if (node->get_autob() != ov::op::AutoBroadcastType::NUMPY) {
             return false;
         }
 

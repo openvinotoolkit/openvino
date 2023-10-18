@@ -63,11 +63,11 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
         try:
             xml_root = ET.parse(xml).getroot()
         except ET.ParseError:
-            logger.error(f' {xml} is corrupted and skipped')
+            # logger.error(f' {xml} is corrupted and skipped')
             continue
         xml_results = xml_root.find("results")
         xml_timestamp = xml_root.get("timestamp")
-        if aggregated_timestamp is None or xml_timestamp < aggregated_timestamp:
+        if aggregated_timestamp is None or xml_timestamp > aggregated_timestamp:
             aggregated_timestamp = xml_timestamp
         for xml_device_entry in xml_results:
             if merge_device_suffix and "." in xml_device_entry.tag:
@@ -76,28 +76,40 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
                 xml_device_entry = ET.fromstring(new_data)
             device_name = xml_device_entry.tag
             aggregated_device_results = aggregated_results.find(device_name)
+            # example: ov_plugin or Add-1
             for xml_results_entry in xml_device_entry:
-                aggregated_results_entry = None
-                if not aggregated_device_results is None:
-                    aggregated_results_entry = aggregated_device_results.find(xml_results_entry.tag)
-                if aggregated_results_entry is None:
-                    stat_update_utils.update_rel_values(xml_results_entry)
-                    if aggregated_device_results is None:
-                        aggregated_results.append(xml_device_entry)
-                        aggregated_device_results = aggregated_results.find(device_name)
-                    else:
-                        aggregated_device_results.append(xml_results_entry)
-                    continue
                 if report_type == OP_CONFORMANCE or report_type == OP_CONFORMANCE.lower():
+                    aggregated_results_entry = None
+                    if not aggregated_device_results is None:
+                        aggregated_results_entry = aggregated_device_results.find(xml_results_entry.tag)
+                    if aggregated_results_entry is None:
+                        stat_update_utils.update_rel_values(xml_results_entry)
+                        if aggregated_device_results is None:
+                            aggregated_results.append(xml_device_entry)
+                            aggregated_device_results = aggregated_results.find(device_name)
+                        else:
+                            aggregated_device_results.append(xml_results_entry)
+                        continue
                     update_result_node(xml_results_entry, aggregated_results_entry)
                 else:
-                    for xml_real_device_entry in xml_results_entry:
-                        aggregated_real_device_api_report = aggregated_results_entry.find(xml_real_device_entry.tag)
-                        if aggregated_real_device_api_report is None:
-                            stat_update_utils.update_rel_values(xml_results_entry)
-                            aggregated_results_entry.append(xml_real_device_entry)
-                            continue
-                        update_result_node(xml_real_device_entry, aggregated_real_device_api_report)
+                    aggregated_results_entry = None
+                    if aggregated_device_results is None:
+                        aggregated_results.append(xml_device_entry)
+                        break
+                    else:
+                        aggregated_results_entry = aggregated_device_results.find(xml_results_entry.tag)
+                    if aggregated_results_entry:
+                        for xml_real_device_entry in xml_results_entry:
+                            aggregated_real_device_api_report = None
+                            aggregated_real_device_api_report = aggregated_results_entry.find(xml_real_device_entry.tag)
+                            if aggregated_real_device_api_report is None:
+                                stat_update_utils.update_rel_values(xml_results_entry)
+                                aggregated_results_entry.append(xml_real_device_entry)
+                                continue
+                            update_result_node(xml_real_device_entry, aggregated_real_device_api_report)
+                    else:
+                        aggregated_device_results.append(xml_results_entry)
+
     return aggregated_timestamp
 
 

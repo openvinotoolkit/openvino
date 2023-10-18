@@ -20,7 +20,7 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -43,7 +43,7 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 
 void SubgraphBaseTest::run() {
     is_reported = true;
-    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
     ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
          ov::test::utils::PassRate::Statuses::SKIPPED :
@@ -233,23 +233,17 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
                 std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-                if (std::dynamic_pointer_cast<ov::op::v0::Convert>(nodePtr)) {
-                    std::shared_ptr<ov::Node> nextNodePtr = nodePtr->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-                    if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
-                        inputNode = nodePtr;
-                        nodePtr = nextNodePtr;
-                    }
-                }
                 auto it = inputMap.find(nodePtr->get_type_info());
                 ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape++)});
+                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape)});
                         break;
                     }
                 }
             }
         }
+        itTargetShape++;
     }
 }
 
@@ -261,14 +255,12 @@ void SubgraphBaseTest::infer() {
     inferRequest.infer();
 }
 
-std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
-    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
-
-    auto functionToProcess = functionRefs->clone();
+precisions_map SubgraphBaseTest::get_ref_precisions_convert_map() {
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
     precisions_map precisions = {
             { ngraph::element::bf16, ngraph::element::f32 }
     };
+
     auto convert_added = false;
     for (const auto &param : function->get_parameters()) {
         for (size_t i = 0; i < param->get_output_size(); i++) {
@@ -281,11 +273,21 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
             }
         }
     }
+
     if (!convert_added) {
         precisions.insert({ ngraph::element::f16, ngraph::element::f32});
     }
+
+    return precisions;
+}
+
+std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
+    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
+
+    auto functionToProcess = functionRefs->clone();
+    precisions_map convert_precisions = get_ref_precisions_convert_map();
     pass::Manager manager;
-    manager.register_pass<ov::pass::ConvertPrecision>(precisions);
+    manager.register_pass<ov::pass::ConvertPrecision>(convert_precisions, type_to_fuse_map{}, false, false);
     manager.run_passes(functionToProcess);
     functionToProcess->validate_nodes_and_infer_types();
 

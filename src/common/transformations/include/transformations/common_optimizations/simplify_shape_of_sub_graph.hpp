@@ -5,9 +5,10 @@
 #pragma once
 
 #include <memory>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
 #include <vector>
+
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
@@ -40,7 +41,11 @@ public:
 class ov::pass::SimplifyShapeOfSubGraph : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SimplifyShapeOfSubGraph", "0");
+    explicit SimplifyShapeOfSubGraph(bool use_shapes = true) : m_use_shapes(use_shapes){};
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+private:
+    bool m_use_shapes;
 };
 
 /**

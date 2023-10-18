@@ -6,25 +6,25 @@
 
 #include <legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp>
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <string>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace testing;
 
 TEST(TransformationTests, ConvertLRNToLegacyDynamic) {
-    auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-    auto axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-    auto lrn = std::make_shared<ngraph::opset1::LRN>(data, axis, 1, 2, 3, 4);
+    auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    auto axis = ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto lrn = std::make_shared<ov::opset1::LRN>(data, axis, 1, 2, 3, 4);
 
-    auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{lrn}, ngraph::ParameterVector{data});
+    auto f = std::make_shared<ov::Model>(ov::NodeVector{lrn}, ov::ParameterVector{data});
 
-    ngraph::pass::Manager m;
+    ov::pass::Manager m;
     m.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     ASSERT_NO_THROW(m.run_passes(f));
 }

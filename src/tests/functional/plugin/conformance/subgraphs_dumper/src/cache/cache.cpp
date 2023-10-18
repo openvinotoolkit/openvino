@@ -11,40 +11,17 @@
 #include "common_test_utils/file_utils.hpp"
 
 #include "cache/cache.hpp"
+#include "utils/memory.hpp"
 
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
+size_t ICache::mem_size = get_ram_size();
 
 bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInfo>& graph_info,
                              const std::string& rel_serialization_dir) {
     std::shared_ptr<ov::Model> model = graph_info.first;
     MetaInfo meta = graph_info.second;
-    std::map<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> nodes;
-    ov::ParameterVector param_vector;
-    for (const auto& op : model->get_ordered_ops()) {
-        std::shared_ptr<ov::op::v0::Parameter> param = nullptr;
-        if (ov::op::util::is_parameter(op)) {
-            param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(op);
-        } else if (ov::op::util::is_constant(op)) {
-            auto op_to_replace = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
-            if (op_to_replace->get_byte_size() > 1024) {
-                param = std::make_shared<ov::op::v0::Parameter>(
-                    op_to_replace->get_output_element_type(0), op_to_replace->get_output_partial_shape(0));
-                param->set_friendly_name(op_to_replace->get_friendly_name());
-                nodes.insert({ op_to_replace, param });
-            }
-        }
-        if (param != nullptr) {
-            param_vector.push_back(param);
-        }
-    }
-    if (!nodes.empty()) {
-        for (const auto& node : nodes) {
-            model->replace_node(node.first, node.second);
-        }
-        model = std::make_shared<ov::Model>(model->get_results(), param_vector);
-    }
 
     std::string model_name = model->get_friendly_name();
     std::string abs_searilization_dir = ov::util::path_join({ m_serialization_dir, rel_serialization_dir });
@@ -67,7 +44,8 @@ bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInf
         } catch (std::exception &e) {
             std::cout << "[ ERROR ] Failed to serialize model: " << model_name
                         << ". Exception: " << e.what() << std::endl;
-            ov::test::utils::removeIRFiles(xml_path, bin_path);
+            ov::test::utils::removeFile(xml_path);
+            ov::test::utils::removeFile(bin_path);
             ov::test::utils::removeFile(meta_path);
             if (std::string(e.what()).find("Can't open") == std::string::npos) {
                 return false;

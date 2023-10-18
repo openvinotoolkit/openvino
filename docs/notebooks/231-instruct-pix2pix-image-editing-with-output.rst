@@ -1,6 +1,8 @@
 Image Editing with InstructPix2Pix and OpenVINO
 ===============================================
 
+
+
 The InstructPix2Pix is a conditional diffusion model that edits images
 based on written instructions provided by the user. Generative image
 editing models traditionally target a single editing task like style
@@ -24,11 +26,28 @@ model using OpenVINO.
 Notebook contains the following steps:
 
 1. Convert PyTorch models to ONNX format.
-2. Convert ONNX models to OpenVINO IR format, using Model Optimizer tool.
+2. Convert ONNX models to OpenVINO IR format, using model conversion
+   API.
 3. Run InstructPix2Pix pipeline with OpenVINO.
 
-Prerequisites
--------------
+
+.. _top:
+
+**Table of contents**:
+
+- `Prerequisites <#prerequisites>`__
+- `Create Pytorch Models pipeline <#create-pytorch-models-pipeline>`__
+- `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
+
+  - `Text Encoder <#text-encoder>`__
+  - `VAE <#vae>`__
+  - `Unet <#unet>`__
+
+- `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 Install necessary packages
 
@@ -89,8 +108,9 @@ Install necessary packages
     [notice] To update, run: pip install --upgrade pip
 
 
-Create Pytorch Models pipeline
-------------------------------
+Create Pytorch Models pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 ``StableDiffusionInstructPix2PixPipeline`` is an end-to-end inference
 pipeline that you can use to edit images from text instructions with
@@ -99,7 +119,9 @@ just a few lines of code provided as part
 
 First, we load the pre-trained weights of all components of the model.
 
-   **NOTE**: Initially, model loading can take some time due to
+.. note::
+
+   Initially, model loading can take some time due to
    downloading the weights. Also, the download speed depends on your
    internet connection.
 
@@ -126,8 +148,9 @@ First, we load the pre-trained weights of all components of the model.
     Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
 
 
-Convert Models to OpenVINO IR
------------------------------
+Convert Models to OpenVINO IR `⇑ <#top>`__
+###############################################################################################################################
+
 
 OpenVINO supports PyTorch through export to the ONNX format. We will use
 ``torch.onnx.export`` function for obtaining an ONNX model. For more
@@ -152,14 +175,17 @@ in a separate
 
 The model consists of three important parts:
 
-* Text Encoder - to create conditions from a text prompt.
-* Unet - for step-by-step denoising latent image representation.
-* Autoencoder (VAE) - to encode the initial image to latent space for starting the denoising process and decoding latent space to image, when denoising is complete.
+-  Text Encoder - to create conditions from a text prompt.
+-  Unet - for step-by-step denoising latent image representation.
+-  Autoencoder (VAE) - to encode the initial image to latent space for
+   starting the denoising process and decoding latent space to image,
+   when denoising is complete.
 
 Let us convert each part.
 
-Text Encoder
-~~~~~~~~~~~~
+Text Encoder `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -237,8 +263,9 @@ hidden states. You will use ``opset_version=14``, since model contains
     Text encoder will be loaded from text_encoder.xml
 
 
-VAE
-~~~
+VAE `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The VAE model consists of two parts: an encoder and a decoder.
 
@@ -356,14 +383,17 @@ into two independent models.
     VAE decoder successfully converted to IR
 
 
-Unet
-~~~~
+Unet `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The Unet model has three inputs:
 
-* ``scaled_latent_model_input`` - the latent image sample from previous step. Generation process has not been started yet, so you will use random noise.
-* ``timestep`` - a current scheduler step.
-* ``text_embeddings`` - a hidden state of the text encoder.
+-  ``scaled_latent_model_input`` - the latent image sample from previous
+   step. Generation process has not been started yet, so you will use
+   random noise.
+-  ``timestep`` - a current scheduler step.
+-  ``text_embeddings`` - a hidden state of the text encoder.
 
 Model predicts the ``sample`` state for the next step.
 
@@ -420,8 +450,9 @@ Model predicts the ``sample`` state for the next step.
     Unet successfully loaded from unet.xml
 
 
-Prepare Inference Pipeline
---------------------------
+Prepare Inference Pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 Putting it all together, let us now take a closer look at how the model
 inference works by illustrating the logical flow.
@@ -903,8 +934,20 @@ decoder part of the variational auto encoder.
 
 Model tokenizer and scheduler are also important parts of the pipeline.
 Let us define them and put all components together. Additionally, you
-can provide device, for example, replace ``AUTO`` with ``GPU`` for
-running model inference on GPU.
+can provide device selecting one from available in dropdown list.
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
 
 .. code:: ipython3
 
@@ -913,7 +956,7 @@ running model inference on GPU.
     tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-large-patch14')
     scheduler = EulerAncestralDiscreteScheduler.from_config(scheduler_config)
     
-    ov_pipe = OVInstructPix2PixPipeline(tokenizer, scheduler, core, TEXT_ENCODER_OV_PATH, VAE_ENCODER_OV_PATH, UNET_OV_PATH, VAE_DECODER_OV_PATH, device="AUTO")
+    ov_pipe = OVInstructPix2PixPipeline(tokenizer, scheduler, core, TEXT_ENCODER_OV_PATH, VAE_ENCODER_OV_PATH, UNET_OV_PATH, VAE_DECODER_OV_PATH, device=device.value)
 
 Now, you are ready to define editing instructions and an image for
 running the inference pipeline. You can find example results generated
@@ -924,13 +967,12 @@ seed for latent state initialization and number of steps.
 
 .. note::
 
-   Consider increasing ``steps`` to get more precise results. A suggested value is ``100``, but it will take more time to process.
+   Consider increasing ``steps`` to get more precise results.
+   A suggested value is ``100``, but it will take more time to process.
 
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     style = {'description_width': 'initial'}
     text_prompt = widgets.Text(value=" Make it in galaxy", description='your text')
     num_steps = widgets.IntSlider(min=1, max=100, value=10, description='steps:')
@@ -951,9 +993,10 @@ seed for latent state initialization and number of steps.
     VBox(children=(Text(value=' Make it in galaxy', description='your text'), IntSlider(value=42, description='see…
 
 
+.. note::
 
-   **Note**: Diffusion process can take some time, depending on what
-   hardware you select.
+   Diffusion process can take some time, depending on what hardware you select.
+
 
 .. code:: ipython3
 
@@ -997,7 +1040,7 @@ generation.
 
 
 
-.. image:: 231-instruct-pix2pix-image-editing-with-output_files/231-instruct-pix2pix-image-editing-with-output_23_0.png
+.. image:: 231-instruct-pix2pix-image-editing-with-output_files/231-instruct-pix2pix-image-editing-with-output_25_0.png
 
 
 Nice. As you can see, the picture has quite a high definition 🔥.

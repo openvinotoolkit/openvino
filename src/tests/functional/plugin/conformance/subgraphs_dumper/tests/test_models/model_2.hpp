@@ -13,6 +13,9 @@
 #include "openvino/op/result.hpp"
 
 class Model_2 {
+private:
+    using PatternBorders = ov::tools::subgraph_dumper::RepeatPatternExtractor::PatternBorders;
+
 public:
     Model_2() {
         // param
@@ -35,7 +38,7 @@ public:
         std::shared_ptr<ov::op::v0::Parameter> test_parameter_0 =
             std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 5});
         std::shared_ptr<ov::op::v0::Abs> test_abs =
-            std::make_shared<ov::op::v0::Abs>(test_parameter_0);
+            std::make_shared<ov::op::v0::Abs>(test_parameter);
         std::shared_ptr<ov::op::v0::Clamp> test_clamp =
             std::make_shared<ov::op::v0::Clamp>(test_abs, 0, 10);
         std::shared_ptr<ov::op::v0::Relu> test_relu =
@@ -55,9 +58,17 @@ public:
     }
 
     std::vector<std::shared_ptr<ov::Model>> get_repeat_pattern_ref() {
-        return {};
+        return std::vector<std::shared_ptr<ov::Model>>();
     }
+
+    std::vector<std::vector<ov::NodeVector>>
+    get_ref_node_vector() { return ref_nodes; }
+
+    std::vector<std::vector<PatternBorders>>
+    get_ref_node_borders() { return ref_borders; }
 
 protected:
     std::shared_ptr<ov::Model> model;
+    std::vector<std::vector<ov::NodeVector>> ref_nodes;
+    std::vector<std::vector<PatternBorders>> ref_borders;
 };

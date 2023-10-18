@@ -28,6 +28,7 @@ namespace op {
     OutputVector op(const ov::frontend::NodeContext& node)
 
 OP_T_CONVERTER(translate_unary_op);
+OP_CONVERTER(translate_selu_op);
 OP_T_CONVERTER(translate_binary_op);
 OP_T_CONVERTER(translate_direct_reduce_op);
 
@@ -63,6 +64,7 @@ OP_CONVERTER(translate_elu_op);
 OP_CONVERTER(translate_expand_dims_op);
 OP_CONVERTER(translate_extract_image_patches_op);
 OP_CONVERTER(translate_fake_quant_op);
+OP_CONVERTER(translate_fake_quant_with_min_max_args);
 OP_CONVERTER(translate_fill_op);
 OP_CONVERTER(translate_floor_div_op);
 OP_CONVERTER_NAMED(translate_fused_batch_norm_op);
@@ -95,6 +97,7 @@ OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
 OP_CONVERTER(translate_one_hot_op);
+OP_CONVERTER(translate_ones_like_op);
 OP_CONVERTER(translate_pack_op);
 OP_CONVERTER(translate_pad_op);
 OP_CONVERTER(translate_padv2_op);
@@ -131,18 +134,23 @@ OP_CONVERTER(translate_strided_slice_op);
 OP_CONVERTER(translate_sqrt_op);
 OP_CONVERTER(translate_tensor_list_from_tensor_op);
 OP_CONVERTER(translate_tensor_list_get_item_op);
+OP_CONVERTER(translate_tensor_list_length_op);
 OP_CONVERTER(translate_tensor_list_push_back_op);
 OP_CONVERTER(translate_tensor_list_reserve_op);
 OP_CONVERTER(translate_tensor_list_set_item_op);
 OP_CONVERTER(translate_tensor_list_stack_op);
+OP_CONVERTER(translate_tensor_list_resize_op);
 OP_CONVERTER(translate_tile_op);
 OP_CONVERTER_NAMED(translate_top_k_op);
 OP_CONVERTER_NAMED(translate_top_k_v2_op);
 OP_CONVERTER(translate_transpose_op);
 OP_CONVERTER(translate_unpack_op);
 OP_CONVERTER(translate_unravel_index_op);
+OP_CONVERTER(translate_unsorted_segment_sum_op);
 OP_CONVERTER(translate_where_op);
 OP_CONVERTER(translate_x_div_y_op);
+OP_CONVERTER(translate_xlog1py_op);
+OP_CONVERTER(translate_xlogy_op);
 OP_CONVERTER(translate_zeros_like_op);
 
 // Translators for internal operations

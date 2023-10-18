@@ -102,9 +102,9 @@ class TestExtensions(CommonMOConvertTest):
         return Model([sigmoid], [param], "test")
 
     test_data = [
-        {'params_test': {'extension': create_custom_extension_leaky_relu_to_relu()},
+        {'params_test': {'extensions': create_custom_extension_leaky_relu_to_relu()},
          'ref_graph': create_ref_graph1()},
-        {'params_test': {'extension': [create_custom_extension_leaky_relu_to_relu(),
+        {'params_test': {'extensions': [create_custom_extension_leaky_relu_to_relu(),
                                         create_custom_extension_elu_to_sigmoid()]},
          'ref_graph': create_ref_graph2()}
     ]
@@ -118,4 +118,5 @@ class TestExtensions(CommonMOConvertTest):
 
         test_params = params['params_test']
         test_params.update({'input_model': onnx_net_path})
+        test_params.update({'use_convert_model_from_mo': True})
         self._test_by_ref_graph(temp_dir, test_params, params['ref_graph'])

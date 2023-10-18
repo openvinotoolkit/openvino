@@ -34,12 +34,6 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 variables:
   - group: github
 
@@ -64,7 +58,7 @@ jobs:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library"
-        CMAKE_CPACK_GENERATOR:
+        CMAKE_CPACK_GENERATOR: "TGZ"
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
         PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
         RUN_PREFIX: . $(SETUPVARS) &&
@@ -83,7 +77,6 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
-    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
@@ -215,13 +208,6 @@ jobs:
       echo TargetBranch: $(System.PullRequest.TargetBranch)
       echo SourceBranch: $(Build.SourceBranch)
     displayName: 'System info'
-
-
-    # Should be after 'Install dependencies' because Git lfs is not installed
-  - checkout: testdata
-    clean: 'true'
-    lfs: 'true'
-    path: testdata
 
   - task: CMake@1
     inputs:
@@ -368,6 +354,9 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVProxyTests.xml
     displayName: 'OV Proxy Plugin Tests'
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroUnitTests.xml
+    displayName: 'OV Hetero Unit Tests'
+
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
     displayName: 'OV Hetero Func Tests'
 
@@ -380,7 +369,7 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
 
-  # TODO Reenable PDPD after paddlepaddle==2.5.0 with compliant protobuf is released (ticket 95904)
+  # TODO Reenable PDPD after paddlepaddle==2.5.1 with compliant protobuf is released (ticket 95904)
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
     enabled: 'false'
@@ -422,6 +411,9 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_auto_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_unit_tests.xml
     displayName: 'AUTO UT'
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_auto_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_func_tests.xml
+    displayName: 'AUTO FuncTests'
+
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_auto_batch_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_batch_unit_tests.xml
     displayName: 'AutoBatch UT'
 
@@ -452,7 +444,7 @@ jobs:
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py
     displayName: 'Python API 2.0 Tests'
-  
+
   # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       python3 -m pytest -sv $(REPO_DIR)/src/frontends/onnx/tests $(PYTHON_STATIC_ARGS) \
@@ -528,6 +520,15 @@ jobs:
   - script: |
       set -e
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/jax_tests/ -m precommit --junitxml=$(INSTALL_TEST_DIR)/TEST-jax.xmlTEST
+    env:
+      PYTHONPATH: $(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
+    displayName: 'JAX Layer Tests - TF FE'
+
+  - script: |
+      set -e
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     env:
       PYTHONPATH: $(LAYER_TESTS_DIR)
@@ -550,6 +551,15 @@ jobs:
       PYTHONPATH: $(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
       TEST_DEVICE: CPU
     displayName: 'TensorFlow Lite Layer Tests - TFL FE'
+
+  - script: |
+      set -e
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/ovc_python_api_tests/  --junitxml=./TEST-test_ovc_convert.xmlTEST
+    env:
+      PYTHONPATH: $(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
+    displayName: 'OVC Python API Tests'
 
   - script: |
       set -e

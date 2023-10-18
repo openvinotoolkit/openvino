@@ -208,9 +208,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                             "Auto-batching operates only networks with inputs/outputs batched by 0th dimension");
             }
         }
-        const auto& results = cloned_model->get_results();
-        for (size_t output_id = 0; output_id < results.size(); output_id++) {
-            const auto& output = results[output_id];
+        for (const auto& output : cloned_model->get_results()) {
             const auto& shape = output->get_output_partial_shape(0);
             if (shape.is_dynamic())
                 OPENVINO_THROW("Auto-batching does not support dynamic networks!");

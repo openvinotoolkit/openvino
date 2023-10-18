@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/sin.hpp"
+
 #include "unary_ops.hpp"
 
-using Type = ::testing::Types<ngraph::op::Sin>;
+using Type = ::testing::Types<ov::op::v0::Sin>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_sin, UnaryOperator, Type);

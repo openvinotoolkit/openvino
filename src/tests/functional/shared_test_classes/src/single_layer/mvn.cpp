@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/mvn.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -37,7 +37,7 @@ void Mvn1LayerTest::SetUp() {
     double eps;
     std::tie(inputShapes, inputPrecision, axes, acrossChanels, normalizeVariance, eps, targetDevice) = this->GetParam();
     auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-    auto param = ngraph::builder::makeParams(inType, {inputShapes});
+    ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShapes))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
     auto mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps));
     if (!axes.empty()) {
@@ -81,7 +81,7 @@ void Mvn6LayerTest::SetUp() {
     auto dataType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
     auto axesType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(axesPrecision);
 
-    auto param = ngraph::builder::makeParams(dataType, {inputShapes});
+    ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(dataType, ov::Shape(inputShapes))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
     auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
     auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);

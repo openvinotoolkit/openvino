@@ -8,6 +8,8 @@ from openvino.runtime import Model
 
 from openvino.runtime.op.util import InvariantInputDescription, BodyOutputDescription
 
+from tests.utils.helpers import compare_models
+
 
 def create_simple_if_with_two_outputs(condition_val):
     condition = ov.constant(condition_val, dtype=bool)
@@ -191,7 +193,11 @@ def test_simple_if_basic():
 
     if_node = ov.if_op(condition.output(0))
     if_node.set_function(0, then_body)
-    assert if_node.get_function(0) == then_body
+    subgraph_func = if_node.get_function(0)
+
+    assert isinstance(subgraph_func, type(then_body))
+    assert compare_models(subgraph_func, then_body)
+    assert subgraph_func._get_raw_address() == then_body._get_raw_address()
 
     if_node.set_input_descriptions(0, then_body_inputs)
     if_node.set_output_descriptions(1, else_body_outputs)

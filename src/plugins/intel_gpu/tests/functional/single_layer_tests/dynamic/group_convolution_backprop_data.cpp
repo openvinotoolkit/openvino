@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/group_convolution_backprop_data.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -165,7 +165,7 @@ public:
     }
 
     std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes, ngraph::helpers::InputLayerType outShapeType) {
-        auto params = ngraph::builder::makeDynamicParams(prec, {inShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(prec, inShapes.front())};
         std::shared_ptr<ov::Node> outShapeNode;
         if (!outShapeData.empty()) {
             if (outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {

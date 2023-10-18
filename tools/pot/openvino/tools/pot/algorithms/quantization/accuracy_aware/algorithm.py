@@ -17,7 +17,7 @@ class AccuracyAwareQuantization(Algorithm):
         algos_by_devices = {
             'ANY': 'AccuracyAwareCommon',
             'CPU': 'AccuracyAwareCommon',
-            'VPU': 'AccuracyAwareCommon',
+            'NPU': 'AccuracyAwareCommon',
             'GPU': 'AccuracyAwareCommon',
             'GNA': 'AccuracyAwareGNA',
             'GNA3': 'AccuracyAwareGNA',

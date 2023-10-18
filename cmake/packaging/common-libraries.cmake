@@ -13,6 +13,8 @@ macro(ov_cpack_settings)
         string(TOUPPER ${item} UPPER_COMP)
         # filter out some components, which are not needed to be wrapped to conda-forge | brew | conan | vcpkg
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
+           # because in case of VCPKG | CONAN | BREW | CONDA-FORGE distributions, python is either not needed or installed separately
+           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly since they are installed in `host` section
            NOT item MATCHES "^tbb(_dev)?$" AND
@@ -21,6 +23,7 @@ macro(ov_cpack_settings)
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
+    unset(cpack_components_all)
     list(REMOVE_DUPLICATES CPACK_COMPONENTS_ALL)
 
     # override generator

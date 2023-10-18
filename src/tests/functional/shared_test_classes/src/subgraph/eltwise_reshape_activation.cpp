@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/eltwise_reshape_activation.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -35,7 +35,8 @@ void EltwiseReshapeActivation::SetUp() {
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto input = ngraph::builder::makeParams(ngPrc, { shapes[0], shapes[0] });
+    ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes[0])),
+                              std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes[0]))};
     auto eltw = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
 
     auto reshape_pattern1 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{shapes[1].size()}, shapes[1]);

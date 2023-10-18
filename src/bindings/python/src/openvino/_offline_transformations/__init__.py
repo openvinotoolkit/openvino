@@ -4,10 +4,6 @@
 
 # flake8: noqa
 
-from openvino.utils import _add_openvino_libs_to_search_path
-
-_add_openvino_libs_to_search_path()
-
 from openvino._pyopenvino import get_version
 
 __version__ = get_version()

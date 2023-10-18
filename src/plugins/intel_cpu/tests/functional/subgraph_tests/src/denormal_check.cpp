@@ -4,8 +4,8 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 
 using namespace InferenceEngine;
@@ -43,10 +43,11 @@ void validate() override {
     ASSERT_FALSE(actualOutputs.empty());
     auto& outTensor = actualOutputs.front();
     ASSERT_EQ(ov::element::f32, outTensor.get_element_type()) << "Unexpected element type";
-    const uint32_t* data = reinterpret_cast<const uint32_t*>(outTensor.data());
+    const float* data = reinterpret_cast<const float*>(outTensor.data());
     bool hasDenormals = false;
     for (size_t i = 0; i < outTensor.get_size(); ++i) {
-        if (data[i] && (data[i] & (0xff << 23)) == 0) {
+        if (std::abs(data[i]) >= std::numeric_limits<float>::denorm_min() &&
+            std::abs(data[i]) < std::numeric_limits<float>::min()) {
             hasDenormals = true;
         }
     }
@@ -62,10 +63,10 @@ void SetUp() override {
 
     const auto elemsCount = shape_size(inpShape);
     const auto rtPrc = ov::element::f32;
-    auto params = ngraph::builder::makeParams(rtPrc, {inpShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(rtPrc, ov::Shape(inpShape))};
     pConstStorage.reset(new AlignedBufferWrapper<float>(elemsCount, alignment));
 
-    auto constTensor = std::make_shared<ov::HostTensor>(rtPrc, inpShape, pConstStorage->get_ptr());
+    auto constTensor = std::make_shared<ngraph::HostTensor>(rtPrc, inpShape, pConstStorage->get_ptr());
     auto constNode = std::make_shared<ngraph::opset1::Constant>(constTensor);
     ov::NodeVector input = {params[0], constNode};
     auto concat = std::make_shared<ngraph::opset1::Concat>(input, 1);
@@ -108,4 +109,5 @@ TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
         run();
     }
 }
+
 }// namespace SubgraphTestsDefinitions

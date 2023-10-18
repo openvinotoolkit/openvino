@@ -34,7 +34,7 @@ private:
     EltwiseAttrs aclEltwiseAttrs{};
     impl_desc_type implType = impl_desc_type::acl;
     std::vector<arm_compute::Tensor> srcTensors, dstTensors;
-    std::function<void()> exec_func;
+    std::unique_ptr<arm_compute::IFunction> ifunc;
 };
 
 class AclEltwiseExecutorBuilder : public EltwiseExecutorBuilder {

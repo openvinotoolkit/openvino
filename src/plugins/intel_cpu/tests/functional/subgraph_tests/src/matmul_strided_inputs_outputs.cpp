@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -35,19 +35,20 @@ protected:
         const auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         SizeVector splitShape{1, 2, 1, 16};
-        auto splitInputParams = builder::makeParams(ngPrec, {splitShape});
+        ov::ParameterVector splitInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(splitShape))};
         const auto splitOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(splitInputParams));
         const auto split = builder::makeSplit(splitOutputNodes[0], ngPrec, 2 /* splits */, 1 /* 2nd axis */);
 
-        std::vector<SizeVector> concatShapes{{1, 1, 8, 8}, {1, 1, 8, 8}};
-        auto concatInputParams = builder::makeParams(ngPrec, {concatShapes});
+        std::vector<ov::Shape> concatShapes{{1, 1, 8, 8}, {1, 1, 8, 8}};
+        ov::ParameterVector concatInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, concatShapes[0]),
+                                               std::make_shared<ov::op::v0::Parameter>(ngPrec, concatShapes[1])};
         const auto concatOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(concatInputParams));
         const auto concat = builder::makeConcat(concatOutputNodes, 2);
 
         const auto matMul1 = builder::makeMatMul(split->output(0), concat, false, false);
 
         SizeVector matmulShape{1, 1, 16, 8};
-        auto matmulInputParams = builder::makeParams(ngPrec, {matmulShape});
+        ov::ParameterVector matmulInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(matmulShape))};
         const auto matmulOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(matmulInputParams));
 
         const auto matMul2 = builder::makeMatMul(split->output(1), matmulOutputNodes[0], false, false);

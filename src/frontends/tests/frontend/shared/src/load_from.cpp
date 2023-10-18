@@ -9,7 +9,6 @@
 #include "openvino/core/runtime_attribute.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 std::string FrontEndLoadFromTest::getTestCaseName(const testing::TestParamInfo<LoadFromFEParam>& obj) {
@@ -35,9 +34,9 @@ TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromFilePath) {
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(model_path));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
-    ASSERT_NE(function, nullptr);
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    ASSERT_NE(model, nullptr);
 }
 
 TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromFilePathWithExplicitVariants) {
@@ -71,9 +70,9 @@ TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromTwoFiles) {
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(model_path, weights_path));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ngraph::Function> function;
-    function = m_frontEnd->convert(m_inputModel);
-    ASSERT_NE(function, nullptr);
+    std::shared_ptr<ov::Model> model;
+    model = m_frontEnd->convert(m_inputModel);
+    ASSERT_NE(model, nullptr);
 }
 
 TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromStream) {
@@ -89,9 +88,9 @@ TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromStream) {
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(is));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
-    ASSERT_NE(function, nullptr);
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    ASSERT_NE(model, nullptr);
 }
 
 TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromTwoStreams) {
@@ -111,7 +110,7 @@ TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromTwoStreams) {
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(model_is, weights_is));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
-    ASSERT_NE(function, nullptr);
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    ASSERT_NE(model, nullptr);
 }

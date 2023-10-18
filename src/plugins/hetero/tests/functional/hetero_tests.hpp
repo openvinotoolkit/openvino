@@ -20,10 +20,11 @@ public:
 
     void SetUp() override;
 
-    std::shared_ptr<ov::Model> create_model_with_subtract();
-    std::shared_ptr<ov::Model> create_model_with_subtract_reshape();
-    std::shared_ptr<ov::Model> create_model_with_subtract_reshape_relu();
-    std::shared_ptr<ov::Model> create_model_with_reshape();
+    std::shared_ptr<ov::Model> create_model_with_subtract(bool dynamic = false);
+    std::shared_ptr<ov::Model> create_model_with_subtract_reshape(bool dynamic = false);
+    std::shared_ptr<ov::Model> create_model_with_subtract_reshape_relu(bool dynamic = false);
+    std::shared_ptr<ov::Model> create_model_with_reshape(bool dynamic = false);
+    std::shared_ptr<ov::Model> create_model_with_subtract_shapeof_reshape(bool dynamic = false);
     ov::Tensor create_and_fill_tensor(const ov::element::Type& type, const ov::Shape& shape);
 
 private:

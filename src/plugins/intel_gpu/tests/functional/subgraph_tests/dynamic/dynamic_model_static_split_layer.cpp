@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/split.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -78,7 +78,10 @@ protected:
         init_input_shapes(inputShapes);
         const auto inShapSplit = inputDynamicShapes[0];
         const auto inShapeElt = inputDynamicShapes[1];
-        auto params = builder::makeDynamicParams(netType, {inShapSplit, inShapeElt});
+        ov::ParameterVector params;
+        for (auto&& shape : {inShapSplit, inShapeElt}) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+        }
         auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
         auto axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});

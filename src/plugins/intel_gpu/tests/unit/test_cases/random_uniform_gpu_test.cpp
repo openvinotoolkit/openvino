@@ -18,8 +18,7 @@ using namespace ::tests;
  */
 template<typename T>
 struct RandomUniformParams {
-    tensor output_tensor;
-    format f;
+    ov::Shape output_shape;
     T min_val;
     T max_val;
     uint64_t global_seed;
@@ -32,24 +31,24 @@ struct random_uniform_gpu_test : public ::testing::TestWithParam<RandomUniformPa
 public:
     void test(bool is_caching_test) {
 
-        auto data_type = type_to_data_type<T>::value;
+        auto data_type = ov::element::from<T>();
         RandomUniformParams<T> params = testing::TestWithParam<RandomUniformParams<T> >::GetParam();
         auto &engine = get_test_engine();
 
+        auto format = format::get_default_format(params.output_shape.size());
         auto shape = engine.allocate_memory(
-                {data_type, params.f, {1, 1, static_cast<int32_t >(params.output_tensor.sizes().size()), 1}});
+                {{1, 1, 1, static_cast<long int>(params.output_shape.size())}, data_type, format});
         auto min_val = engine.allocate_memory(layout(data_type, format::bfyx, {1, 1, 1, 1}));
         auto max_val = engine.allocate_memory(layout(data_type, format::bfyx, {1, 1, 1, 1}));
 
-        set_values(shape, params.output_tensor.sizes());
+        set_values(shape, params.output_shape);
         set_values(min_val, {params.min_val});
         set_values(max_val, {params.max_val});
 
         topology topology;
         topology.add(
                 random_uniform("random_uniform", { input_info("shape"), input_info("min_val"), input_info("max_val") }, data_type, params.global_seed,
-                               params.op_seed, params.output_tensor,
-                               params.f));
+                               params.op_seed, params.output_shape));
         topology.add(input_layout("shape", shape->get_layout()));
         topology.add(input_layout("min_val", min_val->get_layout()));
         topology.add(input_layout("max_val", max_val->get_layout()));
@@ -78,31 +77,31 @@ struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<RandomUniformParams<T> > &param) {
         std::stringstream buf;
-        buf << " output tensor" << param.param.output_tensor.to_string()
-            << " min_value " << param.param.min_val
-            << " max_value " << param.param.max_val
-            << " global_seed " << param.param.global_seed
-            << " op_seed " << param.param.op_seed;
+        buf << "output_tensor_" << param.param.output_shape
+            << "_min_value_" << param.param.min_val
+            << "_max_value_" << param.param.max_val
+            << "_global_seed_" << param.param.global_seed
+            << "_op_seed_" << param.param.op_seed;
         return buf.str();
     }
 
 };
 
 template<>
-std::string PrintToStringParamName::operator()(const testing::TestParamInfo<RandomUniformParams<half_t> > &param) {
+std::string PrintToStringParamName::operator()(const testing::TestParamInfo<RandomUniformParams<ov::float16> > &param) {
     std::stringstream buf;
-    buf << " output tensor" << param.param.output_tensor.to_string()
-        << " min_value " << static_cast<float>(param.param.min_val)
-        << " max_value " << static_cast<float>(param.param.max_val)
-        << " global_seed " << param.param.global_seed
-        << " op_seed " << param.param.op_seed;
+    buf << "output_tensor_" << param.param.output_shape
+        << "_min_value_" << static_cast<float>(param.param.min_val)
+        << "_max_value_" << static_cast<float>(param.param.max_val)
+        << "_global_seed_" << param.param.global_seed
+        << "_op_seed_" << param.param.op_seed;
     return buf.str();
 }
 
 using random_uniform_gpu_test_i32 = random_uniform_gpu_test<int32_t>;
 using random_uniform_gpu_test_i64 = random_uniform_gpu_test<int64_t>;
 using random_uniform_gpu_test_f32 = random_uniform_gpu_test<float>;
-using random_uniform_gpu_test_f16 = random_uniform_gpu_test<half_t>;
+using random_uniform_gpu_test_f16 = random_uniform_gpu_test<ov::float16>;
 
 TEST_P(random_uniform_gpu_test_i32, random_int32) {
     ASSERT_NO_FATAL_FAILURE(test(false));
@@ -124,7 +123,7 @@ TEST_P(random_uniform_gpu_test_f16, random_f16) {
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_int32,
                          random_uniform_gpu_test_i32,
                          ::testing::Values(
-                                 RandomUniformParams<int32_t>{tensor(1, 1, 2, 3), format::bfyx, 50, 100, 80, 100,
+                                 RandomUniformParams<int32_t>{ov::Shape{1, 1, 3, 2}, 50, 100, 80, 100,
                                                               std::vector<int32_t>{
                                                                       65, 70, 56,
                                                                       59, 82, 92
@@ -135,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_int32,
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_int64,
                          random_uniform_gpu_test_i64,
                          ::testing::Values(
-                                 RandomUniformParams<int64_t>{tensor(1, 1, 5, 4, 3), format::bfzyx, -2600, 3700, 755,
+                                 RandomUniformParams<int64_t>{ov::Shape{1, 1, 3, 4, 5}, -2600, 3700, 755,
                                                               951,
                                                               {
                                                                       2116L, -1581L, 2559L, -339L, -1660L, 519L, 90L,
@@ -151,11 +150,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_int64,
                          ),
                          PrintToStringParamName());
 
-
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f32,
                          random_uniform_gpu_test_f32,
                          ::testing::Values(
-                                 RandomUniformParams<float>{tensor(1, 1, 3, 3), format::bfyx, 0.0, 1.0, 150, 10,
+                                 RandomUniformParams<float>{ov::Shape{1, 1, 3, 3}, 0.0, 1.0, 150, 10,
+                                                            {
+                                                                    0.7011236, 0.30539632, 0.93931055,
+                                                                    0.9456035, 0.11694777, 0.50770056,
+                                                                    0.5197197, 0.22727466, 0.991374
+                                                            }
+                                 },
+                                 RandomUniformParams<float>{ov::Shape{3, 3}, 0.0, 1.0, 150, 10,
                                                             {
                                                                     0.7011236, 0.30539632, 0.93931055,
                                                                     0.9456035, 0.11694777, 0.50770056,
@@ -165,24 +170,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f32,
                          ),
                          PrintToStringParamName());
 
-
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f16,
                          random_uniform_gpu_test_f16,
                          ::testing::Values(
-                                 RandomUniformParams<half_t>{tensor(1, 1, 3, 2, 4), format::bfzyx, half_t(-1.5),
-                                                             half_t(-1.0), 150, 10,
-                                                             {half_t(-1.19726562), half_t(-1.09667969),
-                                                              half_t(-1.08398438), half_t(-1.30859375),
-                                                              half_t(-1.48242188), half_t(-1.45898438),
-                                                              half_t(-1.22851562), half_t(-1.08300781),
-                                                              half_t(-1.33203125), half_t(-1.14062500),
-                                                              half_t(-1.42285156), half_t(-1.43554688),
-                                                              half_t(-1.32617188), half_t(-1.06542969),
-                                                              half_t(-1.29296875), half_t(-1.21386719),
-                                                              half_t(-1.21289062), half_t(-1.03027344),
-                                                              half_t(-1.17187500), half_t(-1.08886719),
-                                                              half_t(-1.08789062), half_t(-1.43359375),
-                                                              half_t(-1.17773438), half_t(-1.16992188)}
+                                 RandomUniformParams<ov::float16>{ov::Shape{1, 1, 4, 2, 3}, ov::float16(-1.5),
+                                                             ov::float16(-1.0), 150, 10,
+                                                             {ov::float16(-1.19726562), ov::float16(-1.09667969),
+                                                              ov::float16(-1.08398438), ov::float16(-1.30859375),
+                                                              ov::float16(-1.48242188), ov::float16(-1.45898438),
+                                                              ov::float16(-1.22851562), ov::float16(-1.08300781),
+                                                              ov::float16(-1.33203125), ov::float16(-1.14062500),
+                                                              ov::float16(-1.42285156), ov::float16(-1.43554688),
+                                                              ov::float16(-1.32617188), ov::float16(-1.06542969),
+                                                              ov::float16(-1.29296875), ov::float16(-1.21386719),
+                                                              ov::float16(-1.21289062), ov::float16(-1.03027344),
+                                                              ov::float16(-1.17187500), ov::float16(-1.08886719),
+                                                              ov::float16(-1.08789062), ov::float16(-1.43359375),
+                                                              ov::float16(-1.17773438), ov::float16(-1.16992188)}
                                  }
                          ),
                          PrintToStringParamName());

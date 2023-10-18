@@ -4,7 +4,7 @@
 
 #include <shared_test_classes/single_layer/gather_nd.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace ov;
@@ -55,7 +55,10 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(dataElementType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(dataElementType, shape));
+        }
         auto indexes_node = ngraph::opset3::Constant::create(idxElementType, indexes.first, indexes.second);
         auto gather_nd = std::make_shared<ngraph::opset5::GatherND>(params[0], indexes_node, batchDims);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather_nd)};
@@ -81,7 +84,10 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(dataElementType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(dataElementType, shape));
+        }
         auto indexes_node = ngraph::opset3::Constant::create(idxElementType, indexes.first, indexes.second);
         auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(params[0], indexes_node, batchDims);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather_nd)};

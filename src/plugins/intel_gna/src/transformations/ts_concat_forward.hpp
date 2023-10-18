@@ -37,7 +37,7 @@ namespace pass {
  *                |
  *             Any#M
  */
-class TSConcatForward : public ngraph::pass::MatcherPass {
+class TSConcatForward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TSConcatForward", "0");
     TSConcatForward();

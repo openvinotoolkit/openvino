@@ -30,27 +30,62 @@
 # Use the Cython executable that lives next to the Python executable
 # if it is a local installation.
 
-find_package(PythonInterp 3 QUIET)
-if( PYTHONINTERP_FOUND )
-  get_filename_component( _python_path ${PYTHON_EXECUTABLE} PATH )
-  file(TO_CMAKE_PATH "$ENV{HOME}" ENV_HOME)
-  find_host_program( CYTHON_EXECUTABLE
-    NAMES cython cython.bat cython3
-    HINTS ${_python_path} ${ENV_HOME}/.local/bin $ENV{HOMEBREW_OPT}/cython/bin 
-          ${ENV_HOME}/Library/Python/${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/bin
-    )
-else()
-  find_host_program( CYTHON_EXECUTABLE
-    NAMES cython cython.bat cython3
-    )
-endif()
+function( _find_cython_executable )
+  find_host_package(Python3 QUIET COMPONENTS Interpreter)
+  if( Python3_Interpreter_FOUND )
+    get_filename_component( _python_path ${Python3_EXECUTABLE} PATH )
+    file(TO_CMAKE_PATH "$ENV{HOME}" ENV_HOME)
+    find_host_program( CYTHON_EXECUTABLE
+      NAMES cython cython.exe cython.bat cython3
+      HINTS ${_python_path}
+            ${ENV_HOME}/.local/bin
+            $ENV{HOMEBREW_OPT}/cython/bin
+            ${ENV_HOME}/Library/Python/${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/bin
+            ${_python_path}/Scripts
+      )
+  else()
+    find_host_program( CYTHON_EXECUTABLE
+      NAMES cython cython.bat cython3
+      )
+  endif()
 
+  set(CYTHON_EXECUTABLE "${CYTHON_EXECUTABLE}" PARENT_SCOPE)
+endfunction()
+
+_find_cython_executable()
 
 include( FindPackageHandleStandardArgs )
 FIND_PACKAGE_HANDLE_STANDARD_ARGS( Cython REQUIRED_VARS CYTHON_EXECUTABLE )
 
 # Find Cython version
-execute_process(COMMAND ${CYTHON_EXECUTABLE} -V ERROR_VARIABLE CYTHON_OUTPUT OUTPUT_QUIET)
-string(REGEX REPLACE "^Cython version ([0-9]+\\.[0-9]+(\\.[0-9]+)?).*" "\\1" CYTHON_VERSION "${CYTHON_OUTPUT}")
+execute_process(COMMAND ${CYTHON_EXECUTABLE} -V
+  ERROR_VARIABLE CYTHON_OUTPUT
+  OUTPUT_VARIABLE CYTHON_ERROR_MESSAGE
+  RESULT_VARIABLE CYTHON_EXIT_CODE
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+if(CYTHON_EXIT_CODE EQUAL 0)
+  if(NOT CYTHON_OUTPUT)
+    set(CYTHON_OUTPUT "${CYTHON_ERROR_MESSAGE}")
+  endif()
+  string(REGEX REPLACE "^Cython version ([0-9]+\\.[0-9]+(\\.[0-9]+)?).*" "\\1" CYTHON_VERSION "${CYTHON_OUTPUT}")
+else()
+  if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+      if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15)
+        set(CYTHON_MESSAGE_MODE TRACE)
+      else()
+        set(CYTHON_MESSAGE_MODE WARNING)
+      endif()
+  endif()
+  if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+      set(CYTHON_MESSAGE_MODE FATAL_ERROR)
+  endif()
+  message(${CYTHON_MESSAGE_MODE} "Failed to detect cython version: ${CYTHON_ERROR_MESSAGE}")
+  unset(CYTHON_MESSAGE_MODE)
+endif()
+
+unset(CYTHON_OUTPUT)
+unset(CYTHON_EXIT_CODE)
+unset(CYTHON_ERROR_MESSAGE)
 
 mark_as_advanced( CYTHON_EXECUTABLE CYTHON_VERSION )

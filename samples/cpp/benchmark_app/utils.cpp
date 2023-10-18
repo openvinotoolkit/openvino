@@ -61,7 +61,7 @@ size_t InputInfo::depth() const {
 uint32_t device_default_device_duration_in_seconds(const std::string& device) {
     static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds{{"CPU", 60},
                                                                                 {"GPU", 60},
-                                                                                {"VPU", 60},
+                                                                                {"NPU", 60},
                                                                                 {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {
@@ -109,7 +109,14 @@ std::vector<float> split_float(const std::string& s, char delim) {
 }
 
 bool can_measure_as_static(const std::vector<benchmark_app::InputsInfo>& app_input_info) {
-    return app_input_info.size() == 1;
+    for (const benchmark_app::InputsInfo& info : app_input_info) {
+        for (const auto& pair : info) {
+            if (pair.second.partialShape.is_dynamic() && app_input_info.size() > 1) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 static const std::vector<std::string> meta_plugins{"MULTI", "HETERO", "AUTO"};

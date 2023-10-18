@@ -12,6 +12,8 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -22,6 +24,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
 namespace {
@@ -29,7 +32,7 @@ namespace {
 std::string get_mock_engine_path() {
     std::string mock_engine_name("mock_engine");
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              mock_engine_name + IE_BUILD_POSTFIX);
+                                              mock_engine_name + OV_BUILD_POSTFIX);
 }
 
 template <class T>
@@ -67,8 +70,9 @@ ov::Tensor ov::hetero::tests::HeteroTests::create_and_fill_tensor(const ov::elem
     OPENVINO_THROW("Cannot generate tensor. Unsupported element type.");
 }
 
-std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_subtract() {
-    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::Shape{1, 3, 2, 2});
+std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_subtract(bool dynamic) {
+    int64_t bs = dynamic ? -1 : 1;
+    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{bs, 3, 2, 2});
     param->set_friendly_name("input");
     auto const_value = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
     const_value->set_friendly_name("const_val");
@@ -81,8 +85,9 @@ std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_sub
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
-std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_subtract_reshape() {
-    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::Shape{1, 3, 2, 2});
+std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_subtract_reshape(bool dynamic) {
+    int64_t bs = dynamic ? -1 : 1;
+    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{bs, 3, 2, 2});
     param->set_friendly_name("input");
     auto const_value = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
     const_value->set_friendly_name("const_val");
@@ -99,8 +104,9 @@ std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_sub
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
-std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_subtract_reshape_relu() {
-    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::Shape{1, 3, 2, 2});
+std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_subtract_reshape_relu(bool dynamic) {
+    int64_t bs = dynamic ? -1 : 1;
+    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{bs, 3, 2, 2});
     param->set_friendly_name("input");
     auto const_value = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
     const_value->set_friendly_name("const_val");
@@ -119,8 +125,9 @@ std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_sub
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
-std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_reshape() {
-    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::Shape{1, 3, 2, 2});
+std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_reshape(bool dynamic) {
+    int64_t bs = dynamic ? -1 : 1;
+    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{bs, 3, 2, 2});
     param->set_friendly_name("input");
     auto const_value = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
     const_value->set_friendly_name("const_val");
@@ -131,6 +138,27 @@ std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_res
     auto reshape = std::make_shared<ov::opset11::Reshape>(add, reshape_val, true);
     reshape->set_friendly_name("reshape");
     auto result = std::make_shared<ov::opset11::Result>(reshape);
+    result->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+}
+
+std::shared_ptr<ov::Model> ov::hetero::tests::HeteroTests::create_model_with_subtract_shapeof_reshape(bool dynamic) {
+    int64_t bs = dynamic ? -1 : 1;
+    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{bs, 3, 2, 2});
+    param->set_friendly_name("input");
+    auto reshape_val0 = ov::opset11::Constant::create<int64_t>(ov::element::i64, ov::Shape{2}, {bs, 12});
+    reshape_val0->set_friendly_name("reshape_val0");
+    auto reshape0 = std::make_shared<ov::opset11::Reshape>(param, reshape_val0, true);
+    reshape0->set_friendly_name("reshape0");
+    auto const_value = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1, 1}, {1});
+    const_value->set_friendly_name("const_val");
+    auto subtract = std::make_shared<ov::opset11::Subtract>(reshape0, const_value);
+    subtract->set_friendly_name("sub");
+    auto shape_of = std::make_shared<ov::opset11::ShapeOf>(param);
+    shape_of->set_friendly_name("shape_of");
+    auto reshape1 = std::make_shared<ov::opset11::Reshape>(subtract, shape_of, true);
+    reshape1->set_friendly_name("reshape1");
+    auto result = std::make_shared<ov::opset11::Result>(reshape1);
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
@@ -386,8 +414,11 @@ public:
 
 class MockPluginBase : public ov::IPlugin {
 public:
-    MockPluginBase(const std::string& name, const std::unordered_set<std::string>& supported_ops)
-        : m_supported_ops(supported_ops) {
+    MockPluginBase(const std::string& name,
+                   const std::unordered_set<std::string>& supported_ops,
+                   bool dynamism_supported = false)
+        : m_supported_ops(supported_ops),
+          m_dynamism_supported(dynamism_supported) {
         set_device_name(name);
     }
 
@@ -501,10 +532,24 @@ public:
         auto device_id = properties.count(ov::device::id.name())
                              ? properties.at(ov::device::id.name()).as<std::string>()
                              : m_default_device_id;
-        for (const auto& op : model->get_ordered_ops()) {
-            if (m_supported_ops.find(op->get_type_info().name) == m_supported_ops.end())
-                continue;
-            res[op->get_friendly_name()] = get_device_name() + "." + device_id;
+
+        auto supported = ov::get_supported_nodes(
+            model,
+            [&](std::shared_ptr<ov::Model>& model) {
+                ov::pass::Manager manager;
+                manager.register_pass<ov::pass::InitNodeInfo>();
+                manager.register_pass<ov::pass::ConstantFolding>();
+                manager.run_passes(model);
+            },
+            [&](const std::shared_ptr<ov::Node>& op) {
+                if (op->is_dynamic() && !m_dynamism_supported)
+                    return false;
+                if (m_supported_ops.find(op->get_type_info().name) == m_supported_ops.end())
+                    return false;
+                return true;
+            });
+        for (auto&& op_name : supported) {
+            res.emplace(op_name, get_device_name() + "." + device_id);
         }
         return res;
     }
@@ -512,6 +557,7 @@ public:
 protected:
     std::string m_default_device_id = "0";
     std::unordered_set<std::string> m_supported_ops;
+    bool m_dynamism_supported = false;
     bool m_profiling = false;
     bool m_loaded_from_cache{false};
 };
@@ -519,7 +565,7 @@ protected:
 class MockPluginReshape : public MockPluginBase {
 public:
     MockPluginReshape(const std::string& name)
-        : MockPluginBase(name, {"Parameter", "Result", "Add", "Constant", "Reshape"}) {}
+        : MockPluginBase(name, {"Parameter", "Result", "Add", "Constant", "Reshape"}, true) {}
 
     const ov::Version& get_const_version() override {
         static const ov::Version version = {CI_BUILD_NUMBER, "openvino_mock_reshape_plugin"};

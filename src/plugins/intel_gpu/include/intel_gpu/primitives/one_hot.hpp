@@ -35,8 +35,6 @@ struct one_hot : public primitive_base<one_hot> {
 
     one_hot() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs one-hot primitive layer.
     /// @param id              An identifier of new primitive.
     /// @param input           An identifier of primitive which is an input for newly created one-hot primitive.
@@ -84,13 +82,13 @@ struct one_hot : public primitive_base<one_hot> {
     /// @brief Output size reference.
     tensor shape;
     /// @brief One-hot axis position in output shape (0-based, from left to right).
-    int64_t one_hot_axis;
+    int64_t one_hot_axis = 0;
     /// @brief The number of classes and thus the size of the one-hot dimension
-    int64_t depth;
+    int64_t depth = 0;
     /// @brief The locations represented by indices in indices take this value.
-    float on_value;
+    float on_value = 1.0f;
     /// @brief all other locations take value this value.
-    float off_value;
+    float off_value = 0.0f;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

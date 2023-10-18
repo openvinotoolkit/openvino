@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/group_convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -86,7 +86,10 @@ protected:
         size_t numGroups;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
 
-        auto inputParams = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
         auto groupConvolutionNode = ngraph::builder::makeGroupConvolution(paramOuts.front(), netType, kernel, stride, padBegin,

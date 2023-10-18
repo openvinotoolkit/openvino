@@ -44,7 +44,7 @@ extensions = [
     'cpplexer',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
-    'sphinx_sitemap'
+    'openvino_custom_sphinx_sitemap'
 ]
 
 html_baseurl = 'https://docs.openvino.ai/canonical/'
@@ -53,6 +53,19 @@ html_baseurl = 'https://docs.openvino.ai/canonical/'
 
 sitemap_url_scheme = "{link}"
 site_url = f'https://docs.openvino.ai/{version_name}/'
+
+ov_sitemap_urlset = [
+    ("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9"),
+    ("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+    ("xmlns:coveo", "https://www.coveo.com/en/company/about-us"),
+    ("xsi:schemaLocation", "http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd")
+]
+
+ov_sitemap_meta = [
+    ('coveo:metadata', {
+        'ovversion': version_name,
+    })
+]
 
 # ----------------------------------------------------
 
@@ -179,6 +192,10 @@ shutil.copy("../../../docs/home.rst",".")
 def replace_index_with_redirect(app,exception):
     shutil.copy("../../../docs/index.html","../_build/index.html")
 
+def replace_design_tabs_script(app, exception):
+    shutil.copy("../../../docs/_static/design-tabs.js","../_build/_static/design-tabs.js")
+
+
 def setup(app):
     logger = logging.getLogger(__name__)
     app.add_config_value('doxygen_mapping_file',
@@ -186,6 +203,7 @@ def setup(app):
     app.add_config_value('repositories', repositories, rebuild=True)
     app.connect('autodoc-skip-member', autodoc_skip_member)
     app.connect('build-finished',replace_index_with_redirect)
+    app.connect('build-finished', replace_design_tabs_script)
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
     app.add_js_file('js/newsletter.js')

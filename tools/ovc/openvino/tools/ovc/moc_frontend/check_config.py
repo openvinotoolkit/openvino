@@ -97,8 +97,3 @@ def legacy_transformations_config_used(argv: argparse.Namespace):
 def tensorflow_custom_operations_config_update_used(argv: argparse.Namespace):
     return hasattr(argv, 'tensorflow_custom_operations_config_update') and \
            argv.tensorflow_custom_operations_config_update is not None
-
-
-def input_freezig_used(argv):
-    return hasattr(argv, 'freeze_placeholder_with_value') and argv.freeze_placeholder_with_value is not None \
-           and len(argv.freeze_placeholder_with_value) > 0
