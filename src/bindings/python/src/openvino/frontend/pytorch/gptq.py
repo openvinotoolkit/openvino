@@ -27,7 +27,7 @@ def decompression_pattern(weights):
 
 
 def patched_forward(self, *args, **kwargs):
-    if hasattr(self, "_hf_hook"):
+    if hasattr(self, '_hf_hook'):
         args, kwargs = self._hf_hook.pre_forward(self, *args, **kwargs)
 
     x = args[0]
@@ -55,25 +55,32 @@ def patched_forward(self, *args, **kwargs):
     if self.bias is not None:
         out.add_(self.bias)
 
-    if hasattr(self, "_hf_hook"):
+    if hasattr(self, '_hf_hook'):
         out = self._hf_hook.post_forward(self, out)
     return out
 
 
+# All the following AutoGPTQ's quant types are supposed to have the same weights packing schema
+supported_quant_types = ['triton', 'exllama', 'cuda', 'exllamav2', 'cuda-old']
+
+
 def patch_model(model):
     for name, m in model.named_modules():
-        if hasattr(m, "_openvino_patch_orig_forward"):
+        if hasattr(m, '_openvino_patch_orig_forward'):
             # already patched, skipping
             continue
         # TODO: Check module type
-        is_quantized = getattr(m, "is_quantized", None)
+        is_quantized = getattr(m, 'is_quantized', None)
         if is_quantized is not None:
             m.is_quantized = False
         m.float()  # enables tracing on CPU, applied for all modules
-        if hasattr(m, "QUANT_TYPE") and m.QUANT_TYPE == "exllama":
+        if hasattr(m, 'QUANT_TYPE'):
+            if m.QUANT_TYPE not in supported_quant_types:
+                raise ValueError(
+                    f'Unsupported QUANT_TYPE == {m.QUANT_TYPE} is discovered for AutoGPTQ model, only the following types are supported: {supported_quant_types}')
             if m.bits != 4:
                 raise ValueError(
-                    f"Exllama kernel supports only bits=4, requested bits={m.bits} for module {name}. Something is wrong in the model initialization.")
+                    f'Unsupported bits == {m.bits} is discovered in module {name} in AutoGPTQ model, only bits == 4 is supported.')
 
             int4_in_int32 = 8
             groups = m.qzeros.shape[0]
@@ -102,7 +109,7 @@ def patch_model(model):
 
 def unpatch_model(model):
     for _, m in model.named_modules():
-        if hasattr(m, "_openvino_patch_orig_forward"):
+        if hasattr(m, '_openvino_patch_orig_forward'):
             try:
                 m.forward = m._openvino_patch_orig_forward
                 del m._openvino_patch_orig_forward
@@ -123,3 +130,11 @@ def unpatch_model(model):
             except Exception as error:
                 print('[ WARNING ] Exception raised during GPTQ model unpatching. Depending on the exact issue it may lead to broken original model')
                 print(error)
+
+
+def detect_gptq_model_raw(model):
+    return model and getattr(model, 'config', None) and getattr(model.config, 'quantization_config', None) and model.config.quantization_config.quant_method == 'gptq'
+
+
+def detect_gptq_model(model):
+    return detect_gptq_model_raw(model) or getattr(model, 'model', None) and detect_gptq_model_raw(model.model)

@@ -89,11 +89,13 @@ class TorchScriptPythonDecoder (Decoder):
                     example_inputs, input_params, pt_module)
                 gptq_patched = False
 
-                if getattr(pt_module, "config", None) and getattr(pt_module.config, "quantization_config", None) and pt_module.config.quantization_config.quant_method == "gptq":
+                if gptq.detect_gptq_model(pt_module):
                     try:
                         gptq.patch_model(pt_module)
                         gptq_patched = True
-                    except:
+                    except Exception as error:
+                        print('[ WARNING ] Failed patching of AutoGPTQ model. Error message:\n', error)
+                        print('[ WARNING ] Tracing of the model will likely be unsuccesfull or incorrect')
                         gptq.unpatch_model(pt_module)
                         gptq_patched = False
 
