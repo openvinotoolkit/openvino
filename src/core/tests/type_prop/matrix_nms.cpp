@@ -113,7 +113,7 @@ TEST_F(TypePropMatrixNmsV8Test, incorrect_input_type) {
 
     OV_EXPECT_THROW(ignore = make_op(boxes, scores, Attributes()),
                     NodeValidationFailure,
-                    HasSubstr("Expected 'boxes', 'scores' type is same."));
+                    HasSubstr("Expected fp32 as element type for the 'boxes' input"));
 }
 
 TEST_F(TypePropMatrixNmsV8Test, default_ctor) {
@@ -193,21 +193,6 @@ TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_keep_topk) {
     // batch * min(keep_topk, class * box))
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 8), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 8), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
-}
-
-TEST_F(TypePropMatrixNmsV8Test, input_f16) {
-    const auto boxes = make_shared<op::v0::Parameter>(element::f16, Shape{2, 7, 4});
-    const auto scores = make_shared<op::v0::Parameter>(element::f16, Shape{2, 5, 7});
-
-    const auto nms = make_op(boxes, scores, Attributes());
-
-    ASSERT_EQ(nms->get_output_element_type(0), element::f16);
-    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
-    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
-    // batch * class * box
-    EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
-    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 

@@ -158,7 +158,7 @@ TEST(type_prop, interpolate_v4_non_constant_axes_scales) {
     auto img_shape = PartialShape{2, 2, 30, 60};
     set_shape_labels(img_shape, 10);
 
-    auto image = std::make_shared<ov::op::v0::Parameter>(element::f16, img_shape);
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
     auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{2});
@@ -174,7 +174,7 @@ TEST(type_prop, interpolate_v4_non_constant_axes_scales) {
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
-    EXPECT_EQ(interp->get_element_type(), element::f16);
+    EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape::dynamic(4));
     EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
 }
@@ -183,7 +183,7 @@ TEST(type_prop, interpolate_v4_non_constant_axes_sizes) {
     auto img_shape = PartialShape{2, 2, 30, 60};
     set_shape_labels(img_shape, 10);
 
-    auto image = std::make_shared<ov::op::v0::Parameter>(element::bf16, img_shape);
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
     auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2, 1}, {0.5f, 0.5f});
 
@@ -200,13 +200,13 @@ TEST(type_prop, interpolate_v4_non_constant_axes_sizes) {
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
-    EXPECT_EQ(interp->get_element_type(), element::bf16);
+    EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape::dynamic(4));
     EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
 TEST(type_prop, interpolate_v4_img_dynamic_rank) {
-    auto image = std::make_shared<ov::op::v0::Parameter>(element::bf16, PartialShape::dynamic());
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
@@ -222,7 +222,7 @@ TEST(type_prop, interpolate_v4_img_dynamic_rank) {
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
-    EXPECT_EQ(interp->get_element_type(), element::bf16);
+    EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
@@ -514,7 +514,7 @@ TEST(type_prop, interpolate_v11_scales) {
 }
 
 TEST(type_prop, interpolate_v11_scales_all_inputs_static_rank) {
-    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape::dynamic(8));
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(8));
     const auto scales = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
     const auto axes = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
 
@@ -524,7 +524,7 @@ TEST(type_prop, interpolate_v11_scales_all_inputs_static_rank) {
     attrs.pads_end = {0, 0, 0, 0};
     auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, axes, attrs);
 
-    EXPECT_EQ(interp->get_element_type(), element::f16);
+    EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape::dynamic(8));
 }
 
@@ -620,7 +620,7 @@ TEST(type_prop, interpolate_v11_non_constant_axes_scales) {
     auto img_shape = PartialShape{2, 2, 30, 60};
     set_shape_labels(img_shape, 10);
 
-    auto image = std::make_shared<ov::op::v0::Parameter>(element::f16, img_shape);
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
     auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{2});
 
@@ -630,7 +630,7 @@ TEST(type_prop, interpolate_v11_non_constant_axes_scales) {
     attrs.pads_end = {0, 0, 0, 0};
     auto interp = std::make_shared<op::v11::Interpolate>(image, scales, axes, attrs);
 
-    EXPECT_EQ(interp->get_element_type(), element::f16);
+    EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape::dynamic(4));
     EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
 }
@@ -647,7 +647,7 @@ TEST(type_prop, interpolate_v11_scales_incorrect_et) {
 
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, axes, attrs),
                     ov::NodeValidationFailure,
-                    HasSubstr("Scales element type must be f32, f16 or bf16"));
+                    HasSubstr("Scales element type must be f32"));
 }
 
 TEST(type_prop, interpolate_v11_sizes_incorrect_et) {

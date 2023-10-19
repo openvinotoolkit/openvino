@@ -189,7 +189,7 @@ TYPED_TEST(type_prop, multiclass_nms_incorrect_input_type) {
 
     OV_EXPECT_THROW(ignore = make_shared<TypeParam>(boxes, scores, this->attrs),
                     NodeValidationFailure,
-                    HasSubstr("Expected 'boxes', 'scores' type is same."));
+                    HasSubstr("Expected fp32 as element type for the 'boxes' input"));
 }
 
 TYPED_TEST(type_prop, multiclass_nms_default_ctor) {
@@ -276,12 +276,12 @@ TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_keep_topk) {
 }
 
 TYPED_TEST(type_prop, multiclass_nms_input_f16) {
-    const auto boxes = make_shared<op::v0::Parameter>(element::f16, Shape{2, 7, 4});
-    const auto scores = make_shared<op::v0::Parameter>(element::f16, Shape{2, 5, 7});
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{2, 7, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{2, 5, 7});
 
     const auto nms = make_shared<TypeParam>(boxes, scores, this->attrs);
 
-    ASSERT_EQ(nms->get_output_element_type(0), element::f16);
+    ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
     ASSERT_EQ(nms->get_output_element_type(2), element::i64);
     // batch * class * box
