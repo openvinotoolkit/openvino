@@ -1210,8 +1210,8 @@ jobs:
 
     strategy:
       matrix:
-        runner: [aks-linux-4-cores, aks-linux-4-cores-16gb, aks-linux-32-cores]
-        test_type: [precommit, nightly]
+        runner: [aks-linux-32-cores]
+        test_type: [nightly]
 
     defaults:
       run:
