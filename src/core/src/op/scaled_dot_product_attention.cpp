@@ -19,6 +19,14 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
                                                               const Output<Node>& key,
                                                               const Output<Node>& value,
                                                               const Output<Node>& attn_mask,
+                                                              const Output<Node>& scale,
+                                                              bool causal)
+    : ScaledDotProductAttention({query, key, value, attn_mask, scale}, causal) {}
+
+op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>& query,
+                                                              const Output<Node>& key,
+                                                              const Output<Node>& value,
+                                                              const Output<Node>& attn_mask,
                                                               bool causal)
     : ScaledDotProductAttention({query, key, value, attn_mask}, causal) {}
 
@@ -30,7 +38,7 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
 
 void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() == 3 || get_input_size() == 4);
+    NODE_VALIDATION_CHECK(this, get_input_size() >= 3 && get_input_size() <= 5);
     // TODO: More checks and accurate deduction of dimensions in case when various
     // dynamic combinations appear.
     auto query = get_input_partial_shape(0);

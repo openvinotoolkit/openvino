@@ -195,6 +195,7 @@ def scaled_dot_product_attention(
     key: NodeInput,
     value: NodeInput,
     attention_mask: NodeInput = None,
+    scale: NodeInput = None,
     causal: bool = False,
     name: Optional[str] = None,
 ) -> Node:
@@ -205,8 +206,9 @@ def scaled_dot_product_attention(
 
     :param query: Query tensor of shape [N, ..., L, E].
     :param key: Key tensor of shape [N, ..., S, E]
-    :param value: Value tensor of shape [N, ..., S, Ev).
-    :param attention_mask: Optional attention mask tensor of shape [N, ..., L, S]
+    :param value: Value tensor of shape [N, ..., S, Ev].
+    :param attention_mask: Optional attention mask tensor of shape [N, ..., L, S] or scalar float type zero value.
+    :param scale: Optional alternative scale, a float point type scalar
     :param causal: If true, then autogenerates causal attention mask instead of using attention_mask input,
                         and expects attention_mask input is not set.
     :param name: The optional new name for output node.
@@ -214,7 +216,7 @@ def scaled_dot_product_attention(
     :return: The new node performing Scaled Dot Product Attention operation.
     """
     inputs = as_nodes(query, key, value, attention_mask) if attention_mask is not None else as_nodes(
-        query, key, value)
+        query, key, value, scale)
 
     attributes = {
         "causal": causal,

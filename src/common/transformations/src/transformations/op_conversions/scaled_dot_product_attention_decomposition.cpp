@@ -64,12 +64,19 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{}, {-2}));
     auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {1}));
-    auto scale = register_new_node<v8::Gather>(q_shape, minus_one, zero_i)->output(0);
-    scale = register_new_node<v1::ConvertLike>(scale, query);
-    auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
-    auto one_f = register_new_node<v1::ConvertLike>(one_i, sqrt_scale);
-    auto zero_f = register_new_node<v1::ConvertLike>(zero_i, sqrt_scale);
-    scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
+    auto one_f = register_new_node<v1::ConvertLike>(one_i, query);
+    auto zero_f = register_new_node<v1::ConvertLike>(zero_i, query);
+
+    Output<Node> scale;
+    if (node->get_input_size() < 5) {
+        scale = register_new_node<v8::Gather>(q_shape, minus_one, zero_i)->output(0);
+        scale = register_new_node<v1::ConvertLike>(scale, query);
+        auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
+        scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
+    } else {
+        scale = node->input_value(4);
+    }
+
     auto q_scaled = register_new_node<v1::Multiply>(query, scale);
     auto k_rank = register_new_node<v3::ShapeOf>(k_shape, element::i32)->output(0);
     auto k_last_dim = register_new_node<v1::Add>(k_rank, minus_one);
@@ -86,19 +93,22 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto k_transposed = register_new_node<v1::Transpose>(key, transpose_dims);
     auto scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
     minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
-    // two types of masks are supported. A boolean mask where a value of True indicates that the element should take
-    // part in attention. A float mask of the same type as query, key, value that is added to the attention score.
+
     if (node->get_causal() || node->get_input_size() > 3) {
         Output<Node> mask;
         Output<Node> atten_mask;
-        if (node->get_input_size() > 3) {
+        if (!node->get_causal()) {
             mask = node->input_value(3);
+
+            // two types of masks are supported. A boolean mask where a value of True indicates that the element should take
+            // part in attention. A float mask of the same type as query, key, value that is added to the attention score.
             if (mask.get_element_type() == element::boolean) {
                 atten_mask = register_new_node<v1::ConvertLike>(mask, scaled_atten);
                 auto inv_mask = register_new_node<v1::LogicalNot>(mask);
                 atten_mask = register_new_node<v1::Select>(inv_mask, atten_mask, minus_inf);
             } else {
                 atten_mask = mask;
+                std::cerr << "[ DEBUG ] atten_mask = " << atten_mask << "\n";
             }
         } else {
             auto target_s_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
@@ -117,6 +127,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         }
         scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
     }
+
     scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
     auto result = register_new_node<v0::MatMul>(scaled_atten, value);
     result->set_friendly_name(node->get_friendly_name());
