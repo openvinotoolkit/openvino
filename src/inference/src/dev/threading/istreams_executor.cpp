@@ -553,5 +553,70 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
     return config;
 }
 
+IStreamsExecutor::Config IStreamsExecutor::Config::update_executor_config(
+    const IStreamsExecutor::Config& initial,
+    int stream_nums,
+    int stream_nums_per_thread,
+    IStreamsExecutor::Config::PreferredCoreType core_type,
+    bool cpu_pinning) {
+    if ((core_type == ov::threading::IStreamsExecutor::Config::BIG ||
+         core_type == ov::threading::IStreamsExecutor::Config::LITTLE) &&
+        ov::get_available_cores_types().size() == 1) {
+        return initial;
+    }
+
+    const auto proc_type_table = ov::get_org_proc_type_table();
+
+    IStreamsExecutor::Config config = initial;
+
+    config._threadPreferredCoreType = core_type;
+    config._threadsPerStream = stream_nums_per_thread;
+
+    const auto total_num_cores = proc_type_table[0][ALL_PROC];
+    const auto total_num_big_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
+    const auto total_num_little_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
+
+    int num_cores = total_num_cores;
+    if (core_type == ov::threading::IStreamsExecutor::Config::BIG) {
+        num_cores = total_num_big_cores;
+    } else if (core_type == ov::threading::IStreamsExecutor::Config::LITTLE) {
+        num_cores = total_num_little_cores;
+    }
+
+    config._streams = std::min(stream_nums, num_cores);
+
+    //create stream_info_table based on core type
+    std::vector<int> stream_info(ov::CPU_STREAMS_TABLE_SIZE, 0);
+    stream_info[ov::THREADS_PER_STREAM] = config._threadsPerStream;
+    stream_info[ov::STREAM_NUMA_NODE_ID] = 0;
+    stream_info[ov::STREAM_SOCKET_ID] = 0;
+    if (core_type == ov::threading::IStreamsExecutor::Config::BIG) {
+        if (proc_type_table[0][ov::MAIN_CORE_PROC] < config._streams) {
+            stream_info[ov::NUMBER_OF_STREAMS] = proc_type_table[0][ov::MAIN_CORE_PROC];
+            stream_info[ov::PROC_TYPE] = ov::MAIN_CORE_PROC;
+            config._streams_info_table.push_back(stream_info);
+            stream_info[ov::NUMBER_OF_STREAMS] = proc_type_table[0][ov::HYPER_THREADING_PROC];
+            stream_info[ov::PROC_TYPE] = ov::HYPER_THREADING_PROC;
+            config._streams_info_table.push_back(stream_info);
+        } else {
+            stream_info[ov::PROC_TYPE] = ov::MAIN_CORE_PROC;
+            stream_info[ov::NUMBER_OF_STREAMS] = config._streams;
+            config._streams_info_table.push_back(stream_info);
+        }
+    } else if (core_type == ov::threading::IStreamsExecutor::Config::LITTLE) {
+        stream_info[ov::PROC_TYPE] = ov::EFFICIENT_CORE_PROC;
+        stream_info[ov::NUMBER_OF_STREAMS] = config._streams;
+        config._streams_info_table.push_back(stream_info);
+    }
+
+    if(cpu_pinning) {
+        config._cpu_reservation = cpu_pinning;
+        auto new_config = reserve_cpu_threads(config);
+        config = new_config;
+    }
+
+    return config;
+}
+
 }  // namespace threading
 }  // namespace ov
