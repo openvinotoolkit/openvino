@@ -12,6 +12,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
+#include "utils_quantize.hpp"
 
 namespace ov {
 namespace frontend {
@@ -38,22 +39,31 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
         auto axis_node = pattern_map.at(axis).get_node_shared_ptr();
         auto axis_const = std::dynamic_pointer_cast<v0::Constant>(axis_node);
         auto axis = axis_const->cast_vector<int64_t>();
+        if (axis.size() != 1) {
+            add_exception_to_fw_node(stack, "aten::stack has multiple axes, only one is supported.");
+            return false;
+        }
         // Check if ListConstruct is an input
         if (auto list_construct_node = cast_fw_node(input_node, "prim::ListConstruct")) {
             const auto& list_inputs = list_construct_node->input_values();
-            OutputVector node_vector;
-            auto zero = v0::Constant::create(element::i32, Shape{}, {0});
-            // Iterate over values in ListConstruct
-            for (const auto& list_input : list_inputs) {
-                auto node = concat_list_construct(list_input);
-                auto unsqueezed_node = std::make_shared<v0::Unsqueeze>(node, axis_const);
-                node_vector.push_back(unsqueezed_node);
+            std::shared_ptr<Node> node;
+            if (auto compression = u4_compression_stack(list_inputs, axis[0])) {
+                node = compression;
+            } else {
+                OutputVector node_vector;
+                auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+                // Iterate over values in ListConstruct
+                for (const auto& list_input : list_inputs) {
+                    auto node = concat_list_construct(list_input);
+                    auto unsqueezed_node = std::make_shared<v0::Unsqueeze>(node, axis_const);
+                    node_vector.push_back(unsqueezed_node);
+                }
+                // Concat vectors on provided axis
+                node = std::make_shared<v0::Concat>(node_vector, axis[0]);
             }
-            // Concat vectors on provided axis
-            auto concat = std::make_shared<v0::Concat>(node_vector, axis[0]);
 
-            copy_runtime_info_and_name(stack, {concat}, {input_node});
-            replace_node(stack, concat);
+            copy_runtime_info_and_name(stack, {node}, {input_node});
+            replace_node(stack, node);
             return true;
         }
         add_exception_to_fw_node(stack, "Unsupported case of aten::stack.");
