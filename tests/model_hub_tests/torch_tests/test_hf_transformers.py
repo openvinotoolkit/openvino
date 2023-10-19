@@ -298,7 +298,10 @@ class TestTransformersModel(TestConvertModel):
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
                                            ("openai/clip-vit-large-patch14", "clip"),
-                                           ("RWKV/rwkv-4-169m-pile", "rwkv")])
+                                           ("RWKV/rwkv-4-169m-pile", "rwkv"),
+                                           ("microsoft/layoutlmv3-base", "layoutlmv3"),
+                                           ("microsoft/xprophetnet-large-wiki100-cased", "xlm-prophetnet"),
+                                           ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
