@@ -52,9 +52,9 @@ OutputVector translate_tobool_op(const NodeContext& node) {
     auto reduce_prod = make_shared<v1::ReduceProd>(cond_shape, axis);
 
     // compute ReduceProd(ShapeOf(x))) > 0
-    auto greater_than__zero_2 = make_shared<v1::Greater>(reduce_prod, zero);
+    auto greater_than_zero_2 = make_shared<v1::Greater>(reduce_prod, zero);
     // compute (rank > 0 && ReduceProd(ShapeOf(x))) > 0
-    auto logical_and_2 = make_shared<v1::LogicalAnd>(greater_than_zero, greater_than__zero_2);
+    auto logical_and_2 = make_shared<v1::LogicalAnd>(greater_than_zero, greater_than_zero_2);
 
     auto logical_or = make_shared<v1::LogicalOr>(logical_and, logical_and_2);
 
