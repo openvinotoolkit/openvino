@@ -11,11 +11,9 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
 
-telemetry_imported = False
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
-    telemetry_imported = True
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
@@ -430,10 +428,6 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
-    # DEBUG
-    if telemetry_imported:
-        from openvino_telemetry.utils.opt_in_checker import OptInChecker
-        assert OptInChecker()._run_in_ci()
     argv = None
     # Minimize modifications among other places in case if multiple pieces are passed as input_model
     if python_api_used:

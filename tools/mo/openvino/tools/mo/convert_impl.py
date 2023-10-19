@@ -12,12 +12,9 @@ from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
 
-telemetry_imported = False
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
-
-    telemetry_imported = True
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
@@ -829,10 +826,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         return None, None
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
     telemetry = init_mo_telemetry()
-    # DEBUG
-    if telemetry_imported:
-        from openvino_telemetry.utils.opt_in_checker import OptInChecker
-        assert OptInChecker()._run_in_ci()
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
