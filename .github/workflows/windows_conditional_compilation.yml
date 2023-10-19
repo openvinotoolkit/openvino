@@ -1,25 +1,25 @@
 name: Windows Conditional Compilation (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
-#  schedule:
-#    # run daily at 00:00
-#    - cron: '0 0 * * *'
-  pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
-  push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
+  schedule:
+    # run daily at 00:00
+    - cron: '0 0 * * *'
+#  pull_request:
+#    paths-ignore:
+#      - '**/docs/**'
+#      - 'docs/**'
+#      - '**/**.md'
+#      - '**.md'
+#      - '**/layer_tests_summary/**'
+#      - '**/conformance/**'
+#  push:
+#    paths-ignore:
+#      - '**/docs/**'
+#      - 'docs/**'
+#      - '**/**.md'
+#      - '**.md'
+#      - '**/layer_tests_summary/**'
+#      - '**/conformance/**'
     branches:
       - master
 
@@ -127,14 +127,12 @@ jobs:
 
       - name: Ctest - OpenVINO unit tests
         shell: cmd
-        continue-on-error: true
         run: |
           set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
           ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
 
       - name: Perform code tracing via ITT collector
         shell: cmd
-        continue-on-error: true
         run: |
           set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
           
@@ -155,7 +153,6 @@ jobs:
         run: dir ${{ env.INSTALL_DIR }} /s
 
       - name: Pack Artifacts
-        continue-on-error: true
         run: |
           $file=Get-ChildItem -Path "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
           $compress = @{
@@ -190,7 +187,6 @@ jobs:
 
   CC_Build:
     name: Conditional Compilation
-    if: ${{ always() }}
     needs: Build
     defaults:
       run:
@@ -261,7 +257,6 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    if: ${{ always() }}
     needs: Build
     defaults:
       run:
