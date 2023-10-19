@@ -30,7 +30,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
     MATCHER_SCOPE(ScaledDotProductAttentionDecomposition);
     auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
@@ -76,7 +75,9 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto k_last_dim = register_new_node<v1::Add>(k_rank, minus_one);
     auto k_next_dim = register_new_node<v1::Add>(k_rank, minus_two)->output(0);
     k_rank = register_new_node<v0::Squeeze>(k_rank, zero_i);
-    auto minus_inf = register_new_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))->output(0);
+    auto minus_inf =
+        register_new_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))
+            ->output(0);
     auto keep_dim_last = register_new_node<v0::Squeeze>(k_next_dim, zero_i);
     auto k_dims_before_transpose = register_new_node<v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
 
