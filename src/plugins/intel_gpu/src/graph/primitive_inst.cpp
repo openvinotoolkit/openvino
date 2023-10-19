@@ -867,16 +867,16 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << " (is_dynamic=" << _impl->is_dynamic() << ", "
                     << "can_be_optimized=" << can_be_optimized() << ")" << std::endl;
 
+    const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
     if (_exec_deps.empty() && dependencies.empty()) {
         dependencies = events;
     } else {
-        auto queue_type = get_network().get_stream().get_queue_type();
         // Prepare dependencies events in case of OOO queue, CPU implementation,
         // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
-        if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
+        if (out_of_order_queue || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
-                if (input->is_input() && queue_type != QueueTypes::out_of_order)
+                if (input->is_input() && !out_of_order_queue)
                     continue;
                 auto id = input->id();
                 try {
@@ -889,6 +889,13 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                 }
             }
         }
+    }
+
+    // Replace multiple events with single grouped event in case of barriers synchronization to prevent `_last_barrier_ev` usage as a dependency
+    // event of optimized_out instance's users, which may lead to unwanted extra synchronization of CPU impls with GPU kernels
+    if (_node && _node->is_in_shape_of_subgraph() && can_be_optimized() && dependencies.size() > 1 && out_of_order_queue) {
+        auto grouped_ev = get_network().get_stream().group_events(dependencies);
+        dependencies = {grouped_ev};
     }
 
     {
