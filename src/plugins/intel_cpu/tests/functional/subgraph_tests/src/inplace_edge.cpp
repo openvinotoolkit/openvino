@@ -11,12 +11,14 @@ using namespace CPUTestUtils;
 using namespace InferenceEngine;
 
 namespace SubgraphTestsDefinitions {
+// If a node (CumSum) with constant parents has several non-constant nodes (Eltwises) than the edge is broken.
+// The fix is to check node type - is should be Input.
 // Subgraph:
 /*
  *            Constant  Constant
  *                 \    /
  *                  \  /
- *               Transpose
+ *                 CumSum
  *  Parameter      /   \     Parameter
  *        \       /     \       /
  *         \     /       \     /
@@ -45,12 +47,12 @@ public:
         ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShape)),
                                          std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShape))};
 
-        auto transposeConstantInput = ngraph::opset8::Constant::create(ngraph::element::f32, {1, 3, 3, 11}, {10.0f});
-        auto transposeOrder = ngraph::opset8::Constant::create(ngraph::element::i32, {4}, {0, 3, 2, 1});
-        auto transpose = std::make_shared<ngraph::opset8::Transpose>(transposeConstantInput, transposeOrder);
+        auto cumsum_tensor = ngraph::opset8::Constant::create(ngraph::element::f32, inputShape, {10.0f});
+        auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i32, {}, {0});
+        const auto cumsum = std::make_shared<ov::op::v0::CumSum>(cumsum_tensor, axis_node);
 
-        auto eltwiseMul = ngraph::builder::makeEltwise(inputParams[0], transpose, ngraph::helpers::EltwiseTypes::MULTIPLY);
-        auto eltwiseAdd1 = ngraph::builder::makeEltwise(inputParams[1], transpose, ngraph::helpers::EltwiseTypes::ADD);
+        auto eltwiseMul = ngraph::builder::makeEltwise(inputParams[0], cumsum, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        auto eltwiseAdd1 = ngraph::builder::makeEltwise(inputParams[1], cumsum, ngraph::helpers::EltwiseTypes::ADD);
         auto eltwiseAdd2 = ngraph::builder::makeEltwise(eltwiseAdd1, eltwiseMul, ngraph::helpers::EltwiseTypes::ADD);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(eltwiseAdd2)};
