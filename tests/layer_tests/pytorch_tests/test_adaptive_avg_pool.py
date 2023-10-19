@@ -13,7 +13,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestAdaptiveAvgPool3D(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (self.input_tensor)
+        return (self.input_tensor, )
 
     def create_model(self, output_size):
         class aten_adaptive_avg_pool3d(torch.nn.Module):
@@ -22,8 +22,8 @@ class TestAdaptiveAvgPool3D(PytorchLayerTest):
                 super().__init__()
                 self.output_size = output_size
 
-            def forward(self, input_tensor):
-                return torch.nn.functional.adaptive_avg_pool3d(input_tensor, self.output_size)
+            def forward(self, input_shape):
+                return torch.nn.functional.adaptive_avg_pool3d(input_shape, self.output_size)
 
         ref_net = None
 
@@ -43,7 +43,7 @@ class TestAdaptiveAvgPool3D(PytorchLayerTest):
 class TestAdaptiveAvgPool2D(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (self.input_tensor)
+        return (self.input_tensor, )
 
     def create_model(self, output_size):
         class aten_adaptive_avg_pool2d(torch.nn.Module):
@@ -64,16 +64,16 @@ class TestAdaptiveAvgPool2D(PytorchLayerTest):
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_adaptive_avg_pool2d(self, ie_device, precision, ir_version, input_shape, output_size):
-        self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
+        self.input_tensor = np.random.random_sample(input_shape, ).astype(np.float32)
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)
 
 
-@pytest.mark.parametrize('input_shape', [(8, 9, 10), (9, 10)])
+@pytest.mark.parametrize('input_shape', [[8, 9, 10], [9, 10]])
 @pytest.mark.parametrize('output_size', [7, ])
 class TestAdaptiveAvgPool1D(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (self.input_tensor)
+        return (self.input_tensor, )
 
     def create_model(self, output_size):
         class aten_adaptive_avg_pool1d(torch.nn.Module):
