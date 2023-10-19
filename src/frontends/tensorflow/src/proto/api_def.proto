@@ -15,7 +15,7 @@ limitations under the License.*/
 
 syntax = "proto3";
 
-package tensorflow;
+package ov_tensorflow;
 option cc_enable_arenas = true;
 option java_outer_classname = "ApiDefProtos";
 option java_multiple_files = true;

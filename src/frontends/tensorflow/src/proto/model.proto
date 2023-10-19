@@ -12,7 +12,7 @@ limitations under the License.*/
 
 syntax = "proto3";
 
-package tensorflow.data.model;
+package ov_tensorflow.data.model;
 
 option cc_enable_arenas = true;
 

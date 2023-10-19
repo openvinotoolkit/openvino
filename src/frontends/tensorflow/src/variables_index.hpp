@@ -139,7 +139,7 @@ public:
     /// It needs to map VarHandleOp to right place in .index file.
     /// \param[in] graph_def GraphDef object for analysis
     /// \param[out] variables_map Map of variables found in graph_def
-    static void map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
+    static void map_assignvariable(const std::shared_ptr<::ov_tensorflow::GraphDef> graph_def,
                                    std::map<std::string, std::string>& variables_map);
 
 private:

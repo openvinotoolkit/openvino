@@ -12,7 +12,7 @@ limitations under the License.*/
 
 syntax = "proto3";
 
-package tensorflow;
+package ov_tensorflow;
 
 import "graph.proto";
 import "tensor_shape.proto";

@@ -24,13 +24,13 @@ namespace tensorflow {
 
 #define CF_MARKER_TAG "tf_cf_marker_tag"
 
-ov::element::Type get_ov_type(const ::tensorflow::DataType& type);
+ov::element::Type get_ov_type(const ::ov_tensorflow::DataType& type);
 
-ov::Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto);
+ov::Any unpack_tensor_proto(const ::ov_tensorflow::TensorProto& tensor_proto);
 
-ov::Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
-                            const ::tensorflow::TensorShapeProto& tensor_shape,
-                            const ::tensorflow::DataType& tensor_type);
+ov::Any unpack_tensor_proto(const ::ov_tensorflow::TensorProto& tensor_proto,
+                            const ::ov_tensorflow::TensorShapeProto& tensor_shape,
+                            const ::ov_tensorflow::DataType& tensor_type);
 
 class Switch;
 using SetOfSwitchNodes = std::unordered_set<std::shared_ptr<Switch>>;

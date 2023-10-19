@@ -26,7 +26,7 @@ template <typename T>
 static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> var_index,
                                                const ov::element::Type ov_type,
                                                const ov::Shape shape,
-                                               const ::tensorflow::BundleEntryProto& entry,
+                                               const ::ov_tensorflow::BundleEntryProto& entry,
                                                const NodeContext& node) {
     google::protobuf::int64 size = 1;
     for (uint64_t i = 0; i < shape.size(); ++i) {
@@ -95,7 +95,7 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
 
         TENSORFLOW_OP_VALIDATION(node, result, "[TensorFlow Frontend] Internal error: Cannot find requested variable.");
 
-        ::tensorflow::BundleEntryProto entry;
+        ::ov_tensorflow::BundleEntryProto entry;
         TENSORFLOW_OP_VALIDATION(node,
                                  entry.ParseFromArray(entry_data, static_cast<int>(entry_size)),
                                  "[TensorFlow Frontend] Internal error: Cannot get read bundle entry.");

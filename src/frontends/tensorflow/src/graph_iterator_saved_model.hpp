@@ -34,7 +34,7 @@ std::basic_string<wchar_t> get_variables_index_name<wchar_t>();
 
 // Loads graph from Tensorflow Saved Model file (saved_model.pb)
 class GraphIteratorSavedModel : public GraphIteratorProto {
-    std::shared_ptr<::tensorflow::SavedModel> m_saved_model;
+    std::shared_ptr<::ov_tensorflow::SavedModel> m_saved_model;
     std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_inputs_map;
     std::shared_ptr<std::map<std::string, std::string>> m_outputs_map;
@@ -43,7 +43,7 @@ class GraphIteratorSavedModel : public GraphIteratorProto {
 public:
     template <typename T>
     GraphIteratorSavedModel(const std::basic_string<T>& path, const std::string& tags, const bool mmap_enabled)
-        : m_saved_model(std::make_shared<::tensorflow::SavedModel>()),
+        : m_saved_model(std::make_shared<::ov_tensorflow::SavedModel>()),
           m_mmap_enabled(mmap_enabled) {
         this->read_saved_model(path, tags);
     }
@@ -66,7 +66,7 @@ public:
     }
 
 private:
-    bool is_valid_signature(const ::tensorflow::SignatureDef& signature) const;
+    bool is_valid_signature(const ::ov_tensorflow::SignatureDef& signature) const;
 
     template <typename T>
     bool read_saved_model(const std::basic_string<T>& path, const std::string& tags) {
@@ -141,11 +141,11 @@ private:
     }
 
     /// \brief Does a loading of exact meta-graph
-    bool load_meta_graph(const ::tensorflow::MetaGraphDef& meta_graph) {
-        std::map<std::string, const ::tensorflow::SignatureDef*> validSignatures = {};
+    bool load_meta_graph(const ::ov_tensorflow::MetaGraphDef& meta_graph) {
+        std::map<std::string, const ::ov_tensorflow::SignatureDef*> validSignatures = {};
         for (const auto& sit : meta_graph.signature_def()) {
             const std::string& key = sit.first;
-            const ::tensorflow::SignatureDef& val = sit.second;
+            const ::ov_tensorflow::SignatureDef& val = sit.second;
             if (is_valid_signature(val)) {
                 validSignatures[key] = &val;
             }
@@ -167,7 +167,7 @@ private:
             }
         }
 
-        m_graph_def = std::make_shared<::tensorflow::GraphDef>(meta_graph.graph_def());
+        m_graph_def = std::make_shared<::ov_tensorflow::GraphDef>(meta_graph.graph_def());
 
         // Update variables map using information by resolving AssignVariableOp graph nodes
         std::map<std::string, std::string> var_map;

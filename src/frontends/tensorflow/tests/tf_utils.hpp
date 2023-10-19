@@ -14,7 +14,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace tests {
-static const std::string TF_FE = "tf";
+extern const std::string TF_FE;
 
 // a wrapper to create TensorFlow Frontend and configure the conversion pipeline
 // by registering new translator via extension, specifying (new) inputs, their shapes and types

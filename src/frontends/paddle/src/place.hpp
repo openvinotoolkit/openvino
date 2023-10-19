@@ -7,7 +7,7 @@
 #include "input_model.hpp"
 #include "openvino/frontend/manager.hpp"
 
-namespace paddle {
+namespace ov_paddle {
 namespace framework {
 namespace proto {
 class OpDesc;
@@ -15,7 +15,7 @@ class VarDesc;
 
 }  // namespace proto
 }  // namespace framework
-}  // namespace paddle
+}  // namespace ov_paddle
 
 namespace ov {
 namespace frontend {
@@ -101,10 +101,10 @@ private:
 class OpPlace : public Place {
 public:
     OpPlace(const ov::frontend::InputModel& input_model,
-            const ::paddle::framework::proto::OpDesc& op_desc,
+            const ::ov_paddle::framework::proto::OpDesc& op_desc,
             const std::vector<std::string>& names);
 
-    OpPlace(const ov::frontend::InputModel& input_model, const ::paddle::framework::proto::OpDesc& op_desc);
+    OpPlace(const ov::frontend::InputModel& input_model, const ::ov_paddle::framework::proto::OpDesc& op_desc);
 
     void add_in_port(const std::shared_ptr<InPortPlace>& input, const std::string& name);
     void add_out_port(const std::shared_ptr<OutPortPlace>& output, const std::string& name);
@@ -114,7 +114,7 @@ public:
     const std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>>& get_input_ports() const;
     std::shared_ptr<OutPortPlace> get_output_port_paddle(const std::string& outputName, int outputPortIndex) const;
     std::shared_ptr<InPortPlace> get_input_port_paddle(const std::string& inputName, int inputPortIndex) const;
-    const ::paddle::framework::proto::OpDesc& get_desc() const;
+    const ::ov_paddle::framework::proto::OpDesc& get_desc() const;
     const std::shared_ptr<DecoderBase> get_decoder() const;
     void set_decoder(const std::shared_ptr<DecoderBase> op_decoder);
 
@@ -152,7 +152,7 @@ public:
     Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const override;
 
 private:
-    const ::paddle::framework::proto::OpDesc& m_op_desc;  // TODO: to conceal it behind decoder.
+    const ::ov_paddle::framework::proto::OpDesc& m_op_desc;  // TODO: to conceal it behind decoder.
     std::shared_ptr<DecoderBase> m_op_decoder;
     std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>> m_input_ports;
     std::map<std::string, std::vector<std::shared_ptr<OutPortPlace>>> m_output_ports;
@@ -162,9 +162,9 @@ class TensorPlace : public Place {
 public:
     TensorPlace(const ov::frontend::InputModel& input_model,
                 const std::vector<std::string>& names,
-                const ::paddle::framework::proto::VarDesc& var_desc);
+                const ::ov_paddle::framework::proto::VarDesc& var_desc);
 
-    TensorPlace(const ov::frontend::InputModel& input_model, const ::paddle::framework::proto::VarDesc& var_desc);
+    TensorPlace(const ov::frontend::InputModel& input_model, const ::ov_paddle::framework::proto::VarDesc& var_desc);
 
     void add_producing_port(const std::shared_ptr<OutPortPlace>& out_port);
     void add_consuming_port(const std::shared_ptr<InPortPlace>& in_port);
@@ -182,7 +182,7 @@ public:
     void set_element_type(const element::Type& type) {
         m_type = type;
     }
-    const ::paddle::framework::proto::VarDesc& get_desc() const;
+    const ::ov_paddle::framework::proto::VarDesc& get_desc() const;
 
     // External usage
     Ptr get_producing_operation() const override;
@@ -192,7 +192,7 @@ public:
     bool is_equal_data(const Ptr& another) const override;
 
 private:
-    const ::paddle::framework::proto::VarDesc& m_var_desc;
+    const ::ov_paddle::framework::proto::VarDesc& m_var_desc;
     PartialShape m_pshape;
     element::Type m_type;
 
