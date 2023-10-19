@@ -167,6 +167,7 @@ Table of Contents
 * :doc:`ROIPooling <openvino_docs_ops_detection_ROIPooling_1>`
 * :doc:`Roll <openvino_docs_ops_movement_Roll_7>`
 * :doc:`Round <openvino_docs_ops_arithmetic_Round_5>`
+* :doc:`ScaledDotProductAttention <openvino_docs_ops_sequence_ScaledDotProductAttention_13>`
 * :doc:`ScatterElementsUpdate <openvino_docs_ops_movement_ScatterElementsUpdate_12>`
 * :doc:`ScatterNDUpdate <openvino_docs_ops_movement_ScatterNDUpdate_3>`
 * :doc:`ScatterUpdate <openvino_docs_ops_movement_ScatterUpdate_3>`
