@@ -24,10 +24,8 @@ bool ov::snippets::pass::ExtractConstants::run_on_subgraph(const std::shared_ptr
         if (ov::snippets::op::Subgraph::constant_input_should_be_inside_body(child))
             continue;
 
-        auto parameter = std::make_shared<ov::op::v0::Parameter>(constant->get_element_type(), constant->output(0).get_partial_shape());
-        parameter->set_friendly_name(constant->get_friendly_name());
-        ov::copy_runtime_info(constant, parameter);
-        constant->output(0).replace(parameter->output(0));
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(constant->get_element_type(), constant->get_shape());
+        ov::replace_output_update_name(constant->output(0), parameter->output(0));
 
         new_external_inputs.push_back(constant);
         new_parameters.push_back(parameter);

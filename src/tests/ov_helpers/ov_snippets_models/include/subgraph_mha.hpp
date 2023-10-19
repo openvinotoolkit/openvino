@@ -45,6 +45,7 @@ class MHAFunction : public SnippetsFunctionBase {
 public:
     explicit MHAFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions, bool with_mul = true)
         : SnippetsFunctionBase(inputShapes), with_mul(with_mul), precisions(precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
     }
 protected:

@@ -12,7 +12,7 @@ namespace pass {
 
 /**
  * @interface ExtractConstants
- * @brief Moves up Constants which aren't scalars from body to Subgraph and replace them with Parameters inside body
+ * @brief Moves up Constants which aren't scalars from Subgraph body to Subgraph outside and replace them with Parameters inside body
  * @ingroup snippets
  */
 class ExtractConstants: public CommonOptimizations::SubgraphPass {

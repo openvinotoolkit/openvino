@@ -18,8 +18,8 @@ namespace pass {
 /**
  * @interface FuseTransposeBrgemm
  * @brief Fuses Transpose with Brgemm node, fusing on both Brgemm inputs and output is supported. Applicable to
- *        Transposes that don't change the position of the last dimension (since Brgemm supports strided rows i/o),
- *        but only 0213 Transpose is currently supported.
+ *        Transposes that don't change the position of the last dimension (since Brgemm supports strided rows i/o).
+ *        Supported any Transpose order where last index is equal to [rank - 1] - it means that last dimension isn't moved.
  * @ingroup snippets
  */
 class FuseTransposeBrgemm: public ov::pass::MatcherPass {

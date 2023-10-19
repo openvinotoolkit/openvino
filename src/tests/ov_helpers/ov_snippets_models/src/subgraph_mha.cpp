@@ -14,7 +14,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 namespace {
-std::vector<int64_t> rescale_order(std::vector<int64_t> default_order, size_t rank) {
+std::vector<int64_t> get_rank_equivalent_order(std::vector<int64_t> default_order, size_t rank) {
     OPENVINO_ASSERT(rank > 2, "Incorrect rank for testing");
     auto order = std::vector<int64_t>(rank);
     std::iota(order.begin(), order.end(), 0);
@@ -25,12 +25,10 @@ std::vector<int64_t> rescale_order(std::vector<int64_t> default_order, size_t ra
     return order;
 }
 std::vector<int64_t> get_fusion_order(size_t rank) {
-    OPENVINO_ASSERT(rank > 2, "Incorrect rank for testing");
-    return rescale_order({1, 0, 2}, rank);
+    return get_rank_equivalent_order({1, 0, 2}, rank);
 }
 std::vector<int64_t> get_decomposed_order(size_t rank) {
-    OPENVINO_ASSERT(rank > 2, "Incorrect rank for testing");
-    return rescale_order({1, 2, 0}, rank);
+    return get_rank_equivalent_order({1, 2, 0}, rank);
 }
 std::vector<int64_t> get_fusion_order_after_split_m(size_t rank, bool is_input) {
     if (rank == 4) {

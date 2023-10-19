@@ -12,6 +12,37 @@ namespace ov {
 namespace snippets {
 namespace utils {
 
+namespace {
+template<typename Shape>
+void ordered_shape(const Shape& shape, const std::vector<size_t>& layout, bool is_forward, Shape& reordered_shape) {
+    for (size_t i = 0; i < layout.size(); i++) {
+        OPENVINO_ASSERT(layout[i] < shape.size(), "layout index is greater than the shape size");
+        const auto src_idx = is_forward ? layout[i] : i;
+        const auto dst_idx = is_forward ? i : layout[i];
+        reordered_shape[dst_idx] = shape[src_idx];
+    }
+}
+
+// Note:
+//   - If `is_forward` is True, `result shape` is ordered `shape` by `layout`
+//   - If `is_forward` is False, `result shape` is original shape to which the `layout` was applied
+ov::PartialShape get_pshape(const ov::PartialShape& shape, const std::vector<size_t>& layout, bool is_forward) {
+    if (layout.empty())
+        return shape;
+    ov::PartialShape reordered_shape(std::vector<Dimension>(layout.size()));
+    if (shape.rank().is_dynamic())
+        OPENVINO_THROW("get_reordered_planar_shape can't be called for outputs with dynamic rank");
+    const size_t rank = shape.rank().get_length();
+    if (layout.size() > rank)
+        OPENVINO_THROW("Layout rank can't be larger than tensor rank");
+    // Note that it can be smaller though, for example tensor shape can be prepended with 1 for scheduling purposes
+    if (std::any_of(layout.begin(), layout.end(), [=](size_t x) {return x >= rank;}))
+        OPENVINO_THROW("Invalid layout detected: all layout indexes must be smaller than the tensor rank");
+    ordered_shape(shape, layout, is_forward, reordered_shape);
+    return reordered_shape;
+}
+}  // namespace
+
 auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> size_t {
     std::vector<float> cl, ch, isc, ish, osc, osh;
     const bool status = ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
@@ -70,53 +101,44 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
     }
 }
 
-template<typename Shape>
-void ordered_shape(const Shape& shape, const std::vector<size_t>& layout, bool is_forward, Shape& reordered_shape) {
-    for (size_t i = 0; i < layout.size(); i++) {
-        OPENVINO_ASSERT(layout[i] < shape.size(), "layout index is greater than the shape size");
-        const auto src_idx = is_forward ? layout[i] : i;
-        const auto dst_idx = is_forward ? i : layout[i];
-        reordered_shape[dst_idx] = shape[src_idx];
-    }
+ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order) {
+    return get_pshape(shape, order, true);
 }
-
-ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& layout, bool is_forward) {
-    if (layout.empty())
-        return shape;
-    ov::PartialShape reordered_shape(std::vector<Dimension>(layout.size()));
-    if (shape.rank().is_dynamic())
-        OPENVINO_THROW("get_reordered_planar_shape can't be called for outputs with dynamic rank");
-    const size_t rank = shape.rank().get_length();
-    if (layout.size() > rank)
-        OPENVINO_THROW("Layout rank can't be larger than tensor rank");
-    // Note that it can be smaller though, for example tensor shape can be prepended with 1 for scheduling purposes
-    if (std::any_of(layout.begin(), layout.end(), [=](size_t x) {return x >= rank;}))
-        OPENVINO_THROW("Invalid layout detected: all layout indexes must be smaller than the tensor rank");
-    ordered_shape(shape, layout, is_forward, reordered_shape);
-    return reordered_shape;
+ov::PartialShape get_preordered_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order) {
+    return get_pshape(shape, order, false);
 }
 
 ov::PartialShape get_planar_pshape(const Input<Node>& in) {
     const auto& port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
-    return utils::get_planar_pshape(ov::Shape{port->get_shape()}, port->get_layout(), true);
+    return get_planar_pshape(ov::Shape{port->get_shape()}, port->get_layout());
 }
-
-ov::PartialShape get_planar_pshape(const Output<Node>& out) {
+ov::PartialShape get_preordered_pshape(const Output<Node>& out) {
     const auto& port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(out);
-    return utils::get_planar_pshape(ov::Shape{port->get_shape()}, port->get_layout(), false);
+    return get_preordered_pshape(ov::Shape{port->get_shape()}, port->get_layout());
 }
 
-VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& layout, bool is_forward) {
-    VectorDims reordered_shape(layout.size());
-    ordered_shape(shape, layout, is_forward, reordered_shape);
+VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& order) {
+    VectorDims reordered_shape(order.size());
+    ordered_shape(shape, order, true, reordered_shape);
+    return reordered_shape;
+}
+VectorDims get_preordered_vdims(const VectorDims& shape, const std::vector<size_t>& order) {
+    VectorDims reordered_shape(order.size());
+    ordered_shape(shape, order, false, reordered_shape);
     return reordered_shape;
 }
 
 VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port) {
-    OPENVINO_ASSERT(utils::one_of(expr_port.get_type(), snippets::lowered::ExpressionPort::Type::Input,
-                                                        snippets::lowered::ExpressionPort::Type::Output));
-    const auto is_forward = expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Input;
-    return get_planar_vdims(expr_port.get_descriptor_ptr()->get_shape(), expr_port.get_descriptor_ptr()->get_layout(), is_forward);
+    OPENVINO_ASSERT(expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Input, "get_planar_vdims expects Expression Input port");
+    return get_planar_vdims(expr_port.get_descriptor_ptr()->get_shape(), expr_port.get_descriptor_ptr()->get_layout());
+}
+VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_port) {
+    OPENVINO_ASSERT(expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Output, "get_preordered_vdims expects Expression Output port");
+    return get_preordered_vdims(expr_port.get_descriptor_ptr()->get_shape(), expr_port.get_descriptor_ptr()->get_layout());
+}
+
+bool is_dynamic_vdims(const VectorDims& shape) {
+    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return v == IShapeInferSnippets::DYNAMIC_DIMENSION; });
 }
 
 VectorDims pshape_to_vdims(const PartialShape& pshape) {

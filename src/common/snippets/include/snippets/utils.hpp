@@ -55,15 +55,75 @@ inline T div_up(const T a, const U b) {
 }
 
 /* ----- Shape `getters` ----- */
-// Note:
-//   - If `is_forward` is True, `result shape` is ordered `shape` by `layout`
-//   - If `is_forward` is False, `result shape` is original shape to which the `layout` was applied
-ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& layout, bool is_forward = true);
-ov::PartialShape get_planar_pshape(const Input<Node>& out);
-ov::PartialShape get_planar_pshape(const Output<Node>& out);
-
-VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& layout, bool is_forward = true);
+/**
+ * @brief Returns a dense shape after applying the order.
+ *        It means that the shape dimensions will be reordered in accordance with order indices to produce planar shape
+ * @param shape preordered (original) partial shape
+ * @param order order
+ * @return reordered partial shape: `planar_shape[i]` = `shape[order[i]]`
+ *         Example, shape = [16, 2, 32, 64], order = [2, 0, 1, 3]
+ *                  planar_shape = [32, 16, 2, 64]
+ */
+ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order);
+/**
+ * @brief Returns original shape before applying the order.
+ *        It means that the shape dimensions have been already reordered in accordance with order indices to produce planar shape
+ * @param shape planar (ordered) partial shape
+ * @param order order
+ * @return preordered partial shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the order.
+ *         Example, shape = [16, 2, 32, 64], order = [2, 0, 1, 3]
+ *                  planar_shape = [2, 32, 16, 64]
+ */
+ov::PartialShape get_preordered_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order);
+/**
+ * @brief Returns a dense shape of node input.
+ *        It means that the node input shape dimensions will be reordered in accordance with order indices to produce planar shape
+ * @param in input of node
+ * @return new reordered partial shape: `planar_shape[i]` = `shape[order[i]]`
+ */
+ov::PartialShape get_planar_pshape(const Input<Node>& in);
+/**
+ * @brief Returns original shape of node output before applying the order.
+ *        It means that the preordered output shape dimensions have been already reordered in accordance with order indices to produce planar shape
+ * @param out output of node
+ * @return preordered partial shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the order.
+ */
+ov::PartialShape get_preordered_pshape(const Output<Node>& out);
+/**
+ * @brief Returns a dense shape after applying the order.
+ *        It means that the shape dimensions will be reordered in accordance with order indices to produce planar shape
+ * @param shape preordered (original) shape
+ * @param order order
+ * @return reordered partial shape: `planar_shape[i]` = `shape[order[i]]`
+ *         Example, shape = [16, 2, 32, 64], order = [2, 0, 1, 3]
+ *                  planar_shape = [32, 16, 2, 64]
+ */
+VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& order);
+/**
+ * @brief Returns original shape before applying the order.
+ *        It means that the preordered shape dimensions have been already reordered in accordance with order indices to produce planar shape
+ * @param shape planar (ordered) shape
+ * @param order order
+ * @return preordered shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the order.
+ *         Example, shape = [16, 2, 32, 64], order = [2, 0, 1, 3]
+ *                  planar_shape = [2, 32, 16, 64]
+ */
+VectorDims get_preordered_vdims(const VectorDims& shape, const std::vector<size_t>& order);
+/**
+ * @brief Returns a dense shape of expression input port.
+ *        It means that the input shape dimensions will be reordered in accordance with order indices to produce planar shape
+ * @param expr_port input expression port
+ * @return new reordered partial shape: `planar_shape[i]` = `shape[order[i]]`
+ */
 VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);
+/**
+ * @brief Returns original shape before applying the order of expression output port.
+ *        It means that the preordered output shape dimensions has been already reordered in accordance with order indices to produce planar shape
+ * @param out input of node
+ * @return preordered shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the order.
+ */
+VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_port);
+
 bool is_dynamic_vdims(const VectorDims& shape);
 
 VectorDims pshape_to_vdims(const PartialShape&);

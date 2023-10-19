@@ -30,8 +30,7 @@ bool ov::snippets::pass::ExtractUnsupportedTransposes::run_on_subgraph(const std
             continue;
 
         const auto& order = ov::as_type_ptr<opset1::Constant>(transpose->get_input_node_shared_ptr(1));
-        if (!order)
-            continue;
+        OPENVINO_ASSERT(order, "ExtractUnsupportedTransposes expects Transposes with constant order");
 
         const auto order_value = order->cast_vector<int>();
         const auto transpose_child = *(transpose->get_output_target_inputs(0).begin());
@@ -46,7 +45,6 @@ bool ov::snippets::pass::ExtractUnsupportedTransposes::run_on_subgraph(const std
         transpose->set_argument(0, subgraph->input_value(i));
         subgraph->set_argument(i, transpose);
         transpose_child.replace_source_output(parameter);
-        // Update shape
         parameter->set_partial_shape(transpose->get_output_partial_shape(0));
         updated = true;
     }

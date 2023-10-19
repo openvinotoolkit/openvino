@@ -7,6 +7,7 @@
 #include <cpu/x64/jit_generator.hpp>
 
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
@@ -721,19 +722,19 @@ size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) {
     return kIdx * BRGEMM_N_KERNEL_NUM + nIdx;
 }
 
-size_t BrgemmEmitter::get_in_leading_dim(const ov::Shape& shape, const std::vector<size_t>& layout) {
+size_t BrgemmEmitter::get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
     // Input shape is original, so we need to correctly read this data by order
     // Example:
     //      Original shape (shape) = [1, 49, 2, 23]
     //      Layout (transpose order) = [2, 0, 1, 3]
-    //      Transposed shape = [2, 1, 49, 3]
+    //      Transposed shape = [2, 1, 49, 23]
     //      The leading dimension is equal to stride of shape[layout[3]] = 2 x 23
     OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
                     "BrgemmEmitter detected invalid layout values: check that this shape + layout combination is schedulable");
     const auto idx = layout[layout.size() - 2];  // `1` in example
     return std::accumulate(shape.cbegin() + idx + 1, shape.end(), 1, std::multiplies<size_t>());
 }
-size_t BrgemmEmitter::get_out_leading_dim(const ov::Shape& shape, const std::vector<size_t>& layout) {
+size_t BrgemmEmitter::get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
     // Output shape is already transposed, we need to correctly write the data with original shape by the order
     // Example:
     //      Original transposed shape (shape) = [49, 2, 7, 39]
@@ -760,31 +761,33 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     std::vector<size_t> leading_dimensions;
     std::vector<std::vector<size_t>> io_layouts;
 
-     auto get_layout = [](const std::vector<size_t>& layout, const ov::Shape& io_shape) {
+     auto get_layout = [](const std::vector<size_t>& layout, const snippets::VectorDims& io_shape) {
         if (!layout.empty()) return layout;
         std::vector<size_t> default_layout(io_shape.size());
         std::iota(default_layout.begin(), default_layout.end(), 0);
         return default_layout;
     };
 
-    auto init_in_scheduling_params = [&](const ov::Input<ov::Node>& input) {
-        io_layouts.push_back(get_layout(snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input)->get_layout(), input.get_shape()));
-        leading_dimensions.push_back(get_in_leading_dim(input.get_shape(), io_layouts.back()));
+    auto init_in_scheduling_params = [&](const snippets::lowered::PortDescriptorPtr& input) {
+        io_layouts.push_back(get_layout(input->get_layout(), input->get_shape()));
+        leading_dimensions.push_back(get_in_leading_dim(input->get_shape(), io_layouts.back()));
     };
-    auto init_out_scheduling_params = [&](const ov::Output<ov::Node>& output) {
-        io_layouts.push_back(get_layout(snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output)->get_layout(), output.get_shape()));
-        leading_dimensions.push_back(get_out_leading_dim(output.get_shape(), io_layouts.back()));
+    auto init_out_scheduling_params = [&](const snippets::lowered::PortDescriptorPtr& output) {
+        io_layouts.push_back(get_layout(output->get_layout(), output->get_shape()));
+        leading_dimensions.push_back(get_out_leading_dim(output->get_shape(), io_layouts.back()));
     };
+    init_in_scheduling_params(expr->get_input_port_descriptor(0));
+    if (brgemm_node->is_with_data_repacking()) {
+        io_layouts.push_back(std::vector<size_t>{});
+        leading_dimensions.push_back(0);
+    } else {
+        init_in_scheduling_params(expr->get_input_port_descriptor(1));
+    }
+    init_out_scheduling_params(expr->get_output_port_descriptor(0));
 
-    std::vector<ov::Input<ov::Node>> brgemm_inputs = {brgemm_node->input(0),
-                                                      brgemm_copy ? brgemm_copy->input(0) : brgemm_node->input(1)};
-    for (const auto& input : brgemm_inputs)
-        init_in_scheduling_params(input);
-    init_out_scheduling_params(brgemm_node->output(0));
-
-    const auto& A_shape = brgemm_node->get_input_shape(0);
+    const auto& A_shape = expr->get_input_port_descriptor(0)->get_shape();
     const auto& A_layout = io_layouts[0];
-    const auto& C_shape = brgemm_node->get_output_shape(0);
+    const auto& C_shape = expr->get_output_port_descriptor(0)->get_shape();
     const auto& C_layout = io_layouts[2];
 
     // We need find original M,N,K having layouts and ordered shapes
@@ -799,6 +802,9 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     m_K = A_shape[get_ordered_idx(A_layout, A_layout.size() - 1)];
     m_M = brgemm_node->get_input_count(0);
     m_N = C_shape[get_ordered_idx(C_layout, C_layout.size() - 1)];
+
+    if (brgemm_node->is_with_data_repacking())
+        leading_dimensions[1] = rnd_up(m_N, brgemm_copy->get_n_block_size());
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
     auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
@@ -850,7 +856,7 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
             brgemmCtx.N = N(n);
             brgemmCtx.K = K(k);
             brgemmCtx.LDA = leading_dimensions[0];
-            brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, brgemm_copy->get_n_block_size()) : leading_dimensions[1];
+            brgemmCtx.LDB = leading_dimensions[1];
             brgemmCtx.LDC = leading_dimensions[2];
             brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
             brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
@@ -1242,15 +1248,13 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const Ex
     if (m_with_comp)
         m_comp_offset = brgemm_repack->get_offset_compensations();
 
-    const auto& layout = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_repack->input(0))->get_layout();
-    const auto& original_shape = brgemm_repack->get_input_shape(0);
+    const auto& in_desc = expr->get_input_port_descriptor(0);
+    const auto& layout = in_desc->get_layout();
+    const auto& original_shape = in_desc->get_shape();
     auto transposed_shape = original_shape;
     size_t leading_dimension = *(original_shape.rbegin());
     if (!layout.empty()) {
-        transposed_shape.resize(layout.size(), 1);
-        for (size_t i = 0; i < layout.size(); ++i) {
-            transposed_shape[i] = original_shape[layout[i]];
-        }
+        transposed_shape = snippets::utils::get_planar_vdims(original_shape, layout);
         leading_dimension = BrgemmEmitter::get_in_leading_dim(original_shape, layout);
     }
 

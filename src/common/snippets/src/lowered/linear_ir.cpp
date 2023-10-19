@@ -368,7 +368,7 @@ VectorDims LinearIR::get_master_shape() const {
     const auto& source = out_exprs[0]->get_input_port_connector(0)->get_source();
     if (!m_config.m_enable_domain_optimization && out_exprs.size() == 1 &&
         ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
-        master_shape = utils::get_planar_vdims(source);
+        master_shape = utils::get_preordered_vdims(source);
     } else {
         for (const auto& oe : out_exprs) {
             const auto& port_desc = oe->get_input_port_descriptor(0);

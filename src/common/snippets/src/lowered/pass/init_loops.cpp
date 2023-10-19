@@ -16,7 +16,7 @@ namespace pass {
 using LoopPort = LinearIR::LoopManager::LoopPort;
 
 namespace {
-int64_t get_input_stride(size_t dim, const std::vector<size_t>& layout, const std::vector<size_t>& shape) {
+int64_t get_input_stride(size_t dim, const std::vector<size_t>& layout, const VectorDims& shape) {
     int64_t stride = 1;
     for (int i = static_cast<int>(layout.size()) - 1; i >= 0; i--) {
         if (layout[i] == dim) {
@@ -26,7 +26,7 @@ int64_t get_input_stride(size_t dim, const std::vector<size_t>& layout, const st
     }
     return stride;
 }
-int64_t get_output_stride(size_t dim, const std::vector<size_t>& shape) {
+int64_t get_output_stride(size_t dim, const VectorDims& shape) {
     int64_t stride = 1;
     for (size_t i = dim + 1; i < shape.size(); ++i) {
         stride *= static_cast<int64_t>(shape[i]);

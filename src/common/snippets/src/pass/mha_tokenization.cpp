@@ -176,8 +176,8 @@ bool update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
     return true;
 }
 
-std::vector<int32_t> rescale_order(std::vector<int32_t> default_order, size_t rank) {
-    OPENVINO_ASSERT(rank > 2, "Incorrect rank for testing");
+std::vector<int32_t> get_rank_equivalent_order(std::vector<int32_t> default_order, size_t rank) {
+    OPENVINO_ASSERT(rank > 2, "Incorrect order rank for Transpose tokenization");
     auto order = std::vector<int32_t>(rank);
     std::iota(order.begin(), order.end(), 0);
     const auto diff = static_cast<int32_t>(rank - default_order.size());
@@ -189,12 +189,10 @@ std::vector<int32_t> rescale_order(std::vector<int32_t> default_order, size_t ra
 }  // namespace
 
 std::vector<int32_t> ov::snippets::pass::TokenizeMHASnippets::get_fusion_transpose_order(size_t rank) {
-    OPENVINO_ASSERT(rank > 2, "Incorrect rank for testing");
-    return rescale_order({1, 0, 2}, rank);
+    return get_rank_equivalent_order({1, 0, 2}, rank);
 }
 std::vector<int32_t> ov::snippets::pass::TokenizeMHASnippets::get_decomposed_transpose_order(size_t rank) {
-    OPENVINO_ASSERT(rank > 2, "Incorrect rank for testing");
-    return rescale_order({1, 2, 0}, rank);
+    return get_rank_equivalent_order({1, 2, 0}, rank);
 }
 
 bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
@@ -536,7 +534,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         auto subgraph = std::make_shared<op::Subgraph>(subgraph_inputs, body);
         // Copy runtime info from last node to subgraph - to copy topological order
         copy_runtime_info(last_node, subgraph);
-        subgraph->set_friendly_name("MHA_" + last_node->get_friendly_name());
+        subgraph->set_friendly_name(last_node->get_friendly_name());
 
         for (size_t i = 0; i < subgraph->get_output_size(); ++i) {
             for (const auto& target_input : subgraph_result_inputs[i]) {

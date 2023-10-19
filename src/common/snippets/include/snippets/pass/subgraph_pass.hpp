@@ -14,7 +14,12 @@ namespace snippets {
 namespace pass {
 
 /**
- * @brief Base class for Subgraph passes
+ * @brief Base class for Subgraph passes.
+ *        The pass runs on `Subgraph` op that allows users to transform
+ *        `Subgraph` as node and `body` of this `Subgraph` as model at the same time.
+ *        These passes may change `Subgraph` as node, its `body` and other ops around `Subgraph` in model.
+ *        To avoid unsafe changes of other ops in model, SubgraphPass is not derived from ov::Pass to avoid
+ *        registration to ov::Model
  * @ingroup snippets
  */
 class CommonOptimizations::SubgraphPass {

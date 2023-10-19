@@ -12,12 +12,11 @@ size_t get_dim_M(const ov::Shape& shape) {
     return *(shape.rbegin() + 1);
 }
 bool is_prime_number(size_t value) {
-    if (value < 2 || value % 2 == 0) return false;
-    if (value == 2) return true;
+    if (ov::snippets::utils::one_of(value, 2lu, 3lu)) return true;
+    if (value == 1 || value % 2 == 0 || value % 3 == 0) return false;
     const auto root = std::sqrt(value) + 1;
-    for (size_t divisor_0 = 2; divisor_0 < root; ++divisor_0) {
-        const size_t divisor_1 = value / divisor_0;
-        if (divisor_0 * divisor_1 == value)
+    for (size_t divisor = 5; divisor < root; divisor += 6) {
+        if ((value % divisor == 0) || (value % (divisor + 2) == 0))
             return false;
     }
     return true;
@@ -26,7 +25,7 @@ bool is_prime_number(size_t value) {
 
 bool ov::snippets::pass::SplitDimensionM::is_supported_matmul(const std::shared_ptr<const ov::Node>& node) {
     const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(node);
-    return matmul && !matmul->get_transpose_a() && !matmul->is_dynamic(); // It's needed only for 3D MHA patterns
+    return matmul && !matmul->get_transpose_a() && !matmul->is_dynamic();
 }
 
 std::pair<size_t, size_t> ov::snippets::pass::SplitDimensionM::get_splited_dimensions(size_t batch_dim, size_t m_dim,
@@ -254,22 +253,17 @@ void ov::snippets::pass::SplitDimensionM::reshape_subgraph(const std::shared_ptr
 
 bool ov::snippets::pass::SplitDimensionM::run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SplitDimensionM");
-    // To increase parallelism work in 3D cases for MHA pattern,
+    // To increase parallelism work in MHA pattern,
     // we split 1st dimension (starting from 0th) into 2 new dimensions to get 4D Shapes where
     // - 0th and 1st dimensions are used in parallel scheduling,
     // - 2nd and 3rd dimensions are used in kernel
-    // Note: 3D Patterns don't contain Transpose inside so the reshaping is valid
 
     // It's needed only for MHA patterns. Need to add support for common patterns
     if (!subgraph->has_domain_sensitive_ops())
         return false;
 
     if (const auto matmul0 = get_matmul(subgraph)) {
-        if (!can_be_optimized(matmul0, m_concurrency))
-            return false;
-
         const auto mm_shape = matmul0->get_shape();
-
         size_t batch_m_dim, new_m_dim;
         if (!split(mm_shape, m_concurrency, batch_m_dim, new_m_dim))
             return false;

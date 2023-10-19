@@ -12,9 +12,8 @@ namespace pass {
 
 /**
  * @interface SplitDimensionM
- * @brief Inserts Reshape nodes after and before Parameters and Results in Subgraphs with MatMul inside
- *        to split dimension M for MatMuls to increase work amount for parallelism
- *        Note: works only with 3D MHA patterns
+ * @brief Inserts Reshape nodes before inputs and after outputs of Subgraphs with MatMul inside
+ *        to split dimension M for MatMuls. It allows to increase work amount for parallelism
  * @ingroup snippets
  */
 class SplitDimensionM: public CommonOptimizations::SubgraphPass {

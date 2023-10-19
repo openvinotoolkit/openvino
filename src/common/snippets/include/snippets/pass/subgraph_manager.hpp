@@ -17,8 +17,9 @@ namespace ov {
 namespace snippets {
 namespace pass {
 /**
- * @brief Manager class allows to manage transformation passes on Subgraph ops
- *        It's light version of ov::Manager implementation
+ * @brief Manager class allows to manage transformation passes (SubgraphPasses) on Subgraph ops.
+ *        See SubgraphPasses description for mode details.
+ *        It's light version of ov::Manager implementation the purpose of which is to change only Subgraph as separate node in model.
  * @ingroup snippets
  */
 class CommonOptimizations::SubgraphManager {
@@ -36,7 +37,7 @@ public:
     }
 
     /// @brief      Runs registered transformations on a given model
-    /// @param      model Input model
+    /// @param      subgraph Input model
     /// @return     Returns true if the model was changed by transformations, false otherwise.
     bool run_passes(std::shared_ptr<ov::snippets::op::Subgraph> subgraph);
 
