@@ -356,11 +356,13 @@ void LinearIR::LoopManager::update_loop_port(size_t loop_id, const ExpressionPor
         return;
 
     // to save other parameters except expression port
-    std::vector<LoopPort> target_loop_ports;
-    target_loop_ports.reserve(target_ports.size());
-    for (const auto& p : target_ports)
-        target_loop_ports.push_back(*port_it->clone_with_new_expr(p.get_expr()));
-
+    std::vector<LoopPort> target_loop_ports(target_ports.size(), *port_it);
+    std::transform(target_loop_ports.begin(), target_loop_ports.end(), target_ports.begin(), target_loop_ports.begin(),
+                   [](LoopPort loop_port, const ExpressionPort& expr_port) {
+                       LoopPort copy = std::move(loop_port);  // to save loop port parameters
+                       copy.expr_port = std::make_shared<ExpressionPort>(expr_port);
+                       return copy;
+                   });
     port_it = ports.erase(port_it);
     ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
 }

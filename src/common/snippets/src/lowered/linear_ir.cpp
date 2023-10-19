@@ -47,16 +47,6 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, const std::shared_pt
 std::shared_ptr<LinearIR> LinearIR::clone() const {
     auto cloned = std::make_shared<LinearIR>();
     cloned->m_config = m_config;
-    // Clone underlying ngraph nodes
-    NodeVector original_nodes;
-    original_nodes.reserve(m_expressions.size());
-    for (const auto& expr : m_expressions)
-        original_nodes.push_back(expr->get_node());
-    // node_map and expr_map map original node pointer (expression) to a new pointer (expression)
-    ngraph::NodeMap node_map;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::clone_nodes(original_nodes, node_map);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ExressionMap expression_map;
     cloned->m_expressions = deep_copy_range(m_expressions.cbegin(), m_expressions.cend(), expression_map);
