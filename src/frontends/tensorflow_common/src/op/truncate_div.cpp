@@ -24,16 +24,11 @@ OutputVector translate_truncate_div_op(const NodeContext& node) {
     auto y = node.get_input(1);
 
     auto res = make_shared<Divide>(x, y);
-    auto mod_res = make_shared<Mod>(x, y);
-    auto is_mod_zero = make_shared<Equal>(mod_res, create_same_type_const_scalar(x, 0));
     auto is_res_negative = make_shared<Less>(res, create_same_type_const_scalar(x, 0));
+    auto final_res = make_shared<Select>(is_res_negative, make_shared<Ceiling>(res), make_shared<Floor>(res));
 
-    auto modified_res = make_shared<Select>(is_res_negative, make_shared<Ceiling>(res), make_shared<Floor>(res));
-
-    auto final = make_shared<Select>(is_mod_zero, res, modified_res);
-
-    set_node_name(node.get_name(), final);
-    return final->outputs();
+    set_node_name(node.get_name(), final_res);
+    return final_res->outputs();
 }
 }  // namespace op
 }  // namespace tensorflow
