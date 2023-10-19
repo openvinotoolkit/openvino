@@ -29,7 +29,7 @@ OutputVector translate_tobool_op(const NodeContext& node) {
 
     // prepare auxiliary zero and zero constants of the same type as the inputs
     auto zero = create_same_type_const_scalar<int32_t>(x, 0);
-    auto zero_2 = make_shared<v0::Constant>(element::i32, x, 0);
+    auto zero_2 = make_shared<v0::Constant>(element::i32, Shape{}, 0);
     auto true_const = make_shared<v0::Constant>(element::boolean, Shape{}, true);
     auto false_const = make_shared<v0::Constant>(element::boolean, Shape{}, false);
     // compute a mask to get rank(x) == 0
