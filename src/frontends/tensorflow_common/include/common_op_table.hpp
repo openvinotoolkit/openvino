@@ -38,6 +38,7 @@ OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
 OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
+OP_CONVERTER(translate_batch_mat_mul_with_type_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
 OP_CONVERTER(translate_broadcast_args_op);
