@@ -94,6 +94,7 @@ enum WeightsLayout {
     oxiy,
     iyxo,
     yxio,
+    o_is_yx_isv2,
     o_is_yx_isv4,
     o_is_yx_isv16,
     o_is_zyx_isv16,
@@ -619,6 +620,10 @@ public:
         }
 
         return same;
+    }
+
+    bool operator!=(const TensorBaseT& t) const {
+        return !(*this == t);
     }
 
     bool SameDims(const TensorBaseT& t) const {

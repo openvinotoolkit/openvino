@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.middle.FusedBatchNormTraining import FusedBatchNormTraining
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -71,9 +70,8 @@ nodes_attributes = {
 }
 
 
-@generator
-class FusedBatchNormTrainingTest(unittest.TestCase):
-    @generate(*[
+class TestFusedBatchNormTrainingTest():
+    @pytest.mark.parametrize("op",[
         'FusedBatchNorm', 'FusedBatchNormV2', 'FusedBatchNormV3',
     ])
     def test_transformation(self, op: str):
@@ -137,7 +135,7 @@ class FusedBatchNormTrainingTest(unittest.TestCase):
         graph_ref.nodes['batchnorm']['op'] = op
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_non_training(self):
         graph = build_graph(nodes_attributes,
@@ -161,4 +159,4 @@ class FusedBatchNormTrainingTest(unittest.TestCase):
         shape_inference(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

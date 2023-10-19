@@ -36,7 +36,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
 
     auto get_buffer_idx = [&](const std::shared_ptr<op::Buffer>& buffer) {
         const auto iter = std::find(buffers.cbegin(), buffers.cend(), buffer);
-        NGRAPH_CHECK(iter != buffers.cend(), "Buffer wasn't find in Buffer system of Subgraph");
+        OPENVINO_ASSERT(iter != buffers.cend(), "Buffer wasn't find in Buffer system of Subgraph");
         return std::distance(buffers.cbegin(), iter);
     };
 

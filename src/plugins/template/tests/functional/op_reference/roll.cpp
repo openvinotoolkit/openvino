@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/roll.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -61,14 +63,14 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const RollParams& params) {
-        const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto shift = std::make_shared<opset1::Constant>(params.shiftTensor.type,
+        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto shift = std::make_shared<op::v0::Constant>(params.shiftTensor.type,
                                                               params.shiftTensor.shape,
                                                               params.shiftTensor.data.data());
-        const auto axes = std::make_shared<opset1::Constant>(params.axesTensor.type,
+        const auto axes = std::make_shared<op::v0::Constant>(params.axesTensor.type,
                                                              params.axesTensor.shape,
                                                              params.axesTensor.data.data());
-        const auto roll = std::make_shared<opset7::Roll>(data, shift, axes);
+        const auto roll = std::make_shared<op::v7::Roll>(data, shift, axes);
         return std::make_shared<Model>(NodeVector{roll}, ParameterVector{data});
     }
 };

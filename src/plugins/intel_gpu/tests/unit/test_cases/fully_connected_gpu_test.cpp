@@ -663,21 +663,22 @@ TEST(fully_connected_gpu, compressed_scale_zp_bias) {
     auto& engine = get_test_engine();
 
     auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
-    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::u8, format::bfyx });
     auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
-    auto scale_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
-    auto zp_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
 
     set_values(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f,
                             0.5f, -2.0f, -0.5f, -1.0f });
-    set_values(weights_mem, { 1.5f,  1.0f,  0.5f, -1.0f,
-                              0.0f,  0.5f,  0.5f, -0.5f,
-                             -2.0f, -0.5f,  1.0f,  1.5f,
-                             -2.0f, -0.5f,  1.0f,  1.5f,
-                              2.0f,  0.5f, -1.0f, -1.5f,
-                              2.0f,  0.5f, -1.0f, -1.5f,
-                             -1.5f, -1.0f, -0.5f,  1.0f,
-                              0.0f, -0.5f, 0.5f, 0.5f });
+    set_values<uint8_t>(weights_mem, { 1, 2, 3, 4,
+                                       5, 6, 7, 8,
+                                       9, 10, 11, 12,
+                                       13, 14, 15, 0,
+                                       15, 14, 13, 12,
+                                       11, 10, 9, 8,
+                                       7, 6, 5, 4,
+                                       3, 2, 1, 0});
+
 
     set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, 2.0f  });
     set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f  });
@@ -709,8 +710,7 @@ TEST(fully_connected_gpu, compressed_scale_zp_bias) {
     ov::PartialShape expected_shape{1, 2, 8};
     ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
 
-    std::vector<float> expected_result = {-4.0f, -23.0f, 11.0f, 0.0f, -2.0f, -3.5f, -30.0f, -10.5f,
-                                          6.0f, 19.0f, -5.0f, -8.0f, 12.0f, -8.5f, 44.0f, 14.5f};
+    std::vector<float> expected_result = {13.f, 58.f, -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, -11.f, -62.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f, };
 
     for (size_t i = 0; i < expected_result.size(); i++) {
         ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
@@ -721,20 +721,20 @@ TEST(fully_connected_gpu, compressed_scale_bias) {
     auto& engine = get_test_engine();
 
     auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
-    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::u8, format::bfyx });
     auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
     auto scale_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
 
     set_values(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f,
                             0.5f, -2.0f, -0.5f, -1.0f });
-    set_values(weights_mem, { 1.5f,  1.0f,  0.5f, -1.0f,
-                              0.0f,  0.5f,  0.5f, -0.5f,
-                             -2.0f, -0.5f,  1.0f,  1.5f,
-                             -2.0f, -0.5f,  1.0f,  1.5f,
-                              2.0f,  0.5f, -1.0f, -1.5f,
-                              2.0f,  0.5f, -1.0f, -1.5f,
-                             -1.5f, -1.0f, -0.5f,  1.0f,
-                              0.0f, -0.5f, 0.5f, 0.5f });
+    set_values<uint8_t>(weights_mem, { 1, 2, 3, 4,
+                                       5, 6, 7, 8,
+                                       9, 10, 11, 12,
+                                       13, 14, 15, 0,
+                                       15, 14, 13, 12,
+                                       11, 10, 9, 8,
+                                       7, 6, 5, 4,
+                                       3, 2, 1, 0});
 
     set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, -8.0f });
     set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 1.0f });
@@ -764,8 +764,7 @@ TEST(fully_connected_gpu, compressed_scale_bias) {
     ov::PartialShape expected_shape{1, 2, 8};
     ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
 
-    std::vector<float> expected_result = {2.0f, 1.0f, -1.0f, -12.0f, 4.0f, -5.0f, 6.0f, -8.25f,
-                                          0.0f, -5.0f, 7.0f, 4.0f, 6.0f, -7.0f, 8.0f, -7.75f};
+    std::vector<float> expected_result = {19.f, 40.f, 69.f, 54.f, 83.f, 48.f, 37.f, -2.f, -17.f, -44.f, -63.f, -62.f, -73.f, -60.f, -23.f, -14.f };
 
     for (size_t i = 0; i < expected_result.size(); i++) {
         ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
@@ -776,19 +775,19 @@ TEST(fully_connected_gpu, compressed_scale_fp16) {
     auto& engine = get_test_engine();
 
     auto input_mem = engine.allocate_memory({ { 2, 4}, data_types::f16, format::bfyx });
-    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::f16, format::bfyx });
-    auto scale_mem = engine.allocate_memory({ {1, 8}, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::u8, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {8, 1}, data_types::f16, format::bfyx });
 
     set_values<ov::float16>(input_mem, { ov::float16(-0.5f), ov::float16(2.0f),  ov::float16(0.5f),  ov::float16(1.0f),
                                      ov::float16(0.5f),  ov::float16(-2.0f), ov::float16(-0.5f), ov::float16(-1.0f) });
-    set_values<ov::float16>(weights_mem, {ov::float16( 1.5f), ov::float16( 1.0f), ov::float16( 0.5f), ov::float16(-1.0f),
-                                      ov::float16( 0.0f), ov::float16( 0.5f), ov::float16( 0.5f), ov::float16(-0.5f),
-                                      ov::float16(-2.0f), ov::float16(-0.5f), ov::float16( 1.0f), ov::float16( 1.5f),
-                                      ov::float16(-2.0f), ov::float16(-0.5f), ov::float16( 1.0f), ov::float16( 1.5f),
-                                      ov::float16( 2.0f), ov::float16( 0.5f), ov::float16(-1.0f), ov::float16(-1.5f),
-                                      ov::float16( 2.0f), ov::float16( 0.5f), ov::float16(-1.0f), ov::float16(-1.5f),
-                                      ov::float16(-1.5f), ov::float16(-1.0f), ov::float16(-0.5f), ov::float16( 1.0f),
-                                      ov::float16( 0.0f), ov::float16(-0.5f), ov::float16(0.5f),  ov::float16( 0.5f) });
+    set_values<uint8_t>(weights_mem, { 1, 2, 3, 4,
+                                       5, 6, 7, 8,
+                                       9, 10, 11, 12,
+                                       13, 14, 15, 0,
+                                       15, 14, 13, 12,
+                                       11, 10, 9, 8,
+                                       7, 6, 5, 4,
+                                       3, 2, 1, 0});
 
     set_values<ov::float16>(scale_mem, {ov::float16(2.0f), ov::float16(4.0f), ov::float16(-2.0f), ov::float16(-4.0f), ov::float16(0.5f), ov::float16(-0.5f), ov::float16(2.0f), ov::float16(2.0f)});
 
@@ -817,8 +816,8 @@ TEST(fully_connected_gpu, compressed_scale_fp16) {
     ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
 
    std::vector<ov::float16> expected_result = {
-        ov::float16(1.0f), ov::float16( 3.0f), ov::float16(-4.0f), ov::float16(-8.0f), ov::float16(-1.0f), ov::float16( 1.0f), ov::float16(-1.0f), ov::float16(-0.5f),
-        ov::float16(-1.0f), ov::float16(-3.0f), ov::float16( 4.0f), ov::float16( 8.0f), ov::float16( 1.0f), ov::float16(-1.0f), ov::float16( 1.0f), ov::float16( 0.5f)};
+       ov::float16(18), ov::float16(84), ov::float16(-66), ov::float16(-116), ov::float16(19.5), ov::float16(-13.5), ov::float16(30), ov::float16(6),
+       ov::float16(-18), ov::float16(-84), ov::float16(66), ov::float16(116), ov::float16(-19.5), ov::float16(13.5), ov::float16(-30), ov::float16(-6) };
 
     for (size_t i = 0; i < expected_result.size(); i++) {
         ASSERT_FLOAT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;

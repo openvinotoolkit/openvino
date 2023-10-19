@@ -6,7 +6,7 @@
 
 #include "openvino/op/op.hpp"
 #include "snippets/emitter.hpp"
-#include "ngraph/op/parameter.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov {
 namespace snippets {

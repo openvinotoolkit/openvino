@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -20,15 +19,9 @@ TEST(SmartReshapeTests, MimickingSBS) {
         f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(2));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({12, 4}));
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 2, 3, 4}));
+    EXPECT_ANY_THROW(set_batch(f, 2));
 }
 
 TEST(SmartReshapeTests, MimickingSBS_1) {
@@ -40,15 +33,9 @@ TEST(SmartReshapeTests, MimickingSBS_1) {
         f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(2));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({2, 24}));
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 2, 3, 4}));
+    EXPECT_ANY_THROW(set_batch(f, 2));
 }
 
 TEST(SmartReshapeTests, MimickingSBS_2) {
@@ -60,13 +47,7 @@ TEST(SmartReshapeTests, MimickingSBS_2) {
         f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(1));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({6, 4}));
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 2, 3, 4}));
+    EXPECT_ANY_THROW(set_batch(f, 1));
 }

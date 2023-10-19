@@ -17,11 +17,17 @@ namespace op {
 
 // TorchScript translations
 OP_CONVERTER(translate_adaptive_avg_pool3d);
+OP_CONVERTER(translate_adaptive_avg_pool2d);
+OP_CONVERTER(translate_adaptive_avg_pool1d);
+OP_CONVERTER(translate_adaptive_max_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
+OP_CONVERTER(translate_adaptive_max_pool1d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_all);
+OP_CONVERTER(translate_amax);
+OP_CONVERTER(translate_amin);
 OP_CONVERTER(translate_and);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_argmax);
@@ -54,12 +60,14 @@ OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_embedding_bag);
 OP_CONVERTER(translate_empty);
+OP_CONVERTER(translate_erf);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine);
-OP_CONVERTER(translate_fill_);
+OP_CONVERTER(translate_fill);
+OP_CONVERTER(translate_fill_diagonal);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_flip);
 OP_CONVERTER(translate_floor_divide);
@@ -123,6 +131,7 @@ OP_CONVERTER(translate_outer);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pixel_shuffle);
+OP_CONVERTER(translate_pixel_unshuffle);
 OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_pythonop);
 OP_CONVERTER(translate_quantize_per_channel);
@@ -229,14 +238,19 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
         {"aten::acosh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acosh>},
         {"aten::acosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acosh>>},
-        {"aten::adaptive_avg_pool2d", op::quantizable_op<op::translate_1to1_match_2_inputs<opset10::AdaptiveAvgPool>>},
+        {"aten::adaptive_avg_pool1d", op::quantizable_op<op::translate_adaptive_avg_pool1d>},
+        {"aten::adaptive_avg_pool2d", op::quantizable_op<op::translate_adaptive_avg_pool2d>},
         {"aten::adaptive_avg_pool3d", op::quantizable_op<op::translate_adaptive_avg_pool3d>},
+        {"aten::adaptive_max_pool1d", op::quantizable_op<op::translate_adaptive_max_pool1d>},
         {"aten::adaptive_max_pool2d", op::quantizable_op<op::translate_adaptive_max_pool2d>},
+        {"aten::adaptive_max_pool3d", op::quantizable_op<op::translate_adaptive_max_pool3d>},
         {"aten::add", op::translate_add},
         {"aten::add_", op::inplace_op<op::translate_add>},
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
         {"aten::all", op::translate_all},
+        {"aten::amax", op::translate_amax},
+        {"aten::amin", op::translate_amin},
         {"aten::arange", op::translate_arange},
         {"aten::argmax", op::translate_argmax},
         {"aten::argmin", op::translate_argmin},
@@ -266,8 +280,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::channel_shuffle", op::translate_channel_shuffle},
         {"aten::clamp", op::translate_clamp},
+        {"aten::clamp_", op::inplace_op<op::translate_clamp>},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset10::Minimum>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset10::Maximum>},
+        {"aten::clip", op::translate_clamp},
+        {"aten::clip_", op::inplace_op<op::translate_clamp>},
         {"aten::clone", op::skip_node},       // ignore clone operators that are inserted by PyTorch autograd
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
@@ -297,6 +314,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::embedding_bag", op::translate_embedding_bag},
         {"aten::empty", op::translate_empty},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
+        {"aten::erf", op::translate_erf},
+        {"aten::erf_", op::inplace_op<op::translate_erf>},
         {"aten::exp", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>},
         {"aten::exp_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>>},
         {"aten::expand", op::translate_expand},
@@ -305,7 +324,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::fake_quantize_per_channel_affine", op::translate_fake_quantize_per_channel_affine},
         {"aten::fake_quantize_per_tensor_affine", op::translate_fake_quantize_per_tensor_affine},
         {"aten::feature_dropout", op::skip_node},
-        {"aten::fill_", op::inplace_op<op::translate_fill_>},
+        {"aten::fill", op::translate_fill},
+        {"aten::fill_", op::inplace_op<op::translate_fill>},
+        {"aten::fill_diagonal_", op::inplace_op<op::translate_fill_diagonal>},
         {"aten::flatten", op::quantizable_op<op::translate_flatten>},
         {"aten::flip", op::translate_flip},
         {"aten::floor", op::translate_1to1_match_1_inputs<opset10::Floor>},
@@ -402,6 +423,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::pairwise_distance", op::translate_pairwise_distance},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset10::Transpose>},
         {"aten::pixel_shuffle", op::translate_pixel_shuffle},
+        {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::pow", op::translate_pow},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
