@@ -281,6 +281,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TopK", CreatorFunction(translate_top_k_op)},
         {"TopKV2", CreatorFunction(translate_top_k_v2_op)},
         {"Transpose", CreatorFunction(translate_transpose_op)},
+        {"TruncateDiv", CreatorFunction(translate_truncate_div_op)},
         {"TruncateMod", CreatorFunction(translate_truncate_mod_op)},
         {"Unpack", CreatorFunction(translate_unpack_op)},
         {"UnravelIndex", CreatorFunction(translate_unravel_index_op)},
