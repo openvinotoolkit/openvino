@@ -693,7 +693,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_2_value) {
 TEST_F(TransformationTestsF, FoldGeluOperation) {
     {
         auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1006, 2, 100, 3, 4096});
-        auto const1 = ov::op::v0::Constant::create(element::f32, Shape{1, 1, 1}, std::vector<float>{0.044715});
+        auto const1 = ov::op::v0::Constant::create(element::f32, Shape{1, 1, 1}, std::vector<float>{0.044715f});
 
         auto mul1 = std::make_shared<ov::op::v1::Multiply>(param, const1);
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(mul1, param);
