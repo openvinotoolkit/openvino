@@ -29,11 +29,6 @@ Negative::Negative(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-bool Negative::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_Negative_visit_attributes);
-    return true;
-}
-
 std::shared_ptr<Node> Negative::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Negative_clone_with_new_inputs);
     check_new_args_count(this, new_args);
