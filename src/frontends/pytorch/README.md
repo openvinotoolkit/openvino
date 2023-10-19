@@ -2,9 +2,9 @@
 
 The PyTorch Frontend (PT FE) is a C++ based OpenVINO Frontend component that is
 responsible for reading and converting a PyTorch model to an `ov::Model` object
-that further can be serialized into the Intermediate Representation (IR) format.
+that can be further serialized into the Intermediate Representation (IR) format.
 
-## Key contacts
+## Key Contacts
 
 People from the [openvino-pytorch-frontend-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-pytorch-frontend-maintainers)
 have the rights to approve and merge PRs to the PyTorch Frontend component.
@@ -51,55 +51,53 @@ flowchart TD
 
 OpenVINO PyTorch Frontend supports extensions. To add an extension, use
 `ov::frontend::pytorch::Frontend::add_extension()` API.
-The next extension types are supported:
+The following extension types are supported:
 
-* `ov::frontend::tensorflow::ConversionExtension` or `ov::frontend::ConversionExtension` - add new Loader into the conversion pipeline
-* `ov::TelemetryExtension` - enable telemetry for the frontend
-* `ov::BaseOpExtension` - enable support of a custom operation
-* `ov::detail::SOExtension` - allow to support `ov::BaseOpExtension` extensions loaded from the external library.
+* `ov::frontend::tensorflow::ConversionExtension` or `ov::frontend::ConversionExtension` - add a new Loader into the conversion pipeline.
+* `ov::TelemetryExtension` - enable telemetry for the frontend.
+* `ov::BaseOpExtension` - enable support for a custom operation.
+* `ov::detail::SOExtension` - allow support for `ov::BaseOpExtension` extensions loaded from an external library.
 
-## How to implement support of a new PyTorch operation
+## How to Implement Support for a New PyTorch Operation
 
-PyTorch conversion into the OpenVINO opset operations consists of 2 stages:
-1. Converting of pytorch operations to OpenVINO opset using [translators](./src/op/)
-   which directly transforms PyTorch operation into a sub-graph of OpenVINO
-   opset. This is 1->N conversion.
-2. [Internal Transformations](./src/transforms), which transform sub-graph of
-   operations into sub-graph of OpenVINO opset. This is N->N conversion.
+PyTorch conversion into the OpenVINO opset operations consists of two stages:
+1. Conversion of PyTorch operations to OpenVINO opset using [translators](./src/op/),
+   which directly transforms a PyTorch operation into a sub-graph of the OpenVINO
+   opset. This is a 1->N conversion.
+2. [Internal Transformations](./src/transforms) that transform a sub-graph of
+   operations into a sub-graph of the OpenVINO opset. This is an N->N conversion.
 
-### Operation translation
+### Operation Translation
 
 Most PyTorch operations can be converted by a single `translator`. The
 dictionary of `translators` is placed in the [op_table.cpp](./src/op_table.cpp)
-file and each translator is located in [op](../tensorflow_common/src/op/)
+file and each translator is located in the [op](../tensorflow_common/src/op/)
 directory:
 
 https://github.com/openvinotoolkit/openvino/blob/491454103ea2f29b242587c6084c19868a879a82/src/frontends/pytorch/src/op_table.cpp#L222-L227
 
 The main rules for translator implementation:
-1. Support dynamic shapes and ranks, undefined types, including for the future
-   support of new types, such as strings and complex numbers.
-2. Try to save the same algorithmic complexity of the decomposition. Less the
-   number of operations is usually the better.
+1. Support dynamic shapes and ranks, undefined types, including future support of new types, such as strings and complex numbers.
+2. Try to maintain the same algorithmic complexity of the decomposition. Fewer operations are usually better.
 3. Use the latest OpenVINO opset version for the translation.
-4. Use helpers routines for operation check and construction of a graph from `utils.hpp`.
-5. Call `NodeContext::mark_mode()` for each node created.
+4. Use helper routines for operation checks and graph construction from `utils.hpp`.
+5. Call `NodeContext::mark_mode()` for each created node.
 
-#### Inplace and mutable operations
+#### Inplace and Mutable Operations
 
-Some PyTorch operations modify input tensor rather then output. For example
-`aten::add` writes result of addition to output, but `aten::add_` writes result
-to its first input. To correctly convert such operation:
-* Make sure output tensor produced by translation have same type and shape as initial input.
-* Call `NodeContext::mutate_input()` to change input tensor with new value.
+Some PyTorch operations modify the input tensor rather than the output. For example,
+`aten::add` writes the result of addition to the output, but `aten::add_` writes the result
+to its first input. To correctly convert such an operation:
+* Ensure that the output tensor produced by the translation has the same type and shape as the initial input.
+* Call `NodeContext::mutate_input()` to change the input tensor with the new value.
 
-#### PtFrameworkNode primitive
+#### PtFrameworkNode Primitive
 
-`PtFrameworkNode` is used to represent unconverted operation from original
+`PtFrameworkNode` is used to represent unconverted operation from the original
 model. You can use `FrontEnd::convert_partially()` instead of `Frontend::convert()`
-to get `ov::Model` containing unconverted operations.
+to get an `ov::Model` containing unconverted operations.
 
-#### Operations accepting strings
+#### Operations Accepting Strings
 
 At the moment strings are not supported by OpenVINO core. Note that in models
 strings are usually constants, so you can extract them as `std::string` directly
@@ -108,38 +106,38 @@ from Python using `NodeContext::const_input<std::string>()`.
 #### Operations with lists, tuples, dicts
 
 These types are also not supported by OpenVINO core and generally require
-implementing transformation for N->N conversion, but in some simple cases lists
-and tuples can be processed. There are helpers to work with lists in `utils.hpp`
-for example `get_list_as_outputs` allows to get list elements to work with them
-in translator or transformation.
+implementing transformation for N->N conversion. However, in some simple cases, lists
+and tuples can be processed. Helpers for working with lists can be found in `utils.hpp`.
+For example, `get_list_as_outputs` enables you to get list elements to work with them
+in the translator or transformation.
 
 ### Internal Transformations
 
-In rare cases, PyTorch operation conversion require transformation. The main
-difference of transformation from translator is that it works on graph rather
-then on `NodeContext` of a single operation. That mean that some functionality
+In rare cases, converting PyTorch operations requires transformation. The main
+difference between transformation and translation is that transformation works on the graph rather
+than on the `NodeContext` of a single operation. This means that some functionality
 provided by `NodeContext` is not accessible in transformation and usually
-require to work with `PtFramworkNode` directly. [General rules](https://docs.openvino.ai/2023.1/openvino_docs_transformations.html)
-to write transformations apply to PT FE transformations too.
+requires working with `PtFramworkNode` directly. [General rules](https://docs.openvino.ai/2023.1/openvino_docs_transformations.html)
+for writing transformations also apply to PT FE transformations.
 
-### PyTorch Frontend layer tests
+### PyTorch Frontend Layer Tests
 
-The layer tests are Python-based tests and check that a PyTorch operation is
+The layer tests are Python-based tests that check if a PyTorch operation is
 supported by PT FE. The testing pipeline of the layer tests consists of four
 steps:
-1. Create a simple model containing PyTorch operation to test.
-2. Convert this model into OpenVINO Model.
-3. Infer the original model using PyTorch and infer OpenVINO Model.
+1. Create a simple model containing the PyTorch operation to be tested.
+2. Convert this model into an OpenVINO Model.
+3. Infer the original model using PyTorch and infer the OpenVINO Model.
 4. Compare the inference results between both frameworks.
 
-To set up environment for running the layer tests, follow these [instructions](../../../tests/layer_tests/README.md).
+To set up the environment for running the layer tests, follow these [instructions](../../../tests/layer_tests/README.md).
 
-To test the whole suite of the PyTorch operation set support, run the following command:
+To test the entire suite of the PyTorch operation set support, run the following command:
 ```bash
 python -m pytest layer_tests/pytorch_tests
 ```
 
-## See also
+## See Also
  * [OpenVINO README](../../../README.md)
  * [OpenVINO Core Components](../../README.md)
  * [Developer documentation](../../../docs/dev/index.md)
