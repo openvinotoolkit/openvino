@@ -92,6 +92,8 @@ bool RandomUniform::evaluate(TensorVector& outputs, const TensorVector& inputs) 
     const auto& t_out = get_out_type();
     OPENVINO_ASSERT(validate::out_et(t_out), "Unsupported type of RandomUniform: " + t_out.get_type_name());
 
+    outputs[0].set_shape(out_shape);
+
     auto state = ov::reference::random_uniform(out_dims.data(),
                                                static_cast<const char*>(inputs[1].data()),
                                                static_cast<const char*>(inputs[2].data()),
