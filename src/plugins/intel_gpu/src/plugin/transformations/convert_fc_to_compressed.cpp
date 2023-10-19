@@ -44,7 +44,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
     auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m});
 
     auto sub_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto subtract_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m});
+    auto sub_convert_m = wrap_type<ov::op::v0::Convert>({sub_const_m});
+    auto sub_no_conv_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m});
+    auto sub_with_conv_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_convert_m});
+    auto subtract_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub_no_conv_m, sub_with_conv_m});
 
     auto mul_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});
@@ -95,9 +98,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         const auto& scale = reshape_const_to_2d(pattern_map.at(mul_const_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
 
-        const bool with_zero_point = pattern_map.count(subtract_m) > 0;
-        if (with_zero_point) {
+        if (pattern_map.count(sub_no_conv_m)) {
             optional_zero_point = reshape_const_to_2d(pattern_map.at(sub_const_m).get_node_shared_ptr());
+        }
+        if (pattern_map.count(sub_with_conv_m)) {
+            auto reshaped_const = reshape_const_to_2d(pattern_map.at(sub_const_m).get_node_shared_ptr());
+            auto convert = pattern_map.at(sub_convert_m).get_node_shared_ptr();
+            optional_zero_point = convert->clone_with_new_inputs({ reshaped_const->output(0) });
         }
 
         std::shared_ptr<ov::Node> fc_input_b = reshape_const_to_2d(pattern_map.at(weights_m).get_node_shared_ptr());
@@ -118,14 +125,14 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             result_nodes.push_back(fc_input_b);
             fc_input_scale = transpose->clone_with_new_inputs({ scale->output(0), transpose_const });
             result_nodes.push_back(fc_input_scale);
-            if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
+            if (fc_input_zp != nullptr && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
                 fc_input_zp = transpose->clone_with_new_inputs({ optional_zero_point->output(0), transpose_const });
                 result_nodes.push_back(fc_input_zp);
             }
         }
 
         std::shared_ptr<ov::Node> new_fc = nullptr;
-        if (with_zero_point) {
+        if (fc_input_zp != nullptr) {
             new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a,
                                                                     fc_input_b,
                                                                     fc_input_scale,

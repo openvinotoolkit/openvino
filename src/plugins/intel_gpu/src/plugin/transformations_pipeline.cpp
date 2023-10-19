@@ -233,7 +233,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4});
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
