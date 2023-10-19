@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <shared_test_classes/base/ov_subgraph.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -29,25 +30,28 @@ namespace SubgraphTestsDefinitions {
  *                 Result
  */
 
-class NonInputInPlaceTest : public testing::WithParamInterface<InferenceEngine::Precision>,
-                            virtual public LayerTestsUtils::LayerTestsCommon {
+using namespace ov::test;
+
+class NonInputInPlaceTest : public testing::WithParamInterface<ElementType>,
+                            virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<InferenceEngine::Precision> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<ElementType> obj) {
         std::ostringstream result;
-        result << "NonInputInPlaceTest_Precision_" << obj.param.name();
+        result << "NonInputInPlaceTest_inPrc=outPrc=" << obj.param;
         return result.str();
     }
 
     void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
+        targetDevice = utils::DEVICE_CPU;
         configuration.insert({ov::hint::inference_precision.name(), ov::element::f16.to_string()});
-        inPrc = outPrc = this->GetParam();
-
         const std::vector<size_t> inputShape = {1, 11, 3, 3};
-        ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShape)),
-                                         std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShape))};
+        targetStaticShapes = {{inputShape, inputShape}};
+        ElementType prc = this->GetParam();
 
-        auto cumsum_tensor = ngraph::opset8::Constant::create(ngraph::element::f32, inputShape, {10.0f});
+        ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(inputShape)),
+                                         std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(inputShape))};
+
+        auto cumsum_tensor = ngraph::opset8::Constant::create(prc, inputShape, {10.0f});
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i32, {}, {0});
         const auto cumsum = std::make_shared<ov::op::v0::CumSum>(cumsum_tensor, axis_node);
 
@@ -62,11 +66,11 @@ public:
 
 namespace {
     TEST_P(NonInputInPlaceTest, CompareWithRefs) {
-        Run();
+        run();
     }
 
 INSTANTIATE_TEST_SUITE_P(smoke_NonInputInPlaceTest_CPU, NonInputInPlaceTest,
-    testing::Values(Precision::FP32, Precision::FP16),
+    testing::Values(ngraph::element::f32, ngraph::element::f16),
     NonInputInPlaceTest::getTestCaseName);
 
 } // namespace
