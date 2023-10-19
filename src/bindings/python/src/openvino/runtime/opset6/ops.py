@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import Callable, Iterable, List, Optional, Set, Union, Dict, Any
 
 import numpy as np
 from functools import partial
@@ -139,7 +139,7 @@ def read_value(init_value: NodeInput,
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    attr_map = {"variable_id": variable_id}
+    attr_map: Dict[str, Any] = {"variable_id": variable_id}
 
     if variable_type is not None:
         attr_map["variable_type"] = variable_type
