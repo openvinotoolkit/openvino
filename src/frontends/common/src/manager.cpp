@@ -20,21 +20,6 @@ class FrontEndManager::Impl {
     std::mutex m_loading_mutex;
     std::vector<PluginInfo> m_plugins;
 
-    // Note, static methods below are required to create an order of initialization of static variables
-    // e.g. if users (not encouraged) created ov::Model globally, we need to ensure proper order of initialization
-
-    /// \return map of shared object per frontend <frontend_name, frontend_so_ptr>
-    static std::unordered_map<std::string, std::shared_ptr<void>>& get_shared_objects_map() {
-        static std::unordered_map<std::string, std::shared_ptr<void>> shared_objects_map;
-        return shared_objects_map;
-    }
-
-    /// \return Mutex to guard access the shared object map
-    static std::mutex& get_shared_objects_mutex() {
-        static std::mutex shared_objects_map_mutex;
-        return shared_objects_map_mutex;
-    }
-
 public:
     Impl() {
         search_all_plugins();
@@ -46,10 +31,6 @@ public:
         auto fe_obj = std::make_shared<FrontEnd>();
         fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
         fe_obj->m_actual = plugin.get_creator().m_creator();
-
-        std::lock_guard<std::mutex> guard(get_shared_objects_mutex());
-        get_shared_objects_map().emplace(plugin.get_creator().m_name, fe_obj->m_shared_object);
-
         return fe_obj;
     }
 
@@ -79,9 +60,8 @@ public:
         // Load plugins until we found the right one
         for (auto& plugin : m_plugins) {
             OPENVINO_ASSERT(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
-            auto frontend = make_frontend(plugin);
-            if (frontend->get_name() == framework) {
-                return frontend;
+            if (plugin.get_creator().m_name == framework) {
+                return make_frontend(plugin);
             }
         }
         FRONT_END_INITIALIZATION_CHECK(false, "FrontEnd for Framework ", framework, " is not found");
@@ -96,8 +76,7 @@ public:
                 OPENVINO_DEBUG << "Frontend load failed: " << plugin_info.m_file_path << "\n";
                 continue;
             }
-            auto frontend = make_frontend(plugin_info);
-            names.push_back(frontend->get_name());
+            names.push_back(plugin_info.get_creator().m_name);
         }
         return names;
     }
@@ -114,12 +93,9 @@ public:
             if (!plugin.load()) {
                 continue;
             }
-            auto frontend = make_frontend(plugin);
-            OPENVINO_ASSERT(frontend,
-                            "Frontend error: frontend '",
-                            plugin.get_creator().m_name,
-                            "' created null FrontEnd");
-            if (frontend->supported(variants)) {
+            auto fe = plugin.get_creator().m_creator();
+            OPENVINO_ASSERT(fe, "Frontend error: frontend '", plugin.get_creator().m_name, "' created null FrontEnd");
+            if (fe->supported(variants)) {
                 return make_frontend(plugin);
             }
         }
@@ -224,10 +200,10 @@ private:
                 }
             }
             // Plugin from priority list is loaded, create FrontEnd and check if it supports model loading
-            auto frontend = make_frontend(plugin_info);
-            if (frontend->supported(variants)) {
+            auto fe = plugin_info.get_creator().m_creator();
+            if (fe && fe->supported(variants)) {
                 // Priority FE (e.g. IR) is found and is suitable
-                return frontend;
+                return make_frontend(*plugin_it);
             }
         }
         return {};
