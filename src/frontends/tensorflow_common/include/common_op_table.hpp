@@ -145,6 +145,7 @@ OP_CONVERTER(translate_tile_op);
 OP_CONVERTER_NAMED(translate_top_k_op);
 OP_CONVERTER_NAMED(translate_top_k_v2_op);
 OP_CONVERTER(translate_transpose_op);
+OP_CONVERTER(translate_truncate_div_op);
 OP_CONVERTER(translate_truncate_mod_op);
 OP_CONVERTER(translate_unpack_op);
 OP_CONVERTER(translate_unravel_index_op);
