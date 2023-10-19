@@ -33,6 +33,7 @@ env:
 
 jobs:
   Build:
+    timeout-minutes: 180
     defaults:
       run:
         shell: pwsh
@@ -180,6 +181,7 @@ jobs:
 
   Samples:
     needs: Build
+    timeout-minutes: 10
     defaults:
       run:
         shell: pwsh
@@ -248,6 +250,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: Build
+    timeout-minutes: 75
     defaults:
       run:
         shell: pwsh
@@ -448,6 +451,7 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: Build
+    timeout-minutes: 15
     defaults:
       run:
         shell: pwsh
@@ -637,7 +641,8 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    needs: Build
+    needs: Buildy
+    timeout-minutes: 50
     defaults:
       run:
         shell: pwsh
