@@ -556,6 +556,7 @@ std::shared_ptr<Node> GenPattern(const std::vector<GenPatternNode>& inputs,
     rt_info["pattern_attrs"] = std::vector<attr>(attrs);
 
     pattern_node->set_predicate([p_type_info, vt, pattern_node, friendly_name, mark_at_friendly_name](const Output<Node>& value) {
+        (void)friendly_name;
         if (!value.get_node_shared_ptr()->get_type_info().is_castable(*p_type_info)) {
             _VERBOSE_LOG("*mismatched GenPattern OP type: ", friendly_name, "vs", value);
             return false;
