@@ -75,6 +75,7 @@ protected:
      *       even from main thread
      */
     GraphGuard::Lock GetGraph() const;
+    GraphGuard::Lock GetFirstGraph() const;
 
     InferenceEngine::Parameter GetConfigLegacy(const std::string &name) const;
 

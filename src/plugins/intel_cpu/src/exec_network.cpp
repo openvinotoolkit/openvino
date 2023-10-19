@@ -201,6 +201,16 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
     return graphLock;
 }
 
+ExecNetwork::GraphGuard::Lock ExecNetwork::GetFirstGraph() const {
+    int streamId = 0;
+    auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
+    auto graphLock = GraphGuard::Lock(_graphs[streamId % _graphs.size()]);
+    if (!graphLock._graph.IsReady()) {
+        IE_THROW() << "graph is not ready";
+    }
+    return graphLock;
+}
+
 InferenceEngine::IInferRequestInternal::Ptr ExecNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<AsyncInferRequest>();
 }

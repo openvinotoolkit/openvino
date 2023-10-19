@@ -38,7 +38,7 @@ void InferRequestBase::CreateInferRequest() {
 
     if (execNetwork->_graphs.size() == 0)
         IE_THROW() << "No graph was found";
-    graph = &(execNetwork->GetGraph()._graph);
+    graph = &(execNetwork->GetFirstGraph()._graph);
 
     initBlobs();
 
