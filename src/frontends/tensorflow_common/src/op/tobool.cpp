@@ -4,10 +4,15 @@
 
 #include "common_op_table.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/reduce_prod.hpp"
 
 using namespace std;
 using namespace ov::op;
