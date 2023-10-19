@@ -23,6 +23,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -128,7 +129,7 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
     // dropout_p=0., bool is_causal=False)
     num_inputs_check(context, 3, 6);
     auto output = translate_scaled_dot_product_attention_common(context);
-    // TODO: scaled_dot_product_flash_attention has 9 outputs but fort most cases only
+    // TODO: scaled_dot_product_flash_attention has 9 outputs but for most cases only
     // the first input is used. Rest of the outputs should be returned properly as
     // needed.
     ov::OutputVector out_vec;
