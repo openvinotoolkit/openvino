@@ -236,7 +236,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
         // let's query the optimal batch size
         // auto cloned_model = model->clone();
-        if (device_name.find("CPU")) {
+        if (device_name.find("CPU") != std::string::npos) {
             meta_device.device_batch_size = 1;
         } else {
             ov::AnyMap options = {ov::hint::model(std::const_pointer_cast<ov::Model>(model))};
