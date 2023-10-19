@@ -20,8 +20,8 @@ on:
 #      - '**.md'
 #      - '**/layer_tests_summary/**'
 #      - '**/conformance/**'
-    branches:
-      - master
+#    branches:
+#      - master
 
 concurrency:
   # github.ref is not unique in post-commit
