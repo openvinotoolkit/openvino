@@ -34,7 +34,7 @@ class NonInputInPlaceTest : public testing::WithParamInterface<InferenceEngine::
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferenceEngine::Precision> obj) {
         std::ostringstream result;
-        result << "NonInputInPlaceTest" << obj.param.name();
+        result << "NonInputInPlaceTest_Precision_" << obj.param.name();
         return result.str();
     }
 
