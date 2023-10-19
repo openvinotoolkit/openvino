@@ -5,12 +5,13 @@
 #include "common_op_table.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_or.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/shape_of.hpp"
+#include "openvino/op/not_equal.hpp"
 #include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -27,7 +28,7 @@ OutputVector translate_tobool_op(const NodeContext& node) {
 
     // prepare auxiliary zero and zero constants of the same type as the inputs
     auto zero = create_same_type_const_scalar<int32_t>(x, 0);
-    auto zero_2 = make_shared<v0::Constant>(element::i32, x, 0);
+    auto zero_2 = make_shared<v0::Constant>(element::i32, Shape{}, 0);
     auto true_const = make_shared<v0::Constant>(element::boolean, Shape{}, true);
     auto false_const = make_shared<v0::Constant>(element::boolean, Shape{}, false);
     // compute a mask to get rank(x) == 0
@@ -51,7 +52,7 @@ OutputVector translate_tobool_op(const NodeContext& node) {
     auto reduce_prod = make_shared<v1::ReduceProd>(cond_shape, axis);
 
     // compute ReduceProd(ShapeOf(x))) > 0
-    auto greater_than__zero_2 = make_shared<v1::Greater>(reduce_prod, zero);
+    auto greater_than__zero_2 = make_shared<v1::Greater>(reduce_prod, zero_2);
     // compute (rank > 0 && ReduceProd(ShapeOf(x))) > 0
     auto logical_and_2 = make_shared<v1::LogicalAnd>(greater_than_zero, greater_than__zero_2);
 
