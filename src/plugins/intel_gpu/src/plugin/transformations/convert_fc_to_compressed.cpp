@@ -103,6 +103,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         std::shared_ptr<ov::Node> fc_input_b = reshape_const_to_2d(pattern_map.at(weights_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> fc_input_scale = scale;
         std::shared_ptr<ov::Node> fc_input_zp = optional_zero_point;
+        std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
         if (has_transpose) {
             const auto& transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
             std::shared_ptr<ov::Node> transpose_const = pattern_map.at(transpose_const_m).get_node_shared_ptr();
@@ -114,9 +115,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             }
 
             fc_input_b = transpose->clone_with_new_inputs({ fc_input_b->output(0), transpose_const });
+            result_nodes.push_back(fc_input_b);
             fc_input_scale = transpose->clone_with_new_inputs({ scale->output(0), transpose_const });
-            if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1)
+            result_nodes.push_back(fc_input_scale);
+            if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
                 fc_input_zp = transpose->clone_with_new_inputs({ optional_zero_point->output(0), transpose_const });
+                result_nodes.push_back(fc_input_zp);
+            }
         }
 
         std::shared_ptr<ov::Node> new_fc = nullptr;
@@ -133,8 +138,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                                                                     fc->get_output_type());
         }
 
+        result_nodes.push_back(new_fc);
         new_fc->set_friendly_name(fc->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), new_fc);
+        ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
         ov::replace_node(fc, new_fc);
         return true;
     };
