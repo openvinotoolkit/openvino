@@ -236,19 +236,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
         // let's query the optimal batch size
         // auto cloned_model = model->clone();
-        ov::AnyMap options = {ov::hint::model(std::const_pointer_cast<ov::Model>(model))};
-        unsigned int opt_batch_size = core->get_property(device_name, ov::optimal_batch_size, options);
-        auto requests = core->get_property(device_name, ov::hint::num_requests);
-        const auto& reqs = properties.find(ov::hint::num_requests.name());
-        if (reqs != properties.end())
-            requests = reqs->second.as<unsigned int>();
-        if (requests)
-            opt_batch_size = std::max(1u, std::min(requests, opt_batch_size));
-        if (opt_batch_size >
-            2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
-            meta_device.device_batch_size = opt_batch_size;
-        else
+        if (device_name.find("CPU")) {
             meta_device.device_batch_size = 1;
+        } else {
+            ov::AnyMap options = {ov::hint::model(std::const_pointer_cast<ov::Model>(model))};
+            unsigned int opt_batch_size = core->get_property(device_name, ov::optimal_batch_size, options);
+            auto requests = core->get_property(device_name, ov::hint::num_requests);
+            const auto& reqs = properties.find(ov::hint::num_requests.name());
+            if (reqs != properties.end())
+                requests = reqs->second.as<unsigned int>();
+            if (requests)
+                opt_batch_size = std::max(1u, std::min(requests, opt_batch_size));
+            if (opt_batch_size >
+                2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
+                meta_device.device_batch_size = opt_batch_size;
+            else
+                meta_device.device_batch_size = 1;
+        }
     }
 
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
