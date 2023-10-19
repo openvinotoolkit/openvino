@@ -35,6 +35,7 @@ env:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -241,6 +242,7 @@ jobs:
   Debian_Packages:
     name: Debian Packages
     needs: Build
+    timeout-minutes: 5
     defaults:
       run:
         shell: bash
@@ -294,6 +296,7 @@ jobs:
 
   Samples:
     needs: Build
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
@@ -393,6 +396,7 @@ jobs:
 
   Conformance:
     needs: Build
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 10 }}
     defaults:
       run:
         shell: bash
@@ -489,6 +493,7 @@ jobs:
   ONNX_Runtime:
     name: ONNX Runtime Integration
     needs: Build
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
@@ -617,6 +622,7 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: Build
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
@@ -839,6 +845,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: Build
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash
@@ -1078,6 +1085,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: Build
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
@@ -1169,6 +1177,7 @@ jobs:
       run:
         shell: bash
     runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 300 || 5 }}
     # TODO: Switch back to self-hosted runners
     # container:
     #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
@@ -1245,6 +1254,7 @@ jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     needs: Build
+    timeout-minutes: ${{ github.event_name == 'schedule' && 300 || 30 }}
     defaults:
       run:
         shell: bash
@@ -1338,6 +1348,7 @@ jobs:
   NVIDIA_Plugin:
     name: NVIDIA plugin
     needs: Build
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
