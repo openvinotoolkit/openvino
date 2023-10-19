@@ -104,10 +104,10 @@ function(ov_download_tbb)
     elseif(LINUX AND X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.3-lin.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.3-lin-20231012.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f3f2edd8e7875b02220f11ab5b201411d5af6822e525e8da5444b4a666514e8b"
+                SHA256 "6f39d18783b37fdcc15ca137fbf70bc78206848af1a510cada806279fae49718"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
@@ -135,10 +135,10 @@ function(ov_download_tbb)
     elseif(LINUX AND AARCH64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64-canary.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64-20231012.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "042fdac53be65841a970b05d892f4b20b556b06fd3b20d2d0068e49c4fd74f07"
+                SHA256 "cbb239cbda7ea2937cec7008c12fe628dd44488e1eafd9630f8814f9eb2c13e2"
                 USE_NEW_LOCATION TRUE)
     elseif(APPLE AND AARCH64)
         # build oneTBB 2021.2.1 with export MACOSX_DEPLOYMENT_TARGET=11.0
@@ -204,10 +204,10 @@ function(ov_download_tbbbind_2_5)
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_LIN "tbbbind_2_5_static_lin_v3.tgz"
+                ARCHIVE_LIN "tbbbind_2_5_static_lin_v4.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "d39deb262c06981b5e2d2e3c593e9fc9be62ce4feb91dd4e648e92753659a6b3"
+                SHA256 "4ebf30246530795f066fb9616e6707c6b17be7a65d29d3518b578a769dd54eea"
                 USE_NEW_LOCATION TRUE)
     else()
         # TMP: for Apple Silicon TBB does not provide TBBBind
