@@ -31,7 +31,9 @@ looks like the following diagram shows.
 flowchart TD
     A[(torch.nn.Module)] --> torch.compile
     subgraph torch.compile
-        torch.fx.graph_module.GraphModule --> TorchFXPythonDecoder
+        subgraph TorchFXPythonDecoder
+            torch.fx.graph_module.GraphModule
+        end
         TorchFXPythonDecoder --> E("pytorch::FrontEnd::load()")
         E -->|ov::InputModel| F("pytorch::FrontEnd::convert()")
         F --> G[(ov::Model)]
