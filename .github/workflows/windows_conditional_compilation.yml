@@ -147,6 +147,10 @@ jobs:
           -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml ^
           -d CPU
 
+      - name: List bin files
+        shell: cmd
+        run: dir ${{ env.OPENVINO_REPO }}\bin\ /s
+
       - name: Pack Artifacts
         continue-on-error: true
         run: |
@@ -159,7 +163,7 @@ jobs:
           Compress-Archive @compress
 
           $compress = @{
-            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests", "${{ env.OPENVINO_REPO }}src/tests/test_utils/functional_test_utils/layer_tests_summary"
+            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}src/tests/test_utils/functional_test_utils/layer_tests_summary"
             CompressionLevel = "Optimal"
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
@@ -194,6 +198,7 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: sccache
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
     steps:
       - name: Clone OpenVINO
@@ -239,6 +244,10 @@ jobs:
 
       - name: Cmake build - CC ON
         run: cmake --build ${{ env.BUILD_DIR }} --parallel --target benchmark_app
+
+      - name: List bin files
+        shell: cmd
+        run: dir ${{ env.OPENVINO_REPO }}\bin\ /s
 
       - name: Run with CC-ed runtime
         shell: cmd
