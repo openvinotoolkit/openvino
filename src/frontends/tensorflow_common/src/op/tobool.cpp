@@ -22,15 +22,16 @@ OutputVector translate_tobool_op(const NodeContext& node) {
     default_op_checks(node, 1, {"ToBool"});
     auto x = node.get_input(0);
 
-    // prepare auxiliary zero and one constants of the same type as the inputs
+    // prepare auxiliary zero and zero constants of the same type as the inputs
     auto zero = create_same_type_const_scalar<int32_t>(x, 0);
+    auto zero_2 = make_shared<v0::Constant>(element::i32, x, 0);
     auto true_const = make_shared<v0::Constant>(element::boolean, Shape{}, true);
     auto false_const = make_shared<v0::Constant>(element::boolean, Shape{}, false);
     // compute a mask to get rank(x) == 0
     auto x_rank = compute_subgraph_scalar_rank(x, element::i32);
 
     // compute rank(x) == 0
-    auto is_zero = make_shared<v1::Equal>(x_rank, zero);
+    auto is_zero = make_shared<v1::Equal>(x_rank, zero_2);
 
     // compute mask to get x != 0
     auto is_not_zero = make_shared<v1::NotEqual>(x, zero);
