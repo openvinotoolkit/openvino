@@ -10,6 +10,8 @@
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/select.hpp"
 
 using namespace std;
 using namespace ov::op;
