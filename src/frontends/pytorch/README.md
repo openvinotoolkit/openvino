@@ -22,20 +22,28 @@ directories:
 
 OpenVINO PyTorch Frontend is a C++ component that uses [TorchScriptPythonDecoder](../../bindings/python/src/openvino/frontend/pytorch/ts_decoder.py)
 in Python code to parse PyTorch model from Python object. Usually frontend will
-be used inside [convert_model](../../../tools/ovc) in Python code.
-The whole workflow of model conversion looks like the following diagram shows.
+be used inside [convert_model](../../../tools/ovc) in Python code or inside
+openvino backend in `torch.compile_model`, in which case `TorchFXPythonDecoder`
+is used to decode `torch.fx.graph`. The whole workflow of model conversion
+looks like the following diagram shows.
 
 ```mermaid
 flowchart TD
+    A[(torch.nn.Module)] --> torch.compile
+    subgraph torch.compile
+        torch.fx.graph_module.GraphModule --> TorchFXPythonDecoder
+        TorchFXPythonDecoder --> E("pytorch::FrontEnd::load()")
+        E -->|ov::InputModel| F("pytorch::FrontEnd::convert()")
+        F --> G[(ov::Model)]
+    end
+    A[(torch.nn.Module)] --> convert_model
     subgraph convert_model
         subgraph TorchScriptPythonDecoder
-            direction LR
             torch.jit.trace ~~~ torch.jit.script
-        end        
+        end
         TorchScriptPythonDecoder --> B("pytorch::FrontEnd::load()")
         B -->|ov::InputModel| C("pytorch::FrontEnd::convert()")
     end
-    A[(torch.nn.Module)] --> convert_model
     convert_model --> D[(ov::Model)]
 ```
 
