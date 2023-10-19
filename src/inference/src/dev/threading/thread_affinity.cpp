@@ -133,7 +133,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
     return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu_ids[thrIdx]);
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
-    DWORD_PTR mask = static_cast<DWORD_PTR>(*procMask.get());
+    DWORD_PTR mask = *procMask.get();
     return 0 != SetThreadAffinityMask(GetCurrentThread(), mask);
 }
 bool pin_current_thread_to_socket(int socket) {
