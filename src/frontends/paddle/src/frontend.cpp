@@ -402,9 +402,17 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #endif
     else if (variants[0].is<std::istream*>()) {
         // Validating first stream, it must contain a model
-        auto p_model_stream = variants[0].as<std::istream*>();
+        // step 1:
+        // PDPD API ParseFromIstream always deconstructs the context in model stream.
+        // So, make a copy for variants[0] to avoid breaking the context in variants[0].
+        const auto p_model_stream = variants[0].as<std::istream*>();
+        std::istream copy_model_stream(p_model_stream->rdbuf());
         ::paddle::framework::proto::ProgramDesc fw;
-        return fw.ParseFromIstream(p_model_stream);
+        auto ret = fw.ParseFromIstream(&copy_model_stream);
+        // step 2:
+        // reset the stream position to the beginning.
+        p_model_stream->seekg(0, p_model_stream->beg);
+        return ret;
     }
     return false;
 }
