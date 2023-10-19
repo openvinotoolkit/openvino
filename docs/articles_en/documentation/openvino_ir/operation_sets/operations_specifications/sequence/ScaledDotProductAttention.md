@@ -56,7 +56,7 @@ def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, 
 * **4**: ``attention_mask`` - at least 3 dimensional tensor of type *T* or ``boolean`` and shape ``[M, ..., L, S]``, where ``N, ...`` is broadcastable to the batch dimension(s) in the first 3 inputs ``query``, ``key`` and ``value``, or a a scalar of type *T* with value ``0``. Scalar zero value is used to indicate that `attention_mask` is really missing (``attention_mask=None`` in the pseudo-code above) but ``scale`` is required to be set.
           Ignored if ``causal`` is True  **Optional.**
 
-* **5**: ``scale`` a scalar tensor of type *T*, an alternative. **Optional.**
+* **5**: ``scale`` a scalar tensor of type *T*, an alternative scale factor instead of 1/sqrt(query.shape[-1]) used by default in the pseudo-code above. **Optional.**
 
 **Outputs**
 
