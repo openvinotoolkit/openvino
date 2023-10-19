@@ -13,11 +13,7 @@ The GNA plugin provides a way to run inference on Intel® GNA, as well as in the
  * [Code Style](./docs/code_style.md)
 
 ## Key contacts
-* Denis Orlov <denis.orlov@intel.com>
-* Mikhail Ryzhov <mikhail.ryzhov@intel.com>
-* Evgeny Kotov <evgeny.kotov@intel.com>
-* Szymon Jakub Irzabek <szymon.jakub.irzabek@intel.com>
-* Nadezhda Ageeva <nadezhda.ageeva@intel.com>
+* openvino.gna.team@intel.com
 
 ## Architecture
 
@@ -60,9 +56,33 @@ intel_gna/              // Plugin folder
     README.md           // Entry point for the developer documentation
 ```
 
-
 ## Features
  * [Import/Export](#todo)
+
+## Glossary
+| Name | Description|
+|------|------------|
+| GNA | Gaussian & Neural Accelerator |
+
+## Delivered API
+GNA plugin does not define API. It is dynamically loaded. Interface delivered by plugin is defined in.
+[Openvion Dev API](https://github.com/marcinkusm/openvino/tree/master/src/inference/dev_api/cpp_interfaces/interface)
+
+## Dependencies
+
+### Build time dependencies
+| Dependency | Purpose | comment |
+|------------|---------|---------|
+| inference_engine_legacy | | |
+| ngraph | | |
+| GNA library | | |
+
+### Runtime Dependencies
+TODO
+| Dependency | Purpose | comment |
+|------------|---------|---------|
+| OpenVINO runtime library | | |
+| GNA library | | |
 
 ## See Also
 
