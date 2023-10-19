@@ -92,7 +92,7 @@ OutputVector translate_xla_dot_op(const NodeContext& node) {
     auto rhs = node.get_input(1);
     auto node_name = node.get_name();
     auto dimension_numbers_message = node.get_attribute<string>("dimension_numbers");
-    ::xla::DotDimensionNumbers dimension_numbers;
+    ::ov_xla::DotDimensionNumbers dimension_numbers;
     TENSORFLOW_OP_VALIDATION(
         node,
         dimension_numbers.ParseFromArray(dimension_numbers_message.data(),

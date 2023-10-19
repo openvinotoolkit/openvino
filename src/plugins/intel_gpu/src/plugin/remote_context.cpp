@@ -6,7 +6,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
-#include "intel_gpu/plugin/remote_allocators.hpp"
+#include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include <memory>
@@ -111,8 +111,7 @@ std::shared_ptr<RemoteContextImpl> RemoteContextImpl::get_this_shared_ptr() {
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
     if (m_engine->use_unified_shared_memory()) {
-        USMHostAllocator allocator(get_this_shared_ptr());
-        return { ov::make_tensor(type, shape, allocator), nullptr };
+        return { std::make_shared<USMHostTensor>(get_this_shared_ptr(), type, shape), nullptr };
     } else {
         return { ov::make_tensor(type, shape), nullptr };
     }
