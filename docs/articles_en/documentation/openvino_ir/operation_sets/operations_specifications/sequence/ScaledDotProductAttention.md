@@ -21,7 +21,8 @@ omitting training-related parameter.
 
 def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, causal):
     L, S = Gather(ShapeOf(query), -2), Gather(ShapeOf(key), -2)
-    scale_factor = 1.0 / Sqrt(ConvertLike(Gather(ShapeOf(query), -1), query)) if scale is None else scale
+    if scale is None:
+        scale = 1.0 / Sqrt(ConvertLike(Gather(ShapeOf(query), -1), query))
     attn_bias = Broadcast(ConvertLike(0, query), [L, S])
     if causal:
         attn_bias = np.triu(Broadcast(ConvertLike(-inf, query), [L, S]), k=1)
@@ -30,7 +31,7 @@ def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, 
             attn_bias = Select(LogicalNot(attn_mask), ConvertLike(-inf, query), ConvertLike(0, query))
         else:
             attn_bias += attn_mask
-    attn_weight = MatMul(query, Transpose(key, [-2, -1])) * scale_factor
+    attn_weight = MatMul(query, Transpose(key, [-2, -1])) * scale
     attn_weight += attn_bias
     attn_weight = Softmax(attn_weight, axis=-1)
     return MatMul(attn_weight, value)
@@ -52,7 +53,7 @@ def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, 
 
 * **3**: ``value`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., S, Ev]``, where ``...`` is optional batch dimensions. **Required.**
 
-* **4**: ``attention_mask`` - at least 3 dimensional tensor of type *T* or ``boolean`` and shape ``[N, ..., L, S]``, where ``...`` is optional batch dimensions.
+* **4**: ``attention_mask`` - at least 3 dimensional tensor of type *T* or ``boolean`` and shape ``[M, ..., L, S]``, where ``N, ...`` is broadcastable to the batch dimension(s) in the first 3 inputs ``query``, ``key`` and ``value``, or a a scalar of type *T* with value ``0``. Scalar zero value is used to indicate that `attention_mask` is really missing (``attention_mask=None`` in the pseudo-code above) but ``scale`` is required to be set.
           Ignored if ``causal`` is True  **Optional.**
 
 * **5**: ``scale`` a scalar tensor of type *T*, an alternative. **Optional.**
