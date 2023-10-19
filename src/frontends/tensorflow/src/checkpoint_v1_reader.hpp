@@ -21,8 +21,8 @@ namespace frontend {
 namespace tensorflow {
 // stores information about shape, type, and shard id for Variable
 struct VariableInfo {
-    ::tensorflow::TensorShapeProto variable_shape;
-    ::tensorflow::DataType variable_type;
+    ::ov_tensorflow::TensorShapeProto variable_shape;
+    ::ov_tensorflow::DataType variable_type;
     int32_t shard_id;
     size_t offset;
     size_t size;
