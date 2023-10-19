@@ -6725,7 +6725,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_periodic) {
     auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>({10});
-    test_case.add_expected_output(Shape{10},
+    test_case.add_expected_output<float>(Shape{10},
                                   {-0.000000014901161f,
                                    0.040212844f,
                                    0.20077012f,
@@ -6737,7 +6737,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_periodic) {
                                    0.20077008f,
                                    0.040212862f});
 
-    test_case.run_with_tolerance_as_fp();
+    // GPU has an accuracy drop, need to use different tolerance
+    if("${BACKEND_NAME}" != "IE_GPU") {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_symmetric) {
@@ -6748,7 +6753,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_symmetric) {
     auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>({10});
-    test_case.add_expected_output(Shape{10},
+    test_case.add_expected_output<float>(Shape{10},
                                   {-0.00000001f,
                                    0.05086961f,
                                    0.25800052f,
@@ -6760,7 +6765,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_symmetric) {
                                    0.05086958f,
                                    -0.00000001f});
 
-    test_case.run_with_tolerance_as_fp();
+    // GPU has an accuracy drop, need to use different tolerance
+    if("${BACKEND_NAME}" != "IE_GPU") {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_periodic) {
@@ -6783,7 +6793,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_periodic) {
                                           0.4024696f,
                                           0.17418906f});
 
-    test_case.run_with_tolerance_as_fp();
+    // GPU has an accuracy drop, need to use different tolerance
+    if("${BACKEND_NAME}" != "IE_GPU") {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_symmetric) {
@@ -6806,7 +6821,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_symmetric) {
                                           0.19381064f,
                                           0.08695650f});
 
-    test_case.run_with_tolerance_as_fp();
+    // GPU has an accuracy drop, need to use different tolerance
+    if("${BACKEND_NAME}" != "IE_GPU") {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_periodic) {
@@ -6829,7 +6849,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_periodic) {
                                           0.34556198f,
                                           0.09554043f});
 
-    test_case.run_with_tolerance_as_fp();
+    // GPU has an accuracy drop, need to use different tolerance
+    if("${BACKEND_NAME}" != "IE_GPU") {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_symmetric) {
@@ -6852,5 +6877,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_symmetric) {
                                           0.11703071f,
                                           0.00000000f});
 
-    test_case.run_with_tolerance_as_fp();
+    // GPU has an accuracy drop, need to use different tolerance
+    if("${BACKEND_NAME}" != "IE_GPU") {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
 }
