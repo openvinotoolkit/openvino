@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import onnx
 import pytest
@@ -45,6 +47,8 @@ def test_relu():
     assert_onnx_import_equals_callable("Relu", relu, [[-3, -2, -1], [1, 2, 3]])
 
 
+@pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                   reason='Ticket - 122712')
 def test_leaky_relu():
     def leaky_relu(x, alpha=0.01):
         return np.maximum(alpha * x, x)
@@ -79,6 +83,8 @@ def test_parametric_relu(x, slope):
     assert np.allclose(output, expected_output)
 
 
+@pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                   reason='Ticket - 122712')
 def test_selu():
     # f(x) = gamma * (alpha * exp(x) - alpha) for x <= 0, y = gamma * x for x > 0
     def selu(x, alpha=1.67326319217681884765625, gamma=1.05070102214813232421875):

@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 
@@ -52,6 +54,8 @@ class TestFloorDivide(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_floor_divide(self, input_tensor, other_tensor, ie_device, precision, ir_version):
         self.input_tensor = input_tensor
         self.other_tensor = other_tensor

@@ -193,11 +193,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: 'macOS x86_64'
-            arhitecture: 'x86_64'
+          - arhitecture: 'x86_64'
             machine: 'macos-13'
-          - name: 'macOS ARM64 (M1)'
-            arhitecture: 'arm64'
+          - arhitecture: 'arm64'
             machine: 'macos-13-xlarge'
     runs-on: ${{ matrix.machine }}
     env:
@@ -287,11 +285,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: 'macOS x86_64'
-            arhitecture: 'x86_64'
+          - arhitecture: 'x86_64'
             machine: 'macos-13'
-          - name: 'macOS ARM64 (M1)'
-            arhitecture: 'arm64'
+          - arhitecture: 'arm64'
             machine: 'macos-13-xlarge'
     runs-on: ${{ matrix.machine }}
     env:
@@ -349,6 +345,7 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
@@ -380,14 +377,11 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
-        if: ${{ always() }}
+        if: ${{ matrix.arhitecture == 'x86_64' }} # Ticket for ARM64: 122663
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
-          # Skips under Ticket: 122663
-          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*onnx_model_bias_gelu*:*onnx_model_embed_layer*:*.onnx_resize1*:*onnx_model_softplus*:*onnx_model_instance_normalization*:*quant_dequant_pattern_axis*' || '' }}
-          
-          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* "$skip_filter" \
+          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common tests
@@ -403,7 +397,7 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
           # Skips under Ticket: 122666
-          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*CompileModelsTests.ModelWithSplitConvConcat*' || '' }}
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*CompileModelsTests.ModelWithSplitConvConcat*:*NgramCompilation*' || '' }}
           
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
@@ -416,6 +410,7 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           
@@ -433,6 +428,7 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-commonUtilsTests.xml
 
       - name: Snippets func tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 \
@@ -452,14 +448,15 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_unit_tests.xml
 
-
       - name: AUTO func Tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 \
@@ -481,6 +478,7 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_unit_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_unit_tests.xml
@@ -492,16 +490,19 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml
 
       - name: Proxy Plugin func tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero func tests
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
@@ -525,11 +526,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: 'macOS x86_64'
-            arhitecture: 'x86_64'
+          - arhitecture: 'x86_64'
             machine: 'macos-13'
-          - name: 'macOS ARM64 (M1)'
-            arhitecture: 'arm64'
+          - arhitecture: 'arm64'
             machine: 'macos-13-xlarge'
     runs-on: ${{ matrix.machine }}
     env:
@@ -601,6 +600,7 @@ jobs:
           popd
 
       - name: Python API 1.0 Tests
+        if: ${{ always() }}
         run: |
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
@@ -633,6 +633,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: OVC Python API Tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
@@ -663,6 +664,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: ONNX Layer Tests
+        if: ${{ always() }}
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           
@@ -726,6 +728,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python ONNX operators tests
+        if: ${{ always() }}
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests -k 'not cuda' \
@@ -744,6 +747,7 @@ jobs:
 
       # TODO: install to 'tests' component via cpack
       - name: OVC unit tests
+        if: ${{ always() }}
         run: python3 -m pytest -s ${{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
@@ -766,11 +770,9 @@ jobs:
       matrix:
         include:
         # ticket: 122001
-        #  - name: 'macOS x86_64'
-        #    arhitecture: 'x86_64'
+        #  - arhitecture: 'x86_64'
         #    machine: 'macos-13'
-          - name: 'macOS ARM64 (M1)'
-            arhitecture: 'arm64'
+          - arhitecture: 'arm64'
             machine: 'macos-13-xlarge'
     runs-on: ${{ matrix.machine }}
     env:
