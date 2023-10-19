@@ -121,7 +121,7 @@ std::tuple<CpuSet, int> get_process_mask() {
 }
 void release_process_mask(cpu_set_t* mask) {
     if (nullptr != mask)
-        CPU_FREE(mask);
+        delete mask;
 }
 
 bool pin_thread_to_vacant_core(int thrIdx,
