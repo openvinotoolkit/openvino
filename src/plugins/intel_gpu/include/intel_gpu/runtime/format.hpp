@@ -139,6 +139,7 @@ struct format {
         oyix,
         oxiy,
         os_iyx_osv16,                                 ///< format used only for convolution weights
+        o_is_yx_isv2,                                 ///< format used only for convolution weights
         o_is_yx_isv4,                                 ///< format used only for convolution weights
         o_is_yx_isv16,                                ///< format used only for convolution weights
         o_is_zyx_isv16,                               ///< format used only for convolution weights

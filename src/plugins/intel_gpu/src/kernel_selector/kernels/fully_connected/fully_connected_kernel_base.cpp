@@ -24,11 +24,23 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
 
     if (params.compressed) {
         jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS", 1)});
+        if (params.weights.GetDType() == WeightsType::INT8 || params.weights.GetDType() == WeightsType::UINT8) {
+            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT8", 1)});
+        }
+
+        const size_t scale_groups_num = params.decompression_scale.Feature().v;
+        const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
         jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_TERM", 1)});
         jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE", params.decompression_scale)});
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_GROUPS_NUM", scale_groups_num)});
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_GROUP_SIZE", scale_group_size)});
         if (params.has_decompression_zp) {
+            const size_t zp_groups_num = params.decompression_zero_point.Feature().v;
+            const size_t zp_group_size = params.weights.IFM().v / params.decompression_zero_point.Feature().v;
             jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_TERM", 1)});
             jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP", params.decompression_zero_point)});
+            jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_GROUPS_NUM", zp_groups_num)});
+            jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_GROUP_SIZE", zp_group_size)});
         }
     }
 

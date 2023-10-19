@@ -15,6 +15,7 @@
 #endif
 #include "openvino/runtime/iremote_tensor.hpp"
 
+#include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -56,6 +57,8 @@ public:
     cldnn::memory::ptr get_memory() const;
     cldnn::memory::ptr get_original_memory() const;
 
+    void set_memory(cldnn::memory::ptr memory, size_t actual_size);
+
     std::shared_ptr<RemoteContextImpl> get_context() const;
 
 private:
@@ -76,8 +79,11 @@ private:
     size_t m_hash = 0;
 
     bool supports_caching() const;
+    void update_hash();
     void update_strides();
-    void init_properties();
+    void update_properties();
+
+    static TensorType allocation_type_to_tensor_type(cldnn::allocation_type t);
 };
 
 }  // namespace intel_gpu

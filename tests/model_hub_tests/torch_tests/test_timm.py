@@ -10,9 +10,28 @@ from models_hub_common.utils import cleanup_dir
 from openvino import convert_model
 
 
+def filter_timm(timm_list: list) -> list:
+    unique_models = set()
+    filtered_list = []
+    ignore_set = {"base", "mini", "small", "xxtiny", "xtiny", "tiny", "lite", "nano", "pico", "medium", "big",
+                  "large", "xlarge", "xxlarge", "huge", "gigantic", "giant", "enormous", "xs", "xxs", "s", "m", "l", "xl"}
+    for name in timm_list:
+        # first: remove datasets
+        name_parts = name.split(".")
+        _name = "_".join(name.split(".")[:-1]) if len(name_parts) > 1 else name
+        # second: remove sizes
+        name_set = set([n for n in _name.split("_") if not n.isnumeric()])
+        name_set = name_set.difference(ignore_set)
+        name_join = "_".join(name_set)
+        if name_join not in unique_models:
+            unique_models.add(name_join)
+            filtered_list.append(name)
+    return filtered_list
+
+
 def get_all_models() -> list:
     m_list = timm.list_pretrained()
-    return m_list
+    return filter_timm(m_list)
 
 
 # To make tests reproducible we seed the random generator
@@ -61,6 +80,7 @@ class TestTimmConvertModel(TestConvertModel):
     def test_convert_model_precommit(self, name, ie_device):
         self.run(name, None, ie_device)
 
+    @pytest.mark.nightly
     @pytest.mark.parametrize("name", get_all_models())
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)
