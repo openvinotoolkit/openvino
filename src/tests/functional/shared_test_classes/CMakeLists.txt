@@ -12,6 +12,8 @@ ov_add_target(
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+            PRIVATE
+                "${OpenVINO_SOURCE_DIR}/src/plugins/template/include"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES

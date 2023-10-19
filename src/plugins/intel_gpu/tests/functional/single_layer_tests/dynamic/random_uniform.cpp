@@ -140,12 +140,6 @@ protected:
         function = std::make_shared<ov::Model>(results, params, "random_uniform_test");
     }
 
-    precisions_map get_ref_precisions_convert_map() override {
-        // Do not convert reference function from FP16 to FP32 precision, since in case of RandomUniform operation
-        // data type is matter
-        return {};
-    }
-
 private:
     std::pair<double, double> min_max_values;
 };
