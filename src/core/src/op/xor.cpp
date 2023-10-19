@@ -21,13 +21,15 @@ struct Evaluate : element::NoAction<bool> {
     static result_type visit(const Tensor& arg0,
                              const Tensor& arg1,
                              Tensor& out,
+                             const Shape& shape0,
+                             const Shape& shape1,
                              const AutoBroadcastSpec& broadcast_spec) {
         using T = typename element_type_traits<ET>::value_type;
         reference::logical_xor(arg0.data<const T>(),
                                arg1.data<const T>(),
                                out.data<T>(),
-                               arg0.get_shape(),
-                               arg1.get_shape(),
+                               shape0,
+                               shape1,
                                broadcast_spec);
         return true;
     }
@@ -40,14 +42,15 @@ bool input_supported_type(const element::Type& et) {
 
 bool evaluate(const Node* const op, TensorVector& outputs, const TensorVector& inputs) {
     OPENVINO_ASSERT(outputs.size() == 1);
-    OPENVINO_ASSERT(inputs.size() == 2);
 
-    outputs[0].set_shape(infer_broadcast_shape(op, inputs[0].get_shape(), inputs[1].get_shape()));
+    outputs[0].set_shape(infer_broadcast_shape(op, inputs));
     using namespace ov::element;
     return IfTypeOf<boolean>::apply<logxor::Evaluate>(inputs[0].get_element_type(),
                                                       inputs[0],
                                                       inputs[1],
                                                       outputs[0],
+                                                      inputs[0].get_shape(),
+                                                      inputs[1].get_shape(),
                                                       op->get_autob());
 }
 }  // namespace
