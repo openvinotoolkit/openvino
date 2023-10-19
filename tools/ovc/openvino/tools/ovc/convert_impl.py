@@ -401,13 +401,20 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
     return argv
 
 
-def is_verbose(argv: argparse.Namespace):
-    return argv is not None and hasattr(argv, 'verbose') and argv.verbose
+def is_verbose(argv, args=None):
+    if argv is not None and hasattr(argv, 'verbose') and argv.verbose:
+        return True
+    if args is not None and 'verbose' in args and args['verbose']:
+        return True
+    if '--verbose' in sys.argv:
+        return True
+    return False
 
 
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     start_time = datetime.datetime.now()
-    tracemalloc.start()
+    if is_verbose(None, args):
+        tracemalloc.start()
 
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
     telemetry = init_mo_telemetry()
@@ -489,7 +496,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
 
         send_conversion_result('success')
 
-        if argv.verbose:
+        if is_verbose(argv):
             elapsed_time = datetime.datetime.now() - start_time
             print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
 
