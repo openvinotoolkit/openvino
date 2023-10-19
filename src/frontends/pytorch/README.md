@@ -101,8 +101,8 @@ to get `ov::Model` containing unconverted operations.
 
 #### Operations accepting strings
 
-At the moment strings are not supported by OpenVINO core, fortunately in models
-strings are usually constants, so we can extract them as `std::string` directly
+At the moment strings are not supported by OpenVINO core. Note that in models
+strings are usually constants, so you can extract them as `std::string` directly
 from Python using `NodeContext::const_input<std::string>()`. 
 
 #### Operations with lists, tuples, dicts
