@@ -9,8 +9,8 @@ import sys
 from pathlib import Path
 from shutil import copyfile
 
-from e2e_oss._utils.test_utils import get_ir_tag, read_irs_mapping_file, write_irs_mapping_file, remove_mo_args_oob
-from utils.e2e.common.pipeline import Pipeline
+from e2e_oss.utils.test_utils import get_ir_tag, read_irs_mapping_file, write_irs_mapping_file, remove_mo_args_oob
+from tests.utils.e2e.common.pipeline import Pipeline
 
 pytest_plugins = ('e2e_oss.plugins.e2e_test.conftest',)
 

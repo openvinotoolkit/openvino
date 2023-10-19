@@ -41,7 +41,7 @@ Usage:
 
 # pylint: disable=wrong-import-position,wrong-import-order,import-error,unused-import,no-name-in-module
 
-from utils.e2e.env_tools import Environment
-from utils.e2e.ir_provider.model_optimizer_runner import MORunner
-from utils.e2e.ref_collector.score_pytorch_onnx_runtime import PytorchPretrainedToONNXRunner,\
+from tests.utils.e2e.env_tools import Environment
+from tests.utils.e2e.ir_provider.model_optimizer_runner import MORunner
+from tests.utils.e2e.ref_collector.score_pytorch_onnx_runtime import PytorchPretrainedToONNXRunner,\
     PytorchTorchvisionToONNXRunner

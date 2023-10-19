@@ -9,8 +9,8 @@ from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_st
 from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input, read_img_input
 from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc_tf
-from e2e_oss._utils.path_utils import prepend_with_env_path, resolve_file_path
-from e2e_oss._utils.path_utils import ref_from_model
+from e2e_oss.utils.path_utils import prepend_with_env_path, resolve_file_path
+from e2e_oss.utils.path_utils import ref_from_model
 from e2e_oss.common_utils.pytest_utils import mark
 
 common_input_file = resolve_file_path("test_data/inputs/tf/classification_imagenet.npz")

@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from pathlib import Path
 
-from e2e_oss._utils.path_utils import prepend_with_env_path, ref_from_model
+from e2e_oss.utils.path_utils import prepend_with_env_path, ref_from_model
 from e2e_oss.common_utils.pytest_utils import mark, timeout
 from e2e_oss.pipelines.pipeline_base_classes.common_base_class import CommonConfig
 from e2e_oss.pipelines.pipeline_templates.collect_reference_templates import get_refs_mxnet, read_refs_pipeline

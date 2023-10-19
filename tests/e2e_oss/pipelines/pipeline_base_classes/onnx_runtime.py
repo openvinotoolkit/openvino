@@ -11,7 +11,7 @@ from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_gene
 from e2e_oss.pipelines.pipeline_templates.postproc_template import parse_classification, parse_object_detection, \
     parse_image_modification
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc
-from e2e_oss._utils.path_utils import prepend_with_env_path, resolve_file_path
+from e2e_oss.utils.path_utils import prepend_with_env_path, resolve_file_path
 from e2e_oss.common_utils.pytest_utils import mark
 
 

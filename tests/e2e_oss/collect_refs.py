@@ -15,7 +15,7 @@ import numpy as np
 import logging as log
 import os
 from e2e_oss.common_utils.parsers import pipeline_cfg_to_string
-from utils.e2e.common.pipeline import Pipeline
+from tests.utils.e2e.common.pipeline import Pipeline
 
 pytest_plugins = ('e2e_oss.plugins.ref_collect.conftest', )
 

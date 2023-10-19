@@ -9,8 +9,8 @@ from e2e_oss.pipelines.pipeline_templates.comparators_template import segmentati
 from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
 from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc
-from e2e_oss._utils.path_utils import prepend_with_env_path
-from e2e_oss._utils.path_utils import ref_from_model, resolve_file_path
+from e2e_oss.utils.path_utils import prepend_with_env_path
+from e2e_oss.utils.path_utils import ref_from_model, resolve_file_path
 from e2e_oss.common_utils.pytest_utils import mark, timeout
 
 common_input_file = resolve_file_path("test_data/inputs/caffe/cars_road.npz")

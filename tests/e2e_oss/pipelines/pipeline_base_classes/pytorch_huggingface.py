@@ -7,7 +7,7 @@ from e2e_oss.pipelines.pipeline_templates.input_templates import read_npz_input
 from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
 from e2e_oss.pipelines.pipeline_templates.pytorch_loader_template import pytorch_loader
 from e2e_oss.pipelines.pipeline_templates.preproc_templates import assemble_preproc
-from e2e_oss._utils.path_utils import ref_from_model
+from e2e_oss.utils.path_utils import ref_from_model
 from e2e_oss.common_utils.pytest_utils import mark
 
 

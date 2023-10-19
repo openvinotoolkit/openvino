@@ -7,7 +7,7 @@ from e2e_oss.pipelines.pipeline_templates.infer_templates import common_infer_st
 from e2e_oss.pipelines.pipeline_templates.input_templates import read_img_input
 from e2e_oss.pipelines.pipeline_templates.ir_gen_templates import common_ir_generation
 from e2e_oss.pipelines.pipeline_templates.postproc_template import parse_classification
-from e2e_oss._utils.path_utils import ref_from_model
+from e2e_oss.utils.path_utils import ref_from_model
 
 
 class TF_V2_ClassificationNet(CommonConfig):

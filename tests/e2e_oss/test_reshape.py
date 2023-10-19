@@ -2,11 +2,11 @@ import logging as log
 import sys
 from copy import deepcopy
 
-from e2e_oss._utils.modify_configs import get_original_model_importer_pipeline_config
-from e2e_oss._utils.reshape_pipeline_executers import mo_pipeline_runner, ie_pipeline_runner, \
+from e2e_oss.utils.modify_configs import get_original_model_importer_pipeline_config
+from e2e_oss.utils.reshape_pipeline_executers import mo_pipeline_runner, ie_pipeline_runner, \
     sbs_reshape_pipeline_runner
-from e2e_oss._utils.reshape_tests_utils import compare
-from e2e_oss._utils.test_utils import check_mo_precision, set_infer_precision_hint, timestamp
+from e2e_oss.utils.reshape_tests_utils import compare
+from e2e_oss.utils.test_utils import check_mo_precision, set_infer_precision_hint, timestamp
 
 """
 input_descriptor is a dict which describes info about input layers

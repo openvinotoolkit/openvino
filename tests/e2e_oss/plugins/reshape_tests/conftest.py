@@ -12,13 +12,13 @@ import pytest
 import yaml
 
 import e2e_oss.plugins.common.base_conftest as base
-from e2e_oss._utils.reshape_tests_utils import should_run_reshape, get_reshape_configurations, \
+from e2e_oss.utils.reshape_tests_utils import should_run_reshape, get_reshape_configurations, \
     get_reshape_pipeline_pairs, batch_was_changed
-from e2e_oss._utils.test_utils import class_factory, BrokenTest, BrokenTestException
+from e2e_oss.utils.test_utils import class_factory, BrokenTest, BrokenTestException
 from e2e_oss.common_utils.env_utils import fix_env_conf
 from e2e_oss.common_utils.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
 from e2e_oss.plugins.e2e_test.conftest import satisfies_all_rules, unwrap_rules
-from utils.e2e.env_tools import Environment
+from tests.utils.e2e.env_tools import Environment
 
 
 @contextmanager

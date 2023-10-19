@@ -1,7 +1,7 @@
 import os
 import sys
 
-from e2e_oss._utils.test_utils import class_factory
+from e2e_oss.utils.test_utils import class_factory
 from e2e_oss.pipelines.pipeline_base_classes.tf_hub_case_class import TFHUB_eltwise_Base
 
 
