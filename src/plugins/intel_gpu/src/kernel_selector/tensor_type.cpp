@@ -86,6 +86,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_iyx_osv32__ai32,                          {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv64,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv16_rotate_180,                     {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::o_is_yx_isv2,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::o_is_yx_isv4,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::o_is_yx_isv16,                               {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::o_is_zyx_isv16,                              {  0,  1,  2,   3,   4, -1 } },
@@ -617,6 +618,10 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
 
     // TODO: It's not the right pitches. it's here in order to calculate physical size
     switch (l) {
+        case o_is_yx_isv2:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 2);
+            break;
         case o_is_yx_isv4:
             assert(newDims.size() == 4);
             newDims[2] = RoundUp(newDims[2], 4);
