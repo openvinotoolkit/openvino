@@ -7,9 +7,9 @@
 #include "transformations/common_optimizations/gelu_fusion.hpp"
 
 #include <gtest/gtest.h>
-#include <cmath>
 #include <math.h>
 
+#include <cmath>
 #include <memory>
 #include <queue>
 #include <string>
@@ -294,7 +294,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_equal_const_values) {
         auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
 
         auto mul_1_constant =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
         auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
 
         auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
@@ -359,7 +361,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_pow_value) {
         auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
 
         auto mul_1_constant =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
         auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
 
         auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
@@ -394,7 +398,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_pow_value) {
         auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
 
         auto mul_1_constant =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
         auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
 
         auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
@@ -423,7 +429,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_0_value) {
         auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
 
         auto mul_1_constant =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
         auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
 
         auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
@@ -458,7 +466,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_0_value) {
         auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
 
         auto mul_1_constant =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
         auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
 
         auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
@@ -522,7 +532,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_1_value) {
         auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
 
         auto mul_1_constant =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{static_cast<float>(std::sqrt(10.0 / M_PI))});
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(10.0 / M_PI))});
         auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
 
         auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
@@ -551,7 +563,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_add_1_value) {
         auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
 
         auto mul_1_constant =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
         auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
 
         auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
@@ -587,7 +601,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_add_1_value) {
         auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
 
         auto mul_1_constant =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
         auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
 
         auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
@@ -616,7 +632,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_2_value) {
         auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
 
         auto mul_1_constant =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
         auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
 
         auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
@@ -652,7 +670,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_2_value) {
         auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
 
         auto mul_1_constant =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
         auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
 
         auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
@@ -681,8 +701,9 @@ TEST_F(TransformationTestsF, FoldGeluOperation) {
         auto const2 = ov::op::v0::Constant::create(element::f32, Shape{1, 1, 1}, std::vector<float>{1.0});
         auto add1 = std::make_shared<ov::op::v1::Add>(const2, mul2);
 
-        auto const3 =
-            ov::op::v0::Constant::create(element::f32, Shape{1, 1, 1}, std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+        auto const3 = ov::op::v0::Constant::create(element::f32,
+                                                   Shape{1, 1, 1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
         auto mul3 = std::make_shared<ov::op::v1::Multiply>(param, const3);
 
         auto mul4 = std::make_shared<ov::op::v1::Multiply>(add1, mul3);
