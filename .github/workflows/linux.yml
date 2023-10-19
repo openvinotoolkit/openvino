@@ -1085,7 +1085,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: Build
-    timeout-minutes: 45
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
@@ -1145,7 +1145,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 40
+        timeout-minutes: 20
 
       - name: Save tests execution time
         uses: actions/cache/save@v3

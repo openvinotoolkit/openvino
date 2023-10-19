@@ -28,6 +28,7 @@ concurrency:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -168,6 +169,7 @@ jobs:
 
   RPM_Packages:
     needs: Build
+    timeout-minutes: 5
     defaults:
       run:
         shell: bash
