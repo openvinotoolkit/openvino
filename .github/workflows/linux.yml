@@ -766,7 +766,7 @@ jobs:
           ${INSTALL_TEST_DIR}/subgraphsDumperTests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SubgraphsDumperTests.xml
 
-      - name: OpImpl tests
+      - name: Template OpImpl tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/conformanceTests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*\
