@@ -14,7 +14,7 @@ namespace reference {
 namespace detail {
 inline void set_u1(uint8_t* buf, size_t idx, uint8_t val) {
     const size_t byte_idx = idx / 8;
-    const uint8_t bit_idx = 7 - (idx % 8);
+    const uint8_t bit_idx = 7 - (idx % 8);  // Reversed order of bits
     if (val) {
         buf[byte_idx] |= (1 << bit_idx);
     } else {
@@ -24,33 +24,33 @@ inline void set_u1(uint8_t* buf, size_t idx, uint8_t val) {
 
 inline uint8_t get_u1(const uint8_t* buf, size_t idx) {
     const size_t byte_idx = idx / 8;
-    const uint8_t bit_idx = 7 - (idx % 8);
+    const uint8_t bit_idx = 7 - (idx % 8);  // Reversed order of bits
     return (buf[byte_idx] & (1 << bit_idx)) ? 1 : 0;
 }
 
 inline void set_u4(uint8_t* buf, size_t idx, uint8_t val) {
     const size_t byte_idx = idx / 2;
-    const uint8_t bit_shift = 4 * (++idx % 2);
+    const uint8_t bit_shift = 4 * (idx % 2);
     buf[byte_idx] &= ~(0xF << bit_shift);         // half byte zeroed
     buf[byte_idx] |= ((val & 0xF) << bit_shift);  // set 1's
 }
 
 inline uint8_t get_u4(const uint8_t* buf, size_t idx) {
     const size_t byte_idx = idx / 2;
-    const uint8_t bit_shift = 4 * (++idx % 2);
+    const uint8_t bit_shift = 4 * (idx % 2);
     return (buf[byte_idx] >> bit_shift) & 0xF;
 }
 
 inline void set_i4(uint8_t* buf, size_t idx, int8_t val) {
     const size_t byte_idx = idx / 2;
-    const uint8_t bit_shift = 4 * (++idx % 2);
+    const uint8_t bit_shift = 4 * (idx % 2);
     buf[byte_idx] &= ~(0xF << bit_shift);         // half byte zeroed
     buf[byte_idx] |= ((val & 0xF) << bit_shift);  // set 1's
 }
 
 inline int8_t get_i4(const uint8_t* buf, size_t idx) {
     const size_t byte_idx = idx / 2;
-    const uint8_t bit_shift = 4 * (++idx % 2);
+    const uint8_t bit_shift = 4 * (idx % 2);
     uint8_t val = (buf[byte_idx] >> bit_shift) & 0xF;
     if (val & 0x08) {  // negative number
         val |= 0xF0;

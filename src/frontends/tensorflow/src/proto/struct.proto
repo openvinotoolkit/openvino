@@ -12,7 +12,7 @@ limitations under the License.*/
 
 syntax = "proto3";
 
-package tensorflow;
+package ov_tensorflow;
 
 import "tensor.proto";
 import "tensor_shape.proto";
@@ -66,9 +66,9 @@ message StructuredValue {
     bool bool_value = 14;
 
     // Represents a TensorShape.
-    tensorflow.TensorShapeProto tensor_shape_value = 31;
+    ov_tensorflow.TensorShapeProto tensor_shape_value = 31;
     // Represents an enum value for dtype.
-    tensorflow.DataType tensor_dtype_value = 32;
+    ov_tensorflow.DataType tensor_dtype_value = 32;
     // Represents a value for tf.TensorSpec.
     TensorSpecProto tensor_spec_value = 33;
     // Represents a value for tf.TypeSpec.
@@ -121,17 +121,17 @@ message NamedTupleValue {
 // A protobuf to represent tf.TensorSpec.
 message TensorSpecProto {
   string name = 1;
-  tensorflow.TensorShapeProto shape = 2;
-  tensorflow.DataType dtype = 3;
+  ov_tensorflow.TensorShapeProto shape = 2;
+  ov_tensorflow.DataType dtype = 3;
 }
 
 // A protobuf to represent tf.BoundedTensorSpec.
 message BoundedTensorSpecProto {
   string name = 1;
-  tensorflow.TensorShapeProto shape = 2;
-  tensorflow.DataType dtype = 3;
-  tensorflow.TensorProto minimum = 4;
-  tensorflow.TensorProto maximum = 5;
+  ov_tensorflow.TensorShapeProto shape = 2;
+  ov_tensorflow.DataType dtype = 3;
+  ov_tensorflow.TensorProto minimum = 4;
+  ov_tensorflow.TensorProto maximum = 5;
 }
 
 // Represents a tf.TypeSpec
