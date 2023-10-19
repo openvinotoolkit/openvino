@@ -20,29 +20,39 @@
    pytorch_2_0_torch_compile
    
 
+.. image:: ./_static/images/model_conversion_diagram.svg
+   :alt: model conversion diagram
+
+OpenVINO offers multiple workflows, depending on the use case and personal or project preferences.
+The diagram above is only a rough representation of the available options, but this section will
+give you a detailed view of how you can go from preparing your model, through optimizing it,
+to executing inference, and deploying your solution. 
+
+
 | :doc:`Model Preparation <openvino_docs_model_processing_introduction>`
-| With model conversion API guide, you will learn to convert pre-trained models for use with OpenVINO™. You can use your own models or choose some from a broad selection in online databases, such as `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__, `Torchvision models <https://pytorch.org/hub/>`__..
+|    Learn how to convert pre-trained models to OpenVINO IR, using different approaches for more convenience or higher performance.
+
 
 | :doc:`Model Optimization and Compression <openvino_docs_model_optimization_guide>`
-| In this section you will find out how to optimize a model to achieve better inference performance. It describes multiple optimization methods for both the training and post-training stages. 
+|    Find out how to optimize a model to achieve better inference performance, utilizing multiple optimization methods for both in-training compression and post-training quantization. 
+
 
 | :doc:`Running Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
-| This section explains describes how to run inference which is the most basic form of deployment and the quickest way of launching inference.
+|    See how to run inference with OpenVINO, which is the most basic form of deployment, and the quickest way of running a deep learning model.
+
+| :doc:`Deployment Option 1. Using OpenVINO Runtime <openvino_deployment_guide>` 
+|    Deploy a model locally, reading the file directly from your application and utilizing resources available to the system.
+|    Deployment on a local system uses the steps described in the section on running inference.
 
 
-Once you have a model that meets both OpenVINO™ and your requirements, you can choose how to deploy it with your application. 
+| :doc:`Deployment Option 2. Using Model Server <ovms_what_is_openvino_model_server>`
+|    Deploy a model remotely, connecting your application to an inference server and utilizing external resources, with no impact on the app's performance.
+|    Deployment on OpenVINO Model Server is quick and does not require any additional steps described in the section on running inference.
 
 
-| :doc:`Option 1. Deployment via OpenVINO Runtime <openvino_deployment_guide>` 
-| Local deployment uses OpenVINO Runtime that is called from, and linked to, the application directly. 
-| It utilizes resources available to the system and provides the quickest way of launching inference.
-| Deployment on a local system requires performing the steps from the running inference section.
+| :doc:`Deployment Option 3. Using torch.compile for PyTorch 2.0  <pytorch_2_0_torch_compile>`
+|    Deploy a PyTorch model using OpenVINO in a PyTorch-native application.
 
-
-| :doc:`Option 2. Deployment via Model Server <ovms_what_is_openvino_model_server>`
-| Deployment via OpenVINO Model Server allows the application to connect to the inference server set up remotely. 
-| This way inference can use external resources instead of those available to the application itself. 
-| Deployment on a model server can be done quickly and without performing any additional steps described in the running inference section.
 
 
 @endsphinxdirective

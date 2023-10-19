@@ -6,15 +6,15 @@
 
 #include <cstddef>
 
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 
 namespace ov {
 namespace reference {
 namespace detail {
 inline void set_u1(uint8_t* buf, size_t idx, uint8_t val) {
     const size_t byte_idx = idx / 8;
-    const uint8_t bit_idx = 7 - (idx % 8);
+    const uint8_t bit_idx = 7 - (idx % 8);  // Reversed order of bits
     if (val) {
         buf[byte_idx] |= (1 << bit_idx);
     } else {
@@ -24,33 +24,33 @@ inline void set_u1(uint8_t* buf, size_t idx, uint8_t val) {
 
 inline uint8_t get_u1(const uint8_t* buf, size_t idx) {
     const size_t byte_idx = idx / 8;
-    const uint8_t bit_idx = 7 - (idx % 8);
+    const uint8_t bit_idx = 7 - (idx % 8);  // Reversed order of bits
     return (buf[byte_idx] & (1 << bit_idx)) ? 1 : 0;
 }
 
 inline void set_u4(uint8_t* buf, size_t idx, uint8_t val) {
     const size_t byte_idx = idx / 2;
-    const uint8_t bit_shift = 4 * (++idx % 2);
+    const uint8_t bit_shift = 4 * (idx % 2);
     buf[byte_idx] &= ~(0xF << bit_shift);         // half byte zeroed
     buf[byte_idx] |= ((val & 0xF) << bit_shift);  // set 1's
 }
 
 inline uint8_t get_u4(const uint8_t* buf, size_t idx) {
     const size_t byte_idx = idx / 2;
-    const uint8_t bit_shift = 4 * (++idx % 2);
+    const uint8_t bit_shift = 4 * (idx % 2);
     return (buf[byte_idx] >> bit_shift) & 0xF;
 }
 
 inline void set_i4(uint8_t* buf, size_t idx, int8_t val) {
     const size_t byte_idx = idx / 2;
-    const uint8_t bit_shift = 4 * (++idx % 2);
+    const uint8_t bit_shift = 4 * (idx % 2);
     buf[byte_idx] &= ~(0xF << bit_shift);         // half byte zeroed
     buf[byte_idx] |= ((val & 0xF) << bit_shift);  // set 1's
 }
 
 inline int8_t get_i4(const uint8_t* buf, size_t idx) {
     const size_t byte_idx = idx / 2;
-    const uint8_t bit_shift = 4 * (++idx % 2);
+    const uint8_t bit_shift = 4 * (idx % 2);
     uint8_t val = (buf[byte_idx] >> bit_shift) & 0xF;
     if (val & 0x08) {  // negative number
         val |= 0xF0;
@@ -123,7 +123,7 @@ size_t count_out_of_f16_range(const float* arg, size_t count);
 // Convert values from f32 to f16 with claming to f16 min/max when value is out of normal finite numbers range
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count);
 
-// overload to handle ngraph::boolean (it is stored as char)
+// overload to handle ov::boolean (it is stored as char)
 template <typename TI, typename TO>
 typename std::enable_if<std::is_same<TO, char>::value>::type convert(const TI* arg, TO* out, size_t count) {
     for (size_t i = 0; i < count; ++i) {

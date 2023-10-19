@@ -36,7 +36,7 @@ class TestMatMul(CommonTFLayerTest):
             elif op_type == 'BatchMatMulV3':
                 op_type_to_tf[op_type](x=tf_x, y=tf_y, Tout=tf.float32, adj_x=x_bool, adj_y=y_bool, name='Operation')
             else:
-                raise RuntimeError("Undknown operation")
+                raise RuntimeError("Unknown operation")
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -53,7 +53,7 @@ class TestMatMul(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("op_type", ['BatchMatMul',
                                          'BatchMatMulV2',
-                                         #'BatchMatMulV3',      #Isn't supported
+                                         'BatchMatMulV3',
                                          'MatMul',
                                          ])
     @pytest.mark.precommit_tf_fe
@@ -72,7 +72,7 @@ class TestMatMul(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("op_type", ['BatchMatMul',
                                          'BatchMatMulV2',
-                                         #'BatchMatMulV3',      #Isn't supported
+                                         'BatchMatMulV3',
                                          'MatMul',
                                          ])
     @pytest.mark.parametrize("x_bool", [

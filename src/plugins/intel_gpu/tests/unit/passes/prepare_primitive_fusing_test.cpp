@@ -528,7 +528,7 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         permute("permute", input_info("weights"), {1, 0}),
-        reorder("reorder_dt", input_info("permute"), format::bfyx, data_types::f16),
+        reorder("reorder_dt", input_info("permute"), format::fbyx, data_types::f16),
         fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16)
     );
 
@@ -536,13 +536,24 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
+    if (engine.get_device_info().supports_immad) {
+        ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_impl} }));
+    }
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     layout_optimizer lo(true);
+    lo.set_implementation_forcing(config.get_property(ov::intel_gpu::force_implementations));
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
 
     ASSERT_TRUE(!has_node(*prog, "permute"));
     ASSERT_EQ(prog->get_node("weights").get_output_layout().format, format::fbyx);
+
+    if (engine.get_device_info().supports_immad) {
+        ASSERT_TRUE(has_node(*prog, "reorder_dt"));
+        ASSERT_EQ(prog->get_node("reorder_dt").get_output_layout().format, format::bfyx);
+    }
 }
 
 TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {

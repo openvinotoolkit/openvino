@@ -11,7 +11,7 @@ target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
 set(DEPENDENCIES openvino_intel_cpu_plugin template_extension)
-set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets snippetsNgraphFunctions)
+set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets ov_snippets_models)
 
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")
@@ -46,7 +46,7 @@ if(NOT X86_64)
          ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64)
 endif()
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES ${INCLUDES}
@@ -56,7 +56,7 @@ addIeTargetTest(
         DEPENDENCIES ${DEPENDENCIES}
         LINK_LIBRARIES ${LINK_LIBRARIES}
         ADD_CPPLINT
-        LABELS CPU
+        LABELS OV CPU
 )
 
 ov_set_threading_interface_for(${TARGET_NAME})

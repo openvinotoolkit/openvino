@@ -4,20 +4,11 @@
 
 #pragma once
 
-#include <algorithm>
-#include <array>
-#include <cassert>
-#include <cmath>
 #include <cstddef>
-#include <functional>
-#include <map>
-#include <ngraph/runtime/host_tensor.hpp>
 #include <vector>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace reference {
@@ -37,11 +28,11 @@ void non_max_suppression5(const float* boxes_data,
                           const bool sort_result_descending);
 
 void nms5_postprocessing(ov::TensorVector& outputs,
-                         const ngraph::element::Type output_type,
+                         const element::Type output_type,
                          const std::vector<int64_t>& selected_indices,
                          const std::vector<float>& selected_scores,
                          int64_t valid_outputs,
-                         const ngraph::element::Type selected_scores_type);
+                         const element::Type selected_scores_type);
 
 void non_max_suppression(const float* boxes_data,
                          const Shape& boxes_data_shape,
@@ -59,10 +50,10 @@ void non_max_suppression(const float* boxes_data,
                          const bool sort_result_descending);
 
 void nms_postprocessing(ov::TensorVector& outputs,
-                        const ngraph::element::Type output_type,
+                        const element::Type output_type,
                         const std::vector<int64_t>& selected_indices,
                         const std::vector<float>& selected_scores,
                         int64_t valid_outputs,
-                        const ngraph::element::Type selected_scores_type);
+                        const element::Type selected_scores_type);
 }  // namespace reference
 }  // namespace ov

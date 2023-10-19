@@ -10,14 +10,12 @@
 
 namespace ov {
 namespace test {
-namespace subgraph {
 
-using SplitConcatMemoryParamsTuple = typename std::tuple<
-    ov::Shape,                   // input shapes
-    ov::element::Type,           // precision
-    int,                         // axis of split
-    std::string                  // device name
->;
+using SplitConcatMemoryParamsTuple = typename std::tuple<ov::Shape,          // input shapes
+                                                         ov::element::Type,  // precision
+                                                         int,                // axis of split
+                                                         std::string         // device name
+                                                         >;
 
 class SplitConcatMemory : public testing::WithParamInterface<SplitConcatMemoryParamsTuple>,
                           virtual public ov::test::SubgraphBaseTest {
@@ -29,6 +27,5 @@ protected:
     int axis;
 };
 
-}  // namespace subgraph
 }  // namespace test
 }  // namespace ov

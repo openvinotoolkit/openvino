@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/embedding_bag_packed_sum.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {

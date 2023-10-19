@@ -6,6 +6,8 @@
 #include "shared_test_classes/single_layer/mat_mul.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
+#include "ov_models/builders.hpp"
+#include <string>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;

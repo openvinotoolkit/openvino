@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 

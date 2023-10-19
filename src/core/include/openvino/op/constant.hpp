@@ -198,9 +198,7 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
@@ -428,7 +426,7 @@ private:
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::u4, bool>::type = true>
     StorageDataType get_element_value(size_t index) const {
-        return (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
+        return (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 4 : 0)) & 0x0F;
     }
 
     template <element::Type_t Type,
@@ -442,7 +440,7 @@ private:
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::i4, bool>::type = true>
     StorageDataType get_element_value(size_t index) const {
-        const uint8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
+        const uint8_t i4data = (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 4 : 0)) & 0x0F;
         const bool is_negative_number = (i4data >> 3) & 0x01;
         const int8_t data = is_negative_number ? i4data | 0xF0 : i4data;
         return data;
@@ -532,7 +530,7 @@ private:
         const auto round_element_no = element_number % 2 ? element_number + 1 : element_number;
         output.reserve(round_element_no);  // adds 1 more elements here?
         std::for_each(source_begin, source_end, [&](IN_T c) {
-            for (const auto i : {4, 0}) {
+            for (const auto i : {0, 4}) {
                 const uint8_t data = (c >> i) & 0x0F;
                 output.push_back(data);
             }
@@ -550,7 +548,7 @@ private:
         const auto round_element_no = element_number % 2 ? element_number + 1 : element_number;
         output.reserve(round_element_no);  // adds 1 more elements here?
         std::for_each(source_begin, source_end, [&](IN_T c) {
-            for (const auto i : {4, 0}) {
+            for (const auto i : {0, 4}) {
                 const uint8_t i4data = (c >> i) & 0x0F;
                 const bool is_negative_number = (i4data >> 3) & 0x01;
                 const int8_t data = is_negative_number ? i4data | 0xF0 : i4data;
@@ -665,27 +663,9 @@ private:
     template <element::Type_t Type,
               typename T,
               typename StorageDataType = fundamental_type_for<Type>,
-              typename std::enable_if<Type == element::Type_t::u4 || Type == element::Type_t::i4, bool>::type = true>
-    void write_buffer(const std::vector<T>& source) {
-        auto p = get_data_ptr_nc<Type>();
-        size_t i = 0;
-        for (; i < source.size() / 2; i++) {
-            const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
-            const auto v2 = value_in_range<Type>(source[i * 2 + 1]) & 0x0F;
-            const auto v = (v1 << 4) | v2;
-            p[i] = static_cast<StorageDataType>(v);
-        }
-        if (source.size() % 2) {
-            const auto v1 = value_in_range<Type>(source[i * 2]) & 0x0F;
-            const auto v = v1 << 4;
-            p[i] = static_cast<StorageDataType>(v);
-        }
-    }
-
-    template <element::Type_t Type,
-              typename T,
-              typename StorageDataType = fundamental_type_for<Type>,
-              typename std::enable_if<Type == element::Type_t::nf4 && std::is_integral<T>::value, bool>::type = true>
+              typename std::enable_if<Type == element::Type_t::u4 || Type == element::Type_t::i4 ||
+                                          (Type == element::Type_t::nf4 && std::is_integral<T>::value),
+                                      bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
         size_t i = 0;

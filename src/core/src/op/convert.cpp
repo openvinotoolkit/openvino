@@ -103,23 +103,23 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
 bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
     bool rc = true;
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_convert, u1, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, u4, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, u8, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, u16, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, u32, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, u64, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, i4, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, i8, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, i16, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, i32, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, i64, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, bf16, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, f16, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, f32, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, f64, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, boolean, arg, out);
-        NGRAPH_TYPE_CASE(evaluate_convert, nf4, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u1, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u4, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u8, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u16, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u32, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, u64, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, i4, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, i8, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, i16, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, i32, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, i64, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, bf16, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, f16, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, f32, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, f64, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, boolean, arg, out);
+        OPENVINO_TYPE_CASE(evaluate_convert, nf4, arg, out);
     default:
         rc = false;
         break;
