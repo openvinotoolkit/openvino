@@ -39,7 +39,7 @@ OutputVector translate_tobool_op(const NodeContext& node) {
     // compute (rank(x) == 0 && x != 0)
     auto logical_and = make_shared<v1::LogicalAnd>(is_zero, is_not_zero);
     // compute rank(x) > 0
-    auto greater_than_zero = make_shared<v1::Greater>(x_rank, zero);
+    auto greater_than_zero = make_shared<v1::Greater>(x_rank, zero_2);
 
     // compute ShapeOf(x)
     auto cond_shape = make_shared<v3::ShapeOf>(x, element::i32);
