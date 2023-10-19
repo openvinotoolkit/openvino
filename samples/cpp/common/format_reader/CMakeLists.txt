@@ -13,12 +13,6 @@ file (GLOB LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
 source_group("src" FILES ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 source_group("include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
-if(AARCH64)
-    if(APPLE)
-        ov_add_compiler_flags(-Wno-shorten-64-to-32)
-    endif()
-endif()
-
 # Create library file from sources.
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 

@@ -51,13 +51,13 @@ NumpyArray::NumpyArray(const std::string& filename) {
 
     // Verify fortran order is false
     const std::string fortran_key = "'fortran_order':";
-    idx = header.find(fortran_key);
+    idx = static_cast<int>(header.find(fortran_key));
     if (idx == -1) {
         return;
     }
 
-    from = header.find_last_of(' ', idx + fortran_key.size()) + 1;
-    to = header.find(',', from);
+    from = static_cast<int>(header.find_last_of(' ', idx + fortran_key.size()) + 1);
+    to = static_cast<int>(header.find(',', from));
     auto fortran_value = header.substr(from, to - from);
     if (fortran_value != "False") {
         return;
@@ -65,13 +65,13 @@ NumpyArray::NumpyArray(const std::string& filename) {
 
     // Verify array shape matches the input's
     const std::string shape_key = "'shape':";
-    idx = header.find(shape_key);
+    idx = static_cast<int>(header.find(shape_key));
     if (idx == -1) {
         return;
     }
 
-    from = header.find('(', idx + shape_key.size()) + 1;
-    to = header.find(')', from);
+    from = static_cast<int>(header.find('(', idx + shape_key.size()) + 1);
+    to = static_cast<int>(header.find(')', from));
 
     std::string shape_data = header.substr(from, to - from);
 
@@ -97,13 +97,13 @@ NumpyArray::NumpyArray(const std::string& filename) {
 
     // Verify array data type matches input's
     std::string dataTypeKey = "'descr':";
-    idx = header.find(dataTypeKey);
+    idx = static_cast<int>(header.find(dataTypeKey));
     if (idx == -1) {
         return;
     }
 
-    from = header.find('\'', idx + dataTypeKey.size()) + 1;
-    to = header.find('\'', from);
+    from = static_cast<int>(header.find('\'', idx + dataTypeKey.size()) + 1);
+    to = static_cast<int>(header.find('\'', from));
     type = header.substr(from, to - from);
 
     _size = full_file_size - static_cast<std::size_t>(file.tellg());
