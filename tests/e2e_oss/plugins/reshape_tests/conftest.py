@@ -18,7 +18,7 @@ from e2e_oss.utils.test_utils import class_factory, BrokenTest, BrokenTestExcept
 from e2e_oss.common_utils.env_utils import fix_env_conf
 from e2e_oss.common_utils.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
 from e2e_oss.plugins.e2e_test.conftest import satisfies_all_rules, unwrap_rules
-from tests.utils.e2e.env_tools import Environment
+from utils.e2e.env_tools import Environment
 
 
 @contextmanager

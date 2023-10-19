@@ -22,8 +22,8 @@ from math import ceil
 from e2e_oss.utils.test_utils import check_mo_precision, read_irs_mapping_file, get_ir_tag
 from e2e_oss.common_utils.parsers import pipeline_cfg_to_string
 from e2e_oss.pipelines.pipeline_templates.comparators_template import eltwise_comparators
-from tests.utils.e2e.common.pipeline import Pipeline
-from tests.utils.e2e.comparator.container import ComparatorsContainer
+from utils.e2e.common.pipeline import Pipeline
+from utils.e2e.comparator.container import ComparatorsContainer
 
 pytest_plugins = ('e2e_oss.plugins.e2e_test.conftest',)
 

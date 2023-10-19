@@ -1,7 +1,7 @@
 import logging as log
 
 from e2e_oss.utils.modify_configs import ie_sbs_reshape_config, ie_reshape_config, mo_reshape_config
-from tests.utils.e2e.common.pipeline import Pipeline
+from utils.e2e.common.pipeline import Pipeline
 
 
 def sbs_reshape_pipeline_runner(instance_ie_pipeline, shapes, test_name):

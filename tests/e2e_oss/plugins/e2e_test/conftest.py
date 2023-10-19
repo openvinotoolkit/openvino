@@ -24,7 +24,7 @@ from e2e_oss.common_utils.env_utils import fix_env_conf
 from e2e_oss.common_utils.logger import get_logger
 from e2e_oss.common_utils.marks import MarkRunType, MarkGeneral
 from e2e_oss.common_utils.openvino_resources import OpenVINOResources, OpenVINOResourceNotFound
-from tests.utils.e2e.env_tools import Environment
+from utils.e2e.env_tools import Environment
 
 logger = get_logger(__name__)
 

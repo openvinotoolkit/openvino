@@ -20,8 +20,8 @@ from pathlib import Path
 from e2e_oss.utils.path_utils import prepend_with_env_path
 from e2e_oss.utils.test_utils import set_infer_precision_hint, read_irs_mapping_file, get_ir_tag
 from e2e_oss.common_utils.parsers import pipeline_cfg_to_string
-from tests.utils.e2e.common.pipeline import Pipeline
-from tests.utils.e2e.comparator.container import ComparatorsContainer
+from utils.e2e.common.pipeline import Pipeline
+from utils.e2e.comparator.container import ComparatorsContainer
 
 pytest_plugins = ('e2e_oss.plugins.e2e_test.conftest',)
 

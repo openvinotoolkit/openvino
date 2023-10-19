@@ -32,7 +32,7 @@ from pathlib import Path
 from e2e_oss.utils.modify_configs import dynamism_config, ie_reshape_config
 from e2e_oss.utils.reshape_tests_utils import compare
 from e2e_oss.utils.test_utils import set_infer_precision_hint, check_mo_precision, timestamp, get_static_shape
-from tests.utils.e2e.common.pipeline import Pipeline
+from utils.e2e.common.pipeline import Pipeline
 
 pytest_plugins = ('e2e_oss.plugins.reshape_tests.conftest',)
 

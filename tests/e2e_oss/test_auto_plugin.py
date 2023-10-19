@@ -22,8 +22,8 @@ from e2e_oss.utils.test_utils import set_infer_precision_hint, read_irs_mapping_
     check_mo_precision
 from e2e_oss.common_utils.test_utils import name_aligner
 from e2e_oss.test import empty_dirs
-from tests.utils.e2e.common.pipeline import Pipeline
-from tests.utils.e2e.comparator.container import ComparatorsContainer
+from utils.e2e.common.pipeline import Pipeline
+from utils.e2e.comparator.container import ComparatorsContainer
 
 from e2e_oss.common_utils.logger import get_logger
 

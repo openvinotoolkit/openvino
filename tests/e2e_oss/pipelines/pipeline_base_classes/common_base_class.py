@@ -12,8 +12,8 @@ from e2e_oss.utils.path_utils import resolve_file_path
 # import local modules:
 from e2e_oss.utils.test_utils import align_output_name
 from e2e_oss.common_utils.parsers import mapping_parser as mapping
-from tests.utils.e2e.common.e2e_utils import get_tensor_names_dict
-from tests.utils.e2e.env_tools import Environment
+from utils.e2e.common.e2e_utils import get_tensor_names_dict
+from utils.e2e.env_tools import Environment
 
 log = getLogger(__name__)
 

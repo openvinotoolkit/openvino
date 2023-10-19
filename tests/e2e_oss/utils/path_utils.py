@@ -62,12 +62,12 @@ def is_writable(path: str):
 def prepend_with_env_path(config_key, *paths):
     """Prepend given paths with base path specified in env_config.yml for given config_key"""
     # Local import to avoid circular dependency
-    from tests.utils.e2e.env_tools import Environment
+    from utils.e2e.env_tools import Environment
     return Environment.abs_path(config_key, *paths)
 
 
 def search_model_path_recursively(config_key, model_name):
-    from tests.utils.e2e.env_tools import Environment
+    from utils.e2e.env_tools import Environment
     search_pattern = Environment.abs_path(config_key) + '/**/' + model_name
     path_found = list(iglob(search_pattern, recursive=True))
     if len(path_found) == 1:
@@ -125,7 +125,7 @@ class DirLockingHandler:
 
     def lock(self):
         # Local import to avoid cyclic import
-        from tests.utils.e2e.env_tools import Environment
+        from utils.e2e.env_tools import Environment
         if self.writable:
             if not self.is_locked():
                 log.info("Marking {} directory as locked".format(self.target_dir))
@@ -142,7 +142,7 @@ class DirLockingHandler:
 
     def unlock(self):
         # Local import to avoid cyclic import
-        from tests.utils.e2e.env_tools import Environment
+        from utils.e2e.env_tools import Environment
         if self.is_locked():
             self._lock_file.unlink()
             if self.target_dir in Environment.locked_dirs:
