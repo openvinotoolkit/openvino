@@ -930,9 +930,6 @@ jobs:
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt
 
-          # To enable pytest parallel features
-          python3 -m pip install pytest-xdist[psutil]
-
       #
       # Tests
       #
@@ -1002,7 +999,7 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: PyTorch Layer Tests
-        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests test_adaptive_avg_pool.py --tx 12*popen -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -1320,7 +1317,7 @@ jobs:
       - name: PyTorch Models Tests
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
