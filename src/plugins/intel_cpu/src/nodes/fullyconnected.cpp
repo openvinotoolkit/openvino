@@ -206,6 +206,11 @@ void FullyConnected::getSupportedDescriptors() {
         if (one_of(outputDataType , memory::data_type::u8, memory::data_type::s8)) {
             outputDataType = memory::data_type::bf16;
         }
+        // W.A. WeightsDecompression not supported on avx2_vnni_2
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2) &&
+            weightsDataType == memory::data_type::u8) {
+            inputDataType = outputDataType = memory::data_type::f32;
+        }
     } else if (inputDataType == memory::data_type::f16) {
 #if defined(OV_CPU_WITH_ACL)
         // acl fc does not support precisions conversion
