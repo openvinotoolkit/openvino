@@ -5,8 +5,6 @@
 #include "common_op_table.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/not_equal.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/shape_of.hpp"
