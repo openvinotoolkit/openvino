@@ -14,6 +14,7 @@
    * offers both C/C++ and Python APIs
    * additionally includes code samples 
    * is dedicated to macOS users (archives for other systems are also available)
+   * is only supported for CPU Plugin
 
 
 .. tab-set::
