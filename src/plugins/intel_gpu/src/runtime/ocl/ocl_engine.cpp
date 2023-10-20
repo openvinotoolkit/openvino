@@ -131,9 +131,9 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
     auto max_mem_size = get_device_info().max_alloc_mem_size;
     if (alloc_mem_size > max_mem_size) {
         auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
-        GPU_DEBUG_COUT << "[GPU] Mem size info: " << "Required " << alloc_mem_size << " bytes, already occupied : "
-                       << used_mem << " bytes, available memory size is " << get_max_memory_size() << " bytes, but max allocable memory size is "
-                       << max_mem_size << " bytes." << std::endl;
+        GPU_DEBUG_LOG << "[GPU] Mem size info: " << "Required " << alloc_mem_size << " bytes, already occupied : "
+                      << used_mem << " bytes, available memory size is " << get_max_memory_size() << " bytes, but max allocable memory size is "
+                      << max_mem_size << " bytes." << std::endl;
         return false;
     }
 
@@ -148,7 +148,7 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
 #ifdef __unix__
         OPENVINO_ASSERT(allocatable, "[GPU] Exceeded max size of memory allocation, check debug message for size info");
 #else
-        GPU_DEBUG_COUT << "[Warning][GPU] Please note that performance might drop due to memory swap." << std::endl;
+        GPU_DEBUG_COUT << "[Warning][GPU] Please note that performance might drop due to memory swap caused by exceeded mem size alloc." << std::endl;
 #endif
     }
 
