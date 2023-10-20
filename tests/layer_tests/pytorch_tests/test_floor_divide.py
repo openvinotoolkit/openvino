@@ -42,46 +42,58 @@ class TestFloorDivide(PytorchLayerTest):
         return aten_floor_divide(), ref_net, "aten::floor_divide"
 
     @pytest.mark.parametrize('input_tensor',
-    [
-        [5], [5, 5, 1], [1, 1, 5, 5]
-    ])
+    (
+        [[5], [5, 5, 1], [1, 1, 5, 5]],
+    ))
     @pytest.mark.parametrize('other_tensor',
-    [
-        np.array([[0.5]]).astype(np.float32), [5], [5, 1], [1, 5]
-    ])
+    (
+        [np.array([[0.5]]).astype(np.float32), [5], [5, 1], [1, 5]],
+    ))
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_floor_divide(self, input_tensor, other_tensor, ie_device, precision, ir_version):
-        if type(input_tensor) is list:
-            self.input_tensor = np.random.random_sample(input_tensor).astype(np.float32)
-        else:
-            self.input_tensor = input_tensor
-        if type(other_tensor) is list:
-            self.other_tensor = np.random.random_sample(other_tensor).astype(np.float32)
-        else:
-            self.other_tensor = other_tensor
+        self.input_tensor = []
+        for input in input_tensor:
+            if type(input) is list:
+                self.input_tensor.append(np.random.random_sample(input).astype(np.float32))
+            else:
+                self.input_tensor.append(input)
+
+        self.other_tensor = []
+        for input in other_tensor:
+            if type(input) is list:
+                self.other_tensor.append(np.random.random_sample(input).astype(np.float32))
+            else:
+                self.other_tensor.append(input)
+
         self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
 
     @pytest.mark.parametrize('input_tensor',
-    [
-        [5], [5, 5, 1], [1, 1, 5, 5]
-    ])
+    (
+        [[5], [5, 5, 1], [1, 1, 5, 5]],
+    ))
     @pytest.mark.parametrize('other_tensor',
-    [
-        np.array([[2]]).astype(np.float32), [5], [5, 1], [1, 5],
-    ])
+    (
+        [np.array([[2]]).astype(np.float32), [5], [5, 1], [1, 5]],
+    ))
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_floor_divide_int(self, input_tensor, other_tensor, ie_device, precision, ir_version):
-        if type(input_tensor) is list:
-            self.input_tensor = np.random.randint(low=0, high=10, size=input_tensor).astype(np.float32)
-        else:
-            self.input_tensor = input_tensor
-        if type(other_tensor) is list:
-            self.other_tensor = np.random.randint(low=0, high=10, size=other_tensor).astype(np.float32)
-        else:
-            self.other_tensor = other_tensor
+        self.input_tensor = []
+        for input in input_tensor:
+            if type(input) is list:
+                self.input_tensor.append(np.random.random_sample(input).astype(np.float32))
+            else:
+                self.input_tensor.append(input)
+
+        self.other_tensor = []
+        for input in other_tensor:
+            if type(input) is list:
+                self.other_tensor.append(np.random.random_sample(input).astype(np.float32))
+            else:
+                self.other_tensor.append(input)
+
         self.create_model = self.create_model_int
         self._test(*self.create_model(), ie_device, precision, ir_version)
