@@ -27,7 +27,7 @@ std::basic_string<wchar_t> get_variables_index_name<wchar_t>(const std::wstring 
 
 // Loads graph from Tensorflow MetaGraph file (*.meta)
 class GraphIteratorMeta : public GraphIteratorProto {
-    std::shared_ptr<::tensorflow::MetaGraphDef> m_metagraph_def;
+    std::shared_ptr<::ov_tensorflow::MetaGraphDef> m_metagraph_def;
     std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_inputs_map;
     std::shared_ptr<std::map<std::string, std::string>> m_outputs_map;
@@ -36,7 +36,7 @@ class GraphIteratorMeta : public GraphIteratorProto {
 public:
     template <typename T>
     GraphIteratorMeta(const std::basic_string<T>& path, const bool mmap_enabled)
-        : m_metagraph_def(std::make_shared<::tensorflow::MetaGraphDef>()),
+        : m_metagraph_def(std::make_shared<::ov_tensorflow::MetaGraphDef>()),
           m_mmap_enabled(mmap_enabled) {
         this->read_meta(path);
     }
@@ -45,7 +45,7 @@ public:
     static bool is_supported(const std::basic_string<T>& path) {
         try {
             std::ifstream mg_stream(path.c_str(), std::ios::in | std::ifstream::binary);
-            auto metagraph_def = std::make_shared<::tensorflow::MetaGraphDef>();
+            auto metagraph_def = std::make_shared<::ov_tensorflow::MetaGraphDef>();
             return mg_stream && mg_stream.is_open() && metagraph_def->ParsePartialFromIstream(&mg_stream) &&
                    metagraph_def->has_graph_def() && metagraph_def->graph_def().node_size() > 0;
         } catch (...) {
@@ -66,7 +66,7 @@ public:
     }
 
 private:
-    bool is_valid_signature(const ::tensorflow::SignatureDef& signature) const;
+    bool is_valid_signature(const ::ov_tensorflow::SignatureDef& signature) const;
 
     template <typename T>
     bool read_meta(const std::basic_string<T>& path) {
@@ -87,10 +87,10 @@ private:
         bool res = m_metagraph_def->ParseFromIstream(&mg_stream);
         FRONT_END_GENERAL_CHECK(res && m_metagraph_def->has_graph_def(), "MetaGraph cannot be parsed");
 
-        std::map<std::string, const ::tensorflow::SignatureDef*> validSignatures = {};
+        std::map<std::string, const ::ov_tensorflow::SignatureDef*> validSignatures = {};
         for (const auto& sit : m_metagraph_def->signature_def()) {
             const std::string& key = sit.first;
-            const ::tensorflow::SignatureDef& val = sit.second;
+            const ::ov_tensorflow::SignatureDef& val = sit.second;
             if (is_valid_signature(val)) {
                 validSignatures[key] = &val;
             }
@@ -114,7 +114,7 @@ private:
             }
         }
 
-        m_graph_def = std::make_shared<::tensorflow::GraphDef>(m_metagraph_def->graph_def());
+        m_graph_def = std::make_shared<::ov_tensorflow::GraphDef>(m_metagraph_def->graph_def());
 
         // Update variables map using information by resolving AssignVariableOp graph nodes
         std::map<std::string, std::string> var_map;

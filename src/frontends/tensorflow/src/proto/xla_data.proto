@@ -15,7 +15,7 @@ limitations under the License.
 
 syntax = "proto3";
 
-package xla;
+package ov_xla;
 
 option cc_enable_arenas = true;
 
