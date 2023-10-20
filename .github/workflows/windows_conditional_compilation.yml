@@ -42,6 +42,7 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_TOOLCHAIN_FILE: "${{ env.OPENVINO_REPO }}\\cmake\\toolchains\\mt.runtime.win32.toolchain.cmake"
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
@@ -105,7 +106,6 @@ jobs:
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_TOOLCHAIN_FILE=${{ env.OPENVINO_REPO }}/cmake/toolchains/mt.runtime.win32.toolchain.cmake `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
