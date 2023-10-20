@@ -144,9 +144,9 @@ bool evaluate(const HostTensorPtr& out,
               const HostTensorPtr& step,
               int version) {
     using T = typename element_type_traits<ET>::value_type;
-    T start_val;
-    T stop_val;
-    T step_val;
+    double start_val;
+    double stop_val;
+    double step_val;
     if (version < 4) {
         start_val = *start->get_data_ptr<ET>();
         stop_val = *stop->get_data_ptr<ET>();
@@ -156,8 +156,8 @@ bool evaluate(const HostTensorPtr& out,
             return false;
         }
     } else {
-        if (!(get_casted_value<T>(start, &start_val) && get_casted_value<T>(stop, &stop_val) &&
-              get_casted_value<T>(step, &step_val))) {
+        if (!(get_casted_value<double>(start, &start_val) && get_casted_value<double>(stop, &stop_val) &&
+              get_casted_value<double>(step, &step_val))) {
             return false;
         }
     }
@@ -170,11 +170,14 @@ bool evaluate(const HostTensorPtr& out,
     }
     ov::Shape out_shape = ov::Shape({static_cast<size_t>(out_size)});
     out->set_shape(out_shape);
-    ov::reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
+
+    T start_val_casted = static_cast<T>(start_val);
+    T step_val_casted = static_cast<T>(step_val);
+    ov::reference::range(&start_val_casted, &step_val_casted, shape_size(out_shape), out->get_data_ptr<ET>());
     return true;
 }
 
-bool evaluate_power(const HostTensorPtr& out,
+bool evaluate_range(const HostTensorPtr& out,
                     const HostTensorPtr& start,
                     const HostTensorPtr& stop,
                     const HostTensorPtr& step,
@@ -209,7 +212,7 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     HostTensorPtr start = inputs[0];
     HostTensorPtr stop = inputs[1];
     HostTensorPtr step = inputs[2];
-    return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
+    return rangeop::evaluate_range(out, start, stop, step, m_output_type, 4);
 }
 
 bool op::v4::Range::has_evaluate() const {
@@ -381,7 +384,7 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     HostTensorPtr start = inputs[0];
     HostTensorPtr stop = inputs[1];
     HostTensorPtr step = inputs[2];
-    return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
+    return rangeop::evaluate_range(out, start, stop, step, start->get_element_type(), 0);
 }
 
 bool op::v0::Range::has_evaluate() const {
