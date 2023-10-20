@@ -71,6 +71,9 @@ std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/
 
     auto input0_layout = impl_param.get_input_layout(0);
     auto input1_layout = impl_param.get_input_layout(1);
+    if (desc->id == "gather:Gather_2369") {
+        input1_layout = layout{{}, input1_layout.data_type, input1_layout.format};
+    }
 
     auto output_type = input0_layout.data_type;
     if (impl_param.has_fused_primitives()) {
