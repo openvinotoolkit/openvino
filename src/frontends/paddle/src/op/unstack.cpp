@@ -12,9 +12,6 @@ namespace op {
 NamedOutputs unstack(const NodeContext& node) {
     auto data = node.get_input("X");
     auto dim = node.get_attribute<int32_t>("axis");
-    if (dim < 0) {
-        dim = dim + data.get_partial_shape().rank().get_length();
-    }
     auto axis = default_opset::Constant::create(element::i32, {}, {dim});
     auto shape = data.get_shape();
     auto splits = std::make_shared<default_opset::Split>(data, axis, shape[dim]);
