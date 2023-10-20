@@ -17,6 +17,13 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions {
 namespace MatMul {
 namespace {
+const std::vector<ShapeRelatedParams> IS_x64 = {
+    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, false}},
+    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, false}},
+    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, true}},
+    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, true}},
+};
+
 std::vector<fusingSpecificParams> fusingParamsSet2D_nightly {
         fusingRelu,
 #ifndef OV_CPU_WITH_MLAS
@@ -42,6 +49,21 @@ std::vector<fusingSpecificParams> fusingParamsSet2DBF16 {
         fusingRelu,
         fusingPReluPerTensor,
 };
+
+const auto matMulParams_x64 = ::testing::Combine(::testing::ValuesIn(IS_x64),
+                                             ::testing::ValuesIn(netPRCs()),
+                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                             ::testing::ValuesIn(additionalConfig()));
+
+const auto testParams_x64 = ::testing::Combine(matMulParams_x64,
+                                           ::testing::Values(MatMulNodeType::MatMul),
+                                           ::testing::ValuesIn(matmulFusingParams()),
+                                           ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_IS_x64, MatMulLayerCPUTest, testParams_x64, MatMulLayerCPUTest::getTestCaseName);
 
 const auto testParams2D_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke()),
                                                                 ::testing::Values(ElementType::f32),
@@ -352,6 +374,32 @@ const std::vector<ShapeRelatedParams> IS_Dynamic_Fusing = {
         {false, false}
     },
 };
+
+const std::vector<fusingSpecificParams> matmulFusingParams_x64{
+            fusingAddPerTensor,
+            fusingBias,
+            fusingFakeQuantizePerChannel,
+            /* @todo FQ unfolds into FQ + Convert + Substract + Multiply after LPT,
+            * so Relu cannot be fused in this case. Should be analysed */
+            // fusingFakeQuantizePerChannelRelu,
+            fusingFakeQuantizePerTensorRelu,
+            fusingScaleShiftAndFakeQuantizePerChannel,
+};
+
+const auto matMulParams_x64 = ::testing::Combine(::testing::ValuesIn(IS),
+                                             ::testing::ValuesIn(netPRCs()),
+                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                             ::testing::ValuesIn(additionalConfig()));
+
+const auto testParams_x64 = ::testing::Combine(matMulParams_x64,
+                                           ::testing::Values(MatMulNodeType::MatMul),
+                                           ::testing::ValuesIn(matmulFusingParams_x64),
+                                           ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_Fusing_x64, MatMulLayerCPUTest, testParams_x64, MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulParamsDynamicFusing = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing),
                                                         ::testing::ValuesIn(netPRCs()),

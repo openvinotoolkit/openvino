@@ -141,13 +141,13 @@ void MatMulLayerCPUTest::SetUp() {
 TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     // due to disabled BF16 fakequant fusing: src/plugins/intel_cpu/src/graph_optimizer.cpp#L755, skip this case
     if (inType == ElementType::bf16) {
-    if (cpuNodeType == "FullyConnected") {
-        if (priority[0].find("amx") != std::string::npos || priority[0] == "brgemm_avx512") {
-        if (fusedOps.size() == 2 && fusedOps[0] == std::string("FakeQuantize") && fusedOps[1] == std::string("Relu")) {
-            GTEST_SKIP() << "Skip MatMul BF16 FakeQuantization Fusing test" << std::endl;
+        if (cpuNodeType == "FullyConnected") {
+            if (priority[0].find("amx") != std::string::npos || priority[0] == "brgemm_avx512") {
+                if (fusedOps.size() == 2 && fusedOps[0] == std::string("FakeQuantize") && fusedOps[1] == std::string("Relu")) {
+                    GTEST_SKIP() << "Skip MatMul BF16 FakeQuantization Fusing test" << std::endl;
+                }
+            }
         }
-        }
-    }
     }
     run();
     CheckPluginRelatedResults(compiledModel, cpuNodeType);
@@ -161,7 +161,7 @@ const std::map<std::string, std::string>& emptyAdditionalConfig() {
 
 const std::vector<CPUSpecificParams>& filterSpecificParams() {
     static const std::vector<CPUSpecificParams> specificParams = {
-        CPUSpecificParams{{}, {}, {"acl"}, "acl"},
+        CPUSpecificParams{{}, {}, {"gemm_acl"}, "gemm_acl"},
         CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"}};
     return specificParams;
 }
@@ -192,14 +192,6 @@ const std::vector<fusingSpecificParams>& matmulFusingParams() {
             fusingSqrt,
             fusingPReluPerTensor,
             fusingMultiplyPerChannel,
-            fusingAddPerTensor,
-            fusingBias,
-            fusingFakeQuantizePerChannel,
-            /* @todo FQ unfolds into FQ + Convert + Substract + Multiply after LPT,
-            * so Relu cannot be fused in this case. Should be analysed */
-            // fusingFakeQuantizePerChannelRelu,
-            fusingFakeQuantizePerTensorRelu,
-            fusingScaleShiftAndFakeQuantizePerChannel,
     };
     return matmulFusingParams;
 }
