@@ -1,6 +1,4 @@
 -c ../../constraints.txt
-# to install cpu torch version
---extra-index-url https://download.pytorch.org/whl/cpu
 numpy
 pytest
 pytest-html
