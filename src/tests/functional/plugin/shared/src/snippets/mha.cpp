@@ -70,7 +70,7 @@ void MHA::SetUp() {
 }
 
 void MHA::compile_model() {
-    if (m_thread_count > 0)
+    if (m_thread_count != default_thread_count)
         core->set_property(targetDevice, ov::inference_num_threads(m_thread_count));
     SubgraphBaseTest::compile_model();
 }

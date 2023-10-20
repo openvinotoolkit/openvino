@@ -28,6 +28,8 @@ class MHA : public testing::WithParamInterface<ov::test::snippets::MHAParams>,
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj);
 
+    constexpr static size_t default_thread_count = 0;
+
 protected:
     void SetUp() override;
 

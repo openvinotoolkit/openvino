@@ -18,7 +18,7 @@ namespace snippets {
 namespace pass {
 /**
  * @brief Manager class allows to manage transformation passes (SubgraphPasses) on Subgraph ops.
- *        See SubgraphPasses description for mode details.
+ *        See SubgraphPasses description for more details.
  *        It's light version of ov::Manager implementation the purpose of which is to change only Subgraph as separate node in model.
  * @ingroup snippets
  */

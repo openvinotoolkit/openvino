@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D, MHA,
                                  ::testing::ValuesIn(precision_f32(4)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({false, true}),
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_3D, MHA,
                                  ::testing::ValuesIn(precision_f32(4)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({false, true}),
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(5), // [122706]: Subgraph + 4 Transpose
                                  ::testing::Values(2), // decomposed Transpose + MHA
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -113,7 +113,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHABF16_4D, MHA,
                                  ::testing::ValuesIn(precision_bf16(4)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({false, true}),
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(7), // MHA + 5 Converts + 1 Transpose on output
                                  ::testing::Values(6), // MHA + 5 Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -126,7 +126,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceBF16, MHA,
                                  ::testing::ValuesIn(precision_f32(4)),
                                  ::testing::Values(ov::element::bf16),
                                  ::testing::ValuesIn({false}),
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(7),
                                  ::testing::Values(7),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -140,7 +140,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAMulAdd, MHAMulAdd,
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({false}),  // Need to support True for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -162,7 +162,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHASelect,
                                  ::testing::ValuesIn(precision_f32(6)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false),  // Need to support True for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(2), // Less + MHA
                                  ::testing::Values(2),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -184,7 +184,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeOnInputs_4D, MHAWOTranspos
                                  ::testing::Values(std::vector<ov::element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(true),  // Need to support False for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -197,7 +197,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTranspose_4D, MHAWOTranspose,
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -210,7 +210,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTranspose_3D, MHAWOTranspose,
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -223,7 +223,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeBF16_4D, MHAWOTranspose,
                                  ::testing::ValuesIn(precision_bf16(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -236,7 +236,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeBF16_3D, MHAWOTranspose,
                                  ::testing::ValuesIn(precision_bf16(3)),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -249,7 +249,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeEnforceBF16_4D, MHAWOTrans
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::bf16),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -262,7 +262,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeEnforceBF16_3D, MHAWOTrans
                                  ::testing::ValuesIn(precision_f32(3)),
                                  ::testing::Values(ov::element::bf16),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(5), // MHA + 4 extra Converts on inputs and output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -275,7 +275,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAINT8MatMul, MHAINT8MatMul,
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false), // The graph doesn't contain Multiply
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(6),     // FQx3 on inputs + MHA + Transpose on output + Deq Mul
                                  ::testing::Values(5),     // FQx3 on inputs + MHA + Deq Mul
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -288,7 +288,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAQuantMatMul0, MHAQuantMatMul0,
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false), // The graph doesn't contain Multiply
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(8),     // FQ on input + MHA + Transpose on output + 4 Reshapes + Deq Mul
                                  ::testing::Values(3),     // FQ on input + MHA + Deq Mul
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -301,7 +301,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAFQAfterMatMul_4D, MHAFQAfterMatMul,
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false), // The graph doesn't contain Multiply
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(3),     // MHA + Transpose on output + Deq Mul
                                  ::testing::Values(2),     // MHA + Deq Mul
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -314,7 +314,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAFQ, MHAFQ,
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(false), // The graph doesn't contain Multiply
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(7),     // Transposex2 + Subgraphsx5
                                  ::testing::Values(5),     // MHA + Deq Mul on output + Deqs on inputs + 2 xFQ on inputs
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -331,7 +331,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHATransposedB, MHATransposedB,
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(2),
                                  ::testing::Values(1),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -353,7 +353,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWithExtractedReshape, MHAWithExtracte
                                  ::testing::Values(std::vector<element::Type>{}),
                                  ::testing::Values(ov::element::f32),
                                  ::testing::ValuesIn({true}), // False is not supported for graph builder in tests
-                                 ::testing::Values(0),
+                                 ::testing::Values(MHA::default_thread_count),
                                  ::testing::Values(3), // Extracted Add + Extracted Reshape + MHA
                                  ::testing::Values(2), // Extracted Add + MHA
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
