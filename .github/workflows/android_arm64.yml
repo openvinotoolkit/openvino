@@ -51,9 +51,6 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
       VCPKG_FORCE_SYSTEM_BINARIES: '1'
       SCCACHE_AZURE_KEY_PREFIX: android_arm64
-      CCACHE_TEMPDIR: '/__w/openvino/openvino/ccache_temp'
-      CCACHE_COMPILERCHECK: 'content'
-      CCACHE_MAXSIZE: 50G
     steps:
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates

@@ -50,8 +50,6 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_Release/.conan
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_riscv64_Release
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
     steps:
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates

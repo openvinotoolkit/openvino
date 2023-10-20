@@ -58,8 +58,6 @@ jobs:
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
 
     steps:
@@ -512,8 +510,6 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_onnxruntime
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
       ONNX_RUNTIME_REPO: /__w/openvino/openvino/onnxruntime
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/install/onnxruntime
       ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
@@ -1363,8 +1359,6 @@ jobs:
       NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
       DEBIAN_FRONTEND: 'noninteractive'
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
 
     steps:
       - name: Install Prerequisites
