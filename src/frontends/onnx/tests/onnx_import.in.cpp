@@ -6726,19 +6726,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_periodic) {
 
     test_case.add_input<int64_t>({10});
     test_case.add_expected_output<float>(Shape{10},
-                                  {-0.000000014901161f,
-                                   0.040212844f,
-                                   0.20077012f,
-                                   0.50978714f,
-                                   0.8492299f,
-                                   0.99999994f,
-                                   0.84922975f,
-                                   0.5097869f,
-                                   0.20077008f,
-                                   0.040212862f});
+                                         {-0.000000014901161f,
+                                          0.040212844f,
+                                          0.20077012f,
+                                          0.50978714f,
+                                          0.8492299f,
+                                          0.99999994f,
+                                          0.84922975f,
+                                          0.5097869f,
+                                          0.20077008f,
+                                          0.040212862f});
 
     // GPU has an accuracy drop, need to use different tolerance
-    if(std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
         test_case.run_with_tolerance_as_fp();
     } else {
         test_case.run_with_tolerance_as_fp(0.01f);
@@ -6754,19 +6754,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_symmetric) {
 
     test_case.add_input<int64_t>({10});
     test_case.add_expected_output<float>(Shape{10},
-                                  {-0.00000001f,
-                                   0.05086961f,
-                                   0.25800052f,
-                                   0.63f,
-                                   0.9511299f,
-                                   0.9511298f,
-                                   0.62999994f,
-                                   0.25800028f,
-                                   0.05086958f,
-                                   -0.00000001f});
+                                         {-0.00000001f,
+                                          0.05086961f,
+                                          0.25800052f,
+                                          0.63000000f,
+                                          0.95112991f,
+                                          0.95112979f,
+                                          0.62999994f,
+                                          0.25800028f,
+                                          0.05086958f,
+                                          -0.00000001f});
 
     // GPU has an accuracy drop, need to use different tolerance
-    if(std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
         test_case.run_with_tolerance_as_fp();
     } else {
         test_case.run_with_tolerance_as_fp(0.01f);
@@ -6782,19 +6782,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_periodic) {
 
     test_case.add_input<int64_t>({10});
     test_case.add_expected_output<float>(Shape{10},
-                                         {0.0869565f,
-                                          0.17413944f,
-                                          0.40238917f,
-                                          0.68452704f,
-                                          0.9127922f,
-                                          1.0000000f,
-                                          0.91284204f,
-                                          0.6846076f,
-                                          0.4024696f,
-                                          0.17418906f});
+                                         {0.08695650f,
+                                          0.17414439f,
+                                          0.40240526f,
+                                          0.68455124f,
+                                          0.91281211f,
+                                          1.00000000f,
+                                          0.91281211f,
+                                          0.68455112f,
+                                          0.40240520f,
+                                          0.17414442f});
 
     // GPU has an accuracy drop, need to use different tolerance
-    if(std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
         test_case.run_with_tolerance_as_fp();
     } else {
         test_case.run_with_tolerance_as_fp(0.01f);
@@ -6811,18 +6811,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_symmetric) {
     test_case.add_input<int64_t>({10});
     test_case.add_expected_output<float>(Shape{10},
                                          {0.08695650f,
-                                          0.19375625f,
-                                          0.46418557f,
-                                          0.77171463f,
-                                          0.97245550f,
-                                          0.97248441f,
-                                          0.77178812f,
-                                          0.46426883f,
-                                          0.19381064f,
+                                          0.19376230f,
+                                          0.46420413f,
+                                          0.77173913f,
+                                          0.97246838f,
+                                          0.97246838f,
+                                          0.77173907f,
+                                          0.46420389f,
+                                          0.19376221f,
                                           0.08695650f});
 
     // GPU has an accuracy drop, need to use different tolerance
-    if(std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
         test_case.run_with_tolerance_as_fp();
     } else {
         test_case.run_with_tolerance_as_fp(0.01f);
@@ -6839,18 +6839,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_periodic) {
     test_case.add_input<int64_t>({10});
     test_case.add_expected_output<float>(Shape{10},
                                          {0.00000000f,
-                                          0.09548607f,
-                                          0.34547389f,
-                                          0.65448201f,
-                                          0.90448672f,
+                                          0.09549150f,
+                                          0.34549153f,
+                                          0.65450853f,
+                                          0.90450847f,
                                           1.00000000f,
-                                          0.90454125f,
-                                          0.65457022f,
-                                          0.34556198f,
-                                          0.09554043f});
+                                          0.90450847f,
+                                          0.65450835f,
+                                          0.34549144f,
+                                          0.09549153f});
 
     // GPU has an accuracy drop, need to use different tolerance
-    if(std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
         test_case.run_with_tolerance_as_fp();
     } else {
         test_case.run_with_tolerance_as_fp(0.01f);
@@ -6867,18 +6867,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_symmetric) {
     test_case.add_input<int64_t>({10});
     test_case.add_expected_output<float>(Shape{10},
                                          {0.00000000f,
-                                          0.11697116f,
-                                          0.41315565f,
-                                          0.74997318f,
-                                          0.96983224f,
-                                          0.96986389f,
-                                          0.75005364f,
-                                          0.41324684f,
-                                          0.11703071f,
+                                          0.11697778f,
+                                          0.41317594f,
+                                          0.75000000f,
+                                          0.96984637f,
+                                          0.96984625f,
+                                          0.74999994f,
+                                          0.41317570f,
+                                          0.11697769f,
                                           0.00000000f});
 
     // GPU has an accuracy drop, need to use different tolerance
-    if(std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
         test_case.run_with_tolerance_as_fp();
     } else {
         test_case.run_with_tolerance_as_fp(0.01f);
