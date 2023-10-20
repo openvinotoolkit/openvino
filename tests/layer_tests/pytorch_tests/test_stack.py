@@ -17,7 +17,7 @@ class TestStack2D(PytorchLayerTest):
         class aten_stack(torch.nn.Module):
             def __init__(self, dim):
                 super(aten_stack, self).__init__()
-                self.dim = dim 
+                self.dim = dim
 
             def forward(self, x, y):
                 inputs = [x, y]
@@ -27,18 +27,22 @@ class TestStack2D(PytorchLayerTest):
 
         return aten_stack(dim), ref_net, "aten::stack"
 
-    @pytest.mark.parametrize("input_tensor", ([
-        [np.random.rand(1, 3, 3), np.random.rand(1, 3, 3)],
-        [np.random.rand(4, 4, 2), np.random.rand(4, 4, 2)],
-        [np.random.rand(8, 1, 1, 9), np.random.rand(8, 1, 1, 9)]
-    ]))
+    @pytest.mark.parametrize("input_shape",
+    [
+        [1, 3, 3],
+        [4, 4, 2],
+        [8, 1, 1, 9]
+    ])
     @pytest.mark.parametrize("dim", ([
         0, 1, 2,
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_stack2D(self, input_tensor, dim, ie_device, precision, ir_version):
-        self.input_tensors = input_tensor
+    def test_stack2D(self, input_shape, dim, ie_device, precision, ir_version):
+        self.input_tensors = [
+            np.random.random_sample(input_shape).astype(np.float32),
+            np.random.random_sample(input_shape).astype(np.float32),
+        ]
         self._test(*self.create_model(dim), ie_device, precision, ir_version)
 
 
@@ -52,7 +56,7 @@ class TestStack3D(PytorchLayerTest):
         class aten_stack(torch.nn.Module):
             def __init__(self, dim):
                 super(aten_stack, self).__init__()
-                self.dim = dim 
+                self.dim = dim
 
             def forward(self, x, y, z):
                 inputs = [x, y, z]
@@ -62,16 +66,21 @@ class TestStack3D(PytorchLayerTest):
 
         return aten_stack(dim), ref_net, "aten::stack"
 
-    @pytest.mark.parametrize("input_tensor", ([
-        [np.random.rand(1, 3, 3), np.random.rand(1, 3, 3), np.random.rand(1, 3, 3)],
-        [np.random.rand(4, 4, 2), np.random.rand(4, 4, 2), np.random.rand(4, 4, 2)],
-        [np.random.rand(8, 1, 1, 9), np.random.rand(8, 1, 1, 9), np.random.rand(8, 1, 1, 9)]
-    ]))
+    @pytest.mark.parametrize("input_shape",
+    [
+        [1, 3, 3],
+        [4, 4, 2],
+        [8, 1, 1, 9]
+    ])
     @pytest.mark.parametrize("dim", ([
         0, 1, 2,
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_stack3D(self, input_tensor, dim, ie_device, precision, ir_version):
-        self.input_tensors = input_tensor
+    def test_stack3D(self, input_shape, dim, ie_device, precision, ir_version):
+        self.input_tensors = [
+            np.random.random_sample(input_shape).astype(np.float32),
+            np.random.random_sample(input_shape).astype(np.float32),
+            np.random.random_sample(input_shape).astype(np.float32)
+        ]
         self._test(*self.create_model(dim), ie_device, precision, ir_version)

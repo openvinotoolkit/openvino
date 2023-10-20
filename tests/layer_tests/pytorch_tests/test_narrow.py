@@ -23,8 +23,8 @@ class TestNarrow(PytorchLayerTest):
 
         return aten_narrow(), ref_net, "aten::narrow"
 
-    @pytest.mark.parametrize("input_tensor", [
-        np.random.randn(3, 3), np.random.randn(3, 4, 5)
+    @pytest.mark.parametrize("input_shape", [
+        [3, 3], [3, 4, 5]
     ])
     @pytest.mark.parametrize("dim", [
         np.array(0).astype(np.int32), np.array(1).astype(np.int32), np.array(-1).astype(np.int32)
@@ -37,8 +37,8 @@ class TestNarrow(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_narrow(self, input_tensor, dim, start, length, ie_device, precision, ir_version):
-        self.input_tensor = input_tensor
+    def test_narrow(self, input_shape, dim, start, length, ie_device, precision, ir_version):
+        self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
         self.dim = dim
         self.start = start
         self.length = length
