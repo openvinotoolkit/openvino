@@ -22,7 +22,6 @@ OutputVector translate_scaled_dot_product_attention(const NodeContext& context) 
     auto query = context.get_input(0);
     auto key = context.get_input(1);
     auto value = context.get_input(2);
-    std::shared_ptr<Node> node;
 
     auto is_causal = context.const_input<bool>(5);
     OutputVector inputs = {query, key, value};  // mandatory inputs

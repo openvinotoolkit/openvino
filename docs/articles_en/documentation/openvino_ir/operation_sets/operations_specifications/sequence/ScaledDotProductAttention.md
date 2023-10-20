@@ -1,4 +1,4 @@
-# RNNCell  {#openvino_docs_ops_sequence_ScaledDotProductAttention_13}
+# ScaledDotProductAttention {#openvino_docs_ops_sequence_ScaledDotProductAttention_13}
 
 @sphinxdirective
 

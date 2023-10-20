@@ -194,8 +194,8 @@ def scaled_dot_product_attention(
     query: NodeInput,
     key: NodeInput,
     value: NodeInput,
-    attention_mask: NodeInput = None,
-    scale: NodeInput = None,
+    attention_mask: Optional[NodeInput] = None,
+    scale: Optional[NodeInput] = None,
     causal: bool = False,
     name: Optional[str] = None,
 ) -> Node:
