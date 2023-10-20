@@ -48,6 +48,8 @@ class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
             (1.0, 0, 0, 127),
         ],
     )
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_fake_quantize_per_tensor_affine(
         self, ie_device, precision, ir_version, scale, zero_point, quant_min, quant_max
     ):
