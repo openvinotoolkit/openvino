@@ -100,15 +100,15 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         if (!node->get_causal()) {
             mask = node->input_value(3);
 
-            // two types of masks are supported. A boolean mask where a value of True indicates that the element should take
-            // part in attention. A float mask of the same type as query, key, value that is added to the attention score.
+            // two types of masks are supported. A boolean mask where a value of True indicates that the element should
+            // take part in attention. A float mask of the same type as query, key, value that is added to the attention
+            // score.
             if (mask.get_element_type() == element::boolean) {
                 atten_mask = register_new_node<v1::ConvertLike>(mask, scaled_atten);
                 auto inv_mask = register_new_node<v1::LogicalNot>(mask);
                 atten_mask = register_new_node<v1::Select>(inv_mask, atten_mask, minus_inf);
             } else {
                 atten_mask = mask;
-                std::cerr << "[ DEBUG ] atten_mask = " << atten_mask << "\n";
             }
         } else {
             auto target_s_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
