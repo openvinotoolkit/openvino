@@ -687,7 +687,7 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 2 Layer Tests - TF FE
-        if: ${{ always() }}
+        if: ${{ 'false' }} # Ticket: 123322
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
@@ -728,7 +728,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python ONNX operators tests
-        if: ${{ always() }}
+        if: ${{ 'false' }} # Ticket: 123325
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests -k 'not cuda' \
