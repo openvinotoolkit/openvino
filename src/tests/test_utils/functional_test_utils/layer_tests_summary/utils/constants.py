@@ -62,13 +62,10 @@ SUPPORTED_MODEL_EXTENSION = [
     "*.onnx",
     #PDPD
     "*.pdmodel",
-    ".*__model__",
     # TF
     "*model.pb",
     # OV IR
     "*.xml",
     # TFLITE
     "*.tflite",
-    # PyTorch
-    "*.pt",
 ]
