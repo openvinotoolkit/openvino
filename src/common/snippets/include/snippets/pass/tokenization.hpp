@@ -51,6 +51,11 @@ public:
  *         2. MHA tokenization
  *         3. Common tokenization
  *         4. Some common transformations for Subgraphs. For example, FakeQuantize decomposition
+ *         Naming policy:
+ *           - During tokenization new Subgraph op takes the name of the last tokenized op.
+ *             It's needed to save output names of model in cases when tokenized op was before model Result.
+ *           - If some transformation (for example, SplitDimensionM) insert new op after Subgraph,
+ *             the op should be called as this Subgraph to save output name. The Subgraph name is updated using suffix "_original".
  * @ingroup snippets
  */
 class SnippetsTokenization : public ov::pass::ModelPass {
@@ -61,9 +66,9 @@ public:
      * @ingroup snippets
      */
     struct Config {
-        Config(size_t concurrency = 1, bool split_m_dimension = true, bool enable_transpose_on_output = true, std::set<size_t> transpose_ranks = {3, 4})
+        Config(size_t concurrency = 1, bool split_m_dimension = true, bool enable_transpose_on_output = true, std::set<size_t> mha_transpose_ranks = {3, 4})
             : concurrency(concurrency), split_m_dimension(split_m_dimension),
-              mha_token_enable_transpose_on_output(enable_transpose_on_output), supported_transpose_ranks(std::move(transpose_ranks)) {}
+              mha_token_enable_transpose_on_output(enable_transpose_on_output), mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {}
 
         size_t concurrency = 1;
         // True if "SplitDimensionM" optimization is enabled. Otherwise, it's disabled.
@@ -72,8 +77,10 @@ public:
         // Otherwise, it may be fused into Subgraph if possible
         // TODO [111813]: Remove please when the ticket 111813 is implemented
         bool mha_token_enable_transpose_on_output = true;
-        // Set of supported Transpose shape ranks for tokenization in MHATokenization pass
-        std::set<size_t> supported_transpose_ranks = { 3, 4 };
+        // Set of supported Transpose shape ranks for tokenization in MHATokenization pass.
+        // Note that in general Snippets support Transpose of any ranks.
+        // But at the moment Transpose is used only in MHA pattern where 3D and 4D tensors are supported.
+        std::set<size_t> mha_supported_transpose_ranks = { 3, 4 };
     };
 
     OPENVINO_RTTI("SnippetsTokenization", "0");

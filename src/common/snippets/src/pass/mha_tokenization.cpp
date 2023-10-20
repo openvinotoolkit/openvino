@@ -392,7 +392,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             // If Transpose has valid order for the Transpose fusing (ExplicitTransposeMatMulInputs pass call), tokenize him.
             // Otherwise, skip the Transpose.
             if (!is_input_transposed) {
-                if (is_valid_transpose(transpose, config.supported_transpose_ranks, order)) {
+                if (is_valid_transpose(transpose, config.mha_supported_transpose_ranks, order)) {
                     ordered_ops.insert(pos, transpose);
                 }
                 return;
@@ -402,7 +402,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             if (rank < 2)
                 return;
             std::swap(transposed_order[rank - 1], transposed_order[rank - 2]);
-            if (is_valid_transpose(transpose, config.supported_transpose_ranks, transposed_order)) {
+            if (is_valid_transpose(transpose, config.mha_supported_transpose_ranks, transposed_order)) {
                 ordered_ops.insert(pos, transpose);
             }
         };
@@ -446,7 +446,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         //    Transpose3
         if (!are_ops_after_matmul1) {
             auto transpose3 = config.mha_token_enable_transpose_on_output ? ov::as_type_ptr<ov::opset1::Transpose>(child) : nullptr;
-            if (is_valid_transpose(transpose3, config.supported_transpose_ranks, get_fusion_transpose_order(pattern_rank)) &&
+            if (is_valid_transpose(transpose3, config.mha_supported_transpose_ranks, get_fusion_transpose_order(pattern_rank)) &&
                 transpose3->get_input_element_type(0) == matmul1_out_type) {  // To avoid Convert between MatMul1 and Transpose3
                 ordered_ops.push_back(transpose3);
             }

@@ -66,12 +66,15 @@ private:
     /// \brief The corresponding abstract/physical register
     size_t m_reg = 0;
 
-    /// Notes: m_tensor_shape is dense shape which is controlled by expression outputs.
-    ///        It means that the result of data writing of expression outputs should be read using this shape by the next expression inputs.
-    ///        Also if Port is input port of expression:
-    ///         - m_layout shows how the data should be read (by which strides) using m_tensor_shape.
-    ///        If Port is output port of expression:
-    ///         - m_layout shows how the data should be written (by which strides) to get m_tensor_shape.
+    /// Notes:
+    ///   - `m_tensor_shape` is dense shape which is controlled by expression outputs.
+    ///     It means that the result of data writing of expression outputs should be read using this shape by the next expression inputs.
+    ///   - `m_layout` is the order of data reading or writing by MemoryAccess ops. Note that only MemoryAccess ops may have `m_layout`.
+    ///     For other expressions this order parameter is simply ignored for now.
+    ///     if it's input port of MemoryAccess expression:
+    ///      - `m_layout` shows how the data should be read (by which strides) using m_tensor_shape.
+    ///     If it's output port of MemoryAccess expression:
+    ///      - `m_layout` shows how the data should be written (by which strides) to get m_tensor_shape.
 };
 
 class PortDescriptorUtils {

@@ -617,7 +617,7 @@ void Transformations::MainSnippets(void) {
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     tokenization_config.split_m_dimension = snippetsMode != Config::SnippetsMode::IgnoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
-    tokenization_config.supported_transpose_ranks = { 4 };
+    tokenization_config.mha_supported_transpose_ranks = { 4 };
 
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
