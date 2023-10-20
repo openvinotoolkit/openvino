@@ -150,13 +150,11 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
             return false;
         }
 
-        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(matmul_iter->second.get_node_shared_ptr());
-        if (!matmul_node)
-            return false;
+        auto matmul_node = matmul_iter->second.get_node_shared_ptr();
         auto transpose_reshape_it = pattern_map.find(transpose1);
         if (transpose_reshape_it != std::end(pattern_map)) {
             ReplaceTransposeWithReshape(transpose_reshape_it->second.get_node_shared_ptr());
-        } else if (!matmul_node->get_transpose_a()) {
+        } else {
             std::shared_ptr<ngraph::Node> prev_node = nullptr;
             if ((transpose_reshape_it = pattern_map.find(reshape1)) != std::end(pattern_map)) {
                 prev_node = pattern_map.at(reshape1).get_node_shared_ptr();
@@ -184,7 +182,7 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
         transpose_reshape_it = pattern_map.find(transpose2);
         if (transpose_reshape_it != std::end(pattern_map)) {
             ReplaceTransposeWithReshape(transpose_reshape_it->second.get_node_shared_ptr());
-        } else if (!matmul_node->get_transpose_b()) {
+        } else {
             std::shared_ptr<ngraph::Node> prev_node = nullptr;
             if ((transpose_reshape_it = pattern_map.find(reshape2)) != std::end(pattern_map)) {
                 prev_node = pattern_map.at(reshape2).get_node_shared_ptr();
