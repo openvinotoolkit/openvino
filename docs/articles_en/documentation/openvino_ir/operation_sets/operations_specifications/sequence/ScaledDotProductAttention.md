@@ -25,7 +25,7 @@ def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, 
         scale = 1.0 / Sqrt(ConvertLike(Gather(ShapeOf(query), -1), query))
     attn_bias = Broadcast(ConvertLike(0, query), [L, S])
     if causal:
-        attn_bias = np.triu(Broadcast(ConvertLike(-inf, query), [L, S]), k=1)
+        attn_bias = numpy.triu(Broadcast(ConvertLike(-inf, query), [L, S]), k=1)
     elif attn_mask is not None:
         if attn_mask.element_type == boolean:
             attn_bias = Select(LogicalNot(attn_mask), ConvertLike(-inf, query), ConvertLike(0, query))
@@ -36,27 +36,33 @@ def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, 
     attn_weight = Softmax(attn_weight, axis=-1)
     return MatMul(attn_weight, value)
 
+
 **Attributes**
 
 * *causal*
 
-  * **Description**: If true, assumes causal attention masking according to the pseudo-code
+  * **Description**: If true, assumes causal attention masking according to the pseudo-code. In this case ``attention_mask`` input described below is ignored.
   * **Range of values**: a boolean value
   * **Type**: ``bool``
   * **Required**: *yes*
 
+
 **Inputs**
 
-* **1**: ``query`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., L, E]``, where ``...`` is optional batch dimensions. **Required.**
+* **1**: ``query`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., L, E]``. **Required.**
 
-* **2**: ``key`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., S, E]``, where ``...`` is optional batch dimensions. **Required.**
+* **2**: ``key`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., S, E]``. **Required.**
 
-* **3**: ``value`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., S, Ev]``, where ``...`` is optional batch dimensions. **Required.**
+* **3**: ``value`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., S, Ev]``. **Required.**
 
-* **4**: ``attention_mask`` - at least 3 dimensional tensor of type *T* or ``boolean`` and shape ``[M, ..., L, S]``, where ``M, ...`` is broadcastable to the batch dimension(s) in the first 3 inputs ``query``, ``key`` and ``value``, or a a scalar of type *T* with value ``0``. Scalar zero value is used to indicate that `attention_mask` is really missing (``attention_mask=None`` in the pseudo-code above) but ``scale`` is required to be set.
-          Ignored if ``causal`` is True  **Optional.**
+* **4**: ``attention_mask`` - two options:
+	** at least 3 dimensional tensor of type *T* or ``boolean`` and shape ``[M, ..., L, S]``, or
+	** a scalar of type *T* with value ``0``. Scalar zero value is used to indicate that `attention_mask` is really not required to be applied (``attention_mask=None`` in the pseudo-code above) but ``scale`` is required to be set.
+
+	``attention_mask`` is ignored if ``causal`` is set to ``True``. **Optional.**
 
 * **5**: ``scale`` a scalar tensor of type *T*, an alternative scale factor instead of 1/sqrt(query.shape[-1]) used by default in the pseudo-code above. **Optional.**
+
 
 **Outputs**
 
@@ -65,6 +71,25 @@ def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, 
 **Types**
 
 * *T*: any supported floating-point type.
+
+
+**Dimensions**
+
+* ``N, ...`` - one or more batch dimensions
+
+* ``S`` - source sequence length
+
+* ``L`` - target sequence length
+
+* ``E`` - embedding dimension of the query and key
+
+* ``Ev`` - embedding dimension of the value
+
+* ``M, ...`` - one of more batch dimensions of the mask, should be broadcastable to ``N, ...``
+
+At least one batch dimension ``N`` is required and should match among ``query``, ``key`` and ``value`` inputs.
+Other batch dimensions ``...`` are optional, if present should match among ``query``, ``key`` and ``value`` inputs as well.
+
 
 **Example**
 
