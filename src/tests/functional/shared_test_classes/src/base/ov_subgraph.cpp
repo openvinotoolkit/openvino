@@ -245,10 +245,12 @@ void SubgraphBaseTest::update_ref_model() {
     }
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
-    pass::Manager manager;
-    manager.register_pass<ov::pass::ConvertPrecision>(convert_precisions, type_to_fuse_map{}, false, false);
-    manager.run_passes(functionRefs);
-    functionRefs->validate_nodes_and_infer_types();
+    if (!convert_precisions.empty()) {
+        pass::Manager manager;
+        manager.register_pass<ov::pass::ConvertPrecision>(convert_precisions, type_to_fuse_map{}, false, false);
+        manager.run_passes(functionRefs);
+        functionRefs->validate_nodes_and_infer_types();
+    }
 
     ov::preprocess::PrePostProcessor p(functionRefs);
     const auto& inputNodes = functionRefs->inputs();

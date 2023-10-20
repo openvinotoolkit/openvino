@@ -123,7 +123,7 @@ void RandomUniformLayerTestCPU::SetUp() {
 
     function = std::make_shared<ov::Model>(results, in_params, "RandomUniformLayerTestCPU");
 
-    convert_precisions.clear();
+    // todo: issue: 123320
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         convert_precisions.insert({ ov::element::bf16, ov::element::f32 });
     }

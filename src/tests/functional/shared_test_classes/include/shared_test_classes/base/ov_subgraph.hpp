@@ -66,8 +66,7 @@ protected:
 
     // to provide correct inputs for reference function
     std::map<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Parameter>> matched_parameters;
-    precisions_map convert_precisions = {{ ov::element::bf16, ov::element::f32 },
-                                         { ov::element::f16, ov::element::f32 }};
+    precisions_map convert_precisions;
 
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
