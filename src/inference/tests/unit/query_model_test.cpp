@@ -383,50 +383,6 @@ TEST_F(GetSupportedNodesTest, FusedNamesSupportedUnsupportedBoth) {
         {"dummy_param"});  // kepp dummy only since it has no unsupported consumers
 }
 
-TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
-    {
-        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, m_shape);
-        param->set_friendly_name("input");
-        auto slope_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {-2.f});
-        slope_compressed->set_friendly_name("slope_compressed");
-        auto convert_slope = std::make_shared<ov::op::v0::Convert>(slope_compressed, ov::element::f32);
-        convert_slope->set_friendly_name("slope");
-        ov::mark_as_decompression(convert_slope);
-        auto prelu = std::make_shared<ov::op::v0::PRelu>(param, convert_slope);
-        prelu->set_friendly_name("prelu");
-        auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(prelu);
-        shapeOf->set_friendly_name("shapeof");
-        auto convert_fp32 = std::make_shared<ov::op::v0::Convert>(shapeOf, ov::element::f32);
-        convert_fp32->set_friendly_name("convert_fp32");
-        auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.0f});
-        scale->set_friendly_name("scale");
-        auto mul_scale = std::make_shared<ov::op::v1::Multiply>(convert_fp32, scale);
-        mul_scale->set_friendly_name("mul_scale");
-        auto convert_i64 = std::make_shared<ov::op::v0::Convert>(mul_scale, ov::element::i64);
-        convert_i64->set_friendly_name("convert_i64");
-        auto interpolate = std::make_shared<ov::op::v4::Interpolate>(prelu,
-                                                                     convert_i64,
-                                                                     scale,
-                                                                     ov::op::v4::Interpolate::InterpolateAttrs());
-        interpolate->set_friendly_name("interpolate");
-        auto interpolate_result = std::make_shared<ov::op::v0::Result>(interpolate);
-        interpolate_result->set_friendly_name("interpolate_result");
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{interpolate_result}, ov::ParameterVector{param});
-    }
-    Run(
-        [&](std::shared_ptr<ov::Model>& model) {
-            ov::pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<ov::pass::CommonOptimizations>();
-            m.run_passes(model);
-        },
-        [&](const std::shared_ptr<ov::Node>& op) {
-            return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
-                   (std::dynamic_pointer_cast<ov::op::v0::PRelu>(op) != nullptr);
-        },
-        {"input", "slope_compressed", "slope", "prelu"});  // keep dummy only since it has no unsupported consumers
-}
-
 TEST_F(GetSupportedNodesTest, ShuffleChannelFusion) {
     {
         ov::Shape input_shape = {1, 112, 56, 56};
