@@ -18,6 +18,7 @@ class TestLog(PytorchLayerTest):
             "log_": torch.log_,
             "log2": torch.log2,
             "log2_": torch.log2_,
+            "log10": torch.log10,
             "log1p": torch.log1p,
             "log1p_": torch.log1p_
         }
@@ -45,6 +46,7 @@ class TestLog(PytorchLayerTest):
                              ["log2", "float32"], 
                              ["log2", "int32"], 
                              ["log2_", "float32"],
+                             ["log10", "float32"],
                              ["log1p", "float32"], 
                              ["log1p", "int32"], 
                              ["log1p_", "float32"]])

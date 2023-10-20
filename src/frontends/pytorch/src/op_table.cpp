@@ -101,6 +101,7 @@ OP_CONVERTER(translate_log);
 OP_CONVERTER(translate_log1p);
 OP_CONVERTER(translate_log_softmax);
 OP_CONVERTER(translate_log2);
+OP_CONVERTER(translate_log10);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_masked_fill);
@@ -380,6 +381,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::log1p", op::translate_log1p},
         {"aten::log1p_", op::inplace_op<op::translate_log1p>},
         {"aten::log2", op::translate_log2},
+        {"aten::log10", op::translate_log10},
         {"aten::log2_", op::inplace_op<op::translate_log2>},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten::masked_fill", op::translate_masked_fill},
