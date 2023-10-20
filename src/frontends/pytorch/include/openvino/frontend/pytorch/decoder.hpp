@@ -40,6 +40,9 @@ public:
     // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
     virtual PartialShape get_input_shape(size_t index) const = 0;
 
+    // Return strides if inputs has torch::Tensor type in original model, otherwise return [].
+    virtual const std::vector<size_t>& get_input_strides(size_t index) const = 0;
+
     // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object
     // (see custom_type.hpp)
     virtual Any get_input_type(size_t index) const = 0;
