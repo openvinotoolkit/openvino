@@ -485,9 +485,19 @@ private:
                            if (!std::is_same<OUT_T, IN_T>::value) {
                                OPENVINO_ASSERT(
                                    !std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c,
-                                   "Cannot cast vector from constant. Some values are outside the range.");
+                                   "Cannot cast vector from ",
+                                   Type,
+                                   " constant to ",
+                                   element::from<OUT_T>(),
+                                   ". Some values are outside the range. Example: ",
+                                   c);
                                OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c,
-                                               "Cannot cast vector from constant. Some values are outside the range.");
+                                               "Cannot cast vector from ",
+                                               Type,
+                                               " constant to ",
+                                               element::from<OUT_T>(),
+                                               ". Some values are outside the range. Example: ",
+                                               c);
                            }
 #if defined(__clang__)
 #    pragma clang diagnostic pop
