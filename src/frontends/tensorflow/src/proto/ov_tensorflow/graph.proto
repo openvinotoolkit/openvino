@@ -14,9 +14,9 @@ syntax = "proto3";
 
 package ov_tensorflow;
 
-import "function.proto";
-import "node_def.proto";
-import "versions.proto";
+import "ov_tensorflow/function.proto";
+import "ov_tensorflow/node_def.proto";
+import "ov_tensorflow/versions.proto";
 
 option cc_enable_arenas = true;
 option java_outer_classname = "GraphProtos";

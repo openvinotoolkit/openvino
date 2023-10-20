@@ -14,8 +14,8 @@ syntax = "proto3";
 
 package ov_tensorflow;
 
-import "allocation_description.proto";
-import "tensor_description.proto";
+import "ov_tensorflow/allocation_description.proto";
+import "ov_tensorflow/tensor_description.proto";
 
 option cc_enable_arenas = true;
 option java_outer_classname = "StepStatsProtos";

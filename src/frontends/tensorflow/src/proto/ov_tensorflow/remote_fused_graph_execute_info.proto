@@ -14,9 +14,9 @@ syntax = "proto3";
 
 package ov_tensorflow;
 
-import "graph.proto";
-import "tensor_shape.proto";
-import "types.proto";
+import "ov_tensorflow/graph.proto";
+import "ov_tensorflow/tensor_shape.proto";
+import "ov_tensorflow/types.proto";
 
 option cc_enable_arenas = true;
 option java_outer_classname = "RemoteFusedGraphExecuteInfoProto";

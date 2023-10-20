@@ -14,7 +14,7 @@ syntax = "proto3";
 
 package ov_tensorflow;
 
-import "tensor_description.proto";
+import "ov_tensorflow/tensor_description.proto";
 
 option cc_enable_arenas = true;
 option java_outer_classname = "LogMemoryProtos";

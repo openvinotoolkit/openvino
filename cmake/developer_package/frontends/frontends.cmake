@@ -125,17 +125,25 @@ macro(ov_add_frontend)
     source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
     # Generate protobuf file on build time for each '.proto' file in src/proto
-    file(GLOB proto_files ${frontend_root_dir}/src/proto/*.proto)
+    set(protofiles_root_dir "${frontend_root_dir}/src/proto")
+    file(GLOB_RECURSE proto_files ${protofiles_root_dir}/*.proto)
 
     foreach(proto_file IN LISTS proto_files)
+        # filter out standaard google proto files
+        if(proto_file MATCHES ".*google.*")
+            continue()
+        endif()
+
         file(RELATIVE_PATH proto_file_relative "${CMAKE_SOURCE_DIR}" "${proto_file}")
-        get_filename_component(FILE_DIR ${proto_file} DIRECTORY)
         get_filename_component(FILE_WE ${proto_file} NAME_WE)
-        set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.cc)
-        set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.h)
+        file(RELATIVE_PATH relative_path ${protofiles_root_dir} ${proto_file})
+        get_filename_component(relative_path ${relative_path} DIRECTORY )
+        message("!!!!!!!!!!!! ${OV_FRONTEND_NAME} -- ${relative_path}/${FILE_WE}")
+        set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${relative_path}/${FILE_WE}.pb.cc)
+        set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${relative_path}/${FILE_WE}.pb.h)
         add_custom_command(
                 OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
-                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
+                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${protofiles_root_dir} ${proto_file}
                 DEPENDS ${PROTOC_DEPENDENCY} ${proto_file}
                 COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${proto_file_relative}"
                 VERBATIM

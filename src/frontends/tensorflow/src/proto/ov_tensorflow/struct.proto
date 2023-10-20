@@ -14,9 +14,9 @@ syntax = "proto3";
 
 package ov_tensorflow;
 
-import "tensor.proto";
-import "tensor_shape.proto";
-import "types.proto";
+import "ov_tensorflow/tensor.proto";
+import "ov_tensorflow/tensor_shape.proto";
+import "ov_tensorflow/types.proto";
 
 option go_package = "github.com/tensorflow/tensorflow/tensorflow/go/core/protobuf/for_core_protos_go_proto";
 

@@ -14,10 +14,10 @@ syntax = "proto3";
 
 package ov_tensorflow;
 
-import "tensor_shape.proto";
-import "tensor_slice.proto";
-import "types.proto";
-import "versions.proto";
+import "ov_tensorflow/tensor_shape.proto";
+import "ov_tensorflow/tensor_slice.proto";
+import "ov_tensorflow/types.proto";
+import "ov_tensorflow/versions.proto";
 
 option cc_enable_arenas = true;
 option java_outer_classname = "TensorBundleProtos";

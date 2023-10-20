@@ -15,13 +15,13 @@ syntax = "proto3";
 package ov_tensorflow;
 
 import "google/protobuf/any.proto";
-import "graph.proto";
-import "op_def.proto";
-import "tensor_shape.proto";
-import "types.proto";
-import "saved_object_graph.proto";
-import "saver.proto";
-import "struct.proto";
+import "ov_tensorflow/graph.proto";
+import "ov_tensorflow/op_def.proto";
+import "ov_tensorflow/tensor_shape.proto";
+import "ov_tensorflow/types.proto";
+import "ov_tensorflow/saved_object_graph.proto";
+import "ov_tensorflow/saver.proto";
+import "ov_tensorflow/struct.proto";
 
 option cc_enable_arenas = true;
 option java_outer_classname = "MetaGraphProtos";

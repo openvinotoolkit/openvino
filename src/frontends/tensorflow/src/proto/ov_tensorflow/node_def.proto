@@ -14,7 +14,7 @@ syntax = "proto3";
 
 package ov_tensorflow;
 
-import "attr_value.proto";
+import "ov_tensorflow/attr_value.proto";
 
 option cc_enable_arenas = true;
 option java_outer_classname = "NodeProto";
