@@ -62,7 +62,7 @@ TEST(mark_shape_of_subgraphs, simple_chain) {
     topology.add(data("data_0", data_0));
     topology.add(data("data_1", data_1));
     topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
-    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, {}));
+    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, 0, {}));
     topology.add(eltwise("eltwise", input_info("gather"), input_info("data_1"), eltwise_mode::sum));
     topology.add(concatenation("concat", {input_info("eltwise"), input_info("data_1")}, 0));
     topology.add(broadcast("broadcast", input_info("input"), input_info("concat"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
@@ -103,7 +103,7 @@ TEST(mark_shape_of_subgraphs, simple_chain_w_reshape_inside_subgraph) {
     topology.add(data("data_0", data_0));
     topology.add(data("data_1", data_1));
     topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
-    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, {1}));
+    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, 1, {1}));
     topology.add(reshape("reshape", input_info("gather"), input_info("data_1"), false, ov::PartialShape{2}));
     topology.add(broadcast("broadcast", input_info("input"), input_info("reshape"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
 
@@ -129,8 +129,8 @@ TEST(mark_shape_of_subgraphs, parallel_shape_of_subgraphs) {
     topology.add(data("data_0", data_0));
     topology.add(shape_of("shape_of_0", input_info("input"), data_types::i64));
     topology.add(shape_of("shape_of_1", input_info("input"), data_types::i64));
-    topology.add(gather("gather_0", input_info("shape_of_0"), input_info("data_0"), 0, {}));
-    topology.add(gather("gather_1", input_info("shape_of_1"), input_info("data_0"), 0, {}));
+    topology.add(gather("gather_0", input_info("shape_of_0"), input_info("data_0"), 0, 0, {}));
+    topology.add(gather("gather_1", input_info("shape_of_1"), input_info("data_0"), 0, 0, {}));
     topology.add(eltwise("eltwise", input_info("gather_0"), input_info("gather_1"), eltwise_mode::sum));
     topology.add(reshape("reshape", input_info("input"), input_info("eltwise"), false, ov::PartialShape()));
 
@@ -160,9 +160,9 @@ TEST(mark_shape_of_subgraphs, parallel_shape_of_subgraphs_cascade) {
     topology.add(data("data_1", data_1));
     topology.add(data("data_2", data_2));
     topology.add(shape_of("shape_of_0", input_info("input"), data_types::i64));
-    topology.add(gather("gather_0", input_info("shape_of_0"), input_info("data_0"), 0, {1}));
+    topology.add(gather("gather_0", input_info("shape_of_0"), input_info("data_0"), 0, 1, {1}));
     topology.add(shape_of("shape_of_1", input_info("input"), data_types::i64));
-    topology.add(gather("gather_1", input_info("shape_of_1"), input_info("data_0"), 0, {1}));
+    topology.add(gather("gather_1", input_info("shape_of_1"), input_info("data_0"), 0, 1, {1}));
     topology.add(scatter_update("scatter_update_0", input_info("gather_0"), input_info("data_0"), input_info("data_0"), 0));
     topology.add(scatter_update("scatter_update_1", input_info("gather_1"), input_info("data_0"), input_info("data_0"), 0));
     topology.add(strided_slice("strided_slice_1",
@@ -171,7 +171,7 @@ TEST(mark_shape_of_subgraphs, parallel_shape_of_subgraphs_cascade) {
                                input_info("scatter_update_1"),
                                input_info("data_0"), {}, {}, {}, {}, {}, {}));
     topology.add(shape_of("shape_of_2", input_info("input"), data_types::i64));
-    topology.add(gather("gather_2", input_info("shape_of_2"), input_info("data_0"), 0, {}));
+    topology.add(gather("gather_2", input_info("shape_of_2"), input_info("data_0"), 0, 0, {}));
     topology.add(scatter_update("scatter_update_2", input_info("gather_2"), input_info("data_0"), input_info("data_0"), 0));
     topology.add(strided_slice("strided_slice_2",
                                input_info("data_1"),
@@ -207,7 +207,7 @@ TEST(mark_shape_of_subgraphs, simple_chain_w_inserted_reorder) {
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("data_0", data_0));
     topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
-    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, {1}));
+    topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, 1, {1}));
     topology.add(reshape("reshape", input_info("gather"), true, {}, {}));
     topology.add(reorder("reorder", input_info("reshape"), format::bfyx, data_types::f16));
     topology.add(eltwise("eltwise", input_info("reorder"), input_info("data_0"), eltwise_mode::prod));
@@ -237,7 +237,7 @@ TEST(mark_shape_of_subgraphs, concat_with_empty_tensor_inputs) {
     topology.add(input_layout("input_empty", input_layout_empty));
     topology.add(data("data_0", data_0));
     topology.add(shape_of("shape_of_01", input_info("input"), data_types::i64));
-    topology.add(gather("gather01", input_info("shape_of_01"), input_info("data_0"), 0, {1}));
+    topology.add(gather("gather01", input_info("shape_of_01"), input_info("data_0"), 0, 1, {1}));
     topology.add(shape_of("shape_of_02", input_info("input_empty"), data_types::i64));
     topology.add(shape_of("shape_of_03", input_info("input_empty"), data_types::i64));
     topology.add(concatenation("concat", {input_info("gather01"), input_info("shape_of_02"), input_info("shape_of_03")}, 0));

@@ -242,7 +242,7 @@ microsoft/deberta-base,deberta
 microsoft/git-large-coco,git,skip,Load problem
 microsoft/layoutlm-base-uncased,layoutlm
 microsoft/layoutlmv2-base-uncased,layoutlmv2,skip,Load problem
-microsoft/layoutlmv3-base,layoutlmv3,xfail,Unsupported op aten::amax aten::clip
+microsoft/layoutlmv3-base,layoutlmv3
 microsoft/markuplm-base,markuplm
 microsoft/resnet-50,resnet
 microsoft/speecht5_hifigan,hifigan,skip,Load problem
@@ -251,7 +251,7 @@ microsoft/swinv2-tiny-patch4-window8-256,swinv2,xfail,Unsupported op aten::adapt
 microsoft/table-transformer-detection,table-transformer
 microsoft/wavlm-large,wavlm,skip,Load problem
 microsoft/xclip-base-patch32,xclip,skip,Load problem
-microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet,xfail,Unsupported op aten::fill_diagonal_
+microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet
 miguelvictor/python-fromzero-lstmlm,lstmlm,skip,Load problem
 mingzi151/test-hf-wav2vec2bert,wav2vec2bert,skip,Load problem
 MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer,skip,Load problem
@@ -348,7 +348,7 @@ SteveZhan/my-resnet50d,resnet_steve,skip,Load problem
 suno/bark,bark,skip,Load problem
 surajnair/r3m-50,r3m,skip,Load problem
 susnato/clvp_dev,clvp,skip,Load problem
-Tanrei/GPTSAN-japanese,gptsan-japanese,xfail,Unsupported op aten::clip aten::index_put_ prim::TupleConstruct
+Tanrei/GPTSAN-japanese,gptsan-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
 tau/bart-large-sled-govreport,tau/sled,skip,Load problem
 taufeeque/best-cb-model,codebook,skip,Load problem
 Team-PIXEL/pixel-base,pixel,skip,Load problem
@@ -357,7 +357,7 @@ thomwolf/vqgan_imagenet_f16_1024,vqgan_model,skip,Load problem
 thu-ml/zh-clip-vit-roberta-large-patch14,zhclip,skip,Load problem
 tifa-benchmark/promptcap-coco-vqa,ofa,skip,Load problem
 tli8hf/robertabase_snli,transformerfornli,skip,Load problem
-transfo-xl-wt103,transfo-xl,xfail,Unsupported op aten::clamp_ aten::index_copy_
+transfo-xl-wt103,transfo-xl,xfail,Unsupported op aten::index_copy_
 transZ/BART_shared_clean,shared_bart,skip,Load problem
 transZ/BART_shared_v2,shared_bart_v2,skip,Load problem
 transZ/misecom,misecom,skip,Load problem

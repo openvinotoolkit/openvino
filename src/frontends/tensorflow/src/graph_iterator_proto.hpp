@@ -21,8 +21,8 @@ namespace tensorflow {
 
 class GraphIteratorProto : public GraphIterator {
 protected:
-    std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
-    std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
+    std::shared_ptr<::ov_tensorflow::GraphDef> m_graph_def;
+    std::shared_ptr<::ov_tensorflow::FunctionDef> m_func_def;
     std::shared_ptr<CheckpointV1Reader> m_checkpoint_v1_reader;
 
     size_t node_index = 0;
@@ -32,7 +32,7 @@ protected:
     std::vector<std::string> m_output_names;
 
     GraphIteratorProto()
-        : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
+        : m_graph_def(std::make_shared<::ov_tensorflow::GraphDef>()),
           m_func_def(nullptr),
           m_checkpoint_v1_reader(nullptr),
           m_library_map() {}
@@ -62,8 +62,8 @@ protected:
     }
 
 public:
-    GraphIteratorProto(const std::shared_ptr<::tensorflow::GraphDef>& graph_def,
-                       const std::shared_ptr<::tensorflow::FunctionDef>& func_def,
+    GraphIteratorProto(const std::shared_ptr<::ov_tensorflow::GraphDef>& graph_def,
+                       const std::shared_ptr<::ov_tensorflow::FunctionDef>& func_def,
                        const std::unordered_map<std::string, int>& library_map,
                        const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader)
         : m_graph_def(graph_def),
@@ -105,7 +105,7 @@ public:
     /// \brief Construct GraphIterator for the frozen model without v1 checkpoints
     template <typename T>
     GraphIteratorProto(const std::basic_string<T>& model_path)
-        : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
+        : m_graph_def(std::make_shared<::ov_tensorflow::GraphDef>()),
           m_func_def(nullptr),
           m_checkpoint_v1_reader(nullptr) {
         std::ifstream pb_stream(model_path, std::ios::in | std::ifstream::binary);
@@ -119,7 +119,7 @@ public:
     /// \brief Construct GraphIterator for the frozen model with v1 checkpoints
     template <typename T>
     GraphIteratorProto(const std::basic_string<T>& model_path, const std::basic_string<T>& checkpoint_directory)
-        : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
+        : m_graph_def(std::make_shared<::ov_tensorflow::GraphDef>()),
           m_func_def(nullptr),
           m_checkpoint_v1_reader(nullptr) {
         std::ifstream pb_stream(model_path, std::ios::in | std::ifstream::binary);
@@ -136,7 +136,7 @@ public:
     static bool is_supported(const std::basic_string<T>& path) {
         try {
             std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
-            auto graph_def = std::make_shared<::tensorflow::GraphDef>();
+            auto graph_def = std::make_shared<::ov_tensorflow::GraphDef>();
             return pb_stream && pb_stream.is_open() && graph_def->ParsePartialFromIstream(&pb_stream) &&
                    graph_def->node_size() > 0;
         } catch (...) {
@@ -184,7 +184,7 @@ public:
                 "[TensorFlow Error] Internal Error: incorrect library map to cache function indices by names.");
 
             auto func = m_graph_def->library().function(func_ind);
-            auto func_ptr = std::make_shared<::tensorflow::FunctionDef>(func);
+            auto func_ptr = std::make_shared<::ov_tensorflow::FunctionDef>(func);
             return std::make_shared<GraphIteratorProto>(m_graph_def, func_ptr, m_library_map, m_checkpoint_v1_reader);
         }
 
