@@ -54,7 +54,7 @@ jobs:
       CCACHE_MAXSIZE: 50G
     steps:
       - name: Install git
-        run: apt-get update && apt-get install --assume-yes --no-install-recommends git curl ca-certificates
+        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
