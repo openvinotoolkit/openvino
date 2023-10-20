@@ -48,6 +48,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY, PerformanceModeValidator()),
         std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
         std::make_tuple(ov::hint::num_requests, 0),
+        std::make_tuple(ov::hint::enable_cpu_pinning, false),
 
         std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
@@ -86,7 +87,7 @@ void ExecutionConfig::set_property(const AnyMap& config) {
     for (auto& kv : config) {
         auto& name = kv.first;
         auto& val = kv.second;
-        OPENVINO_ASSERT(is_supported(kv.first), "[GPU] Attepmpt to set property ", name, " (", val.as<std::string>(), ") which was not registered!\n");
+        OPENVINO_ASSERT(is_supported(kv.first), "[GPU] Attempt to set property ", name, " (", val.as<std::string>(), ") which was not registered!\n");
         OPENVINO_ASSERT(property_validators.at(name)->is_valid(val), "[GPU] Invalid value for property ", name,  ": ", val.as<std::string>());
         internal_properties[name] = val;
     }
@@ -108,7 +109,7 @@ void ExecutionConfig::set_user_property(const AnyMap& config) {
         auto& name = kv.first;
         auto& val = kv.second;
         bool supported = is_supported(name) && supported_properties.at(name) == PropertyVisibility::PUBLIC;
-        OPENVINO_ASSERT(supported, "[GPU] Attepmpt to set user property ", name, " (", val.as<std::string>(), ") which was not registered or internal!\n");
+        OPENVINO_ASSERT(supported, "[GPU] Attempt to set user property ", name, " (", val.as<std::string>(), ") which was not registered or internal!\n");
         OPENVINO_ASSERT(property_validators.at(name)->is_valid(val), "[GPU] Invalid value for property ", name,  ": `", val.as<std::string>(), "`");
 
         user_properties[kv.first] = kv.second;

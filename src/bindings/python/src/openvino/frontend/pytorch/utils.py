@@ -7,7 +7,6 @@
 
 import torch
 import numpy as np
-import ctypes
 
 from openvino.runtime import op, Type as OVType, Shape, Tensor
 from openvino.runtime import opset11 as ops
@@ -130,13 +129,6 @@ pt_to_ov_type_map = {
     "torch.quint8": OVType.u8,
     "torch.qint8": OVType.i8,
     "torch.qint32": OVType.i32
-}
-
-ov_to_c_type_map = {
-    OVType.f32: ctypes.c_float,
-    OVType.f64: ctypes.c_double,
-    OVType.i32: ctypes.c_int,
-    OVType.i64: ctypes.c_int64,
 }
 
 
