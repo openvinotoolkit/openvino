@@ -23,7 +23,7 @@ OutputVector translate_scaled_dot_product_attention(const NodeContext& context) 
     auto key = context.get_input(1);
     auto value = context.get_input(2);
 
-    auto is_causal = context.const_input<bool>(5);
+    auto is_causal = context.input_is_none(5) ? false : context.const_input<bool>(5);
     OutputVector inputs = {query, key, value};  // mandatory inputs
 
     if (!context.input_is_none(3))
