@@ -142,6 +142,7 @@ OP_CONVERTER(translate_tensor_list_set_item_op);
 OP_CONVERTER(translate_tensor_list_stack_op);
 OP_CONVERTER(translate_tensor_list_resize_op);
 OP_CONVERTER(translate_tile_op);
+OP_CONVERTER(translate_tobool_op);
 OP_CONVERTER_NAMED(translate_top_k_op);
 OP_CONVERTER_NAMED(translate_top_k_v2_op);
 OP_CONVERTER(translate_transpose_op);
