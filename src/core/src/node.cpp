@@ -863,6 +863,7 @@ public:
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (const auto& a = ov::as_type<
                 ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>>(
                 &adapter)) {
@@ -930,6 +931,7 @@ public:
         } else {
             throw ov::Exception("Unsupported attribute type for serialization: " + name);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
@@ -1000,7 +1002,6 @@ bool ov::Node::visit_attributes(AttributeVisitor&) {
     return true;
 }
 
-namespace ov {
 void check_new_args_count(const Node* const node, const OutputVector& new_args) {
     NODE_VALIDATION_CHECK(node,
                           new_args.size() == node->input_values().size(),
