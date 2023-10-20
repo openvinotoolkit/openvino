@@ -4,7 +4,12 @@
 
 #pragma once
 
-#include <openvino/frontend/manager.hpp>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+
+#include "openvino/frontend/manager.hpp"
 
 #ifdef _WIN32
 static const char PathSeparator[] = ";";
@@ -14,6 +19,9 @@ static const char PathSeparator[] = ":";
 
 namespace ov {
 namespace frontend {
+
+std::unordered_map<std::string, std::shared_ptr<void>>& get_shared_objects_map();
+std::mutex& get_shared_objects_mutex();
 
 /// \brief Internal data structure holding by each frontend. Includes library handle and extensions.
 class FrontEndSharedData {
