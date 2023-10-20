@@ -121,7 +121,7 @@ public:
             VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec = rg.generate_random_1d<uint16_t>(s.count(), -1, 1);
+            VF<ov::float16> rnd_vec = rg.generate_random_1d<ov::float16>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
         } else {
             VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), -1, 1);

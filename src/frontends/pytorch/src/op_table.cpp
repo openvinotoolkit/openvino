@@ -66,7 +66,8 @@ OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine);
-OP_CONVERTER(translate_fill_);
+OP_CONVERTER(translate_fill);
+OP_CONVERTER(translate_fill_diagonal);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_flip);
 OP_CONVERTER(translate_floor_divide);
@@ -212,6 +213,7 @@ OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
 OP_CONVERTER(translate_layer_norm_fx);
 OP_CONVERTER(translate_max_poolnd_fx);
+OP_CONVERTER(translate_scaled_dot_product_attention_fx);
 OP_CONVERTER(translate_slice_fx);
 OP_CONVERTER(translate_softmax_fx);
 OP_CONVERTER(translate_transpose_fx);
@@ -323,7 +325,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::fake_quantize_per_channel_affine", op::translate_fake_quantize_per_channel_affine},
         {"aten::fake_quantize_per_tensor_affine", op::translate_fake_quantize_per_tensor_affine},
         {"aten::feature_dropout", op::skip_node},
-        {"aten::fill_", op::inplace_op<op::translate_fill_>},
+        {"aten::fill", op::translate_fill},
+        {"aten::fill_", op::inplace_op<op::translate_fill>},
+        {"aten::fill_diagonal_", op::inplace_op<op::translate_fill_diagonal>},
         {"aten::flatten", op::quantizable_op<op::translate_flatten>},
         {"aten::flip", op::translate_flip},
         {"aten::floor", op::translate_1to1_match_1_inputs<opset10::Floor>},
@@ -552,6 +556,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.arange.default", op::translate_arange_fx},
         {"aten.argmax.default", op::translate_argmax},
         {"aten.avg_pool2d.default", op::translate_avg_poolnd},
+        {"aten.baddbmm.default", op::translate_addmm},
         {"aten.bitwise_and.Tensor", op::translate_bitwise_and},
         {"aten.bmm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
         {"aten.cat.default", op::translate_cat_fx},
@@ -578,6 +583,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.hardswish_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
         {"aten.hardtanh_.default", op::inplace_op<op::translate_hardtanh>},
         {"aten.index.Tensor", op::translate_index_fx},
+        {"aten.leaky_relu_.default", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::PRelu>>},
         {"aten.lift_fresh_copy.default", op::skip_node},
         {"aten.linalg_vector_norm.default", op::translate_linalg_vector_norm},
         {"aten.log.default", op::translate_log},
@@ -600,6 +606,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.rsub.Scalar", op::translate_rsub},
+        {"aten._scaled_dot_product_flash_attention.default", op::translate_scaled_dot_product_attention_fx},
         {"aten.select.int", op::translate_select},
         {"aten.sigmoid.default", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
         {"aten.silu.default", op::translate_1to1_match_1_inputs<opset10::Swish>},
