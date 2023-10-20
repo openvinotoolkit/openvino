@@ -108,25 +108,37 @@ bool Reference::needShapeInfer() const {
 
 ov::TensorVector Reference::prepareInputs() const {
     ov::TensorVector inputs;
-    for (size_t i = 0; i < inputShapes.size(); i++) {
+    for (size_t i = 0lu; i < inputShapes.size(); i++) {
         void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().getData();
         ov::Shape shape = ovCoreNode->get_input_partial_shape(i).rank().get_length() == 0 ?
                 ov::Shape{} : getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
-        inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape, srcDataPtr));
+
+        if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
+            inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape));
+        } else {
+            if (!srcDataPtr) {
+                THROW_CPU_NODE_ERR("has empty input data on port ", i);
+            }
+            inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape, srcDataPtr));
+        }
     }
     return inputs;
 }
 
 ov::TensorVector Reference::prepareOutputs() const {
     ov::TensorVector outputs;
-    for (size_t i = 0; i < outputShapes.size(); i++) {
+    for (size_t i = 0lu; i < outputShapes.size(); i++) {
         void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().getData();
         ov::Shape shape = ovCoreNode->get_output_partial_shape(i).rank().get_length() == 0 ?
                 ov::Shape{} : getChildEdgesAtPort(i)[0]->getMemory().getStaticDims();
-        if (dstDataPtr != nullptr) {
-            outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape, dstDataPtr));
-        } else {
+
+        if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
             outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape));
+        } else {
+            if (!dstDataPtr) {
+                THROW_CPU_NODE_ERR("has empty output data on port ", i);
+            }
+            outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape, dstDataPtr));
         }
     }
     return outputs;
