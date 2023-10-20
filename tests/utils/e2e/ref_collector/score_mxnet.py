@@ -2,7 +2,7 @@ import logging as log
 import os
 import sys
 
-from e2e_oss._utils.path_utils import resolve_file_path
+from e2e_oss.utils.path_utils import resolve_file_path
 from .provider import ClassProvider
 
 os.environ['GLOG_minloglevel'] = '3'

@@ -9,7 +9,7 @@ from openvino.inference_engine import IECore, get_version as ie_get_version
 from openvino.runtime import Core
 
 from utils.kaldi_utils import get_quantization_scale_factors
-from e2e_oss._utils.path_utils import resolve_file_path
+from e2e_oss.utils.path_utils import resolve_file_path
 # import local modules:
 from .common_inference import Infer
 

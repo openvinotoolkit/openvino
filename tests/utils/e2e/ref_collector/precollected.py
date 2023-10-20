@@ -1,7 +1,7 @@
 import torch
 
 from .provider import ClassProvider
-from e2e_oss._utils.path_utils import resolve_file_path
+from e2e_oss.utils.path_utils import resolve_file_path
 import numpy as np
 import logging as log
 import sys

@@ -3,7 +3,7 @@
 import logging as log
 import sys
 
-from e2e_oss._utils.test_utils import align_input_names
+from e2e_oss.utils.test_utils import align_input_names
 from utils.test_utils import get_shapes_from_data, convert_shapes_to_partial_shape
 from .container import ClassProvider
 

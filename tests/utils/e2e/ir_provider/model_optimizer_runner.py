@@ -3,8 +3,8 @@ import time
 from openvino.tools.mo.utils.cli_parser import parse_input_value
 from openvino.tools.ovc.cli_parser import split_inputs
 
-from e2e_oss._utils.test_utils import log_timestamp
-from e2e_oss._utils.path_utils import resolve_file_path
+from e2e_oss.utils.test_utils import log_timestamp
+from e2e_oss.utils.path_utils import resolve_file_path
 from pathlib import Path
 from .provider import ClassProvider
 import subprocess
