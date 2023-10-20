@@ -34,24 +34,30 @@ class TestRsub(PytorchLayerTest):
 
         return model(), ref_net, "aten::rsub"
 
-    @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 4).astype(np.float32),
-                                             np.array(5).astype(np.float32),
-                                             np.random.randn(1)),])
-    
+    @pytest.mark.parametrize('input_data',
+    [
+        [2, 3, 4], np.array(5).astype(np.float32), [1]
+    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_rsub_f(self, ie_device, precision, ir_version, input_data):
-        self.input_data = input_data
+    def test_rsub(self, ie_device, precision, ir_version, input_data):
+        if type(input_data) is list:
+            self.input_data = np.random.random_sample(input_data).astype(np.float32)
+        else:
+            self.input_data = input_data
         self._test(*self.create_model(second_type="float"), ie_device, precision, ir_version, use_convert_model=True)
 
-    @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 4).astype(np.float32),
-                                             np.array(5).astype(int),
-                                             np.random.randn(1)),])
-    
+    @pytest.mark.parametrize('input_data',
+    [
+        [2, 3, 4], np.array(5).astype(int), [1]
+    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_rsub_i(self, ie_device, precision, ir_version, input_data):
-        self.input_data = input_data
+    def test_rsub(self, ie_device, precision, ir_version, input_data):
+        if type(input_data) is list:
+            self.input_data = np.random.random_sample(input_data)
+        else:
+            self.input_data = input_data
         self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version, use_convert_model=True)
 
 
