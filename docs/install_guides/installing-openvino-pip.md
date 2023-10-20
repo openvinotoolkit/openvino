@@ -12,9 +12,10 @@
    Note that the PyPi distribution:
    
    * offers the Python API only
-   * does not offer support for GNA and NPU inference
    * is dedicated to users of all major OSes: Windows, Linux, and macOS 
      (all x86_64 / arm64 architectures)
+   * Windows and Linux do not offer support for GNA and NPU inference
+   * macOS offers support only for CPU inference
 
 .. tab-set::
 
