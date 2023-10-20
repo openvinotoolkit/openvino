@@ -7,10 +7,9 @@
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
-from openvino.frontend.pytorch.utils import maybe_convert_max_int, make_constant, fetch_attr, pt_to_ov_type_map, ov_to_c_type_map
+from openvino.frontend.pytorch.utils import maybe_convert_max_int, make_constant, fetch_attr, pt_to_ov_type_map
 
 import torch
-import ctypes
 
 class TorchFXPythonDecoder (Decoder):
 
@@ -224,11 +223,7 @@ class TorchFXPythonDecoder (Decoder):
         if self.pt_module.op == 'get_attr':
             # Extract Constant from FX module field
             ret = fetch_attr(self.fx_gm, self.pt_module.target)
-            ovshape = PartialShape(ret.size())
-            ovtype = pt_to_ov_type_map[str(ret.type())]
-            c_type = ctypes.POINTER(ov_to_c_type_map[ovtype])
-            data_c_ptr = ctypes.cast(ret.data_ptr(), c_type)
-            ov_const = op.Constant(ovtype, ovshape.get_shape(), data_c_ptr[:ret.nelement()])
+            ov_const = op.Constant(ret.numpy(), shared_memory=True)
             return ov_const.outputs()
 
 
