@@ -109,6 +109,14 @@ def create_text_gen_model(model_path, device, **kwargs):
         real_base_model_name = str(type(model)).lower()
         log.info('Real base model=', real_base_model_name)
         # bfclm will trigger generate crash.
+
+        # If the device is set to GPU there's a need to substitute it with 'cuda' so it will be accepted by PyTorch
+        if device.upper() == 'GPU':
+            device = torch.device('cuda') if torch.cuda.is_available() else log.info('CUDA device is unavailable')
+        else:
+            device = torch.device(device.lower())
+        log.info(f'Torch device was set to: {device}')
+
         if any(x in real_base_model_name for x in [gptjfclm, lfclm, bfclm, gpt2lmhm, gptneoxclm, chatglmfcg]):
             model = set_bf16(model, device, **kwargs)
         else:
@@ -174,8 +182,15 @@ def create_image_gen_model(model_path, device, **kwargs):
 
     log.info(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
 
-    if device is not None:
-        pipe.to(device.lower())
+    if device:
+        # If the device is set to GPU there's a need to substitute it with 'cuda' so it will be accepted by PyTorch
+        if device.upper() == 'GPU':
+            device = torch.device('cuda') if torch.cuda.is_available() else log.info('CUDA device is unavailable')
+        else:
+            device = torch.device(device.lower())
+        log.info(f'Torch device was set to: {device}')
+
+        pipe.to(device)
     else:
         raise RuntimeError('==Failure ==: no device to load')
 
@@ -210,7 +225,14 @@ def create_image_classification_model(model_path, device, **kwargs):
         log.info(model.state_dict())
         torch.save(model.state_dict(), model_path / f'{model_id}.pth')
     if device:
-        model.to(device.lower())
+        # If the device is set to GPU there's a need to substitute it with 'cuda' so it will be accepted by PyTorch
+        if device.upper() == 'GPU':
+            device = torch.device('cuda') if torch.cuda.is_available() else log.info('CUDA device is unavailable')
+        else:
+            device = torch.device(device.lower())
+        log.info(f'Torch device was set to: {device}')
+
+        model.to(device)
     else:
         raise RuntimeError('==Failure ==: no device to load')
     model.eval()
@@ -251,8 +273,16 @@ def create_ldm_super_resolution_model(model_path, device, **kwargs):
         raise RuntimeError(f'==Failure ==: model path:{model_path} is not exist')
 
     log.info(f'Model path:{model_path}, from pretrained time: {from_pretrain_time:.2f}s')
-    if device is not None:
-        pipe.to(device.lower())
+
+    if device:
+        # If the device is set to GPU there's a need to substitute it with 'cuda' so it will be accepted by PyTorch
+        if device.upper() == 'GPU':
+            device = torch.device('cuda') if torch.cuda.is_available() else log.info('CUDA device is unavailable')
+        else:
+            device = torch.device(device.lower())
+        log.info(f'Torch device was set to: {device}')
+
+        pipe.to(device)
     else:
         raise RuntimeError('==Failure ==: no device to load')
 

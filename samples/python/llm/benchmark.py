@@ -352,7 +352,6 @@ def get_argprser():
     parser.add_argument('-d', '--device', default='cpu', help='inference device')
     parser.add_argument('-r', '--report', help='report csv')
     parser.add_argument('-f', '--framework', default='ov', help='framework')
-    parser.add_argument('-t', '--text', default=None, help='prompts')
     parser.add_argument('-p', '--prompt', default=None, help='one prompt')
     parser.add_argument('-pf', '--prompt_file', default=None, help='prompt file in jsonl format')
     parser.add_argument(
@@ -439,6 +438,13 @@ def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = get_argprser()
     model_path, framework, model_args, model_name = utils.model_utils.analyze_args(args)
+
+    # Set the device for running OpenVINO backend for torch.compile()
+    if model_args['torch_compile_backend']:
+        ov_torch_backend_device = str(args.device)
+        os.putenv('OPENVINO_TORCH_BACKEND_DEVICE', ov_torch_backend_device.upper())
+        os.system('echo OPENVINO_TORCH_BACKEND_DEVICE=$OPENVINO_TORCH_BACKEND_DEVICE')
+
     if framework == 'ov':
         log.info(f'model_path={model_path}, openvino runtime version:{get_version()}')
         if model_args['config'].get('PREC_BF16') and model_args['config']['PREC_BF16'] is True:

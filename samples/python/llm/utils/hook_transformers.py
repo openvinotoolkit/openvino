@@ -187,7 +187,7 @@ def new_greedy_search(
 
     this_peer_finished = False  # used by synced_gpus only
     while True:
-        tic = time.time()
+        tic = time.perf_counter()
         if synced_gpus:
             # Under synced_gpus the `forward` call must continue until all gpus complete their sequence.
             # The following logic allows an early break if all peers finished generating their sequence
@@ -202,14 +202,14 @@ def new_greedy_search(
         model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
 
         # forward pass to get next token
-        tic_infer = time.time()
+        tic_infer = time.perf_counter()
         outputs = self(
             **model_inputs,
             return_dict=True,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
         )
-        tm_infer_list.append(time.time() - tic_infer)
+        tm_infer_list.append(time.perf_counter() - tic_infer)
 
         if synced_gpus and this_peer_finished:
             continue  # don't waste resources running the code we don't need
@@ -257,7 +257,7 @@ def new_greedy_search(
         # stop if we exceed the maximum length
         if stopping_criteria(input_ids, scores):
             this_peer_finished = True
-        tm_list.append(time.time() - tic)
+        tm_list.append(time.perf_counter() - tic)
         if this_peer_finished and not synced_gpus:
             break
 

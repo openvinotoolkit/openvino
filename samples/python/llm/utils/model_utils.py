@@ -51,8 +51,8 @@ def set_default_param_for_ov_config(ov_config):
 
 def analyze_args(args):
     model_args = {}
-    model_args['prompt'] = args.text if (args.text is not None and args.text.endswith('.jsonl') is False) else args.prompt
-    model_args['prompt_file'] = args.text if (args.text is not None and args.text.endswith('.jsonl')) else args.prompt_file
+    model_args['prompt'] = args.prompt
+    model_args['prompt_file'] = args.prompt_file
     model_args['model_id'] = args.model_id
     model_args['infer_count'] = args.infer_count
     model_args['images'] = args.images
