@@ -136,7 +136,8 @@ def multinomial(
     inputs = as_nodes(probs, num_samples)
 
     if global_seed < 0:
-        raise RuntimeError(f"global_seed should be positive or 0. Got: {global_seed}")
+        raise RuntimeError(
+            f"global_seed should be positive or 0. Got: {global_seed}")
 
     if op_seed < 0:
         raise RuntimeError(f"op_seed should be positive or 0. Got: {op_seed}")
@@ -178,7 +179,8 @@ def nms_rotated(
     :param clockwise: Flag that specifies direction of the box rotation.
     :return: The new node which performs NMSRotated
     """
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold)
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class,
+                      iou_threshold, score_threshold)
 
     attributes = {
         "sort_result_descending": sort_result_descending,
@@ -201,16 +203,14 @@ def scaled_dot_product_attention(
 ) -> Node:
     """Return a node which implements Scaled Dot Product Attention.
 
-    Refer to https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html for
-    detailed information.
-
-    :param query: Query tensor of shape [N, ..., L, E].
-    :param key: Key tensor of shape [N, ..., S, E]
-    :param value: Value tensor of shape [N, ..., S, Ev].
+    :param query: Query tensor of shape [N, ..., L, E] and floating-point datatype.
+    :param key: Key tensor of shape [N, ..., S, E] and floating-point datatype.
+    :param value: Value tensor of shape [N, ..., S, Ev] and floating-point datatype.
     :param attention_mask: Optional attention mask tensor of shape [N, ..., L, S] or scalar float type zero value.
-    :param scale: Optional alternative scale, a float point type scalar
-    :param causal: If true, then autogenerates causal attention mask instead of using attention_mask input,
-                        and expects attention_mask input is not set.
+                           Refer to the operation specification for a complete description.
+    :param scale: Optional alternative scale, a floating-point type scalar.
+    :param causal: If true, then autogenerates causal attention mask instead of using attention_mask input.
+                   In this case attention_mask input is ignored.
     :param name: The optional new name for output node.
 
     :return: The new node performing Scaled Dot Product Attention operation.
