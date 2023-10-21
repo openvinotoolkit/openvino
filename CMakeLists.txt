@@ -164,3 +164,7 @@ endif()
 include(cmake/packaging/packaging.cmake)
 
 ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+
+add_executable(test_ov ovms/src/ov.cpp)
+
+target_link_libraries(test_ov PRIVATE openvino::runtime)
