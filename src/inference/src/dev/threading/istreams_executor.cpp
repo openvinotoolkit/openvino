@@ -559,13 +559,11 @@ IStreamsExecutor::Config IStreamsExecutor::Config::update_executor_config(
     int stream_nums_per_thread,
     IStreamsExecutor::Config::PreferredCoreType core_type,
     bool cpu_pinning) {
-    if ((core_type == ov::threading::IStreamsExecutor::Config::BIG ||
-         core_type == ov::threading::IStreamsExecutor::Config::LITTLE) &&
-        ov::get_available_cores_types().size() == 1) {
+    const auto proc_type_table = ov::get_proc_type_table();
+
+    if (proc_type_table.empty()) {
         return initial;
     }
-
-    const auto proc_type_table = ov::get_org_proc_type_table();
 
     IStreamsExecutor::Config config = initial;
 
@@ -585,7 +583,11 @@ IStreamsExecutor::Config IStreamsExecutor::Config::update_executor_config(
 
     config._streams = std::min(stream_nums, num_cores);
 
-    //create stream_info_table based on core type
+    if (config._streams == 0) {
+        return initial;
+    }
+
+    // create stream_info_table based on core type
     std::vector<int> stream_info(ov::CPU_STREAMS_TABLE_SIZE, 0);
     stream_info[ov::THREADS_PER_STREAM] = config._threadsPerStream;
     stream_info[ov::STREAM_NUMA_NODE_ID] = 0;
@@ -607,9 +609,46 @@ IStreamsExecutor::Config IStreamsExecutor::Config::update_executor_config(
         stream_info[ov::PROC_TYPE] = ov::EFFICIENT_CORE_PROC;
         stream_info[ov::NUMBER_OF_STREAMS] = config._streams;
         config._streams_info_table.push_back(stream_info);
+    } else {
+        int total_streams = 0;
+        if (proc_type_table.size() == 1) {
+            for (int i = ov::MAIN_CORE_PROC; i <= ov::HYPER_THREADING_PROC; i++) {
+                if (proc_type_table[0][i] > 0) {
+                    stream_info[ov::NUMBER_OF_STREAMS] =
+                        (total_streams + proc_type_table[0][i] > config._streams ? config._streams - total_streams
+                                                                                 : proc_type_table[0][i]);
+                    stream_info[ov::PROC_TYPE] = i;
+                    stream_info[ov::STREAM_NUMA_NODE_ID] = proc_type_table[0][PROC_NUMA_NODE_ID];
+                    stream_info[ov::STREAM_SOCKET_ID] = proc_type_table[0][PROC_SOCKET_ID];
+                    config._streams_info_table.push_back(stream_info);
+                    total_streams += stream_info[ov::NUMBER_OF_STREAMS];
+                }
+                if (total_streams >= config._streams)
+                    break;
+            }
+        } else {
+            for (size_t i = 1; i < proc_type_table.size(); i++) {
+                for (size_t j = ov::MAIN_CORE_PROC; j < ov::HYPER_THREADING_PROC; j++) {
+                    if (proc_type_table[i][j] > 0) {
+                        stream_info[ov::NUMBER_OF_STREAMS] =
+                            (total_streams + proc_type_table[i][j] > config._streams ? config._streams - total_streams
+                                                                                     : proc_type_table[i][j]);
+                        stream_info[ov::PROC_TYPE] = j;
+                        stream_info[ov::STREAM_NUMA_NODE_ID] = proc_type_table[i][PROC_NUMA_NODE_ID];
+                        stream_info[ov::STREAM_SOCKET_ID] = proc_type_table[i][PROC_SOCKET_ID];
+                        config._streams_info_table.push_back(stream_info);
+                        total_streams += stream_info[ov::NUMBER_OF_STREAMS];
+                    }
+                    if (total_streams >= config._streams)
+                        break;
+                }
+                if (total_streams >= config._streams)
+                    break;
+            }
+        }
     }
 
-    if(cpu_pinning) {
+    if (cpu_pinning) {
         config._cpu_reservation = cpu_pinning;
         auto new_config = reserve_cpu_threads(config);
         config = new_config;
