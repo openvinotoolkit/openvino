@@ -62,7 +62,7 @@ public:
             if (!input_stream) {
                 return false;
             }
-            auto graph_def = std::make_shared<::ov_tensorflow::GraphDef>();
+            auto graph_def = std::make_shared<::tensorflow::GraphDef>();
             auto is_parsed = ::google::protobuf::TextFormat::Parse(input_stream.get(), graph_def.get()) && graph_def &&
                              graph_def->node_size() > 0;
             return is_parsed;

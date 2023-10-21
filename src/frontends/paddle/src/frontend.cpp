@@ -393,7 +393,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<std::istream*>()) {
         // Validating first stream, it must contain a model
         auto p_model_stream = variants[0].as<std::istream*>();
-        ::ov_paddle::framework::proto::ProgramDesc fw;
+        ::paddle::framework::proto::ProgramDesc fw;
         return fw.ParseFromIstream(p_model_stream);
     }
     return false;

@@ -9,14 +9,14 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "types.pb.h"
+#include "ov_tensorflow/types.pb.h"
 
-namespace ov_tensorflow {
+namespace tensorflow {
 class GraphDef;
 class FunctionDef;
 class NodeDef;
 class AttrValue;
-}  // namespace ov_tensorflow
+}  // namespace tensorflow
 
 namespace ov {
 namespace frontend {
@@ -29,15 +29,15 @@ void parse_producer_name(const std::string& producer_port_name,
 
 class DecoderProto : public ov::frontend::tensorflow::DecoderBase {
 public:
-    explicit DecoderProto(const ::ov_tensorflow::NodeDef* node_def,
-                          const std::shared_ptr<::ov_tensorflow::GraphDef>& graph_def)
+    explicit DecoderProto(const ::tensorflow::NodeDef* node_def,
+                          const std::shared_ptr<::tensorflow::GraphDef>& graph_def)
         : m_node_def(node_def),
           m_graph_def(graph_def),
           m_func_def(nullptr) {}
 
-    explicit DecoderProto(const ::ov_tensorflow::NodeDef* node_def,
-                          const std::shared_ptr<::ov_tensorflow::GraphDef>& graph_def,
-                          const std::shared_ptr<::ov_tensorflow::FunctionDef>& func_def)
+    explicit DecoderProto(const ::tensorflow::NodeDef* node_def,
+                          const std::shared_ptr<::tensorflow::GraphDef>& graph_def,
+                          const std::shared_ptr<::tensorflow::FunctionDef>& func_def)
         : m_node_def(node_def),
           m_graph_def(graph_def),
           m_func_def(func_def) {}
@@ -56,14 +56,14 @@ public:
     const std::string& get_op_name() const override;
 
 private:
-    std::vector<::ov_tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;
-    const ::ov_tensorflow::NodeDef* m_node_def;
+    std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;
+    const ::tensorflow::NodeDef* m_node_def;
     // For existence of NodeDef object corresponding to the main graph node,
     // GraphDef object must live in the memory
-    const std::shared_ptr<::ov_tensorflow::GraphDef> m_graph_def;
+    const std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
     // For existence of NodeDef object corresponding to the body graph node,
     // both GraphDef and FunctionDef objects must be alive in the memory
-    const std::shared_ptr<::ov_tensorflow::FunctionDef> m_func_def;
+    const std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
 };
 }  // namespace tensorflow
 }  // namespace frontend

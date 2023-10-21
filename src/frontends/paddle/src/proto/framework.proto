@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 syntax = "proto2";
-package ov_paddle.framework.proto;
+package paddle.framework.proto;
 
 option optimize_for = LITE_RUNTIME; // Added by Intel Corporation 2021-2022
 

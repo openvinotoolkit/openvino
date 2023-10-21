@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "attr_value.pb.h"
-#include "node_def.pb.h"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/runtime_attribute.hpp"
@@ -14,9 +12,11 @@
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "tensor.pb.h"
-#include "tensor_shape.pb.h"
-#include "types.pb.h"
+#include "ov_tensorflow/attr_value.pb.h"
+#include "ov_tensorflow/node_def.pb.h"
+#include "ov_tensorflow/tensor.pb.h"
+#include "ov_tensorflow/tensor_shape.pb.h"
+#include "ov_tensorflow/types.pb.h"
 
 namespace ov {
 namespace frontend {
@@ -24,13 +24,13 @@ namespace tensorflow {
 
 #define CF_MARKER_TAG "tf_cf_marker_tag"
 
-ov::element::Type get_ov_type(const ::ov_tensorflow::DataType& type);
+ov::element::Type get_ov_type(const ::tensorflow::DataType& type);
 
-ov::Any unpack_tensor_proto(const ::ov_tensorflow::TensorProto& tensor_proto);
+ov::Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto);
 
-ov::Any unpack_tensor_proto(const ::ov_tensorflow::TensorProto& tensor_proto,
-                            const ::ov_tensorflow::TensorShapeProto& tensor_shape,
-                            const ::ov_tensorflow::DataType& tensor_type);
+ov::Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
+                            const ::tensorflow::TensorShapeProto& tensor_shape,
+                            const ::tensorflow::DataType& tensor_type);
 
 class Switch;
 using SetOfSwitchNodes = std::unordered_set<std::shared_ptr<Switch>>;

@@ -23,7 +23,7 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 
-ov::element::Type get_ov_type(const ::ov_paddle::framework::proto::VarType_Type& type);
+ov::element::Type get_ov_type(const ::paddle::framework::proto::VarType_Type& type);
 
 class DecoderProto : public paddle::DecoderBase {
 public:
@@ -56,7 +56,7 @@ public:
         const std::function<Output<Node>(const std::string&, size_t)>& func) const;
 
 private:
-    std::vector<::ov_paddle::framework::proto::OpDesc_Attr> decode_attribute_helper(const std::string& name) const;
+    std::vector<::paddle::framework::proto::OpDesc_Attr> decode_attribute_helper(const std::string& name) const;
     std::weak_ptr<OpPlace> op_place;
 
     const std::shared_ptr<OpPlace> get_place() const {
