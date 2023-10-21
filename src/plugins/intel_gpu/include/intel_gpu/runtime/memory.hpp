@@ -61,7 +61,7 @@ struct memory {
             return true;
         }
 
-        if (_bytes_count == (l.data_type == data_types::bin ? ceil_div(l.count(), 32) : l.count()) * data_type_traits::size_of(l.data_type)) {
+        if (_bytes_count == l.bytes_count()) {
             return false;
         }
 
@@ -186,7 +186,7 @@ template<typename T>
 inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& stream) {
     cldnn::data_types mem_dtype = mem->get_layout().data_type;
     if (mem_dtype == data_types::f16 || mem_dtype == data_types::f32) {
-        if (!std::is_floating_point<T>::value && !std::is_same<T, half_t>::value) {
+        if (!std::is_floating_point<T>::value && !std::is_same<T, ov::float16>::value) {
             OPENVINO_ASSERT(false, "[GPU] read_vector: attempt to convert floating point memory to non-floating point memory");
         }
     }
@@ -211,7 +211,7 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
             case data_types::f16: {
                 auto p_mem = reinterpret_cast<uint16_t*>(mem->buffer_ptr());
                 for (size_t i = 0; i < mem->count(); ++i) {
-                    out_vecs.push_back(static_cast<T>(half_to_float(p_mem[i])));
+                    out_vecs.push_back(static_cast<T>(ov::float16::from_bits(p_mem[i])));
                 }
                 break;
             }
@@ -237,7 +237,7 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
                 break;
             }
             case data_types::f16: {
-                mem_lock<half_t, mem_lock_type::read> lock{mem, stream};
+                mem_lock<ov::float16, mem_lock_type::read> lock{mem, stream};
                 out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
                 break;
             }

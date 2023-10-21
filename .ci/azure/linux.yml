@@ -411,6 +411,9 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_auto_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_unit_tests.xml
     displayName: 'AUTO UT'
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_auto_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_func_tests.xml
+    displayName: 'AUTO FuncTests'
+
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_auto_batch_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_batch_unit_tests.xml
     displayName: 'AutoBatch UT'
 

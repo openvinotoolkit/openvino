@@ -413,3 +413,14 @@ ov_core_compile_model_with_context(const ov_core_t* core,
  */
 OPENVINO_C_API(ov_status_e)
 ov_core_get_default_context(const ov_core_t* core, const char* device_name, ov_remote_context_t** context);
+
+/**
+ * @brief Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
+ * dependent resources
+ * @ingroup ov_c_api
+ * @note This function should be used by advanced user to control unload the resources.
+ *
+ * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
+ * resources after itself when the library is unloaded.
+ */
+OPENVINO_C_API(void) ov_shutdown();

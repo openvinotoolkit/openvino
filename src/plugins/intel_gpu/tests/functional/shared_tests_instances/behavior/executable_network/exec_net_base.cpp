@@ -44,20 +44,6 @@ auto configsSetPrc = []() {
           InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}};
 };
 
-auto multiConfig = []() {
-    return std::vector<std::map<std::string, std::string>>{
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU}},
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-         {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS,
-          InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}};
-};
-
-auto autoConfig = []() {
-    return std::vector<std::map<std::string, std::string>>{
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU}},
-    };
-};
-
 auto autoBatchConfig = []() {
     return std::vector<std::map<std::string, std::string>>{
         // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
@@ -71,20 +57,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU),
                                  ::testing::ValuesIn(configsSetPrc())),
-                         ExecNetSetPrecision::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecNetSetPrecision,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(multiConfig())),
-                         ExecNetSetPrecision::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetSetPrecision,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(autoConfig())),
                          ExecNetSetPrecision::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, ExecNetSetPrecision,

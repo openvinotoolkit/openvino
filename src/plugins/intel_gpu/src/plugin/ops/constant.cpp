@@ -19,6 +19,8 @@
 #include "openvino/op/roi_align.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -205,6 +207,13 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                 constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
             }
         } else if (ov::is_type<ov::op::v3::ROIAlign>(outOp) || ov::is_type<ov::op::v9::ROIAlign>(outOp)) {
+            consts[op].needsBatchInterpretation = constDims.size() == 1;
+        } else if ((ov::is_type<ov::op::v5::Loop>(outOp) || ov::is_type<ov::op::v0::TensorIterator>(outOp))) {
+            // when inner network has 1d parameter which is connected to outer loop's constant 1d data,
+            // outer constant 1d data and inner 1d parameter has same bytes_count but layout is different
+            // (outer constant is [1, N, 1, 1] but inner parameter is [N, 1, 1, 1]).
+            // To pass check_memory_to_set in input_layout::set_data for this case, Set constDims to [N, 1, 1, 1]
+            // when constDims is one dim and user op is Loop or TensorIterator.
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         }
     }

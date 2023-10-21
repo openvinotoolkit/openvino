@@ -195,7 +195,7 @@ def test_simple_if_basic():
     if_node.set_function(0, then_body)
     subgraph_func = if_node.get_function(0)
 
-    assert type(subgraph_func) == type(then_body)
+    assert isinstance(subgraph_func, type(then_body))
     assert compare_models(subgraph_func, then_body)
     assert subgraph_func._get_raw_address() == then_body._get_raw_address()
 

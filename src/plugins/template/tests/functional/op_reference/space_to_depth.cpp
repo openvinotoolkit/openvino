@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/space_to_depth.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -56,11 +58,10 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const SpaceToDepthParams& params) {
-        opset1::SpaceToDepth::SpaceToDepthMode mode = params.mode == "DEPTH_FIRST"
-                                                          ? opset1::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST
-                                                          : opset1::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
-        const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto SpaceToDepth = std::make_shared<opset1::SpaceToDepth>(data, mode, params.blockSize);
+        const auto mode = params.mode == "DEPTH_FIRST" ? op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST
+                                                       : op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto SpaceToDepth = std::make_shared<op::v0::SpaceToDepth>(data, mode, params.blockSize);
         return std::make_shared<Model>(NodeVector{SpaceToDepth}, ParameterVector{data});
     }
 };

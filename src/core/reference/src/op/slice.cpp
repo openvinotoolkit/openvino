@@ -6,9 +6,9 @@
 
 #include <cstring>
 
-#include "ngraph/check.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/reference/utils/coordinate_range.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace reference {
@@ -64,12 +64,21 @@ void slice(const char* arg,
            const Strides& strides,
            const Shape& out_shape,
            size_t elem_size) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    const CoordinateTransform input_transform(arg_shape, lower_bounds, upper_bounds, strides);
+    const auto rank = arg_shape.size();
+    OPENVINO_ASSERT(
+        lower_bounds.size() == rank && upper_bounds.size() == rank && strides.size() == rank &&
+            out_shape.size() == rank,
+        "arg_shape, lower_bounds, upper_bounds, strides and out_shape are expected to have the same rank equal ",
+        rank);
 
-    const CoordinateTransform output_transform(out_shape);
-
-    NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) == shape_size(output_transform.get_target_shape()));
+    auto expected_out_shape = Shape(arg_shape);
+    for (size_t i = 0; i < rank; ++i)
+        expected_out_shape[i] = util::ceil_div(upper_bounds[i] - lower_bounds[i], strides[i]);
+    OPENVINO_ASSERT(out_shape == expected_out_shape,
+                    "Expected output shape is ",
+                    expected_out_shape,
+                    ". Got ",
+                    out_shape);
 
     auto dst_mem = out;
 
@@ -81,7 +90,6 @@ void slice(const char* arg,
             std::advance(dst_mem, elem_size);
         }
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace ov

@@ -70,7 +70,18 @@ struct input_info {
         ib >> pid;
         ib >> idx;
     }
+
+    std::string to_string() const {
+        std::stringstream ss;
+        ss << "input_info(pid:" << pid << ",idx:" << idx << ")";
+        return ss.str();
+    }
 };
+
+static inline std::ostream& operator<< (std::ostream& os, input_info& info) {
+    os << info.to_string();
+    return os;
+}
 
 struct prim_map_storage {
     static prim_map_storage& instance() {
@@ -150,7 +161,7 @@ public:
             return false;
 
         for (size_t i = 0; i < output_data_types.size(); ++i) {
-            if (output_data_types[i].value_or(data_types::bin) != rhs.output_data_types[i].value_or(data_types::bin))
+            if (output_data_types[i].value_or(data_types::undefined) != rhs.output_data_types[i].value_or(data_types::undefined))
                 return false;
         }
 

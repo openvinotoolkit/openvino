@@ -21,7 +21,6 @@ TEST_P(ReadIRTest, Inference) {
     run();
 }
 
-// temporarty disable to provide correct numbers for release
 TEST_P(ReadIRTest, QueryModel) {
     query_model();
 }

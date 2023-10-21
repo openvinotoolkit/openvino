@@ -42,12 +42,12 @@ bool evaluate_sign(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_sign, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sign, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sign, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sign, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sign, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sign, f32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, i32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, i64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, u32, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, u64, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, f16, arg0, out, count);
+        OPENVINO_TYPE_CASE(evaluate_sign, f32, arg0, out, count);
     default:
         rc = false;
         break;

@@ -647,7 +647,7 @@ public:
         if (generic_params->data_type == data_types::f32) {
             return generate_reference_typed<float>(inputs);
         } else {
-            return generate_reference_typed<FLOAT16>(inputs);
+            return generate_reference_typed<ov::float16>(inputs);
         }
     }
 
@@ -900,7 +900,7 @@ float getError<float>() {
 }
 
 template<>
-float getError<half_t>() {
+float getError<ov::float16>() {
     return 0.2;
 }
 
@@ -928,7 +928,7 @@ struct softmax_gpu_formats_test
         : public ::testing::TestWithParam<SoftmaxParamsWithFormat<T> > {
 public:
     void test(bool is_caching_test) {
-        const auto data_type = type_to_data_type<T>::value;
+        const auto data_type = ov::element::from<T>();
         SoftmaxParams<T> params;
         format::type plain_format;
         format::type target_format;
@@ -963,7 +963,7 @@ public:
 };
 
 using softmax_gpu_formats_test_f32 = softmax_gpu_formats_test<float>;
-using softmax_gpu_formats_test_f16 = softmax_gpu_formats_test<half_t>;
+using softmax_gpu_formats_test_f16 = softmax_gpu_formats_test<ov::float16>;
 
 TEST_P(softmax_gpu_formats_test_f32, softmax_gpu_formats_test_f32) {
     ASSERT_NO_FATAL_FAILURE(test(false));
@@ -985,7 +985,7 @@ INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_f32_2d,
 INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_f16_2d,
                          softmax_gpu_formats_test_f16,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(generateSoftmaxParams2D<half_t>()),
+                                 ::testing::ValuesIn(generateSoftmaxParams2D<ov::float16>()),
                                  ::testing::Values(format::bfyx),
                                  ::testing::ValuesIn(formats2D)
                                  ),
@@ -1003,7 +1003,7 @@ INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_f32_3d,
 INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_f16_3d,
                          softmax_gpu_formats_test_f16,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(generateSoftmaxParams3D<half_t>()),
+                                 ::testing::ValuesIn(generateSoftmaxParams3D<ov::float16>()),
                                  ::testing::Values(format::bfzyx),
                                  ::testing::ValuesIn(formats3D)
                                  ),

@@ -10,8 +10,8 @@
 #include <cstring>
 #include <utility>
 
-#include "ngraph/op/generate_proposals.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/generate_proposals.hpp"
 
 struct sProposalBox {
     float x0;
@@ -358,8 +358,8 @@ void generate_proposals(const std::vector<float>& im_info,
 void generate_proposals_postprocessing(void* prois,
                                        void* pscores,
                                        void* proi_num,
-                                       const ngraph::element::Type& output_type,
-                                       const ngraph::element::Type& roi_num_type,
+                                       const element::Type& output_type,
+                                       const element::Type& roi_num_type,
                                        const std::vector<float>& output_rois,
                                        const std::vector<float>& output_scores,
                                        const std::vector<int64_t>& num_rois,

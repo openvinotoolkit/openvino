@@ -32,10 +32,79 @@ Please file a github Issue on these with the label “pre-release” so we can g
 
 
 
-.. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230811
+
+
+.. dropdown:: OpenVINO Toolkit 2023.2 Dev 22.09.2023
    :animate: fade-in-slide-down
    :color: primary
    :open:
+
+   **What's Changed:**
+   
+   * CPU runtime: 
+
+     * Optimized Yolov8n and YoloV8s models on BF16/FP32. 
+     * Optimized Falcon model on 4th Generation Intel® Xeon® Scalable Processors. 
+
+   * GPU runtime:  
+
+     * int8 weight compression further improves LLM performance. PR #19548 
+     * Optimization for gemm & fc in iGPU. PR #19780 
+
+   * TensorFlow FE: 
+
+     * Added support for Selu operation. PR #19528 
+     * Added support for XlaConvV2 operation. PR #19466 
+     * Added support for TensorListLength and TensorListResize operations. PR #19390 
+
+   * PyTorch FE: 
+
+     * New operations supported 
+  
+       * aten::minimum aten::maximum. PR #19996 
+       * aten::broadcast_tensors. PR #19994 
+       * added support aten::logical_and, aten::logical_or, aten::logical_not, aten::logical_xor. PR #19981 
+       * aten::scatter_reduce and extend aten::scatter. PR #19980 
+       * prim::TupleIndex operation. PR #19978 
+       * mixed precision in aten::min/max. PR #19936 
+       * aten::tile op PR #19645 
+       * aten::one_hot PR #19779 
+       * PReLU. PR #19515 
+       * aten::swapaxes. PR #19483 
+       * non-boolean inputs for __or__ and __and__ operations. PR #19268 
+
+   * Torchvision NMS can accept negative scores. PR #19826 
+   * New openvino_notebooks: 
+
+     * Visual Question Answering and Image Captioning using BLIP 
+
+   **Fixed GitHub issues**
+
+   * Fixed #19784 “[Bug]: Cannot install libprotobuf-dev along with libopenvino-2023.0.2 on Ubuntu 22.04” with PR #19788 
+   * Fixed #19617 “Add a clear error message when creating an empty Constant” with PR #19674 
+   * Fixed #19616 “Align openvino.compile_model and openvino.Core.compile_model functions” with PR #19778 
+   * Fixed #19469 “[Feature Request]: Add SeLu activation in the OpenVino IR (TensorFlow Conversion)” with PR #19528 
+   * Fixed #19019 “[Bug]: Low performance of the TF quantized model.” With PR #19735 
+   * Fixed #19018 “[Feature Request]: Support aarch64 python wheel for Linux” with PR #19594 
+   * Fixed #18831 “Question: openvino support for Nvidia Jetson Xavier ?” with PR #19594 
+   * Fixed #18786 “OpenVINO Wheel does not install Debug libraries when CMAKE_BUILD_TYPE is Debug #18786” with PR #19197 
+   * Fixed #18731 “[Bug] Wrong output shapes of MaxPool” with PR #18965 
+   * Fixed #18091 “[Bug] 2023.0 Version crashes on Jetson Nano - L4T - Ubuntu 18.04” with PR #19717 
+   * Fixed #7194 “Conan for simplifying dependency management” with PR #17580 
+
+ 
+   **Acknowledgements:**
+
+   Thanks for contributions from the OpenVINO developer community: 
+   
+   * @siddhant-0707, 
+   * @PRATHAM-SPS, 
+   * @okhovan 
+
+
+.. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230728
+   :animate: fade-in-slide-down
+   :color: secondary
 
    `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230811>`__ 
 

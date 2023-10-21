@@ -121,15 +121,10 @@ struct travel_direction_wrapper<direction_e::backwards> {
 static format get_target_output_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node, program_node *next) {
     auto user_idx = node->get_user_index(*next);
 
-    bool allow_new_shape_infer = node->get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
     // 1. Check selected preferred_output_format
-    if (lo.get_optimization_attributes().use_onednn_impls || allow_new_shape_infer) {
-        // If onednn is not used, need to ignore get_preferred_output_fmt result as it is from onednn
-        auto ret = node->get_preferred_output_fmt(user_idx);
-
-        if (ret != format::any)
-            return ret;
-    }
+    auto ret = node->get_preferred_output_fmt(user_idx);
+    if (ret != format::any)
+        return ret;
 
     // 2. Check fmt
     if (fmt_map.count(node) > 0)
@@ -142,14 +137,10 @@ static format get_target_output_format(layout_optimizer& lo, const std::map<prog
 static format get_target_input_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node, program_node *prev) {
     auto dep_idx = node->get_dependency_index(*prev);
 
-    bool allow_new_shape_infer = node->get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
     // 1. Check selected preferred_input_format
-    if (lo.get_optimization_attributes().use_onednn_impls || allow_new_shape_infer) {
-        // If onednn is not used, need to ignore get_preferred_input_fmt result as it is from onednn
-        auto ret = node->get_preferred_input_fmt(dep_idx);
-        if (ret != format::any)
-            return ret;
-    }
+    auto ret = node->get_preferred_input_fmt(dep_idx);
+    if (ret != format::any)
+        return ret;
 
     // 2. Check fmt
     if (fmt_map.count(node) > 0)
@@ -755,7 +746,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto& input = binary_conv_node.input();
         auto input_layout = input.get_output_layout();
         auto new_layout = input_layout;
-        new_layout.data_type = data_types::bin;
+        new_layout.data_type = data_types::u1;
 
         auto reorder = rf.get_reorder(input.id(), input_layout, new_layout);
 
@@ -766,7 +757,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto& weights = binary_conv_node.weights();
         auto weights_layout = weights.get_output_layout();
         if (!weights.is_type<data>() && !weights.is_constant()) {
-            auto new_layout = layout{ weights_layout.get_partial_shape(), data_types::bin, format::b_fs_yx_32fp };
+            auto new_layout = layout{ weights_layout.get_partial_shape(), data_types::u1, format::b_fs_yx_32fp };
             auto reorder = rf.get_reorder(weights.id(), weights_layout, new_layout);
             if (reorder.first) {
                 p.add_intermediate(reorder.first, binary_conv_node, 1, !reorder.second);

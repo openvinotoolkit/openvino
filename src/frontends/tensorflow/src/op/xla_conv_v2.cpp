@@ -20,7 +20,7 @@
 using namespace std;
 using namespace ov;
 using namespace ov::op;
-using namespace xla;
+using namespace ov_xla;
 
 namespace ov {
 namespace frontend {

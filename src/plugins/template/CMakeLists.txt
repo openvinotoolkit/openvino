@@ -7,8 +7,6 @@ cmake_minimum_required(VERSION 3.13)
 
 project(OpenVINOTemplatePlugin)
 
-set(TEMPLATE_PLUGIN_SOURCE_DIR ${OpenVINOTemplatePlugin_SOURCE_DIR})
-
 find_package(OpenVINODeveloperPackage REQUIRED)
 
 ov_option(ENABLE_TEMPLATE_REGISTRATION "Enables registration of TEMPLATE plugin" OFF)
@@ -31,6 +29,6 @@ endif()
 # install
 
 if(OpenVINODeveloperPackage_FOUND)
-    ie_cpack(template)
+    ov_cpack(template)
 endif()
 # [cmake:main]

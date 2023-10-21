@@ -38,14 +38,6 @@
 #include "openvino/op/util/variable_value.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ngraph {
-
-namespace runtime {
-class HostTensor;
-}  // namespace runtime
-
-}  // namespace ngraph
-
 namespace ov {
 namespace op {
 namespace v0 {
@@ -62,9 +54,7 @@ class Matcher;
 }  // namespace pattern
 }  // namespace pass
 OPENVINO_SUPPRESS_DEPRECATED_START
-using HostTensor = ngraph::runtime::HostTensor;
-using HostTensorPtr = std::shared_ptr<HostTensor>;
-using HostTensorVector = std::vector<HostTensorPtr>;
+using HostTensorVector = std::vector<ngraph::HostTensorPtr>;
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename NodeType>
@@ -564,21 +554,17 @@ OPENVINO_API void NodeValidationFailure::create(const CheckLocInfo& check_loc_in
     NODE_VALIDATION_CHECK(std::make_pair(static_cast<const ::ov::Node*>((node)), &(input_shapes)), __VA_ARGS__)
 
 namespace ov {
-template <typename T>
-void check_new_args_count(const Node* node, T new_args) {
-    NODE_VALIDATION_CHECK(node,
-                          new_args.size() == node->input_values().size(),
-                          "clone_with_new_inputs() expected ",
-                          node->input_values().size(),
-                          " argument",
-                          (node->input_values().size() == 1 ? "" : "s"),
-                          " but got ",
-                          new_args.size());
-}
 
-}  // namespace ov
+/**
+ * @brief Check new arguments size if match node inputs count.
+ *
+ * This check is required in cloning ov::Node.
+ *
+ * @param node      Pointer to node.
+ * @param new_args  Vector with new outputs to check.
+ */
+void OPENVINO_API check_new_args_count(const Node* const node, const OutputVector& new_args);
 
-namespace ov {
 /// \brief Visits a reference to a node that has been registered with the visitor.
 template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Node>> : public VisitorAdapter {

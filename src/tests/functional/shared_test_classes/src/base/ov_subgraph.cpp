@@ -20,7 +20,7 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -287,7 +287,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     auto functionToProcess = functionRefs->clone();
     precisions_map convert_precisions = get_ref_precisions_convert_map();
     pass::Manager manager;
-    manager.register_pass<ov::pass::ConvertPrecision>(convert_precisions);
+    manager.register_pass<ov::pass::ConvertPrecision>(convert_precisions, type_to_fuse_map{}, false, false);
     manager.run_passes(functionToProcess);
     functionToProcess->validate_nodes_and_infer_types();
 

@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {

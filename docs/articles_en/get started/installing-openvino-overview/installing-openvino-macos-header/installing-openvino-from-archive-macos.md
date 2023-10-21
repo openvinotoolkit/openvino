@@ -13,7 +13,7 @@
    
    * offers both C/C++ and Python APIs
    * additionally includes code samples 
-   * is dedicated to users of all major OSs: Windows, Linux, macOS
+   * is dedicated to macOS users (archives for other systems are also available)
 
 
 .. tab-set::
