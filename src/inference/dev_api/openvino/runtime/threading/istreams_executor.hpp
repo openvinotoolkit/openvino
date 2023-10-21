@@ -151,7 +151,11 @@ public:
               _streams_info_table{streamsInfoTable},
               _cpu_reservation{cpuReservation} {}
 
-        static Config update_executor_config(const Config& initial, int stream_nums, int stream_nums_per_thread, PreferredCoreType core_type, bool cpu_pinning);
+        static Config update_executor_config(const Config& initial,
+                                             int stream_nums,
+                                             int stream_nums_per_thread,
+                                             PreferredCoreType core_type,
+                                             bool cpu_pinning);
     };
 
     /**
