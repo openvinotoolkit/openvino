@@ -30,7 +30,7 @@ Currently, processors of the 11th generation and later (up to the 13th generatio
 ||                                                                    | Intel® Core™ Processors with Intel® AVX2,                                                            |
 ||                                                                    | Intel® Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE)                           |
 ||                                                                    |                                                                                                      |
-||   (Arm®)                                                           | Raspberry Pi™ 4 Model B, Apple® Mac mini with M1 chip, NVIDIA® Jetson Nano™, Android™ devices        |
+||   (Arm®)                                                           | Raspberry Pi™ 4 Model B, Apple® Mac mini with Apple silicon                                          |
 ||                                                                    |                                                                                                      |
 +---------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
 || :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`             | Intel® Processor Graphics including Intel® HD Graphics and Intel® Iris® Graphics,                    |

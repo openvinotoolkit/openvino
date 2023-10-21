@@ -17,8 +17,8 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
-          submodules: true
-          lfs: true
+          submodules: 'true'
+          lfs: 'true'
 
       - name: Install apt-get dependencies
         uses: awalsh128/cache-apt-pkgs-action@v1.3.0

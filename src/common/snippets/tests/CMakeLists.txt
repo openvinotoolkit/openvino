@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ov_snippets_func_tests)
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
@@ -13,10 +13,10 @@ addIeTargetTest(
         LINK_LIBRARIES
             openvino::runtime::dev
             common_test_utils
-            snippetsNgraphFunctions
+            ov_snippets_models
         ADD_CPPLINT
         LABELS
-        IE OV SNIPPETS
+            OV UNIT SNIPPETS
 )
 
 # LTO
@@ -30,4 +30,4 @@ ov_build_target_faster(${TARGET_NAME}
 add_library(snippets_test_utils STATIC ${CMAKE_CURRENT_SOURCE_DIR}/include/lowering_utils.hpp
                                        ${CMAKE_CURRENT_SOURCE_DIR}/src/lowering_utils.cpp)
 target_include_directories(snippets_test_utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(snippets_test_utils PRIVATE common_test_utils snippetsNgraphFunctions)
+target_link_libraries(snippets_test_utils PRIVATE common_test_utils ov_snippets_models)

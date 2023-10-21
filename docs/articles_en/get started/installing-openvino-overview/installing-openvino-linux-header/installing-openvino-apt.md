@@ -12,6 +12,7 @@
 
    * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
+   * is dedicated to Linux users only
    * additionally includes code samples 
 
 

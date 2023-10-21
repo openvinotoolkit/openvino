@@ -20,6 +20,12 @@ using ElementType = ov::element::Type_t;
 using Config = ov::AnyMap;
 using TargetDevice = std::string;
 
+typedef std::tuple<ov::element::Type,  // Input element type
+                   ov::Shape,          // Input Shape
+                   TargetDevice        // Target Device
+                   >
+    BasicParams;
+
 class SubgraphBaseTest : public ov::test::TestsCommon {
 public:
     virtual void run();
@@ -106,5 +112,16 @@ inline std::vector<InputShape> static_shapes_to_test_representation(const std::v
     }
     return result;
 }
+
+class SubgraphBaseStaticTest : public ov::test::SubgraphBaseTest {
+public:
+    void run() override {
+        std::vector<ov::Shape> input_shapes;
+        for (const auto& param : function->get_parameters())
+            input_shapes.emplace_back(param->get_shape());
+        init_input_shapes(ov::test::static_shapes_to_test_representation(input_shapes));
+        ov::test::SubgraphBaseTest::run();
+    }
+};
 }  // namespace test
 }  // namespace ov

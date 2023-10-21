@@ -58,7 +58,7 @@ bool ShapePredictor::can_preallocate(size_t desired_buffer_size) {
 
 std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std::string& id,
                                                                        const ov::Shape& current_shape,
-                                                                       size_t dt_size,
+                                                                       size_t dt_bitwidth,
                                                                        bool can_reuse_buffer) {
     add_shape(id, current_shape);
 
@@ -110,7 +110,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
             for (size_t i = 0; i < current_shape.size(); ++i)
                 single_iter_shape.push_back(diffs[0][i] == 0 ? current_shape[i] : 1);
 
-            if (ov::shape_size(single_iter_shape) * dt_size > _max_per_iter_size)
+            if (ceil_div(ov::shape_size(single_iter_shape) * dt_bitwidth, 8) > _max_per_iter_size)
                 can_use_iterations_preallocation = false;
         }
 

@@ -91,7 +91,7 @@ float getError<float>() {
 }
 
 template<>
-float getError<half_t>() {
+float getError<ov::float16>() {
     return 0.5;
 }
 
@@ -124,7 +124,7 @@ struct adaptive_max_pooling_test
 
 public:
     void test() {
-        const auto data_type = type_to_data_type<T>::value;
+        const auto data_type = ov::element::from<T>();
         AdaptiveMaxPoolingParams params;
         format::type plain_layout;
         format::type target_layout;
@@ -218,7 +218,7 @@ public:
 
 
 using adaptive_max_pooling_test_f32 = adaptive_max_pooling_test<float>;
-using adaptive_max_pooling_test_f16 = adaptive_max_pooling_test<half_t>;
+using adaptive_max_pooling_test_f16 = adaptive_max_pooling_test<ov::float16>;
 
 TEST_P(adaptive_max_pooling_test_f32, adaptive_max_pooling_test_f32) {
     ASSERT_NO_FATAL_FAILURE(test());

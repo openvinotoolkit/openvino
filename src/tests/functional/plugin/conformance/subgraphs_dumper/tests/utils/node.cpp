@@ -28,8 +28,8 @@ TEST_F(NodeUtilsTest, get_input_info_by_node) {
     auto add_node = std::make_shared<ov::op::v1::Add>(param, const_node);
 
     std::map<std::string, InputInfo> ref_test_info = {
-        { "const_0", InputInfo(-3.65, 7, true) },
-        { "param_0", InputInfo() },
+        { "const_0", InputInfo({2, 3}, -3.65, 7, true) },
+        { "param_0", InputInfo({2, 3}) },
     };
     std::map<std::string, InputInfo> orig_test_info = get_input_info_by_node(add_node);
     ASSERT_EQ(ref_test_info, orig_test_info);

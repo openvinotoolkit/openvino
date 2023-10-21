@@ -21,7 +21,7 @@
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 using namespace testing;

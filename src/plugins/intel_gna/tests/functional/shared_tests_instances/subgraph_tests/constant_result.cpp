@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph_tests/constant_result.hpp"
-
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
+#include "subgraph_tests/constant_result_legacy.hpp"
 
 using namespace SubgraphTestsDefinitions;
 using namespace InferenceEngine;

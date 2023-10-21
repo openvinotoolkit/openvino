@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import math
 
-import openvino.runtime.opset12 as ops
+import openvino.runtime.opset13 as ops
 from openvino import (
     Core,
     Model,
@@ -289,7 +289,7 @@ def test_evaluate_invalid_input_shape():
             [Tensor("float32", Shape([2, 1]))],
             [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
         )
-    assert "must be compatible with the partial shape: [2,1]" in str(e.value)
+    assert "Cannot evaluate model!" in str(e.value)
 
 
 def test_get_batch():

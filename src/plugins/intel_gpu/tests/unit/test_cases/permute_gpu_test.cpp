@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/type/element_type_traits.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -1904,7 +1905,7 @@ void TiledPermuteTest::compare_value(float a, float b) const {
 
 // f16 format
 template<>
-void TiledPermuteTest::compare_value(FLOAT16 a, FLOAT16 b) const {
+void TiledPermuteTest::compare_value(ov::float16 a, ov::float16 b) const {
     ASSERT_FLOAT_EQ(static_cast<float>(a), static_cast<float>(b));
 }
 
@@ -1923,9 +1924,9 @@ template<data_types Data_Type>
 void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
                                 const std::string & permute_opt, std::vector<uint16_t> permute_order, bool is_caching_test)
 {
-    // convert half_t to FLOAT16
-    using type_ = typename data_type_to_type<Data_Type>::type;
-    using type = typename std::conditional<std::is_same<type_, half_t>::value, FLOAT16, type_>::type;
+    // convert ov::float16 to ov::float16
+    using type_ = typename ov::element_type_traits<Data_Type>::value_type;
+    using type = typename std::conditional<std::is_same<type_, ov::float16>::value, ov::float16, type_>::type;
 
     std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
     std::swap(internal_sizes.at(2), internal_sizes.back());
@@ -2317,9 +2318,9 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
                             const std::string & kernel_name, std::vector<uint16_t> permute_order)
     {
         auto& engine = get_test_engine();
-        // convert half_t to FLOAT16
-        using type_ = typename data_type_to_type<Data_Type>::type;
-        using type = typename std::conditional<std::is_same<type_, half_t>::value, FLOAT16, type_>::type;
+        // convert ov::float16 to ov::float16
+        using type_ = typename ov::element_type_traits<Data_Type>::value_type;
+        using type = typename std::conditional<std::is_same<type_, ov::float16>::value, ov::float16, type_>::type;
 
         std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
         std::swap(internal_sizes.at(2), internal_sizes.back());
@@ -2394,7 +2395,7 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
         auto output_layout_ref = network_ref.get_program()->get_node("output").get_output_layout();
         auto output_layout_opt = network_tile.get_program()->get_node("output").get_output_layout();
         std::string frm_str = cldnn::format(format).to_string();
-        std::string input_type = data_type_traits::name(Data_Type);
+        std::string input_type = ov::element::Type(Data_Type).get_type_name();
 
         std::cout << "Exectued time " << " " << "permute_ref" << " " << " input(" << tensor.to_string()
                   << ") output(" <<  output_layout_ref.to_string() << ") "
@@ -2421,4 +2422,3 @@ INSTANTIATE_TEST_SUITE_P(, TiledPerformancePermuteTest,
         {{1, 256, 128, 256}, format::bfyx},
         {{1, 256, 256, 128}, format::b_fs_yx_fsv16},
     }));
-

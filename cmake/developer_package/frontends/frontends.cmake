@@ -38,7 +38,7 @@ function(ov_generate_frontends_hpp)
     ov_target_link_frontends(openvino)
 
     set(ov_frontends_hpp "${CMAKE_BINARY_DIR}/src/frontends/common/src/ov_frontends.hpp")
-    set(frontends_hpp_in "${IEDevScripts_DIR}/frontends/ov_frontends.hpp.in")
+    set(frontends_hpp_in "${OpenVINODeveloperScripts_DIR}/frontends/ov_frontends.hpp.in")
 
     add_custom_command(OUTPUT "${ov_frontends_hpp}"
                        COMMAND
@@ -46,10 +46,10 @@ function(ov_generate_frontends_hpp)
                         -D "OV_FRONTENDS_HPP_HEADER_IN=${frontends_hpp_in}"
                         -D "OV_FRONTENDS_HPP_HEADER=${ov_frontends_hpp}"
                         -D "FRONTEND_NAMES=${FRONTEND_NAMES}"
-                        -P "${IEDevScripts_DIR}/frontends/create_frontends_hpp.cmake"
+                        -P "${OpenVINODeveloperScripts_DIR}/frontends/create_frontends_hpp.cmake"
                        DEPENDS
                          "${frontends_hpp_in}"
-                         "${IEDevScripts_DIR}/frontends/create_frontends_hpp.cmake"
+                         "${OpenVINODeveloperScripts_DIR}/frontends/create_frontends_hpp.cmake"
                        COMMENT
                          "Generate ov_frontends.hpp for static build"
                        VERBATIM)

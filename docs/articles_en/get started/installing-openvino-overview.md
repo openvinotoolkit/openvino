@@ -21,7 +21,7 @@
 
    <script type="module" crossorigin src="_static/selector-tool/assets/index-f34d1fad.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <iframe id="selector" src="_static/selector-tool/selector-12b6d7d.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+   <iframe id="selector" src="_static/selector-tool/selector-68d2f71.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
 .. warning::
    
@@ -30,7 +30,7 @@
    all necessary components.
 
    The OpenVINO Development Tools is still available for older versions of OpenVINO,
-   as well as the current one, from the GitHub repository.
+   as well as the current one, from the GitHub repository and PyPI. :doc:`Learn more <openvino_docs_install_guides_install_dev_tools>`.
 
 
 .. tip::
@@ -47,14 +47,14 @@
 
    .. dropdown:: Distribution Comparison for OpenVINO 2023.1
    
-      ===============  ==========  ======  =========  ========  ============ ==========
-       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg
-      ===============  ==========  ======  =========  ========  ============ ==========
-       CPU              V           V        V         V          V           V
-       GPU              V           V        V         V          V           V
-       GNA              V          n/a      n/a       n/a        n/a         n/a
-       NPU              V          n/a      n/a       n/a        n/a         n/a 
-      ===============  ==========  ======  =========  ========  ============ ==========
+      ===============  ==========  ======  =========  ========  ============ ========== ========== 
+       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg      Conan     
+      ===============  ==========  ======  =========  ========  ============ ========== ========== 
+       CPU              V           V        V         V          V           V          V         
+       GPU              V           V        V         V          V           V          V         
+       GNA              V          n/a      n/a       n/a        n/a         n/a        n/a        
+       NPU              V          n/a      n/a       n/a        n/a         n/a        n/a        
+      ===============  ==========  ======  =========  ========  ============ ========== ========== 
 
 | **Build OpenVINO from source**
 |    OpenVINO Toolkit source files are available on GitHub as open source. If you want to build your own version of OpenVINO for your platform, 

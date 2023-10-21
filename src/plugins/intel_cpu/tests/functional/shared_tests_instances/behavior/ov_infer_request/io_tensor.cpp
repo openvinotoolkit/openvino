@@ -15,32 +15,12 @@ const std::vector<ov::AnyMap> configs = {
         {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "0"}, {InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "1"}}
 };
 
-const std::vector<ov::AnyMap> Multiconfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
-};
-
-const std::vector<ov::AnyMap> Autoconfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
-};
-
 const std::vector<ov::AnyMap> emptyConfigs = {{}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTest,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
-                        OVInferRequestIOTensorTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorTest,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                ::testing::ValuesIn(Multiconfigs)),
-                        OVInferRequestIOTensorTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorTest,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(Autoconfigs)),
                         OVInferRequestIOTensorTest::getTestCaseName);
 
 std::vector<ov::element::Type> prcs = {
@@ -69,38 +49,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecision
                                  ::testing::ValuesIn(configs)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
-                                 ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(Multiconfigs)),
-                         OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
-                                 ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(Autoconfigs)),
-                         OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(prcs),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::ValuesIn(emptyConfigs)),
-                         OVInferRequestCheckTensorPrecision::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestCheckTensorPrecision,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
-                                 ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(Multiconfigs)),
-                         OVInferRequestCheckTensorPrecision::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestCheckTensorPrecision,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
-                                 ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(Autoconfigs)),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 }  // namespace

@@ -120,7 +120,7 @@ KERNEL(fc)(
     uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
     uint weights_offset = out_f * INPUT_ELEMENTS_COUNT;
 
-#if COMPRESSED_WEIGHTS
+#if COMPRESSED_WEIGHTS && DECOMPRESSION_SCALE_GROUPS_NUM == 1
     #if DECOMPRESSION_SCALE_LENGTH > 1 && DECOMPRESSION_SCALE_LENGTH % SIMD == 0
         ACCUMULATOR_VEC_TYPE d_scale = BLOCK_READN(ACCUMULATOR_TYPE, TILE_OFM, decompression_scale, out_f);
     #elif DECOMPRESSION_SCALE_LENGTH > 1 && DECOMPRESSION_SCALE_LENGTH % SIMD != 0
@@ -134,9 +134,11 @@ KERNEL(fc)(
         ACCUMULATOR_VEC_TYPE d_scale = decompression_scale[0];
     #endif
 
-    #if !DECOMPRESSION_ZP_TERM
-        ACCUMULATOR_VEC_TYPE d_zp = 0;
-    #elif DECOMPRESSION_ZP_LENGTH > 1 && DECOMPRESSION_ZP_LENGTH % SIMD == 0
+    ACCUMULATOR_TYPE* d_scales = (ACCUMULATOR_TYPE*)(&d_scale);
+#endif
+
+#if COMPRESSED_WEIGHTS && DECOMPRESSION_ZP_TERM && DECOMPRESSION_ZP_GROUPS_NUM == 1
+    #if DECOMPRESSION_ZP_LENGTH > 1 && DECOMPRESSION_ZP_LENGTH % SIMD == 0
         ACCUMULATOR_VEC_TYPE d_zp = BLOCK_READN(ACCUMULATOR_TYPE, TILE_OFM, decompression_zp, out_f);
     #elif DECOMPRESSION_ZP_LENGTH > 1 && DECOMPRESSION_ZP_LENGTH % SIMD != 0
         ACCUMULATOR_VEC_TYPE d_zp = 0;
@@ -148,9 +150,7 @@ KERNEL(fc)(
     #else
         ACCUMULATOR_VEC_TYPE d_zp = decompression_zp[0];
     #endif
-
-    ACCUMULATOR_TYPE* ds = (ACCUMULATOR_TYPE*)(&d_scale);
-    ACCUMULATOR_TYPE* dzp = (ACCUMULATOR_TYPE*)(&d_zp);
+    ACCUMULATOR_TYPE* d_zps = (ACCUMULATOR_TYPE*)(&d_zp);
 #endif
 
 #if REALIGN_FP16_OFFSET
@@ -193,7 +193,28 @@ KERNEL(fc)(
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        w[kii * TILE_OFM + fi] = (w[kii * TILE_OFM + fi] - dzp[fi]) * ds[fi];
+                        const uint w_idx = kii * TILE_OFM + fi;
+                        const uint offset_ofm = out_f + fi*SIMD + sglid;
+                        #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                            const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
+                                                     ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                            ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                        #else
+                            ACCUMULATOR_TYPE ds = d_scales[fi];
+                        #endif
+
+                        #if DECOMPRESSION_ZP_TERM
+                            #if DECOMPRESSION_ZP_GROUPS_NUM > 1
+                                const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
+                                                    ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                                ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
+                            #else
+                                ACCUMULATOR_TYPE dzp = d_zps[fi];
+                            #endif
+                        #else
+                            ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
+                        #endif
+                        w[w_idx] = (w[w_idx] - dzp) * ds;
                     }
                 }
             #endif
@@ -230,7 +251,28 @@ KERNEL(fc)(
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        w[kii * TILE_OFM + fi] = (w[kii * TILE_OFM + fi] - dzp[fi]) * ds[fi];
+                        const uint w_idx = kii * TILE_OFM + fi;
+                        uint offset_ofm = out_f + fi*SIMD + get_sub_group_local_id();
+                        #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                            const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
+                                                     ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                            ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                        #else
+                            ACCUMULATOR_TYPE ds = d_scales[fi];
+                        #endif
+
+                        #if DECOMPRESSION_ZP_TERM
+                            #if DECOMPRESSION_ZP_GROUPS_NUM > 1
+                                const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
+                                                    ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                                ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
+                            #else
+                                ACCUMULATOR_TYPE dzp = d_zps[fi];
+                            #endif
+                        #else
+                            ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
+                        #endif
+                        w[w_idx] = (w[w_idx] - dzp) * ds;
                     }
                 }
             #endif

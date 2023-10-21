@@ -17,7 +17,7 @@ Converting TensorFlow 1 Models
 Converting Frozen Model Format
 +++++++++++++++++++++++++++++++
 
-To convert a TensorFlow model, use the ``*mo*`` script to simply convert a model with a path to the input model ``*.pb*`` file:
+To convert a TensorFlow model, use the ``*mo*`` script to simply convert a model with a path to the input model *.pb* file:
 
 .. code-block:: sh
 
@@ -30,7 +30,7 @@ Converting Non-Frozen Model Formats
 There are three ways to store non-frozen TensorFlow models and convert them by model conversion API:
 
 1. **Checkpoint**. In this case, a model consists of two files: ``inference_graph.pb`` (or ``inference_graph.pbtxt``) and ``checkpoint_file.ckpt``.
-If you do not have an inference graph file, refer to the `Freezing Custom Models in Python <#Freezing-Custom-Models-in-Python>`__  section.
+If you do not have an inference graph file, refer to the `Freezing Custom Models in Python <#freezing-custom-models-in-python>`__  section.
 To convert the model with the inference graph in ``.pb`` format, run the `mo` script with a path to the checkpoint file:
 
 .. code-block:: sh
@@ -139,7 +139,7 @@ It is essential to freeze the model before pruning. Use the following code snipp
 Keras H5
 ++++++++
 
-If you have a model in the HDF5 format, load the model using TensorFlow 2 and serialize it in the
+If you have a model in HDF5 format, load the model using TensorFlow 2 and serialize it to
 SavedModel format. Here is an example of how to do it:
 
 .. code-block:: py

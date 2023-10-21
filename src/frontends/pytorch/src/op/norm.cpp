@@ -259,7 +259,7 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
             auto input_rank = x.get_partial_shape().rank();
             if (input_rank.is_static() && input_rank.get_length() == 2) {
                 result = frobenius_norm(context, x, dim, keep_dim);
-            } else if (input_rank.is_static() && input_rank.get_length() == 1) {
+            } else if (input_rank.is_dynamic() || input_rank.get_length() == 1) {
                 result = norm_vector(context, x, dim, 2, keep_dim);
             } else {
                 FRONT_END_OP_CONVERSION_CHECK(false,

@@ -6,7 +6,7 @@
 #include <shared_test_classes/single_layer/convolution_backprop_data.hpp>
 
 #include "cpu_shape.h"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/convolution_params.hpp"

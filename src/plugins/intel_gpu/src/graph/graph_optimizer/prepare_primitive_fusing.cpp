@@ -354,14 +354,13 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 }
                 case data_types::f16: {
                     cldnn::memory_ptr new_mem = p.get_engine().allocate_memory(original_mem->get_layout());
-                    mem_lock<uint16_t, mem_lock_type::write> new_bias_mem(new_mem, p.get_stream());
-                    mem_lock<uint16_t, mem_lock_type::read> original_bias_mem(original_mem, p.get_stream());
-                    mem_lock<uint16_t, mem_lock_type::read> second_bias_mem(second_mem, p.get_stream());
-                    uint16_t* original_data = original_bias_mem.data();
-                    uint16_t* new_data = second_bias_mem.data();
+                    mem_lock<ov::float16, mem_lock_type::write> new_bias_mem(new_mem, p.get_stream());
+                    mem_lock<ov::float16, mem_lock_type::read> original_bias_mem(original_mem, p.get_stream());
+                    mem_lock<ov::float16, mem_lock_type::read> second_bias_mem(second_mem, p.get_stream());
+                    ov::float16* original_data = original_bias_mem.data();
+                    ov::float16* new_data = second_bias_mem.data();
                     for (size_t i = 0; i < original_bias_mem.size(); i++) {
-                        float new_val = half_to_float(original_data[i]) + half_to_float(new_data[i]);
-                        new_bias_mem[i] = float_to_half(new_val);
+                        new_bias_mem[i] = original_data[i] + new_data[i];
                     }
 
                     original_node.attach_memory(new_mem);
@@ -853,7 +852,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto& input_lo = quantize_node.get_dependency(1);
             auto& input_hi = quantize_node.get_dependency(2);
             bool should_fuse = input_data.is_type<binary_convolution>() &&
-                               ((out_dt == data_types::bin &&
+                               ((out_dt == data_types::u1 &&
                                quantize_node.get_dependencies().size() == 5 &&
                                ((in_layout.feature() == input_lo.get_output_layout().feature() &&
                                  in_layout.feature() == input_hi.get_output_layout().feature()) ||
@@ -1222,8 +1221,9 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
         return format::find_format(new_order, fmt.block_sizes());
     };
 
-    auto itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
+    auto& proc_order = p.get_processing_order();
+    auto itr = proc_order.begin();
+    while (itr != proc_order.end()) {
         auto& node = *itr++;
 
         if (!node->is_type<permute>())
@@ -1272,6 +1272,32 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
 
         p.replace(prev_const, new_const_node);
         new_const_node.recalc_output_layout(false);
+
+        // Add format reorder in case of onednn to avoid overhead during execution on weights memory allocation
+        if (_lo.get_preferred_impl_type(const_cast<program_node&>(*weightable_node), format::any /*dummy*/) == impl_types::onednn) {
+            auto next_node = new_const_node.get_users().front();
+            bool can_be_fused = next_node->is_type<reorder>() &&
+                                next_node->as<reorder>().is_simple_reorder() &&
+                                next_node->get_users().size() == 1;
+            if (can_be_fused) {
+                layout reorder_layout = next_node->get_output_layout();
+                reorder_layout.format = format::bfyx;
+
+                auto new_reorder = std::make_shared<reorder>(next_node->id() + "_reorder_fmt", new_const_node.id(), reorder_layout);
+                auto& new_reorder_node = p.get_or_create(new_reorder);
+                p.replace(*next_node, new_reorder_node);
+                new_reorder_node.recalc_output_layout(false);
+                itr = std::find(proc_order.begin(), proc_order.end(), &new_reorder_node);
+            } else {
+                layout reorder_layout = new_const_node.get_output_layout();
+                reorder_layout.format = format::bfyx;
+
+                auto new_reorder = std::make_shared<reorder>(new_const_node.id() + "_reorder_fmt", new_const_node.id(), reorder_layout);
+                auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
+                p.add_intermediate(new_reorder_node, *new_const_node.get_users().front(), new_const_node);
+                new_reorder_node.recalc_output_layout(false);
+            }
+        }
     }
 }
 

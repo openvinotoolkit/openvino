@@ -32,7 +32,7 @@ namespace {
 std::string get_mock_engine_path() {
     std::string mock_engine_name("mock_engine");
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              mock_engine_name + IE_BUILD_POSTFIX);
+                                              mock_engine_name + OV_BUILD_POSTFIX);
 }
 
 template <class T>

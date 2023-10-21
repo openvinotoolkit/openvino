@@ -7,18 +7,15 @@ set(TARGET_NAME "benchmark_app")
 file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-ie_add_sample(NAME ${TARGET_NAME}
+ov_add_sample(NAME ${TARGET_NAME}
               SOURCES ${SRC}
               HEADERS ${HDR}
               DEPENDENCIES ${GFLAGS_TARGET} format_reader ie_samples_utils)
 
 # Required nlohmann_json dependency
 
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-endif()
-
 if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_package(PkgConfig QUIET)
     find_package(nlohmann_json QUIET
                  # exception for Ubuntu 18.04, where cmake files for nlohmann_json
                  # are located in a wrong directory

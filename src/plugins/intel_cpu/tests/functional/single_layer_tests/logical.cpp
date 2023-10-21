@@ -3,7 +3,7 @@
 //
 
 #include <shared_test_classes/single_layer/logical.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;

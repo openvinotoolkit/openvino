@@ -208,7 +208,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #endif
         impls.push_back(selected_impl->get_kernel_name());
 
-        if (get_preferred_impl_type() == impl_types::ocl) {
+        auto preferred_impl_type = get_preferred_impl_type();
+        if (preferred_impl_type != impl_types::onednn && preferred_impl_type != impl_types::cpu) {
             json_composite cl_dump_info;
             cl_dump_info.add("batch_hash", selected_impl->get_kernels_dump_info().first);
             cl_dump_info.add("kernel_entry", selected_impl->get_kernels_dump_info().second);
@@ -331,6 +332,8 @@ layout program_node::get_non_padded_output_layout(bool invalidate_users_if_chang
 
 bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_if_changed, size_t idx) {
     merge_output_padding(new_layout.data_padding, idx);
+    OPENVINO_ASSERT(idx < output_layouts.size(), id(), " has invalid index : index is ", std::to_string(idx),
+                                        " but output_layouts length is ", std::to_string(output_layouts.size()));
     new_layout.data_padding = output_layouts[idx].data_padding;
     bool changed = (new_layout != output_layouts[idx]);
     if (changed && invalidate_users_if_changed)  // output_layout has changed! invalidate users

@@ -371,7 +371,7 @@ protected:
         const bool updatePrecision,
         const bool moveSubtract = true) const;
 
-    void updateOutput(
+    bool updateOutput(
         TransformationContext &context,
         std::shared_ptr<ov::Node> lastNode,
         std::shared_ptr<ov::Node> originalNode) const;

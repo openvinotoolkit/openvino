@@ -116,7 +116,7 @@ VVVVF<T> lstm_elt_reference(VVVVF<T>& tempGEMM, VVVVF<T>& cell,
             }
 
             // Convert back to output data type before storing it into the output buffer. Currently, the output
-            // data type may be float or FLOAT16 (half)
+            // data type may be float or ov::float16 (half)
             tempOut[b][0][0][h] = (T)(std::tanh(val) * sigmoid(fp32_ot));
             tempOut[b][1][0][h] = (T)val;
         }
@@ -418,12 +418,12 @@ void generic_lstm_custom_gpu_test(int sequence_len, int direction, int batch_siz
         hasBias, hasInitialHidden, hasInitialCell);
 
     auto& engine = get_test_engine();
-    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ batch_size, sequence_len,  input_size,       1 } });
-    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1,          direction,     input_size,       4 * hidden_size } });
-    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1,          direction,     hidden_size,      4 * hidden_size } });
-    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1,          1,             4 * hidden_size,  direction } });
-    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ batch_size, direction,     hidden_size,      1 } });
-    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ batch_size, direction,     hidden_size,      1 } });
+    memory::ptr input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ batch_size, sequence_len,  input_size,       1 } });
+    memory::ptr weights = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1,          direction,     input_size,       4 * hidden_size } });
+    memory::ptr recurrent = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1,          direction,     hidden_size,      4 * hidden_size } });
+    memory::ptr biases = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1,          1,             4 * hidden_size,  direction } });
+    memory::ptr hidden = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ batch_size, direction,     hidden_size,      1 } });
+    memory::ptr cell = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ batch_size, direction,     hidden_size,      1 } });
     set_values(input, ref_input_vec);
     set_values(weights, ref_weights_vec);
     set_values(recurrent, ref_recurrent_vec);
@@ -680,12 +680,12 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
 
     auto& engine = get_test_engine();
 
-    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {batch_size, sequence_len, input_size, 1} });
-    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, input_size , 4 * hidden_size } });
-    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, hidden_size, 4 * hidden_size } });
-    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, 1, 4 * hidden_size, directions } });
-    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, directions } });
-    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, directions } });
+    memory::ptr input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, {batch_size, sequence_len, input_size, 1} });
+    memory::ptr weights = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, directions, input_size , 4 * hidden_size } });
+    memory::ptr recurrent = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, directions, hidden_size, 4 * hidden_size } });
+    memory::ptr biases = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 1, 4 * hidden_size, directions } });
+    memory::ptr hidden = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { batch_size, 1, hidden_size, directions } });
+    memory::ptr cell = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { batch_size, 1, hidden_size, directions } });
 
     set_values(input, ref_input_vec);
     set_values(weights, ref_weights_vec);
@@ -844,12 +844,12 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions, bool is_c
 
     auto& engine = get_test_engine();
 
-    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value,format, {batch_size, sequence_len, input_size, 1} });
-    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, input_size , 4 * hidden_size } });
-    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, hidden_size, 4 * hidden_size } });
-    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, 1, 4 * hidden_size, directions } });
-    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format, { batch_size, 1, hidden_size, directions } });
-    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format, { batch_size, 1, hidden_size, directions } });
+    memory::ptr input = engine.allocate_memory({ ov::element::from<T>(),format, {batch_size, sequence_len, input_size, 1} });
+    memory::ptr weights = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, directions, input_size , 4 * hidden_size } });
+    memory::ptr recurrent = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, directions, hidden_size, 4 * hidden_size } });
+    memory::ptr biases = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 1, 4 * hidden_size, directions } });
+    memory::ptr hidden = engine.allocate_memory({ ov::element::from<T>(), format, { batch_size, 1, hidden_size, directions } });
+    memory::ptr cell = engine.allocate_memory({ ov::element::from<T>(), format, { batch_size, 1, hidden_size, directions } });
 
     set_values(input, ref_input_vec);
     set_values(weights, ref_weights_vec);
@@ -1025,12 +1025,12 @@ void lstm_gpu_users_test(bool is_caching_test = false) {
 
     auto& engine = get_test_engine();
 
-    memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {batch_size, sequence_len, input_size, 1} });
-    memory::ptr weights = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, input_size , 4 * hidden_size } });
-    memory::ptr recurrent = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, directions, hidden_size, 4 * hidden_size } });
-    memory::ptr biases = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, 1, 4 * hidden_size, directions } });
-    memory::ptr hidden = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, directions } });
-    memory::ptr cell = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, directions } });
+    memory::ptr input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, {batch_size, sequence_len, input_size, 1} });
+    memory::ptr weights = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, directions, input_size , 4 * hidden_size } });
+    memory::ptr recurrent = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, directions, hidden_size, 4 * hidden_size } });
+    memory::ptr biases = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 1, 4 * hidden_size, directions } });
+    memory::ptr hidden = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { batch_size, 1, hidden_size, directions } });
+    memory::ptr cell = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { batch_size, 1, hidden_size, directions } });
 
     set_values(input, ref_input_vec);
     set_values(weights, ref_weights_vec);
@@ -1150,7 +1150,7 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 
 	auto& engine = get_test_engine();
 
-	memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {batch_size, sequence_len, input_size, 1} });
+	memory::ptr input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, {batch_size, sequence_len, input_size, 1} });
 	set_values(input, ref_input_vec);
 
 	std::vector<memory::ptr> weights;
@@ -1159,20 +1159,20 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 	std::vector<memory::ptr> hidden;
 	std::vector<memory::ptr> cell;
 	for (int i = 0; i < layers; ++i) {
-		weights.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, direction, i == 0 ? input_size : hidden_size, 4 * hidden_size } }));
+		weights.push_back(engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, direction, i == 0 ? input_size : hidden_size, 4 * hidden_size } }));
 		set_values(weights[i], ref_weights_vec[i]);
-		recurrent.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, direction, hidden_size, 4 * hidden_size } }));
+		recurrent.push_back(engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, direction, hidden_size, 4 * hidden_size } }));
 		set_values(recurrent[i], ref_recurrent_vec[i]);
 		if (has_bias) {
-			biases.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { 1, 1, 4 * hidden_size, direction } }));
+			biases.push_back(engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 1, 4 * hidden_size, direction } }));
 			set_values(biases[i], ref_bias_vec[i]);
 		}
 		if (has_initial_hidden) {
-			hidden.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, direction } }));
+			hidden.push_back(engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { batch_size, 1, hidden_size, direction } }));
 			set_values(hidden[i], ref_hidden_vec[i]);
 		}
 		if (has_initial_cell) {
-			cell.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, { batch_size, 1, hidden_size, direction} }));
+			cell.push_back(engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { batch_size, 1, hidden_size, direction} }));
 			set_values(cell[i], ref_cell_vec[i]);
 		}
 	}
@@ -1390,7 +1390,7 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
 
     auto& engine = get_test_engine();
     tensor input_tensor = { batch_size, sequence_len, input_size, 1 };
-    layout layout = { type_to_data_type<T>::value, cldnn::format::bfyx, input_tensor };
+    layout layout = { ov::element::from<T>(), cldnn::format::bfyx, input_tensor };
 
     memory::ptr input = engine.allocate_memory(layout);
     set_values(input, ref_input_vec);
@@ -1410,27 +1410,27 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
         std::vector<memory::ptr> per_chain_cell;
 
         for (size_t layer = 0; layer < layers; layer++) {
-            per_chain_weights.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {1, directions, layer == 0 ? input_size : hidden_size, 4 * hidden_size} }));
+            per_chain_weights.push_back(engine.allocate_memory({ ov::element::from<T>(), format::bfyx, {1, directions, layer == 0 ? input_size : hidden_size, 4 * hidden_size} }));
             set_values(per_chain_weights[layer], ref_weights_vec[chain][layer]);
 
-            per_chain_recurrent.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {1, directions, hidden_size, 4 * hidden_size} }));
+            per_chain_recurrent.push_back(engine.allocate_memory({ ov::element::from<T>(), format::bfyx, {1, directions, hidden_size, 4 * hidden_size} }));
             set_values(per_chain_recurrent[layer], ref_recurrent_vec[chain][layer]);
 
             if (has_bias)
             {
-                per_chain_biases.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {1, 1, 4 * hidden_size, directions} }));
+                per_chain_biases.push_back(engine.allocate_memory({ ov::element::from<T>(), format::bfyx, {1, 1, 4 * hidden_size, directions} }));
                 set_values(per_chain_biases[layer], ref_bias_vec[chain][layer]);
             }
 
             if (has_initial_hidden)
             {
-                per_chain_hidden.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {1, 1, hidden_size, directions} }));
+                per_chain_hidden.push_back(engine.allocate_memory({ ov::element::from<T>(), format::bfyx, {1, 1, hidden_size, directions} }));
                 set_values(per_chain_hidden[layer], ref_hidden_vec[chain][layer]);
             }
 
             if (has_initial_cell)
             {
-                per_chain_cell.push_back(engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, {1, 1, hidden_size, directions} }));
+                per_chain_cell.push_back(engine.allocate_memory({ ov::element::from<T>(), format::bfyx, {1, 1, hidden_size, directions} }));
                 set_values(per_chain_cell[layer], ref_cell_vec[chain][layer]);
             }
         }
@@ -1935,115 +1935,115 @@ TEST(lstm_gpu, generic_lstm_chained_stacked_bidirectional_f32) {
 
 // FP16 Half precision tests
 TEST(lstm_gemm_gpu, generic_lstm_gemm_test_f16) {
-    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, true, true);
+    generic_lstm_gemm_gpu_test<ov::float16>(1, 1, 3, 6, 2, true, true);
 }
 
 TEST(lstm_gemm_gpu, generic_lstm_gemm_no_bias_f16) {
-    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, false, true);
+    generic_lstm_gemm_gpu_test<ov::float16>(1, 1, 3, 6, 2, false, true);
 }
 
 TEST(lstm_gemm_gpu, generic_lstm_gemm_no_hidden_f16) {
-    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, true, false);
+    generic_lstm_gemm_gpu_test<ov::float16>(1, 1, 3, 6, 2, true, false);
 }
 
 TEST(lstm_gemm_gpu, generic_lstm_gemm_no_hidden_bias_f16) {
-    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, false, false);
+    generic_lstm_gemm_gpu_test<ov::float16>(1, 1, 3, 6, 2, false, false);
 }
 
 TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_f16) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.3f, false);
+    generic_lstm_elt_gpu_test<ov::float16>(1, 1, 4, 6, 3, true, 0.3f, false);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_test_input_forget_f16) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.f, true);
+    generic_lstm_elt_gpu_test<ov::float16>(1, 1, 4, 6, 3, true, 0.f, true);
 }
 
 TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_input_forget_f16) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.5f, true);
+    generic_lstm_elt_gpu_test<ov::float16>(1, 1, 4, 6, 3, true, 0.5f, true);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_test_f16) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.f, false);
+    generic_lstm_elt_gpu_test<ov::float16>(1, 1, 4, 6, 3, true, 0.f, false);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_no_cell_f16) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, false, 0.f, false);
+    generic_lstm_elt_gpu_test<ov::float16>(1, 1, 4, 6, 3, false, 0.f, false);
 }
 
 TEST(lstm_gpu, generic_lstm_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, false, true, true, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, false, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_hidden_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, true, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, true, false, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_hidden_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, true, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, false, false, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_cell_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, true, false, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, true, true, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_cell_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, true, false, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, false, true, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_hidden_cell_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, false, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, true, false, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_hidden_cell_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, false, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, false, false, false, 0, false);
 }
 
 TEST(DISABLED_lstm_gpu, generic_lstm_clip_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 0);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 0);
 }
 
 TEST(lstm_gpu, generic_lstm_input_forget_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.f, 1);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, true, true, true, 0.f, 1);
 }
 
 TEST(DISABLED_lstm_gpu, generic_lstm_clip_input_forget_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 1);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 1);
 }
 
 TEST(lstm_gpu, generic_lstm_offset_order_ifoz_f16) {
     default_offset_type = lstm_weights_order::ifoz;
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false);
     default_offset_type = lstm_weights_order::iofz;
 }
 
 TEST(lstm_gpu, generic_lstm_canonical_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 1, 1, 1, 1, 1, true, true, true, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 1, 1, 1, 1, 1, true, true, true, 0, false);
 }
 
 // bidirectional support
 TEST(lstm_gpu, generic_lstm_bi_bias_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, false, false, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 2, 2, 3, 4, true, false, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_bi_bias_hidden_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, false, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 2, 2, 3, 4, true, true, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_bi_bias_hidden_cell_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, true, 0, false);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 2, 2, 3, 4, true, true, true, 0, false);
 }
 
 // multi-layer support
 TEST(lstm_gpu, generic_lstm_stacked_seq_f16) {
-    generic_lstm_gpu_test<FLOAT16>(4, 7, 1, 3, 3, 2, true, true, true, 0, false);
+    generic_lstm_gpu_test<ov::float16>(4, 7, 1, 3, 3, 2, true, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_stacked_bi_f16) {
-    generic_lstm_gpu_test<FLOAT16>(4, 7, 2, 3, 3, 2, true, true, true, 0, false);
+    generic_lstm_gpu_test<ov::float16>(4, 7, 2, 3, 3, 2, true, true, true, 0, false);
 }
 
 // TODO: Add tests for the following:
@@ -2300,112 +2300,112 @@ TEST(lstm_gpu, generic_lstm_chained_stacked_bidirectional_f32_cached) {
 
 // FP16 Half precision tests
 TEST(lstm_gemm_gpu, generic_lstm_gemm_test_f16_cached) {
-    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, true, true, true);
+    generic_lstm_gemm_gpu_test<ov::float16>(1, 1, 3, 6, 2, true, true, true);
 }
 
 TEST(lstm_gemm_gpu, generic_lstm_gemm_no_bias_f16_cached) {
-    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, false, true, true);
+    generic_lstm_gemm_gpu_test<ov::float16>(1, 1, 3, 6, 2, false, true, true);
 }
 
 TEST(lstm_gemm_gpu, generic_lstm_gemm_no_hidden_f16_cached) {
-    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, true, false, true);
+    generic_lstm_gemm_gpu_test<ov::float16>(1, 1, 3, 6, 2, true, false, true);
 }
 
 TEST(lstm_gemm_gpu, generic_lstm_gemm_no_hidden_bias_f16_cached) {
-    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, false, false, true);
+    generic_lstm_gemm_gpu_test<ov::float16>(1, 1, 3, 6, 2, false, false, true);
 }
 
 TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_f16_cached) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.3f, false, true);
+    generic_lstm_elt_gpu_test<ov::float16>(1, 1, 4, 6, 3, true, 0.3f, false, true);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_test_input_forget_f16_cached) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.f, true, true);
+    generic_lstm_elt_gpu_test<ov::float16>(1, 1, 4, 6, 3, true, 0.f, true, true);
 }
 
 TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_input_forget_f16_cached) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.5f, true, true);
+    generic_lstm_elt_gpu_test<ov::float16>(1, 1, 4, 6, 3, true, 0.5f, true, true);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_test_f16_cached) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.f, false, true);
+    generic_lstm_elt_gpu_test<ov::float16>(1, 1, 4, 6, 3, true, 0.f, false, true);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_no_cell_f16_cached) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, false, 0.f, false, true);
+    generic_lstm_elt_gpu_test<ov::float16>(1, 1, 4, 6, 3, false, 0.f, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, false, true, true, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, false, true, true, 0, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_no_hidden_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, true, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, true, false, true, 0, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_hidden_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, true, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, false, false, true, 0, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_no_cell_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, true, false, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, true, true, false, 0, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_cell_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, true, false, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, false, true, false, 0, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_no_hidden_cell_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, false, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, true, false, false, 0, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_hidden_cell_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, false, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 5, 4, 3, false, false, false, 0, false, true);
 }
 
 TEST(DISABLED_lstm_gpu, generic_lstm_clip_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 0, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 0, true);
 }
 
 TEST(DISABLED_lstm_gpu, generic_lstm_input_forget_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.f, 1, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, true, true, true, 0.f, 1, true);
 }
 
 TEST(DISABLED_lstm_gpu, generic_lstm_clip_input_forget_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 1, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 1, true);
 }
 
 TEST(lstm_gpu, generic_lstm_offset_order_ifoz_f16_cached) {
     default_offset_type = lstm_weights_order::ifoz;
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
     default_offset_type = lstm_weights_order::iofz;
 }
 
 TEST(lstm_gpu, generic_lstm_canonical_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 1, 1, 1, 1, 1, true, true, true, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 1, 1, 1, 1, 1, true, true, true, 0, false, true);
 }
 
 // bidirectional support
 TEST(lstm_gpu, generic_lstm_bi_bias_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, false, false, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 2, 2, 3, 4, true, false, false, 0, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_bi_bias_hidden_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, false, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 2, 2, 3, 4, true, true, false, 0, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_bi_bias_hidden_cell_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, true, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(1, 7, 2, 2, 3, 4, true, true, true, 0, false, true);
 }
 
 TEST(lstm_gpu, generic_lstm_stacked_seq_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(4, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(4, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
 }
 #endif
 TEST(lstm_gpu, generic_lstm_stacked_bi_f16_cached) {
-    generic_lstm_gpu_test<FLOAT16>(4, 7, 2, 3, 3, 2, true, true, true, 0, false, true);
+    generic_lstm_gpu_test<ov::float16>(4, 7, 2, 3, 3, 2, true, true, true, 0, false, true);
 }
