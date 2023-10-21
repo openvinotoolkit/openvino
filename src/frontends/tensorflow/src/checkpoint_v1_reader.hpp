@@ -12,17 +12,17 @@
 #include "checkpoint_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "saved_tensor_slice.pb.h"
-#include "tensor_shape.pb.h"
-#include "types.pb.h"
+#include "ov_tensorflow/saved_tensor_slice.pb.h"
+#include "ov_tensorflow/tensor_shape.pb.h"
+#include "ov_tensorflow/types.pb.h"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 // stores information about shape, type, and shard id for Variable
 struct VariableInfo {
-    ::ov_tensorflow::TensorShapeProto variable_shape;
-    ::ov_tensorflow::DataType variable_type;
+    ::tensorflow::TensorShapeProto variable_shape;
+    ::tensorflow::DataType variable_type;
     int32_t shard_id;
     size_t offset;
     size_t size;
