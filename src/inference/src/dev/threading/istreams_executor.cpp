@@ -628,7 +628,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::update_executor_config(
             }
         } else {
             for (size_t i = 1; i < proc_type_table.size(); i++) {
-                for (size_t j = ov::MAIN_CORE_PROC; j < ov::HYPER_THREADING_PROC; j++) {
+                for (int j = ov::MAIN_CORE_PROC; j < ov::HYPER_THREADING_PROC; j++) {
                     if (proc_type_table[i][j] > 0) {
                         stream_info[ov::NUMBER_OF_STREAMS] =
                             (total_streams + proc_type_table[i][j] > config._streams ? config._streams - total_streams
