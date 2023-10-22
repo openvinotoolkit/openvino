@@ -8,7 +8,7 @@
 
 #include "common_test_utils/test_constants.hpp"
 
-using namespace SubgraphTestsDefinitions;
+using namespace ov::test;
 
 namespace {
 const std::vector<ov::element::Type> types{ov::element::f32, ov::element::f16};

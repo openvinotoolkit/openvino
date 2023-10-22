@@ -133,7 +133,7 @@ target_include_directories(ov_onnx_frontend_tests PRIVATE "${CMAKE_CURRENT_SOURC
 target_compile_definitions(ov_onnx_frontend_tests
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
-        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        SHARED_LIB_SUFFIX="${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 set(ONNX_OPSET_VERSION 17 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})

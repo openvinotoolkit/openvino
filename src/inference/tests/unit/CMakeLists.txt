@@ -19,3 +19,5 @@ ov_add_test_target(
         LABELS
             OV UNIT RUNTIME
 )
+
+ov_set_threading_interface_for(${TARGET_NAME})

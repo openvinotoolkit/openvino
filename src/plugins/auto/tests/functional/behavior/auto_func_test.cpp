@@ -30,7 +30,7 @@ namespace {
 std::string get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              mockEngineName + IE_BUILD_POSTFIX);
+                                              mockEngineName + OV_BUILD_POSTFIX);
 }
 
 template <class T>
@@ -623,7 +623,7 @@ void ov::auto_plugin::tests::AutoFuncTests::reg_plugin(ov::Core& core,
 
     injectProxyEngine(plugin.get());
     core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                            std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                            std::string("mock_engine") + OV_BUILD_POSTFIX),
                          device_name,
                          properties);
     m_mock_plugins.emplace_back(plugin);

@@ -18,9 +18,11 @@
 #include <ie_ngraph_utils.hpp>
 
 #include <snippets/op/subgraph.hpp>
+#include <snippets/lowered/pass/optimize_domain.hpp>
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "utils/cpu_utils.hpp"
 #include "emitters/x64/cpu_generator.hpp"
+#include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
 #include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
@@ -461,7 +463,7 @@ void Snippet::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& call_args,
 }
 
 void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& dom = exec_domain;
+    const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
@@ -474,7 +476,7 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
 }
 
 void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& work_size = exec_domain;
+    const auto& work_size = parallel_exec_domain;
     parallel_nt(0, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         update_ptrs(call_args, inMemPtrs, outMemPtrs);
@@ -552,65 +554,20 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(const SnippetAttrs& attrs, bool 
 
     if (canonicalShape.is_dynamic())
         IE_THROW() << "Snippets: Canonicalization returned dynamic shape in static pipeline";
-    masterShape = canonicalShape.get_shape();
-    const auto &body = snippet_for_generation->body_ptr();
-    normInputShapes.clear();
-    for (const auto& p : body->get_parameters())
-        normInputShapes.emplace_back(p->get_output_shape(0));
-    normOutputShapes.clear();
-    for (const auto& r : body->get_results())
-        normOutputShapes.emplace_back(r->get_input_shape(0));
-
-    // prepare
-    masterShape = getNormalizedDimsBySize(masterShape, tensorRank);
-    std::vector<size_t> original_input_shape_ranks;
-    for (auto& pshape : normInputShapes) {
-        original_input_shape_ranks.push_back(pshape.size());
-        pshape = getNormalizedDimsBySize(pshape, tensorRank);
-    }
-    for (auto& pshape : normOutputShapes)
-        pshape = getNormalizedDimsBySize(pshape, tensorRank);
-
-    tileRank = 1;
-    bool dims_collapsed = false;
-    fullWorkAmount = std::accumulate(masterShape.begin(), masterShape.end(), 1, std::multiplies<size_t>());
-    if (snippet_for_generation->has_domain_sensitive_ops()) {
-        tileRank = 2;
-    } else {
-        dims_collapsed = optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
-    }
-    exec_domain = masterShape;
-
-    std::vector<size_t> scheduler_work_amounts;
-    // rename schedulerWorkAmount to harnessWorkAmount?
-    harnessWorkAmount = fullWorkAmount;
-    const auto rank = exec_domain.size();
-    for (auto i = rank - tileRank; i < rank; i++) {
-        auto& dim = exec_domain[i];
-        harnessWorkAmount /= dim;
-        scheduler_work_amounts.push_back(dim);
-        dim = 1;
-    }
-
-    if (dims_collapsed) {
-        std::vector<ov::Shape> new_shapes;
-        for (size_t i = 0; i < normInputShapes.size(); i++) {
-            const auto norm_shape = normInputShapes[i];
-            size_t ndims_to_skip = norm_shape.size() - original_input_shape_ranks[i];
-            new_shapes.emplace_back(norm_shape.begin() + ndims_to_skip, norm_shape.end());
-        }
-        snippet_for_generation->reshape_body(new_shapes);
-    }
-    snippet_for_generation->set_master_shape(ov::PartialShape(masterShape));
-    snippet_for_generation->set_tile_rank(tileRank);
+    snippet_for_generation->set_min_parallel_work_amount(static_cast<size_t>(parallel_get_max_threads()));
+    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
+    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
+    snippet_for_generation->set_min_jit_work_amount(256);
 
     // generate
     jit_snippets_compile_args jcp;
-    jcp.master_shape = masterShape;
-    jcp.tile_rank = tileRank;
+    jcp.parallel_executor_ndims = tensorRank;
     generate(&jcp);
     buffer_scratchpad_size = snippet_for_generation->get_buffer_scratchpad_size();
     buffer_scratchpad.resize(buffer_scratchpad_size * parallel_get_max_threads(), 0);
+    parallel_exec_domain = schedule.parallel_exec_domain;
+    harnessWorkAmount = std::accumulate(parallel_exec_domain.begin(), parallel_exec_domain.end(), 1, std::multiplies<size_t>());
+    parallel_exec_domain = getNormalizedDimsBySize(parallel_exec_domain, tensorRank);
 }
 
 ov::PartialShape Snippet::SnippetJitExecutor::canonicalizeBody(bool reshape) {
@@ -626,74 +583,6 @@ ov::PartialShape Snippet::SnippetJitExecutor::canonicalizeBody(bool reshape) {
         const auto& canonicalShape = snippetAttrs.snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
         return canonicalShape;
     }
-}
-
-bool Snippet::SnippetJitExecutor::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vector<VectorDims>& outputShapes,
-                                 VectorDims &domain, size_t& TileRank) const {
-    const size_t minimalConcurrency = parallel_get_max_threads();
-    const size_t minimalJitWorkAmount = 256;
-    const size_t ds = domain.size();
-    if ( ds <= 2 || // not enough dimensions to collapse
-         domain[ds-1] >= minimalJitWorkAmount || // There is enough work for 1D Tiles, no need to collapse
-         domain[ds-1] * domain[ds-2] >= fullWorkAmount / minimalConcurrency) // There won't be enough work for every thread (even one iter) if we collapse
-        return false;
-    auto findDimsToCollapse = [&]() {
-        auto collapseLastDims = [](VectorDims& dims, size_t dimsToCollapse) {
-            if (dimsToCollapse >= dims.size() - 1)
-                IE_THROW() << "Got invalid number of dims to collapse. Expected < " << dims.size() - 1 << " got " << dimsToCollapse;
-            for (int i = dims.size() - 2; i > static_cast<int>(dims.size() - dimsToCollapse - 2); i--) {
-                dims[dims.size() - 1] *= dims[i];
-            }
-
-            for (int i = dims.size() - 2; i >= static_cast<int>(dimsToCollapse); i--) {
-                dims[i] = dims[i - dimsToCollapse];
-            }
-
-            for (int i = dimsToCollapse - 1; i >= 0; i--) {
-                dims[i] = 1;
-            }
-        };
-        int collapsedDims = 0;
-        size_t currentJitWorkAmount = domain[domain.size() - 1];
-        while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount) {
-            if (static_cast<int>(domain.size()) - collapsedDims - 2 < 0)
-                break;
-
-            bool canCollapse = true;
-            for (size_t i = 0; i < inputShapes.size(); i++) {
-                const size_t last = inputShapes[i].size() - 1;
-                if ((inputShapes[i][last - 1] != 1 && inputShapes[i][last] == 1) ||
-                    (inputShapes[i][last - 1] == 1 && inputShapes[i][last] != 1)) {
-                    canCollapse = false;
-                    break;
-                }
-            }
-
-            size_t nextJitWorkAmount = currentJitWorkAmount * domain[domain.size() - 2];
-            if (fullWorkAmount / nextJitWorkAmount >= minimalConcurrency) {
-                currentJitWorkAmount = nextJitWorkAmount;
-                // if we cannot use dim collapsing we should use tile2D
-                if (!canCollapse) {
-                    if (TileRank < maxTileRank) {
-                        TileRank++;
-                        continue;
-                    }
-
-                    break;
-                }
-                collapsedDims++;
-                for (auto &d : inputShapes)
-                    collapseLastDims(d, 1);
-                for (auto &d : outputShapes)
-                    collapseLastDims(d, 1);
-                collapseLastDims(domain, 1);
-            } else {
-                break;
-            }
-        }
-        return collapsedDims > 0;
-    };
-    return findDimsToCollapse();
 }
 
 void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp) {
@@ -726,16 +615,17 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
 #undef SNIPPETS_REGISTER_PASS
 
     ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
-    CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking);
+    CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking)
 
     ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
-    CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
-    // Todo: We don't need shape infer factory now, since shape infer will be done through validate_and_infer_types
-    //  pass std::make_shared<snippets::CPUShapeInferSnippetsFactory>() instead of nullptr, when shape infer is performed on LIR
+    CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert)
+    CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
+    // Note: we need to pass valid shapeInfer factory to generate, so it can be used in OptimizeDomain pass
+    // in all other cases nGraph shape inference will be used until ticket # 113209 (PR 18563) is merged
     schedule = snippet_for_generation->generate(backend_passes,
                                                 control_flow_markup_pipeline,
                                                 control_flow_pipeline,
-                                                nullptr,
+                                                std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
                                                 reinterpret_cast<const void*>(jcp));
 }
 
