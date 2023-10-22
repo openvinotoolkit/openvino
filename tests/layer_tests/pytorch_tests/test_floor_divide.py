@@ -80,7 +80,6 @@ class TestFloorDivide(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_floor_divide_int(self, input_data, other_data, ie_device, precision, ir_version):
-        self.input_tensor = []
         input_tensor = input_data["tensor"]
         if type(input_tensor) is list:
             self.input_tensor = np.random.randint(low=input_data["low"],
@@ -89,12 +88,11 @@ class TestFloorDivide(PytorchLayerTest):
         else:
             self.input_tensor = input_tensor
 
-        self.other_tensor = []
         other_tensor = other_data["tensor"]
         if type(other_tensor) is list:
-            self.other_tensor = np.random.randint(low=input_data["low"],
-                                                  high=input_data["high"],
-                                                  size=input_tensor).astype(np.float32)
+            self.other_tensor = np.random.randint(low=other_data["low"],
+                                                  high=other_data["high"],
+                                                  size=other_tensor).astype(np.float32)
         else:
             self.other_tensor = other_tensor
         self.create_model = self.create_model_int
