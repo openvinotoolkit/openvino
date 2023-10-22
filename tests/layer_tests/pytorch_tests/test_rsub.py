@@ -34,7 +34,7 @@ class TestRsub(PytorchLayerTest):
 
         return model(), ref_net, "aten::rsub"
 
-    @pytest.mark.parametrize('input_data, d_type',
+    @pytest.mark.parametrize('input_data',
     [
         [[2, 3, 4], np.array(5).astype(np.float32), [1]]
     ])
