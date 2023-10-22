@@ -82,7 +82,7 @@ class TestFloorDivide(PytorchLayerTest):
     def test_floor_divide_int(self, input_data, other_data, ie_device, precision, ir_version):
         self.input_tensor = []
         input_tensor = input_data["tensor"]
-        if type(input_tensor) in [int, list]:
+        if type(input_tensor) is list:
             self.input_tensor = np.random.randint(low=input_data["low"],
                                                   high=input_data["high"],
                                                   size=input_tensor).astype(np.float32)
