@@ -1,0 +1,63 @@
+name: JS API
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/bindings/js/**'
+      - '.github/workflows/js_api.yml'
+  push:
+    paths:
+      - 'src/bindings/js/**'
+      - '.github/workflows/js_api.yml'
+    branches:
+      - master
+      - 'releases/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-js-api
+  cancel-in-progress: true
+
+jobs:
+  Build:
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-latest
+    env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      JS_BINDINGS_DIR: ${{ github.workspace }}/openvino/src/bindings/js
+    steps:
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
+
+      #
+      # Dependencies
+      #
+
+      - name: Install dependencies
+        run: sudo -E ${{ env.OPENVINO_REPO }}/scripts/install_dependencies/install_openvino_dependencies.sh -y
+
+      #
+      # Configure JS API
+      #
+
+      - name: Configure JS API
+        working-directory: ${{ env.JS_BINDINGS_DIR }}/node
+        run: npm i
+          
+      - name: Check installed OV
+        run: ls -laR ${{ env.JS_BINDINGS_DIR }}
+
+      #
+      # Tests
+      #
+
+      - name: Run tests
+        working-directory: ${{ env.JS_BINDINGS_DIR }}/node
+        run: |
+          export LD_LIBRARY_PATH=${{ env.JS_BINDINGS_DIR }}/ov_runtime/runtime/lib/intel64/:$LD_LIBRARY_PATH
+          npm test
