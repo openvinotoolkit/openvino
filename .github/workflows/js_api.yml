@@ -30,7 +30,7 @@ jobs:
             shell: 'bash'
           - machine: 'windows-2022'
             shell: 'cmd'
-          - machine: 'macos-12'
+          - machine: 'macos-11'
             shell: 'bash'
     defaults:
       run:
