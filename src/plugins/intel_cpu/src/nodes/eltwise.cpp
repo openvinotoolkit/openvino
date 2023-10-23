@@ -2853,7 +2853,13 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return false;
 
     // TODO: supported only via reference executor
-    if (one_of(node->getAlgorithm(),
+    if (one_of(getAlgorithm(),
+               Algorithm::EltwiseLog,
+               Algorithm::EltwiseBitwiseAnd,
+               Algorithm::EltwiseBitwiseNot,
+               Algorithm::EltwiseBitwiseOr,
+               Algorithm::EltwiseBitwiseXor) ||
+        one_of(node->getAlgorithm(),
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseAnd,
                Algorithm::EltwiseBitwiseNot,
