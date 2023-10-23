@@ -222,7 +222,7 @@ public:
     }
 
     /**
-     * @brief Get only properties that are suppored by specified device
+     * @brief Get only properties that are supported by specified device
      * @param full_device_name Name of a device (can be either virtual or hardware)
      * @param properties Properties that can contains configs that are not supported by device
      * @return map of properties that are supported by device
