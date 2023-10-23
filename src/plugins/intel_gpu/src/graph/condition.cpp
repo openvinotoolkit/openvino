@@ -250,4 +250,16 @@ void condition_inst::update_output_layout() {
         }
     }
 }
+
+void condition_inst::postprocess_output_memory(network::ptr executed_net, cldnn::condition::branch& branch) {
+    _outputs.clear();
+    _outputs.resize(outputs_memory_count());
+    for (auto out_mem_map : branch.output_map) {
+        auto out_mem_idx = out_mem_map.first;
+        auto inner_out_id = out_mem_map.second;
+        auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
+        _outputs[out_mem_idx] = mem_ptr;
+        GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
+    }
+}
 }  // namespace cldnn
