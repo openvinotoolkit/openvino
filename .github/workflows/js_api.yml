@@ -29,7 +29,7 @@ jobs:
           - machine: 'ubuntu-22.04'
             shell: 'bash'
           - machine: 'windows-2022'
-            shell: 'pwsh'
+            shell: 'cmd'
           - machine: 'macos-12'
             shell: 'bash'
     defaults:
@@ -61,10 +61,6 @@ jobs:
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
         run: npm i
 
-      - name: List bin files
-        if: ${{ contains(matrix.machine, 'windows') }}
-        run: Get-ChildItem -Recurse ${{ env.JS_BINDINGS_DIR }}
-
       #
       # Tests
       #
@@ -72,30 +68,15 @@ jobs:
       - name: Run tests (Unix)
         if: ${{ !contains(matrix.machine, 'windows') }}
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
-        run: |
-          export LD_LIBRARY_PATH=${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/runtime/lib/intel64/:$LD_LIBRARY_PATH
-          npm test
+        run: source ${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/setupvars.sh && npm test
 
       - name: Run tests (Windows)
         if: ${{ contains(matrix.machine, 'windows') }}
-        continue-on-error: true
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
-        run: |
-          $env:Path = '${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/runtime/lib/intel64/;' + $env:Path
-          npm test
+        run: call "${{ env.JS_BINDINGS_DIR }}\\node\\ov_runtime\\setupvars.bat" && npm test
 
-      - name: Run tests (Windows) CMD
-        shell: cmd
-        continue-on-error: true
-        if: ${{ contains(matrix.machine, 'windows') }}
+      - name: Run tests
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
-        run: |
-          set path=%path%;${{ env.JS_BINDINGS_DIR }}\node\ov_runtime\runtime\lib\intel64
-          npm test
-
-      - name: Run tests (Windows) setupvars
-        shell: cmd
-        if: ${{ contains(matrix.machine, 'windows') }}
-        working-directory: ${{ env.JS_BINDINGS_DIR }}/node
-        run: |
-          call "${{ env.JS_BINDINGS_DIR }}\\node\\ov_runtime\\setupvars.bat" && npm test
+        run: ${{ env.SETUPVARS_EXEC }} && npm test
+        env:
+          SETUPVARS_EXEC: ${{ contains(matrix.machine, 'windows') && "call ${{ env.JS_BINDINGS_DIR }}\\node\\ov_runtime\\setupvars.bat" || "source ${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/setupvars.sh" }}
