@@ -77,6 +77,6 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
-        run: ${{ env.SETUPVARS_EXEC }} && npm test
+        run: "${{ env.SETUPVARS_EXEC }}" && npm test
         env:
-          SETUPVARS_EXEC: ${{ contains(matrix.machine, 'windows') && 'call ${{ env.JS_BINDINGS_DIR }}\\node\\ov_runtime\\setupvars.bat' || 'source ${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/setupvars.sh' }}
+          SETUPVARS_EXEC: ${{ contains(matrix.machine, 'windows') && "call ${{ env.JS_BINDINGS_DIR }}\\node\\ov_runtime\\setupvars.bat" || "source ${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/setupvars.sh" }}
