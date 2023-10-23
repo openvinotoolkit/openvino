@@ -8,8 +8,7 @@
 #include <numeric>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/reference/adaptive_avg_pool.hpp"
 
 namespace ov {
@@ -19,7 +18,7 @@ void adaptive_max_pool_1d(const T* arg, T* out, IT* indices, size_t h_in, size_t
     for (size_t i = 0; i < h_out; i++) {
         auto from = arg + adaptive_pool::window_start(i, h_in, h_out);
         auto to = arg + adaptive_pool::window_end(i, h_in, h_out);
-        NGRAPH_CHECK(to - from != 0, "AdaptiveMaxPool elements == 0, must be non-zero");
+        OPENVINO_ASSERT(to - from != 0, "AdaptiveMaxPool elements == 0, must be non-zero");
         auto it = std::max_element(from, to);
         out[i] = static_cast<T>(*it);
         indices[i] = static_cast<IT>(it - arg);
@@ -33,7 +32,8 @@ void adaptive_max_pool_2d(const T* arg, T* out, IT* indices, size_t h_in, size_t
         for (size_t j = 0; j < w_out; j++) {
             size_t w_start = adaptive_pool::window_start(j, w_in, w_out);
             size_t w_end = adaptive_pool::window_end(j, w_in, w_out);
-            NGRAPH_CHECK((w_end - w_start) * (h_end - h_start) != 0, "AdaptiveMaxPool elements == 0, must be non-zero");
+            OPENVINO_ASSERT((w_end - w_start) * (h_end - h_start) != 0,
+                            "AdaptiveMaxPool elements == 0, must be non-zero");
             auto result = arg + h_start * w_in + w_start;
             for (size_t n = h_start; n < h_end; n++) {
                 auto from = arg + n * w_in + w_start;
@@ -65,8 +65,8 @@ void adaptive_max_pool_3d(const T* arg,
             for (size_t k = 0; k < w_out; k++) {
                 size_t w_start = adaptive_pool::window_start(k, w_in, w_out);
                 size_t w_end = adaptive_pool::window_end(k, w_in, w_out);
-                NGRAPH_CHECK((w_end - w_start) * (h_end - h_start) != 0,
-                             "AdaptiveMaxPool elements == 0, must be non-zero");
+                OPENVINO_ASSERT((w_end - w_start) * (h_end - h_start) != 0,
+                                "AdaptiveMaxPool elements == 0, must be non-zero");
                 auto result = arg + d_start * h_in * w_in + h_start * w_in + w_start;
                 for (size_t n = d_start; n < d_end; n++) {
                     for (size_t m = h_start; m < h_end; m++) {
@@ -84,8 +84,8 @@ void adaptive_max_pool_3d(const T* arg,
 }
 template <typename T, typename IT>
 void adaptive_max_pool(const T* arg, T* out, IT* selected_indices, const Shape& arg_shape, const Shape& out_shape) {
-    NGRAPH_CHECK(arg_shape.size() == out_shape.size() && 2 < arg_shape.size() && arg_shape.size() < 6,
-                 "AdaptiveAvgPool supports only 3D, 4D and 5D input shape");
+    OPENVINO_ASSERT(arg_shape.size() == out_shape.size() && 2 < arg_shape.size() && arg_shape.size() < 6,
+                    "AdaptiveAvgPool supports only 3D, 4D and 5D input shape");
     size_t channel_size = 1;
     for (size_t i = 2; i < arg_shape.size(); i++) {
         channel_size *= arg_shape[i];

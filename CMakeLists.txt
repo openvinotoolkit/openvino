@@ -13,8 +13,14 @@ else()
         # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
         cmake_minimum_required(VERSION 3.20)
     else()
-        # default choice
-        cmake_minimum_required(VERSION 3.13)
+        if(WIN32)
+            # 3.16: FindPython3.cmake can find Python via -DPython3_EXECUTABLE
+            # 3.18: FindPython3.cmake can find Python automatically from virtualenv
+            cmake_minimum_required(VERSION 3.16)
+        else()
+            # 3.13: default choice
+            cmake_minimum_required(VERSION 3.13)
+        endif()
     endif()
 endif()
 
@@ -24,12 +30,11 @@ endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
-find_package(IEDevScripts REQUIRED
+find_package(OpenVINODeveloperScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
-include(CTest)
 include(cmake/features.cmake)
 
 # These options are shared with 3rdparty plugins by means of developer package
@@ -123,7 +128,7 @@ function(openvino_developer_export_targets)
 endfunction()
 
 # add target with processed tests model zoo
-if (ENABLE_TESTS)
+if(ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
@@ -135,14 +140,20 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
 endif()
 
 # Enable interpreter backend for tests
-if (ENABLE_TESTS OR ENABLE_TEMPLATE)
+if(ENABLE_TESTS OR ENABLE_TEMPLATE)
     add_subdirectory(src/plugins/template/backend)
 endif()
+
 include(cmake/extra_modules.cmake)
 add_subdirectory(docs)
 add_subdirectory(tools)
 add_subdirectory(scripts)
 add_subdirectory(licensing)
+
+if(ENABLE_TESTS)
+    # layers and other more high-level / e2e tests
+    add_subdirectory(tests)
+endif()
 
 #
 # CPack
@@ -151,4 +162,4 @@ add_subdirectory(licensing)
 # provides a callback function to describe each component in repo
 include(cmake/packaging/packaging.cmake)
 
-ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+ov_cpack(${OV_CPACK_COMPONENTS_ALL})

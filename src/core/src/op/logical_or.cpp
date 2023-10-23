@@ -48,7 +48,7 @@ bool evaluate_logor(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1);
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_logor, boolean, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_logor, boolean, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;
@@ -61,7 +61,7 @@ bool evaluate_logor(const HostTensorPtr& arg0,
 bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalOr_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return logor::evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
 }

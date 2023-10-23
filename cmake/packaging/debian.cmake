@@ -47,9 +47,9 @@ macro(ov_cpack_settings)
         string(TOUPPER ${item} UPPER_COMP)
         # filter out some components, which are not needed to be wrapped to .deb package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-           # skip OpenVINO Python API (pattern in form of "pyopenvino_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
+           # skip OpenVINO Python API (pattern in form of "pyopenvino_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR}")
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
-           # because in case of .deb package, pyopenvino_package_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} is installed
+           # because in case of .deb package, pyopenvino_package_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR} is installed
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND

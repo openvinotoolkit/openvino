@@ -20,9 +20,15 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         message(FATAL_ERROR "In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected IntelSEAPI statistics.\
  Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv")
     endif()
-    find_package (PythonInterp 3 REQUIRED)
+    find_host_package (Python3 REQUIRED COMPONENTS Interpreter)
 
-    file(GLOB STAT_FILES ${SELECTIVE_BUILD_STAT})
+    file(TO_CMAKE_PATH ${SELECTIVE_BUILD_STAT} CMAKE_SELECTIVE_BUILD_STAT)
+
+    file(GLOB STAT_FILES ${CMAKE_SELECTIVE_BUILD_STAT})
+
+    if(NOT STAT_FILES)
+        message(FATAL_ERROR "SELECTIVE_BUILD_STAT (${SELECTIVE_BUILD_STAT}) path doesn't contain valid csv files!")
+    endif()
 
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD)
 
@@ -42,7 +48,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
     set(GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ccheader.py)
 
     add_custom_command(OUTPUT ${GENERATED_HEADER}
-                       COMMAND ${PYTHON_EXECUTABLE} ${GENERATOR} --stat ${SELECTIVE_BUILD_STAT} --out ${GENERATED_HEADER}
+                       COMMAND ${Python3_EXECUTABLE} ${GENERATOR} --stat ${SELECTIVE_BUILD_STAT} --out ${GENERATED_HEADER}
                        DEPENDS ${STAT_FILES})
     add_custom_target(conditional_compilation_gen DEPENDS ${GENERATED_HEADER})
     add_dependencies(${TARGET_NAME} conditional_compilation_gen)

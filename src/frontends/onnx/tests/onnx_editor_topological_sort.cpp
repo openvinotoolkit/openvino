@@ -16,7 +16,7 @@ using namespace ov;
 using namespace ov::onnx_editor;
 using namespace ngraph::test;
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 
 OPENVINO_TEST(onnx_editor, topological_sort_two_nodes_swap) {
     ONNXModelEditor editor{ov::util::path_join({ov::test::utils::getExecutableDirectory(),

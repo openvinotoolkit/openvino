@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reference.h"
-#include <ie_ngraph_utils.hpp>
-#include <shape_util.hpp>
 #include <dnnl_extension_utils.h>
-#include "openvino/runtime/tensor.hpp"
-#include "common/blocked_desc_creator.h"
+
+#include <ie_ngraph_utils.hpp>
 #include <ngraph/opsets/opset1.hpp>
+
+#include "common/blocked_desc_creator.h"
 #include "common/cpu_memcpy.h"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "reference.h"
 
 using namespace dnnl;
 using namespace InferenceEngine;

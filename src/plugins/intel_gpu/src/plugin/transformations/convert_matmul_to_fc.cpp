@@ -46,12 +46,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         auto fc_input_b = pattern_map.at(weights_m);
         bool is_convert = false;
         if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
-            if (is_decompression(convert_node)) {
-                is_convert = true;
-                fc_input_b = convert_node->get_input_node_shared_ptr(0);
-            } else {
-                return false;
-            }
+            is_convert = true;
+            fc_input_b = convert_node->get_input_node_shared_ptr(0);
         }
 
         auto shape_a = fc_input_a.get_partial_shape();

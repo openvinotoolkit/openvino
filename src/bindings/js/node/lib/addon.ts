@@ -25,6 +25,7 @@ interface Model {
   outputs: Output[];
   inputs: Output[];
   output(nameOrId?: string | number): Output;
+  input(nameOrId?: string | number): Output;
   getName(): string;
 }
 
@@ -67,8 +68,6 @@ interface Output {
   getAnyName(): string;
   getShape(): number[];
   getPartialShape(): number[];
-  setNames(names: string[]): void;
-  getNames(): string[];
 }
 
 interface PrePostProcessor {

@@ -52,6 +52,7 @@ public:
 
     bool is_allocated() const noexcept;
     bool is_surface() const noexcept;
+    bool is_shared() const noexcept;
     cldnn::memory::ptr get_memory() const;
     cldnn::memory::ptr get_original_memory() const;
 
@@ -74,7 +75,6 @@ private:
     uint32_t m_plane;
     size_t m_hash = 0;
 
-    bool is_shared() const;
     bool supports_caching() const;
     void update_strides();
     void init_properties();

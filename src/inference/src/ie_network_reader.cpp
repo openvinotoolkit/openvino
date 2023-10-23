@@ -113,7 +113,7 @@ void registerReaders() {
     // try to load IR reader v7 if library exists
     try {
         reader_irv7 =
-            std::make_shared<Reader>(std::string("inference_engine_ir_v7_reader") + std::string(IE_BUILD_POSTFIX));
+            std::make_shared<Reader>(std::string("inference_engine_ir_v7_reader") + std::string(OV_BUILD_POSTFIX));
     } catch (const std::runtime_error&) {
         // runtime error is thrown in case of library cannot be loaded
     }

@@ -14,13 +14,13 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/op/util/slice_plan.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/strided_slice.hpp"
 #include "strided_slice_shape_inference.hpp"
@@ -61,8 +61,8 @@ shared_ptr<Node> calculate_default_strides(const Output<Node>& begin, const Outp
         strides_length = end_pshape[0].get_length();
     } else  // dynamic case
     {
-        NGRAPH_CHECK(begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1,
-                     "Begin input must be 1D");
+        OPENVINO_ASSERT(begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1,
+                        "Begin input must be 1D");
         return std::make_shared<op::v1::Broadcast>(op::Constant::create(element::i64, {}, {1}),
                                                    std::make_shared<op::ShapeOf>(begin));
     }
@@ -189,11 +189,10 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
                                          m_ellipsis_mask);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace strided_slice {
 namespace {
 OPENVINO_SUPPRESS_DEPRECATED_START
-inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTensorPtr& out)
+inline bool evaluate(const HostTensorPtr& in, const ov::op::util::SlicePlan& sp, const HostTensorPtr& out)
 
 {
     auto in_shape = in->get_shape();
@@ -219,15 +218,15 @@ bool evaluate_strided_slice(const HostTensorPtr& in,
     std::vector<int64_t> begin_const = host_tensor_2_vector<int64_t>(begin);
     std::vector<int64_t> end_const = host_tensor_2_vector<int64_t>(end);
     std::vector<int64_t> stride_const = host_tensor_2_vector<int64_t>(stride);
-    SlicePlan slice_plan = make_slice_plan(in->get_shape(),
-                                           begin_const,
-                                           end_const,
-                                           stride_const,
-                                           begin_mask,
-                                           end_mask,
-                                           new_axis_mask,
-                                           shrink_axis_mask,
-                                           ellipsis_mask);
+    const auto slice_plan = ov::op::util::make_slice_plan(in->get_shape(),
+                                                          begin_const,
+                                                          end_const,
+                                                          stride_const,
+                                                          begin_mask,
+                                                          end_mask,
+                                                          new_axis_mask,
+                                                          shrink_axis_mask,
+                                                          ellipsis_mask);
     return evaluate(in, slice_plan, out);
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
@@ -238,8 +237,8 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const
     OV_OP_SCOPE(v1_StridedSlice_evaluate);
     // FIXME: 4th input is optional, but it is required by the following code
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 4));
+    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return strided_slice::evaluate_strided_slice(input_values[0],
                                                  input_values[1],

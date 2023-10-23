@@ -357,21 +357,12 @@ LinuxCpuStreamTypeCase _1sockets_4cores_binding = {
     },
     {{8, 4, 0, 4, 0, 0}},
     {{4, MAIN_CORE_PROC, 1, 0, 0}},
-#    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
     },
-#    else
-    {
-        STREAM_WITHOUT_PARAM,
-        STREAM_WITHOUT_PARAM,
-        STREAM_WITHOUT_PARAM,
-        STREAM_WITHOUT_PARAM,
-    },
-#    endif
     {1, 1, 1, 1},
     {
         MAIN_CORE_PROC,
@@ -423,17 +414,10 @@ LinuxCpuStreamTypeCase _1sockets_12cores_pcore_binding = {
     },
     {{20, 8, 4, 8, 0, 0}},
     {{2, MAIN_CORE_PROC, 4, 0, 0}},
-#    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
     },
-#    else
-    {
-        STREAM_WITH_CORE_TYPE,
-        STREAM_WITH_CORE_TYPE,
-    },
-#    endif
     {4, 4},
     {
         MAIN_CORE_PROC,
@@ -488,21 +472,12 @@ LinuxCpuStreamTypeCase _1sockets_12cores_ecore_binding = {
     },
     {{20, 8, 4, 8, 0, 0}},
     {{4, EFFICIENT_CORE_PROC, 1, 0, 0}},
-#    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
     },
-#    else
-    {
-        STREAM_WITH_CORE_TYPE,
-        STREAM_WITH_CORE_TYPE,
-        STREAM_WITH_CORE_TYPE,
-        STREAM_WITH_CORE_TYPE,
-    },
-#    endif
     {1, 1, 1, 1},
     {
         EFFICIENT_CORE_PROC,

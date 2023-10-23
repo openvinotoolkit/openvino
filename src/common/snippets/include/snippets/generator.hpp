@@ -12,6 +12,7 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/shape_types.hpp"
 
 namespace ov {
 namespace snippets {
@@ -23,17 +24,13 @@ namespace snippets {
  */
 class Schedule {
 public:
-    /**
-     * @brief Default constructor
-     */
-    Schedule() : work_size({}), is_flat(false), ptr(nullptr) {}
+    Schedule() = default;
     /**
      * @brief Default to create schedule out of specific parameters
-     * @param ws work size for kernel execution
-     * @param f can this kernel be linearided to 1D range
+     * @param wd work domain for kernel execution
      * @param p pointer to generated code
      */
-    Schedule(const ov::PartialShape& ws, bool f, code p) : work_size(ws), is_flat(f), ptr(p) {}
+    Schedule(const VectorDims& wd, code p) : parallel_exec_domain(wd), ptr(p) {}
     /**
      * @brief Returns callable instanse of code pointer
      */
@@ -41,8 +38,7 @@ public:
         return reinterpret_cast<K>(const_cast<unsigned char*>(ptr));
     }
 
-    ov::PartialShape work_size {};
-    bool is_flat {false};
+    VectorDims parallel_exec_domain {};
     code ptr {nullptr};
 };
 

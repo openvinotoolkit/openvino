@@ -46,11 +46,28 @@ public:
     std::shared_ptr<ov::Model> get_model();
 
     /**
-     * @brief Helper function to access model outputs as an attribute of JavaScript Model.
-     * @param info Contains information about the environment and passed arguments
-     * Empty info array => Gets a single output of a model. If a model has more than one output, this method
-     * throws ov::Exception. info[0] of type string => Gets output of a model identified by tensor_name.
-     * info[0] of type int => Gets output of a model identified by index of output.
+     * @brief Helper function to access model inputs.
+     * @param info contains passed arguments.
+     * Empty info array:
+     * @param info Gets a single input of a model. If a model has more than one input, this method
+     * throws ov::Exception. 
+     * One param of type string:
+     * @param info[0] Gets input of a model identified by tensor_name.
+     * One param of type int:
+     * @param info[0] Gets input of a model identified by index of input.
+     */
+    Napi::Value get_input(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Helper function to access model outputs.
+     * @param info contains passed arguments.
+     * Empty info array:
+     * @param info Gets a single output of a model. If a model has more than one output, this method
+     * throws ov::Exception. 
+     * One param of type string:
+     * @param info[0] Gets output of a model identified by tensor_name.
+     * One param of type int:
+     * @param info[0] Gets output of a model identified by index of output.
      */
     Napi::Value get_output(const Napi::CallbackInfo& info);
 

@@ -10,12 +10,10 @@
 #include <cstring>
 #include <numeric>
 
-#include "ngraph/check.hpp"
-
 namespace ov {
 namespace reference {
 namespace fft_common {
-std::vector<int64_t> reverse_shape_of_emulated_complex_tensor(const ngraph::Shape& shape) {
+std::vector<int64_t> reverse_shape_of_emulated_complex_tensor(const Shape& shape) {
     assert(shape.size() >= 2);
     std::vector<int64_t> reversed_shape(shape.begin(), shape.end() - 1);
     std::reverse(reversed_shape.begin(), reversed_shape.end());

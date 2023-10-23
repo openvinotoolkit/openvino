@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -194,11 +194,9 @@ const std::vector<ov::test::ElementType> activations_precisions = {ov::element::
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8};
 const std::vector<std::vector<InputShape>> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {{}, {{16, 32}}}},
-    {{{}, {{1, 4, 16}}}, {{}, {{1, 16, 32}}}},
     {{{}, {{10, 40, 496}}}, {{}, {{1, 496, 240}}}},
     {{{}, {{1, 4, 48}}}, {{}, {{48, 256}}}},
     {{{}, {{11, 339, 377}}}, {{}, {{377, 335}}}},
-    {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {{}, {{1, 480, 256}}}},
     {{{}, {{1, 4, 32}}}, {{}, {{32, 256}}}},
     {{{}, {{1, 4, 512}}}, {{}, {{512, 256}}}},
     {{{}, {{1, 16, 32}}}, {{}, {{32, 64}}}},
@@ -220,7 +218,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
 
 const std::vector<std::vector<InputShape>> input_shapes_corner_cases_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}}}, {{}, {{1, 16, 32}}}},
+    {{{}, {{1, 4, 16}}}, {{}, {{1, 16, 32}}}},
     {{{-1, -1, -1}, {{1, 4, 16}}}, {{}, {{16, 32}}}},
+    {{{-1, -1, -1, -1}, {{1, 1, 4, 16}}}, {{}, {{1, 1, 16, 32}}}},
+    {{{}, {{1, 1, 4, 16}}}, {{}, {{1, 1, 16, 32}}}},
 };
 const std::vector<std::vector<InputShape>> input_shapes_corner_cases_big = {
     {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {{}, {{1, 480, 256}}}},

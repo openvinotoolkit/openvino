@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/deformable_psroi_pooling.hpp"
+#include "openvino/op/deformable_psroi_pooling.hpp"
 
 #include "deformable_psroi_pooling_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
 
 op::v1::DeformablePSROIPooling::DeformablePSROIPooling(const Output<Node>& input,
                                                        const Output<Node>& coords,
@@ -78,32 +77,32 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types() {
     set_output_type(0, input_et, shape_infer(this, input_shapes)[0]);
 }
 
-shared_ptr<Node> op::v1::DeformablePSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v1::DeformablePSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_DeformablePSROIPooling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3) {
-        return make_shared<v1::DeformablePSROIPooling>(new_args.at(0),
-                                                       new_args.at(1),
-                                                       new_args.at(2),
-                                                       m_output_dim,
-                                                       m_spatial_scale,
-                                                       m_group_size,
-                                                       m_mode,
-                                                       m_spatial_bins_x,
-                                                       m_spatial_bins_y,
-                                                       m_trans_std,
-                                                       m_part_size);
+        return std::make_shared<v1::DeformablePSROIPooling>(new_args.at(0),
+                                                            new_args.at(1),
+                                                            new_args.at(2),
+                                                            m_output_dim,
+                                                            m_spatial_scale,
+                                                            m_group_size,
+                                                            m_mode,
+                                                            m_spatial_bins_x,
+                                                            m_spatial_bins_y,
+                                                            m_trans_std,
+                                                            m_part_size);
     } else if (new_args.size() == 2) {
-        return make_shared<v1::DeformablePSROIPooling>(new_args.at(0),
-                                                       new_args.at(1),
-                                                       m_output_dim,
-                                                       m_spatial_scale,
-                                                       m_group_size,
-                                                       m_mode,
-                                                       m_spatial_bins_x,
-                                                       m_spatial_bins_y,
-                                                       m_trans_std,
-                                                       m_part_size);
+        return std::make_shared<v1::DeformablePSROIPooling>(new_args.at(0),
+                                                            new_args.at(1),
+                                                            m_output_dim,
+                                                            m_spatial_scale,
+                                                            m_group_size,
+                                                            m_mode,
+                                                            m_spatial_bins_x,
+                                                            m_spatial_bins_y,
+                                                            m_trans_std,
+                                                            m_part_size);
     } else {
         OPENVINO_THROW("Not supported number of DeformablePSROIPooling args");
     }
@@ -116,3 +115,4 @@ void op::v1::DeformablePSROIPooling::set_output_dim(int64_t output_dim) {
 void op::v1::DeformablePSROIPooling::set_group_size(int64_t group_size) {
     m_group_size = group_size;
 }
+}  // namespace ov

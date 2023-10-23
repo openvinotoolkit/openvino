@@ -22,8 +22,7 @@ ov_add_test_target(
             openvino_tensorflow_common
         ADD_CLANG_FORMAT
         LABELS
-            OV
-            TF_FE
+            OV UNIT TF_FE
 )
 
 # Test model generating
@@ -33,7 +32,7 @@ ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirement
                       WARNING_MESSAGE "TensorFlow testing models weren't generated, some tests will fail due models not found"
                       RESULT_VAR tensorflow_FOUND)
 
-set(TEST_TENSORFLOW_MODELS_DIRNAME test_model_zoo/tensorflow_test_models)
+set(TEST_TENSORFLOW_MODELS_DIRNAME ${TEST_MODEL_ZOO}/tensorflow_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRNAME=\"${TEST_TENSORFLOW_MODELS_DIRNAME}/\")
 
 # If 'tensorflow' is not found, code will still be compiled
@@ -41,7 +40,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRN
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'tensorflow' installed to check code style
 if (tensorflow_FOUND)
-    set(TEST_TENSORFLOW_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TENSORFLOW_MODELS_DIRNAME}/)
+    set(TEST_TENSORFLOW_MODELS ${TEST_MODEL_ZOO_OUTPUT_DIR}/tensorflow_test_models/)
 
     file(GLOB_RECURSE TENSORFLOW_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
     file(GLOB_RECURSE TENSORFLOW_MODELS_PBTXT ${CMAKE_CURRENT_SOURCE_DIR}/test_models/models_pbtxt/*.pbtxt)
@@ -53,14 +52,13 @@ if (tensorflow_FOUND)
         set(OUT_DONE_FILE ${TEST_TENSORFLOW_MODELS}/${FILE_WE}_done.txt)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
-                COMMAND ${PYTHON_EXECUTABLE}
-                ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
-                ${GEN_SCRIPT}
-                ${TEST_TENSORFLOW_MODELS}
-                ${OUT_DONE_FILE}
+                COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
+                    ${GEN_SCRIPT}
+                    ${TEST_TENSORFLOW_MODELS}
+                    ${OUT_DONE_FILE}
                 JOB_POOL four_jobs
-                DEPENDS ${TENSORFLOW_ALL_SCRIPTS}
-                )
+                DEPENDS ${TENSORFLOW_ALL_SCRIPTS})
     endforeach()
     add_custom_target(tensorflow_test_models DEPENDS ${OUT_FILES})
 

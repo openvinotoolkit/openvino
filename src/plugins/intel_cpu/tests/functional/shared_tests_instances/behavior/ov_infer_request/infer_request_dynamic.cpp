@@ -18,10 +18,6 @@ const std::vector<ov::AnyMap> HeteroConfigs = {
     {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
 };
 
-const std::vector<ov::AnyMap> AutoConfigs = {
-    {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
-};
-
 std::shared_ptr<ngraph::Function> getFunction1() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
     const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
@@ -93,15 +89,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                                 ::testing::Values(ov::test::utils::DEVICE_HETERO),
                                 ::testing::ValuesIn(HeteroConfigs)),
                         OVInferRequestDynamicTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
-                        ::testing::Combine(
-                                ::testing::Values(getFunction2()),
-                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
-                                    {{1, 4, 20, 20}, {1, 2, 20, 40}},
-                                    {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoConfigs)),
-                        OVInferRequestDynamicTests::getTestCaseName);
-
 }  // namespace

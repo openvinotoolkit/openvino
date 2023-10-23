@@ -52,9 +52,9 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
                 } else {
                     continue;
                 }
-            } catch (std::exception& e) {
+            } catch (std::exception) {
                 not_read_model.emplace_back(model_file);
-                std::cout << "[ ERROR ] Impossible to read model: " << model_file << std::endl << "Exception: " << e.what();
+                // std::cout << "[ ERROR ] Impossible to read model: " << model_file << std::endl << "Exception: " << e.what();
             }
         }
     }
@@ -77,7 +77,9 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
     std::map<ModelCacheStatus, std::vector<std::string>> cache_status = {
         { ModelCacheStatus::SUCCEED, {} },
         { ModelCacheStatus::NOT_FULLY_CACHED, {} },
-        { ModelCacheStatus::NOT_READ, {} }
+        { ModelCacheStatus::NOT_READ, {} },
+        { ModelCacheStatus::LARGE_MODELS_EXCLUDED, {} },
+        { ModelCacheStatus::LARGE_MODELS_INCLUDED, {} },
     };
     auto core = ov::test::utils::PluginCache::get().core();
     auto models_size = models.size();
@@ -86,19 +88,25 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
         const auto& model = models[i];
 
         if (ov::util::file_exists(model)) {
-            std::cout << "[ INFO ] [ " << i << "/" << models_size << " ] model will be processed" << std::endl;
+            std::cout << "[ INFO ][ " << i + 1 << "/" << models_size << " ] model will be processed" << std::endl;
             ModelCacheStatus model_status = ModelCacheStatus::SUCCEED;
             try {
                 std::shared_ptr<ov::Model> function = core->read_model(model);
                 try {
+                    if (cache->is_model_large_to_read(function, model)) {
+                        cache_status[ModelCacheStatus::LARGE_MODELS_EXCLUDED].push_back(model);
+                        continue;
+                    } else if (cache->is_model_large_to_store_const(function)) {
+                        cache_status[ModelCacheStatus::LARGE_MODELS_INCLUDED].push_back(model);
+                    }
                     cache->update_cache(function, model, extract_body, from_cache);
-                } catch (std::exception &e) {
-                    std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
+                } catch (std::exception) {
+                    // std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
                     model_status = ModelCacheStatus::NOT_FULLY_CACHED;
                 }
-            } catch (std::exception &e) {
+            } catch (std::exception) {
                 model_status = ModelCacheStatus::NOT_READ;
-                std::cout << "[ ERROR ] Model reading failed with exception:" << std::endl << e.what() << std::endl;
+                // std::cout << "[ ERROR ] Model reading failed with exception:" << std::endl << e.what() << std::endl;
             }
             cache_status[model_status].push_back(model);
         }

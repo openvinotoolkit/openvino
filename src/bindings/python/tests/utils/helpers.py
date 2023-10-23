@@ -12,7 +12,7 @@ from sys import platform
 from pathlib import Path
 
 import openvino
-import openvino.runtime.opset12 as ops
+import openvino.runtime.opset13 as ops
 from openvino.runtime import Model, Core, Shape
 
 

@@ -48,3 +48,31 @@ class TestMatMul(PytorchLayerTest):
     def test_matmul(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model(len(kwargs_to_prepare_input) == 3), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input)
+
+
+class TestLinearBiasList(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 15, 10).astype(np.float32), np.random.randn(66, 10).astype(np.float32))
+
+    def create_model(self):
+        import torch
+
+        class aten_mm(torch.nn.Module):
+            def __init__(self):
+                super(aten_mm, self).__init__()
+                self.bias = [torch.randn(22),
+                             torch.randn(22),
+                             torch.randn(22)]
+
+            def forward(self, m1, m2):
+                m2 = m2.reshape([66, -1])
+                return torch.nn.functional.linear(m1, m2, torch.cat(self.bias, 0))
+
+        return aten_mm(), None, "aten::linear"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_linear_bias_list(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   trace_model=True, freeze_model=False)

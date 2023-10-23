@@ -39,7 +39,7 @@ ov_add_test_target(
             func_test_utils
         ADD_CLANG_FORMAT
         LABELS
-        PROXY_PLUGIN
+            OV UNIT PROXY
 )
 
 target_compile_definitions(${TARGET_NAME} PRIVATE ${COMPILE_DEFINITIONS})

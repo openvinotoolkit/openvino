@@ -12,8 +12,8 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINO REQUIRED)
 endif()
 
-# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
-set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+# Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined in FindPython3
+set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
 
 if(OpenVINO_SOURCE_DIR)
     if(OV_GENERATOR_MULTI_CONFIG)
@@ -67,6 +67,8 @@ if(OpenVINO_SOURCE_DIR)
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
     )
 endif()
+
+ov_set_apple_rpath(_${PROJECT_NAME} ${OV_CPACK_PYTHONDIR} ${OV_CPACK_RUNTIMEDIR})
 
 # Install
 

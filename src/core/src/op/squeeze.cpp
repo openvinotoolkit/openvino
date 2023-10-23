@@ -61,8 +61,8 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Squeeze_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, inputs.size()));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, inputs.size()));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (has_evaluate()) {

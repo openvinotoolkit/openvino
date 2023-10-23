@@ -7,8 +7,8 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINODeveloperPackage REQUIRED)
 endif()
 
-# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
-set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+# Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined by FindPython3
+set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
 
 if(OpenVINO_SOURCE_DIR)
     if(OV_GENERATOR_MULTI_CONFIG)
@@ -60,7 +60,7 @@ endif()
 # create target
 
 file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*.cpp pyopenvino.cpp)
-list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle|pytorch/* )
+list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch))/*")
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
@@ -72,7 +72,7 @@ endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+    openvino::core::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
 set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
     OUTPUT_NAME "_pyopenvino")
@@ -123,6 +123,13 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
             DESTINATION ${OV_CPACK_PYTHONDIR}/openvino
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
             ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+
+    ov_set_apple_rpath(${PROJECT_NAME} ${OV_CPACK_PYTHONDIR}/openvino
+        # path to OpenVINO C++ libraries
+        ${OV_CPACK_RUNTIMEDIR}
+        # pyopenvino also depends on TBB because of:
+        # pyopenvino => openvino::offline_transformations => TBB optimized openvino::reference
+        ${TBB_LIB_INSTALL_DIR})
 
     ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_REQ_FILES} HIDDEN)
 

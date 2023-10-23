@@ -16,8 +16,6 @@ Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
          Output<ov::Node>::InstanceMethod("getPartialShape", &Output<ov::Node>::get_partial_shape),
          Output<ov::Node>::InstanceMethod("getAnyName", &Output<ov::Node>::get_any_name),
          Output<ov::Node>::InstanceAccessor<&Output<ov::Node>::get_any_name>("anyName"),
-         Output<ov::Node>::InstanceMethod("setNames", &Output<ov::Node>::set_names),
-         Output<ov::Node>::InstanceMethod("addNames", &Output<ov::Node>::add_names),
          Output<ov::Node>::InstanceMethod("toString", &Output<ov::Node>::get_any_name)});
 }
 
@@ -54,16 +52,6 @@ Napi::Value Output<ov::Node>::get_partial_shape(const Napi::CallbackInfo& info) 
 
 Napi::Value Output<ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
     return Napi::String::New(info.Env(), _output.get_any_name());
-}
-
-void Output<ov::Node>::set_names(const Napi::CallbackInfo& info) {
-    auto names = js_to_cpp<std::unordered_set<std::string>>(info, 0, {js_array});
-    _output.set_names(names);
-}
-
-void Output<ov::Node>::add_names(const Napi::CallbackInfo& info) {
-    auto names = js_to_cpp<std::unordered_set<std::string>>(info, 0, {js_array});
-    _output.add_names(names);
 }
 
 Output<const ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<const ov::Node>>(info) {}

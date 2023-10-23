@@ -151,7 +151,7 @@ jobs:
   - script: |
       call "$(MSVS_VARS_PATH)" && cmake ^
         -G "Visual Studio 16 2019" ^
-        -DVERBOSE_BUILD=ON ^
+        -DCMAKE_VERBOSE_MAKEFILE=ON ^
         -DENABLE_CPPLINT=OFF ^
         -DENABLE_GAPI_PREPROCESSING=OFF ^
         -DENABLE_PROFILING_ITT=OFF ^

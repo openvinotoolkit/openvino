@@ -131,10 +131,22 @@ public:
     Ptr get_target_tensor() const override;
     Ptr get_target_tensor(int outputPortIndex) const override;
 
+    // set back edge for OpPlace of NextIteration operation
+    // this is needed since we break a cycle in a graph
+    void set_next_iteration_back_edge(const std::string& next_iteration_producer_name,
+                                      size_t next_iteration_producer_output_port_idx);
+    void get_next_iteration_back_edge(std::string& next_iteration_producer_name,
+                                      size_t& next_iteration_producer_output_port_idx) const;
+
 private:
     std::shared_ptr<DecoderBase> m_op_decoder;
     std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>> m_input_ports;
     std::vector<std::shared_ptr<OutPortPlace>> m_output_ports;
+
+    // flag if back edge is set
+    bool m_back_edge_set;
+    std::string m_next_iteration_producer_name;
+    size_t m_next_iteration_producer_output_port_idx;
 };
 
 class TensorPlace : public Place {

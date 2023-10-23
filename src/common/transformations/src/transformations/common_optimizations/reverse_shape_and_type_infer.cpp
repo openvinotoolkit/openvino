@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -176,13 +177,31 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             is_changed |= inherit_output_rank(op, {0});
             is_changed |= inherit_output_type(op, {0});
         } else if (std::dynamic_pointer_cast<ov::op::v0::Squeeze>(op)) {
-            auto in0_rank = op->get_input_partial_shape(0).rank();
-            if (output_shape.rank().is_static() && in0_rank.is_dynamic() && op->get_input_size() > 1) {
-                auto in1_pshape = op->get_input_partial_shape(1);
-                if (in1_pshape.is_static()) {
-                    auto num_dims = in1_pshape.size() == 0 ? 1 : in1_pshape[0].get_length();
-                    op->get_input_tensor(0).m_partial_shape =
-                        PartialShape::dynamic(output_shape.rank().get_length() + num_dims);
+            auto in0_pshape = op->get_input_partial_shape(0);
+            auto in0_rank = in0_pshape.rank();
+            if (output_shape.rank().is_static()) {
+                if (in0_rank.is_dynamic() && op->get_input_size() > 1) {
+                    auto in1_pshape = op->get_input_partial_shape(1);
+                    if (in1_pshape.is_static()) {
+                        auto num_dims = in1_pshape.size() == 0 ? 1 : in1_pshape[0].get_length();
+                        op->get_input_tensor(0).m_partial_shape =
+                            PartialShape::dynamic(output_shape.rank().get_length() + num_dims);
+                    }
+                } else if (in0_rank.is_static() && op->get_input_size() == 1) {
+                    // attempt to create second input
+                    std::vector<int64_t> in1_data;
+                    for (size_t i = 0; i < in0_pshape.size(); i++) {
+                        if (in0_pshape[i] == 1) {
+                            in1_data.push_back(i);
+                        }
+                    }
+                    int64_t num_ones = in1_data.size();
+                    if (num_ones == in0_rank.get_length() - output_shape.rank().get_length()) {
+                        auto axes = ov::op::v0::Constant::create(element::i64, Shape{in1_data.size()}, in1_data);
+                        auto new_squeeze = std::make_shared<ov::op::v0::Squeeze>(op->get_input_source_output(0), axes);
+                        op->output(0).replace(new_squeeze->output(0));
+                        copy_runtime_info(op, new_squeeze);
+                    }
                 }
             }
             is_changed |= inherit_output_type(op, {0});

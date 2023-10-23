@@ -46,9 +46,7 @@ public:
     void set_special_zero(bool special_zero) {
         m_special_zero = special_zero;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool evaluate_lower(TensorVector& outputs) const override;
@@ -57,7 +55,7 @@ public:
 
 protected:
     bool m_special_zero;
-    bool evaluate_reshape(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+    bool evaluate_reshape(ov::TensorVector& outputs, const ov::TensorVector& inputs) const;
 
 private:
     void calculate_output_shape(std::vector<Dimension>& reshape_pattern,
