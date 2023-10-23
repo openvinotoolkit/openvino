@@ -164,6 +164,12 @@ bool evaluate(const HostTensorPtr& out,
 
     int64_t out_size = 0;
 
+    if (ov::element::Type(ET).is_integral_number()) {
+        start_val = std::trunc(start_val);
+        stop_val = std::trunc(stop_val);
+        step_val = std::trunc(step_val);
+    }
+
     int64_t steps = static_cast<int64_t>(std::ceil(double(stop_val - start_val) / step_val));
     if (steps > 0) {
         out_size = steps;
