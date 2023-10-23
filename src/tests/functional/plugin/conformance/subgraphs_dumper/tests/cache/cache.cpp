@@ -13,6 +13,7 @@
 
 #include "cache/cache.hpp"
 #include "cache/meta/meta_info.hpp"
+#include "utils/model.hpp"
 
 #include "base_test.hpp"
 

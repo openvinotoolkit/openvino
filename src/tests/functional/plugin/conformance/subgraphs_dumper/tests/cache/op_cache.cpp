@@ -12,6 +12,7 @@
 
 #include "cache/op_cache.hpp"
 #include "utils/node.hpp"
+#include "utils/model.hpp"
 
 #include "base_test.hpp"
 
