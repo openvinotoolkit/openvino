@@ -68,18 +68,10 @@ ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar()
                 return false;
         }
 
-        float float_zp_value;
-        if (!ov::op::util::get_single_value(zero_point, float_zp_value))
+        float zp_value;
+        if (!ov::op::util::get_single_value(zero_point, zp_value))
             return false;
-
-        std::shared_ptr<ov::Node> new_zp;
-        const auto& zp_precision = zero_point->get_element_type();
-        if (zp_precision.is_real()) {
-            new_zp = ov::op::v0::Constant::create(zp_precision, {}, {float_zp_value});
-        } else {
-            int32_t int_zp_value = zero_point->cast_vector<int32_t>(1)[0];
-            new_zp = ov::op::v0::Constant::create(zp_precision, {}, {int_zp_value});
-        }
+        const auto new_zp = ov::op::v0::Constant::create(zero_point->get_element_type(), {}, {zp_value});
         return ov::replace_node_update_name(zero_point, new_zp);
     };
 

@@ -42,6 +42,8 @@ TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalar) {
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
         model_ref = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
     }
+    comparator.enable(FunctionsComparator::ACCURACY);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, ConvertU4WeightsU4ZeroPointToScalar) {
@@ -71,6 +73,8 @@ TEST_F(TransformationTestsF, ConvertU4WeightsU4ZeroPointToScalar) {
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
         model_ref = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
     }
+    comparator.enable(FunctionsComparator::ACCURACY);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalarWeightsWithBiggerRank) {
@@ -98,6 +102,8 @@ TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalarWeightsWithBi
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
         model_ref = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
     }
+    comparator.enable(FunctionsComparator::ACCURACY);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, FuseU4WeightsAndZeroPointNotScalarLikeZP) {
