@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import torch
@@ -63,6 +65,8 @@ class TestLinspace(PytorchLayerTest):
     @pytest.mark.parametrize(
         "start,end,steps", [(0, 1, 5), (-2, 1, 5), (1, -5, 7), (1, 10, 2), (-1, -5, 2), (-1, -5, 1), (1.25, -5.5, 5)]
     )
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_linspace_with_prim_dtype(self, dtype, end, start, steps, ie_device, precision, ir_version):
         self._test(
             *self.create_model(dtype, ref_dtype=True),
@@ -79,6 +83,8 @@ class TestLinspace(PytorchLayerTest):
         "start,end,steps", [(0, 1, 5), (-2, 1, 5), (1, -5, 7), (1, 10, 2), (-1, -5, 2), (-1, -5, 1), (1.25, -5.5, 5)]
     )
     @pytest.mark.parametrize("use_out", [False, True])
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_linspace_with_out(self, dtype, use_out, end, start, steps, ie_device, precision, ir_version):
         self._test(
             *self.create_model(dtype=dtype, use_out=use_out),

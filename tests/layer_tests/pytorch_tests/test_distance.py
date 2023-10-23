@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -29,6 +31,8 @@ class TestCdist(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("p", [2., 4., 6., 8.,])
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_cdist(self, p, ie_device, precision, ir_version):
         self._test(*self.create_model(p), ie_device, precision, ir_version)
 
@@ -61,5 +65,7 @@ class TestPairwiseDistance(PytorchLayerTest):
     @pytest.mark.parametrize("p", [2., 4., 6., 8.,])
     @pytest.mark.parametrize("eps", [1e-06, 0.00001, 1e-07])
     @pytest.mark.parametrize("keepdim", [True, False])
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_cdist(self, p, eps, keepdim, ie_device, precision, ir_version):
         self._test(*self.create_model(p, eps, keepdim), ie_device, precision, ir_version)
