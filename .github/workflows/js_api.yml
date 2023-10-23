@@ -19,7 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  Build:
+  JS_API:
+    name: Configure and Test JS API Bindings
     defaults:
       run:
         shell: bash
@@ -59,5 +60,5 @@ jobs:
       - name: Run tests
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
         run: |
-          export LD_LIBRARY_PATH=${{ env.JS_BINDINGS_DIR }}/ov_runtime/runtime/lib/intel64/:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/runtime/lib/intel64/:$LD_LIBRARY_PATH
           npm test
