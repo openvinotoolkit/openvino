@@ -182,7 +182,7 @@ void compileModelThreadModel(TsfnContextModel* context) {
     ov::Core core;
     context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
 
-    auto callback = [](Napi::Env env, Napi::Function _, TsfnContextModel* context) {
+    auto callback = [](Napi::Env env, Napi::Function, TsfnContextModel* context) {
         Napi::HandleScope scope(env);
         auto obj = CompiledModelWrap::GetClassConstructor(env).New({});
         auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
@@ -199,7 +199,7 @@ void compileModelThreadPath(TsfnContextPath* context) {
     ov::Core core;
     context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
 
-    auto callback = [](Napi::Env env, Napi::Function _, TsfnContextPath* context) {
+    auto callback = [](Napi::Env env, Napi::Function, TsfnContextPath* context) {
         Napi::HandleScope scope(env);
         auto obj = CompiledModelWrap::GetClassConstructor(env).New({});
         auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
