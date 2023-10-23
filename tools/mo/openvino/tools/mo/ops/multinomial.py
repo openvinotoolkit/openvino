@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from openvino.tools.mo.front.extractor import bool_to_str
 from openvino.tools.mo.graph.graph import Graph, Node
 
@@ -63,7 +63,7 @@ class Multinomial(Op):
 
         num_samples = node.in_port(1).data.get_value()
         if num_samples is not None:
-            output_shape.append(num_samples)
+            output_shape.append(np.array(num_samples).item())
         else:
-            output_shape.append(dynamic_dimension)
-        node.out_port(0).data.set_shape(output_shape)
+            output_shape.append(dynamic_dimension_value)
+        node.out_port(0).data.set_shape(shape_array(output_shape))
