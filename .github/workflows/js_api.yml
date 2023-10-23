@@ -65,8 +65,16 @@ jobs:
       # Tests
       #
 
-      - name: Run tests
+      - name: Run tests (Unix)
+        if: ${{ !contains(matrix.machine, 'windows') }}
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
-        run: npm test
-        env:
-          LD_LIBRARY_PATH: ${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/runtime/lib/intel64/:$LD_LIBRARY_PATH
+        run: |
+          export LD_LIBRARY_PATH=${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/runtime/lib/intel64/:$LD_LIBRARY_PATH
+          npm test
+
+      - name: Run tests (Windows)
+        if: ${{ contains(matrix.machine, 'windows') }}
+        working-directory: ${{ env.JS_BINDINGS_DIR }}/node
+        run: |
+          $env:Path = '${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/runtime/lib/intel64/;' + $env:Path
+          npm test
