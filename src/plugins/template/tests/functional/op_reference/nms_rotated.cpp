@@ -261,7 +261,54 @@ std::vector<NMSRotatedParams> generateParams() {
                                                           }))
 
             .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{12}))
-            .testcaseName("NMSRotated_new_rotation_batch_2_class_2"),
+            .testcaseName("NMSRotated_new_rotation_batch_2_class_2_sort_attr_false"),
+        Builder{}
+            .boxes(reference_tests::Tensor(ET, {2, 4, 5}, std::vector<T>{/* First batch */
+                                                                         /*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
+                                                                         /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
+                                                                         /*2*/ 4.0, 8.0, 10.0, 12.0, 0.3,
+                                                                         /*3*/ 2.0, 5.0, 13.0, 7.0,  0.6,
+                                                                         /* Second batch */
+                                                                         /*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
+                                                                         /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
+                                                                         /*2*/ 4.0, 8.0, 10.0, 12.0, 0.3,
+                                                                         /*3*/ 2.0, 5.0, 13.0, 7.0,  0.6}))
+            .scores(reference_tests::Tensor(ET, {2, 2, 4}, std::vector<T>{0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96,
+                                                                          0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96,
+                                                                          0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96,
+                                                                          0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96}))
+            .maxOutputBoxesPerClass(reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{5000}))
+            .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .sortResultsDescending(true)
+
+            .expectedSelectedIndices(reference_tests::Tensor(
+                ET_IND,
+                {12, 3},
+                std::vector<T_IND>{0, 0, 3, 0, 1, 3, 1, 0, 3, 1, 1, 3,
+                                   0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1,
+                                   0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0}))  // batch, class, box_id (sorted max score first)
+            .expectedSelectedScores(
+                reference_tests::Tensor(ET_TH,
+                                        {12, 3},
+                                        std::vector<T_TH>{0.0, 0.0, 0.96,
+                                                          0.0, 1.0, 0.96,
+                                                          1.0, 0.0, 0.96,
+                                                          1.0, 1.0, 0.96,
+
+                                                          0.0, 0.0, 0.7,
+                                                          0.0, 1.0, 0.7,
+                                                          1.0, 0.0, 0.7,
+                                                          1.0, 1.0, 0.7,
+
+                                                          0.0, 0.0, 0.65,
+                                                          0.0, 1.0, 0.65,
+                                                          1.0, 0.0, 0.65,
+                                                          1.0, 1.0, 0.65
+                                                          }))
+            .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{12}))
+            .testcaseName("NMSRotated_new_rotation_batch_2_class_2_sort_attr_true"),
         Builder{}
             .boxes(reference_tests::Tensor(ET, {1, 4, 5}, std::vector<T>{/*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
                                                                          /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
