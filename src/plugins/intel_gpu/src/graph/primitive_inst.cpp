@@ -354,7 +354,7 @@ void primitive_inst::update_shape() {
 
     auto update_output_layout = [&](layout& layout, size_t idx) {
         auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, layout.data_padding);
-        layout.data_padding = padding::max(_node->get_primitive()->output_paddings[idx], data_padding);
+        layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(idx), data_padding);
         if (_impl_params->get_output_layout(idx) != layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
                                    << " now: " << layout.to_short_string() << std::endl;

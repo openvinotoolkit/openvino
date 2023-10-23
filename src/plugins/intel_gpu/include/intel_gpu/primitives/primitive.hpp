@@ -118,8 +118,8 @@ public:
               const size_t num_outputs = 1)
         : type(type),
           id(id),
-          output_paddings(update_output_paddings(output_paddings, num_outputs)),
-          output_data_types(update_output_data_types(output_data_types, num_outputs)),
+          output_paddings(output_paddings),
+          output_data_types(output_data_types),
           input(input),
           num_outputs(num_outputs) {}
 
@@ -264,25 +264,23 @@ public:
         ib >> num_outputs;
     }
 
+    virtual padding get_output_padding(size_t idx) const {
+        if (idx < output_paddings.size()) {
+            return output_paddings[idx];
+        } else {
+            return padding();
+        }
+    }
+
+    virtual optional_data_type get_output_data_type(size_t idx) const {
+        if (idx < output_data_types.size()) {
+            return output_data_types[idx];
+        } else {
+            return optional_data_type();
+        }
+    }
+
 protected:
-    // Fill empty padding when current output paddings less than num_outputs
-    virtual std::vector<padding> update_output_paddings(const std::vector<padding>& paddings, const size_t num_outputs) const {
-        std::vector<padding> updated_paddings(paddings);
-        if (num_outputs > updated_paddings.size()) {
-            updated_paddings.push_back(padding());
-        }
-        return updated_paddings;
-    }
-
-    // Fill empty data_types when current data_types less than num_outputs
-    virtual std::vector<optional_data_type> update_output_data_types(const std::vector<optional_data_type>& data_types, const size_t num_outputs) const {
-        std::vector<optional_data_type> update_data_types(data_types);
-        if (num_outputs > update_data_types.size()) {
-            update_data_types.push_back(optional_data_type());
-        }
-        return update_data_types;
-    }
-
     virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
     class condition;
     friend struct primitive_info;

@@ -240,12 +240,12 @@ void condition_inst::update_output_layout() {
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
     if (new_layouts.empty()) {
         auto new_layout = _node->type()->calc_output_layout(*_node, *_impl_params);
-        new_layout.data_padding = padding::max(_node->get_primitive()->output_paddings[0], new_layout.data_padding);
+        new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(0), new_layout.data_padding);
         _impl_params->output_layouts[0] = new_layout;
     } else {
         for (size_t i = 0; i != new_layouts.size(); ++i) {
             auto new_layout = new_layouts[i];
-            new_layout.data_padding = padding::max(_node->get_primitive()->output_paddings[i], new_layout.data_padding);
+            new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(i), new_layout.data_padding);
             _impl_params->output_layouts[i] = new_layout;
         }
     }
