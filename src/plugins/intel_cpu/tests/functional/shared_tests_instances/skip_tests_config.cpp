@@ -191,6 +191,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
+
+        R"(.*MultinomialLayerTestCPU.*OutPrc=i64.*)",
+        R"(.*MultinomialLayerTestCPU.*OutPrc=i32.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

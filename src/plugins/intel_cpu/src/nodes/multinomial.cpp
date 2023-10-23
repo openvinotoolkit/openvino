@@ -8,6 +8,7 @@
 
 #include "ie_ngraph_utils.hpp"
 #include "ie_parallel.hpp"
+#include "kernels/x64/random_uniform.hpp"
 #include "shape_inference/custom/multinomial.hpp"
 
 namespace ov {
@@ -22,11 +23,17 @@ Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext
     }
 
     auto multinomial_op = as_type_ptr<op::v13::Multinomial>(op);
-    m_convert_type = multinomial_op->get_convert_type();
     m_with_replacement = multinomial_op->get_with_replacement();
-    m_log_probs = multinomial_op->get_log_probs();
+    m_convert_type = multinomial_op->get_convert_type();
     m_global_seed = multinomial_op->get_global_seed();
+    m_log_probs = multinomial_op->get_log_probs();
     m_op_seed = multinomial_op->get_op_seed();
+
+    for (size_t i = 0lu; i < op->get_input_size(); i++) {
+        if (is_type<op::v0::Constant>(op->get_input_node_ptr(i))) {
+            m_const_inputs[i] = true;
+        }
+    }
 
     m_errorPrefix = "Multinomial node with name '" + getName() + "' ";
 }
@@ -72,14 +79,84 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
         out_prc = InferenceEngine::Precision::I32;
     }
 
-    addSupportedPrimDesc({{LayoutType::nspc, probs_prc}, {LayoutType::nspc, num_samples_prc}},
-                         {{LayoutType::nspc, out_prc}},
+    addSupportedPrimDesc({{LayoutType::ncsp, probs_prc, m_const_inputs[PROBS_PORT]},
+                          {LayoutType::ncsp, num_samples_prc, m_const_inputs[NUM_SAMPLES_PORT]}},
+                         {{LayoutType::ncsp, out_prc}},
                          ref_any);
 }
 
+std::string Multinomial::getPrimitiveDescriptorType() const {
+    std::string str_type;
+    auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
+
+    impl_desc_type type = impl_desc_type::undef;
+    if (selectedPrimitiveDesc) {
+        type = selectedPrimitiveDesc->getImplementationType();
+    }
+
+    if (type == impl_desc_type::unknown)
+        str_type = "unknown";
+    else if (type == impl_desc_type::jit)
+        str_type = "jit";
+    else if (type == impl_desc_type::ref)
+        str_type = "ref";
+    else if (type == impl_desc_type::avx512)
+        str_type = "avx512";
+    else if (type == impl_desc_type::avx2)
+        str_type = "avx2";
+    else if (type == impl_desc_type::sse42)
+        str_type = "sse42";
+    else if (type == impl_desc_type::any)
+        str_type = "any";
+    else
+        str_type = "undef";
+
+    if (selectedPrimitiveDesc) {
+        str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().name());
+    }
+
+    return str_type;
+}
+
+void Multinomial::createPrimitive() {
+#if defined(OPENVINO_ARCH_X86_64)
+    kernel::RandomUniformCompileParams jcp;
+
+    jcp.out_data_type = ov::element::f32;
+
+    m_jit_random_uniform_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>::createInstance<kernel::RandomUniform>(jcp);
+
+    if (m_jit_random_uniform_kernel) {
+        if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
+            using namespace dnnl::impl::cpu;
+            if (m_jit_random_uniform_kernel->getIsa() == x64::avx512_core) {
+                selected_pd->setImplementationType(jit_avx512);
+            } else if (m_jit_random_uniform_kernel->getIsa() == x64::avx2) {
+                selected_pd->setImplementationType(jit_avx2);
+            } else if (m_jit_random_uniform_kernel->getIsa() == x64::sse41) {
+                selected_pd->setImplementationType(jit_sse42);
+            }
+        }
+    }
+#endif // OPENVINO_ARCH_X86_64
+
+    if (m_const_inputs[PROBS_PORT] && m_const_inputs[NUM_SAMPLES_PORT]) {
+        Node::createPrimitive();
+    }
+}
+
+bool RandomUniform::needPrepareParams() const {
+    if (m_out_shape != getChildEdgeAt(0)->getMemoryPtr()->getShape().getStaticDims() || m_out_shape != getChildEdgeAt(0)->getMemoryPtr()->getShape().getStaticDims()) {
+        return true;
+    }
+    return false;
+}
+
 void Multinomial::prepareParams() {
-    auto probs_shape = getParentEdgeAt(PROBS_PORT)->getMemory().getStaticDims();
-    auto num_samples_shape = getParentEdgeAt(NUM_SAMPLES_PORT)->getMemory().getStaticDims();
+    const auto probs_shape = getParentEdgeAt(PROBS_PORT)->getMemory().getStaticDims();
+    const auto num_samples_shape = getParentEdgeAt(NUM_SAMPLES_PORT)->getMemory().getStaticDims();
+    const auto num_samples =
+        reinterpret_cast<const int*>(getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0]; // reuse in execute?
 
     if (probs_shape.size() != 1 && probs_shape.size() != 2) {
         IE_THROW() << m_errorPrefix << "has incompatible 'probs' shape " << PartialShape(probs_shape)
@@ -101,6 +178,11 @@ void Multinomial::prepareParams() {
     m_input_vals.reserve(m_input_elements_count);
     m_random_samples.reserve(m_input_elements_count);
     m_max_per_batch.reserve(probs_shape.size() == 1 ? 1 : probs_shape[1]);
+
+    if (!m_probs_1d) {
+        m_output_shape.push_back(m_batches_count);
+    }
+    m_output_shape.push_back(num_samples);
 }
 
 void Multinomial::execute(dnnl::stream strm) {
