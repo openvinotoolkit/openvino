@@ -29,7 +29,6 @@ public:
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 }  // namespace v1
 }  // namespace op

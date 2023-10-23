@@ -75,12 +75,6 @@ bool NotEqual::has_evaluate() const {
         return false;
     }
 }
-
-bool NotEqual::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_NotEqual_visit_attributes);
-    BinaryElementwiseComparison::visit_attributes(visitor);
-    return true;
-}
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
