@@ -36,6 +36,7 @@ class TestScaledDotProductAttention(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize(['mask', "is_causal"], [(False, False), (False, True), (True, True), (True, False)])
     def test_scaled_dot_product_atten(self, ie_device, precision, ir_version, mask, is_causal):
         self._test(*self.create_model(mask, is_causal),ie_device, precision, ir_version)

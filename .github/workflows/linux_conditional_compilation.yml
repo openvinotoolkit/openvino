@@ -308,7 +308,7 @@ jobs:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
-      - name: Extract OpenVINO packages
+      - name: Extract OpenVINO tests package
         run: tar -xvzf ${INSTALL_TEST_DIR}/openvino_tests.tar.gz -C ${INSTALL_TEST_DIR}
 
       - name: Install OpenVINO dependencies

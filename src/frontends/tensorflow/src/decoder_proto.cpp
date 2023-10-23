@@ -4,12 +4,12 @@
 
 #include "decoder_proto.hpp"
 
-#include "attr_value.pb.h"
-#include "node_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/special_types.hpp"
+#include "ov_tensorflow/attr_value.pb.h"
+#include "ov_tensorflow/node_def.pb.h"
+#include "ov_tensorflow/types.pb.h"
 #include "tf_utils.hpp"
-#include "types.pb.h"
 
 namespace ov {
 namespace frontend {

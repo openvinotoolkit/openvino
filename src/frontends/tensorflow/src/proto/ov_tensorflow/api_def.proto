@@ -21,7 +21,7 @@ option java_outer_classname = "ApiDefProtos";
 option java_multiple_files = true;
 option java_package = "org.tensorflow.framework";
 option go_package = "github.com/tensorflow/tensorflow/tensorflow/go/core/framework/api_def_go_proto";
-import "attr_value.proto";
+import "ov_tensorflow/attr_value.proto";
 
 // Used to specify and override the default API & behavior in the
 // generated code for client languages, from what you would get from
