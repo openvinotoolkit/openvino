@@ -113,11 +113,15 @@ async function detectOS() {
       break;
 
     case 'darwin':
-      const [major, minor] = os.release().split('.');
+      const [major, _, _] = os.release().split('.');
 
-      osVersion = (major === 10 && minor >= 15)
+      // os.release() returns not the macOS release but the Darwin release:
+      // https://en.wikipedia.org/wiki/Darwin_(operating_system)#Release_history
+      // in the form of MAJOR.MINOR.PATCH
+
+      osVersion = major === 19
         ? 'macos_10_15'
-        : major === 11
+        : major === 20
         ? 'macos_11_0'
         : null;
 
