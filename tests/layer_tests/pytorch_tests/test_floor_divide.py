@@ -55,11 +55,13 @@ class TestFloorDivide(PytorchLayerTest):
                        reason='Ticket - 122715')
     def test_floor_divide(self, input_tensor, other_tensor, ie_device, precision, ir_version):
         if type(input_tensor) is list:
-            self.input_tensor = np.random.random_sample(input_tensor).astype(np.float32)
+            rng = np.random.default_rng(seed=13)
+            self.input_tensor = rng.standard_normal(size=input_tensor).astype(np.float32)
         else:
             self.input_tensor = input_tensor
         if type(other_tensor) is list:
-            self.other_tensor = np.random.random_sample(other_tensor).astype(np.float32)
+            rng = np.random.default_rng(seed=14)
+            self.other_tensor = rng.standard_normal(size=other_tensor).astype(np.float32)
         else:
             self.other_tensor = other_tensor
         self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)

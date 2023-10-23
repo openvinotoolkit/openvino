@@ -39,6 +39,7 @@ class TestUnfold(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_unfold(self, ie_device, precision, ir_version, dimension, size, step, input_shape):
-        self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
+        rng = np.random.default_rng(seed=13)
+        self.input_tensor = rng.standard_normal(size=input_shape).astype(np.float32)
         self._test(*self.create_model(dimension, size, step),
                    ie_device, precision, ir_version)

@@ -38,7 +38,8 @@ class TestNarrow(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_narrow(self, input_shape, dim, start, length, ie_device, precision, ir_version):
-        self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
+        rng = np.random.default_rng(seed=13)
+        self.input_tensor = rng.standard_normal(size=input_shape).astype(np.float32)
         self.dim = dim
         self.start = start
         self.length = length

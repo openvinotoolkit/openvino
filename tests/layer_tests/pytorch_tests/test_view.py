@@ -36,9 +36,12 @@ class TestViewListConstruct(PytorchLayerTest):
     @pytest.mark.precommit
     def test_view_list_construct(self, ie_device, precision, ir_version, input_shapes):
         self.input_data = []
+        seed = 13
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.random_sample(input_shape).astype(np.float32))
+                rng = np.random.default_rng(seed)
+                self.input_data.append(rng.standard_normal(input_shape).astype(np.float32))
+                seed += 1
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -68,9 +71,12 @@ class TestViewDtype(PytorchLayerTest):
     @pytest.mark.precommit
     def test_view_dtype(self, ie_device, precision, ir_version, input_shapes):
         self.input_data = []
+        seed = 13
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.random_sample(input_shape).astype(np.float32))
+                rng = np.random.default_rng(seed)
+                self.input_data.append(rng.standard_normal(input_shape).astype(np.float32))
+                seed += 1
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -101,9 +107,12 @@ class TestViewSize(PytorchLayerTest):
     @pytest.mark.precommit
     def test_view_size(self, ie_device, precision, ir_version, input_shapes):
         self.input_data = []
+        seed = 13
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.random_sample(input_shape).astype(np.float32))
+                rng = np.random.default_rng(seed)
+                self.input_data.append(rng.standard_normal(input_shape).astype(np.float32))
+                seed += 1
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -144,9 +153,12 @@ class TestView(PytorchLayerTest):
     @pytest.mark.precommit
     def test_view(self, ie_device, precision, ir_version, input_shapes):
         self.input_data = []
+        seed = 13
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.random_sample(input_shape).astype(np.float32))
+                rng = np.random.default_rng(seed)
+                self.input_data.append(rng.standard_normal(input_shape).astype(np.float32))
+                seed += 1
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)

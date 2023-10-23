@@ -39,9 +39,11 @@ class TestStack2D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_stack2D(self, input_shape, dim, ie_device, precision, ir_version):
+        rng_1 = np.random.default_rng(seed=1)
+        rng_2 = np.random.default_rng(seed=2)
         self.input_tensors = [
-            np.random.random_sample(input_shape).astype(np.float32),
-            np.random.random_sample(input_shape).astype(np.float32),
+            rng_1.standard_normal(input_shape).astype(np.float32),
+            rng_2.standard_normal(input_shape).astype(np.float32),
         ]
         self._test(*self.create_model(dim), ie_device, precision, ir_version)
 
@@ -78,9 +80,12 @@ class TestStack3D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_stack3D(self, input_shape, dim, ie_device, precision, ir_version):
+        rng_1 = np.random.default_rng(seed=1)
+        rng_2 = np.random.default_rng(seed=2)
+        rng_3 = np.random.default_rng(seed=3)
         self.input_tensors = [
-            np.random.random_sample(input_shape).astype(np.float32),
-            np.random.random_sample(input_shape).astype(np.float32),
-            np.random.random_sample(input_shape).astype(np.float32)
+            rng_1.standard_normal(input_shape).astype(np.float32),
+            rng_2.standard_normal(input_shape).astype(np.float32),
+            rng_3.standard_normal(input_shape).astype(np.float32)
         ]
         self._test(*self.create_model(dim), ie_device, precision, ir_version)

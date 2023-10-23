@@ -31,7 +31,8 @@ class TestRemainder(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_remainder(self, ie_device, precision, ir_version, input_shape_rhs):
-        self.input_rhs = np.random.random_sample(input_shape_rhs).astype(np.float32)
+        rng = np.random.default_rng(seed=13)
+        self.input_rhs = rng.standard_normal(size=input_shape_rhs).astype(np.float32)
         self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
 
 
