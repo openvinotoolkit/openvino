@@ -163,7 +163,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
     //
     // [1] no other consumers for FQ sitting on weights (neither Result node, nor any others -
     // original code includes separate checks for node being output and other consumers present; for
-    // ngraph it is a single check for number of consumers).
+    // openvino it is a single check for number of consumers).
     //
     // [2] if weights is anything except a constant with data_type other than i8; this check is overriden by
     // stronger check from Convolution patter which expects FQ only on weights

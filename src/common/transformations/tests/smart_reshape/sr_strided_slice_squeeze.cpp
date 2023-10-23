@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -27,19 +26,13 @@ TEST(SmartReshapeTests, SS_Squeeze) {
         f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3}))
+        << f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(2));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 3}));
+    EXPECT_ANY_THROW(set_batch(f, 2));
 }
 
 TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end_mask) {
@@ -59,21 +52,19 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end_mask) {
         f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({1, 768}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 128, 768}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({1, 768}))
+        << f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 128, 768}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    auto inputname = network.getFunction()->get_parameters()[0]->get_friendly_name();
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{inputname, {2, 128, 768}}}));
+    auto inputname = f->get_parameters()[0]->get_friendly_name();
+    ASSERT_NO_THROW(f->reshape({{2, 128, 768}}));
     check_unique_names(f, unh);
 
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({2, 768}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 128, 768}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({2, 768}))
+        << f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({2, 128, 768}));
 }
 
 TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end) {
@@ -95,21 +86,19 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end) {
         f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({1, 768}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 1, 768}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({1, 768}))
+        << f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 1, 768}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    auto inputname = network.getFunction()->get_parameters()[0]->get_friendly_name();
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{inputname, {2, 1, 768}}}));
+    auto inputname = f->get_parameters()[0]->get_friendly_name();
+    ASSERT_NO_THROW(f->reshape({{2, 1, 768}}));
     check_unique_names(f, unh);
 
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({2, 768}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 1, 768}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({2, 768}))
+        << f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({2, 1, 768}));
 }
 
 TEST(SmartReshapeTests, SS_Squeeze_mask_use_negative) {
@@ -128,15 +117,13 @@ TEST(SmartReshapeTests, SS_Squeeze_mask_use_negative) {
         f = std::make_shared<ov::Model>(NodeVector{squeeze}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({1, 3}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({1, 3}))
+        << f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_ANY_THROW(network.setBatchSize(2));
+    ASSERT_ANY_THROW(set_batch(f, 2));
     check_unique_names(f, unh);
 }
 
@@ -156,15 +143,13 @@ TEST(SmartReshapeTests, SS_Squeeze_negative_stride_negative) {
         f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3}))
+        << f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_ANY_THROW(network.setBatchSize(2));
+    ASSERT_ANY_THROW(set_batch(f, 2));
     check_unique_names(f, unh);
 }
 
@@ -185,20 +170,13 @@ TEST(SmartReshapeTests, SS_SharedSqueezes) {
         f = std::make_shared<ov::Model>(NodeVector{relu_1, relu_2}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3}))
+        << f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(2));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 3}));
+    EXPECT_ANY_THROW(set_batch(f, 2));
 }
 
 TEST(SmartReshapeTests, SS_SqueezeNegativeAxes) {
@@ -218,20 +196,13 @@ TEST(SmartReshapeTests, SS_SqueezeNegativeAxes) {
         f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3, 1, 8, 1, 2}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2}))
+        << f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 3, 1, 8, 1, 2}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(2));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 3, 1, 8, 1, 2}));
+    EXPECT_ANY_THROW(set_batch(f, 2));
 }
 
 TEST(SmartReshapeTests, Squeeze_SSNegativeAxes) {
@@ -250,18 +221,11 @@ TEST(SmartReshapeTests, Squeeze_SSNegativeAxes) {
         f = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{input});
     }
 
-    InferenceEngine::CNNNetwork network(f);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3, 1, 8, 1, 2}));
+    ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2}))
+        << f->get_results()[0]->get_output_partial_shape(0);
+    ASSERT_TRUE(f->get_parameters()[0]->get_partial_shape().compatible({1, 3, 1, 8, 1, 2}));
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.setBatchSize(2));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2}))
-        << network.getFunction()->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 3, 1, 8, 1, 2}));
+    EXPECT_ANY_THROW(set_batch(f, 2));
 }

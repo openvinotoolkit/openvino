@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,13 @@ using namespace dnnl::impl::cpu;
 
 namespace ov {
 namespace intel_cpu {
+namespace kernel {
 
 #define GET_OFF(field) offsetof(GridSamplesKernelExecArgs, field)
 
 template <x64::cpu_isa_t isa>
 GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp) :
-        GridSampleKernelBase(jit_name(), jcp) {
+        GridSampleKernelBase(jit_name(), jcp, isa) {
     vlen = x64::cpu_isa_traits<isa>::vlen;
     dataTypeSize = jcp.inDataPrc.size();
     gridTypeSize = jcp.gridPrc.size();
@@ -2085,5 +2086,6 @@ template class GridSampleKernel<x64::avx512_core>;
 template class GridSampleKernel<x64::avx2>;
 template class GridSampleKernel<x64::sse41>;
 
+}   // namespace kernel
 }   // namespace intel_cpu
 }   // namespace ov
