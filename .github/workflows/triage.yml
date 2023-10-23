@@ -1,4 +1,4 @@
-name: Take_Issue
+name: Take Issue
 
 on:
   issue_comment:
