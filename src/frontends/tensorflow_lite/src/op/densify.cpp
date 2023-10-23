@@ -5,6 +5,7 @@
 #include "common_op_table.hpp"
 #include "op_translation_utils.hpp"
 #include "utils.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 using namespace std;
 
@@ -15,10 +16,14 @@ namespace op {
 
 OutputVector densify(const ov::frontend::tensorflow_lite::NodeContext& node) {
     const auto& decoder = get_decoder(node);
-    std::map<std::string, ov::Any> attrs{
-        {"output_type", get_ov_type(decoder->get_attribute(&tflite::ArgMinOptions::output_type))},
-    };
-    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_arg_min_op);
+    auto inputs = node.get_inputs();
+    int idx = 0;
+    for (auto it = inputs.begin(); it != inputs.end(); ++it, idx++) {
+        std::cerr << "Densify Input (" << idx << "): " << it->get_any_name() << std::endl;
+    }
+    auto output = std::make_shared<ov::opset1::Convert>(node.get_input(0), element::f32);
+    output->set_friendly_name(node.get_name());
+    return {output};
 }
 
 }  // namespace op
