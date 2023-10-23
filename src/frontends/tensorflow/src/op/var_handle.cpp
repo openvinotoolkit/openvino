@@ -11,7 +11,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
-#include "tensor_bundle.pb.h"
+#include "ov_tensorflow/tensor_bundle.pb.h"
 
 using namespace std;
 using namespace ov::opset8;
