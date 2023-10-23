@@ -21,6 +21,7 @@ struct NMSRotatedParams {
     reference_tests::Tensor iouThreshold;
     reference_tests::Tensor scoreThreshold;
     reference_tests::Tensor softNmsSigma;
+    bool sortResultsDescending = true;
     bool clockwise = true;
     reference_tests::Tensor expectedSelectedIndices;
     reference_tests::Tensor expectedSelectedScores;
@@ -35,6 +36,7 @@ struct Builder : ParamsBuilder<NMSRotatedParams> {
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, iouThreshold);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, scoreThreshold);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, softNmsSigma);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, sortResultsDescending);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, clockwise);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, expectedSelectedIndices);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, expectedSelectedScores);
@@ -91,7 +93,7 @@ private:
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               false,
+                                                               params.sortResultsDescending,
                                                                params.expectedSelectedIndices.type,
                                                                params.clockwise);
         return std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
@@ -129,7 +131,7 @@ private:
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               false,
+                                                               params.sortResultsDescending,
                                                                params.expectedSelectedIndices.type,
                                                                params.clockwise);
         return std::make_shared<Model>(
