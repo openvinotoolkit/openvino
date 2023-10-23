@@ -13,7 +13,6 @@ from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 import torch
-import openvino.frontend.pytorch.torchdynamo.backend
 
 
 class PytorchLayerTest:
@@ -210,6 +209,8 @@ class PytorchLayerTest:
         return om
 
     def torch_compile_backend_test(self, model, inputs, custom_eps):
+        from openvino import torch
+        
         torch._dynamo.reset()
         with torch.no_grad():
             model.eval()
