@@ -22,8 +22,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 33886
         R"(.*(QuantGroupConv2D).*)",
         R"(.*(QuantGroupConv3D).*)",
-        // TODO: Issue: 34518
-        R"(.*RangeLayerTest.*)",
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*ET=f16.*)",
         R"(.*(RangeNumpyAddSubgraphTest).*ET=f16.*)",
         // TODO: Issue: 43793
