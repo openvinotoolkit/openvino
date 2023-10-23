@@ -34,6 +34,7 @@ OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argsort);
 OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argmin);
+OP_CONVERTER(translate_as_strided);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
@@ -256,6 +257,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::argmax", op::translate_argmax},
         {"aten::argmin", op::translate_argmin},
         {"aten::argsort", op::translate_argsort},
+        {"aten::as_strided", op::translate_as_strided},
         {"aten::as_tensor", op::translate_as_tensor},
         {"aten::asin", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Asin>},
         {"aten::asin_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Asin>>},
