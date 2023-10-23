@@ -100,9 +100,7 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else
-        // _taskExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
-        _cfg._taskExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
-        _taskExecutor = _cfg._taskExecutor;
+        _taskExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
 #endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {

@@ -98,7 +98,6 @@ struct Config {
 
     int modelPreferThreads = -1;
 
-    std::shared_ptr<InferenceEngine::IStreamsExecutor> _taskExecutor = nullptr;
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
     void applyDebugCapsProperties();

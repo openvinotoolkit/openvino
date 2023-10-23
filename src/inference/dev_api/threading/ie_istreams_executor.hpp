@@ -17,6 +17,7 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 
 namespace InferenceEngine {
 
@@ -162,10 +163,7 @@ public:
 
 template <typename F>
 INFERENCE_ENGINE_API_CPP(void)
-parallel_mt_sockets(int nthr,
-                    const F& func,
-                    int nsockets,
-                    std::shared_ptr<InferenceEngine::IStreamsExecutor> executor) {
+parallel_mt_sockets(int nthr, const F& func, int nsockets) {
 #if OV_THREAD == OV_THREAD_SEQ
     const bool serial = true;
 #else
@@ -185,17 +183,17 @@ parallel_mt_sockets(int nthr,
             func(ithr, nthr);
         });
     } else if (nsockets > 1) {
+        auto executor = ov::threading::executor_manager()->get_stream_executor("CPUStreamsExecutor");
         parallel_for(nsockets, [&](int ithr) {
             int ntasks = nthr / nsockets;
-            // auto executor = context.get()->getConfig()._taskExecutor;
             std::vector<Task> tasks;
             tasks.resize(1);
             for (auto&& task : tasks) {
                 task = [&] {
                     parallel_for(ntasks, [&](int taskid) {
                         int thread_id = ithr * ntasks + taskid;
-                        std::cout << "thread_id: " << thread_id << " ithr:" << ithr << " ntasks:" << ntasks
-                        << " taskid:" << taskid << "\n";
+                        // std::cout << "thread_id: " << thread_id << " ithr:" << ithr << " ntasks:" << ntasks
+                        // << " taskid:" << taskid << "\n";
                         func(thread_id, nthr);
                     });
                 };

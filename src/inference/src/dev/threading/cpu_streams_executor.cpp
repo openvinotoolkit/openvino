@@ -79,6 +79,11 @@ struct CPUStreamsExecutor::Impl {
                     _streamId = _impl->_streamIdQueue.front();
                     _impl->_streamIdQueue.pop();
                 }
+                if (!_impl->_subStreamIdQueue.empty() && _impl->_subStreamsNum < _impl->_config._sub_streams) {
+                    _sub_stream_id = _impl->_subStreamIdQueue.front();
+                    _impl->_subStreamIdQueue.pop();
+                    _impl->_subStreamsNum++;
+                }
             }
             _numaNodeId = _impl->_config._streams
                               ? _impl->_usedNumaNodes.at((_streamId % _impl->_config._streams) /
@@ -166,17 +171,17 @@ struct CPUStreamsExecutor::Impl {
                 _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) >= _impl->_config._streams
                                ? _impl->_config._stream_processor_ids[stream_id]
                                : _cpu_ids;
-                _cpu_ids = _extra_stream ? _impl->_config._stream_processor_ids[_streamId - _impl->_config._streams] : _cpu_ids;
-                int concurrency_temp = _extra_stream ? concurrency / 2 : concurrency;
-                std::cout << "_impl->_config._name: " << _impl->_config._name << " _extra_stream: " << _extra_stream
-                          << " concurrency:"
-                          << " " << concurrency_temp << " " << _cpu_ids.size() << "\n";
+                _cpu_ids = _sub_stream_id >= 0 ? _impl->_config._stream_processor_ids[_impl->_config._streams + _sub_stream_id] : _cpu_ids;
+                int concurrency_temp = _sub_stream_id >= 0 ? concurrency / 2 : concurrency;
+                // std::cout << "_impl->_config._name: " << _impl->_config._name << "  _sub_stream_id: " << _sub_stream_id
+                //           << " concurrency:"
+                //           << " " << concurrency_temp << " " << _cpu_ids.size() << "\n";
                 _taskArena.reset(new custom::task_arena{concurrency_temp});
-                std::cout << "cpu ids: ";
-                for (auto i = 0; i < static_cast<int>(_cpu_ids.size()); i++) {
-                    std::cout << _cpu_ids[i] << " ";
-                }
-                std::cout << "\n";
+                // std::cout << "cpu ids: ";
+                // for (auto i = 0; i < static_cast<int>(_cpu_ids.size()); i++) {
+                //     std::cout << _cpu_ids[i] << " ";
+                // }
+                // std::cout << "\n";
                 if (_cpu_ids.size() > 0) {
                     CpuSet processMask;
                     int ncpus = 0;
@@ -204,10 +209,7 @@ struct CPUStreamsExecutor::Impl {
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
             auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
-            _extra_stream = false;
-            if (_streamId >= _impl->_config._streams) {
-                _extra_stream = true;
-            }
+
             get_cur_stream_info(stream_id,
                                 _impl->_config._cpu_reservation,
                                 org_proc_type_table,
@@ -341,7 +343,7 @@ struct CPUStreamsExecutor::Impl {
         int _numaNodeId = 0;
         int _socketId = 0;
         bool _execute = false;
-        bool _extra_stream = false;
+        int _sub_stream_id = -1;
         std::queue<Task> _taskQueue;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         std::unique_ptr<custom::task_arena> _taskArena;
@@ -485,6 +487,15 @@ struct CPUStreamsExecutor::Impl {
                     Task task;
                     { _subTaskThread[subId]->que_pop(task, stopped); }
                     if (task) {
+                        {
+                            std::lock_guard<std::mutex> lock{_streamIdMutex};
+                            if (_subStreamsNum < _config._sub_streams) {
+                                _subStreamIdQueue.push(subId);
+                            } else {
+                                std::queue<int> empty;
+                                std::swap(_subStreamIdQueue, empty);
+                            }
+                        }
                         Execute(task, *(_streams.local()));
                     }
                 }
@@ -571,6 +582,8 @@ struct CPUStreamsExecutor::Impl {
     std::mutex _streamIdMutex;
     int _streamId = 0;
     std::queue<int> _streamIdQueue;
+    std::queue<int> _subStreamIdQueue;
+    int _subStreamsNum = 0;
     std::vector<std::thread> _threads;
     std::vector<std::thread> _subThreads;
     std::mutex _mutex;

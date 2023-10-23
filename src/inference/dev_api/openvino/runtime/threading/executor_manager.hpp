@@ -35,6 +35,8 @@ public:
      */
     virtual std::shared_ptr<ov::threading::ITaskExecutor> get_executor(const std::string& id) = 0;
 
+    virtual std::shared_ptr<ov::threading::IStreamsExecutor> get_stream_executor(const std::string& id) = 0;
+
     /**
      * @brief Returns idle cpu streams executor
      *
