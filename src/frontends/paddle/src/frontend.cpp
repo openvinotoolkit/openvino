@@ -136,29 +136,29 @@ bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-void variant_to_stream_ptr(const ov::Any& variant, std::stringstream& ss) {
+std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, std::stringstream& ss) {
     if (variant.is<std::istream*>()) {
-        ss << variant.as<std::istream*>()->rdbuf();
+        return variant.as<std::istream*>();
     } else if (variant.is<std::shared_ptr<ngraph::runtime::AlignedBuffer>>()) {
         auto& aligned_weights_buffer = variant.as<std::shared_ptr<ngraph::runtime::AlignedBuffer>>();
         ss.write(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
         FRONT_END_INITIALIZATION_CHECK(ss && ss.good(), "Cannot open ov::tensor.");
+        return &ss;
     } else if (variant.is<std::string>()) {
         const auto& model_path = variant.as<std::string>();
-        std::ifstream ext_ifstream(model_path, std::ios::in | std::ifstream::binary);
-        ss << ext_ifstream.rdbuf();
-        FRONT_END_INITIALIZATION_CHECK(ext_ifstream && ext_ifstream.is_open() && ss && ss.good(),
-                                       "Cannot open model file.");
+        fs.open(model_path, std::ios::in | std::ifstream::binary);
+        FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
+        return &fs;
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variant.is<std::wstring>()) {
         const auto& model_path = variant.as<std::wstring>();
-        std::ifsteam ext_ifstream(model_path.c_str(), std::ios::in | std::ifstream::binary);
-        ss << ext_ifstream.rdbuf();
-        FRONT_END_INITIALIZATION_CHECK(ext_ifstream && ext_ifstream.is_open() && ss && ss.good(),
-                                       "Cannot open model file.");
+        fs.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
+        FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
+        return &fs;
     }
 #endif
+    return nullptr;
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace
@@ -440,11 +440,12 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     } else if (variants.size() == 2 + extra_variants_num) {
         // The case when .pdmodel and .pdparams files are provided
-        std::stringstream p_model_stream, p_weights_stream;
-        paddle::variant_to_stream_ptr(variants[0], p_model_stream);
-        paddle::variant_to_stream_ptr(variants[1], p_weights_stream);
-        if (p_model_stream.good() && p_weights_stream.good()) {
-            return std::make_shared<InputModel>(std::vector<std::istream*>{&p_model_stream, &p_weights_stream},
+        std::fstream model_fstream, weights_fstream;
+        std::stringstream model_sstream, weights_sstream;
+        std::istream* p_model_stream = paddle::variant_to_stream_ptr(variants[0], model_fstream, model_sstream);
+        std::istream* p_weights_stream = paddle::variant_to_stream_ptr(variants[1], weights_fstream, weights_sstream);
+        if (p_model_stream && p_weights_stream) {
+            return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream, p_weights_stream},
                                                 m_telemetry);
         }
     }
