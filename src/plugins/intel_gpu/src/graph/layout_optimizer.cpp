@@ -32,6 +32,7 @@
 #include "region_yolo_inst.h"
 #include "prior_box_inst.h"
 #include "scatter_nd_update_inst.h"
+#include "gather_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -306,7 +307,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
          (fmt_prev == format::b_fs_yx_fsv4 &&
           prev_output_layout.feature() % 32 == 0 &&
           prev_output_layout.spatial(0) == 1 &&
-          prev_output_layout.spatial(1) == 1)))
+          prev_output_layout.spatial(1) == 1)) && is_input_reorder(prev, next))
         return true;
 
     if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv4 && is_input_idx(0))
@@ -849,6 +850,18 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     return true;
 }
 
+static bool is_node_for_onednn(convolution_node const& node) {
+    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
+        return false;
+
+    auto input_layout = node.get_input_layout(0);
+    auto output_layout = node.get_output_layout(0);
+    if (input_layout.is_dynamic() || output_layout.is_dynamic())
+        return false;
+
+    return true;
+}
+
 static bool is_node_for_onednn(deconvolution_node const& node) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_input_layout(0);
@@ -871,6 +884,9 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
+    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
+        return false;
+
     auto fc_prim = node.get_primitive();
     // onednn impl doesn't support compressed weights for now
     if (fc_prim->compressed_weights)
@@ -889,6 +905,10 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
     }
 
     return true;
+}
+
+static bool is_node_for_onednn(gemm_node const& node) {
+    return layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
 }
 
 // This function is needed to avoid performance regressions for the convolutions with byxf layout
@@ -1240,6 +1260,20 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     }
 
     return expected;
+}
+
+bool layout_optimizer::is_node_suitable_for_onednn(program_node& node) {
+    if (node.is_type<convolution>()) {
+        return is_node_for_onednn(node.as<convolution>());
+    } else if (node.is_type<deconvolution>()) {
+        return is_node_for_onednn(node.as<deconvolution>());
+    } else if (node.is_type<fully_connected>()) {
+        return is_node_for_onednn(node.as<fully_connected>());
+    } else if (node.is_type<gemm>()) {
+        return is_node_for_onednn(node.as<gemm>());
+    }
+
+    return false;
 }
 
 bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
@@ -1770,6 +1804,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(0, format::bfyx);
             }
         }
+    } else if (node.is_type<gather>()) {
+        // Gather needs the original input/output rank because
+        // the parameters as indices, batch_dims and axis depend on the rank.
+        node.set_preferred_input_fmt(0, format::get_default_format(node.as<gather>().get_primitive()->input_rank));
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
@@ -2087,6 +2125,10 @@ void layout_optimizer::set_implementation_forcing(const ov::intel_gpu::ImplForci
     for (const auto& kv : map) {
         _forcing_map.emplace(kv.first, std::make_pair(kv.second.output_format, kv.second.impl_type));
     }
+}
+
+const std::map<primitive_id, std::pair<format::type, impl_types>> layout_optimizer::get_implementation_forcing() const {
+    return _forcing_map;
 }
 
 const std::vector<std::pair<format::type, bool>> layout_optimizer::optimized_formats = {

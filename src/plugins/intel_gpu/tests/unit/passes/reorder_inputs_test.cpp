@@ -136,8 +136,8 @@ TEST(reorder_inputs, mixed_ranks_gather) {
                              ov::CoordinateDiff{0, 0},
                              false));
     topology.add(border("pad", { input_info("conv") }, 0, ov::CoordinateDiff{0, 0, 1, 1}, ov::CoordinateDiff{0, 0, 1, 1}));
-    topology.add(gather("gather1", input_info("pad"), input_info("data1"), 2, { 1, 2, 3, 128, 57 }, 0, false));
-    topology.add(gather("gather2", input_info("gather1"), input_info("data2"), 4, { 1, 2, 3, 128, 3, 55 }, 0, false));
+    topology.add(gather("gather1", input_info("pad"), input_info("data1"), 2, 4, { 1, 2, 3, 128, 57 }, 0, false));
+    topology.add(gather("gather2", input_info("gather1"), input_info("data2"), 4, 5, { 1, 2, 3, 128, 3, 55 }, 0, false));
     topology.add(permute("permute", input_info("gather2"), {0, 1, 2, 4, 3, 5}));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -155,10 +155,10 @@ TEST(reorder_inputs, mixed_ranks_gather) {
     auto& gather1_node = prog_impl->get_node("gather1");
     auto& gather2_node = prog_impl->get_node("gather2");
 
-    ASSERT_EQ(gather1_node.get_input_layouts()[0].format, format::bfzyx);
+    ASSERT_EQ(gather1_node.get_input_layouts()[0].format, format::bfyx);
     ASSERT_EQ(gather1_node.get_output_layout().format, format::bfzyx);
 
-    ASSERT_EQ(gather2_node.get_input_layouts()[0].format, format::bfwzyx);
+    ASSERT_EQ(gather2_node.get_input_layouts()[0].format, format::bfzyx);
     ASSERT_EQ(gather2_node.get_output_layout().format, format::bfwzyx);
 }
 

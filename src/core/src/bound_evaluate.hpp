@@ -9,7 +9,7 @@
 namespace ov {
 // bool could_propagate(const Output<Node>& output, std::vector<Node*>& order);
 
-/// \brief Checks if all the elements of the bound Tensor are positive
+/// \brief Checks if all the elements of the bound Tensor are non-negative
 bool tensor_is_non_negative(const Tensor& bound);
 
 /// \brief Checks if any element of the bound Tensor has max possible value
