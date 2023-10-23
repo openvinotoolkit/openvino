@@ -63,8 +63,7 @@ jobs:
 
       - name: List bin files
         if: ${{ contains(matrix.machine, 'windows') }}
-        shell: cmd
-        run: dir ${{ env.JS_BINDINGS_DIR }} /s
+        run: Get-ChildItem -Recurse ${{ env.JS_BINDINGS_DIR }}
 
       #
       # Tests
