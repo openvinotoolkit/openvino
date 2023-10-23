@@ -61,6 +61,11 @@ jobs:
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
         run: npm i
 
+      - name: List bin files
+        if: ${{ contains(matrix.machine, 'windows') }}
+        shell: cmd
+        run: dir ${{ env.JS_BINDINGS_DIR }} /s
+
       #
       # Tests
       #
@@ -77,4 +82,12 @@ jobs:
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
         run: |
           $env:Path = '${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/runtime/lib/intel64/;' + $env:Path
+          npm test
+
+      - name: Run tests (Windows) CMD
+        shell: cmd
+        if: ${{ contains(matrix.machine, 'windows') }}
+        working-directory: ${{ env.JS_BINDINGS_DIR }}/node
+        run: |
+          set path=%path%;${{ env.JS_BINDINGS_DIR }}\node\ov_runtime\runtime\lib\intel64
           npm test
