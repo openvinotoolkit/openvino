@@ -107,9 +107,10 @@ class TorchScriptPythonDecoder (Decoder):
                         gptq.unpatch_model(pt_module)
 
             if not skip_freeze:
+                ops_kind_no_freeze = ["quantize", "aten::as_strided"]
                 for n in scripted.inlined_graph.nodes():
                     # TODO: switch off freezing for all traced models
-                    if "quantize" in n.kind():
+                    if any(kind in n.kind() for kind in ops_kind_no_freeze):
                         # do not freeze quantized models
                         skip_freeze = True
                         break
@@ -149,6 +150,16 @@ class TorchScriptPythonDecoder (Decoder):
     def get_input_shape(self, index: int):
         raw_input = self._raw_input(index)
         return self.get_shape_for_value(raw_input)
+
+    def get_input_strides(self, index: int) -> typing.List[int]:
+        raw_input = self._raw_input(index)
+        if isinstance(raw_input, torch.Value):
+            inp_type = raw_input.type()
+            if isinstance(inp_type, torch.TensorType):
+                strides = inp_type.strides()
+                if strides:
+                    return strides
+        return []
 
     def get_input_type(self, index: int):
         raw_input = self._raw_input(index)
