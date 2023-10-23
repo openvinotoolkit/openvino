@@ -140,7 +140,7 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
     return true;
 }
 
-memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
+memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset, size_t bytes_count) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate memory for dynamic layout");
 
     bool allocatable = check_allocatable(layout, type);

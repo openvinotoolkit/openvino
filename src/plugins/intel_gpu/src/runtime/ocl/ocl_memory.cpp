@@ -391,23 +391,23 @@ shared_mem_params gpu_dx_buffer::get_internal_params() const {
 }
 #endif
 
-gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, allocation_type type)
+gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, allocation_type type, size_t bytes_count)
     : lockable_gpu_mem()
-    , memory(engine, new_layout, type, true)
+    , memory(engine, new_layout, type, true, bytes_count)
     , _buffer(buffer)
     , _host_buffer(engine->get_usm_helper()) {
 }
 
-gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer)
+gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, size_t bytes_count)
     : lockable_gpu_mem()
-    , memory(engine, new_layout, detect_allocation_type(engine, buffer), true)
+    , memory(engine, new_layout, detect_allocation_type(engine, buffer), true, bytes_count)
     , _buffer(buffer)
     , _host_buffer(engine->get_usm_helper()) {
 }
 
-gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
+gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type, size_t bytes_count)
     : lockable_gpu_mem()
-    , memory(engine, layout, type, false)
+    , memory(engine, layout, type, false, bytes_count)
     , _buffer(engine->get_usm_helper())
     , _host_buffer(engine->get_usm_helper()) {
     switch (get_allocation_type()) {

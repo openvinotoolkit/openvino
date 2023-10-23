@@ -48,10 +48,10 @@ public:
     memory_ptr attach_memory(const layout& layout, void* ptr);
 
     /// Allocate gpu memory using specified @p layout and alloation @p type
-    virtual memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) = 0;
+    virtual memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true, size_t bytes_count = 0) = 0;
 
     /// Allocate gpu memory using specified @p layout. Allocation type is selected automatically based on engine/device configuration
-    memory_ptr allocate_memory(const layout& layout, bool reset = true);
+    memory_ptr allocate_memory(const layout& layout, bool reset = true, size_t bytes_count = 0);
 
     /// Created memory object from memory @p params and reinterpred the data using specified @p layout
     virtual memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) = 0;

@@ -29,7 +29,7 @@ enum class mem_lock_type : int32_t {
 struct memory {
     using ptr = std::shared_ptr<memory>;
     using cptr = std::shared_ptr<const memory>;
-    memory(engine* engine, const layout& layout,  allocation_type type, bool reused = false);
+    memory(engine* engine, const layout& layout,  allocation_type type, bool reused = false, size_t bytes_count = 0);
 
     virtual ~memory();
     virtual void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) = 0;
