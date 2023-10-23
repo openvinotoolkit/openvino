@@ -133,7 +133,7 @@ else()
     set(library_type INTERFACE)
 endif()
 
-add_library(${TARGET_NAME} ${library_type} ${library_sources})
+add_library(${TARGET_NAME} ${library_type} ${library_sources} ${CMAKE_CURRENT_SOURCE_DIR}/ie_preprocess_dummy.cpp)
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
