@@ -104,6 +104,7 @@
 #include "op/mod.hpp"
 #include "op/mul.hpp"
 #include "op/neg.hpp"
+#include "op/nms_rotated.hpp"
 #include "op/non_max_suppression.hpp"
 #include "op/non_zero.hpp"
 #include "op/not.hpp"
@@ -310,6 +311,7 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
 
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
 static const char* const PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
+static const char* const MMDEPLOY_DOMAIN = "mmdeploy";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
@@ -561,6 +563,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
 
     REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
+    REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "NMSRotated", 1, nms_rotated);
 }
 
 #undef REGISTER_OPERATOR

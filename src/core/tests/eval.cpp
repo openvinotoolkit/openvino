@@ -15,6 +15,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -2663,4 +2664,16 @@ TEST(eval, evaluate_cum_sum_v0_exclusive_reversed) {
     EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
     EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
     EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
+}
+
+TEST(eval, invalid_shape) {
+    auto p1 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2});
+    auto p2 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2});
+    auto add = make_shared<op::v1::Add>(p1, p2);
+    auto model = make_shared<Model>(OutputVector{add}, ParameterVector{p1, p2});
+    auto result_tensor = ov::Tensor(element::f32, {1, 2});
+    auto out_vector = ov::TensorVector{result_tensor};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>({1, 3}, {1.0f, 1.0f, 1.0f}),
+                                      make_tensor<element::Type_t::f32>({1, 3}, {7.0f, 6.0f, 1.0f})};
+    ASSERT_THROW(model->evaluate(out_vector, in_vector), ov::Exception);
 }

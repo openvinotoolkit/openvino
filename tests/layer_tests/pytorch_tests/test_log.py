@@ -17,7 +17,9 @@ class TestLog(PytorchLayerTest):
             "log": torch.log,
             "log_": torch.log_,
             "log2": torch.log2,
-            "log2_": torch.log2_
+            "log2_": torch.log2_,
+            "log1p": torch.log1p,
+            "log1p_": torch.log1p_
         }
 
         op_fn = ops[op]
@@ -42,7 +44,10 @@ class TestLog(PytorchLayerTest):
                              ["log_", "float32"], 
                              ["log2", "float32"], 
                              ["log2", "int32"], 
-                             ["log2_", "float32"]])
+                             ["log2_", "float32"],
+                             ["log1p", "float32"], 
+                             ["log1p", "int32"], 
+                             ["log1p_", "float32"]])
     def test_log(self, op, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={"dtype": input_dtype})

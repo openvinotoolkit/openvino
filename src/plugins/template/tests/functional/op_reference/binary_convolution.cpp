@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -95,7 +95,7 @@ private:
                                                  const std::vector<uint8_t>& filterData) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
-        auto filter = std::make_shared<opset8::Constant>(ov::element::u1, params.filterShape, &filterData[0]);
+        auto filter = std::make_shared<op::v0::Constant>(ov::element::u1, params.filterShape, &filterData[0]);
         const auto BinaryConvolution = std::make_shared<op::v1::BinaryConvolution>(in,
                                                                                    filter,
                                                                                    params.strides,

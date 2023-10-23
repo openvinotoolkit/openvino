@@ -69,7 +69,7 @@ cmake .. \
 -DENABLE_DEBUG_CAPS=ON \
 -DSELECTIVE_BUILD=ON \
 -DSELECTIVE_BUILD_STAT=<CSV_PATH> \
--DPYTHON_EXECUTABLE=/usr/bin/python3.7 \
+-DPython3_EXECUTABLE=/usr/bin/python3.7 \
 -DCMAKE_INSTALL_PREFIX=`pwd`/install \
 -DCMAKE_INSTALL_RPATH=`pwd`/install/runtime/3rdparty/tbb/lib:`pwd`/install/runtime/lib/intel64
 

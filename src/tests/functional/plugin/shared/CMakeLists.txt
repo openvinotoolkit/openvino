@@ -40,32 +40,30 @@ else()
 endif()
 
 if (TARGET openvino::snippets)
-    list(APPEND LINK_LIBRARIES_PRIVATE snippetsNgraphFunctions)
+    list(APPEND LINK_LIBRARIES_PRIVATE ov_snippets_models)
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
 endif()
 
-addIeTarget(
+ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT ${PUBLIC_HEADERS_DIR}
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
-        DEVELOPER_PACKAGE
-            tests
         EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
         DEFINES ${DEFINES}
         INCLUDES
             PUBLIC
-                ${PUBLIC_HEADERS_DIR}
+                "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
                 common_test_utils
                 func_test_utils
-                ngraphFunctions
-                lptNgraphFunctions
+                ov_models
+                ov_lpt_models
                 sharedTestClasses
             PRIVATE
                 ${LINK_LIBRARIES_PRIVATE}
@@ -86,3 +84,8 @@ if (ENABLE_INTEL_CPU)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/behavior/ov_executable_network/get_metric.cpp"
         PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
 endif()
+
+# install & export
+
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${PUBLIC_HEADERS_DIR}/")

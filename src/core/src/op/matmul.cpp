@@ -69,12 +69,12 @@ bool evaluate_matmul(const op::MatMul* op,
     bool rc = true;
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_matmul, i32, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, i64, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, u32, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, u64, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, f16, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, f32, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, i32, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, i64, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, u32, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, u64, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, f16, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, f32, op, arg0, arg1, output);
     default:
         rc = false;
         break;

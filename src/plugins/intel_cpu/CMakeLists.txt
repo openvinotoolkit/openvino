@@ -27,7 +27,7 @@ elseif(AARCH64)
     if(APPLE)
         # Apple M1 / M2 is assumed
         set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
-        add_definitions(-DOV_CPU_ARM_ENABLE_FP16)
+        add_compile_definitions(OV_CPU_ARM_ENABLE_FP16)
     else()
         set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8a)
     endif()
@@ -36,7 +36,7 @@ set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT})
 
 if(X86 OR X86_64 OR AARCH64)
     # disable mlas with webassembly
-    if(EMSCRIPTEN OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7))
+    if(EMSCRIPTEN OR (WIN32 AND AARCH64) OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7))
         set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
     else()
         set(ENABLE_MLAS_FOR_CPU_DEFAULT ON)
@@ -44,7 +44,7 @@ if(X86 OR X86_64 OR AARCH64)
 else()
     set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
 endif()
-ie_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
+ov_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
 add_subdirectory(thirdparty)
 

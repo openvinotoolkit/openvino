@@ -29,7 +29,7 @@ namespace pass {
 namespace low_precision {
 
 /**
-* @brief NetworkHelper class encapsulates manipulations with nGraph function.
+* @brief NetworkHelper class encapsulates manipulations with ov::Model.
 */
 class LP_TRANSFORMATIONS_API NetworkHelper {
 public:
@@ -97,7 +97,7 @@ public:
     static std::shared_ptr<ov::opset1::Constant> round(std::shared_ptr<Node> node, element::Type target_type);
 
     static std::shared_ptr<ov::opset1::FakeQuantize> composeFakeQuantize(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     static std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         std::shared_ptr<ov::opset1::FakeQuantize> fq,
@@ -130,15 +130,15 @@ public:
         const ngraph::Output<ov::Node>& subtract_constant);
 
     static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ov::Node>& node,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ov::Node>& node,
-        const std::vector<ov::element::Type>& _defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& _defaultPrecisions = precision_set::get_int8_support());
 
     static bool isQuantizeSupported(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuantize);
 
     static FakeQuantizeDequantization getDequantization(const std::shared_ptr<const Node>& node,
-        const std::vector<ov::element::Type> _defaultPrecisions = precision_set::int8_support,
+        const std::vector<ov::element::Type> _defaultPrecisions = precision_set::get_int8_support(),
         const size_t parentIndex = 0ul,
         const bool inPlace = false);
 
@@ -170,7 +170,7 @@ public:
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
         const bool moveSubtract,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     static InsertDequantizationResult moveDequantizationBefore(
         const std::shared_ptr<ov::Node>& operation,
@@ -200,11 +200,11 @@ public:
 
     static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node,
         const size_t branchIndex,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support,
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support(),
         const bool inPlace = false);
 
     static std::shared_ptr<ov::Node> separateInStandaloneBranch(std::shared_ptr<ov::Node> node,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     static std::shared_ptr<ov::opset1::FakeQuantize> fuseConvert(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuantize);
 

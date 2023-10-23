@@ -4,8 +4,8 @@
 
 #include "behavior/plugin/hetero_synthetic.hpp"
 #include <ngraph/op/util/op_types.hpp>
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include <random>
@@ -119,11 +119,11 @@ void HeteroSyntheticTest::SetUp() {
         try {
             if (pluginParameter._location == "openvino_template_plugin") {
                 PluginCache::get().ie()->RegisterPlugin(ov::util::make_plugin_library_name(
-                    ov::test::utils::getExecutableDirectory(), pluginParameter._location + IE_BUILD_POSTFIX),
+                    ov::test::utils::getExecutableDirectory(), pluginParameter._location + OV_BUILD_POSTFIX),
                     pluginParameter._name);
             } else {
                 PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
-                    + IE_BUILD_POSTFIX, pluginParameter._name);
+                    + OV_BUILD_POSTFIX, pluginParameter._name);
             }
         } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name

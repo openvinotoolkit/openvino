@@ -10,11 +10,11 @@
 
 #include <gtest/gtest.h>
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/fuse_subtract_to_fake_quantize_function.hpp"
+#include "ov_lpt_models/fuse_subtract_to_fake_quantize.hpp"
 
 #include "simple_low_precision_transformer.hpp"
 

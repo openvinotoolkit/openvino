@@ -89,25 +89,34 @@ ov_status_e ov_core_read_model(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
-                                           const char* model_str,
-                                           const ov_tensor_t* weights,
-                                           ov_model_t** model) {
-    if (!core || !model_str || !model) {
+ov_status_e ov_core_read_model_from_memory_buffer(const ov_core_t* core,
+                                                  const char* model_str,
+                                                  const size_t str_size,
+                                                  const ov_tensor_t* weights,
+                                                  ov_model_t** model) {
+    if (!core || !model_str || !model || !str_size) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
         std::unique_ptr<ov_model_t> _model(new ov_model_t);
+        std::string model_string(model_str, str_size);
         if (weights) {
-            _model->object = core->object->read_model(model_str, *(weights->object));
+            _model->object = core->object->read_model(model_string, *(weights->object));
         } else {
-            _model->object = core->object->read_model(model_str, ov::Tensor());
+            _model->object = core->object->read_model(model_string, ov::Tensor());
         }
         *model = _model.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
+}
+
+ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
+                                           const char* model_str,
+                                           const ov_tensor_t* weights,
+                                           ov_model_t** model) {
+    return ov_core_read_model_from_memory_buffer(core, model_str, strlen(model_str), weights, model);
 }
 
 ov_status_e ov_core_compile_model(const ov_core_t* core,
@@ -438,4 +447,8 @@ ov_status_e ov_core_get_default_context(const ov_core_t* core, const char* devic
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
+}
+
+void ov_shutdown() {
+    ov::shutdown();
 }

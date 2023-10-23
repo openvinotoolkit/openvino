@@ -11,7 +11,7 @@
 
 #include "shared_test_classes/base/utils/ranges.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -214,6 +214,9 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
 }
 
 void ReadIRTest::SetUp() {
+    // todo: find the optimal way to find TEST_P instances
+    // inference + query_model + import_export
+    summary.setDowngradeCoefficient(3);
     std::pair<std::string, std::string> model_pair;
     std::tie(model_pair, targetDevice, configuration) = this->GetParam();
     std::tie(path_to_model, path_to_cache) = model_pair;

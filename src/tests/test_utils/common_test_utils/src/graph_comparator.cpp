@@ -7,13 +7,13 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "gtest/gtest.h"
 #include "ie_common.h"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "precomp.hpp"
 
 namespace {

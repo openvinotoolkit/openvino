@@ -37,6 +37,18 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
     this->register_matcher(m, callback);
 }
 
+namespace {
+    bool hasPositiveIndexes(const std::shared_ptr<ov::op::util::PadBase>& pad) {
+        const auto padsBegin = pad->get_pads_begin();
+        const auto padsEnd = pad->get_pads_end();
+        auto pred = [](int64_t a) {
+            return a > 0;
+        };
+        return std::any_of(padsBegin.begin(), padsBegin.end(), pred) ||
+               std::any_of(padsEnd.begin(), padsEnd.end(), pred);
+    }
+} // namespace
+
 bool PadTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
@@ -52,7 +64,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
 
     auto dequantization = NetworkHelper::getDequantization(pad, defaultPrecisions);
 
-    if (padMode == op::PadMode::CONSTANT) {
+    if (padMode == op::PadMode::CONSTANT && hasPositiveIndexes(pad)) {
         auto bcastConstant = [&](const std::shared_ptr<ov::opset1::Constant> &constant) {
             size_t padIdx = 0;
             for (size_t i = 0; i < padsBegin.size(); ++i) {
@@ -94,8 +106,8 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
             return NetworkHelper::toScalar(constant);
         }
 
-        std::vector<size_t> padsForConstantBegin(constantShape.size(), 0ul);
-        std::vector<size_t> padsForConstantEnd(constantShape.size(), 0ul);
+        std::vector<int64_t> padsForConstantBegin(constantShape.size(), 0ul);
+        std::vector<int64_t> padsForConstantEnd(constantShape.size(), 0ul);
         bool foldingIsNecessary = false;
 
         // folding is necessary when dequantization and padding by the same dimension
@@ -112,9 +124,10 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
         }
 
         if (foldingIsNecessary) {
-            const auto beginConst = ov::opset1::Constant::create(element::u32, { padsForConstantBegin.size() }, padsForConstantBegin);
-            const auto endConst = ov::opset1::Constant::create(element::u32, { padsForConstantEnd.size() }, padsForConstantEnd);
+            const auto beginConst = ov::opset1::Constant::create(element::i32, { padsForConstantBegin.size() }, padsForConstantBegin);
+            const auto endConst = ov::opset1::Constant::create(element::i32, { padsForConstantEnd.size() }, padsForConstantEnd);
             const auto padValueConstant = ov::opset1::Constant::create(constant->get_element_type(), Shape{}, { padVal });
+
             const auto foldedConstant = fold<ov::opset12::Pad>(constant, beginConst, endConst, padValueConstant, padMode);
             return ov::as_type_ptr<ov::opset1::Constant>(foldedConstant);
         } else {
@@ -151,23 +164,9 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
     pad->set_argument(3, convertedZero);
 
     moveDequantizationAfter(context, pad, dequantization, true);
+
     return true;
 }
-
-namespace {
-    bool hasNegativeIndexes(const std::shared_ptr<ov::op::util::PadBase>& pad) {
-        const auto padsBegin = pad->get_pads_begin();
-        const auto padsEnd = pad->get_pads_end();
-        auto pred = [](int64_t a) {
-            return a < 0;
-        };
-        if (std::any_of(padsBegin.begin(), padsBegin.end(), pred) ||
-            std::any_of(padsEnd.begin(), padsEnd.end(), pred)) {
-            return true;
-        }
-        return false;
-    }
-} // namespace
 
 bool PadTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     if (!LayerTransformation::canBeTransformedSpatialDimension(context, op)) {
@@ -179,7 +178,11 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    if (hasNegativeIndexes(pad)) {
+    const auto mode = pad->get_pad_mode();
+    if (mode != op::PadMode::CONSTANT &&
+        mode != op::PadMode::EDGE &&
+        mode != op::PadMode::REFLECT &&
+        mode != op::PadMode::SYMMETRIC) {
         return false;
     }
 
@@ -188,7 +191,9 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    const auto mode = pad->get_pad_mode();
+    if (!hasPositiveIndexes(pad))
+        return true;
+
     if (mode == op::PadMode::CONSTANT) {
         auto padAndDqByTheSameDimension = [&](const std::shared_ptr<ov::opset1::Constant>& deqConst) {
             const auto padsBegin = pad->get_pads_begin();

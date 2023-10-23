@@ -4,24 +4,27 @@
 
 set(TARGET_NAME sharedTestClasses)
 
-addIeTarget(
+ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADD_CPPLINT
-        DEVELOPER_PACKAGE
-            tests
         INCLUDES
             PUBLIC
-                "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
                 func_test_utils
-                ngraphFunctions
+                ov_models
 )
 
 ov_build_target_faster(${TARGET_NAME}
         PCH PRIVATE "src/precomp.hpp"
         )
+
+# install & export
+
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")

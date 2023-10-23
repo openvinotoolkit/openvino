@@ -606,6 +606,34 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::MatMul> &n
     return std::make_shared<ov::Model>(results, params, "MatMul-1");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::Multinomial>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 5}}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1})};
+    auto multinomial =
+        std::make_shared<ov::op::v13::Multinomial>(params[0], params[1], ov::element::i32, false, false, 0, 0);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(multinomial)};
+    return std::make_shared<ov::Model>(results, params, "Multinomial-13");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::NMSRotated> &node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 6, 5}}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 6}}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{})};
+
+    auto nms = std::make_shared<ov::op::v13::NMSRotated>(params[0],
+                                                         params[1],
+                                                         params[2],
+                                                         params[3],
+                                                         params[4],
+                                                         true,
+                                                         ov::element::i32,
+                                                         true);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
+    return std::make_shared<ov::Model>(results, params, "NMSRotated-13");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::NonMaxSuppression> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 6, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 6}}),
@@ -1242,6 +1270,13 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::IsNaN> &n
     return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "is_nan_graph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::BitwiseNot> &node) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 2});
+    auto bitwise = std::make_shared<ov::op::v13::BitwiseNot>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(bitwise)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "BitwiseNotGraph");
+}
+
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 3});
     const auto axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
@@ -1446,6 +1481,24 @@ std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::O
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseNode)};
     return std::make_shared<ov::Model>(results, params, "BinaryEltwiseGraph");
+}
+
+std::shared_ptr<ov::Model> generateBinaryEltwiseBitwise(const std::shared_ptr<ov::op::Op> &node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 2}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 2})};
+
+    std::shared_ptr<ov::Node> eltwise;
+    if (ov::is_type<ov::op::v13::BitwiseAnd>(node)) {
+        eltwise = std::make_shared<ov::op::v13::BitwiseAnd>(params[0], params[1]);
+    } else if (ov::is_type<ov::op::v13::BitwiseOr>(node)) {
+        eltwise = std::make_shared<ov::op::v13::BitwiseOr>(params[0], params[1]);
+    } else if (ov::is_type<ov::op::v13::BitwiseXor>(node)) {
+        eltwise = std::make_shared<ov::op::v13::BitwiseXor>(params[0], params[1]);
+    } else {
+        return nullptr;
+    }
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwise)};
+    return std::make_shared<ov::Model>(results, params, "BinaryEltwiseBitwiseGraph");
 }
 
 std::shared_ptr<ov::Model> generateBinaryEltwiseComp(const std::shared_ptr<ov::op::Op> &node) {
@@ -1950,6 +2003,8 @@ std::shared_ptr<ov::Model> generateGraph() {
         return generateScatterNDBase(node);
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(node)) {
         return generateUnaryEltwise(node);
+    } else if (ov::is_type<ov::op::util::BinaryElementwiseBitwise>(node)) {
+        return generateBinaryEltwiseBitwise(node);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseComparison>(node)) {
         return generateBinaryEltwiseComp(node);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseLogical>(node)) {
@@ -2003,6 +2058,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset10_tbl.hpp"
 #include "openvino/opsets/opset11_tbl.hpp"
 #include "openvino/opsets/opset12_tbl.hpp"
+#include "openvino/opsets/opset13_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;

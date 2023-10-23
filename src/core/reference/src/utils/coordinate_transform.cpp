@@ -11,17 +11,16 @@
 #include <sstream>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/except.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/strides.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/axis_vector.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 
 using namespace ov;
-NGRAPH_SUPPRESS_DEPRECATED_START
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 Strides default_strides(size_t n_axes) {
     return Strides(n_axes, 1);
@@ -42,6 +41,7 @@ Coordinate default_source_end_corner(const Shape& source_shape) {
     return source_shape;
 }
 }  // namespace
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 CoordinateTransformBasic::CoordinateTransformBasic(const Shape& source_shape) : m_source_shape(source_shape) {}
 
@@ -58,6 +58,7 @@ const CoordinateIterator& CoordinateTransformBasic::end() const noexcept {
     return CoordinateIterator::end();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 CoordinateTransform::CoordinateTransform(const Shape& source_shape,
                                          const Coordinate& source_start_corner,
                                          const Coordinate& source_end_corner,
@@ -123,11 +124,9 @@ CoordinateTransform::CoordinateTransform(const Shape& source_shape,
     std::vector<std::ptrdiff_t> padded_upper_bounds;
 
     for (size_t i = 0; i < m_n_axes; i++) {
-        NGRAPH_SUPPRESS_DEPRECATED_START
         std::ptrdiff_t padded_upper_bound =
             ngraph::subtract_or_zero(source_shape[i], size_t(1)) * target_dilation_strides[i] + 1 +
             target_padding_below[i] + target_padding_above[i];
-        NGRAPH_SUPPRESS_DEPRECATED_END
 
         if (padded_upper_bound < 0) {
             std::stringstream ss;
@@ -343,6 +342,7 @@ CoordinateIterator CoordinateTransform::begin() const noexcept {
 const CoordinateIterator& CoordinateTransform::end() const noexcept {
     return CoordinateIterator::end();
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 // The "is_end" parameter is true if we want the "end()" iterator.
 CoordinateIterator::CoordinateIterator(const Shape& target_shape, bool is_end)

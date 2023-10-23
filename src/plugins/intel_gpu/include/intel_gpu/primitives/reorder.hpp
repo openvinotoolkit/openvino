@@ -20,7 +20,7 @@ enum class reorder_mean_mode {
 };
 
 struct WeightsReorderParams {
-    WeightsReorderParams(const layout& in_layout, const layout& out_layout, bool transposed, bool grouped = false)
+    WeightsReorderParams(const layout& in_layout, const layout& out_layout, bool transposed = false, bool grouped = false)
         : _in_layout(in_layout),
           _out_layout(out_layout),
           _transposed(transposed),

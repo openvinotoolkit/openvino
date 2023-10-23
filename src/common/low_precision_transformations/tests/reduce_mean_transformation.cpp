@@ -17,9 +17,9 @@
 #include "simple_low_precision_transformer.hpp"
 
 #include "low_precision/reduce_mean.hpp"
-#include "lpt_ngraph_functions/reduce_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/constant.hpp"
+#include "ov_lpt_models/reduce.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/constant.hpp"
 
 namespace {
 using namespace testing;
