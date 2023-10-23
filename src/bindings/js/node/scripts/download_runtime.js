@@ -113,7 +113,7 @@ async function detectOS() {
       break;
 
     case 'darwin':
-      const [major, _, _] = os.release().split('.');
+      const [major, _, __] = os.release().split('.');
 
       // os.release() returns not the macOS release but the Darwin release:
       // https://en.wikipedia.org/wiki/Darwin_(operating_system)#Release_history
