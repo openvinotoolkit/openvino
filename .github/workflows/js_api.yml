@@ -21,15 +21,25 @@ concurrency:
 jobs:
   JS_API:
     name: Configure and Test JS API Bindings
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        include:
+          - machine: 'ubuntu-22.04'
+            shell: 'bash'
+          - machine: 'windows-2022'
+            shell: 'pwsh'
+          - machine: 'macos-12'
+            shell: 'bash'
     defaults:
       run:
-        shell: bash
-    runs-on: ubuntu-latest
+        shell: ${{ matrix.shell }}
+    runs-on: ${{ matrix.machine }}
     env:
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
-      JS_BINDINGS_DIR: ${{ github.workspace }}/openvino/src/bindings/js
+      OPENVINO_REPO: "${{ github.workspace }}/openvino"
+      JS_BINDINGS_DIR: "${{ github.workspace }}/openvino/src/bindings/js"
     steps:
-
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
@@ -40,6 +50,7 @@ jobs:
       #
 
       - name: Install dependencies
+        if: ${{ contains(matrix.machine, 'ubuntu') }}
         run: sudo -E ${{ env.OPENVINO_REPO }}/scripts/install_dependencies/install_openvino_dependencies.sh -y
 
       #
@@ -49,9 +60,6 @@ jobs:
       - name: Configure JS API
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
         run: npm i
-          
-      - name: Check installed OV
-        run: ls -laR ${{ env.JS_BINDINGS_DIR }}
 
       #
       # Tests
@@ -59,6 +67,6 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ env.JS_BINDINGS_DIR }}/node
-        run: |
-          export LD_LIBRARY_PATH=${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/runtime/lib/intel64/:$LD_LIBRARY_PATH
-          npm test
+        run: npm test
+        env:
+          LD_LIBRARY_PATH: ${{ env.JS_BINDINGS_DIR }}/node/ov_runtime/runtime/lib/intel64/:$LD_LIBRARY_PATH
