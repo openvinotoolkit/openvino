@@ -286,6 +286,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {ov::element::u16, ov::element::i32},
                 {ov::element::u32, ov::element::i32},
                 {ov::element::boolean, ov::element::u8},
+                {ov::element::i4, ov::element::i8},
+                {ov::element::u4, ov::element::u8},
         };
 
         manager.register_pass<ov::pass::Validate>();
