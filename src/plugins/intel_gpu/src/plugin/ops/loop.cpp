@@ -238,7 +238,7 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     SetLoopInputOutputMap(p, op, inputs, input_primitive_maps, output_primitive_maps, back_edges);
 
-    auto shape = is_dynamic? ngraph::Shape{1} : ngraph::Shape{1, 1, 1, 1};
+    auto shape = is_dynamic? ngraph::Shape{} : ngraph::Shape{1, 1, 1, 1};
     auto prec = ngraph::element::i64;
     if (current_iteration_input_op) {
         current_iteration_input_op->set_output_type(0, prec, shape);
