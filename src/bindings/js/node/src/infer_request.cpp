@@ -201,7 +201,7 @@ Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info)
 struct TsfnContext {
     TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
 
-    std::thread nativeThread;
+    std::thread native_thread;
 
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
@@ -212,7 +212,7 @@ struct TsfnContext {
 };
 
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
-    context->nativeThread.join();
+    context->native_thread.join();
     delete context;
 };
 
@@ -268,6 +268,6 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     context->tsfn =
         Napi::ThreadSafeFunction::New(env, Napi::Function(), "TSFN", 0, 1, context, FinalizerCallback, (void*)nullptr);
 
-    context->nativeThread = std::thread(performInferenceThread, context);
+    context->native_thread = std::thread(performInferenceThread, context);
     return context->deferred.Promise();
 }
