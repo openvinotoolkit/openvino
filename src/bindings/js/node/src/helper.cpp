@@ -192,7 +192,7 @@ ov::TensorVector parse_input_data(const Napi::Value& input) {
         }
     } else if (input.IsObject()) {
         auto inputs = input.ToObject();
-        auto keys = inputs.GetPropertyNames();
+        const auto& keys = inputs.GetPropertyNames();
         for (size_t i = 0; i < keys.Length(); ++i) {
             auto value = inputs.Get(static_cast<Napi::Value>(keys[i]).ToString().Utf8Value());
             parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(value)));
