@@ -65,7 +65,8 @@ public:
      */
     virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                         const std::string& device_name,
-                                                        const ov::AnyMap& config = {}) const = 0;
+                                                        const ov::AnyMap& config = {},
+                                                        bool is_cache_small = false) const = 0;
 
     /**
      * @brief Creates a compiled model from a model object.

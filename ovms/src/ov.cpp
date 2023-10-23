@@ -5,9 +5,15 @@
 
 #include <openvino/openvino.hpp>
 
-int main(){
+int main()
+{
     ov::Core ieCore;
     ieCore.set_property(ov::cache_dir("/home/siddhant/Documents/open-source/openvino/tmp_cache"));
+
+    auto directory_path = ieCore.get_property("GPU", ov::cache_dir);
+
+    std::cout << directory_path << std::endl;
+
     auto ssdlite_model = ieCore.read_model("/home/siddhant/Documents/open-source/openvino/ovms/src/ssdlite_mobilenet_v2_ov/1/ssdlite_mobilenet_v2.xml");
     ov::CompiledModel compiledModel_ssdlite = ieCore.compile_model(ssdlite_model, "GPU");
 
@@ -21,5 +27,6 @@ int main(){
     compiledModel_ssdlite = {};
     compiledModel_brain = {};
     compiledModel_inception = {};
-    std::cout << "Hello\n" << std::flush;
+    std::cout << "Hello\n"
+              << std::flush;
 }

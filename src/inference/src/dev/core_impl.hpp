@@ -157,7 +157,8 @@ private:
                                                           ov::Plugin& plugin,
                                                           const ov::AnyMap& parsedConfig,
                                                           const ov::SoPtr<ov::IRemoteContext>& context,
-                                                          const CacheContent& cacheContent) const;
+                                                          const CacheContent& cacheContent,
+                                                          bool is_cache_small = false) const;
 
     static ov::SoPtr<ov::ICompiledModel> load_model_from_cache(
         const CacheContent& cacheContent,
@@ -366,7 +367,8 @@ public:
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                 const std::string& device_name,
-                                                const ov::AnyMap& config = {}) const override;
+                                                const ov::AnyMap& config = {},
+                                                bool is_cache_small = false) const override;
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                 const ov::SoPtr<ov::IRemoteContext>& context,
