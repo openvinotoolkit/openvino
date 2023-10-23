@@ -1549,6 +1549,17 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
     return MakeTypeJitConstants(Datatype::UNSUPPORTED, macroName);
 }
 
+JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, WeightsType wt, size_t pack_size) {
+    OPENVINO_ASSERT(pack_size % 2 == 0 && pack_size != 0 && pack_size <= 16);
+    std::string type_string = "";
+    switch (wt) {
+        case WeightsType::UINT4: type_string = "uint4x"; break;
+        case WeightsType::INT4: type_string = "int4x"; break;
+        default: OPENVINO_THROW("[GPU] Unsupported compressed type");
+    }
+    return { MakeJitConstant(macro_name, type_string + std::to_string(pack_size) + "_t") };
+}
+
 JitConstants MakeActivationJitConstants(const base_activation_params& params,
                                         Datatype out_dt,
                                         const std::string& suffix,

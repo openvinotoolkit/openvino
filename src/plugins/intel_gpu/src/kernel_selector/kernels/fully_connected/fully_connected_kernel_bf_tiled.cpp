@@ -323,20 +323,23 @@ KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params
 
 JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
-    size_t tile_k_ofm_packed = (dispatchData.tile_nk * dispatchData.tile_n);
+    size_t tile_k_ofm = dispatchData.tile_nk * dispatchData.tile_n;
+    size_t tile_k_ofm_packed = tile_k_ofm;
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
 
+        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", params.weights.GetDType(), tile_k_ofm));
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
         if (scale_group_size % simd == 0)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     }
+
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
     jit.AddConstant(MakeJitConstant("TILE_OFM", dispatchData.tile_n));
     jit.AddConstant(MakeJitConstant("TILE_IFM", dispatchData.tile_mk));
     jit.AddConstant(MakeJitConstant("TILE_K", dispatchData.tile_nk));
-    jit.AddConstant(MakeJitConstant("TILE_K_OFM", dispatchData.tile_nk * dispatchData.tile_n));
+    jit.AddConstant(MakeJitConstant("TILE_K_OFM", tile_k_ofm));
     jit.AddConstant(MakeJitConstant("TILE_K_OFM_PACKED", tile_k_ofm_packed));
     jit.AddConstant(MakeJitConstant("DISPATCH_BSV", dispatchData.tile_ms));
     jit.AddConstant(MakeJitConstant("DISPATCH_FSV", dispatchData.tile_ns));
