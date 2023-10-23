@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: take an issue
-        uses: bdougie/take-action@main
+        uses: bdougie/take-action@v1.6.1
         with:
           message: Thanks for taking this on! If you have not already, PM us
           issueCurrentlyAssignedMessage: Thanks for being interested in this issue. It looks like this ticket is already assigned to a contributor. Please communicate with the assigned contributor to confirm the status of the issue.
