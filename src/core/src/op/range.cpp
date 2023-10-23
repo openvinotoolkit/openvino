@@ -148,9 +148,9 @@ bool evaluate(const HostTensorPtr& out,
     double stop_val;
     double step_val;
     if (version < 4) {
-        start_val = *start->get_data_ptr<ET>();
-        stop_val = *stop->get_data_ptr<ET>();
-        step_val = *step->get_data_ptr<ET>();
+        start_val = static_cast<double>(*start->get_data_ptr<ET>());
+        stop_val = static_cast<double>(*stop->get_data_ptr<ET>());
+        step_val = static_cast<double>(*step->get_data_ptr<ET>());
         if (!(check_value(start_val) && check_value(stop_val) && check_value(step_val) &&
               (step_val != static_cast<T>(0)))) {
             return false;
