@@ -168,7 +168,7 @@ See [Contributions Welcome](https://github.com/openvinotoolkit/openvino/issues/1
 
 See [CONTRIBUTING](./CONTRIBUTING.md) for contribution details. Thank you!
 ## Take the issue
-If you want to take one issue, feel free to use `.take` in the issue comment   
+If you wish to be assigned to an issue please add a comment with `.take` command.  
 
 ## Get a support
 
