@@ -158,6 +158,9 @@ public:
     virtual PartialShape get_input_shape(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_input_shape);
     }
+    virtual const std::vector<size_t>& get_input_strides(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_input_strides);
+    }
     virtual Any get_input_type(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(get_input_type);
     }
