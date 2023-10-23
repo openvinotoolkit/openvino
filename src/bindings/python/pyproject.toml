@@ -1,3 +1,104 @@
+[project]
+version = "2023.3"  # TODO: update automatically?
+requires-python = ">=3.8"  # , <3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11"
+]
+# TODO:
+# description = ""
+# readme = "README.md"
+# authors = [
+#     {name = "OpenVINO", email = "openvino_pushbot@intel.com"},
+# ]
+# license = {text = ""}
+# classifiers = [
+#     "License :: ",
+#     ...
+# ]
+dependencies = [
+    "numpy >= 1.22.4",
+    "openvino-telemetry >= 2023.0",
+]
+
+# [tool.pdm.dev-dependencies]  # will either need --dev or --prod usage
+[project.optional-dependencies]
+linters = [
+    "black",
+    "flake8",
+    "flake8-annotations-complexity",
+    "flake8-broken-line",
+    "flake8-bugbear",
+    "flake8-class-attributes-order",
+    "flake8-comprehensions",
+    "flake8-debugger",
+    "flake8-docstrings",
+    "flake8-eradicate",
+    "flake8-executable",
+    "flake8-expression-complexity",
+    "flake8-print",
+    "flake8-pytest-style",
+    "flake8-rst-docstrings",
+    "flake8-string-format",
+    "flake8-variables-names",
+    "flake8_builtins",
+    "flake8_coding",
+    "flake8_commas",
+    "flake8_pep3101",
+    "flake8_quotes",
+    "mypy",
+    "Pep8-naming",
+    "pydocstyle",
+]
+tests = [
+    "numpy>=1.22.4,<1.26",  # Range of numpy for testing
+    # Frontends: TBD split of them
+    "protobuf>=3.18.1,<4.0.0",
+    "onnx==1.14.1",
+    "torch",
+    "torchvision; platform_machine == 'arm64' and python_version >= '3.8'",
+    "torchvision; platform_machine != 'arm64'",
+    "sympy; platform_machine == 'arm64' and python_version >= '3.8'",
+    "sympy; platform_machine != 'arm64'",
+    "pillow",
+    # Testing:
+    "bandit",
+    "pytest>=5.0,<7.5",
+    "pytest-forked; sys_platform != 'win32'",
+    "pytest-xdist",
+    "pytest-html==3.2.0",
+    # Utils:
+    "pygments>=2.8.1",
+    "py>=1.9.0",
+    "radon",
+    "retrying",
+    "tox",
+    "types-pkg_resources",
+    "wheel >= 0.38.1",
+]
+# Build and wheel dependencies:
+build = [
+    "cython >= 3.0.2",  # TODO: remove with API 1.0 removal
+    "setuptools >= 65.6.1",
+    "patchelf <= 0.17.2.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "wheel >= 0.38.1",
+]
+
+# [build-system]
+# requires = ["setuptools", "wheel"]
+# build-backend = "setuptools.build_meta"
+
+[tool.pdm]
+plugins = [
+    "-e file:///${PROJECT_ROOT}/pdm-custom-plugins/"
+]
+
+# [project.scripts]
+# ov-runtime-tests = "pytest ./tests/test_runtime/"  # try to add -s -v into cli!
+
 [tool.black]
 line-length = 160
 include = '\.pyi?$'
