@@ -110,33 +110,18 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
     task_executor_config._streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
     switch (priority) {
-    case ov::hint::Priority::LOW:
-        task_executor_config = ov::threading::IStreamsExecutor::Config::update_executor_config(
-            task_executor_config,
-            task_executor_config._streams,
-            1,
-            ov::threading::IStreamsExecutor::Config::LITTLE,
-            false);
-        break;
-    case ov::hint::Priority::MEDIUM:
-        task_executor_config = ov::threading::IStreamsExecutor::Config::update_executor_config(
-            task_executor_config,
-            task_executor_config._streams,
-            1,
-            ov::threading::IStreamsExecutor::Config::ANY,
-            false);
-        break;
-    case ov::hint::Priority::HIGH:
-        task_executor_config = ov::threading::IStreamsExecutor::Config::update_executor_config(
-            task_executor_config,
-            task_executor_config._streams,
-            1,
-            ov::threading::IStreamsExecutor::Config::BIG,
-            false);
-        break;
-    default:
-        OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
+        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::LITTLE; break;
+        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::ANY; break;
+        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::BIG; break;
+        default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
+
+    task_executor_config =
+        ov::threading::IStreamsExecutor::Config::update_executor_config(task_executor_config,
+                                                                        task_executor_config._streams,
+                                                                        1,
+                                                                        task_executor_config._threadPreferredCoreType,
+                                                                        false);
 
     return task_executor_config;
 }
