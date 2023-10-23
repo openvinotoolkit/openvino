@@ -129,12 +129,12 @@ def get_model_type(model_name, use_case, model_framework):
     return default_model_type
 
 
-def get_ir_conversion_frontend(model_name, model_name_list):
+def get_ir_conversion_frontend(cur_model_name, model_name_list):
     ir_conversion_frontend = ''
     idx = 0
     for model_name in model_name_list:
         # idx+1 < len(model_name_list) to avoid out of bounds index of model_name_list
-        if model_name == model_name and idx + 1 < len(model_name_list):
+        if model_name == cur_model_name and idx + 1 < len(model_name_list):
             ir_conversion_frontend = model_name_list[idx + 1]
             break
         idx = idx + 1
