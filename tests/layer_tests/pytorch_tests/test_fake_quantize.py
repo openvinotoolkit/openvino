@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import torch
@@ -46,6 +48,8 @@ class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
             (1.0, 0, 0, 127),
         ],
     )
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_fake_quantize_per_tensor_affine(
         self, ie_device, precision, ir_version, scale, zero_point, quant_min, quant_max
     ):
@@ -96,6 +100,8 @@ class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
             (torch.tensor([-0.005, -0.7, 0.1]), torch.tensor([1, 0, 1], dtype=torch.int32), 0, 0, 255),
         ],
     )
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_fake_quantize_per_channel_affine(
         self, ie_device, precision, ir_version, scale, zero_point, axis, quant_min, quant_max
     ):

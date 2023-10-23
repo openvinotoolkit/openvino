@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -60,6 +62,8 @@ class TestInstanceNorm(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_group_norm(self, params, ie_device, precision, ir_version, kwargs_to_prepare_input):
         self._test(*self.create_model(**params),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, 

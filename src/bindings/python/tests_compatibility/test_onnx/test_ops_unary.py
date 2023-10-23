@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import onnx
 import onnx.mapping
@@ -210,6 +212,8 @@ def test_hardmax_special_cases():
     assert np.allclose(ng_results, [expected])
 
 
+@pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                   reason='Ticket - 122712')
 def test_hardsigmoid():
     def hardsigmoid(data, alpha=0.2, beta=0.5):
         return np.clip(alpha * data + beta, 0, 1)
@@ -447,6 +451,8 @@ def test_cast_errors():
 @pytest.mark.parametrize("value_type",
                          [pytest.param(np.float64),
                           pytest.param(np.float32)])
+@pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                   reason='Ticket - 122712')
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)
     node = onnx.helper.make_node(

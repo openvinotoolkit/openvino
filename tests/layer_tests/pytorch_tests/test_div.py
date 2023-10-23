@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import torch
@@ -116,6 +118,8 @@ class TestDivTypes(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_div_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape

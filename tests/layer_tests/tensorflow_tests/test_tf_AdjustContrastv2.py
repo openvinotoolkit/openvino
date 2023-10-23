@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -38,6 +40,8 @@ class TestAdjustContrastv2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_adjust_contrast_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_new_frontend, use_old_api):
         self._test(*self.create_adjust_contrast_net(**params),

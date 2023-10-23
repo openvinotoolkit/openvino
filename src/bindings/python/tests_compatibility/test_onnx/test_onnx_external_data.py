@@ -1,15 +1,19 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
 import os
 
 import numpy as np
 import ngraph as ng
+import pytest
 from openvino.inference_engine import IECore
 
 from tests_compatibility.runtime import get_runtime
 
 
+@pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                   reason='Ticket - 122712')
 def test_import_onnx_with_external_data():
     model_path = os.path.join(os.path.dirname(__file__), "models/external_data.onnx")
     ie = IECore()

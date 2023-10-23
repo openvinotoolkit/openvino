@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import torch
@@ -245,6 +247,8 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", "float64", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_linalg_matrix_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,

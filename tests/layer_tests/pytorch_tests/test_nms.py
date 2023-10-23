@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import pytest
 from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
@@ -35,6 +37,8 @@ class TestNms(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_nms(self, ie_device, precision, ir_version, boxes_num):
         self.boxes_num = boxes_num
         self._test(*self.create_model(), ie_device, precision, ir_version)

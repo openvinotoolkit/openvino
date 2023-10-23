@@ -1,5 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
+
 import numpy as np
 import pytest
 
@@ -144,6 +147,8 @@ class TestFill(PytorchLayerTest):
     @pytest.mark.parametrize("mode", ["", "inplace", "out"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_fill(self, shape, value, input_dtype, value_dtype, mode, ie_device, precision, ir_version):
         self._test(*self.create_model(mode), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
@@ -183,6 +188,8 @@ class TestFillDiagonal(PytorchLayerTest):
     @pytest.mark.parametrize("wrap", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_fill_diagonal(self, shape, value, input_dtype, value_dtype, wrap, ie_device, precision, ir_version):
         self._test(*self.create_model(shape, wrap), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={

@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -59,6 +61,8 @@ class TestMaxPoolWithArgmax(CommonTFLayerTest):
     ])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_max_pool_with_argmax_basic(self, params, input_type, padding, targmax,
                                         include_batch_in_index, with_second_output,
                                         ie_device, precision, ir_version, temp_dir,
