@@ -202,6 +202,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_op)},
         {"Merge", CreatorFunction(translate_merge_op)},
         {"MirrorPad", CreatorFunction(translate_mirror_pad_op)},
+        {"Multinomial", CreatorFunction(translate_multinomial_op)},
         {"MutableHashTable", CreatorFunction(translate_hash_table_op)},
         {"MutableHashTableV2", CreatorFunction(translate_hash_table_op)},
         {"NonMaxSuppression", CreatorFunction(translate_non_max_suppression_op)},
