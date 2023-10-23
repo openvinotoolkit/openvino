@@ -50,7 +50,7 @@ class TestSub(PytorchLayerTest):
     @pytest.mark.precommit
     def test_sub(self, ie_device, precision, ir_version, input_data, inplace):
         self.input_data = input_data
-        self._test(*self.create_model(inplace), ie_device, precision, ir_version)
+        self._test(*self.create_model(inplace), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestSubTypes(PytorchLayerTest):

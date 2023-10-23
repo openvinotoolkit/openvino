@@ -25,4 +25,5 @@ class TestLog(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_or(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, dynamic_shapes=False, trace_model=True)
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   dynamic_shapes=False, trace_model=True, use_convert_model=True)

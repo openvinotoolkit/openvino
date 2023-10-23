@@ -102,4 +102,4 @@ class TestAddGetItem(PytorchLayerTest):
     @pytest.mark.parametrize("idx", [-4, -3, -2, -1, 0, 1, 2, 3])
     def test_add_cat(self, ie_device, precision, ir_version, idx):
         self._test(aten_add_getitem(idx), None, ["aten::__getitem__", "aten::add", "prim::ListConstruct"],
-                   ie_device, precision, ir_version, freeze_model=False)
+                   ie_device, precision, ir_version, freeze_model=False, use_convert_model=True)

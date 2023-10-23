@@ -77,10 +77,13 @@ class PytorchLayerTest:
         if use_torch_compile_backend():
             self.torch_compile_backend_test(model, torch_inputs, custom_eps)
         else:
+            trace_model = kwargs.get('trace_model', False)
+            freeze_model = kwargs.get('freeze_model', True)
             with torch.no_grad():
-                trace_model = kwargs.get('trace_model', False)
-                freeze_model = kwargs.get('freeze_model', True)
-                smodel, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                if kwargs.get('use_convert_model', False):
+                    smodel, converted_model = self.convert_via_mo(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                else:
+                    smodel, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
 
             if kind is not None and not isinstance(kind, (tuple, list)):
                 kind = [kind]
@@ -162,12 +165,13 @@ class PytorchLayerTest:
         raise RuntimeError("Please provide inputs generation function")
 
     def convert_via_mo(self, model, example_input, trace_model, dynamic_shapes, ov_inputs, freeze_model):
-        from openvino.tools.ovc import convert_model
-        kwargs = {"example_input": example_input if len(example_input) > 1 else example_input[0]}
+        from openvino import convert_model, PartialShape
         if trace_model:
             decoder = TorchScriptPythonDecoder(model, example_input=example_input, skip_freeze=not freeze_model)
+            kwargs = {"example_input": example_input if len(example_input) > 1 else example_input[0]}
         else:
             decoder = TorchScriptPythonDecoder(model, skip_freeze=not freeze_model)
+            kwargs = {"input": [(i.dtype, PartialShape([-1] * len(i.shape))) for i in example_input]}
         smodel = decoder.pt_module
         print(smodel.inlined_graph)
         if not dynamic_shapes:

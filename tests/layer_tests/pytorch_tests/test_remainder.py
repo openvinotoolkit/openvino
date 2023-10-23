@@ -32,7 +32,7 @@ class TestRemainder(PytorchLayerTest):
     @pytest.mark.precommit
     def test_remainder(self, ie_device, precision, ir_version, input_rhs):
         self.input_rhs = input_rhs
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestRemainderTypes(PytorchLayerTest):

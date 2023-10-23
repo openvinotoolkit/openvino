@@ -59,7 +59,7 @@ class TestFloorDivide(PytorchLayerTest):
     def test_floor_divide(self, input_tensor, other_tensor, ie_device, precision, ir_version):
         self.input_tensor = input_tensor
         self.other_tensor = other_tensor
-        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True)
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
 
     @pytest.mark.parametrize('input_tensor', ([
         np.random.randint(low=0, high=10, size=5).astype(np.float32),

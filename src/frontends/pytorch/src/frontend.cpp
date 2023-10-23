@@ -20,6 +20,7 @@
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transforms.hpp"
+#include "transforms/align_types_removal.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
@@ -177,6 +178,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
         element::TypeVector{element::u8, element::i8, element::u4, element::i4});
     manager.register_pass<ov::pass::ConstantFolding>();
+    manager.register_pass<ov::frontend::pytorch::pass::AlignTypesRemoval>();
     manager.register_pass<ov::pass::PushConstantToSubgraph>();
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
@@ -204,6 +206,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
+    // Second pass of AlignTypesRemoval after all converting transformations
+    manager.register_pass<ov::frontend::pytorch::pass::AlignTypesRemoval>();
     manager.register_pass<ov::pass::ResolveNameCollisions>();
     manager.run_passes(model);
 
