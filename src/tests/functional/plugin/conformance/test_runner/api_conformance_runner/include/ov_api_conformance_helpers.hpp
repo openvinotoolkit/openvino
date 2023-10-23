@@ -20,14 +20,6 @@ inline const std::vector<ov::AnyMap> generate_ov_configs(const std::vector<ov::A
     return resultConfig;
 }
 
-inline const std::vector<std::string> get_device(const std::string& targetDevice) {
-    if (ov::test::conformance::targetDevice != targetDevice) {
-        return {};
-    }
-
-    return { ov::test::conformance::targetDevice };
-}
-
 inline const std::string get_plugin_lib_name_by_device(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
             { "AUTO", "openvino_auto_plugin" },

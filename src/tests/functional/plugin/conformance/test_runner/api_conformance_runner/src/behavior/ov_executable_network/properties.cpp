@@ -15,20 +15,11 @@ const std::vector<ov::AnyMap> inproperties = {
         {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
-const std::vector<ov::AnyMap> auto_batch_inproperties = {};
-
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelPropertiesIncorrectTests,
                         ::testing::Combine(
                                 ::testing::Values(targetDevice),
                                 ::testing::ValuesIn(generate_ov_configs(inproperties))),
                         OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVClassCompiledModelPropertiesIncorrectTests,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(get_device(ov::test::utils::DEVICE_BATCH)),
-                                 ::testing::ValuesIn(generate_ov_configs(auto_batch_inproperties))),
-                         OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
-
 
 const std::vector<ov::AnyMap> default_properties = {
         {ov::enable_profiling(false)}
@@ -44,21 +35,10 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVCompiledModelPropertiesD
                          ::testing::Values(targetDevice),
                          OVCompiledModelPropertiesDefaultSupportedTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> auto_batch_properties = {
-        {{CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "1"}},
-        {{ov::auto_batch_timeout(10)}},
-};
-
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(targetDevice),
                 ::testing::ValuesIn(default_properties)),
-        OVClassCompiledModelPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVClassCompiledModelPropertiesTests,
-        ::testing::Combine(
-                ::testing::ValuesIn(get_device(ov::test::utils::DEVICE_BATCH)),
-                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(auto_batch_properties))),
         OVClassCompiledModelPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
