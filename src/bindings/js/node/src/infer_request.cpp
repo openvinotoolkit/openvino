@@ -215,38 +215,38 @@ void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) 
     delete context;
 };
 
-void performInferenceThread(TsfnContext* data) {
+void performInferenceThread(TsfnContext* context) {
     infer_mutex.lock();
-    for (size_t i = 0; i < data->input_tensors.size(); ++i) {
-        data->_context_ir->set_input_tensor(i, data->input_tensors[i]);
+    for (size_t i = 0; i < context->input_tensors.size(); ++i) {
+        context->_context_ir->set_input_tensor(i, context->input_tensors[i]);
     }
-    data->_context_ir->infer();
+    context->_context_ir->infer();
 
-    auto compiled_model = data->_context_ir->get_compiled_model().outputs();
+    auto compiled_model = context->_context_ir->get_compiled_model().outputs();
     std::map<std::string, ov::Tensor> outputs;
 
     for (auto& node : compiled_model) {
-        auto tensor = data->_context_ir->get_tensor(node);
+        auto tensor = context->_context_ir->get_tensor(node);
         auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
         tensor.copy_to(new_tensor);
         outputs.insert({node.get_any_name(), new_tensor});
     }
 
-    data->result = outputs;
+    context->result = outputs;
     infer_mutex.unlock();
 
-    auto callback = [](Napi::Env env, Napi::Function, TsfnContext* data) {
-        auto m = data->result;
+    auto callback = [](Napi::Env env, Napi::Function, TsfnContext* context) {
+        auto m = context->result;
         auto outputs_obj = Napi::Object::New(env);
 
         for (const auto& [key, tensor] : m) {
             outputs_obj.Set(key, TensorWrap::Wrap(env, tensor));
         }
-        data->deferred.Resolve({outputs_obj});
+        context->deferred.Resolve({outputs_obj});
     };
 
-    data->tsfn.BlockingCall(data, callback);
-    data->tsfn.Release();
+    context->tsfn.BlockingCall(context, callback);
+    context->tsfn.Release();
 }
 
 
@@ -256,24 +256,24 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     }
     Napi::Env env = info.Env();
 
-    auto context_data = new TsfnContext(env);
-    context_data->_context_ir = &_infer_request;
+    auto context = new TsfnContext(env);
+    context->_context_ir = &_infer_request;
     try {
         auto parsed_input = parse_input_data(info[0]);
-        context_data->input_tensors = parsed_input;
+        context->input_tensors = parsed_input;
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
     }
 
-    context_data->tsfn = Napi::ThreadSafeFunction::New(env,
+    context->tsfn = Napi::ThreadSafeFunction::New(env,
                                                        Napi::Function(),
                                                        "TSFN",
                                                        0,
                                                        1,
-                                                       context_data,
+                                                       context,
                                                        FinalizerCallback,
                                                        (void*)nullptr);
 
-    context_data->nativeThread = std::thread(performInferenceThread, context_data);
-    return context_data->deferred.Promise();
+    context->nativeThread = std::thread(performInferenceThread, context);
+    return context->deferred.Promise();
 }
