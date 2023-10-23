@@ -423,7 +423,7 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     FRONT_END_GENERAL_CHECK(
         cond_results.size() == 1 && cond_results[0],
         "[TensorFlow Frontend] Internal error or inconsistent model: condition body must contain one Result node.");
-    auto body_condition_output_idx = static_cast<int64_t>(body_results.size());
+    auto body_condition_output_idx = body_results.size();
     body_model->add_results(cond_results);
 
     // type setting for body graph parameters is needed for TensorList support since DT_VARIANT type is present
@@ -435,14 +435,18 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     loop->set_function(body_model);
 
     // body_results may contain less nodes than body_params that means back edge exists not for all body_params
-    for (size_t input_ind = 0; input_ind < static_cast<size_t>(body_condition_output_idx); ++input_ind) {
+    for (size_t input_ind = 0; input_ind < body_condition_output_idx; ++input_ind) {
         loop->set_merged_input(body_params[input_ind], ov_inputs[input_ind], body_results[input_ind]->input_value(0));
     }
-    loop->set_special_body_ports({-1, body_condition_output_idx});
+    loop->set_special_body_ports({-1, static_cast<int64_t>(body_condition_output_idx)});
+    // set invariant inputs for the loop
+    for (size_t input_ind = body_condition_output_idx; input_ind < input_size; ++input_ind) {
+        loop->set_invariant_input(body_params[input_ind], ov_inputs[input_ind]);
+    }
 
     // set external outputs for Loop node
     // do not get execution condition outside of the Loop node
-    for (size_t output_ind = 0; output_ind < static_cast<size_t>(body_condition_output_idx); ++output_ind) {
+    for (size_t output_ind = 0; output_ind < body_condition_output_idx; ++output_ind) {
         loop->get_iter_value(body_results[output_ind]);
     }
     loop->validate_and_infer_types();

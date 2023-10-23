@@ -43,6 +43,10 @@ public:
         producer_output_port_idx = m_producer_output_port_idx;
     }
 
+    void set_output_shape_and_type(const ov::PartialShape& output_shape, const ov::element::Type& output_type) {
+        set_output_type(0, output_type, output_shape);
+    }
+
 private:
     bool m_back_edge_set;
     std::string m_producer_name;

@@ -72,6 +72,7 @@ OP_CONVERTER_NAMED(translate_fused_batch_norm_op);
 OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
+OP_CONVERTER(translate_gather_tree_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_input_arg_op);
