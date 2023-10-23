@@ -119,9 +119,9 @@ async function detectOS() {
       // https://en.wikipedia.org/wiki/Darwin_(operating_system)#Release_history
       // in the form of MAJOR.MINOR.PATCH
 
-      osVersion = major === 19
+      osVersion = major === '19'
         ? 'macos_10_15'
-        : major === 20
+        : major === '20'
         ? 'macos_11_0'
         : null;
 
