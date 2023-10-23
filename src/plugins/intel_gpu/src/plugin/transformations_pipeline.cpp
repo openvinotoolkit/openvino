@@ -631,7 +631,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return num_iter != 1;
                 return num_iter >= 16;
             });
-        manager.register_pass<ov::pass::ResolveNameCollisions>(true);
 
         manager.run_passes(func);
     }
@@ -642,6 +641,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
         manager.register_pass<ov::intel_gpu::RMSFusion>();
+
+        // This is supposed to be the last pass to ensure that we don't have name collisions until
+        // GPU plugin stops using freiendly names for program creation
+        manager.register_pass<ov::pass::ResolveNameCollisions>(true);
 
         manager.run_passes(func);
     }
