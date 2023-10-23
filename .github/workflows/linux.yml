@@ -396,7 +396,7 @@ jobs:
 
   Conformance:
     needs: Build
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 10 }}
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 15 }}
     defaults:
       run:
         shell: bash
