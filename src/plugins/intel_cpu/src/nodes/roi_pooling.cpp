@@ -826,7 +826,8 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
 
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
               OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t))
+              OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::FP16, float16_t))
 
     return ctx.executor;
 }
