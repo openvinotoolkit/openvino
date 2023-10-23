@@ -235,7 +235,7 @@ void performInferenceThread(TsfnContext* data) {
     data->result = outputs;
     infer_mutex.unlock();
 
-    auto callback = [](Napi::Env env, Napi::Function _, TsfnContext* data) {
+    auto callback = [](Napi::Env env, Napi::Function, TsfnContext* data) {
         auto m = data->result;
         auto outputs_obj = Napi::Object::New(env);
 
