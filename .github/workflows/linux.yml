@@ -5,17 +5,21 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
+    paths:
+      - '**'
+      - '!**/docs/**'
+      - '!docs/**'
+      - 'docs/snippets/**'
+      - '!**/**.md'
+      - '!**.md'
   push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
+    paths:
+      - '**'
+      - '!docs/**'
+      - '!**/docs/**'
+      - 'docs/snippets/**'
+      - '!**/**.md'
+      - '!**.md'
     branches:
       - master
       - 'releases/**'
@@ -755,6 +759,18 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
+
+      - name: SubgraphsDumper tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/subgraphsDumperTests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SubgraphsDumperTests.xml
+
+      - name: Template OpImpl tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/conformanceTests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*\
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
 
       - name: AUTO unit tests
         run: |

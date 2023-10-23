@@ -205,6 +205,7 @@ py.test tensorflow_tests/test_tf_Unique.py --use_new_frontend
 ```
 
 ## See also
+ * [Supported Operations](./docs/supported_ops.md)
  * [OpenVINO README](../../../README.md)
  * [OpenVINO Core Components](../../README.md)
  * [Developer documentation](../../../docs/dev/index.md)
