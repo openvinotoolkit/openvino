@@ -11,10 +11,10 @@ let testXml = getModelPath();
 const core = new ov.Core();
 const model = core.readModelSync(testXml);
 const compiledModel = core.compileModel(model, 'CPU');
+const modelLike = [[model],
+  [compiledModel]];
 
 describe('Output class', () => {
-  const modelLike = [[model],
-    [compiledModel]];
 
   modelLike.forEach( ([obj]) => {
     it('Output getters and properties', () => {
@@ -34,29 +34,36 @@ describe('Output class', () => {
 });
 
 describe('Input class for ov::Input<const ov::Node>', () => {
-  it('CompiledModel.input() method', () => {
-    assert.strictEqual(typeof compiledModel.input(), 'object');
-  });
+  modelLike.forEach( ([obj]) => {
+    it('input() is typeof object', () => {
+      assert.strictEqual(typeof obj.input(), 'object');
+    });
 
-  it('CompiledModel.inputs property', () => {
-    assert.equal(compiledModel.inputs.length, 1);
-  });
+    it('inputs property', () => {
+      assert.strictEqual(obj.inputs.length, 1);
+    });
 
-  it('CompiledModel.input().ToString() method', () => {
-    //test for a model with one output
-    assert.strictEqual(compiledModel.input().toString(), 'data');
-  });
+    it('input().toString()', () => {
+      assert.strictEqual(obj.input().toString(), 'data');
+    });
 
-  it('CompiledModel.input(idx: number).ToString() method', () => {
-    assert.strictEqual(compiledModel.input(0).toString(), 'data');
-  });
+    it('input(idx: number).ToString() method', () => {
+      assert.strictEqual(obj.input(0).toString(), 'data');
+    });
 
-  it('CompiledModel.input(tensorName: string).ToString() method', () => {
-    assert.strictEqual(compiledModel.input('data').toString(), 'data');
-  });
+    it('input(tensorName: string).ToString() method', () => {
+      assert.strictEqual(obj.input('data').toString(), 'data');
+    });
 
-  it('Input.shape property with dimensions', () => {
-    assert.deepStrictEqual(compiledModel.input(0).shape, [1, 3, 32, 32]);
+    it('input().getAnyName() and anyName', () => {
+      assert.strictEqual(obj.input().getAnyName(), 'data');
+      assert.strictEqual(obj.input().anyName, 'data');
+    });
+
+    it('input(idx).shape property with dimensions', () => {
+      assert.deepStrictEqual(obj.input(0).shape, [1, 3, 32, 32]);
+      assert.deepStrictEqual(obj.input(0).getShape(), [1, 3, 32, 32]);
+    });
   });
 
 });
