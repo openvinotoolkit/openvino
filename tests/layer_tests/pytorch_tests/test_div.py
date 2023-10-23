@@ -49,7 +49,7 @@ class TestDiv(PytorchLayerTest):
         self.other_array = other_array
         self.other_type = np.float32
         self._test(*self.create_model(rounding_mode),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestDivTypes(PytorchLayerTest):
