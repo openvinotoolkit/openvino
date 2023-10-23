@@ -1,0 +1,25 @@
+[project]
+name = "pdm-custom-plugins"
+version = "0.0.0dev"
+requires-python = ">=3.8"
+# authors = [
+#     { name = "Jan Iwaszkiewicz", email = "jiwaszkiewicz6@gmail.com" },
+# ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "pdm",
+]
+
+[project.entry-points.pdm]
+pip-install = "pdm_pip_install:register"
+pip-lock = "pdm_pip_lock:register"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
