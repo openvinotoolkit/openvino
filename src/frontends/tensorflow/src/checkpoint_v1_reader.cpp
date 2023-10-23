@@ -7,7 +7,7 @@
 #include "checkpoint_utils.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/file_util.hpp"
-#include "saved_tensor_slice.pb.h"
+#include "ov_tensorflow/saved_tensor_slice.pb.h"
 #include "tf_utils.hpp"
 
 #ifdef ENABLE_SNAPPY_COMPRESSION
