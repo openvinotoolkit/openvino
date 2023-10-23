@@ -240,9 +240,7 @@ void performInferenceThread(TsfnContext* data) {
         auto outputs_obj = Napi::Object::New(env);
 
         for (const auto& [key, tensor] : m) {
-            auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
-            tensor.copy_to(new_tensor);
-            outputs_obj.Set(key, TensorWrap::Wrap(env, new_tensor));
+            outputs_obj.Set(key, TensorWrap::Wrap(env, tensor));
         }
         data->deferred.Resolve({outputs_obj});
     };
