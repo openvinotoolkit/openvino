@@ -193,6 +193,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123321
         R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=10.*relu.*)",
+        // Issue: 123427
+        R"(.*RDFTLayerTest.*SignalSize=().*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
