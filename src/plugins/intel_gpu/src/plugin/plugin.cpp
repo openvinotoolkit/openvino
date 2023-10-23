@@ -363,6 +363,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::available_devices)::value_type {available_devices};
     } else if (name == ov::internal::caching_properties) {
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
+    } else if (name == ov::execution_devices) {
+        const std::string dev_name = get_device_name();
+        return decltype(ov::execution_devices)::value_type{dev_name};
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -595,6 +598,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
+
+        ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
     };
 
     return supported_properties;
