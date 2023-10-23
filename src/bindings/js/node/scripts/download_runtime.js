@@ -115,6 +115,8 @@ async function detectOS() {
     case 'darwin':
       const [major, minor] = os.release().split('.');
 
+      console.log(`MAC VERSION. MAJOR: ${major}, MINOR: ${minor}. FULL: ${os.release()}`)
+
       osVersion = (major === 10 && minor >= 15)
         ? 'macos_10_15'
         : major === 11
