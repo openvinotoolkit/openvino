@@ -19,7 +19,7 @@ char* str_to_char_array(const std::string& str) {
 
 static char* last_err_msg = nullptr;
 static std::mutex last_msg_mutex;
-inline void dup_last_err_msg(const std::string msg) {
+void dup_last_err_msg(const std::string msg) {
     std::lock_guard<std::mutex> lock(last_msg_mutex);
     ov_free(last_err_msg);
     last_err_msg = str_to_char_array(msg);

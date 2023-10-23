@@ -14,16 +14,16 @@
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 
-#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType)                  \
-    catch (const InferenceEngine::ExceptionType& ex) {                 \
-        dup_last_err_msg(ex.what());                                   \
-        return ov_status_e::StatusCode;                                \
+#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType)  \
+    catch (const InferenceEngine::ExceptionType& ex) { \
+        dup_last_err_msg(ex.what());                   \
+        return ov_status_e::StatusCode;                \
     }
 
-#define CATCH_OV_EXCEPTION(StatusCode, ExceptionType)                  \
-    catch (const ov::ExceptionType& ex) {                              \
-        dup_last_err_msg(ex.what());                                   \
-        return ov_status_e::StatusCode;                                \
+#define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
+    catch (const ov::ExceptionType& ex) {             \
+        dup_last_err_msg(ex.what());                  \
+        return ov_status_e::StatusCode;               \
     }
 
 #define CATCH_OV_EXCEPTIONS                                   \

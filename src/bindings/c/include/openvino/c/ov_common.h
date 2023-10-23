@@ -208,7 +208,6 @@ ov_free(const char* content);
 /**
  * @brief Get the last error msg.
  * @ingroup ov_base_c_api
- * @param none.
  */
 OPENVINO_C_API(const char*)
 ov_get_last_err_msg();
