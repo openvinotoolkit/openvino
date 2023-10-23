@@ -1,7 +1,7 @@
 # TensorFlow Operations Supported by OpenVINO TensorFlow Frontend 
 
-Here is a table of supported operations by TensorFlow Frontend from [tf.raw_ops](https://www.tensorflow.org/api_docs/python/tf/raw_ops).
-Supported operation means that TensorFlow Frontend is capable to convert it into OpenVINO representation.
+Here is a table of operations supported by the TensorFlow Frontend from [tf.raw_ops](https://www.tensorflow.org/api_docs/python/tf/raw_ops).
+A "supported operation" is one that TensorFlow Frontend can convert to the OpenVINO representation.
 
 | Operation Name                                          | Supported                     | Limitation                    |
 |---------------------------------------------------------|-------------------------------|-------------------------------|
