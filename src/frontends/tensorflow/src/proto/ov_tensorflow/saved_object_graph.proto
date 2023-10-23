@@ -14,13 +14,13 @@ syntax = "proto3";
 
 package tensorflow;
 
-import "any.proto";
-import "tensor_shape.proto";
-import "types.proto";
-import "variable.proto";
-import "versions.proto";
-import "struct.proto";
-import "trackable_object_graph.proto";
+import "google/protobuf/any.proto";
+import "ov_tensorflow/tensor_shape.proto";
+import "ov_tensorflow/types.proto";
+import "ov_tensorflow/variable.proto";
+import "ov_tensorflow/versions.proto";
+import "ov_tensorflow/struct.proto";
+import "ov_tensorflow/trackable_object_graph.proto";
 
 option cc_enable_arenas = true;
 option go_package = "github.com/tensorflow/tensorflow/tensorflow/go/core/protobuf/for_core_protos_go_proto";
