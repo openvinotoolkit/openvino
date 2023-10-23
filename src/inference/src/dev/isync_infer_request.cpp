@@ -124,9 +124,9 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
     // This function is hotspot, need optimization.
     auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
         return node1 == node2 ||
-               (node1->get_friendly_name() == node2->get_friendly_name() &&
-                node1->get_type_info() == node2->get_type_info() &&
-                node1->outputs().size() == node2->outputs().size() && node1->inputs().size() == node2->inputs().size());
+               (node1->outputs().size() == node2->outputs().size() &&
+                node1->inputs().size() == node2->inputs().size() && node1->get_type_info() == node2->get_type_info() &&
+                node1->get_friendly_name() == node2->get_friendly_name());
     };
     // Find port without caching work slow because we need each time iterate over all ports and compare different
     // strings So use WA with caching in order to make 2+ calls for the same ports faster.
@@ -143,8 +143,6 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
     ov::ISyncInferRequest::FoundPort::Type type = ov::ISyncInferRequest::FoundPort::Type::INPUT;
     for (const auto& ports : {get_inputs(), get_outputs()}) {
         for (size_t i = 0; i < ports.size(); i++) {
-            // TODO: Fix port comparison
-            // if (ports[i] == port) {
             if (ports[i].get_index() == port.get_index() && ports[i].get_names() == port.get_names() &&
                 check_nodes(ports[i].get_node(), port.get_node())) {
                 std::lock_guard<std::mutex> lock(m_cache_mutex);

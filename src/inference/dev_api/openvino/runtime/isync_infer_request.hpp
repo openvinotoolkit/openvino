@@ -125,6 +125,12 @@ protected:
     };
 
     /**
+     * @brief Finds input or output port
+     * @return structure which contains index of Input/Output or report that port wasn't found
+     */
+    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
+
+    /**
      * @brief Converts batched tensors to tensor
      */
     void convert_batched_tensors();
@@ -157,15 +163,9 @@ private:
     std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     // Mutable to return reference to ov::Tensor
     mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::SoPtr<ov::ITensor>> m_tensors;
-    // WA for fix performance of check_tensors and find port only for first find_port() call
+    // Cache ports
     mutable std::unordered_map<size_t, FoundPort> m_cached_ports;
     mutable std::mutex m_cache_mutex;
-
-    /**
-     * @brief Finds input or output port
-     * @return structure which contains index of Input/Output or report that port wasn't found
-     */
-    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
 };
 
 };  // namespace ov
