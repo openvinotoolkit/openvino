@@ -387,7 +387,7 @@ jobs:
       - name: SubgraphsDumper tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          {{ env.INSTALL_TEST_DIR }}/subgraphsDumperTests --gtest_print_time=1 \
+          ${{ env.INSTALL_TEST_DIR }}/subgraphsDumperTests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SubgraphsDumperTests.xml
 
       - name: Template OpImpl tests
