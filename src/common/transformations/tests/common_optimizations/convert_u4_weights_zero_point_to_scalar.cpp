@@ -25,7 +25,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalar) {
     {
         auto weights = ov::op::v0::Constant::create(weights_precision, weights_shape, {4});
         auto convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
-        auto zero_point = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {8});
+        auto zero_point = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {8.1f});
         auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
         auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
@@ -36,7 +36,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalar) {
         ov::Shape scalar_shape{};
         auto weights = ov::op::v0::Constant::create(weights_precision, weights_shape, {4});
         auto convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
-        auto zero_point = ov::op::v0::Constant::create(decompression_precision, scalar_shape, {8});
+        auto zero_point = ov::op::v0::Constant::create(decompression_precision, scalar_shape, {8.1f});
         auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
         auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
@@ -73,7 +73,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsU4ZeroPointToScalar) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalar1DZeroPoint) {
+TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalarWeightsWithBiggerRank) {
     auto weights_precision = ov::element::u4;
     auto decompression_precision = ov::element::f32;
     ov::Shape weights_shape{32, 128, 64};
