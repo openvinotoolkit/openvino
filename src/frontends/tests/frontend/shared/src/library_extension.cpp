@@ -9,6 +9,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/runtime/core.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
@@ -87,4 +88,31 @@ TEST_P(FrontendLibraryExtensionTest, verifyFunctions) {
                                }),
                   nodes.end());
     }
+}
+
+TEST_P(FrontendLibraryExtensionTest, loadExtensionBeforeFrontend) {
+    // release all frontends internally
+    ov::shutdown();
+
+    const auto& lib_path = get_lib_path("test_builtin_extensions");
+
+    ov::Core core;
+    core.add_extension(lib_path);
+
+    auto model = core.read_model(m_param.m_modelName);
+    ASSERT_NE(nullptr, model);
+
+    const auto nodes = model->get_ops();
+    ASSERT_EQ(std::find_if(nodes.begin(),
+                           nodes.end(),
+                           [](const std::shared_ptr<ov::Node>& n) {
+                               return ov::is_type<ov::op::v0::Relu>(n);
+                           }),
+              nodes.end());
+    ASSERT_NE(std::find_if(nodes.begin(),
+                           nodes.end(),
+                           [](const std::shared_ptr<ov::Node>& n) {
+                               return ov::is_type<ov::op::v4::Swish>(n);
+                           }),
+              nodes.end());
 }
