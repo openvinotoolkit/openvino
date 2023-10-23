@@ -1790,14 +1790,7 @@ public:
                         *dst_ptr_f = (this->_opData.alpha && (src_f[0] == -std::numeric_limits<T>::infinity())) ||
                                      (this->_opData.beta  && (src_f[0] == std::numeric_limits<T>::infinity()));
                         break;
-                    case Algorithm::EltwiseIsNaN: {
-                        if (sizeof(T) == 4) {
-                            *dst_ptr_f = std::isnan(static_cast<float>(src_f[0]));
-                        } else {
-                            *dst_ptr_f = std::isnan(static_cast<dnnl::impl::float16_t>(src_f[0]));
-                        }
-                        break;
-                    }
+                    case Algorithm::EltwiseIsNaN:             *dst_ptr_f = std::isnan(src_f[0]); break;
                     case Algorithm::EltwiseSelect:            *dst_ptr_f = src_f[0] ? src_f[1] : src_f[2]; break;
                     default: IE_THROW() << "Unsupported operation type for Eltwise executor";
                 }
