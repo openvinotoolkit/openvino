@@ -32,7 +32,7 @@ private:
     std::map<ov::NodeTypeInfo, PassRate> opsStats = {};
     unsigned short int downgrade_coefficient;
 
-    std::string getOpVersion(const std::string& version);
+    std::string get_opset_number(const std::string& opset_full_name);
 
 protected:
     OpSummary(unsigned short int downgrade_coefficient = 1);
