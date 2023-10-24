@@ -3,9 +3,15 @@ description: 'Get system information: CPU, RAM'
 runs:
   using: "composite"
   steps:
-    - run: echo "CPU info: $(lscpu)"
+    - run: |
+        echo "CPU info:"
+        lscpu
       shell: bash
-    - run: echo "ram info: $(free -h)"
+    - run: |
+        echo "ram info:"
+        free -h
       shell: bash
-    - run: echo "hdd info: $(df -h)"
+    - run: |
+        echo "hdd info:"
+        df -h
       shell: bash
