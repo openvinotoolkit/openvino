@@ -82,7 +82,7 @@ void MultinomialLayerTestCPU::SetUp() {
              cpu_params,
              additional_config) = GetParam();
 
-    selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::f32);
+    selectedType = makeSelectedTypeStr("ref", ov::test::ElementType::f32);
     targetDevice = ov::test::utils::DEVICE_CPU;
 
     init_input_shapes({probs_shape, num_samples_shape});
