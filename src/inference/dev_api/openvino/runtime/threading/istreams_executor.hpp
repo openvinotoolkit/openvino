@@ -154,17 +154,15 @@ public:
         /**
          * @brief Modify _streams_info_table and related configuration according to user-specified parameters, bind
          * threads to cpu cores if cpu_pinning is true.
-         * @param config configuration
          * @param stream_nums Number of streams specified by user
          * @param threads_per_stream Number of threads per stream specified by user
          * @param core_type Cpu type (Big/Little/Any) specified by user
          * @param cpu_pinning Whether to bind the threads to cpu cores
          */
-        static void update_executor_config(Config& config,
-                                           int stream_nums,
-                                           int threads_per_stream,
-                                           PreferredCoreType core_type,
-                                           bool cpu_pinning);
+        void update_executor_config(int stream_nums,
+                                    int threads_per_stream,
+                                    PreferredCoreType core_type,
+                                    bool cpu_pinning);
     };
 
     /**

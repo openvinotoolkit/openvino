@@ -42,11 +42,10 @@ public:
         cpu._cpu_mapping_table = test_data._cpu_mapping_table;
         cpu._numa_nodes = 1;
 
-        ov::threading::IStreamsExecutor::Config::update_executor_config(test_data._config,
-                                                                        test_data._num_streams,
-                                                                        test_data._threads_per_stream,
-                                                                        test_data._core_type,
-                                                                        test_data._cpu_pinning);
+        test_data._config.update_executor_config(test_data._num_streams,
+                                                 test_data._threads_per_stream,
+                                                 test_data._core_type,
+                                                 test_data._cpu_pinning);
 
         ASSERT_EQ(test_data._num_streams, test_data._config._streams);
         ASSERT_EQ(test_data._threads_per_stream, test_data._config._threadsPerStream);
