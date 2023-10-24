@@ -11,6 +11,7 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
+#include "snippets/op/rank_normalization.hpp"
 
 using namespace InferenceEngine;
 using namespace Xbyak;
@@ -121,7 +122,12 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
         element::Type etype;
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
-                desc = expr->get_output_port_descriptor(0);
+                const auto first_consumer = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
+                if (ov::is_type<snippets::op::RankNormalization>(first_consumer->get_node())) {
+                    desc = first_consumer->get_output_port_descriptor(0);
+                } else {
+                    desc = expr->get_output_port_descriptor(0);
+                }
                 etype = expr->get_node()->get_output_element_type(0);
                 num_inputs++;
                 break;
