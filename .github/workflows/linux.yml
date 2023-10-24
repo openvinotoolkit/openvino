@@ -72,7 +72,7 @@ jobs:
         uses: .github/actions/system_info@v1
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4m
+        uses: actions/checkout@v4
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
