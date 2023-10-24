@@ -136,6 +136,8 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Windows', reason="Ticket - 122731")
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122846')
     def test_roi_alignv10(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         # TODO: ticket for investigating GPU failures: CVS-86300
         if ie_device != "GPU":

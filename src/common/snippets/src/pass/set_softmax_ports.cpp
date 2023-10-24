@@ -25,11 +25,9 @@ ov::snippets::pass::SetSoftmaxPorts::SetSoftmaxPorts() {
         auto root = m.get_match_root();
 
         const auto& pshape = root->get_input_partial_shape(0);
-        if (pshape.is_dynamic())
-            return false;
 
-        const auto shape = pshape.get_shape();
-        const auto rank = shape.size();
+        OPENVINO_ASSERT(!pshape.rank().is_dynamic(), "SetSoftmaxPorts doesn't support dynamic ranks");
+        const auto rank =  pshape.rank().get_length();
 
         int64_t axis;
         if (const auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(root)) {
@@ -44,7 +42,7 @@ ov::snippets::pass::SetSoftmaxPorts::SetSoftmaxPorts() {
 
         OPENVINO_ASSERT(axis < static_cast<int64_t>(rank), "Softmax has incorrect axis");
         std::vector<size_t> subtensor(rank, 1);
-        for (size_t i = axis; i < rank; ++i)
+        for (auto i = axis; i < rank; ++i)
             subtensor[i] = lowered::PortDescriptor::ServiceDimensions::FULL_DIM;
 
         lowered::PortDescriptorUtils::set_port_descriptor_ptr(root->input(0), std::make_shared<lowered::PortDescriptor>(root->input(0), subtensor));

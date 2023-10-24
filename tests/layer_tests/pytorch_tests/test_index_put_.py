@@ -162,7 +162,7 @@ class TestNonZero_IndexPut(PytorchLayerTest):
         self.values = input_data["values"]
         self.indices_0 = indices[0]
         self.indices_1 = indices[1]
-        self._test(*self.create_model(accumulate), ie_device, precision, ir_version, trace_model=True)
+        self._test(*self.create_model(accumulate), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
 
 class TestMask_IndexPut(PytorchLayerTest):
     def _prepare_input(self):
@@ -181,4 +181,4 @@ class TestMask_IndexPut(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_nonzero_index_put_(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True)
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)

@@ -281,8 +281,8 @@ def create_pytorch_jit_script_function(tmp_dir):
         return torch.sigmoid(torch.relu(x * y))
 
     inp_shape = PartialShape([Dimension(1, -1), Dimension(-1, 5), 10])
-    ref_model = make_ref_pt_model_two_inputs(inp_shape, dtype=Type.dynamic)
-    return scripted_fn, ref_model, {'input': [(inp_shape), (inp_shape)]}
+    ref_model = make_ref_pt_model_two_inputs(inp_shape)
+    return scripted_fn, ref_model, {'input': [(inp_shape, Type.f32), (inp_shape, Type.f32)]}
 
 
 def create_pytorch_nn_module_layout_list(tmp_dir):
@@ -469,9 +469,9 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
 
 def create_pytorch_nn_module_shapes_list_static(tmp_dir):
     pt_model = make_pt_model_two_inputs()
-    ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20], dtype=Type.dynamic)
+    ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20])
 
-    return pt_model, ref_model, {'input': [[1, 3, 20, 20], [1, 3, 20, 20]]}
+    return pt_model, ref_model, {'input': [([1, 3, 20, 20], Type.f32), ([1, 3, 20, 20], Type.f32)]}
 
 
 def create_pytorch_nn_module_shapes_list_static_via_input(tmp_dir):
@@ -487,17 +487,16 @@ def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
                   [-1, 3, 20, Dimension(-1, 20)]]
 
     param1 = ov.opset8.parameter(PartialShape(
-        inp_shapes[0]), name="x", dtype=Type.dynamic)
+        inp_shapes[0]), name="x", dtype=Type.f32)
     param2 = ov.opset8.parameter(PartialShape(
-        inp_shapes[1]), name="y", dtype=Type.dynamic)
-    cl = ov.opset8.convert_like(param2, param1)
-    mul = ov.opset8.multiply(param1, cl)
+        inp_shapes[1]), name="y", dtype=Type.f32)
+    mul = ov.opset8.multiply(param1, param2)
     relu = ov.opset8.relu(mul)
     sigm = ov.opset8.sigmoid(relu)
 
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return pt_model, ref_model, {'input': inp_shapes}
+    return pt_model, ref_model, {'input': [(inp_shapes[0], Type.f32), (inp_shapes[1], Type.f32)]}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic_via_input(tmp_dir):
@@ -520,8 +519,8 @@ def create_pytorch_nn_module_shapes_list_dynamic_via_input(tmp_dir):
 
 def create_pytorch_nn_module_shapes_list_dynamic_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
-    inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)]]
-    ref_model = make_ref_pt_model_one_input(inp_shapes[0], dtype=Type.dynamic)
+    inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)], Type.f32]
+    ref_model = make_ref_pt_model_one_input(inp_shapes[0])
     return pt_model, ref_model, {'input': inp_shapes}
 
 
@@ -534,8 +533,8 @@ def create_pytorch_nn_module_shapes_list_dynamic_single_input_via_input(tmp_dir)
 
 def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
-    inp_shapes = [[1, 3, 20, 20]]
-    ref_model = make_ref_pt_model_one_input(inp_shapes[0], dtype=Type.dynamic)
+    inp_shapes = [[1, 3, 20, 20], Type.f32]
+    ref_model = make_ref_pt_model_one_input(inp_shapes[0])
     return pt_model, ref_model, {'input': inp_shapes}
 
 
