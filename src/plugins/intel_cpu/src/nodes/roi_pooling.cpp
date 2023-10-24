@@ -826,11 +826,10 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
 
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
               OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t),
-    #if defined(OV_CPU_ARM_ENABLE_FP16)
-              OV_CASE(Precision::FP16, float16_t)
-    #endif
-    )
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+              OV_CASE(Precision::FP16, float16_t),
+#endif
+              OV_CASE(Precision::BF16, bfloat16_t))
     return ctx.executor;
 }
 
