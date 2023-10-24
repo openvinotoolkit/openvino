@@ -69,7 +69,7 @@ jobs:
 
       # Print system info
       - uses: actions/checkout@v4
-      - uses: .github/actions/system_info
+      - uses: ./.github/actions/system_info
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
