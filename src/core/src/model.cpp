@@ -376,9 +376,11 @@ const ov::element::Type& ov::Model::get_output_element_type(size_t i) const {
     return m_results.at(i)->get_element_type();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 const ov::Shape& ov::Model::get_output_shape(size_t i) const {
     return m_results.at(i)->get_shape();
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 const ov::PartialShape& ov::Model::get_output_partial_shape(size_t i) const {
     return m_results.at(i)->get_output_partial_shape(0);

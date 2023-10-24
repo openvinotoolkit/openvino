@@ -110,7 +110,8 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             } else {
                 const auto* src_data = const_node->get_data_ptr<float>();
                 auto compressed_const =
-                    std::make_shared<ov::op::v0::Constant>(ov::element::f16, const_node->get_output_partial_shape(0).to_shape());
+                    std::make_shared<ov::op::v0::Constant>(ov::element::f16,
+                                                           const_node->get_output_partial_shape(0).to_shape());
                 auto* dst_data =
                     const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(compressed_const->get_data_ptr()));
                 OPENVINO_ASSERT(dst_data);
