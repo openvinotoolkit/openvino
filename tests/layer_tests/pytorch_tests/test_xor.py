@@ -25,7 +25,7 @@ class TestXor(PytorchLayerTest):
         ref_net = None
 
         return aten_xor_tensor(), ref_net, "aten::__xor__"
-    
+
     def create_model_bool_input(self):
         class aten_xor_bool(torch.nn.Module):
 
@@ -38,6 +38,19 @@ class TestXor(PytorchLayerTest):
         ref_net = None
 
         return aten_xor_bool(), ref_net, "aten::__xor__"
+
+    def create_model_int_input(self):
+        class aten_xor_int(torch.nn.Module):
+
+            def __init__(self) -> None:
+                super().__init__()
+
+            def forward(self, int_a: int, int_b: int):
+                return int_a ^ int_b
+
+        ref_net = None
+
+        return aten_xor_int(), ref_net, "aten::__xor__"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -53,4 +66,22 @@ class TestXor(PytorchLayerTest):
         self.input_data = (np.array(True, dtype=np.bool_),
                            np.array(True, dtype=np.bool_))
         self._test(*self.create_model_bool_input(),
+                   ie_device, precision, ir_version)
+
+    @pytest.mark.xfail(reason="bitwise_xor is not implemented")
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_xor_int(self, ie_device, precision, ir_version):
+        self.input_data = (np.array(3, dtype=np.int),
+                           np.array(4, dtype=np.int))
+        self._test(*self.create_model_int_input(),
+                   ie_device, precision, ir_version)
+
+    @pytest.mark.xfail(reason="bitwise_xor is not implemented")
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_xor_tensor(self, ie_device, precision, ir_version):
+        self.input_data = (np.array([3, 5, 8], dtype=np.int), np.array(
+            [7, 11, 2], dtype=np.int))
+        self._test(*self.create_model_tensor_input(),
                    ie_device, precision, ir_version)
