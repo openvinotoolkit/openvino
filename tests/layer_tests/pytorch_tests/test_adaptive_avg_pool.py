@@ -33,8 +33,8 @@ class TestAdaptiveAvgPool3D(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
-    def test_adaptive_avg_pool3d(self, ie_device, precision, ir_version, input_shape, output_size):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+    def test_adaptive_avg_pool3d(self, ie_device, precision, ir_version, input_tensor, output_size):
+        self.input_tensor = np.random.randn(*input_tensor).astype(np.float32)
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)
 
 

@@ -39,7 +39,7 @@ class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
     def test_repeat_interleave_const_repeats(self, ie_device, precision, ir_version, input_data):
         repeats = input_data['repeats']
         if type(repeats) is list and len(repeats) == 1:
-            repeats = random.randint(1, 5) for _ in range(repeats[0])
+            repeats = [random.randint(1, 5) for _ in range(repeats[0])]
 
         dim = input_data['dim']
         self._test(*self.create_model_const_repeat(repeats, dim),
