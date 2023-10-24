@@ -35,11 +35,12 @@ jobs:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
         - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
       VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
@@ -49,10 +50,7 @@ jobs:
       ANDROID_ABI_CONFIG: arm64-v8a
       VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
       VCPKG_FORCE_SYSTEM_BINARIES: '1'
-      CCACHE_DIR: '/mount/caches/ccache/android_arm64'
-      CCACHE_TEMPDIR: '/__w/openvino/openvino/ccache_temp'
-      CCACHE_COMPILERCHECK: 'content'
-      CCACHE_MAXSIZE: 50G
+      SCCACHE_AZURE_KEY_PREFIX: android_arm64
     steps:
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
@@ -102,6 +100,11 @@ jobs:
           unzip commandlinetools-linux-7583922_latest.zip
           echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${{ env.ANDROID_SDK_VERSION }}"
 
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
+
       #
       # Build
       #
@@ -138,10 +141,10 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Clean ccache stats
-        run: ccache --zero-stats --show-config
+        run: sccache --zero-stats
 
       - name: Cmake - build
         run: cmake --build ${BUILD_DIR} --parallel
 
       - name: Show ccache stats
-        run: ccache --show-stats
+        run: ${SCCACHE_PATH} --show-stats
