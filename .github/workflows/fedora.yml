@@ -36,19 +36,18 @@ jobs:
       image: fedora:33
       volumes:
         - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      CCACHE_DIR: /mount/caches/ccache/fedora33_x86_64_Release
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
+      SCCACHE_AZURE_KEY_PREFIX: fedora33_x86_64_Release
     steps:
       - name: Install git
         run: yum update -y && yum install -y git
@@ -65,6 +64,11 @@ jobs:
 
       - name: Install build dependencies
         run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
 
       - name: Install python dependencies
         run: |
@@ -112,8 +116,8 @@ jobs:
       - name: Cmake build - OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel --verbose
 
-      - name: Show ccache stats
-        run: ccache --show-stats
+      - name: Show sccache stats
+        run: ${SCCACHE_PATH} --show-stats
 
       - name: Cmake install - OpenVINO
         run: |
