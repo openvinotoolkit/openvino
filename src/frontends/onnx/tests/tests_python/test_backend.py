@@ -378,12 +378,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_90649,
-        "OnnxBackendNodeModelTest.test_blackmanwindow_cpu",
-        "OnnxBackendNodeModelTest.test_blackmanwindow_symmetric_cpu",
-        "OnnxBackendNodeModelTest.test_hammingwindow_cpu",
-        "OnnxBackendNodeModelTest.test_hammingwindow_symmetric_cpu",
-        "OnnxBackendNodeModelTest.test_hannwindow_cpu",
-        "OnnxBackendNodeModelTest.test_hannwindow_symmetric_cpu",
         "OnnxBackendNodeModelTest.test_melweightmatrix_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_add_1_sequence_1_tensor_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_add_2_sequences_cpu",
