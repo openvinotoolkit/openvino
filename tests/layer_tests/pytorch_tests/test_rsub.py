@@ -42,13 +42,9 @@ class TestRsub(PytorchLayerTest):
     @pytest.mark.precommit
     def test_rsub(self, ie_device, precision, ir_version, input_data):
         self.input_data = []
-        seed = 13
-        rng = np.random.default_rng(seed=13)
         for input in input_data:
             if type(input) is list:
-                rng = np.random.default_rng(seed)
-                self.input_data.append(rng.standard_normal(input).astype(np.float32))
-                seed += 1
+                self.input_data.append(np.random.random_sample(input).astype(np.float32))
             else:
                 self.input_data.append(input)
         self._test(*self.create_model(second_type="float"), ie_device, precision, ir_version, use_convert_model=True)
@@ -61,12 +57,9 @@ class TestRsub(PytorchLayerTest):
     @pytest.mark.precommit
     def test_rsub(self, ie_device, precision, ir_version, input_data):
         self.input_data = []
-        seed = 13
         for input in input_data:
             if type(input) is list:
-                rng = np.random.default_rng(seed)
-                self.input_data.append(rng.standard_normal(input).astype(np.float32))
-                seed += 1
+                self.input_data.append(np.random.random_sample(input).astype(np.float32))
             else:
                 self.input_data.append(input)
         self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version)

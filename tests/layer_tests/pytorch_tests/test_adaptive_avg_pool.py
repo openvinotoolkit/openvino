@@ -34,8 +34,7 @@ class TestAdaptiveAvgPool3D(PytorchLayerTest):
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_adaptive_avg_pool3d(self, ie_device, precision, ir_version, input_shape, output_size):
-        rng = np.random.default_rng(seed=13)
-        self.input_tensor = rng.standard_normal(size=input_shape).astype(np.float32)
+        self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)
 
 
@@ -65,8 +64,7 @@ class TestAdaptiveAvgPool2D(PytorchLayerTest):
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_adaptive_avg_pool2d(self, ie_device, precision, ir_version, input_shape, output_size):
-        rng = np.random.default_rng(seed=13)
-        self.input_tensor = rng.standard_normal(size=input_shape).astype(np.float32)
+        self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)
 
 
@@ -96,8 +94,7 @@ class TestAdaptiveAvgPool1D(PytorchLayerTest):
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_adaptive_avg_pool1d(self, ie_device, precision, ir_version, input_shape, output_size):
-        rng = np.random.default_rng(seed=13)
-        self.input_tensor = rng.standard_normal(size=input_shape).astype(np.float32)
+        self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)
 
 

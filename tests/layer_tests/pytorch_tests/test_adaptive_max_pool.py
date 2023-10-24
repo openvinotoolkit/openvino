@@ -52,8 +52,7 @@ class TestAdaptiveMaxPool3D(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_adaptive_max_pool3d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
-        rng = np.random.default_rng(seed=13)
-        self.input_tensor = rng.standard_normal(size=input_shape).astype(np.float32)
+        self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
 
 
@@ -98,8 +97,7 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_adaptive_max_pool2d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
-        rng = np.random.default_rng(seed=13)
-        self.input_tensor = rng.standard_normal(size=input_shape).astype(np.float32)
+        self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
 
 
@@ -146,6 +144,5 @@ class TestAdaptiveMaxPool1D(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_adaptive_max_pool1d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
-        rng = np.random.default_rng(seed=13)
-        self.input_tensor = rng.standard_normal(size=input_shape).astype(np.float32)
+        self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)

@@ -42,15 +42,13 @@ class TestLen(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_len(self, ie_device, precision, ir_version, input_tensor):
-        rng = np.random.default_rng(seed=13)
-        self.input_tensor = rng.standard_normal(size=input_tensor).astype(np.float32)
+        self.input_tensor = np.random.random_sample(input_tensor).astype(np.float32)
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_len_int_list(self, ie_device, precision, ir_version, input_tensor):
-        rng = np.random.default_rng(seed=13)
-        self.input_tensor = rng.standard_normal(size=input_tensor).astype(np.float32)
+        self.input_tensor = np.random.random_sample(input_tensor).astype(np.float32)
         self._test(*self.create_model_int_list(),
                    ie_device, precision, ir_version, use_convert_model=True)
 

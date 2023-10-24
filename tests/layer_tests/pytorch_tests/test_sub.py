@@ -51,11 +51,8 @@ class TestSub(PytorchLayerTest):
     @pytest.mark.precommit
     def test_sub(self, ie_device, precision, ir_version, input_shapes, inplace):
         self.input_data = []
-        seed = 13
         for input_shape in input_shapes:
-            rng = np.random.default_rng(seed)
-            self.input_data.append(rng.standard_normal(input_shape).astype(np.float32))
-            seed += 1
+            self.input_data.append(np.random.random_sample(input_shape).astype(np.float32))
         self._test(*self.create_model(inplace), ie_device, precision, ir_version, use_convert_model=True)
 
 

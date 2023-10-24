@@ -74,8 +74,7 @@ class TestArgSort(PytorchLayerTest):
     def test_argsort(self, tensor_stable_pair, descending, ie_device, precision, ir_version):
         input_shape, stable = tensor_stable_pair
         if type(input_shape) is list:
-            rng = np.random.default_rng(seed=13)
-            self.input_tensor = rng.standard_normal(size=input_shape).astype(np.float32)
+            self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
         else:
             self.input_tensor = input_shape
         dims = len(self.input_tensor.shape)
