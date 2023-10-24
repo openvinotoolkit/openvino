@@ -102,5 +102,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*SplitConvTest.CompareWithRefImpl.*IS=\(1.(128|256)\).*IC=4.*OC=4.*configItem=GNA_DEVICE_MODE_GNA_SW_FP32)",
         // TODO: Issue: 114149
         R"(.*smoke_Decompose2DConv.*)",
+        // TODO: Issue: 123306
+        R"(smoke_convert_matmul_to_fc/ConvertMatmulToFcWithTransposesPass.CompareWithRefImpl/netPRC=FP(32|16)_targetDevice=GNA__configItem=GNA_COMPACT_MODE_NO_configItem=GNA_DEVICE_MODE_GNA_SW_(FP32|EXACT)_IS=\(8.*)",
     };
 }
