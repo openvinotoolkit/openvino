@@ -348,6 +348,10 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             }
         }
 
+        // Both operations fallbacks on IP zero-point attribute and cannot be combined
+        if (withSubtract && withPowerStatic)
+            continue;
+
         auto convertNode = mulParent;
         if (withSubtract)
             convertNode = subtractNode->getParentEdgesAtPort(0)[0]->getParent();
@@ -422,6 +426,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         }
 
         size_t IC = fcInputWeightsShape.getDims()[1];
+        // OneDNN IP primitive provides limited decompression params support
         if (IC % groupNum != 0 || IC / groupNum < 4) {
             continue;
         }
