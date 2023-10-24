@@ -34,8 +34,6 @@ Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext
             m_const_inputs[i] = true;
         }
     }
-
-    m_errorPrefix = "Multinomial node with name '" + getName() + "' ";
 }
 
 bool Multinomial::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -52,17 +50,16 @@ bool Multinomial::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 
 void Multinomial::getSupportedDescriptors() {
     if (getParentEdges().size() != 2) {
-        IE_THROW() << m_errorPrefix << "has incorrect number of input edges.";
+        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
     }
     if (getChildEdges().size() != 1) {
-        IE_THROW() << m_errorPrefix << "has incorrect number of output edges.";
+        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
     }
 }
 
 void Multinomial::initSupportedPrimitiveDescriptors() {
     auto probs_prc = getOriginalInputPrecisionAtPort(PROBS_PORT);
     if (!one_of(probs_prc,
-                InferenceEngine::Precision::FP64,
                 InferenceEngine::Precision::FP32,
                 InferenceEngine::Precision::FP16,
                 InferenceEngine::Precision::BF16)) {
@@ -119,34 +116,34 @@ std::string Multinomial::getPrimitiveDescriptorType() const {
 }
 
 void Multinomial::createPrimitive() {
-#if defined(OPENVINO_ARCH_X86_64)
-    kernel::RandomUniformCompileParams jcp;
+// #if defined(OPENVINO_ARCH_X86_64)
+//     kernel::RandomUniformCompileParams jcp;
 
-    jcp.out_data_type = ov::element::f32;
+//     jcp.out_data_type = ov::element::f32;
 
-    m_jit_random_uniform_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>::createInstance<kernel::RandomUniform>(jcp);
+//     m_jit_random_uniform_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>::createInstance<kernel::RandomUniform>(jcp);
 
-    if (m_jit_random_uniform_kernel) {
-        if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
-            using namespace dnnl::impl::cpu;
-            if (m_jit_random_uniform_kernel->getIsa() == x64::avx512_core) {
-                selected_pd->setImplementationType(jit_avx512);
-            } else if (m_jit_random_uniform_kernel->getIsa() == x64::avx2) {
-                selected_pd->setImplementationType(jit_avx2);
-            } else if (m_jit_random_uniform_kernel->getIsa() == x64::sse41) {
-                selected_pd->setImplementationType(jit_sse42);
-            }
-        }
-    }
-#endif // OPENVINO_ARCH_X86_64
+//     if (m_jit_random_uniform_kernel) {
+//         if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
+//             using namespace dnnl::impl::cpu;
+//             if (m_jit_random_uniform_kernel->getIsa() == x64::avx512_core) {
+//                 selected_pd->setImplementationType(jit_avx512);
+//             } else if (m_jit_random_uniform_kernel->getIsa() == x64::avx2) {
+//                 selected_pd->setImplementationType(jit_avx2);
+//             } else if (m_jit_random_uniform_kernel->getIsa() == x64::sse41) {
+//                 selected_pd->setImplementationType(jit_sse42);
+//             }
+//         }
+//     }
+// #endif // OPENVINO_ARCH_X86_64
 
     if (m_const_inputs[PROBS_PORT] && m_const_inputs[NUM_SAMPLES_PORT]) {
         Node::createPrimitive();
     }
 }
 
-bool RandomUniform::needPrepareParams() const {
-    if (m_out_shape != getChildEdgeAt(0)->getMemoryPtr()->getShape().getStaticDims() || m_out_shape != getChildEdgeAt(0)->getMemoryPtr()->getShape().getStaticDims()) {
+bool Multinomial::needPrepareParams() const {
+    if (m_output_shape != getChildEdgeAt(0)->getMemoryPtr()->getShape().getStaticDims()) {
         return true;
     }
     return false;
@@ -159,13 +156,11 @@ void Multinomial::prepareParams() {
         reinterpret_cast<const int*>(getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0]; // reuse in execute?
 
     if (probs_shape.size() != 1 && probs_shape.size() != 2) {
-        IE_THROW() << m_errorPrefix << "has incompatible 'probs' shape " << PartialShape(probs_shape)
-                   << ". Only 1D and 2D tensors are allowed.";
+        THROW_CPU_NODE_ERR("has incompatible 'probs' shape ", PartialShape(probs_shape), ". Only 1D and 2D tensors are allowed.");
     }
 
     if (num_samples_shape.size() != 1) {
-        IE_THROW() << m_errorPrefix << "has incompatible 'num_samples' shape " << PartialShape(num_samples_shape)
-                   << ". Only scalar and 1D single element tensors are allowed.";
+        THROW_CPU_NODE_ERR("has incompatible 'num_samples' shape ", PartialShape(num_samples_shape), ". Only scalar and 1D single element tensors are allowed.");
     }
 
     m_probs_1d = probs_shape.size() == 1;
@@ -207,11 +202,11 @@ void Multinomial::execute(dnnl::stream strm) {
         }
     }
 
-    // TODO RandomUniform - requires RandomUniform kernel https://github.com/openvinotoolkit/openvino/pull/20171
+    // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
     std::srand(m_op_seed);
-    parallel_for(m_input_elements_count, [&](size_t idx) {
-        m_random_samples[idx] = static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX);
-    });
+    for(size_t idx = 0lu; idx < m_input_elements_count; ++idx) {
+        m_random_samples[idx] = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+    };
 
     // max (slice) & divide
     if (m_probs_1d) {
@@ -244,7 +239,7 @@ void Multinomial::execute(dnnl::stream strm) {
             size_t idx_output = idx_batch * num_samples;
 
             float class_probability = 0.0f;
-            float divisor = 0.0f;
+            float divisor = 1.0f;
 
             size_t selected_class = 0;
             if (m_random_samples[idx] <= m_cdf[idx] && (!idx_class || m_random_samples[idx] > m_cdf[idx - 1])) {
@@ -254,13 +249,13 @@ void Multinomial::execute(dnnl::stream strm) {
                 divisor = 1 - class_probability;
             }
 
-            parallel_for(m_probs_count, [&](size_t probs_idx) {
-                size_t idx_start = m_probs_count * idx_batch;
+            size_t idx_start = m_probs_count * idx_batch;
+            for(size_t probs_idx = 0lu; probs_idx < m_probs_count; ++probs_idx) {
                 if (probs_idx >= selected_class) {
                     m_cdf[idx_start + probs_idx] -= class_probability;
                 }
                 m_cdf[idx_start + probs_idx] /= divisor;
-            });
+            };
         });
     }
 }

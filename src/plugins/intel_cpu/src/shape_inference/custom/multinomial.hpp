@@ -3,7 +3,7 @@
 //
 
 #include <node.h>
-
+#include <openvino/op/multinomial.hpp>
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -14,7 +14,7 @@ namespace node {
 using Result = IShapeInfer::Result;
 class MultinomialShapeInfer : public ShapeInferEmptyPads {
 public:
-    explicit MultinomialShapeInfer() {}
+    MultinomialShapeInfer(std::shared_ptr<const ov::op::v13::Multinomial> op) : m_op(op){};
 
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
@@ -22,6 +22,9 @@ public:
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
+
+    private:
+    std::shared_ptr<const ov::op::v13::Multinomial> m_op;
 };
 
 class MultinomialShapeInferFactory : public ShapeInferFactory {
@@ -30,7 +33,7 @@ public:
     ShapeInferPtr makeShapeInfer() const override;
 
 private:
-    std::shared_ptr<ov::Node> m_op;
+    const std::shared_ptr<ov::Node> m_op;
 };
 
 }  // namespace node

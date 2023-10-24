@@ -6,10 +6,7 @@
 
 #include <ie_common.h>
 #include <node.h>
-
 #include <string>
-
-#include "common/permute_kernel.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -19,25 +16,25 @@ class Multinomial : public Node {
 public:
     Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override;            // done
-    void initSupportedPrimitiveDescriptors() override;  // done
-    // std::string getPrimitiveDescriptorType() const override;
+    void getSupportedDescriptors() override;
+    void initSupportedPrimitiveDescriptors() override;
+    std::string getPrimitiveDescriptorType() const override;
 
-    bool created() const override;  // done
-    void createPrimitive() override; // done
+    bool created() const override;
+    void createPrimitive() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                     std::string& errorMessage) noexcept;  // done
+                                     std::string& errorMessage) noexcept;
 
-    bool needPrepareParams() const override; // done
-    void prepareParams() override;  // done
+    bool needPrepareParams() const override;
+    void prepareParams() override; 
 
-    bool isExecutable() const override;                   // done
-    void execute(dnnl::stream strm) override;             // done
-    void executeDynamicImpl(dnnl::stream strm) override;  // done
+    bool isExecutable() const override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeInPlace() const override {
         return false;
-    }  // done
+    }
 
 private:
     /// Multinomial params
@@ -55,7 +52,6 @@ private:
     VectorDims m_output_shape = {};
 
     /// General algorithm variables
-    std::string m_errorPrefix;
     bool m_probs_1d = false;
     size_t m_input_elements_count = 0;
     size_t m_batches_count = 0;
@@ -67,16 +63,16 @@ private:
     std::vector<int> m_output_vals;
 
     /// RandomUniform jit kernel params
-    struct ThreadParams {
-        uint64_t work_amount = 0lu;
-        uint64_t dst_shift = 0lu;
-        uint64_t n_shift = 0lu;
-        uint64_t step = 0lu;
-    };
+    // struct ThreadParams {
+    //     uint64_t work_amount = 0lu;
+    //     uint64_t dst_shift = 0lu;
+    //     uint64_t n_shift = 0lu;
+    //     uint64_t step = 0lu;
+    // };
 
-    uint64_t m_threads_num = 0lu;
-    std::vector<ThreadParams> m_thread_params;
-    std::shared_ptr<kernel::JitKernelBase> m_jit_random_uniform_kernel;
+    // uint64_t m_threads_num = 0lu;
+    // std::vector<ThreadParams> m_thread_params;
+    // std::shared_ptr<kernel::JitKernelBase> m_jit_random_uniform_kernel;
 };
 
 }  // namespace node

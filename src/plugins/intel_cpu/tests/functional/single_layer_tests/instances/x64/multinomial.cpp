@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/classes/multinomial.hpp
+#include "single_layer_tests/classes/multinomial.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -67,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MultinomialStatic,
 INSTANTIATE_TEST_SUITE_P(smoke_MultinomialDynamic,
                          MultinomialLayerTestCPU,
                          params_dynamic,
-                         MultinomialLayerCPUTestCPU::getTestCaseName);
+                         MultinomialLayerTestCPU::getTestCaseName);
 
-}  // namespace Multinomial
+} // namespace Multinomial
 } // namespace CPULayerTestsDefinitions

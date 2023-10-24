@@ -12,20 +12,24 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
-typedef std::tuple<InputShape,          // probs_shape
-                InputShape,             // num_samples_shape
-                ov::test::ElementType,  // convert_type
-                bool,                   // with_replacement
-                bool,                   // log_probs
-                uint64_t,               // global_seed
-                uint64_t,               // op_seed
-> MultinomialCPUTestParams;
+typedef std::tuple<InputShape,                      // probs_shape
+                InputShape,                         // num_samples_shape
+                ov::test::ElementType,              // convert_type
+                bool,                               // with_replacement
+                bool,                               // log_probs
+                uint64_t,                           // global_seed
+                uint64_t,                           // op_seed
+                CPUTestUtils::CPUSpecificParams,    // CPU specific params
+                ov::AnyMap                          // Additional plugin configuration
+> MultinomialTestCPUParams;
 
-class MultinomialLayerCPUTest : public testing::WithParamInterface<MultinomialCPUTestParams>,,
+class MultinomialLayerTestCPU : public testing::WithParamInterface<MultinomialTestCPUParams>,
+                                virtual public SubgraphBaseTest, 
                                 public CPUTestsBase {
-    static std::string getTestCaseName(const testing::TestParamInfo<RandomUniformLayerTestCPUParamSet>& obj);
-
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<MultinomialTestCPUParams>& obj);
 protected:
     void SetUp() override;
-}
+};
+
 } // namespace CPULayerTestsDefinitions
