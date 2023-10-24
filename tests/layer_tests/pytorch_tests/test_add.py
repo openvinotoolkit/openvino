@@ -43,7 +43,7 @@ class TestAdd(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("op_type", ["add", "add_"])
     def test_add(self, ie_device, precision, ir_version, alpha, input_shape_rhs, op_type):
-        self.input_rhs = np.random.random_sample(input_shape_rhs).astype(np.float32)
+        self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
         self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version, use_convert_model=True)
 
 

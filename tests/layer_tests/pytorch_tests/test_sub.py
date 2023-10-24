@@ -52,7 +52,7 @@ class TestSub(PytorchLayerTest):
     def test_sub(self, ie_device, precision, ir_version, input_shapes, inplace):
         self.input_data = []
         for input_shape in input_shapes:
-            self.input_data.append(np.random.random_sample(input_shape).astype(np.float32))
+            self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
         self._test(*self.create_model(inplace), ie_device, precision, ir_version, use_convert_model=True)
 
 

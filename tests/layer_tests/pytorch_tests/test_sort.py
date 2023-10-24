@@ -81,7 +81,7 @@ class TestSortConstants(PytorchLayerTest):
     def test_sort(self, input_shape, descending, stable, ie_device, precision, ir_version):
         self.input_tensor = []
         if type(input_shape) is list:
-            self.input_tensor = np.random.random_sample(input_shape).astype(np.float32)
+            self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         else:
             self.input_tensor = input_shape
         dims = len(self.input_tensor.shape)

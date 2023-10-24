@@ -54,7 +54,7 @@ class TestIndexPut_SingleIndices(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_index_put_single_indices(self, ie_device, precision, ir_version, input_data, indices, accumulate):
-        self.input_tensor = np.random.random_sample(input_data["input_shape"]).astype(np.float32)
+        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
         self.values = input_data["values"]
         self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version)
 
@@ -107,7 +107,7 @@ class TestIndexPut_ManyIndices(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_index_put_many_indices(self, ie_device, precision, ir_version, input_data, indices, accumulate):
-        self.input_tensor = np.random.random_sample(input_data["input_shape"]).astype(np.float32)
+        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
         self.values = input_data["values"]
         self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version)
 
@@ -158,7 +158,7 @@ class TestNonZero_IndexPut(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_nonzero_index_put_(self, ie_device, precision, ir_version, input_data, indices, accumulate):
-        self.input_tensor = np.random.random_sample(input_data["input_shape"]).astype(np.float32)
+        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
         self.values = input_data["values"]
         for i in range(len(indices)):
             if type(indices[i]) is list:

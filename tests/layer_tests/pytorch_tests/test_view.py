@@ -38,7 +38,7 @@ class TestViewListConstruct(PytorchLayerTest):
         self.input_data = []
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.random_sample(input_shape).astype(np.float32))
+                self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -70,7 +70,7 @@ class TestViewDtype(PytorchLayerTest):
         self.input_data = []
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.random_sample(input_shape).astype(np.float32))
+                self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -103,7 +103,7 @@ class TestViewSize(PytorchLayerTest):
         self.input_data = []
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.random_sample(input_shape).astype(np.float32))
+                self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -146,7 +146,7 @@ class TestView(PytorchLayerTest):
         self.input_data = []
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.random_sample(input_shape).astype(np.float32))
+                self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)

@@ -44,7 +44,7 @@ class TestRsub(PytorchLayerTest):
         self.input_data = []
         for input in input_data:
             if type(input) is list:
-                self.input_data.append(np.random.random_sample(input).astype(np.float32))
+                self.input_data.append(np.random.randn(*input).astype(np.float32))
             else:
                 self.input_data.append(input)
         self._test(*self.create_model(second_type="float"), ie_device, precision, ir_version, use_convert_model=True)
@@ -59,7 +59,7 @@ class TestRsub(PytorchLayerTest):
         self.input_data = []
         for input in input_data:
             if type(input) is list:
-                self.input_data.append(np.random.random_sample(input).astype(np.float32))
+                self.input_data.append(np.random.randn(*input).astype(np.float32))
             else:
                 self.input_data.append(input)
         self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version)
