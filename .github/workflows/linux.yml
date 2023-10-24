@@ -82,7 +82,8 @@ jobs:
           ref: 'master'
 
       - name: System info
-        uses: .github/actions/system_info
+        uses: actions/checkout@v4
+        uses: ./actions/system_info
 
       #
       # Dependencies
