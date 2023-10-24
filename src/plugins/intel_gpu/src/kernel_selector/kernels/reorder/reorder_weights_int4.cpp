@@ -36,7 +36,7 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
 
     // Divide one of the dimensions by 2 to save with byte granularity
     if (output.GetLayout() == WeightsLayout::os_iyx_osv32) {
-        dispatchData.gws = { CeilDiv(output.OFM().v, 2), output.IFM().v, 1 };
+        dispatchData.gws = { Align(output.OFM().v, 32) / 2, output.IFM().v, 1 };
     } else {
         dispatchData.gws = { output.OFM().v, CeilDiv(output.IFM().v, 2), 1 };
     }

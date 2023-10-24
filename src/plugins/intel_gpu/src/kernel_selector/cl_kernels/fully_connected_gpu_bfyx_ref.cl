@@ -52,22 +52,19 @@ KERNEL(fc)(
                 DECOMPRESSION_SCALE_TYPE scale = decompression_scale[decomp_offset];
             #endif
 
-            #if COMPRESSED_WEIGHTS_INT8
                 const uint filter_idx = GET_FILTER_INDEX(FILTER, 0, oym, y, 0, 0);
+            #if COMPRESSED_WEIGHTS_INT8
                 ACCUMULATOR_TYPE filter_compressed = TO_ACCUMULATOR_TYPE(weights[filter_idx]);
                 ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                 dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(filter_val);
             #elif COMPRESSED_WEIGHTS_INT4
-                const uint filter_idx = oym * (FILTER_IFM_NUM / 2) +  (y / 2);
-                const uint f_idx = (y) % 2;
-                FILTER_TYPE filter_packed = weights[filter_idx];
+                FILTER_TYPE filter_packed = weights[filter_idx / 2];
                 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 2) filter_unpacked = UNPACK_INT4x2(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&filter_packed));
 
-                ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[f_idx];
+                ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 2];
                 ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                 dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
             #else
-                const uint filter_idx = GET_FILTER_INDEX(FILTER, 0, oym, y, 0, 0);
                 dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(weights[filter_idx]);
             #endif
         }
@@ -102,23 +99,19 @@ KERNEL(fc)(
                     DECOMPRESSION_SCALE_TYPE scale = decompression_scale[decomp_offset];
                 #endif
 
-
-                #if COMPRESSED_WEIGHTS_INT8
                     const uint filter_idx = GET_FILTER_INDEX(FILTER, 0, ofm, ifm, y, x);
+                #if COMPRESSED_WEIGHTS_INT8
                     FILTER_TYPE filter_compressed = weights[filter_idx];
                     ACCUMULATOR_TYPE filter_val = (TO_ACCUMULATOR_TYPE(filter_compressed) - zp) * scale;
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(filter_val);
                 #elif COMPRESSED_WEIGHTS_INT4
-                    const uint filter_idx = ofm * (FILTER_IFM_NUM / 2) +  (ifm / 2);
-                    const uint f_idx = (ifm) % 2;
-                    FILTER_TYPE filter_packed = weights[filter_idx];
+                    FILTER_TYPE filter_packed = weights[filter_idx / 2];
                     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 2) filter_unpacked = UNPACK_INT4x2(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&filter_packed));
 
-                    ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[f_idx];
+                    ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 2];
                     ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
                 #else
-                    const uint filter_idx = GET_FILTER_INDEX(FILTER, 0, ofm, ifm, y, x);
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(weights[filter_idx]);
                 #endif
             }

@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <functional>
+#include "common_types.h"
 
 static constexpr size_t simd = 16;
 
@@ -72,6 +73,7 @@ bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_para
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto& input = fc_params.inputs[0];
     auto& output = fc_params.outputs[0];
+    auto& weights = fc_params.weights;
 
     // Block reads must be aligned to 4 bytes, for fp16 we can correct for offset misalignment,
     // but we need to ensure that batch pitch preserves alignment.
@@ -103,6 +105,11 @@ bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_para
     if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx) {
         if (input.X().v > 1)
             return false;
+    }
+
+    auto wt = weights.GetDType();
+    if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0 || weights.OFM().v % 2 != 0)) {
+        return false;
     }
 
     return true;
