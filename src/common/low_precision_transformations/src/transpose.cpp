@@ -37,8 +37,8 @@ namespace {
 void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std::vector<ov::element::Type>& defaultPrecisions) {
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(transpose, defaultPrecisions);
 
-    const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtractConstant->get_shape();
-    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiplyConstant->get_shape();
+    const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtractConstant->get_output_partial_shape(0).to_shape();
+    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiplyConstant->get_output_partial_shape(0).to_shape();
     if ((subtractShape.empty() || (subtractShape.size() == 1ul)) && (multiplyShape.empty() || (multiplyShape.size() == 1ul))) {
         return;
     }
@@ -47,7 +47,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std
         const std::shared_ptr<ov::opset1::Constant>& dequantizationConstant,
         const PartialShape& transposeOutputPShape,
         const std::shared_ptr<Node>& transposeConstant) -> std::shared_ptr<Node> {
-            const auto constantShape = dequantizationConstant->get_shape();
+            const auto constantShape = dequantizationConstant->get_output_partial_shape(0).to_shape();
             if (shape_size(constantShape) == 1ul) {
                 return NetworkHelper::toScalar(dequantizationConstant);
             }
@@ -133,7 +133,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
     }
 
     auto checkShape = [](const std::shared_ptr<ov::opset1::Constant>& dequantizationConstant, const PartialShape& transposeOutputShape) -> bool {
-        const auto dequantizationShape = dequantizationConstant->get_shape();
+        const auto dequantizationShape = dequantizationConstant->get_output_partial_shape(0).to_shape();
         const auto rank = transposeOutputShape.rank();
         if (rank.is_dynamic()) {
             return false;

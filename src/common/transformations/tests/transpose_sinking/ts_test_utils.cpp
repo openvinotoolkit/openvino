@@ -69,7 +69,7 @@ OutputVector set_gather_for(const vector<size_t>& idxs, const OutputVector& out_
     OutputVector result = out_vec;
     for (const auto& idx : idxs) {
         const auto& out = out_vec[idx];
-        vector<int64_t> axes(out.get_shape()[0]);
+        vector<int64_t> axes(out.get_partial_shape().to_shape()[0]);
         iota(axes.begin(), axes.end(), 0);
         reverse(axes.begin(), axes.end());
         auto order = make_shared<Constant>(element::i32, Shape{axes.size()}, axes);

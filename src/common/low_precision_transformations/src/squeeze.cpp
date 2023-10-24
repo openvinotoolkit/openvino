@@ -42,7 +42,7 @@ bool SqueezeTransformation::transform(TransformationContext& context, ov::pass::
                                 const std::shared_ptr<ov::opset1::Constant>& dequantizationOpConstant,
                                 const ov::PartialShape& inputShape) {
         const size_t inputRankValue = inputShape.rank().get_length();
-        const auto constantShape = dequantizationOpConstant->get_shape();
+        const auto constantShape = dequantizationOpConstant->get_output_partial_shape(0).to_shape();
         if (shape_size(constantShape) == 1ul) {
             return NetworkHelper::toScalar(dequantizationOpConstant);
         }

@@ -104,7 +104,7 @@ std::shared_ptr<ov::opset1::Constant> NetworkHelper::foldDequantizationConstant(
     OutputVector inputs = operation->input_values();
     OutputVector outputs(operation->get_output_size());
 
-    if (shape_size(foldingConstant->get_shape()) == 1ul) {
+    if (shape_size(foldingConstant->get_output_partial_shape(0).to_shape()) == 1ul) {
         return toScalar(foldingConstant);
     } else {
         inputs[0] = foldingConstant;
@@ -344,7 +344,7 @@ bool NetworkHelper::isScalarLike(std::shared_ptr<ov::opset1::Constant> constant)
     // ticket #48857
     // return constant->get_all_data_elements_bitwise_identical();
 
-    const auto shape = constant->output(0).get_shape();
+    const auto shape = constant->output(0).get_partial_shape().to_shape();
     if (shape_size(shape) == 1ul) {
         return true;
     }
@@ -927,12 +927,12 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     }
 
     std::shared_ptr<Node> shift = hasZeroPoint ?
-        std::make_shared<ov::opset1::Constant>(deqPrecision, outputLow.get_shape(), shifts) :
+        std::make_shared<ov::opset1::Constant>(deqPrecision, outputLow.get_partial_shape().to_shape(), shifts) :
         nullptr;
-    std::shared_ptr<Node> scale = std::make_shared<ov::opset1::Constant>(element::f32, outputLow.get_shape(), scales);
+    std::shared_ptr<Node> scale = std::make_shared<ov::opset1::Constant>(element::f32, outputLow.get_partial_shape().to_shape(), scales);
 
-    auto newMin = std::make_shared<ov::opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), minValues);
-    auto newMax = std::make_shared<ov::opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), maxValues);
+    auto newMin = std::make_shared<ov::opset1::Constant>(outputLow.get_element_type(), outputLow.get_partial_shape().to_shape(), minValues);
+    auto newMax = std::make_shared<ov::opset1::Constant>(outputLow.get_element_type(), outputLow.get_partial_shape().to_shape(), maxValues);
 
     if (isScalarLike(newMin)) {
         newMin = toScalar(newMin);
@@ -959,7 +959,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         }
 
         if (wasChanged) {
-            scale = std::make_shared<ov::opset1::Constant>(scale->output(0).get_element_type(), scale->output(0).get_shape(), scaleValues);
+            scale = std::make_shared<ov::opset1::Constant>(scale->output(0).get_element_type(), scale->output(0).get_partial_shape().to_shape(), scaleValues);
         }
     }
 
@@ -1328,7 +1328,7 @@ std::shared_ptr<ov::opset1::Constant> NetworkHelper::normalizeDequantizationShap
     const auto getConstWithNormalizeShape = [](
         const std::shared_ptr<Node>& eltwise,
         const std::shared_ptr<ov::opset1::Constant>& constant) {
-        const auto constantShape = constant->get_shape();
+        const auto constantShape = constant->get_output_partial_shape(0).to_shape();
         if (constantShape.empty()) {
             return constant;
         }
@@ -1560,10 +1560,12 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     if (is_type<ov::opset1::Concat>(operation)) {
         const auto concatNode = as_type_ptr<ov::opset1::Concat>(operation);
         auto axis = concatNode->get_concatenation_axis();
-        if (dequantization.multiply && dequantization.multiplyConstant->get_shape().size() > 1 && dequantization.multiplyConstant->get_shape()[axis] != 1) {
+        if (dequantization.multiply && dequantization.multiplyConstant->get_output_partial_shape(0).to_shape().size() > 1 &&
+            dequantization.multiplyConstant->get_output_partial_shape(0).to_shape()[axis] != 1) {
             multiplyConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.multiplyConstant });
         }
-        if (dequantization.subtract && dequantization.subtractConstant->get_shape().size() > 1 && dequantization.subtractConstant->get_shape()[axis] != 1) {
+        if (dequantization.subtract && dequantization.subtractConstant->get_output_partial_shape(0).to_shape().size() > 1 &&
+            dequantization.subtractConstant->get_output_partial_shape(0).to_shape()[axis] != 1) {
             subtractConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.subtractConstant });
         }
     } else {
@@ -1668,7 +1670,7 @@ std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> NetworkHelper::s
     }
     for (size_t i = 0; i < currConstants.size(); ++i) {
         std::vector<std::shared_ptr<ov::opset1::Constant>> newConstant;
-        const auto const_shape = currConstants[i]->get_shape();
+        const auto const_shape = currConstants[i]->get_output_partial_shape(0).to_shape();
         if (ov::shape_size(const_shape) == 1 || const_shape[concat_axis] == 1) {
             newConstant.push_back(currConstants[i]);
             newConstants[i] = newConstant;

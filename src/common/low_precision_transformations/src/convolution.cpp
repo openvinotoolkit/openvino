@@ -250,7 +250,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
             NetworkHelper::copyInfo(convolution, newConvolution);
 
             const auto newScaleShape = [&]() {
-                if (ov::shape_size(multiplyFromWeights->get_input_shape(1)) == 1) {
+                if (ov::shape_size(multiplyFromWeights->get_input_partial_shape(1).to_shape()) == 1) {
                     return Shape{};
                 }
                 const auto& out_shape = convolution->get_output_partial_shape(0);

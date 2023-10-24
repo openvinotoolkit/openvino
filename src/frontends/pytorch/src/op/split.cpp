@@ -24,7 +24,7 @@ OutputVector translate_chunk_fx(const NodeContext& context) {
 
     std::shared_ptr<ov::Node> chunk;
     auto dim_val = context.const_input<int>(2);
-    auto shape = context.get_input(0).get_shape();
+    auto shape = context.get_input(0).get_partial_shape().to_shape();
     if (dim_val < 0) {
         dim_val = static_cast<int>(shape.size()) + dim_val;
     }

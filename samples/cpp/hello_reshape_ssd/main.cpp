@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
         // assume model layout NCHW
         const ov::Layout model_layout{"NCHW"};
 
-        ov::Shape tensor_shape = model->input().get_shape();
+        ov::Shape tensor_shape = model->input().get_partial_shape().to_shape();
 
         size_t batch_size = 1;
 
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
         // Step 11. Get output data from the model
         ov::Tensor output_tensor = infer_request.get_output_tensor();
 
-        ov::Shape output_shape = model->output().get_shape();
+        ov::Shape output_shape = model->output().get_partial_shape().to_shape();
         const size_t ssd_object_count = output_shape[2];
         const size_t ssd_object_size = output_shape[3];
 

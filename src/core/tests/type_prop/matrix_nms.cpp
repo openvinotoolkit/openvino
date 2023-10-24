@@ -130,7 +130,7 @@ TEST_F(TypePropMatrixNmsV8Test, default_ctor) {
 
     EXPECT_EQ(nms->get_output_partial_shape(0), (PartialShape{{0, 30}, 6}));
     EXPECT_EQ(nms->get_output_partial_shape(1), (PartialShape{{0, 30}, 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{5}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{5}));
 }
 
 TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_dynamic) {
@@ -142,7 +142,7 @@ TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_dynamic) {
     EXPECT_EQ(nms->get_output_partial_shape(0), (PartialShape{{0, 30}, 6}));
     EXPECT_EQ(nms->get_output_partial_shape(1), (PartialShape{{0, 30}, 1}));
 
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{5}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{5}));
 }
 
 TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_max_out) {
@@ -158,7 +158,7 @@ TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_max_out) {
     // batch * class * box
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{2}));
 }
 
 TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_nms_topk) {
@@ -175,7 +175,7 @@ TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_nms_topk) {
     // batch * class * min(nms_topk, box)
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 3), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 3), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{2}));
 }
 
 TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_keep_topk) {
@@ -193,7 +193,7 @@ TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_keep_topk) {
     // batch * min(keep_topk, class * box))
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 8), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 8), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{2}));
 }
 
 TEST_F(TypePropMatrixNmsV8Test, input_f16) {
@@ -208,7 +208,7 @@ TEST_F(TypePropMatrixNmsV8Test, input_f16) {
     // batch * class * box
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{2}));
 }
 
 TEST_F(TypePropMatrixNmsV8Test, output_shape_i32) {
@@ -225,7 +225,7 @@ TEST_F(TypePropMatrixNmsV8Test, output_shape_i32) {
     // batch * class * box
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{2}));
 }
 
 TEST_F(TypePropMatrixNmsV8Test, dynamic_boxes_and_scores) {

@@ -69,6 +69,8 @@ public:
     /// \return The element type of the output referred to by this output handle.
     const element::Type& get_element_type() const;
     /// \return The shape of the output referred to by this output handle.
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2024.0 release. Please use "
+                        "get_partial_shape().to_shape() method instead.")
     const Shape& get_shape() const;
     /// \return The partial shape of the output referred to by this output handle.
     const PartialShape& get_partial_shape() const;
@@ -155,6 +157,8 @@ public:
     /// \return The element type of the output referred to by this output handle.
     const element::Type& get_element_type() const;
     /// \return The shape of the output referred to by this output handle.
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2024.0 release. Please use "
+                        "get_partial_shape().to_shape() method instead.")
     const Shape& get_shape() const;
     /// \return The partial shape of the output referred to by this output handle.
     const PartialShape& get_partial_shape() const;

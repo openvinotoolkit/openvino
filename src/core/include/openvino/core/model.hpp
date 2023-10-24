@@ -145,6 +145,8 @@ public:
     const ov::element::Type& get_output_element_type(size_t i) const;
 
     /// Return the shape of element i
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2024.0 release. Please use "
+                        "get_output_partial_shape() method instead.")
     const Shape& get_output_shape(size_t i) const;
 
     /// Return the partial shape of element i

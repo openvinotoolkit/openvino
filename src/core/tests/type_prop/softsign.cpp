@@ -30,7 +30,7 @@ TEST(type_prop, softsign_f32) {
     auto data = make_shared<op::v0::Parameter>(input_type, input_shape);
     auto softsign_func = make_shared<op::v9::SoftSign>(data);
     EXPECT_EQ(softsign_func->get_element_type(), input_type);
-    EXPECT_EQ(softsign_func->get_shape(), input_shape);
+    EXPECT_EQ(softsign_func->get_output_partial_shape(0).to_shape(), input_shape);
 }
 
 TEST(type_prop, softsign_f32_partial) {

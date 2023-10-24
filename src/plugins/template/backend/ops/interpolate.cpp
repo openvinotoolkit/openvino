@@ -17,28 +17,28 @@ bool evaluate(const std::shared_ptr<ov::op::v0::Interpolate>& op,
         ov::reference::interpolate<double>(inputs[0].data<double>(),
                                            op->get_input_partial_shape(0),
                                            outputs[0].data<double>(),
-                                           op->get_output_shape(0),
+                                           op->get_output_partial_shape(0).to_shape(),
                                            op->get_attrs());
         break;
     case ov::element::f32:
         ov::reference::interpolate<float>(inputs[0].data<float>(),
                                           op->get_input_partial_shape(0),
                                           outputs[0].data<float>(),
-                                          op->get_output_shape(0),
+                                          op->get_output_partial_shape(0).to_shape(),
                                           op->get_attrs());
         break;
     case ov::element::f16:
         ov::reference::interpolate<ov::float16>(inputs[0].data<ov::float16>(),
                                                 op->get_input_partial_shape(0),
                                                 outputs[0].data<ov::float16>(),
-                                                op->get_output_shape(0),
+                                                op->get_output_partial_shape(0).to_shape(),
                                                 op->get_attrs());
         break;
     case ov::element::bf16:
         ov::reference::interpolate<ov::bfloat16>(inputs[0].data<ov::bfloat16>(),
                                                  op->get_input_partial_shape(0),
                                                  outputs[0].data<ov::bfloat16>(),
-                                                 op->get_output_shape(0),
+                                                 op->get_output_partial_shape(0).to_shape(),
                                                  op->get_attrs());
         break;
     default:;

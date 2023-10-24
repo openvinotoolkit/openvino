@@ -49,7 +49,7 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         if (!add_const)
             return false;
 
-        auto const_shape = add_const->get_shape();
+        auto const_shape = add_const->get_output_partial_shape(0).to_shape();
         if (ov::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
             // We can't eliminate Add if Constant input broadcasts another input shape because
             // when we reconnect input from Add to FQ won't broadcast given input, so it will result

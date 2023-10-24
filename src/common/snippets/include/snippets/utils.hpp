@@ -22,7 +22,7 @@ namespace utils {
 auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::opset1::FakeQuantize>& fq) -> size_t;
 
 inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_node) -> bool {
-    return ov::is_type<ov::opset1::Constant>(source_output_node) && ov::shape_size(source_output_node->get_shape()) == 1;
+    return ov::is_type<ov::opset1::Constant>(source_output_node) && ov::shape_size(source_output_node->get_output_partial_shape(0).to_shape()) == 1;
 }
 
 ov::PartialShape get_planar_pshape(const Input<Node>& out);

@@ -203,7 +203,7 @@ TEST_F(TypeRelaxedTests, multiOutputTypeOverride) {
 
         for (size_t i = 0; i < 3; ++i) {
             ASSERT_EQ(overriden_type, relaxed_op->get_output_element_type(i));
-            ASSERT_EQ(ov::Shape({1, 1, 22, 22}), relaxed_op->get_output_shape(i));
+            ASSERT_EQ(ov::Shape({1, 1, 22, 22}), relaxed_op->get_output_partial_shape(i).to_shape());
         }
     }
 }

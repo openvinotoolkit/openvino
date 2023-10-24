@@ -19,7 +19,7 @@
 
 namespace {
 auto is_supported_tensor(const ov::descriptor::Tensor& t) -> bool {
-    return t.get_partial_shape().is_static() && ov::snippets::utils::one_of(t.get_shape().size(), 3lu, 4lu);
+    return t.get_partial_shape().is_static() && ov::snippets::utils::one_of(t.get_partial_shape().to_shape().size(), 3lu, 4lu);
 }
 
 auto is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) -> bool {
@@ -43,7 +43,7 @@ auto is_valid_transpose(const std::shared_ptr<ov::opset1::Transpose>& node, std:
         return is_supported_tensor(t) && ov::snippets::pass::TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0;
     };
 
-    return node && node->get_output_target_inputs(0).size() == 1 && node->get_shape().size() == 4 &&
+    return node && node->get_output_target_inputs(0).size() == 1 && node->get_output_partial_shape(0).to_shape().size() == 4 &&
            valid_transpose_order(node->get_input_node_shared_ptr(1)) && is_supported_transpose_tensor(node->get_input_tensor(0));
 }
 
@@ -100,8 +100,8 @@ auto tokenize_reshape_around_softmax(std::shared_ptr<ov::Node>& interm_op,
                                      ov::NodeVector& ordered_ops) -> bool {
     reshape = ov::as_type_ptr<ov::opset1::Reshape>(interm_op);
     if (reshape) {
-        const auto in_shape = reshape->get_input_shape(0);
-        const auto out_shape = reshape->get_output_shape(0);
+        const auto in_shape = reshape->get_input_partial_shape(0).to_shape();
+        const auto out_shape = reshape->get_output_partial_shape(0).to_shape();
         if (in_shape.back() != out_shape.back() || reshape->get_output_target_inputs(0).size() != 1)
             return false;
         ordered_ops.push_back(reshape);
@@ -116,7 +116,7 @@ auto get_potential_body_params(const std::shared_ptr<ov::Node>& op) -> size_t {
         const auto input = op->input_value(i);
         const auto parent = input.get_node_shared_ptr();
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
-        if (!(constant && (ov::shape_size(input.get_shape()) == 1 ||
+        if (!(constant && (ov::shape_size(input.get_partial_shape().to_shape()) == 1 ||
                            ov::is_type<ov::op::v0::FakeQuantize>(op)||
                            ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op)))) {
             count++;
@@ -288,7 +288,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             return false;
 
         if (((reshape0 == nullptr) != (reshape1 == nullptr)) ||
-             (reshape0 && reshape1 && (reshape0->get_input_shape(0) != reshape1->get_output_shape(0))))
+             (reshape0 && reshape1 && (reshape0->get_input_partial_shape(0).to_shape() != reshape1->get_output_partial_shape(0).to_shape())))
             return false;
 
         // Add supported operations which are between Softmax and MatMul1 to ordered_ops
@@ -455,7 +455,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
                 const auto input = node->input(i);
                 const auto parent = input.get_source_output().get_node_shared_ptr();
                 const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
-                if (constant && (ov::shape_size(input.get_shape()) == 1 ||
+                if (constant && (ov::shape_size(input.get_partial_shape().to_shape()) == 1 ||
                                  ov::is_type<ov::op::v0::FakeQuantize>(node) ||
                                  op::Subgraph::constant_input_should_be_inside_body(node))) {
                     // If Constant has one consumer - target node, we add Constant to body_inputs

@@ -110,7 +110,7 @@ void compute_weighted_batch_mean_and_variance(const Output<Node>& x,
 
     // compute weighted_batch_mean
     // no need to weight in case of empty tensor mean
-    if (mean.get_partial_shape().is_static() && shape_size(mean.get_shape()) > 0) {
+    if (mean.get_partial_shape().is_static() && shape_size(mean.get_partial_shape().to_shape()) > 0) {
         auto bt_mean_by_exp_avg = make_shared<Multiply>(batch_mean, exp_avg_factor_const);
         weighted_batch_mean = make_shared<Multiply>(mean, one_minus_exp_avg_factor)->output(0);
         weighted_batch_mean = make_shared<Add>(bt_mean_by_exp_avg, weighted_batch_mean);
@@ -120,7 +120,7 @@ void compute_weighted_batch_mean_and_variance(const Output<Node>& x,
 
     // compute weighted_batch_variance
     // no need to weight in case of empty tensor variance
-    if (variance.get_partial_shape().is_static() && shape_size(variance.get_shape()) > 0) {
+    if (variance.get_partial_shape().is_static() && shape_size(variance.get_partial_shape().to_shape()) > 0) {
         auto bt_variance_by_exp_avg = make_shared<Multiply>(batch_variance, exp_avg_factor_const);
         weighted_batch_variance = make_shared<Multiply>(variance, one_minus_exp_avg_factor)->output(0);
         weighted_batch_variance = make_shared<Add>(bt_variance_by_exp_avg, weighted_batch_variance)->output(0);

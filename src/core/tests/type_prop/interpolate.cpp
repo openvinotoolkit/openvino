@@ -35,7 +35,7 @@ TEST(type_prop, interpolate_v0_default_ctor) {
     interp->validate_and_infer_types();
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
-    EXPECT_EQ(interp->get_shape(), (Shape{2, 2, 15, 30}));
+    EXPECT_EQ(interp->get_output_partial_shape(0).to_shape(), (Shape{2, 2, 15, 30}));
     EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
@@ -128,7 +128,7 @@ TEST(type_prop, interpolate_v4_default_ctor) {
     interp->validate_and_infer_types();
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
-    EXPECT_EQ(interp->get_shape(), (Shape{2, 2, 15, 30}));
+    EXPECT_EQ(interp->get_output_partial_shape(0).to_shape(), (Shape{2, 2, 15, 30}));
     EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
@@ -150,7 +150,7 @@ TEST(type_prop, interpolate_v4) {
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
-    EXPECT_EQ(interp->get_shape(), (Shape{2, 2, 15, 30}));
+    EXPECT_EQ(interp->get_output_partial_shape(0).to_shape(), (Shape{2, 2, 15, 30}));
     EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
@@ -494,7 +494,7 @@ TEST(type_prop, interpolate_v11_default_ctor) {
     interp->validate_and_infer_types();
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
-    EXPECT_EQ(interp->get_shape(), (Shape{2, 4, 6, 12}));
+    EXPECT_EQ(interp->get_output_partial_shape(0).to_shape(), (Shape{2, 4, 6, 12}));
     EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
@@ -510,7 +510,7 @@ TEST(type_prop, interpolate_v11_scales) {
     auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, axes, attrs);
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
-    EXPECT_EQ(interp->get_shape(), (Shape{1, 3, 6, 12}));
+    EXPECT_EQ(interp->get_output_partial_shape(0).to_shape(), (Shape{1, 3, 6, 12}));
 }
 
 TEST(type_prop, interpolate_v11_scales_all_inputs_static_rank) {
@@ -540,7 +540,7 @@ TEST(type_prop, interpolate_v11_sizes) {
     auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, axes, attrs);
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
-    EXPECT_EQ(interp->get_shape(), (Shape{1, 3, 6, 12}));
+    EXPECT_EQ(interp->get_output_partial_shape(0).to_shape(), (Shape{1, 3, 6, 12}));
 }
 
 TEST(type_prop, interpolate_v11_sizes_all_inputs_dynamic_rank) {

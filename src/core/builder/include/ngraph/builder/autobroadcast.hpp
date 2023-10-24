@@ -153,7 +153,7 @@ inline std::shared_ptr<Node> make_broadcast_node(const Output<Node>& value,
     return std::make_shared<op::v1::Broadcast>(
         value,
         shape_const,
-        calculate_broadcast_axes(new_shape, value.get_shape(), start_match_axis));
+        calculate_broadcast_axes(new_shape, value.get_partial_shape().to_shape(), start_match_axis));
 }
 
 namespace opset1 {

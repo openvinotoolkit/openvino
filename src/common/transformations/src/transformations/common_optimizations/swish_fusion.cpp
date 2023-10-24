@@ -90,7 +90,7 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
             }
         } else {
             // if the input is not constant and number of elements is not equal to 1 then we cannot perform fusing
-            if (beta_input.get_partial_shape().is_dynamic() || ov::shape_size(beta_input.get_shape()) != 1) {
+            if (beta_input.get_partial_shape().is_dynamic() || ov::shape_size(beta_input.get_partial_shape().to_shape()) != 1) {
                 return false;
             }
             new_beta = beta_input;

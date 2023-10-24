@@ -137,7 +137,9 @@ TSGatherForward::TSGatherForward() {
         if (!success) {
             return false;
         }
-        auto new_axis = ov::op::v0::Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {axis});
+        auto new_axis = ov::op::v0::Constant::create(gather_axis->get_element_type(),
+                                                     gather_axis->get_output_partial_shape(0).to_shape(),
+                                                     {axis});
         main_node->input(2).replace_source_output(new_axis);
         copy_runtime_info(gather_axis, new_axis);
 

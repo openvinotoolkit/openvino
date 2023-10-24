@@ -242,7 +242,7 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 
     for (const auto& input : node->input_values()) {
         if (ov::is_type<ov::opset1::Constant>(input.get_node_shared_ptr()) &&
-            (ov::shape_size(input.get_shape()) == 1 ||
+            (ov::shape_size(input.get_partial_shape().to_shape()) == 1 ||
              ov::is_type<ov::op::v0::FakeQuantize>(node) ||
              constant_input_should_be_inside_body(node))) {
             body_inputs.push_back(input);

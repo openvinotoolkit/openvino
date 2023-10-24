@@ -61,14 +61,14 @@ static bool simplify_gather(shared_ptr<Node> node) {
             return false;
         }
 
-        if (data.get_shape().size() != node->get_shape().size()) {
+        if (data.get_partial_shape().size() != node->get_output_partial_shape(0).size()) {
             auto constant_indices = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(1).get_node_shared_ptr());
             if (!constant_indices)
                 return false;
             // case_3: if input_shape is (1,3,5,5) and axis = 0, indices = 0, then gather is just a Squeeze
-            const auto constant_indices_size = constant_indices->get_output_shape(0).size();
+            const auto constant_indices_size = constant_indices->get_output_partial_shape(0).size();
             const auto const_indices = constant_indices->cast_vector<int64_t>();
-            if (data.get_shape()[axis] == 1 && (constant_indices_size == 0 || constant_indices_size == 1) &&
+            if (data.get_partial_shape().to_shape()[axis] == 1 && (constant_indices_size == 0 || constant_indices_size == 1) &&
                 const_indices[0] == 0) {
                 auto squeeze = std::make_shared<ov::op::v0::Squeeze>(gather->input_value(0), gather->input_value(2));
                 squeeze->set_friendly_name(gather->get_friendly_name());
@@ -84,7 +84,7 @@ static bool simplify_gather(shared_ptr<Node> node) {
         // gathering the whole input tensor, so we can optimize this
         // op has Nop
 
-        if (data.get_shape()[axis] == 1 && data.get_shape() == node->get_shape()) {
+        if (data.get_partial_shape().to_shape()[axis] == 1 && data.get_partial_shape().to_shape() == node->get_output_partial_shape(0).to_shape()) {
             return replace_output_update_name(gather->output(0), gather->input_value(0));
         }
 
@@ -100,7 +100,7 @@ static bool simplify_gather(shared_ptr<Node> node) {
         } else {
             // if ref_inidices == indices, we are capturing the
             // entire input tensor
-            vector<int64_t> ref_indices(data.get_shape()[axis], 0);
+            vector<int64_t> ref_indices(data.get_partial_shape().to_shape()[axis], 0);
             iota(ref_indices.begin(), ref_indices.end(), 0);
             if (ref_indices == constant_indices->cast_vector<int64_t>()) {
                 return replace_output_update_name(gather->output(0), gather->input_value(0));
@@ -116,7 +116,7 @@ static bool eliminate_nop(const shared_ptr<Node>& node) {
         return false;
     }
 
-    if (node->get_input_shape(0) == node->get_output_shape(0)) {
+    if (node->get_input_partial_shape(0) == node->get_output_partial_shape(0)) {
         return replace_output_update_name(node->output(0), node->input_value(0));
     }
     return false;
@@ -136,7 +136,7 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
         return false;
     }
     // remove identity op
-    if (input.get_shape() == node->get_output_shape(0)) {
+    if (input.get_partial_shape() == node->get_output_partial_shape(0)) {
         return replace_output_update_name(node->output(0), input);
     }
     // eliminate redundant reshape, squeeze, or unsqueeze
@@ -146,10 +146,10 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
         if (input_node->get_output_target_inputs(0).size() != 1)
             return false;
 
-        auto shape = node->get_output_shape(0);
+        auto shape = node->get_output_partial_shape(0).to_shape();
 
         // remove interchangeable nodes
-        if (input_node->get_input_partial_shape(0).is_static() && input_node->get_input_shape(0) == shape) {
+        if (input_node->get_input_partial_shape(0).is_static() && input_node->get_input_partial_shape(0).to_shape() == shape) {
             return replace_output_update_name(node->output(0), input_node->input_value(0));
         } else {
             vector<int64_t> vi;

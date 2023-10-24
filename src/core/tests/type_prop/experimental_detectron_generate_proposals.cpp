@@ -8,6 +8,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/opsets/opset11.hpp"
 
 using namespace ov;
@@ -42,9 +43,11 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, default_
     EXPECT_EQ(op->get_attrs().post_nms_count, 20);
     EXPECT_EQ(op->get_attrs().pre_nms_count, 0);
     EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::f32)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("ROIs shape", &Output<Node>::get_shape, Shape({20, 4})),
                             Property("ROIs Score shape", &Output<Node>::get_shape, Shape({20}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, basic_shape_inference) {
@@ -56,9 +59,11 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, basic_sh
     const auto op = make_op(im_info, anchors, deltas, scores, make_attrs(132));
 
     EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::f64)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("ROIs shape", &Output<Node>::get_shape, Shape({132, 4})),
                             Property("ROIs Score shape", &Output<Node>::get_shape, Shape({132}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, all_input_got_dynamic_type) {
@@ -70,9 +75,11 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, all_inpu
     const auto op = make_op(im_info, anchors, deltas, scores, make_attrs(132));
 
     EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::dynamic)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("ROIs shape", &Output<Node>::get_shape, Shape({132, 4})),
                             Property("ROIs Score shape", &Output<Node>::get_shape, Shape({132}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, some_input_got_dynamic_type) {
@@ -84,9 +91,11 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, some_inp
     const auto op = make_op(im_info, anchors, deltas, scores, make_attrs(132));
 
     EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::f64)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("ROIs shape", &Output<Node>::get_shape, Shape({132, 4})),
                             Property("ROIs Score shape", &Output<Node>::get_shape, Shape({132}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, interval_shapes) {

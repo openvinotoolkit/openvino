@@ -144,7 +144,7 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ov::Node
         return false;
     }
 
-    const ov::Shape constShape = constant->get_shape();
+    const ov::Shape constShape = constant->get_output_partial_shape(0).to_shape();
     if ((constShape.size() > 5ul)) {
         return false;
     }

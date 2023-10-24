@@ -268,7 +268,7 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     " != ",
                     port.get_element_type());
     bool is_dynamic = port.get_partial_shape().is_dynamic();
-    OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
+    OPENVINO_ASSERT(is_dynamic || port.get_partial_shape().to_shape() == tensor->get_shape(),
                     "The ",
                     tensor_type,
                     " tensor size is not equal to the model ",
@@ -276,7 +276,7 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     " type: got ",
                     tensor->get_shape(),
                     " expecting ",
-                    port.get_shape(),
+                    port.get_partial_shape().to_shape(),
                     ".");
     OPENVINO_ASSERT(
         std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) || tensor->data() != nullptr || is_dynamic,

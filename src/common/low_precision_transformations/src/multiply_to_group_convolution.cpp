@@ -170,7 +170,7 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
     int inputIndex;
     if (const auto constant = ov::as_type_ptr<ov::opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
         inputIndex = 0;
-        constShape = constant->get_shape();
+        constShape = constant->get_output_partial_shape(0).to_shape();
         if (ov::is_type<ov::opset1::Constant>(operation->get_input_node_shared_ptr(0)) ||
             (ov::is_type<ov::opset1::Subtract>(operation->get_input_node_shared_ptr(0)) &&
             ov::is_type<ov::opset1::Constant>(operation->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)))) {
@@ -178,7 +178,7 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
         }
     } else if (const auto constant = ov::as_type_ptr<ov::opset1::Constant>(operation->get_input_node_shared_ptr(0))) {
         inputIndex = 1;
-        constShape = constant->get_shape();
+        constShape = constant->get_output_partial_shape(0).to_shape();
     } else {
         return false;
     }

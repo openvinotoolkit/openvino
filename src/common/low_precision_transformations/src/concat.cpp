@@ -226,7 +226,7 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
 
     auto checkConstShape = [&normalizedAxis, &outRank](const std::shared_ptr<opset1::Constant>& constant) {
         const size_t rankValue = outRank.get_length();
-        Shape constantShape = constant->get_shape();
+        Shape constantShape = constant->get_output_partial_shape(0).to_shape();
 
         while (constantShape.size() < rankValue) {
             constantShape.insert(constantShape.begin(), 1ul);

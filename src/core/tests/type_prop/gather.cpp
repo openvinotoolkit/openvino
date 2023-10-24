@@ -28,7 +28,7 @@ TEST(type_prop, gather_v1_axis_0) {
     auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v1::Gather>(P, I, A);
     EXPECT_EQ(G->get_element_type(), element::f32);
-    EXPECT_EQ(G->get_shape(), out_shape);
+    EXPECT_EQ(G->get_output_partial_shape(0).to_shape(), out_shape);
     EXPECT_EQ(G->get_axis(), 0);
 }
 
@@ -73,7 +73,7 @@ TEST(type_prop, gather_axis_1) {
     auto A = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
     auto G = make_shared<op::v1::Gather>(P, I, A);
     EXPECT_EQ(G->get_element_type(), element::f32);
-    EXPECT_EQ(G->get_shape(), out_shape);
+    EXPECT_EQ(G->get_output_partial_shape(0).to_shape(), out_shape);
     EXPECT_EQ(G->get_axis(), 1);
 }
 
@@ -122,7 +122,7 @@ TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
     const auto gather = std::make_shared<op::v1::Gather>(shape_0, indices, axis);
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
-    EXPECT_EQ(bc->get_shape(), (Shape{3}));
+    EXPECT_EQ(bc->get_output_partial_shape(0).to_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
@@ -356,7 +356,7 @@ TEST(type_prop, gather_7_dynamic_value_and_label_propagation) {
     const auto gather = std::make_shared<op::v7::Gather>(shape_0, indices, axis);
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
-    EXPECT_EQ(bc->get_shape(), (Shape{3}));
+    EXPECT_EQ(bc->get_output_partial_shape(0).to_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
@@ -684,7 +684,7 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation) {
     const auto gather = std::make_shared<op::v8::Gather>(shape_0, indices, axis);
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
-    EXPECT_EQ(bc->get_shape(), (Shape{3}));
+    EXPECT_EQ(bc->get_output_partial_shape(0).to_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);

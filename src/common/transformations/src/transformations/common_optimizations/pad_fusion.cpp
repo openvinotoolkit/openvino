@@ -40,13 +40,13 @@ static bool can_be_fused(const std::shared_ptr<op::util::PadBase>& pad,
     if (pad_value != 0.0f)
         return false;
 
-    if (!pads_begin || !is_vector(pads_begin->get_shape()))
+    if (!pads_begin || !is_vector(pads_begin->get_output_partial_shape(0).to_shape()))
         return false;
-    if (!pads_end || !is_vector(pads_end->get_shape()))
+    if (!pads_end || !is_vector(pads_end->get_output_partial_shape(0).to_shape()))
         return false;
-    if (node->get_pads_begin().size() != shape_size(pads_begin->get_shape()) - 2)
+    if (node->get_pads_begin().size() != shape_size(pads_begin->get_output_partial_shape(0).to_shape()) - 2)
         return false;
-    if (node->get_pads_end().size() != shape_size(pads_end->get_shape()) - 2)
+    if (node->get_pads_end().size() != shape_size(pads_end->get_output_partial_shape(0).to_shape()) - 2)
         return false;
 
     auto pads_begin_val = pads_begin->cast_vector<int64_t>();

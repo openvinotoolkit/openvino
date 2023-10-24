@@ -41,9 +41,11 @@ ov::descriptor::Tensor& ov::descriptor::Output::get_tensor() const {
     return *m_tensor;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 const ov::Shape& ov::descriptor::Output::get_shape() const {
     return m_tensor->get_shape();
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 const ov::PartialShape& ov::descriptor::Output::get_partial_shape() const {
     return m_tensor->get_partial_shape();

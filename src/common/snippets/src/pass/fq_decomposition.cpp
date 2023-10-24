@@ -177,10 +177,10 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     if (!input_low_constant || !input_high_constant || !output_low_constant || !output_high_constant)
         return false;
 
-    const auto input_low_shape = input_low_constant->get_shape();
-    const auto input_high_shape = input_high_constant->get_shape();
-    const auto output_low_shape = output_low_constant->get_shape();
-    const auto output_high_shape = output_high_constant->get_shape();
+    const auto input_low_shape = input_low_constant->get_output_partial_shape(0).to_shape();
+    const auto input_high_shape = input_high_constant->get_output_partial_shape(0).to_shape();
+    const auto output_low_shape = output_low_constant->get_output_partial_shape(0).to_shape();
+    const auto output_high_shape = output_high_constant->get_output_partial_shape(0).to_shape();
 
     auto input_low = input_low_constant->cast_vector<float>();
     auto input_high = input_high_constant->cast_vector<float>();

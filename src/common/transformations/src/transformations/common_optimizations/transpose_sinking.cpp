@@ -89,8 +89,8 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
         auto eltwise_data_input = pattern_to_output.at(eltwise_data_input_p);
         auto transpose = pattern_to_output.at(transpose_p).get_node_shared_ptr();
 
-        const auto& order_size = transpose->get_input_shape(1).at(0);
-        const auto& shape = eltwise_const_input.get_shape();
+        const auto& order_size = transpose->get_input_partial_shape(1).to_shape().at(0);
+        const auto& shape = eltwise_const_input.get_partial_shape().to_shape();
         if (shape.size() != order_size && ov::shape_size(shape) != 1) {
             // TODO: temporary restrictions
             return false;

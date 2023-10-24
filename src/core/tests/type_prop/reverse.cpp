@@ -22,7 +22,7 @@ TEST(type_prop, reverse_1d_deduce) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5}));
 }
 
 TEST(type_prop, reverse_2d_deduce_0) {
@@ -33,7 +33,7 @@ TEST(type_prop, reverse_2d_deduce_0) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5, 6}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5, 6}));
 }
 
 TEST(type_prop, reverse_2d_deduce_1) {
@@ -44,7 +44,7 @@ TEST(type_prop, reverse_2d_deduce_1) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5, 6}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5, 6}));
 }
 
 TEST(type_prop, reverse_2d_deduce_01) {
@@ -55,7 +55,7 @@ TEST(type_prop, reverse_2d_deduce_01) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5, 6}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5, 6}));
 }
 
 TEST(type_prop, reverse_3d_deduce_0) {
@@ -66,7 +66,7 @@ TEST(type_prop, reverse_3d_deduce_0) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5, 6, 7}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5, 6, 7}));
 }
 
 TEST(type_prop, reverse_3d_deduce_1) {
@@ -77,7 +77,7 @@ TEST(type_prop, reverse_3d_deduce_1) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5, 6, 7}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5, 6, 7}));
 }
 
 TEST(type_prop, reverse_3d_deduce_2) {
@@ -88,7 +88,7 @@ TEST(type_prop, reverse_3d_deduce_2) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5, 6, 7}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5, 6, 7}));
 }
 
 TEST(type_prop, reverse_3d_deduce_01) {
@@ -99,7 +99,7 @@ TEST(type_prop, reverse_3d_deduce_01) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5, 6, 7}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5, 6, 7}));
 }
 
 TEST(type_prop, reverse_3d_deduce_02) {
@@ -110,7 +110,7 @@ TEST(type_prop, reverse_3d_deduce_02) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5, 6, 7}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5, 6, 7}));
 }
 
 TEST(type_prop, reverse_3d_deduce_12) {
@@ -121,7 +121,7 @@ TEST(type_prop, reverse_3d_deduce_12) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5, 6, 7}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5, 6, 7}));
 }
 
 TEST(type_prop, reverse_3d_deduce_012) {
@@ -132,7 +132,7 @@ TEST(type_prop, reverse_3d_deduce_012) {
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
-    EXPECT_EQ(rev->get_shape(), (Shape{5, 6, 7}));
+    EXPECT_EQ(rev->get_output_partial_shape(0).to_shape(), (Shape{5, 6, 7}));
 }
 
 TEST(type_prop, reverse_3d_deduce_oob) {

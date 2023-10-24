@@ -302,7 +302,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
             return false;
 
         uint64_t input_rank = static_cast<uint64_t>(reshape_1_node->get_input_partial_shape(0).rank().get_length());
-        const auto mul_const_shape = mul_const_node->get_output_shape(0);
+        const auto mul_const_shape = mul_const_node->get_output_partial_shape(0).to_shape();
         const auto scales = get_scales_from_mul_const_shape(mul_const_shape, input_rank);
         if (scales.empty() || std::all_of(scales.begin(), scales.end(), [](float s) {
                 return s == 1.0f;
@@ -322,7 +322,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         if (!concat_1_node)
             return false;
 
-        const auto input_shape = reshape_1_node->get_input_shape(0);
+        const auto input_shape = reshape_1_node->get_input_partial_shape(0).to_shape();
         if (!check_concat_1(concat_1_node, input_shape))
             return false;
 

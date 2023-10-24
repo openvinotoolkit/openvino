@@ -26,14 +26,14 @@ TEST(node_input_output, input_create) {
     EXPECT_EQ(add_in_0.get_node(), add.get());
     EXPECT_EQ(add_in_0.get_index(), 0);
     EXPECT_EQ(add_in_0.get_element_type(), element::f32);
-    EXPECT_EQ(add_in_0.get_shape(), (Shape{1, 2, 3, 4}));
+    EXPECT_EQ(add_in_0.get_partial_shape().to_shape(), (Shape{1, 2, 3, 4}));
     EXPECT_TRUE(add_in_0.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
     EXPECT_EQ(add_in_0.get_source_output(), Output<Node>(x, 0));
 
     EXPECT_EQ(add_in_1.get_node(), add.get());
     EXPECT_EQ(add_in_1.get_index(), 1);
     EXPECT_EQ(add_in_1.get_element_type(), element::f32);
-    EXPECT_EQ(add_in_1.get_shape(), (Shape{1, 2, 3, 4}));
+    EXPECT_EQ(add_in_1.get_partial_shape().to_shape(), (Shape{1, 2, 3, 4}));
     EXPECT_TRUE(add_in_1.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
     EXPECT_EQ(add_in_1.get_source_output(), Output<Node>(y, 0));
 
@@ -51,14 +51,14 @@ TEST(node_input_output, input_create_const) {
     EXPECT_EQ(add_in_0.get_node(), add.get());
     EXPECT_EQ(add_in_0.get_index(), 0);
     EXPECT_EQ(add_in_0.get_element_type(), element::f32);
-    EXPECT_EQ(add_in_0.get_shape(), (Shape{1, 2, 3, 4}));
+    EXPECT_EQ(add_in_0.get_partial_shape().to_shape(), (Shape{1, 2, 3, 4}));
     EXPECT_TRUE(add_in_0.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
     EXPECT_EQ(add_in_0.get_source_output(), Output<Node>(x, 0));
 
     EXPECT_EQ(add_in_1.get_node(), add.get());
     EXPECT_EQ(add_in_1.get_index(), 1);
     EXPECT_EQ(add_in_1.get_element_type(), element::f32);
-    EXPECT_EQ(add_in_1.get_shape(), (Shape{1, 2, 3, 4}));
+    EXPECT_EQ(add_in_1.get_partial_shape().to_shape(), (Shape{1, 2, 3, 4}));
     EXPECT_TRUE(add_in_1.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
     EXPECT_EQ(add_in_1.get_source_output(), Output<Node>(y, 0));
 
@@ -81,7 +81,7 @@ TEST(node_input_output, output_create) {
     EXPECT_EQ(add_out_0.get_node(), add.get());
     EXPECT_EQ(add_out_0.get_index(), 0);
     EXPECT_EQ(add_out_0.get_element_type(), element::f32);
-    EXPECT_EQ(add_out_0.get_shape(), (Shape{1, 2, 3, 4}));
+    EXPECT_EQ(add_out_0.get_partial_shape().to_shape(), (Shape{1, 2, 3, 4}));
     EXPECT_TRUE(add_out_0.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
 
     EXPECT_THROW(add->output(1), ov::Exception);
@@ -98,7 +98,7 @@ TEST(node_input_output, output_create_const) {
     EXPECT_EQ(add_out_0.get_node(), add.get());
     EXPECT_EQ(add_out_0.get_index(), 0);
     EXPECT_EQ(add_out_0.get_element_type(), element::f32);
-    EXPECT_EQ(add_out_0.get_shape(), (Shape{1, 2, 3, 4}));
+    EXPECT_EQ(add_out_0.get_partial_shape().to_shape(), (Shape{1, 2, 3, 4}));
     EXPECT_TRUE(add_out_0.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
 
     EXPECT_THROW(add->output(1), ov::Exception);
@@ -128,20 +128,20 @@ TEST(node_input_output, input_set_argument) {
     auto add = make_shared<op::v1::Add>(x, y);
 
     EXPECT_EQ(add->get_input_size(), 2);
-    EXPECT_EQ(add->input(0).get_shape(), Shape{1});
-    EXPECT_EQ(add->input(1).get_shape(), Shape{2});
+    EXPECT_EQ(add->input(0).get_partial_shape().to_shape(), Shape{1});
+    EXPECT_EQ(add->input(1).get_partial_shape().to_shape(), Shape{2});
 
     add->set_argument(1, z);
 
     EXPECT_EQ(add->get_input_size(), 2);
-    EXPECT_EQ(add->input(0).get_shape(), Shape{1});
-    EXPECT_EQ(add->input(1).get_shape(), Shape{3});
+    EXPECT_EQ(add->input(0).get_partial_shape().to_shape(), Shape{1});
+    EXPECT_EQ(add->input(1).get_partial_shape().to_shape(), Shape{3});
 
     add->set_arguments(NodeVector{z, x});
 
     EXPECT_EQ(add->get_input_size(), 2);
-    EXPECT_EQ(add->input(0).get_shape(), Shape{3});
-    EXPECT_EQ(add->input(1).get_shape(), Shape{1});
+    EXPECT_EQ(add->input(0).get_partial_shape().to_shape(), Shape{3});
+    EXPECT_EQ(add->input(1).get_partial_shape().to_shape(), Shape{1});
 }
 
 TEST(node_input_output, create_wrong_input_output) {

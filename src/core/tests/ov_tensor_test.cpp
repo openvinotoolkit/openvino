@@ -55,9 +55,9 @@ TEST_F(OVTensorTest, createTensorFromPort) {
     ov::Tensor t3{parameter3->output(0)};
     ov::Tensor t4{parameter3->output(0), data};
 
-    EXPECT_EQ(t1.get_shape(), parameter1->get_shape());
+    EXPECT_EQ(t1.get_shape(), parameter1->get_partial_shape().to_shape());
     EXPECT_EQ(t1.get_element_type(), parameter1->get_element_type());
-    EXPECT_EQ(t2.get_shape(), parameter2->get_shape());
+    EXPECT_EQ(t2.get_shape(), parameter2->get_partial_shape().to_shape());
     EXPECT_EQ(t2.get_element_type(), parameter2->get_element_type());
     EXPECT_EQ(t3.get_shape(), ov::Shape{0});
     EXPECT_EQ(t3.get_element_type(), parameter3->get_element_type());

@@ -220,7 +220,7 @@ void op_convertion_type_test(const Params& params) {
     m.register_pass<Conversion>(by_elements);
     m.register_pass<ConstantFolding>();
     ASSERT_NO_THROW(m.run_passes(f));
-    EXPECT_EQ(f->get_result()->get_input_shape(0), (Shape{1, 1}));
+    EXPECT_EQ(f->get_result()->get_input_partial_shape(0).to_shape(), (Shape{1, 1}));
 }
 
 using ElementTypeParams = tuple<bool,          // by_elements
@@ -280,7 +280,7 @@ void op_convertion_test(const Params& params) {
 
     data->set_partial_shape(data_shape);
     f->validate_nodes_and_infer_types();
-    ASSERT_EQ(f->get_result()->get_input_shape(0), expected_output_shape);
+    ASSERT_EQ(f->get_result()->get_input_partial_shape(0).to_shape(), expected_output_shape);
 }
 
 template <typename Params>

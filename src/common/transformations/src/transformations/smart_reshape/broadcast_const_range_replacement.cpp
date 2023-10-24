@@ -42,7 +42,7 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         if (!const_node || !const_node->get_element_type().is_integral_number())
             return false;
 
-        const auto& const_node_shape = const_node->get_output_shape(0);
+        const auto& const_node_shape = const_node->get_output_partial_shape(0).get_shape();
         const auto elem_count = shape_size(const_node_shape);
         const auto one_dims_count = std::count(const_node_shape.cbegin(), const_node_shape.cend(), 1);
 

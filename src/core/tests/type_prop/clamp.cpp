@@ -21,7 +21,7 @@ TEST(type_prop, clamp_basic_f32) {
     ASSERT_EQ(clamp->get_element_type(), ov::element::f32);
     ASSERT_EQ(clamp->get_min(), 0.0);
     ASSERT_EQ(clamp->get_max(), 2.1);
-    ASSERT_EQ(clamp->get_output_shape(0), (ov::Shape{1, 32, 32}));
+    ASSERT_EQ(clamp->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 32, 32}));
 }
 
 TEST(type_prop, clamp_basic_i32) {
@@ -31,7 +31,7 @@ TEST(type_prop, clamp_basic_i32) {
     ASSERT_EQ(clamp->get_element_type(), ov::element::i32);
     ASSERT_EQ(clamp->get_min(), 0.0);
     ASSERT_EQ(clamp->get_max(), 2.1);
-    ASSERT_EQ(clamp->get_output_shape(0), (ov::Shape{1, 32, 32}));
+    ASSERT_EQ(clamp->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 32, 32}));
 }
 
 TEST(type_prop, clamp_shape_static_rank) {
@@ -91,7 +91,7 @@ TEST(type_prop, clamp_equal_attributes) {
     ASSERT_EQ(clamp->get_element_type(), ov::element::f64);
     ASSERT_EQ(clamp->get_min(), 1.0);
     ASSERT_EQ(clamp->get_max(), 1.0);
-    ASSERT_EQ(clamp->get_output_shape(0), (ov::Shape{2, 2}));
+    ASSERT_EQ(clamp->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 2}));
 }
 
 TEST(type_prop, clamp_invalid_attributes) {

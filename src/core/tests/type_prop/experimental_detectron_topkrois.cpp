@@ -37,7 +37,7 @@ TEST_F(TypePropExperimentalDetectronTopKROIsV6, simple_shape_infer) {
 
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_shape(0), Shape({1000, 4}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), Shape({1000, 4}));
 }
 
 TEST_F(TypePropExperimentalDetectronTopKROIsV6, dynamic_rank_rois_and_probabilities) {

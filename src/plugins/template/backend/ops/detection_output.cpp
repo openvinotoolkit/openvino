@@ -12,10 +12,10 @@ bool evaluate(const std::shared_ptr<ov::op::v0::DetectionOutput>& op,
               const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
     ov::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
-                                                         op->get_input_shape(0),
-                                                         op->get_input_shape(1),
-                                                         op->get_input_shape(2),
-                                                         op->get_output_shape(0));
+                                                         op->get_input_partial_shape(0).to_shape(),
+                                                         op->get_input_partial_shape(1).to_shape(),
+                                                         op->get_input_partial_shape(2).to_shape(),
+                                                         op->get_output_partial_shape(0).to_shape());
     if (op->get_input_size() == 3) {
         refDetOut.run(inputs[0].data<const T>(),
                       inputs[1].data<const T>(),
@@ -42,10 +42,10 @@ bool evaluate(const std::shared_ptr<ov::op::v8::DetectionOutput>& op,
               const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
     ov::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
-                                                         op->get_input_shape(0),
-                                                         op->get_input_shape(1),
-                                                         op->get_input_shape(2),
-                                                         op->get_output_shape(0));
+                                                         op->get_input_partial_shape(0).to_shape(),
+                                                         op->get_input_partial_shape(1).to_shape(),
+                                                         op->get_input_partial_shape(2).to_shape(),
+                                                         op->get_output_partial_shape(0).to_shape());
     if (op->get_input_size() == 3) {
         refDetOut.run(inputs[0].data<const T>(),
                       inputs[1].data<const T>(),

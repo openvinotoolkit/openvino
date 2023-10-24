@@ -317,9 +317,9 @@ public:
 
             // This constraint helps to avoid detection of other Gathers that do not perform RIC
             const auto& data_shape = m.get_match_root()->input(0).get_partial_shape();
-            if (shape_size(order->get_shape()) == 1 || axis_value < 0 || axis_value >= data_shape.rank().get_length() ||
+            if (shape_size(order->get_output_partial_shape(0).to_shape()) == 1 || axis_value < 0 || axis_value >= data_shape.rank().get_length() ||
                 data_shape[axis_value].is_dynamic() ||
-                shape_size(order->get_shape()) != static_cast<size_t>(data_shape[axis_value].get_length())) {
+                shape_size(order->get_output_partial_shape(0).to_shape()) != static_cast<size_t>(data_shape[axis_value].get_length())) {
                 return false;
             }
 
@@ -390,7 +390,7 @@ public:
                     continue;
 
                 auto const_output = input.get_source_output();
-                const auto& shape = const_output.get_shape();
+                const auto& shape = const_output.get_partial_shape().to_shape();
                 const int64_t& shape_rank = static_cast<int64_t>(shape.size());
                 if (shape_rank > data_rank) {
                     // TODO: handle case when constant input broadcast another one
@@ -459,7 +459,7 @@ public:
 
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
-            const auto& weights_shape = conv->input_value(1).get_shape();
+            const auto& weights_shape = conv->input_value(1).get_partial_shape().to_shape();
             const int64_t& group = static_cast<int64_t>(weights_shape.at(0));
             const int64_t& channels = static_cast<int64_t>(weights_shape.at(1));
             const int64_t& in_channels = static_cast<int64_t>(weights_shape.at(2));

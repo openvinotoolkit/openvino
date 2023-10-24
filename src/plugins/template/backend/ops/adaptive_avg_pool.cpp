@@ -14,7 +14,7 @@ bool evaluate(const std::shared_ptr<ov::op::v8::AdaptiveAvgPool>& op,
     ov::reference::adaptive_avg_pool(inputs[0].data<T>(),
                                      outputs[0].data<T>(),
                                      inputs[0].get_shape(),
-                                     op->get_output_shape(0));
+                                     op->get_output_partial_shape(0).to_shape());
     return true;
 }
 

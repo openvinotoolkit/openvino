@@ -75,7 +75,7 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
             return false;
         int64_t O = -1;
         if (const auto& constant = dynamic_pointer_cast<ov::op::v0::Constant>(matmul->get_input_node_shared_ptr(1))) {
-            const auto& constant_shape = constant->get_shape();
+            const auto& constant_shape = constant->get_output_partial_shape(0).get_shape();
             if (constant_shape.size() != 2)
                 return false;
             const auto& desired_K_index = matmul->get_transpose_b() ? 1 : 0;
@@ -96,7 +96,7 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
             const auto& constant = dynamic_pointer_cast<ov::op::v0::Constant>(add->get_input_node_shared_ptr(1));
             if (!constant)
                 return false;
-            const auto& constant_shape = constant->get_shape();
+            const auto& constant_shape = constant->get_output_partial_shape(0).get_shape();
             auto desired_ones_shape = ov::Shape(constant_shape.size(), 1);
             auto desired_shape = ov::Shape(constant_shape.size() - 1, 1);
             desired_shape.push_back(O);

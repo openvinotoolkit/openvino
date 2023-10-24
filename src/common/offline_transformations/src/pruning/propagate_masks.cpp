@@ -87,7 +87,7 @@ public:
                 return false;
             }
 
-            const auto matmul_range = m_matmul.get_shape().size();
+            const auto matmul_range = m_matmul.get_partial_shape().size();
             if (matmul_range < 2) {
                 OPENVINO_DEBUG << "Matmul operation with rank = 1 is not supported by pruning algo by now\n";
                 return false;
@@ -102,8 +102,8 @@ public:
             const auto transpose_a = matmul_op->get_transpose_a();
             const auto transpose_b = matmul_op->get_transpose_b();
 
-            const auto shape_a = m_a.get_shape();
-            const auto shape_b = m_b.get_shape();
+            const auto shape_a = m_a.get_partial_shape();
+            const auto shape_b = m_b.get_partial_shape();
 
             const auto a_inner_dim = (transpose_a) ? shape_a.size() - 2 : shape_a.size() - 1;
             const auto a_outer_dim = (transpose_a) ? shape_a.size() - 1 : shape_a.size() - 2;
@@ -223,7 +223,7 @@ public:
             auto weights_mask_row = weights_mask.get();
 
             // Create output mask that describes which channel dimensions will be removed
-            auto conv_mask = std::make_shared<ov::Mask>(m_weights.get_shape().size());
+            auto conv_mask = std::make_shared<ov::Mask>(m_weights.get_partial_shape().size());
             auto conv_mask_row = conv_mask.get();
             auto input_mask = getMask(m_input);
             ov::Mask* input_mask_row = nullptr;
@@ -291,7 +291,7 @@ public:
             const auto& m_input = pattern_map.at(input);
 
             // TODO: check static rank in pattern, use only particular dims
-            auto weights_shape = m_weights.get_shape();
+            auto weights_shape = m_weights.get_partial_shape().to_shape();
             auto input_shape = m_input.get_partial_shape();
             // support only depthwise convolutions
             if (weights_shape[0] != static_cast<size_t>(input_shape[1].get_length())) {
@@ -386,8 +386,8 @@ public:
             // X, Y, Z -  spartial dimensions (can be only X or X, Y), I, O - number of input/output channels of kernel.
 
             // Checking that matched Reshape meets this conditions (add 1-d dim on 1 position of shape constant)
-            auto inp_shape = m_input.get_shape();
-            auto out_shape = m_output.get_shape();
+            auto inp_shape = m_input.get_partial_shape().to_shape();
+            auto out_shape = m_output.get_partial_shape().to_shape();
             inp_shape.insert(inp_shape.begin() + 1, 1);
             if (inp_shape != out_shape || out_shape.size() != 5) {
                 return false;
@@ -431,7 +431,7 @@ public:
             // [G, 1, 1, X, Y, Z] by [-1, 1, 1, X, Y, Z].
 
             const auto m_shape_consumers = m_shape.get_target_inputs();
-            const auto output_shape = constant->get_shape();
+            const auto output_shape = constant->get_output_partial_shape(0).to_shape();
             const auto axis = opset10::Constant::create(element::i8, {}, {0});
             auto dims_to_keep_vec = std::vector<size_t>{2, 3, 4};
 
@@ -496,8 +496,8 @@ public:
             auto weights_shape = ov::Shape();
             if (m_input.get_partial_shape().is_static() && m_weights.get_partial_shape().is_static()) {
                 // Compute brodcasted dims
-                input_shape = m_input.get_shape();
-                weights_shape = m_weights.get_shape();
+                input_shape = m_input.get_partial_shape().to_shape();
+                weights_shape = m_weights.get_partial_shape().to_shape();
                 const int64_t input_shape_size_diff =
                     static_cast<int64_t>(input_shape.size()) - static_cast<int64_t>(weights_shape.size());
                 const int64_t weights_shape_size_diff = -input_shape_size_diff;
@@ -693,10 +693,10 @@ public:
             output_mask->apply_callback(input_mask);
             setMask(m_output, output_mask);
 
-            auto input_low_size = shape_size(m_input_low.get_shape());
-            auto input_high_size = shape_size(m_input_high.get_shape());
-            auto output_low_size = shape_size(m_output_low.get_shape());
-            auto output_high_size = shape_size(m_output_high.get_shape());
+            auto input_low_size = shape_size(m_input_low.get_partial_shape().to_shape());
+            auto input_high_size = shape_size(m_input_high.get_partial_shape().to_shape());
+            auto output_low_size = shape_size(m_output_low.get_partial_shape().to_shape());
+            auto output_high_size = shape_size(m_output_high.get_partial_shape().to_shape());
 
             // In the per-tensor case FQ params shouldn't be pruned
             if (input_low_size == 1 && output_low_size == 1 && input_high_size == 1 && output_high_size == 1) {
@@ -718,7 +718,7 @@ public:
                     auto const_node = std::dynamic_pointer_cast<op::v0::Constant>(node);
                     if (!const_node)
                         OPENVINO_THROW("Unexpected operation type.");
-                    auto new_shape = broadcast_shape_to_rank(const_node->get_shape(),
+                    auto new_shape = broadcast_shape_to_rank(const_node->get_output_partial_shape(0).to_shape(),
                                                              m_input.get_partial_shape().rank().get_length());
                     auto new_const = std::make_shared<op::v0::Constant>(*const_node, new_shape);
                     new_const->set_friendly_name(const_node->get_friendly_name());
@@ -735,7 +735,7 @@ public:
             };
 
             for (const auto& fq_param : fq_params_nodes) {
-                auto mask = std::make_shared<ov::Mask>(fq_param->get_shape().size());
+                auto mask = std::make_shared<ov::Mask>(fq_param->get_output_partial_shape(0).to_shape().size());
                 mask->add_callback(fq_params_mask_callback, input_mask);
                 input_mask->add_callback(
                     [mask](ov::Mask::Ptr cur_mask) -> bool {
@@ -789,7 +789,7 @@ public:
                         first_initialized = true;
                     }
                 }
-                input_sizes.push_back(input.get_shape().at(axis));
+                input_sizes.push_back(input.get_partial_shape().to_shape().at(axis));
             }
 
             if (!first_initialized) {
@@ -1153,8 +1153,8 @@ public:
                 auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
                 auto weights_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length(), true);
 
-                const auto input_shape = m_input.get_shape();
-                const auto output_shape = m_output.get_node()->output(0).get_shape();
+                const auto input_shape = m_input.get_partial_shape().to_shape();
+                const auto output_shape = m_output.get_node()->output(0).get_partial_shape().to_shape();
 
                 // Check dimensions equality from the begining and allow
                 // to propagate masks only for dimensions which equal from the begining

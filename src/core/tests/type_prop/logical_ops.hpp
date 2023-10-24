@@ -124,7 +124,7 @@ TYPED_TEST_P(LogicalOperatorTypeProp, shape_broadcast) {
 
     EXPECT_EQ(logical_op->get_element_type(), exp_dtype);
     EXPECT_EQ(logical_op->get_output_size(), this->exp_logical_op_output_size);
-    EXPECT_EQ(logical_op->get_shape(), Shape({1, 3, 6}));
+    EXPECT_EQ(logical_op->get_output_partial_shape(0).to_shape(), Shape({1, 3, 6}));
 }
 
 TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_no_broadcast) {

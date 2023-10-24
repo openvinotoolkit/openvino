@@ -44,7 +44,7 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
         }
 
         const auto* data = weights_node->get_data_ptr<int8_t>();
-        const int8_t weights_minimum = *std::min_element(data, data + shape_size(weights_node->get_shape()));
+        const int8_t weights_minimum = *std::min_element(data, data + shape_size(weights_node->get_output_partial_shape(0).to_shape()));
         int64_t levels = (weights_minimum == static_cast<int8_t>(-128)) ? 256 : 255;
         int64_t in_low = -(levels / 2), in_high = levels + in_low - 1;
 
@@ -57,7 +57,7 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
         } else if (pattern_map.count(sub_c_integer)) {
             const auto& sub_c_integer_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(sub_c_integer));
             zero_point = ov::op::v0::Constant::create(convert_node->get_element_type(),
-                                                      sub_c_integer_node->get_output_shape(0),
+                                                      sub_c_integer_node->get_output_partial_shape(0).to_shape(),
                                                       sub_c_integer_node->get_vector<int8_t>());
         } else {
             zero_point = ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {0});

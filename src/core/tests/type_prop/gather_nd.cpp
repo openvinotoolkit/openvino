@@ -169,7 +169,7 @@ TEST(type_prop, gather_nd_v5_slices_from_4d_batch_dims0) {
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
     auto op = make_shared<v5::GatherND>(data_param, indices_param, 0);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_scalars_from_4d_batch_dims2) {
@@ -180,7 +180,7 @@ TEST(type_prop, gather_nd_v5_scalars_from_4d_batch_dims2) {
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
     auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_slices_from_5d_batch_dims2) {
@@ -191,7 +191,7 @@ TEST(type_prop, gather_nd_v5_slices_from_5d_batch_dims2) {
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
     auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_batch_dim2_with_dyn_dim) {
@@ -202,7 +202,7 @@ TEST(type_prop, gather_nd_v5_batch_dim2_with_dyn_dim) {
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
     auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_batch_dim2_with_dyn_dim2) {
@@ -213,7 +213,7 @@ TEST(type_prop, gather_nd_v5_batch_dim2_with_dyn_dim2) {
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
     auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_batch_dim2_with_dyn_dim3) {
@@ -300,7 +300,7 @@ TEST(type_prop, gather_nd_v5_scalar_from_2d) {
 
     auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_1d_from_2d) {
@@ -312,7 +312,7 @@ TEST(type_prop, gather_nd_v5_1d_from_2d) {
 
     auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_scalar_from_3d) {
@@ -324,7 +324,7 @@ TEST(type_prop, gather_nd_v5_scalar_from_3d) {
 
     auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_1d_from_3d) {
@@ -336,7 +336,7 @@ TEST(type_prop, gather_nd_v5_1d_from_3d) {
 
     auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_2d_from_3d) {
@@ -348,7 +348,7 @@ TEST(type_prop, gather_nd_v5_2d_from_3d) {
 
     auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_batch_scalar_from_2d) {
@@ -360,7 +360,7 @@ TEST(type_prop, gather_nd_v5_batch_scalar_from_2d) {
 
     auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_batch_1d_from_2d) {
@@ -372,7 +372,7 @@ TEST(type_prop, gather_nd_v5_batch_1d_from_2d) {
 
     auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_batch_scalar_from_3d) {
@@ -384,7 +384,7 @@ TEST(type_prop, gather_nd_v5_batch_scalar_from_3d) {
 
     auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_batch_1d_from_3d) {
@@ -396,7 +396,7 @@ TEST(type_prop, gather_nd_v5_batch_1d_from_3d) {
 
     auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_batch_2d_from_3d) {
@@ -408,7 +408,7 @@ TEST(type_prop, gather_nd_v5_batch_2d_from_3d) {
 
     auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v5_interval_both_labeled_batch_dims_2_ind_tuple_2) {
@@ -517,7 +517,7 @@ TEST(type_prop, gather_nd_v8_slices_from_4d_batch_dims0) {
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
     auto op = make_shared<v8::GatherND>(data_param, indices_param, 0);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v8_scalars_from_4d_batch_dims2) {
@@ -528,7 +528,7 @@ TEST(type_prop, gather_nd_v8_scalars_from_4d_batch_dims2) {
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
     auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v8_slices_from_5d_batch_dims2) {
@@ -539,7 +539,7 @@ TEST(type_prop, gather_nd_v8_slices_from_5d_batch_dims2) {
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
     auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v8_batch_dim2_with_dyn_dim) {
@@ -550,7 +550,7 @@ TEST(type_prop, gather_nd_v8_batch_dim2_with_dyn_dim) {
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
     auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v8_batch_dim2_with_dyn_dim2) {
@@ -561,7 +561,7 @@ TEST(type_prop, gather_nd_v8_batch_dim2_with_dyn_dim2) {
     auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
     auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_shape(), expected_shape);
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST(type_prop, gather_nd_v8_batch_dim2_with_dyn_dim3) {

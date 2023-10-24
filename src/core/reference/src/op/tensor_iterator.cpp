@@ -118,7 +118,7 @@ void tensor_iterator(uint64_t num_iterations,
         const auto& concat_desc = concat_outputs[i];
         if (!concat_desc)
             continue;
-        auto shape = func->get_results().at(concat_desc->m_body_value_index)->get_shape();
+        auto shape = func->get_results().at(concat_desc->m_body_value_index)->get_output_partial_shape(0).to_shape();
         std::vector<Shape> shapes_to_concat(values_to_concat[i].size(), shape);
         shape.at(concat_desc->m_axis) = values_to_concat[i].size();
         out[concat_desc->m_output_index].set_shape(shape);

@@ -116,7 +116,7 @@ std::shared_ptr<ov::Model> MHAFunction::initReference() const {
     if (with_mul) {
         std::vector<float> mulConstData(ngraph::shape_size(constantShapes[2]));
         auto mulConst = ngraph::builder::makeConstant(precisions[1], constantShapes[2], mulConstData, true);
-        auto mulParam = std::make_shared<ngraph::opset1::Parameter>(precisions[1], mulConst->get_shape());
+        auto mulParam = std::make_shared<ngraph::opset1::Parameter>(precisions[1], mulConst->get_output_partial_shape(0).to_shape());
         matmul_parent1 = std::make_shared<ngraph::opset3::Multiply>(transpose1, mulParam);
         subgraph_params = {transpose0Param, transpose1Param, mulParam, addParam, transpose2Param};
         subgraph_inputs = {data0, data1, mulConst, data2, data3};
@@ -302,7 +302,7 @@ std::shared_ptr<ov::Model> MHASelectFunction::initOriginal() const {
     std::shared_ptr<ov::Node> selectCond = less;
     if (add->get_output_partial_shape(0) != input_shapes[3]) {
         const auto broadcast_shape = ngraph::builder::makeConstant(ngraph::element::i64, constantShapes[5],
-                                                                   add->get_output_shape(0));
+                                                                   add->get_output_partial_shape(0).to_shape());
         const auto broadcast = ngraph::builder::makeBroadcast(selectCond, broadcast_shape,
                                                               ngraph::op::BroadcastType::NUMPY);
         selectCond = broadcast;
@@ -340,7 +340,9 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initOriginal() const {
     std::shared_ptr<ov::Node> selectCond = selectParam;
     if (add->get_output_partial_shape(0) != selectParam->get_output_partial_shape(0)) {
         const auto broadcast_shape =
-                ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{add->get_output_shape(0).size()}, add->get_output_shape(0));
+                ngraph::builder::makeConstant(ngraph::element::i64,
+                                              ov::Shape{add->get_output_partial_shape(0).to_shape().size()},
+                                              add->get_output_partial_shape(0).to_shape());
         selectCond = std::make_shared<ngraph::opset1::Broadcast>(selectCond, broadcast_shape);
     }
     const auto select = std::make_shared<op::TypeRelaxed<ngraph::opset1::Select>>(
@@ -350,7 +352,7 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initOriginal() const {
             ov::op::TemporaryReplaceOutputType(selectConst, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(add, element::f32).get());
 
-    const auto interm_shape = select->get_shape();
+    const auto interm_shape = select->get_output_partial_shape(0).to_shape();
     std::vector<int64_t> reshape0ConstData = {-1, static_cast<int64_t>(interm_shape.back())};
     auto reshape0Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{reshape0ConstData.size()}, reshape0ConstData);
 
@@ -387,11 +389,11 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initReference() const {
     auto reshapeSelect = make_reshape(selectParam, reshapes[3]);
     auto reshape2 = make_reshape(param2, reshapes[4]);
 
-    auto data0 = std::make_shared<ngraph::opset1::Parameter>(reshape0->get_element_type(), reshape0->get_shape());
-    auto data1 = std::make_shared<ngraph::opset1::Parameter>(reshape1->get_element_type(), reshape1->get_shape());
-    auto dataAdd = std::make_shared<ngraph::opset1::Parameter>(reshapeAdd->get_element_type(), reshapeAdd->get_shape());
-    auto dataSelect = std::make_shared<ngraph::opset1::Parameter>(reshapeSelect->get_element_type(), reshapeSelect->get_shape());
-    auto data2 = std::make_shared<ngraph::opset1::Parameter>(reshape2->get_element_type(), reshape2->get_shape());
+    auto data0 = std::make_shared<ngraph::opset1::Parameter>(reshape0->get_element_type(), reshape0->get_output_partial_shape(0).to_shape());
+    auto data1 = std::make_shared<ngraph::opset1::Parameter>(reshape1->get_element_type(), reshape1->get_output_partial_shape(0).to_shape());
+    auto dataAdd = std::make_shared<ngraph::opset1::Parameter>(reshapeAdd->get_element_type(), reshapeAdd->get_output_partial_shape(0).to_shape());
+    auto dataSelect = std::make_shared<ngraph::opset1::Parameter>(reshapeSelect->get_element_type(), reshapeSelect->get_output_partial_shape(0).to_shape());
+    auto data2 = std::make_shared<ngraph::opset1::Parameter>(reshape2->get_element_type(), reshape2->get_output_partial_shape(0).to_shape());
 
     const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(data0, data1);
     const auto add = std::make_shared<ngraph::opset3::Add>(matMul0, dataAdd);
@@ -401,7 +403,9 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initReference() const {
     std::shared_ptr<ov::Node> selectCond = dataSelect;
     if (add->get_output_partial_shape(0) != dataSelect->get_output_partial_shape(0)) {
         const auto broadcast_shape =
-                ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{add->get_output_shape(0).size()}, add->get_output_shape(0));
+                ngraph::builder::makeConstant(ngraph::element::i64,
+                                              ov::Shape{add->get_output_partial_shape(0).to_shape().size()},
+                                              add->get_output_partial_shape(0).to_shape());
         selectCond = std::make_shared<ngraph::opset1::Broadcast>(selectCond, broadcast_shape);
     }
     const auto select = std::make_shared<op::TypeRelaxed<ngraph::opset1::Select>>(
@@ -411,7 +415,7 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initReference() const {
             ov::op::TemporaryReplaceOutputType(selectConst, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(add, element::f32).get());
 
-    const auto softMax = std::make_shared<ngraph::opset1::Softmax>(select, add->get_shape().size() - 1);
+    const auto softMax = std::make_shared<ngraph::opset1::Softmax>(select, add->get_output_partial_shape(0).to_shape().size() - 1);
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softMax, data2);
 
     const auto subgraph =
@@ -475,9 +479,9 @@ std::shared_ptr<ov::Model> MHAWOTransposeSplitMFunction::initReference() const {
     auto reshape1 = make_reshape(param1, reshapes[1]);
     auto reshape2 = make_reshape(param2, reshapes[2]);
 
-    auto data0 = std::make_shared<ngraph::opset1::Parameter>(precisions[0], reshape0->get_shape());
-    auto data1 = std::make_shared<ngraph::opset1::Parameter>(precisions[1], reshape1->get_shape());
-    auto data2 = std::make_shared<ngraph::opset1::Parameter>(precisions[2], reshape2->get_shape());
+    auto data0 = std::make_shared<ngraph::opset1::Parameter>(precisions[0], reshape0->get_output_partial_shape(0).to_shape());
+    auto data1 = std::make_shared<ngraph::opset1::Parameter>(precisions[1], reshape1->get_output_partial_shape(0).to_shape());
+    auto data2 = std::make_shared<ngraph::opset1::Parameter>(precisions[2], reshape2->get_output_partial_shape(0).to_shape());
 
     const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(data0, data1);
     const auto softmax = std::make_shared<ngraph::opset8::Softmax>(matMul0, -1);
@@ -851,8 +855,8 @@ std::shared_ptr<ov::Model> MHAMulAddFunction::initOriginal() const {
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
     const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(transpose0, transpose1, transA, transB);
-    auto mulConst = ngraph::builder::makeConstant(ngraph::element::f32, matMul0->get_shape(), std::vector<float>{}, true);
-    auto addConst = ngraph::builder::makeConstant(ngraph::element::f32, matMul0->get_shape(), std::vector<float>{}, true);
+    auto mulConst = ngraph::builder::makeConstant(ngraph::element::f32, matMul0->get_output_partial_shape(0).to_shape(), std::vector<float>{}, true);
+    auto addConst = ngraph::builder::makeConstant(ngraph::element::f32, matMul0->get_output_partial_shape(0).to_shape(), std::vector<float>{}, true);
     const auto mul = std::make_shared<ngraph::opset3::Multiply>(matMul0, mulConst);
     const auto add = std::make_shared<ngraph::opset3::Add>(mul, addConst);
     const auto softMax = std::make_shared<ov::op::v8::Softmax>(add, -1);
@@ -909,9 +913,9 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
         }
     }
 
-    const auto param0 = std::make_shared<ngraph::opset1::Parameter>(precision, data0->get_shape());
-    const auto param1 = std::make_shared<ngraph::opset1::Parameter>(precision, in1->get_shape());
-    const auto param2 = std::make_shared<ngraph::opset1::Parameter>(precision, data2->get_shape());
+    const auto param0 = std::make_shared<ngraph::opset1::Parameter>(precision, data0->get_output_partial_shape(0).to_shape());
+    const auto param1 = std::make_shared<ngraph::opset1::Parameter>(precision, in1->get_output_partial_shape(0).to_shape());
+    const auto param2 = std::make_shared<ngraph::opset1::Parameter>(precision, data2->get_output_partial_shape(0).to_shape());
 
     std::shared_ptr<ov::Node> matmul0_in1 = param1;
     if (!m_order.empty() && is_supported) {
@@ -949,7 +953,7 @@ std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initOriginal() const
         add_input = param_2;
     }
 
-    const auto& add_input_shape = add_input->get_output_shape(0);
+    const auto& add_input_shape = add_input->get_output_partial_shape(0).to_shape();
     ov::Shape target_shape(add_input_shape.size());
     for (size_t i = 0; i < add_input_shape.size(); ++i)
         target_shape[i] = std::max(add_input_shape[i], static_cast<size_t>(input_shapes[3][i].get_length()));
@@ -959,7 +963,7 @@ std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initOriginal() const
     const auto add_1 = std::make_shared<ov::opset1::Add>(reshape_1, add_input);
     const auto add_2 = std::make_shared<ov::opset1::Add>(add_1, param_3);
 
-    const auto& mm_out_shape = matmul_0->get_output_shape(0);
+    const auto& mm_out_shape = matmul_0->get_output_partial_shape(0).to_shape();
     const auto target_shape_const_2 = ov::opset1::Constant::create(ov::element::i32, ov::Shape{mm_out_shape.size()}, mm_out_shape);
     const auto reshape_2 = std::make_shared<ov::opset1::Reshape>(add_2, target_shape_const_2, false);
 
@@ -994,10 +998,10 @@ std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initReference() cons
     const auto target_shape = ov::opset1::Constant::create(ov::element::i32, {mm_out_shape.size()}, mm_out_shape);
     const auto reshape = std::make_shared<ov::opset1::Reshape>(external_add, target_shape, false);
 
-    const auto param_0 = std::make_shared<ngraph::opset1::Parameter>(precision, data_0->get_shape());
-    const auto param_1 = std::make_shared<ngraph::opset1::Parameter>(precision, data_1->get_shape());
-    const auto param_2 = std::make_shared<ngraph::opset1::Parameter>(precision, reshape->get_shape());
-    const auto param_3 = std::make_shared<ngraph::opset1::Parameter>(precision, data_4->get_shape());
+    const auto param_0 = std::make_shared<ngraph::opset1::Parameter>(precision, data_0->get_output_partial_shape(0).to_shape());
+    const auto param_1 = std::make_shared<ngraph::opset1::Parameter>(precision, data_1->get_output_partial_shape(0).to_shape());
+    const auto param_2 = std::make_shared<ngraph::opset1::Parameter>(precision, reshape->get_output_partial_shape(0).to_shape());
+    const auto param_3 = std::make_shared<ngraph::opset1::Parameter>(precision, data_4->get_output_partial_shape(0).to_shape());
 
     const auto matmul_0 = std::make_shared<ngraph::opset3::MatMul>(param_0, param_1);
     const auto add_internal = std::make_shared<ov::opset1::Add>(matmul_0, param_2);

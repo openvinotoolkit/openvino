@@ -23,7 +23,7 @@ TEST_F(TypePropPSROIPoolingV0, basic_average) {
 
     const auto op = make_op(inputs, coords, 2, 6, spatial_scale, bin_not_used, bin_not_used, "average");
 
-    EXPECT_EQ(op->get_shape(), (Shape{150, 2, 6, 6}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{150, 2, 6, 6}));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
@@ -33,7 +33,7 @@ TEST_F(TypePropPSROIPoolingV0, basic_bilinear) {
 
     auto op = make_op(inputs, coords, 18, 6, 1.0f, 2, 2, "bilinear");
 
-    EXPECT_EQ(op->get_shape(), (Shape{150, 18, 6, 6}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{150, 18, 6, 6}));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 

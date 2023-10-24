@@ -20,7 +20,7 @@ TEST(type_prop_layers, ctc_greedy_decoder) {
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{88, 2, 48});
     auto seq_len = make_shared<ov::op::v0::Parameter>(element::f32, Shape{88, 2});
     auto op = make_shared<op::v0::CTCGreedyDecoder>(input, seq_len, false);
-    ASSERT_EQ(op->get_shape(), (Shape{2, 88, 1, 1}));
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{2, 88, 1, 1}));
 }
 
 TEST(type_prop_layers, interpolate) {
@@ -36,7 +36,7 @@ TEST(type_prop_layers, interpolate) {
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
     auto op = make_shared<op::v0::Interpolate>(image, output_shape, attrs);
-    ASSERT_EQ(op->get_shape(), (Shape{2, 2, 15, 30}));
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{2, 2, 15, 30}));
 
     EXPECT_TRUE(make_shared<op::v0::Interpolate>(image, dyn_output_shape, attrs)
                     ->get_output_partial_shape(0)
@@ -46,30 +46,30 @@ TEST(type_prop_layers, interpolate) {
 TEST(type_prop_layers, region_yolo1) {
     auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 125, 13, 13});
     auto op = make_shared<op::v0::RegionYolo>(inputs, 0, 0, 0, true, std::vector<int64_t>{}, 0, 1);
-    ASSERT_EQ(op->get_shape(), (Shape{1 * 125, 13, 13}));
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1 * 125, 13, 13}));
 }
 
 TEST(type_prop_layers, region_yolo2) {
     auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 125, 13, 13});
     auto op = make_shared<op::v0::RegionYolo>(inputs, 0, 0, 0, true, std::vector<int64_t>{}, 0, 2);
-    ASSERT_EQ(op->get_shape(), (Shape{1 * 125 * 13, 13}));
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1 * 125 * 13, 13}));
 }
 
 TEST(type_prop_layers, region_yolo3) {
     auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 125, 13, 13});
     auto op = make_shared<op::v0::RegionYolo>(inputs, 4, 80, 1, false, std::vector<int64_t>{6, 7, 8}, 0, -1);
-    ASSERT_EQ(op->get_shape(), (Shape{1, (80 + 4 + 1) * 3, 13, 13}));
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1, (80 + 4 + 1) * 3, 13, 13}));
 }
 
 TEST(type_prop_layers, reorg_yolo) {
     auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 24, 34, 62});
     auto op = make_shared<op::v0::ReorgYolo>(inputs, Strides{2});
-    ASSERT_EQ(op->get_shape(), (Shape{2, 96, 17, 31}));
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{2, 96, 17, 31}));
 }
 
 TEST(type_prop_layers, roi_pooling) {
     auto inputs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5});
     auto coords = make_shared<ov::op::v0::Parameter>(element::f32, Shape{150, 5});
     auto op = make_shared<op::v0::ROIPooling>(inputs, coords, Shape{6, 6}, 0.0625f, "max");
-    ASSERT_EQ(op->get_shape(), (Shape{150, 3, 6, 6}));
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{150, 3, 6, 6}));
 }

@@ -319,7 +319,7 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
         const auto target_shape = ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(1));
         if (data_const && target_shape) {
             return std::make_shared<ov::opset1::Constant>(node->get_input_element_type(0),
-                                                      node->get_output_shape(0),
+                                                      node->get_output_partial_shape(0).to_shape(),
                                                       data_const->get_data_ptr());
         }
         return fold<ov::opset1::Reshape>(std::forward<Args>(args)...);

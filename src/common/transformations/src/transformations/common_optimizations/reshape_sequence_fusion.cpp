@@ -100,7 +100,7 @@ ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimin
         // remove redundant reshapes
         bool replaced = false;
         if (use_shape_for_elimination && input.get_partial_shape().is_static() &&
-            reshape->get_output_partial_shape(0).is_static() && input.get_shape() == reshape->get_output_shape(0)) {
+            reshape->get_output_partial_shape(0).is_static() && input.get_partial_shape() == reshape->get_output_partial_shape(0)) {
             // in case if elimination is not allowed we still can eliminate all transposes except last one
             replaced = replace_output_update_name(reshape->output(0), input);
         }

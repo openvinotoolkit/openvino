@@ -64,7 +64,7 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
 }
 
 Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node) {
-    Shape node_shape = node.get_shape();
+    Shape node_shape = node.get_partial_shape().to_shape();
 
     // If node is already a scalar, return original
     if (is_scalar(node_shape)) {

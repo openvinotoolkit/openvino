@@ -174,11 +174,11 @@ bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
             const auto& num_elements = shape_size(shape.to_shape());
             input_label.resize(num_elements, no_label);
         }
-        idx_inputs.emplace_back(element::from<label_t>(), input.get_shape());
+        idx_inputs.emplace_back(element::from<label_t>(), input.get_partial_shape().to_shape());
         std::copy_n(input_label.begin(), idx_inputs.back().get_size(), idx_inputs.back().data<ov::label_t>());
     }
 
-    auto outputs = TensorVector{{element::from<label_t>(), get_output_shape(0)}};
+    auto outputs = TensorVector{{element::from<label_t>(), get_output_partial_shape(0).to_shape()}};
     if (evaluate(outputs, idx_inputs)) {
         output_labels.front() =
             TensorLabel(outputs.front().data<label_t>(), outputs.front().data<label_t>() + outputs.front().get_size());

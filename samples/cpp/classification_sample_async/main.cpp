@@ -114,7 +114,7 @@ int main(int argc, char* argv[]) {
         // -------- Step 4. read input images --------
         slog::info << "Read input images" << slog::endl;
 
-        ov::Shape input_shape = model->input().get_shape();
+        ov::Shape input_shape = model->input().get_partial_shape().to_shape();
         const size_t width = input_shape[ov::layout::width_idx(tensor_layout)];
         const size_t height = input_shape[ov::layout::height_idx(tensor_layout)];
 
@@ -154,7 +154,7 @@ int main(int argc, char* argv[]) {
         ov::Tensor input_tensor = infer_request.get_input_tensor();
 
         for (size_t image_id = 0; image_id < images_data.size(); ++image_id) {
-            const size_t image_size = shape_size(model->input().get_shape()) / batchSize;
+            const size_t image_size = shape_size(model->input().get_partial_shape().to_shape()) / batchSize;
             std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size,
                         images_data[image_id].get(),
                         image_size);

@@ -241,7 +241,7 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
         const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
         NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
         const auto& et = constant->get_element_type();
-        const auto& shape = constant->get_shape();
+        const auto& shape = constant->get_output_partial_shape(0).to_shape();
         return std::unique_ptr<TRes>(new TRes(get_raw_data_as<TData, TRes>(et,
                                                                            constant->get_data_ptr(),
                                                                            shape_size(shape),
@@ -281,7 +281,7 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
     } else if (const auto& constant =
                    (idx < op->get_input_size()) ? ov::util::get_constant_from_source(op->input_value(idx)) : nullptr) {
         const auto& et = constant->get_element_type();
-        const auto& shape = constant->get_shape();
+        const auto& shape = constant->get_output_partial_shape(0).to_shape();
         return std::unique_ptr<TRes>(new TRes(get_raw_data_as<TData, TRes>(et,
                                                                            constant->get_data_ptr(),
                                                                            shape_size(shape),
@@ -342,7 +342,7 @@ ov::optional<TShape> get_input_const_data_as_shape(const ov::Node* op,
         if (auto c = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(port))) {
             shape.emplace(get_raw_data_as<TDimValue>(c->get_element_type(),
                                                      c->get_data_ptr(),
-                                                     shape_size(c->get_shape()),
+                                                     shape_size(c->get_output_partial_shape(0).to_shape()),
                                                      std::forward<UnaryOperation>(func)));
             OPENVINO_SUPPRESS_DEPRECATED_START
         } else if (ov::evaluate_as_partial_shape(op->input_value(port), s)) {

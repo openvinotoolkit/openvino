@@ -108,7 +108,7 @@ bool broadcast_state_by_batch(ov::Input<ov::Node> input, const shared_ptr<ov::No
     auto constant_state = dynamic_pointer_cast<ov::op::v0::Constant>(input.get_source_output().get_node_shared_ptr());
     if (constant_state == nullptr)
         return false;
-    const auto& constant_shape = constant_state->get_shape();
+    const auto& constant_shape = constant_state->get_output_partial_shape(0).get_shape();
     if (constant_shape[0] != 1)
         // we only expect to broadcast LSTM states prepared for batch 1 -- no tiling of batch > 1 will be done
         return false;

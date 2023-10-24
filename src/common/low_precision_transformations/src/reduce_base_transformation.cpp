@@ -54,7 +54,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
-        const auto constShape = eltwise->get_shape();
+        const auto constShape = eltwise->get_output_partial_shape(0).to_shape();
 
         if (!constShape.empty()) {
             for (size_t i = 0; i < constShape.size(); ++i) {

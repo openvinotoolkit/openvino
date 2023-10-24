@@ -29,7 +29,7 @@ shared_ptr<Node> builder::opset1::reshape(const Output<Node>& value, const Shape
     if (value.get_partial_shape().same_scheme(shape)) {
         return value.get_node_shared_ptr();
     } else if (is_scalar(shape)) {
-        auto value_rank = value.get_shape().size();
+        auto value_rank = value.get_partial_shape().to_shape().size();
         AxisVector axes_vector(value_rank);
         std::iota(axes_vector.begin(), axes_vector.end(), 0);
         auto axes = op::Constant::create(element::i64, Shape{value_rank}, axes_vector);
@@ -52,7 +52,7 @@ shared_ptr<Node> builder::opset1::reorder_axes(const Output<Node>& value, vector
 shared_ptr<Node> builder::opset1::transpose(const Output<Node>& value) {
     // This part is left to preserve backward compatibility and ensure passing ONNX tests.
     if (value.get_partial_shape().is_static()) {
-        vector<size_t> axes_order(value.get_shape().size());
+        vector<size_t> axes_order(value.get_partial_shape().to_shape().size());
         iota(begin(axes_order), end(axes_order), 0);
         reverse(begin(axes_order), end(axes_order));
         return builder::opset1::reorder_axes(value, axes_order);
@@ -130,7 +130,7 @@ shared_ptr<Node> builder::opset1::flatten(const Output<Node>& value, int axis) {
 }
 
 shared_ptr<Node> builder::opset1::expand_dims(const Output<Node>& value, size_t axis) {
-    Shape output_shape(value.get_shape());
+    Shape output_shape(value.get_partial_shape().to_shape());
     // Add empty axis at specified position.
     auto empty_axis_it = begin(output_shape);
     advance(empty_axis_it, axis);
@@ -143,7 +143,7 @@ shared_ptr<Node> builder::opset1::squeeze(const Output<Node>& value, vector<size
         return value.get_node_shared_ptr();
     }
 
-    Shape in_shape{value.get_shape()};
+    Shape in_shape{value.get_partial_shape().to_shape()};
     for (size_t idx = 0; idx < axes.size(); ++idx) {
         in_shape.at(axes.at(idx)) = 0;
     }
@@ -162,7 +162,7 @@ shared_ptr<Node> builder::opset1::collapse(const Output<Node>& value, const size
     }
 
     if (value.get_partial_shape().is_static()) {
-        auto shape = value.get_shape();
+        auto shape = value.get_partial_shape().to_shape();
         // Multiply all elements of shape from start_axis to end_axis inclusive
         size_t collapsed_axis_size = accumulate(next(begin(shape), start_axis),
                                                 next(begin(shape), end_axis + 1),

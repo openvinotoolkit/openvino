@@ -46,7 +46,7 @@ static std::shared_ptr<ov::op::v0::Concat> create_new_weights(ov::pass::NodeRegi
         return nullptr;
 
     // unsqueeze weights shape from (O, I, X, Y) to (1, O, I, X, Y)
-    const auto& weights_shape = concat_input->get_input_shape(1);
+    const auto weights_shape = concat_input->get_input_partial_shape(1).to_shape();
     ov::Shape new_shape = weights_shape;
     new_shape.insert(new_shape.begin(), 1);
 
@@ -58,7 +58,7 @@ static std::shared_ptr<ov::op::v0::Concat> create_new_weights(ov::pass::NodeRegi
         const auto conv = concat->get_input_node_shared_ptr(i);
         const auto weights = conv->get_input_node_shared_ptr(1);
         const auto& shape = weights->get_output_partial_shape(0);
-        if (shape.is_dynamic() || weights->get_output_shape(0) != weights_shape)
+        if (shape.is_dynamic() || weights->get_output_partial_shape(0).to_shape() != weights_shape)
             return nullptr;
         if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weights)) {
             weights_to_concat.push_back(node_registry.make<ov::op::v0::Constant>(*constant, new_shape));

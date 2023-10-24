@@ -40,12 +40,12 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         if (fq_node->is_dynamic())
             return false;
         const auto& reshape_node = pattern_map.at(reshape_node_p).get_node_shared_ptr();
-        const auto& original_data_rank = fq_node->get_input_shape(0).size();
+        const auto& original_data_rank = fq_node->get_input_partial_shape(0).size();
         OutputVector renewed_inputs = {
             reshape_node->clone_with_new_inputs({fq_node->input_value(0), reshape_node->input_value(1)})};
         for (auto i = 1; i < 5; ++i) {
             Output<Node> limit_input = fq_node->input_value(i);
-            auto limit_shape = limit_input.get_shape();
+            auto limit_shape = limit_input.get_partial_shape().to_shape();
             OPENVINO_ASSERT(limit_shape.size() <= original_data_rank, "FakeQuantize limit input has unexpected rank");
             if (limit_shape.size() < original_data_rank)  // aligning limit rank with data rank
                 limit_shape.insert(limit_shape.begin(), original_data_rank - limit_shape.size(), uint64_t(1));
@@ -53,7 +53,7 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
             const auto& limit_size = shape_size(limit_shape);
             const auto& max_element = *std::max_element(limit_shape.begin(), limit_shape.end());
             if (max_element == limit_size) {  // per-tensor / per-channel limit
-                auto new_limit_shape = reshape_node->get_output_shape(0);
+                auto new_limit_shape = reshape_node->get_output_partial_shape(0).to_shape();
                 std::transform(new_limit_shape.begin(),
                                new_limit_shape.end(),
                                new_limit_shape.begin(),
@@ -62,7 +62,7 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
                                });
                 const auto& new_limit_size = shape_size(new_limit_shape);
                 if (new_limit_size == limit_size) {  // we tracked future channel placement
-                    if (new_limit_shape == limit_input.get_shape())
+                    if (new_limit_shape == limit_input.get_partial_shape().to_shape())
                         renewed_inputs.push_back(limit_input);
                     else
                         renewed_inputs.push_back(reshape_node->clone_with_new_inputs(

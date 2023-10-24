@@ -17,7 +17,7 @@ bool evaluate(const std::shared_ptr<ov::op::v5::LogSoftmax>& op,
     }
     ov::reference::log_softmax<T>(inputs[0].data<const T>(),
                                   outputs[0].data<T>(),
-                                  op->get_output_shape(0),
+                                  op->get_output_partial_shape(0).to_shape(),
                                   ov::AxisSet{(size_t)i_axis});
     return true;
 }

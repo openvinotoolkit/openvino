@@ -19,7 +19,7 @@ using namespace ov;
 static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& matmul,
                                                    const Output<Node>& weights,
                                                    std::shared_ptr<ov::op::v0::Constant> mul_const) {
-    auto const_shape = mul_const->get_shape();
+    auto const_shape = mul_const->get_output_partial_shape(0).to_shape();
     auto const_rank = static_cast<int64_t>(const_shape.size());
     const auto& weights_shape = weights.get_partial_shape();
     int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
@@ -111,7 +111,7 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
     }
 
     auto transpose_const = [](const std::shared_ptr<Node>& mul_const) -> std::shared_ptr<Node> {
-        auto const_shape = mul_const->get_shape();
+        auto const_shape = mul_const->get_output_partial_shape(0).to_shape();
         auto const_rank = const_shape.size();
         if (shape_size(const_shape) == 1 ||
             (const_rank > 1 && const_shape[const_rank - 2] == 1 && const_shape[const_rank - 1] == 1)) {

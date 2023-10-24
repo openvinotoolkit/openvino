@@ -44,7 +44,7 @@ TEST(type_prop, ctc_greedy_decoder_static_shapes) {
     auto seq_mask = make_shared<ov::op::v0::Parameter>(element::f32, seq_mask_shape);
     auto op = make_shared<op::v0::CTCGreedyDecoder>(data, seq_mask, false);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    EXPECT_EQ(op->get_shape(), out_shape);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), out_shape);
 }
 
 TEST(type_prop, ctc_greedy_decoder_interval_labeled_dims_all) {
@@ -108,7 +108,7 @@ TEST(type_prop, ctc_greedy_decoder_output_static_shape1) {
     auto op = make_shared<op::v0::CTCGreedyDecoder>(data, seq_mask, false);
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_shape(), out_shape);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), out_shape);
 }
 
 TEST(type_prop, ctc_greedy_decoder_output_static_shape2) {
@@ -119,7 +119,7 @@ TEST(type_prop, ctc_greedy_decoder_output_static_shape2) {
     auto seq_mask = make_shared<ov::op::v0::Parameter>(element::f32, seq_mask_shape);
     auto op = make_shared<op::v0::CTCGreedyDecoder>(data, seq_mask, false);
     EXPECT_EQ(op->get_element_type(), element::f32);
-    EXPECT_EQ(op->get_shape(), out_shape);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), out_shape);
 }
 
 TEST(type_prop, ctc_greedy_decoder_dynamic_shapes) {

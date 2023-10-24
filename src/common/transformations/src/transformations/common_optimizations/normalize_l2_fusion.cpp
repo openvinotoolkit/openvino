@@ -80,7 +80,7 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
             return false;
         }
 
-        if (!eps_attr || shape_size(eps_attr->get_shape()) > 1) {
+        if (!eps_attr || shape_size(eps_attr->get_output_partial_shape(0).to_shape()) > 1) {
             return false;
         }
 

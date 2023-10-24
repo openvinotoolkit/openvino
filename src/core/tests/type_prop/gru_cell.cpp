@@ -26,7 +26,7 @@ TEST(type_prop, gru_cell) {
 
     const auto gru_cell = make_shared<ov::op::v3::GRUCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
-    EXPECT_EQ(gru_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
+    EXPECT_EQ(gru_cell->get_output_partial_shape(0).to_shape(), (Shape{batch_size, hidden_size}));
 }
 
 TEST(type_prop, gru_cell_with_bias) {
@@ -43,7 +43,7 @@ TEST(type_prop, gru_cell_with_bias) {
 
     const auto gru_cell = make_shared<ov::op::v3::GRUCell>(X, H_t, W, R, B, hidden_size);
     EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
-    EXPECT_EQ(gru_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
+    EXPECT_EQ(gru_cell->get_output_partial_shape(0).to_shape(), (Shape{batch_size, hidden_size}));
 }
 
 TEST(type_prop, gru_cell_with_bias_linear_before) {
@@ -71,7 +71,7 @@ TEST(type_prop, gru_cell_with_bias_linear_before) {
                                                            true);
 
     EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
-    EXPECT_EQ(gru_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
+    EXPECT_EQ(gru_cell->get_output_partial_shape(0).to_shape(), (Shape{batch_size, hidden_size}));
 }
 
 TEST(type_prop, gru_cell_default_ctor_linear_before) {
@@ -92,7 +92,7 @@ TEST(type_prop, gru_cell_default_ctor_linear_before) {
     gru_cell->validate_and_infer_types();
 
     EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
-    EXPECT_EQ(gru_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
+    EXPECT_EQ(gru_cell->get_output_partial_shape(0).to_shape(), (Shape{batch_size, hidden_size}));
 }
 
 TEST(type_prop, gru_cell_invalid_input) {

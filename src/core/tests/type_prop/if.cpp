@@ -49,7 +49,7 @@ TEST(type_prop, if_simple_test) {
     auto res = if_op->set_output(then_op_res, else_op_res);
     auto result0 = make_shared<op::v0::Result>(res);
     Shape out0_shape{32, 40, 10};
-    auto sh = result0->get_output_shape(0);
+    auto sh = result0->get_output_partial_shape(0).to_shape();
     EXPECT_EQ(sh, out0_shape);
     // Check that If validation when condition is constant validates single body
     convert_then_op->set_convert_element_type(ov::element::f16);
@@ -88,7 +88,7 @@ TEST(type_prop, if_non_const_condition_test) {
     auto res = if_op->set_output(then_body_res, else_body_res);
     auto result0 = make_shared<ov::op::v0::Result>(res);
     Shape out0_shape{32, 40, 10};
-    auto sh = result0->get_output_shape(0);
+    auto sh = result0->get_output_partial_shape(0).to_shape();
     EXPECT_EQ(sh, out0_shape);
 }
 
@@ -157,7 +157,7 @@ TEST(type_prop, if_multiple_outputs) {
     auto result1 = make_shared<ov::op::v0::Result>(res1);
     auto result2 = make_shared<ov::op::v0::Result>(res2);
     Shape out0_shape{32, 40, 10};
-    auto sh = result1->get_output_shape(0);
+    auto sh = result1->get_output_partial_shape(0).to_shape();
     auto is_dynamic = result2->is_dynamic();
     EXPECT_EQ(out0_shape, sh);
     EXPECT_EQ(is_dynamic, true);
@@ -192,7 +192,7 @@ TEST(type_prop, if_scalar_condition) {
     auto res = if_op->set_output(then_body_res, else_body_res);
     auto result0 = make_shared<ov::op::v0::Result>(res);
     Shape out0_shape{32, 40, 10};
-    auto sh = result0->get_output_shape(0);
+    auto sh = result0->get_output_partial_shape(0).to_shape();
     EXPECT_EQ(sh, out0_shape);
 }
 
@@ -369,7 +369,7 @@ TEST(type_prop, if_element_type_dynamic) {
     auto res = if_op->set_output(then_op_res, else_op_res);
     auto result0 = make_shared<ov::op::v0::Result>(res);
     Shape out0_shape{32, 40, 10};
-    auto sh = result0->get_output_shape(0);
+    auto sh = result0->get_output_partial_shape(0).to_shape();
     EXPECT_EQ(sh, out0_shape);
     // Check that If validation when condition is constant validates single body
     if_op->validate_and_infer_types();
@@ -410,7 +410,7 @@ TEST(type_prop, if_invalid_false_body) {
     auto res = if_op->set_output(then_op_res, else_op_res);
     auto result0 = make_shared<ov::op::v0::Result>(res);
     Shape out0_shape{32, 40};
-    auto sh = result0->get_output_shape(0);
+    auto sh = result0->get_output_partial_shape(0).to_shape();
     EXPECT_EQ(sh, out0_shape);
     // Check that If validation when condition is constant validates single body
     if_op->validate_and_infer_types();

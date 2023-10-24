@@ -115,7 +115,7 @@ bool Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inp
     }
 
     if (auto data_const = std::dynamic_pointer_cast<Constant>(inputs_values[0].get_node_shared_ptr())) {
-        const auto& shape = get_output_shape(0);
+        const auto& shape = get_output_partial_shape(0).to_shape();
         output_values[0] = std::make_shared<Constant>(*data_const, shape);
         return true;
     }

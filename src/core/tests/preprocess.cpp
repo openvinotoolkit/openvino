@@ -688,8 +688,8 @@ TEST(pre_post_process, postprocess_set_model_layout) {
     p.output(1).model().set_layout("NCHW");
 
     f = p.build();
-    EXPECT_EQ(f->get_results()[0]->get_shape(), (Shape{1, 224, 224, 3}));
-    EXPECT_EQ(f->get_results()[1]->get_shape(), (Shape{1, 3, 224, 224}));
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0).to_shape(), (Shape{1, 224, 224, 3}));
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0).to_shape(), (Shape{1, 3, 224, 224}));
 }
 
 TEST(pre_post_process, unsupported_model_color_format) {
@@ -1430,9 +1430,9 @@ TEST(pre_post_process, preprocess_from) {
     f = p.build();
 
     EXPECT_EQ(f->input().get_element_type(), element::u8);
-    EXPECT_EQ(f->input().get_shape(), (Shape{1, 480, 640, 3}));
+    EXPECT_EQ(f->input().get_partial_shape().to_shape(), (Shape{1, 480, 640, 3}));
     EXPECT_EQ(f->output().get_element_type(), element::f32);
-    EXPECT_EQ(f->output().get_shape(), (Shape{1, 224, 224, 3}));
+    EXPECT_EQ(f->output().get_partial_shape().to_shape(), (Shape{1, 224, 224, 3}));
 }
 
 TEST(pre_post_process, preprocess_crop) {
@@ -1949,7 +1949,7 @@ TEST(pre_post_process, postprocess_nothing_applied) {
     model = p.build();
     EXPECT_EQ(model->get_results().size(), 3);
     EXPECT_EQ(ov::layout::get_layout(model->output(1)), "NCHW");
-    EXPECT_EQ(model->output(1).get_shape(), (Shape{1, 1, 10, 20}));
+    EXPECT_EQ(model->output(1).get_partial_shape().to_shape(), (Shape{1, 1, 10, 20}));
     EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 1);
     EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
     EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);

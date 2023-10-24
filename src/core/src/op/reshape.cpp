@@ -232,7 +232,7 @@ bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVec
         return false;
     }
 
-    const auto& shape = get_output_shape(0);
+    const auto shape = get_output_partial_shape(0).to_shape();
 
     if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
         output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);

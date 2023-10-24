@@ -26,7 +26,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer) {
                                                                   Strides{});
 
     EXPECT_EQ(gcbd->get_element_type(), element::f32);
-    EXPECT_EQ(gcbd->get_output_shape(0), (Shape{1, 4, 8, 8}));
+    EXPECT_EQ(gcbd->get_output_partial_shape(0).to_shape(), (Shape{1, 4, 8, 8}));
     EXPECT_EQ(gcbd->get_strides(), (Strides{1, 1}));
     EXPECT_EQ(gcbd->get_dilations(), (Strides{1, 1}));
     EXPECT_EQ(gcbd->get_pads_begin(), (CoordinateDiff{0, 0}));
@@ -51,7 +51,7 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_as
                                                                   op::PadType::SAME_UPPER);
 
     ASSERT_EQ(gcbd->get_element_type(), element::f32);
-    ASSERT_EQ(gcbd->get_output_shape(0), (Shape{1, 2, 3, 3}));
+    ASSERT_EQ(gcbd->get_output_partial_shape(0).to_shape(), (Shape{1, 2, 3, 3}));
     ASSERT_EQ(gcbd->get_strides(), (Strides{1, 1}));
     ASSERT_EQ(gcbd->get_dilations(), (Strides{1, 1}));
     ASSERT_EQ(gcbd->get_pads_begin(), (CoordinateDiff{2, 2}));

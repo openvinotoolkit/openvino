@@ -715,7 +715,7 @@ TEST(eval, evaluate_reshape_v1_data_dynamic_shape) {
     auto result_tensor = ov::Tensor();
     auto out_vector = ov::TensorVector{result_tensor};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
-                                      make_tensor<element::Type_t::i64>(pattern->get_shape(), {2, 0, 1, -1, 1, 1})};
+                                      make_tensor<element::Type_t::i64>(pattern->get_output_partial_shape(0).to_shape(), {2, 0, 1, -1, 1, 1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
     result_tensor = out_vector.at(0);
 
@@ -733,7 +733,7 @@ TEST(eval, evaluate_reshape_v1_not_backward_compatible_and_in_out_size_not_eq) {
     auto result_tensor = ov::Tensor();
     auto out_vector = ov::TensorVector{result_tensor};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
-                                      make_tensor<element::Type_t::i16>(pattern->get_shape(), {2, 1, 1, 1, 1})};
+                                      make_tensor<element::Type_t::i16>(pattern->get_output_partial_shape(0).to_shape(), {2, 1, 1, 1, 1})};
 
     OV_EXPECT_THROW(model->evaluate(out_vector, in_vector),
                     NodeValidationFailure,
@@ -2646,7 +2646,7 @@ TEST(eval, evaluate_cum_sum_v0) {
     auto outputs = ov::TensorVector(1);
     ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {2, 3}, input_values}}));
     EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
-    EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
+    EXPECT_EQ(outputs[0].get_shape(), data->get_output_partial_shape(0).to_shape());
     EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
 }
 
@@ -2662,7 +2662,7 @@ TEST(eval, evaluate_cum_sum_v0_exclusive_reversed) {
     auto outputs = ov::TensorVector(1);
     ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {5}, input_values}}));
     EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
-    EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
+    EXPECT_EQ(outputs[0].get_shape(), data->get_output_partial_shape(0).to_shape());
     EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
 }
 

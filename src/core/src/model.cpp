@@ -410,12 +410,12 @@ size_t ov::Model::get_graph_size() const {
     for (auto node : get_ops()) {
         total_size += sizeof(*node);
         if (node->description() == "Constant") {
-            const ov::Shape& shape = node->get_output_shape(0);
+            const ov::Shape& shape = node->get_output_partial_shape(0).to_shape();
             size_t const_size = node->get_output_element_type(0).size();
             if (shape.size() == 0) {
                 total_size += const_size;
             } else {
-                total_size += (const_size * shape_size(node->get_output_shape(0)));
+                total_size += (const_size * shape_size(node->get_output_partial_shape(0).to_shape()));
             }
         }
     }

@@ -32,7 +32,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_output_shape) {
 
     auto scatter = make_shared<TypeParam>(data, indices, updates, axis);
 
-    EXPECT_EQ(scatter->get_output_shape(0), expected_output_shape);
+    EXPECT_EQ(scatter->get_output_partial_shape(0).to_shape(), expected_output_shape);
 }
 
 TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_output_partial_dyn_shape) {

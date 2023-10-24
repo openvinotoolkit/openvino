@@ -54,7 +54,7 @@ TEST(build_graph, literal) {
     auto float0 = make_shared<op::v0::Constant>(element::f32, Shape{1}, float_t);
     ASSERT_EQ(float0->get_vector<float>(), std::vector<float>{3.0});
     ASSERT_EQ(float0->get_element_type(), element::f32);
-    ASSERT_EQ(float0->get_shape(), Shape{1});
+    ASSERT_EQ(float0->get_output_partial_shape(0).to_shape(), Shape{1});
     auto d = make_shared<op::v0::MatMul>(float0, float0);
     ASSERT_EQ(d->input_values().at(0).get_node_shared_ptr(), float0);
     ASSERT_EQ(d->input_values().at(1).get_node_shared_ptr(), float0);
@@ -63,7 +63,7 @@ TEST(build_graph, literal) {
     auto int32_0 = make_shared<op::v0::Constant>(element::i32, Shape{}, int32);
     ASSERT_EQ(int32_0->get_vector<int32_t>(), std::vector<int>{3});
     ASSERT_EQ(int32_0->get_element_type(), element::i32);
-    ASSERT_EQ(int32_0->get_shape(), Shape{});
+    ASSERT_EQ(int32_0->get_output_partial_shape(0).to_shape(), Shape{});
 }
 
 TEST(build_graph, tensor) {
@@ -73,7 +73,7 @@ TEST(build_graph, tensor) {
     vector<float> float_t(shape_size(shape), 0);
     auto float0 = make_shared<op::v0::Constant>(element::f32, shape, float_t);
     ASSERT_EQ(float0->get_element_type(), element::f32);
-    ASSERT_EQ(float0->get_shape(), shape);
+    ASSERT_EQ(float0->get_output_partial_shape(0).to_shape(), shape);
     auto d = make_shared<op::v1::Add>(float0, float0);
     ASSERT_EQ(d->input_values().at(0).get_node_shared_ptr(), float0);
     ASSERT_EQ(d->input_values().at(1).get_node_shared_ptr(), float0);
@@ -82,7 +82,7 @@ TEST(build_graph, tensor) {
     vector<int32_t> idata(shape_size(ishape), 0);
     auto int32_0 = make_shared<op::v0::Constant>(element::i32, ishape, idata);
     ASSERT_EQ(int32_0->get_element_type(), element::i32);
-    ASSERT_EQ(int32_0->get_shape(), ishape);
+    ASSERT_EQ(int32_0->get_output_partial_shape(0).to_shape(), ishape);
 }
 
 // Check functions with undeclared parameters
@@ -131,7 +131,7 @@ TEST(build_graph, no_arg_construction) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::validate_nodes_and_infer_types(ops);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    ASSERT_EQ(add1->get_output_shape(0), Shape{7});
+    ASSERT_EQ(add1->get_output_partial_shape(0).to_shape(), Shape{7});
 }
 
 TEST(build_graph, multi_output_split_dynamic) {
@@ -147,7 +147,7 @@ TEST(build_graph, multi_output_split_dynamic) {
     auto f = make_shared<Model>(abs, ParameterVector{new_parameter});
 
     f->validate_nodes_and_infer_types();
-    EXPECT_EQ(abs->get_shape(), (Shape{2, 2}));
+    EXPECT_EQ(abs->get_output_partial_shape(0).to_shape(), (Shape{2, 2}));
 }
 
 TEST(build_graph, function_revalidate_and_infer) {
@@ -159,15 +159,15 @@ TEST(build_graph, function_revalidate_and_infer) {
     auto f = make_shared<Model>(relu, ParameterVector{arg});
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_EQ(r->get_output_shape(0), (Shape{1, 3, 16, 2, 2, 2}));
-    EXPECT_EQ(f->get_output_shape(0), (Shape{1, 3, 16, 2, 2, 2}));
+    EXPECT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{1, 3, 16, 2, 2, 2}));
+    EXPECT_EQ(f->get_output_partial_shape(0).to_shape(), (Shape{1, 3, 16, 2, 2, 2}));
 
     auto new_pattern = op::v0::Constant::create(element::i64, Shape{2}, {32, 12});
     r->input(1).replace_source_output(new_pattern->output(0));
 
     f->validate_nodes_and_infer_types();
-    EXPECT_EQ(r->get_output_shape(0), (Shape{32, 12}));
-    EXPECT_EQ(f->get_output_shape(0), (Shape{32, 12}));
+    EXPECT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{32, 12}));
+    EXPECT_EQ(f->get_output_partial_shape(0).to_shape(), (Shape{32, 12}));
 }
 
 TEST(build_graph, default_output_checks) {

@@ -87,7 +87,7 @@ bool FoldFakeQuantizeTransformation::canBeTransformed(const TransformationContex
     }
 
     for (size_t i = 1; i < fq->get_input_size(); ++i) {
-        const auto& shape = fq->get_input_shape(i);
+        const auto& shape = fq->get_input_partial_shape(i).to_shape();
         if (std::count_if(shape.begin(), shape.end(), [](size_t x) { return x > 1; }) > 1) {
             return false;
         }

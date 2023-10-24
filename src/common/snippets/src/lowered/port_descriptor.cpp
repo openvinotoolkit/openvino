@@ -13,12 +13,12 @@ size_t PortDescriptor::ServiceDimensions::FULL_DIM = SIZE_MAX;
 PortDescriptor::PortDescriptor(const ov::Input<ov::Node>& in, VectorDims subtensor_shape, std::vector<size_t> layout)
         : PortDescriptor(ov::Input<const Node>(in.get_node(), in.get_index()), std::move(subtensor_shape), std::move(layout)) {}
 PortDescriptor::PortDescriptor(const ov::Input<const ov::Node>& in, VectorDims subtensor_shape, std::vector<size_t> layout)
-        : PortDescriptor(in.get_shape(), std::move(subtensor_shape), std::move(layout)) {}
+        : PortDescriptor(in.get_partial_shape().to_shape(), std::move(subtensor_shape), std::move(layout)) {}
 
 PortDescriptor::PortDescriptor(const ov::Output<ov::Node>& out, VectorDims subtensor_shape, std::vector<size_t> layout)
         : PortDescriptor(ov::Output<const Node>(out.get_node(), out.get_index()), std::move(subtensor_shape), std::move(layout)) {}
 PortDescriptor::PortDescriptor(const ov::Output<const ov::Node>& out, VectorDims subtensor_shape, std::vector<size_t> layout)
-        : PortDescriptor(out.get_shape(), std::move(subtensor_shape), std::move(layout)) {}
+        : PortDescriptor(out.get_partial_shape().to_shape(), std::move(subtensor_shape), std::move(layout)) {}
 
 PortDescriptor::PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout)
     : m_tensor_shape(std::move(shape)), m_layout(std::move(layout)), m_subtensor_shape(std::move(subtensor_shape)) {

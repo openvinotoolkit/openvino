@@ -23,7 +23,7 @@ TEST(type_prop, unsqueeze) {
     auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
 
     EXPECT_EQ(unsqueeze->get_element_type(), element::f32);
-    EXPECT_EQ(unsqueeze->get_shape(), (Shape{4, 1, 1, 1, 4, 1, 8}));
+    EXPECT_EQ(unsqueeze->get_output_partial_shape(0).to_shape(), (Shape{4, 1, 1, 1, 4, 1, 8}));
 }
 
 TEST(type_prop, unsqueeze_incorrect_axes_shape) {

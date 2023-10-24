@@ -46,7 +46,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_dynamic_value_propagation) {
 
     auto bc = make_shared<TypeParam>(param, target_shape);
     ASSERT_EQ(bc->get_element_type(), ov::element::f32);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{3, 5}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{3, 5}));
     ASSERT_EQ(ov::DimensionTracker::get_label(bc->get_output_partial_shape(0)[0]), 10);
 }
 
@@ -56,7 +56,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy) {
 
     auto bc = make_shared<TypeParam>(param, target_shape);
     ASSERT_EQ(bc->get_element_type(), ov::element::f32);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{2, 3, 6}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 6}));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_axes_mapping) {
@@ -66,7 +66,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_axes_mapping) {
 
     auto bc = make_shared<TypeParam>(param, target_shape, axes_mapping);
     ASSERT_EQ(bc->get_element_type(), ov::element::f32);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{2, 3, 1}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 1}));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_target_shape_as_concat_with_constants) {
@@ -298,7 +298,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape) {
 
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 3);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{1, 2, 3}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 2, 3}));
 
     // const axes mapping
     const auto axes_mapping_const =
@@ -307,7 +307,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape) {
 
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 3);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{1, 2, 3}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 2, 3}));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_input_rank_static) {
@@ -351,7 +351,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape_static_rank_i
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{1, 1, 5, 10}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 1, 5, 10}));
 
     // const axes mapping
     const auto axes_mapping_const =
@@ -402,14 +402,14 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_input_shape_const_target_
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{1, 4, 2, 3}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 4, 2, 3}));
 
     // const axes mapping
     const auto axes_mapping_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, vector<int64_t>{1});
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{1, 4, 2, 3}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 4, 2, 3}));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_target_shape) {
@@ -628,7 +628,7 @@ TEST(type_prop, broadcast_v1_pdpd) {
                                                  target_shape,
                                                  ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 1));
     ASSERT_EQ(bc->get_element_type(), ov::element::f32);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{2, 3, 6}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 6}));
 }
 
 TEST(type_prop, broadcast_v3_pdpd) {
@@ -639,7 +639,7 @@ TEST(type_prop, broadcast_v3_pdpd) {
                                                  target_shape,
                                                  ov::op::BroadcastModeSpec(ov::op::BroadcastType::PDPD, 1));
     ASSERT_EQ(bc->get_element_type(), ov::element::f32);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{2, 3, 6}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 6}));
 }
 
 TEST(type_prop, broadcast_v3_bidirectional_mode_string) {
@@ -692,7 +692,7 @@ TEST(type_prop, broadcast_v3_shape) {
     const auto broadcast_v3 = make_shared<ov::op::v3::Broadcast>(arg, shape, broadcast_spec);
 
     ASSERT_EQ(broadcast_v3->get_element_type(), ov::element::f32);
-    ASSERT_EQ(broadcast_v3->get_shape(), (ov::Shape{1, 4, 4}));
+    ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 4, 4}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, ov::AxisSet>(true, ov::AxisSet{2})));
 }
 
@@ -704,7 +704,7 @@ TEST(type_prop, broadcast_v3_shape_2) {
     const auto broadcast_v3 = make_shared<ov::op::v3::Broadcast>(arg, shape, broadcast_spec);
 
     ASSERT_EQ(broadcast_v3->get_element_type(), ov::element::f32);
-    ASSERT_EQ(broadcast_v3->get_shape(), (ov::Shape{2, 3, 6}));
+    ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 6}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, ov::AxisSet>(true, ov::AxisSet{0, 2})));
 }
 
@@ -716,7 +716,7 @@ TEST(type_prop, broadcast_v3_shape_3) {
     const auto broadcast_v3 = make_shared<ov::op::v3::Broadcast>(arg, shape, broadcast_spec);
 
     ASSERT_EQ(broadcast_v3->get_element_type(), ov::element::f32);
-    ASSERT_EQ(broadcast_v3->get_shape(), (ov::Shape{2, 4}));
+    ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 4}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, ov::AxisSet>(true, ov::AxisSet{1})));
 }
 
@@ -728,7 +728,7 @@ TEST(type_prop, broadcast_v3_shape_4) {
     const auto broadcast_v3 = make_shared<ov::op::v3::Broadcast>(arg, shape, broadcast_spec);
 
     ASSERT_EQ(broadcast_v3->get_element_type(), ov::element::f32);
-    ASSERT_EQ(broadcast_v3->get_shape(), (ov::Shape{1, 3, 1}));
+    ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 3, 1}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, ov::AxisSet>(true, ov::AxisSet{})));
 }
 
@@ -740,7 +740,7 @@ TEST(type_prop, broadcast_v3_shape_5) {
     const auto broadcast_v3 = make_shared<ov::op::v3::Broadcast>(arg, shape, broadcast_spec);
 
     ASSERT_EQ(broadcast_v3->get_element_type(), ov::element::f32);
-    ASSERT_EQ(broadcast_v3->get_shape(), (ov::Shape{1, 16, 50, 50}));
+    ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 16, 50, 50}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, ov::AxisSet>(true, ov::AxisSet{0, 2, 3})));
 }
 
@@ -752,7 +752,7 @@ TEST(type_prop, broadcast_v3_shape_6) {
     const auto broadcast_v3 = make_shared<ov::op::v3::Broadcast>(arg, shape, broadcast_spec);
 
     ASSERT_EQ(broadcast_v3->get_element_type(), ov::element::f32);
-    ASSERT_EQ(broadcast_v3->get_shape(), (ov::Shape{3, 3, 3}));
+    ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).to_shape(), (ov::Shape{3, 3, 3}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, ov::AxisSet>(true, ov::AxisSet{0, 2})));
 }
 
@@ -764,7 +764,7 @@ TEST(type_prop, broadcast_v3_shape_6_type_infer) {
     const auto broadcast_v3 = make_shared<ov::op::v3::Broadcast>(arg, shape, broadcast_spec);
 
     ASSERT_EQ(broadcast_v3->get_element_type(), ov::element::u16);
-    ASSERT_EQ(broadcast_v3->get_shape(), (ov::Shape{3, 3, 3}));
+    ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).to_shape(), (ov::Shape{3, 3, 3}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, ov::AxisSet>(true, ov::AxisSet{0, 2})));
 }
 
@@ -975,7 +975,7 @@ TEST(type_prop, broadcast_v3_default_constructor) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{5, 2, 3, 6}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{5, 2, 3, 6}));
 }
 
 TEST(type_prop, broadcast_v3_bidirectional_data_bigger_rank_numpy) {

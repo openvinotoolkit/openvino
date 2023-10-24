@@ -884,9 +884,9 @@ std::shared_ptr<ov::Node> change_constant_precision(std::shared_ptr<opset4::Cons
     using dst_type = typename element_type_traits<PREC_TO>::value_type;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
-    const auto size = shape_size(constant->get_shape());
+    const auto size = shape_size(constant->get_output_partial_shape(0).to_shape());
 
-    auto new_constant = std::make_shared<opset4::Constant>(PREC_TO, constant->get_shape());
+    auto new_constant = std::make_shared<opset4::Constant>(PREC_TO, constant->get_output_partial_shape(0).to_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
@@ -905,9 +905,9 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::el
     using dst_type = typename element_type_traits<ov::element::Type_t::f16>::value_type;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
-    const auto size = shape_size(constant->get_shape());
+    const auto size = shape_size(constant->get_output_partial_shape(0).to_shape());
 
-    auto new_constant = std::make_shared<opset4::Constant>(ov::element::Type_t::f16, constant->get_shape());
+    auto new_constant = std::make_shared<opset4::Constant>(ov::element::Type_t::f16, constant->get_output_partial_shape(0).to_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
@@ -925,9 +925,9 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::el
     using dst_type = typename element_type_traits<ov::element::Type_t::f32>::value_type;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
-    const auto size = shape_size(constant->get_shape());
+    const auto size = shape_size(constant->get_output_partial_shape(0).to_shape());
 
-    auto new_constant = std::make_shared<opset4::Constant>(ov::element::Type_t::f32, constant->get_shape());
+    auto new_constant = std::make_shared<opset4::Constant>(ov::element::Type_t::f32, constant->get_output_partial_shape(0).to_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
@@ -1036,14 +1036,14 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
                        to.get_type_name() + " is not implemented!");
 
     // Create a new constant operation and get destination data
-    auto new_constant = std::make_shared<opset4::Constant>(to, constant->get_shape());
+    auto new_constant = std::make_shared<opset4::Constant>(to, constant->get_output_partial_shape(0).to_shape());
     auto* dst_data = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_constant->get_data_ptr()));
     // Check pointers
     if (src_data == nullptr || dst_data == nullptr)
         OPENVINO_THROW("Can't get data pointer");
 
     // Convert values
-    const auto size = shape_size(constant->get_shape());
+    const auto size = shape_size(constant->get_output_partial_shape(0).to_shape());
     size_t src_idx(0), dst_idx(0), dst_off(0), src_off(0);
     if (src_type.bitwidth() < 8) {
         src_off = 8 - src_type.bitwidth();

@@ -57,8 +57,8 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
             return nullptr;
         };
         auto check_input_output_shape = [](const std::shared_ptr<Node>& node) -> bool {
-            const auto& input_shape = node->get_input_shape(0);
-            const auto& output_shape = node->get_output_shape(0);
+            const auto& input_shape = node->get_input_partial_shape(0).to_shape();
+            const auto& output_shape = node->get_output_partial_shape(0).to_shape();
             // Transpose permutation has to be [1, 0, 2, 3]
             return input_shape[0] == output_shape[1] && input_shape[1] == output_shape[0] &&
                    input_shape[2] == output_shape[2] && input_shape[3] == output_shape[3];
@@ -83,7 +83,7 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
             return false;
         if (depth_to_space->get_mode() != ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST)
             return false;
-        const auto& dts_shape = depth_to_space->get_shape();
+        const auto& dts_shape = depth_to_space->get_output_partial_shape(0).to_shape();
         if (dts_shape.size() != 4)
             return false;
         auto block_size = static_cast<int64_t>(depth_to_space->get_block_size());

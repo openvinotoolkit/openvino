@@ -186,8 +186,8 @@ bool BatchToSpace::evaluate(TensorVector& outputs, const TensorVector& inputs) c
 
 bool BatchToSpace::has_evaluate() const {
     OV_OP_SCOPE(v1_BatchToSpace_has_evaluate);
-    return !get_input_partial_shape(0).is_dynamic() && get_input_shape(0).size() >= 2 &&
-           get_input_shape(0).size() <= shape_size(get_input_shape(1));
+    return !get_input_partial_shape(0).is_dynamic() && get_input_partial_shape(0).size() >= 2 &&
+           get_input_partial_shape(0).size() <= shape_size(get_input_partial_shape(1).to_shape());
 }
 }  // namespace v1
 }  // namespace op

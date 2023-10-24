@@ -43,7 +43,7 @@ TEST(type_prop, gather_elements_2D_axis_0) {
     const auto indices = make_shared<v0::Parameter>(element::Type_t::i32, indices_shape);
     auto op = make_shared<v6::GatherElements>(data, indices, axis);
     EXPECT_EQ(op->get_element_type(), element::Type_t::f32);
-    EXPECT_EQ(op->get_shape(), indices_shape);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), indices_shape);
 }
 
 TEST(type_prop, gather_elements_2D_axis_1) {
@@ -54,7 +54,7 @@ TEST(type_prop, gather_elements_2D_axis_1) {
     const auto indices = make_shared<v0::Parameter>(element::Type_t::i32, indices_shape);
     auto op = make_shared<v6::GatherElements>(data, indices, axis);
     EXPECT_EQ(op->get_element_type(), element::Type_t::f32);
-    EXPECT_EQ(op->get_shape(), indices_shape);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), indices_shape);
 }
 
 TEST(type_prop, gather_elements_3D_axis_0) {
@@ -65,7 +65,7 @@ TEST(type_prop, gather_elements_3D_axis_0) {
     const auto indices = make_shared<v0::Parameter>(element::Type_t::i32, indices_shape);
     auto op = make_shared<v6::GatherElements>(data, indices, axis);
     EXPECT_EQ(op->get_element_type(), element::Type_t::f32);
-    EXPECT_EQ(op->get_shape(), indices_shape);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), indices_shape);
 }
 
 TEST(type_prop, gather_elements_3D_axis_2) {
@@ -76,7 +76,7 @@ TEST(type_prop, gather_elements_3D_axis_2) {
     const auto indices = make_shared<v0::Parameter>(element::Type_t::i32, indices_shape);
     auto op = make_shared<v6::GatherElements>(data, indices, axis);
     EXPECT_EQ(op->get_element_type(), element::Type_t::f32);
-    EXPECT_EQ(op->get_shape(), indices_shape);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), indices_shape);
 }
 
 TEST(type_prop, gather_elements_4D_axis_minus_1) {
@@ -87,7 +87,7 @@ TEST(type_prop, gather_elements_4D_axis_minus_1) {
     const auto indices = make_shared<v0::Parameter>(element::Type_t::i32, indices_shape);
     auto op = make_shared<v6::GatherElements>(data, indices, axis);
     EXPECT_EQ(op->get_element_type(), element::Type_t::f32);
-    EXPECT_EQ(op->get_shape(), indices_shape);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), indices_shape);
 }
 
 TEST(type_prop, gather_elements_nonfloat_data_type_int64_indices) {
@@ -98,7 +98,7 @@ TEST(type_prop, gather_elements_nonfloat_data_type_int64_indices) {
     const auto indices = make_shared<v0::Parameter>(element::Type_t::i64, indices_shape);
     auto op = make_shared<v6::GatherElements>(data, indices, axis);
     EXPECT_EQ(op->get_element_type(), element::Type_t::i8);
-    EXPECT_EQ(op->get_shape(), indices_shape);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), indices_shape);
 }
 
 TEST(type_prop, gather_elements_dynamic_consistent_shapes) {
@@ -109,7 +109,7 @@ TEST(type_prop, gather_elements_dynamic_consistent_shapes) {
     const auto indices = make_shared<v0::Parameter>(element::Type_t::i64, indices_shape);
     auto op = make_shared<v6::GatherElements>(data, indices, axis);
     EXPECT_EQ(op->get_element_type(), element::Type_t::i8);
-    EXPECT_EQ(op->get_shape(), Shape({1, 4, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), Shape({1, 4, 5}));
 }
 
 TEST(type_prop, gather_elements_dynamic_out_shape) {

@@ -90,7 +90,7 @@ static pair<Shape, vector<Shape>> get_numpy_broadcast_shapes(const OutputVector&
     vector<Shape> input_shapes;
 
     for (const auto& input : values) {
-        input_shapes.push_back(input.get_shape());
+        input_shapes.push_back(input.get_partial_shape().to_shape());
     }
 
     return get_numpy_broadcast_shapes(input_shapes);
@@ -115,7 +115,7 @@ static shared_ptr<Node> numpy_broadcast_node(const Output<Node>& value,
                                              const Shape& source_shape) {
     shared_ptr<Node> broadcasted_node = value.get_node_shared_ptr();
     // If node already has the required shape, return original node
-    if (output_shape == value.get_shape()) {
+    if (output_shape == value.get_partial_shape().to_shape()) {
         return broadcasted_node;
     }
 
@@ -138,7 +138,7 @@ static shared_ptr<Node> numpy_broadcast_node(const Output<Node>& value,
         }
     }
 
-    if (squeezed_shape != value.get_shape()) {
+    if (squeezed_shape != value.get_partial_shape().to_shape()) {
         broadcasted_node = builder::opset1::reshape(value, squeezed_shape);
     }
 
@@ -162,7 +162,7 @@ static shared_ptr<Node> numpy_broadcast_node(const Output<Node>& value,
 /// \return     The broadcasted Node.
 ///
 static shared_ptr<Node> broadcast_value_pdpd_style(const Output<Node>& value, const Shape& output_shape, int64_t axis) {
-    auto value_shape = value.get_shape();
+    auto value_shape = value.get_partial_shape().to_shape();
 
     // If node already has the required shape, return original node
     if (output_shape == value_shape) {
@@ -203,8 +203,8 @@ pair<shared_ptr<Node>, shared_ptr<Node>> numpy_broadcast(const pair<Output<Node>
     NGRAPH_CHECK(args.first.get_node());
     NGRAPH_CHECK(args.second.get_node());
 
-    const Shape& arg1_in_shape = args.first.get_shape();
-    const Shape& arg2_in_shape = args.second.get_shape();
+    const Shape& arg1_in_shape = args.first.get_partial_shape().to_shape();
+    const Shape& arg2_in_shape = args.second.get_partial_shape().to_shape();
 
     // Handle the trivial case...
     if (arg1_in_shape == arg2_in_shape) {
@@ -232,13 +232,13 @@ OutputVector numpy_broadcast_outputs(const OutputVector& values) {
 }
 
 shared_ptr<Node> numpy_broadcast(const Output<Node>& value, const Shape& shape) {
-    auto bcast_shape = get_numpy_broadcast_shapes({value.get_shape(), shape});
+    auto bcast_shape = get_numpy_broadcast_shapes({value.get_partial_shape().to_shape(), shape});
     return numpy_broadcast_node(value, bcast_shape.first, bcast_shape.second[0]);
 }
 
 OutputVector numpy_broadcast_for_matmul_operation(const Output<Node>& left, const Output<Node>& right) {
-    const auto& left_shape = left.get_shape();
-    const auto& right_shape = right.get_shape();
+    const auto& left_shape = left.get_partial_shape().to_shape();
+    const auto& right_shape = right.get_partial_shape().to_shape();
     // Broadcast only _stack of matrices_ axes.
     const auto& numpy_shapes = get_numpy_broadcast_shapes(
         {Shape{begin(left_shape), next(end(left_shape), -2)}, Shape{begin(right_shape), next(end(right_shape), -2)}});
@@ -269,7 +269,7 @@ OutputVector pdpd_broadcast(const OutputVector& inputs, int64_t axis) {
 
     OutputVector broadcasted_inputs{inputs[0]};
     for (size_t i = 1; i < inputs.size(); ++i) {
-        broadcasted_inputs.push_back(broadcast_value_pdpd_style(inputs[i], inputs[0].get_shape(), axis));
+        broadcasted_inputs.push_back(broadcast_value_pdpd_style(inputs[i], inputs[0].get_partial_shape().to_shape(), axis));
     }
     return broadcasted_inputs;
 }
@@ -292,8 +292,8 @@ namespace opset1 {
 Output<Node> legacy_broadcast_for_binary_operation(const Output<Node>& left,
                                                    const Output<Node>& right,
                                                    size_t start_match_axis) {
-    const auto& left_shape = left.get_shape();
-    const auto& right_shape = right.get_shape();
+    const auto& left_shape = left.get_partial_shape().to_shape();
+    const auto& right_shape = right.get_partial_shape().to_shape();
 
     bool dimensions_identical = (left_shape == right_shape);
     if (dimensions_identical) {

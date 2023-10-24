@@ -19,8 +19,8 @@ std::shared_ptr<ov::Model> AddFunction::initOriginal() const {
 std::shared_ptr<ov::Model> AddFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_shape());
-    auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
+    auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_output_partial_shape(0).to_shape());
+    auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_output_partial_shape(0).to_shape());
     auto add = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1},
                                           std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v1::Add>(indata0, indata1)},
                                                                       ParameterVector{indata0, indata1}));
@@ -50,7 +50,7 @@ std::shared_ptr<ov::Model> EltwiseFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     const std::vector<float> const_values = ov::test::utils::generate_float_numbers(1, -10., 10.);
-    auto const_data = std::make_shared<op::v0::Constant>(precision, data1->get_shape(), const_values);
+    auto const_data = std::make_shared<op::v0::Constant>(precision, data1->get_output_partial_shape(0).to_shape(), const_values);
     auto add = std::make_shared<op::v1::Add>(data0, data1);
     auto sub = std::make_shared<op::v1::Subtract>(add, const_data);
     auto mul = std::make_shared<op::v1::Multiply>(add, sub);
@@ -60,10 +60,10 @@ std::shared_ptr<ov::Model> EltwiseFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     const std::vector<float> const_values = ov::test::utils::generate_float_numbers(1, -10., 10.);
-    auto const_data = std::make_shared<op::v0::Constant>(precision, data1->get_shape(), const_values);
-    auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_shape());
-    auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
-    auto indata2 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
+    auto const_data = std::make_shared<op::v0::Constant>(precision, data1->get_output_partial_shape(0).to_shape(), const_values);
+    auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_output_partial_shape(0).to_shape());
+    auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_output_partial_shape(0).to_shape());
+    auto indata2 = std::make_shared<op::v0::Parameter>(precision, data1->get_output_partial_shape(0).to_shape());
     auto add = std::make_shared<op::v1::Add>(indata0, indata1);
     auto sub = std::make_shared<op::v1::Subtract>(add, const_data);
     auto mul = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1, const_data},
@@ -189,8 +189,8 @@ std::shared_ptr<ov::Model> EltwiseLogLoopFunction::initReference() const {
     //Note that log is not currently supported by snippets, so it won't be converted to subgraph.
     // Todo: Note that collapse_subgraph changes the output ports so that the input subgraph's outputs come
     //  before the node outputs. So the Subgraph{Add}.output(1)->Log{} becomes Subgraph{Add+Hswish}.output(0)->Log{}
-    auto subgraph_param = std::make_shared<op::v0::Parameter>(precision, subgraph->get_output_shape(1));
-    auto log_param = std::make_shared<op::v0::Parameter>(precision, log->get_output_shape(0));
+    auto subgraph_param = std::make_shared<op::v0::Parameter>(precision, subgraph->get_output_partial_shape(1).to_shape());
+    auto log_param = std::make_shared<op::v0::Parameter>(precision, log->get_output_partial_shape(0).to_shape());
     auto mul = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{subgraph->output(1), log->output(0)},
                                           std::make_shared<Model>(NodeVector{std::make_shared<op::v1::Multiply>(subgraph_param, log_param)},
                                                                   ParameterVector{subgraph_param, log_param}));
@@ -231,8 +231,8 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     data1->set_friendly_name("data1");
 
-    auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_shape());
-    auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
+    auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_output_partial_shape(0).to_shape());
+    auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_output_partial_shape(0).to_shape());
     auto add = std::make_shared<op::v1::Add>(indata0, indata1);
     add->set_friendly_name("add");
     auto hswish = std::make_shared<op::v4::HSwish>(add);
@@ -241,7 +241,7 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
                                         std::make_shared<ov::Model>(NodeVector{add, hswish},
                                                                     ParameterVector{indata0, indata1}));
     subgraph0->set_friendly_name("add");
-    auto indata2 = std::make_shared<op::v0::Parameter>(precision, subgraph0->get_output_shape(1));
+    auto indata2 = std::make_shared<op::v0::Parameter>(precision, subgraph0->get_output_partial_shape(1).to_shape());
     auto relu = std::make_shared<op::v0::Relu>(indata2);
     relu->set_friendly_name("relu");
     auto subgraph1 = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{subgraph0->output(1)},

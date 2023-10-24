@@ -118,7 +118,7 @@ public:
                << "_" << testValues.actual.dequantization << "_"
                << "_add_reshape:" << testValues.addReshape << "_"
                << "_weights_type:" << testValues.actual.weights->get_element_type() << "_"
-               << "_weights_shape:" << testValues.actual.weights->get_shape() << "_"
+               << "_weights_shape:" << testValues.actual.weights->get_output_partial_shape(0).to_shape() << "_"
                << "{ " << testValues.actual.weights->cast_vector<float>()[0] << " }_"
                << testValues.actual.fakeQuantizeOnWeights << "_";
         return result.str();

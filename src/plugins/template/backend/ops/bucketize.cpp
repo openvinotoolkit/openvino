@@ -18,8 +18,8 @@ inline void evaluate(const std::shared_ptr<ov::op::v3::Bucketize>& op,
     ov::reference::bucketize<T1, T2, T3>(inputs[0].data<T1>(),
                                          inputs[1].data<T2>(),
                                          outputs[0].data<T3>(),
-                                         op->get_input_shape(0),
-                                         op->get_input_shape(1),
+                                         op->get_input_partial_shape(0).to_shape(),
+                                         op->get_input_partial_shape(1).to_shape(),
                                          op->get_with_right_bound());
 }
 

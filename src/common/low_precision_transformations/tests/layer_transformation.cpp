@@ -130,7 +130,7 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
             ngraph::builder::subgraph::DequantizationOperations::Subtract(
                 dequantization.subtractConstant->cast_vector<float>(),
                 dequantization.subtract->output(0).get_element_type(),
-                dequantization.subtractConstant->output(0).get_shape(),
+                dequantization.subtractConstant->output(0).get_partial_shape().to_shape(),
                 addDequantizationAttribute,
                 constantIndex,
                 dequantization.subtractConstant->output(0).get_element_type(),
@@ -148,7 +148,7 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
             ngraph::builder::subgraph::DequantizationOperations::Multiply(
                 dequantization.multiplyConstant->cast_vector<float>(),
                 dequantization.multiplyConstant->output(0).get_element_type(),
-                dequantization.multiplyConstant->output(0).get_shape(),
+                dequantization.multiplyConstant->output(0).get_partial_shape().to_shape(),
                 false,
                 constantIndex) :
             ngraph::builder::subgraph::DequantizationOperations::Multiply();

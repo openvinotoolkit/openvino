@@ -28,7 +28,7 @@ TEST(type_prop, static_value_propagation) {
     auto r = make_shared<op::v1::Reshape>(param, shape_of, false);
 
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{1, 2, 3}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{1, 2, 3}));
 }
 
 TEST(type_prop, reshape_static_dimension_stops_label_propagation_for_auto_batch_case) {
@@ -39,7 +39,7 @@ TEST(type_prop, reshape_static_dimension_stops_label_propagation_for_auto_batch_
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
 
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{1, 1280}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{1, 1280}));
     ASSERT_EQ(ov::no_label, ov::DimensionTracker::get_label(r->get_output_partial_shape(0)[0]));
 }
 
@@ -70,7 +70,7 @@ TEST(type_prop, static_value_propagation_through_gather) {
     auto r = make_shared<op::v1::Reshape>(param, gather, false);
 
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{3, 2, 1}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{3, 2, 1}));
 }
 
 TEST(type_prop, interval_value_propagation_through_gather) {
@@ -286,14 +286,14 @@ TEST(type_prop, reshape_deduce_s2t) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(param, ov::op::v0::Constant::create(element::u64, {1}, Shape{1}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{1}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{1}));
 }
 
 TEST(type_prop, reshape_deduce_s2m) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(param, ov::op::v0::Constant::create(element::u64, {2}, Shape{1, 1}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{1, 1}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{1, 1}));
 }
 
 TEST(type_prop, reshape_deduce_s2m3) {
@@ -301,28 +301,28 @@ TEST(type_prop, reshape_deduce_s2m3) {
     auto r =
         make_shared<op::v1::Reshape>(param, ov::op::v0::Constant::create(element::u64, {3}, Shape{1, 1, 1}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{1, 1, 1}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{1, 1, 1}));
 }
 
 TEST(type_prop, reshape_deduce_2d_to_1d) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4});
     auto r = make_shared<op::v1::Reshape>(param, ov::op::v0::Constant::create(element::u64, {1}, Shape{12}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{12}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{12}));
 }
 
 TEST(type_prop, reshape_deduce_3d_to_1d) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4, 5});
     auto r = make_shared<op::v1::Reshape>(param, ov::op::v0::Constant::create(element::u64, {1}, Shape{60}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{60}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{60}));
 }
 
 TEST(type_prop, reshape_deduce_zero_special) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 4, 5});
     auto r = make_shared<op::v1::Reshape>(param, ov::op::v0::Constant::create(element::u64, {3}, Shape{6, 2, 0}), true);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{6, 2, 5}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{6, 2, 5}));
 }
 
 TEST(type_prop, reshape_deduce_wrong_output_shape) {
@@ -348,7 +348,7 @@ TEST(type_prop, reshape_partial_rank_dynamic) {
         make_shared<op::v1::Reshape>(param, ov::op::v0::Constant::create(element::u64, {4}, Shape{3, 1, 8, 2}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_TRUE(r->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(r->get_shape(), (Shape{3, 1, 8, 2}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{3, 1, 8, 2}));
 }
 
 //
@@ -361,7 +361,7 @@ TEST(type_prop, reshape_partial_rank_static) {
         make_shared<op::v1::Reshape>(param, ov::op::v0::Constant::create(element::u64, {4}, Shape{3, 1, 8, 2}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_TRUE(r->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(r->get_shape(), (Shape{3, 1, 8, 2}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{3, 1, 8, 2}));
 }
 
 //
@@ -375,7 +375,7 @@ TEST(type_prop, reshape_partial_rank_static_dynamic_but_zero_ok) {
         make_shared<op::v1::Reshape>(param, ov::op::v0::Constant::create(element::u64, {4}, Shape{3, 1, 0, 2}), false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_TRUE(r->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(r->get_shape(), (Shape{3, 1, 0, 2}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{3, 1, 0, 2}));
 }
 
 TEST(type_prop, reshape_deduce_special_zero_shape_neg_zero) {
@@ -384,7 +384,7 @@ TEST(type_prop, reshape_deduce_special_zero_shape_neg_zero) {
                                           ov::op::v0::Constant::create(element::i64, {2}, std::vector<int64_t>{-1, 0}),
                                           true);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{6, 1}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{6, 1}));
 }
 
 TEST(type_prop, reshape_deduce_special_zero_shape_zero_neg) {
@@ -393,7 +393,7 @@ TEST(type_prop, reshape_deduce_special_zero_shape_zero_neg) {
                                           ov::op::v0::Constant::create(element::i64, {2}, std::vector<int64_t>{0, -1}),
                                           true);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{3, 2}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{3, 2}));
 }
 
 TEST(type_prop, reshape_deduce_special_zero_shape_zero_neg_copy_input) {
@@ -402,7 +402,7 @@ TEST(type_prop, reshape_deduce_special_zero_shape_zero_neg_copy_input) {
                                           ov::op::v0::Constant::create(element::i64, {2}, std::vector<int64_t>{0, -1}),
                                           true);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{3, 1}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{3, 1}));
 }
 
 TEST(type_prop, reshape_deduce_special_zero_shape_zero_zero_one_neg) {
@@ -412,7 +412,7 @@ TEST(type_prop, reshape_deduce_special_zero_shape_zero_zero_one_neg) {
                                      ov::op::v0::Constant::create(element::i64, {4}, std::vector<int64_t>{0, 0, 1, -1}),
                                      true);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{2, 2, 1, 3}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{2, 2, 1, 3}));
 }
 
 TEST(type_prop, reshape_deduce_special_zero_shape_neg_zero_dynamic) {
@@ -602,7 +602,7 @@ TEST(type_prop, reshape_to_zero_shape) {
                                           ov::op::v0::Constant::create(element::i64, {1}, std::vector<int64_t>{0}),
                                           false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_output_shape(0), (Shape{0}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{0}));
 }
 
 TEST(type_prop, reshape_to_zero_shape_dynamic) {
@@ -611,7 +611,7 @@ TEST(type_prop, reshape_to_zero_shape_dynamic) {
                                           ov::op::v0::Constant::create(element::i64, {1}, std::vector<int64_t>{0}),
                                           false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_output_shape(0), (Shape{0}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{0}));
 }
 
 TEST(type_prop, reshape_to_zero_shape_incorrect) {
@@ -629,7 +629,7 @@ TEST(type_prop, reshape_to_zero) {
                                           ov::op::v0::Constant::create(element::i64, {1}, std::vector<int64_t>{0}),
                                           true);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_output_shape(0), (Shape{2}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{2}));
 }
 
 TEST(type_prop, reshape_to_scalar) {
@@ -638,7 +638,7 @@ TEST(type_prop, reshape_to_scalar) {
                                           ov::op::v0::Constant::create(element::i64, {}, std::vector<int64_t>{1}),
                                           false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_output_shape(0), (Shape{}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{}));
 }
 
 TEST(type_prop, reshape_to_scalar_2) {
@@ -647,7 +647,7 @@ TEST(type_prop, reshape_to_scalar_2) {
                                           ov::op::v0::Constant::create(element::i64, {}, std::vector<int64_t>{1}),
                                           false);
     ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_output_shape(0), (Shape{}));
+    ASSERT_EQ(r->get_output_partial_shape(0).to_shape(), (Shape{}));
 }
 
 TEST(type_prop, reshape_to_scalar_3) {
@@ -692,7 +692,7 @@ TEST(type_prop, reshape_dynamic_value_and_label_propagation) {
     const auto unsqueeze = std::make_shared<op::v1::Reshape>(gather, output_pattern, false);
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, unsqueeze);
-    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);

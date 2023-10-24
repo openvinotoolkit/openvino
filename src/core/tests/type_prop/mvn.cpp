@@ -15,7 +15,7 @@ TEST(type_prop, mvn) {
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 6});
     auto mvn_func = make_shared<op::v0::MVN>(data);
     EXPECT_EQ(mvn_func->get_element_type(), element::f32);
-    EXPECT_EQ(mvn_func->get_shape(), (Shape{1, 3, 6}));
+    EXPECT_EQ(mvn_func->get_output_partial_shape(0).to_shape(), (Shape{1, 3, 6}));
 }
 
 TEST(type_prop, mvn_partial) {
@@ -43,7 +43,7 @@ TEST(type_prop, mvn_6) {
 
     auto mvn_func = make_shared<op::v6::MVN>(data, axes, true, 1e-6f, op::MVNEpsMode::INSIDE_SQRT);
     EXPECT_EQ(mvn_func->get_element_type(), element::f32);
-    EXPECT_EQ(mvn_func->get_shape(), (Shape{1, 2, 3, 4}));
+    EXPECT_EQ(mvn_func->get_output_partial_shape(0).to_shape(), (Shape{1, 2, 3, 4}));
 }
 
 TEST(type_prop, mvn_6_partial) {

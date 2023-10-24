@@ -230,7 +230,7 @@ TEST(type_prop, avg_pool_2d_deduce) {
                                                            ov::op::RoundingType::FLOOR);
 
     EXPECT_EQ(avg_pool->get_output_element_type(0), ov::element::f32);
-    EXPECT_EQ(avg_pool->get_output_shape(0), (ov::Shape{64, 3, 91, 131}));
+    EXPECT_EQ(avg_pool->get_output_partial_shape(0).to_shape(), (ov::Shape{64, 3, 91, 131}));
 
     EXPECT_EQ(avg_pool->get_strides(), (ov::Strides{1, 1}));
     EXPECT_EQ(avg_pool->get_kernel(), (ov::Shape{10, 20}));
@@ -251,7 +251,7 @@ TEST(type_prop, avg_pool_2d_deduce_strided) {
                                                            ov::op::RoundingType::FLOOR);
 
     EXPECT_EQ(avg_pool->get_output_element_type(0), ov::element::f32);
-    EXPECT_EQ(avg_pool->get_output_shape(0), (ov::Shape{64, 3, 46, 44}));
+    EXPECT_EQ(avg_pool->get_output_partial_shape(0).to_shape(), (ov::Shape{64, 3, 46, 44}));
 
     EXPECT_EQ(avg_pool->get_strides(), (ov::Strides{2, 3}));
     EXPECT_EQ(avg_pool->get_kernel(), (ov::Shape{10, 20}));
@@ -272,7 +272,7 @@ TEST(type_prop, avg_pool_3d_deduce_strided_small) {
                                                            ov::op::RoundingType::FLOOR);
 
     EXPECT_EQ(avg_pool->get_output_element_type(0), ov::element::f32);
-    EXPECT_EQ(avg_pool->get_output_shape(0), (ov::Shape{64, 3, 3, 2, 3}));
+    EXPECT_EQ(avg_pool->get_output_partial_shape(0).to_shape(), (ov::Shape{64, 3, 3, 2, 3}));
 
     EXPECT_EQ(avg_pool->get_strides(), (ov::Strides{2, 3, 4}));
     EXPECT_EQ(avg_pool->get_kernel(), (ov::Shape{2, 3, 2}));
@@ -295,7 +295,7 @@ TEST(type_prop, avg_pool_3d_deduce_strided_padded_small) {
                                                            ov::op::RoundingType::FLOOR);
 
     EXPECT_EQ(avg_pool->get_output_element_type(0), ov::element::f32);
-    EXPECT_EQ(avg_pool->get_output_shape(0), (ov::Shape{64, 3, 9, 6, 5}));
+    EXPECT_EQ(avg_pool->get_output_partial_shape(0).to_shape(), (ov::Shape{64, 3, 9, 6, 5}));
 
     EXPECT_EQ(avg_pool->get_strides(), (ov::Strides{2, 3, 4}));
     EXPECT_EQ(avg_pool->get_kernel(), (ov::Shape{2, 3, 2}));
@@ -494,7 +494,7 @@ TEST(type_prop, avg_pool_larger_than_pre_padding_but_fits_in_post_padding) {
                                                            ov::op::RoundingType::FLOOR);
 
     ASSERT_EQ(avg_pool->get_output_element_type(0), ov::element::f32);
-    ASSERT_EQ(avg_pool->get_output_shape(0), (ov::Shape{6, 2, 1, 1}));
+    ASSERT_EQ(avg_pool->get_output_partial_shape(0).to_shape(), (ov::Shape{6, 2, 1, 1}));
 }
 
 TEST(type_prop, avg_pool_invalid_movement_stride_0) {

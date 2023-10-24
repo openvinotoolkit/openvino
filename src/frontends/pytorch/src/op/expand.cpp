@@ -57,7 +57,7 @@ OutputVector translate_expand_fx(const NodeContext& context) {
     // output shapes are same. This should be removed after a proper optimization is
     // implemented.
     auto sizes_const = context.const_input<Shape>(1);
-    if (x.get_shape() == sizes_const) {
+    if (x.get_partial_shape().to_shape() == sizes_const) {
         return {x};
     }
     auto sizes = context.get_input(1);

@@ -734,8 +734,8 @@ struct Equal<std::shared_ptr<Constant>> {
         case ov::element::Type_t::u1: {
             const auto lhs_v = static_cast<const uint8_t*>(lhs->get_data_ptr());
             const auto rhs_v = static_cast<const uint8_t*>(rhs->get_data_ptr());
-            const auto lhs_bit_size = shape_size(lhs->get_shape());
-            const auto rhs_bit_size = shape_size(rhs->get_shape());
+            const auto lhs_bit_size = shape_size(lhs->get_output_partial_shape(0).to_shape());
+            const auto rhs_bit_size = shape_size(rhs->get_output_partial_shape(0).to_shape());
             return Equal<uint8_t*>::equal_value(lhs_v, rhs_v, lhs_bit_size, rhs_bit_size);
         }
         case ov::element::Type_t::bf16: {

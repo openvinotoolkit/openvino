@@ -15,5 +15,5 @@ TEST(type_prop, elu) {
     auto data = make_shared<ov::op::v0::Parameter>(ov::element::f32, data_shape);
     auto elu = make_shared<ov::op::v0::Elu>(data, 1);
     ASSERT_EQ(elu->get_element_type(), ov::element::f32);
-    ASSERT_EQ(elu->get_shape(), data_shape);
+    ASSERT_EQ(elu->get_output_partial_shape(0).to_shape(), data_shape);
 }

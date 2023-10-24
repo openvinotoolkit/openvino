@@ -225,7 +225,7 @@ TEST(partial_shape, to_shape_rank_dynamic) {
 TEST(partial_shape, tensor_descriptor_from_shape) {
     descriptor::Tensor t{element::i32, Shape{1, 2, 3}};
 
-    ASSERT_EQ(t.get_shape(), (Shape{1, 2, 3}));
+    ASSERT_EQ(t.get_partial_shape().to_shape(), (Shape{1, 2, 3}));
     ASSERT_EQ(t.get_partial_shape().rank().get_length(), 3);
     ASSERT_TRUE(t.get_partial_shape().same_scheme(PartialShape{1, 2, 3}));
 }
@@ -233,7 +233,7 @@ TEST(partial_shape, tensor_descriptor_from_shape) {
 TEST(partial_shape, tensor_descriptor_from_static_partial_shape) {
     descriptor::Tensor t{element::i32, PartialShape{1, 2, 3}};
 
-    ASSERT_EQ(t.get_shape(), (Shape{1, 2, 3}));
+    ASSERT_EQ(t.get_partial_shape().to_shape(), (Shape{1, 2, 3}));
     ASSERT_EQ(t.get_partial_shape().rank().get_length(), 3);
     ASSERT_TRUE(t.get_partial_shape().same_scheme(PartialShape{1, 2, 3}));
 }
@@ -242,7 +242,7 @@ TEST(partial_shape, tensor_descriptor_from_rank_static_dynamic_partial_shape) {
     descriptor::Tensor t{element::i32, PartialShape{1, Dimension::dynamic(), 3}};
 
     ASSERT_EQ(t.get_partial_shape().rank().get_length(), 3);
-    ASSERT_THROW({ t.get_shape(); }, std::invalid_argument);
+    ASSERT_THROW({ t.get_partial_shape().to_shape(); }, std::invalid_argument);
     ASSERT_TRUE(t.get_partial_shape().same_scheme(PartialShape{1, Dimension::dynamic(), 3}));
 }
 
@@ -250,7 +250,7 @@ TEST(partial_shape, tensor_descriptor_from_rank_dynamic_partial_shape) {
     descriptor::Tensor t{element::i32, PartialShape::dynamic()};
 
     ASSERT_TRUE(t.get_partial_shape().rank().is_dynamic());
-    ASSERT_THROW({ t.get_shape(); }, std::invalid_argument);
+    ASSERT_THROW({ t.get_partial_shape().to_shape(); }, std::invalid_argument);
     ASSERT_TRUE(t.get_partial_shape().same_scheme(PartialShape::dynamic()));
 }
 

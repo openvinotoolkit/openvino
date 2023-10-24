@@ -145,7 +145,7 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_input_got_dyna
     const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
 
     EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
-    EXPECT_EQ(op->get_output_shape(0), Shape({5, 5, 2, 4}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), Shape({5, 5, 2, 4}));
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, some_input_got_dynamic_type) {
@@ -156,7 +156,7 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, some_input_got_dyn
     const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_shape(0), Shape({5, 5, 2, 4}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), Shape({5, 5, 2, 4}));
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, input_not_floating_point) {

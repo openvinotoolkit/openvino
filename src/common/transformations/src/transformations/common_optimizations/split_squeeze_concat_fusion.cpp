@@ -108,7 +108,7 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
         auto transpose_order = ov::op::v0::Constant::create(element::i64, {(size_t)rank.get_length()}, order);
         auto transpose = register_new_node<ov::op::v1::Transpose>(input, transpose_order);
         auto shape_after =
-            ov::op::v0::Constant::create(element::i64, {(size_t)rank.get_length() - 1}, concat->get_output_shape(0));
+            ov::op::v0::Constant::create(element::i64, {(size_t)rank.get_length() - 1}, concat->get_output_partial_shape(0).to_shape());
         auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, shape_after, false);
 
         reshape->set_friendly_name(m.get_match_root()->get_friendly_name());

@@ -59,6 +59,8 @@ public:
         return m_tensor->get_rt_info();
     }
     /// \return the shape of the output
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2024.0 release. Please use "
+                        "get_partial_shape() method instead.")
     const Shape& get_shape() const;
 
     /// \return the partial shape of the output

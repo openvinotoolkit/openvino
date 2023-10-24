@@ -28,7 +28,7 @@ TEST(type_prop, augru_cell) {
 
     const auto augru_cell = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
     EXPECT_EQ(augru_cell->get_output_element_type(0), element::f32);
-    EXPECT_EQ(augru_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
+    EXPECT_EQ(augru_cell->get_output_partial_shape(0).to_shape(), (Shape{batch_size, hidden_size}));
 }
 
 TEST(type_prop, augru_cell_invalid_input) {

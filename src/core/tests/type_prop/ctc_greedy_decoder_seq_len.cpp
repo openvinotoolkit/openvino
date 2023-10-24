@@ -52,8 +52,8 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes) {
     auto op = make_shared<op::v6::CTCGreedyDecoderSeqLen>(logits_param, seq_len_param);
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(op->get_output_element_type(1), element::i32);
-    EXPECT_EQ(op->get_output_shape(0), out_shape1);
-    EXPECT_EQ(op->get_output_shape(1), out_shape2);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), out_shape1);
+    EXPECT_EQ(op->get_output_partial_shape(1).to_shape(), out_shape2);
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_bi) {
@@ -68,8 +68,8 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_bi) {
         make_shared<op::v6::CTCGreedyDecoderSeqLen>(logits_param, seq_len_param, bi, false, element::i64, element::i64);
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_element_type(1), element::i64);
-    EXPECT_EQ(op->get_output_shape(0), out_shape1);
-    EXPECT_EQ(op->get_output_shape(1), out_shape2);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), out_shape1);
+    EXPECT_EQ(op->get_output_partial_shape(1).to_shape(), out_shape2);
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_dinemic_bi) {
@@ -84,8 +84,8 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_dinemic_bi) {
         make_shared<op::v6::CTCGreedyDecoderSeqLen>(logits_param, seq_len_param, bi, false, element::i64, element::i64);
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_element_type(1), element::i64);
-    EXPECT_EQ(op->get_output_shape(0), out_shape1);
-    EXPECT_EQ(op->get_output_shape(1), out_shape2);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), out_shape1);
+    EXPECT_EQ(op->get_output_partial_shape(1).to_shape(), out_shape2);
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_output_static_shape1) {
@@ -98,8 +98,8 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_output_static_shape1) {
     auto op = make_shared<op::v6::CTCGreedyDecoderSeqLen>(logits_param, seq_len_param, false);
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(op->get_output_element_type(1), element::i32);
-    EXPECT_EQ(op->get_output_shape(0), out_shape1);
-    EXPECT_EQ(op->get_output_shape(1), out_shape2);
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), out_shape1);
+    EXPECT_EQ(op->get_output_partial_shape(1).to_shape(), out_shape2);
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_shapes) {

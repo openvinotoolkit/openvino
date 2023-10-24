@@ -589,7 +589,7 @@ auto test_forward_split = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{1});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{1});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -737,7 +737,7 @@ auto test_forward_reduction = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{2, 0});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{2, 0});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -773,7 +773,7 @@ auto test_forward_interpolate = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -812,7 +812,7 @@ auto test_forward_cumsum = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -851,7 +851,7 @@ auto test_forward_tile = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -892,7 +892,7 @@ auto test_forward_squeeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{3, 1});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{3, 1});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -926,7 +926,7 @@ auto test_forward_unsqueeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{0, 2});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{0, 2});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -970,7 +970,7 @@ auto test_forward_slice = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1011,7 +1011,7 @@ auto test_forward_reshape_squeeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{6, 5, 4});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{6, 5, 4});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -1051,7 +1051,7 @@ auto test_forward_reshape_unsqueeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
-                                               out_vec[1].get_shape(),
+                                               out_vec[1].get_partial_shape().to_shape(),
                                                std::vector<int64_t>{6, 1, 5, 1, 4});
         return new_out_vec;
     };
@@ -1204,7 +1204,7 @@ auto test_backward_split = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{2});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{2});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
@@ -1318,7 +1318,7 @@ auto test_backward_reduction = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{2, 0});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{2, 0});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
@@ -1353,7 +1353,7 @@ auto test_backward_interpolate = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1391,7 +1391,7 @@ auto test_backward_cumsum = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1429,7 +1429,7 @@ auto test_backward_tile = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1467,7 +1467,7 @@ auto test_backward_tile_tf_case = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1507,7 +1507,7 @@ auto test_backward_unsqueeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{5, 3});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{5, 3});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
@@ -1543,7 +1543,7 @@ auto test_backward_slice = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1589,7 +1589,7 @@ auto test_backward_reshape_squeeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{6, 5, 4});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{6, 5, 4});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_transpose, new_constant}, {{0}, {1}}};
@@ -1622,7 +1622,7 @@ auto test_backward_reshape_unsqueeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
-                                               out_vec[1].get_shape(),
+                                               out_vec[1].get_partial_shape().to_shape(),
                                                std::vector<int64_t>{6, 1, 5, 1, 4});
         return new_out_vec;
     };

@@ -98,7 +98,7 @@ INSTANTIATE_TEST_SUITE_P(evaluate_bound,
 TEST_P(ConcatEvaluateLabelTest, evaluate_label) {
     const auto concat = std::make_shared<Concat>(params.get(), std::get<0>(GetParam()));
     out_labels.resize(concat->get_output_size());
-    exp_result.emplace_back(ov::element::from<ov::label_t>(), concat->get_shape());
+    exp_result.emplace_back(ov::element::from<ov::label_t>(), concat->get_output_partial_shape(0).to_shape());
 
     ASSERT_EQ(concat->evaluate_label(out_labels), exp_evaluate_status);
 

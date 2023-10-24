@@ -242,10 +242,10 @@ int main(int argc, char* argv[]) {
         OPENVINO_ASSERT(model->inputs().size() == 1, "Incorrect number of inputs for LeNet");
         OPENVINO_ASSERT(model->outputs().size() == 1, "Incorrect number of outputs for LeNet");
 
-        ov::Shape input_shape = model->input().get_shape();
+        ov::Shape input_shape = model->input().get_partial_shape().to_shape();
         OPENVINO_ASSERT(input_shape.size() == 4, "Incorrect input dimensions for LeNet");
 
-        const ov::Shape output_shape = model->output().get_shape();
+        const ov::Shape output_shape = model->output().get_partial_shape().to_shape();
         OPENVINO_ASSERT(output_shape.size() == 2, "Incorrect output dimensions for LeNet");
 
         const auto classCount = output_shape[1];
@@ -293,7 +293,7 @@ int main(int argc, char* argv[]) {
 
         // Iterate over all input images and copy data to input tensor
         for (size_t image_id = 0; image_id < digits.size(); ++image_id) {
-            const size_t image_size = shape_size(model->input().get_shape()) / batch_size;
+            const size_t image_size = shape_size(model->input().get_partial_shape().to_shape()) / batch_size;
             std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size, digits[image_id], image_size);
         }
 

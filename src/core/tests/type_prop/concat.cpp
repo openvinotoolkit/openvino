@@ -23,7 +23,7 @@ TEST(type_prop, concat_deduce) {
     auto param2 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2, 4});
     auto c = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, 1);
     EXPECT_EQ(c->get_element_type(), ov::element::f32);
-    ASSERT_EQ(c->get_shape(), (ov::Shape{2, 12, 4}));
+    ASSERT_EQ(c->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 12, 4}));
 }
 
 TEST(type_prop, concat_deduce_wrong_rank) {
@@ -86,7 +86,7 @@ TEST(type_prop, concat_deduce_axis_barely_in_bounds) {
     auto param2 = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3, 12});
     auto c = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, 2);
     EXPECT_EQ(c->get_element_type(), ov::element::f32);
-    ASSERT_EQ(c->get_shape(), (ov::Shape{2, 3, 24}));
+    ASSERT_EQ(c->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 24}));
 }
 
 TEST(type_prop, concat_deduce_elem_type_mismatch) {
@@ -111,7 +111,7 @@ TEST(type_prop, concat_partial_et_consistent) {
     auto c = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, 1);
 
     EXPECT_EQ(c->get_element_type(), ov::element::f32);
-    ASSERT_EQ(c->get_shape(), (ov::Shape{2, 12, 4}));
+    ASSERT_EQ(c->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 12, 4}));
 }
 
 TEST(type_prop, concat_partial_et_inconsistent) {
@@ -220,7 +220,7 @@ TEST(type_prop, concat_partial_all_static_with_concat_axis_static_compatible_res
         make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3, ov::Dimension::dynamic()});
     auto c = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, 1);
 
-    ASSERT_EQ(c->get_shape(), (ov::Shape{2, 9, 3}));
+    ASSERT_EQ(c->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 9, 3}));
 }
 
 TEST(type_prop, concat_partial_all_static_with_concat_axis_static_dims_incompatible) {
@@ -251,7 +251,7 @@ TEST(type_prop, concat_partial_negative_axis_correct) {
     auto c = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, -3);
 
     EXPECT_EQ(c->get_element_type(), ov::element::f32);
-    ASSERT_EQ(c->get_shape(), (ov::Shape{12, 2, 4}));
+    ASSERT_EQ(c->get_output_partial_shape(0).to_shape(), (ov::Shape{12, 2, 4}));
 }
 
 TEST(type_prop, concat_partial_negative_axis_incorrect) {
@@ -291,7 +291,7 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation) {
     auto target_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{shape_0, five, shape_1}, 0);
 
     auto bc = make_shared<ov::op::v1::Broadcast>(param, target_shape);
-    EXPECT_EQ(bc->get_shape(), (ov::Shape{3, 4, 5, 4, 5, 9}));
+    EXPECT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{3, 4, 5, 4, 5, 9}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     const auto labels = get_shape_labels(output_shape);
@@ -323,7 +323,7 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
     auto convert = std::make_shared<ov::op::v0::Convert>(target_shape, ov::element::i64);
 
     auto bc = make_shared<ov::op::v1::Broadcast>(param, target_shape);
-    EXPECT_EQ(bc->get_shape(), (ov::Shape{3, 4, 5, 4, 5, 9}));
+    EXPECT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{3, 4, 5, 4, 5, 9}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     const auto labels = get_shape_labels(output_shape);
@@ -338,7 +338,7 @@ TEST(type_prop, concat_interval_dimensions) {
     auto c = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, -3);
 
     EXPECT_EQ(c->get_element_type(), ov::element::f32);
-    ASSERT_EQ(c->get_shape(), (ov::Shape{12, 2, 4}));
+    ASSERT_EQ(c->get_output_partial_shape(0).to_shape(), (ov::Shape{12, 2, 4}));
 }
 
 using PartialShapeVector = std::vector<ov::PartialShape>;

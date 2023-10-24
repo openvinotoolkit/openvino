@@ -98,6 +98,8 @@ public:
     }
 
     /// \return the shape of the connected output
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2024.0 release. Please use "
+                        "get_partial_shape() method instead.")
     const Shape& get_shape() const;
 
     /// \return the partial shape of the connected output

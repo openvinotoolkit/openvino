@@ -32,7 +32,7 @@ std::shared_ptr<ov::opset1::Constant> createNewScalesConst(const ov::opset1::Con
     }
 
     const ov::element::Type type = originalConst.get_output_element_type(0);
-    return ov::opset1::Constant::create(type, originalConst.get_shape(), newData);
+    return ov::opset1::Constant::create(type, originalConst.get_output_partial_shape(0).to_shape(), newData);
 }
 
 } // namespace normalize_l2
@@ -78,7 +78,7 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    const Shape outputShape = scalesConst->get_shape();
+    const Shape outputShape = scalesConst->get_output_partial_shape(0).to_shape();
     const size_t size = shape_size(outputShape);
     if (size != 1ul) {
         if (operation->get_output_partial_shape(0).size() < 2)

@@ -35,8 +35,8 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
 
         auto are_inputs_scalars =
-            shape_size(fq->input_value(1).get_shape()) == 1 && shape_size(fq->input_value(2).get_shape()) == 1 &&
-            shape_size(fq->input_value(3).get_shape()) == 1 && shape_size(fq->input_value(4).get_shape()) == 1;
+            shape_size(fq->input_value(1).get_partial_shape().to_shape()) == 1 && shape_size(fq->input_value(2).get_partial_shape().to_shape()) == 1 &&
+            shape_size(fq->input_value(3).get_partial_shape().to_shape()) == 1 && shape_size(fq->input_value(4).get_partial_shape().to_shape()) == 1;
         if (!are_inputs_scalars) {
             auto perm =
                 std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map[m_transpose_perm].get_node_shared_ptr());

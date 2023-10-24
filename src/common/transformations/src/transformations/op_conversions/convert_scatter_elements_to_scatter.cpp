@@ -57,7 +57,7 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
         const uint64_t indices_rank = indices_pshape.rank().get_length();
 
         // Check that axis Constant has {} or {1} shape
-        if (shape_size(axis_const->get_shape()) > 1) {
+        if (shape_size(axis_const->get_output_partial_shape(0).to_shape()) > 1) {
             return false;
         }
 

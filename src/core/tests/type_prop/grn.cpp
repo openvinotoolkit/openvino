@@ -18,7 +18,7 @@ TEST(type_prop, grn) {
     auto grn = make_shared<op::v0::GRN>(A, bias);
 
     EXPECT_EQ(grn->get_element_type(), element::f32);
-    EXPECT_EQ(grn->get_shape(), data_shape);
+    EXPECT_EQ(grn->get_output_partial_shape(0).to_shape(), data_shape);
 }
 
 TEST(type_prop, grn_dynamic) {

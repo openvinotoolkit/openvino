@@ -37,7 +37,7 @@ bool Validate::is_supported_constant(const std::shared_ptr<const ov::Node>& op) 
     const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(op);
     const auto consumers = op->get_output_target_inputs(0);
     return constant &&
-           (ov::shape_size(constant->get_output_shape(0)) == 1 ||
+           (ov::shape_size(constant->get_output_partial_shape(0).to_shape()) == 1 ||
             std::all_of(consumers.cbegin(), consumers.cend(),
                         [](const ov::Input<ov::Node>& in) {
                             return ov::is_type<const ov::op::v1::Transpose>(in.get_node()) ||

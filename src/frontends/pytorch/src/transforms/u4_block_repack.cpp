@@ -55,12 +55,12 @@ U4BlockRepack::U4BlockRepack() {
             // FIXME: Check reshape/transpose/reshape target shapes and axes permutation; now they are supposed to be
             // always in expected form
 
-            auto source_shape = reshape1->get_output_shape(0);
+            auto source_shape = reshape1->get_output_partial_shape(0).to_shape();
 
             if (source_shape.size() != 3)
                 return false;
 
-            auto destination_shape = reshape2->get_output_shape(0);
+            auto destination_shape = reshape2->get_output_partial_shape(0).to_shape();
 
             size_t n_blocks = source_shape[0];
             size_t block_height = source_shape[1];

@@ -43,7 +43,9 @@ TEST_F(AdaptiveMaxPoolV8Test, shape_infer) {
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("Output type", &Output<Node>::get_element_type, element::f64),
                             Property("Indices type", &Output<Node>::get_element_type, element::i64)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(), Each(Property("Shape", &Output<Node>::get_shape, Shape({2, 6, 5, 7, 1}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(AdaptiveMaxPoolV8Test, i32_indices) {

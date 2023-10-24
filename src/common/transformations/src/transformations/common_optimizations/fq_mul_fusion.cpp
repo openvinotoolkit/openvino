@@ -63,7 +63,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         const auto& original_output_low = pattern_map.at(fq_output_low_p);
         const auto& original_output_high = pattern_map.at(fq_output_high_p);
         auto mul_constant = pattern_map.at(mul_constant_p).get_node_shared_ptr();
-        auto mul_constant_shape = mul_constant->get_shape();
+        auto mul_constant_shape = mul_constant->get_output_partial_shape(0).to_shape();
         bool is_single_value = shape_size(mul_constant_shape) == 1;
 
         if (!is_single_value) {
@@ -143,7 +143,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
                 mul_node->get_output_partial_shape(0).is_dynamic()) {
                 return false;
             }
-            if (fq_casted->get_shape() != mul_node->get_shape()) {
+            if (fq_casted->get_output_partial_shape(0).to_shape() != mul_node->get_output_partial_shape(0).to_shape()) {
                 return false;
             }
         }

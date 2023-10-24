@@ -18,7 +18,7 @@ void convert_types(std::shared_ptr<v0::Parameter>& parameter,
                    Output<Node>& output,
                    const element::Type& new_type) {
     parameter->set_element_type(output.get_element_type());
-    parameter->set_partial_shape(output.get_shape());
+    parameter->set_partial_shape(output.get_partial_shape().to_shape());
     parameter->validate_and_infer_types();
     if (auto& bound = output.get_tensor().get_lower_value())
         parameter->get_output_tensor(0).set_lower_value(bound);
@@ -28,8 +28,8 @@ void convert_types(std::shared_ptr<v0::Parameter>& parameter,
     convert->set_destination_type(new_type);
     convert->validate_and_infer_types();
 
-    ov::TensorVector lower_tensor = {ov::Tensor(new_type, output.get_shape())};
-    ov::TensorVector upper_tensor = {ov::Tensor(new_type, output.get_shape())};
+    ov::TensorVector lower_tensor = {ov::Tensor(new_type, output.get_partial_shape().to_shape())};
+    ov::TensorVector upper_tensor = {ov::Tensor(new_type, output.get_partial_shape().to_shape())};
     bool lower_success = convert->evaluate_lower(lower_tensor);
     bool upper_success = convert->evaluate_upper(upper_tensor);
     auto& tensor = output.get_tensor();

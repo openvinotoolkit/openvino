@@ -52,7 +52,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_2D) {
     const auto op = std::make_shared<TypeParam>(A, B);
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{2, 2}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 2}));
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_4D) {
@@ -62,7 +62,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_4D) {
     const auto op = std::make_shared<TypeParam>(A, B);
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{2, 2, 3, 3}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 2, 3, 3}));
 }
 
 TYPED_TEST_P(ArithmeticOperator, default_autobroadcast) {
@@ -72,7 +72,7 @@ TYPED_TEST_P(ArithmeticOperator, default_autobroadcast) {
     const auto op = std::make_shared<TypeParam>(A, B);
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{2, 2}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 2}));
     EXPECT_EQ(op->get_autob(), ov::op::AutoBroadcastType::NUMPY);
 }
 
@@ -83,7 +83,7 @@ TYPED_TEST_P(ArithmeticOperator, no_autobroadcast) {
     const auto op = std::make_shared<TypeParam>(A, B, ov::op::AutoBroadcastType::NONE);
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{2, 2}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 2}));
     EXPECT_EQ(op->get_autob(), ov::op::AutoBroadcastType::NONE);
 }
 
@@ -94,7 +94,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_scalar_numpy_broadcast) {
     const auto op = std::make_shared<TypeParam>(A, B);
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{2, 3, 4, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4, 5}));
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_1D_numpy_broadcast) {
@@ -104,7 +104,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_1D_numpy_broadcast) {
     const auto op = std::make_shared<TypeParam>(A, B);
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{2, 3, 4, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4, 5}));
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_2D_x_4D_numpy_broadcast) {
@@ -114,7 +114,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_2D_x_4D_numpy_broadcast) {
     const auto op = std::make_shared<TypeParam>(A, B);
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{2, 3, 4, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4, 5}));
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_3D_x_4D_numpy_broadcast) {
@@ -124,7 +124,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_3D_x_4D_numpy_broadcast) {
     const auto op = std::make_shared<TypeParam>(A, B);
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{2, 3, 4, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4, 5}));
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_3D_numpy_broadcast) {
@@ -134,7 +134,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_3D_numpy_broadcast) {
     const auto op = std::make_shared<TypeParam>(A, B);
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{8, 7, 6, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{8, 7, 6, 5}));
     EXPECT_EQ(op->get_autob(), ov::op::AutoBroadcastType::NUMPY);
 }
 
@@ -147,7 +147,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_pdpd_doc_examples) {
         const auto op = std::make_shared<TypeParam>(A, B, autob);
 
         EXPECT_EQ(op->get_element_type(), ov::element::f32);
-        EXPECT_EQ(op->get_shape(), (ov::Shape{2, 3, 4, 5}));
+        EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4, 5}));
         EXPECT_EQ(op->get_autob().m_type, ov::op::AutoBroadcastType::PDPD);
     }
     {
@@ -158,7 +158,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_pdpd_doc_examples) {
         const auto op = std::make_shared<TypeParam>(A, B, autob);
 
         EXPECT_EQ(op->get_element_type(), ov::element::f32);
-        EXPECT_EQ(op->get_shape(), (ov::Shape{2, 3, 4, 5}));
+        EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4, 5}));
         EXPECT_EQ(op->get_autob().m_type, ov::op::AutoBroadcastType::PDPD);
     }
     {
@@ -169,7 +169,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_pdpd_doc_examples) {
         const auto op = std::make_shared<TypeParam>(A, B, autob);
 
         EXPECT_EQ(op->get_element_type(), ov::element::f32);
-        EXPECT_EQ(op->get_shape(), (ov::Shape{2, 3, 4, 5}));
+        EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4, 5}));
         EXPECT_EQ(op->get_autob().m_type, ov::op::AutoBroadcastType::PDPD);
     }
     {
@@ -180,7 +180,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_pdpd_doc_examples) {
         const auto op = std::make_shared<TypeParam>(A, B, autob);
 
         EXPECT_EQ(op->get_element_type(), ov::element::f32);
-        EXPECT_EQ(op->get_shape(), (ov::Shape{2, 3, 4, 5}));
+        EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4, 5}));
         EXPECT_EQ(op->get_autob().m_type, ov::op::AutoBroadcastType::PDPD);
     }
     {
@@ -191,7 +191,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_pdpd_doc_examples) {
         const auto op = std::make_shared<TypeParam>(A, B, autob);
 
         EXPECT_EQ(op->get_element_type(), ov::element::f32);
-        EXPECT_EQ(op->get_shape(), (ov::Shape{2, 3, 4, 5}));
+        EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4, 5}));
         EXPECT_EQ(op->get_autob().m_type, ov::op::AutoBroadcastType::PDPD);
     }
     {
@@ -202,7 +202,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_pdpd_doc_examples) {
         const auto op = std::make_shared<TypeParam>(A, B, autob);
 
         EXPECT_EQ(op->get_element_type(), ov::element::f32);
-        EXPECT_EQ(op->get_shape(), (ov::Shape{2, 3, 4, 5}));
+        EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4, 5}));
         EXPECT_EQ(op->get_autob().m_type, ov::op::AutoBroadcastType::PDPD);
     }
 }
@@ -216,7 +216,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_inference_4D_x_4D_pdpd_broadcast) 
         const auto op = std::make_shared<TypeParam>(A, B, autob);
 
         EXPECT_EQ(op->get_element_type(), ov::element::f32);
-        EXPECT_EQ(op->get_shape(), (ov::Shape{8, 1, 6, 5}));
+        EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{8, 1, 6, 5}));
         EXPECT_EQ(op->get_autob().m_type, ov::op::AutoBroadcastType::PDPD);
     }
     {
@@ -227,7 +227,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_inference_4D_x_4D_pdpd_broadcast) 
         const auto op = std::make_shared<TypeParam>(A, B, autob);
 
         EXPECT_EQ(op->get_element_type(), ov::element::f32);
-        EXPECT_EQ(op->get_shape(), (ov::Shape{8, 7, 6, 5}));
+        EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{8, 7, 6, 5}));
         EXPECT_EQ(op->get_autob().m_type, ov::op::AutoBroadcastType::PDPD);
     }
 }
@@ -239,7 +239,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_inference_4D_x_3D_ax_default_pdpd_
     const auto op = std::make_shared<TypeParam>(A, B, ov::op::AutoBroadcastType::PDPD);
 
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
-    EXPECT_EQ(op->get_shape(), (ov::Shape{8, 7, 6, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (ov::Shape{8, 7, 6, 5}));
     EXPECT_EQ(op->get_autob().m_type, ov::op::AutoBroadcastType::PDPD);
 }
 

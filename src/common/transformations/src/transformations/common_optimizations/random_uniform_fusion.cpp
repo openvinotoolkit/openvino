@@ -51,7 +51,7 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         if (!old_const->get_element_type().is_real())
             return false;
 
-        auto const_shape = old_const->get_shape();
+        auto const_shape = old_const->get_output_partial_shape(0).to_shape();
         if (shape_size(const_shape) != 1)
             return false;
 

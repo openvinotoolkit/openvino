@@ -38,7 +38,7 @@ std::shared_ptr<ov::Model> TransposeSoftmaxEltwiseFunction::initOriginal() const
     const auto transpose0Const = ngraph::builder::makeConstant(ov::element::i64, ov::Shape{m_order.size()},
                                                                m_order);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
-    const auto mulConst = ngraph::builder::makeConstant(ov::element::f32, transpose2->get_shape(),
+    const auto mulConst = ngraph::builder::makeConstant(ov::element::f32, transpose2->get_output_partial_shape(0).to_shape(),
                                                         std::vector<float>{}, true);
     const auto mul = std::make_shared<ov::op::v1::Multiply>(transpose2, mulConst);
     const auto softMax = std::make_shared<ov::op::v8::Softmax>(mul, m_axis);

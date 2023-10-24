@@ -78,17 +78,17 @@ TEST_F(NodeUtilsTest, generate_model_by_node) {
     auto model = generate_model_by_node(add_node_1);
     auto param_0 = model->inputs().begin() ->get_node_shared_ptr();
     ASSERT_TRUE(ov::op::util::is_parameter(param_0));
-    ASSERT_EQ(param_0->get_shape(), ov::Shape({2, 3}));
+    ASSERT_EQ(param_0->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3}));
     ASSERT_EQ(param_0->get_element_type(), ov::element::Type_t::f32);
 
     auto param_1 = model->inputs().begin()->get_node_shared_ptr();
     ASSERT_TRUE(ov::op::util::is_parameter(param_1));
-    ASSERT_EQ(param_1->get_shape(), ov::Shape({2, 3}));
+    ASSERT_EQ(param_1->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3}));
     ASSERT_EQ(param_1->get_element_type(), ov::element::Type_t::f32);
 
     auto res_0 = model->outputs().rbegin()->get_node_shared_ptr();
     ASSERT_TRUE(ov::op::util::is_output(res_0));
-    ASSERT_EQ(res_0->get_shape(), ov::Shape({2, 3}));
+    ASSERT_EQ(res_0->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3}));
     ASSERT_EQ(res_0->get_element_type(), ov::element::Type_t::f32);
 }
 

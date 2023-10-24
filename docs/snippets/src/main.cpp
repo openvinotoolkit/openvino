@@ -59,7 +59,7 @@ void * memory_ptr = nullptr;
 // Get input port for model with one input
 auto input_port = compiled_model.input();
 // Create tensor from external memory
-ov::Tensor input_tensor(input_port.get_element_type(), input_port.get_shape(), memory_ptr);
+ov::Tensor input_tensor(input_port.get_element_type(), input_port.get_partial_shape().to_shape(), memory_ptr);
 // Set input tensor for model with one input
 infer_request.set_input_tensor(input_tensor);
 //! [part4]

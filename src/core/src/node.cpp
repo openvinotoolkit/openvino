@@ -495,7 +495,7 @@ bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
     }
     for (size_t i = 0; i < get_output_size(); ++i) {
         if (get_output_element_type(i) != node->get_output_element_type(i) ||
-            get_output_shape(i) != node->get_output_shape(i)) {
+            get_output_partial_shape(i) != node->get_output_partial_shape(i)) {
             return false;
         }
     }
@@ -814,7 +814,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         nodes.push_back(input.get_node_shared_ptr());
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
         void* data = (void*)constant->get_data_ptr();
-        auto tensor = ov::Tensor(input.get_element_type(), input.get_shape(), data);
+        auto tensor = ov::Tensor(input.get_element_type(), input.get_partial_shape().to_shape(), data);
         input_tensors.push_back(tensor);
     }
 

@@ -54,7 +54,7 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
                 return false;
 
             // Dimensions by reduction axis should be equal
-            if (input_shape.get_shape().back() != softmax->get_input_shape(0).back())
+            if (input_shape.get_shape().back() != softmax->get_input_partial_shape(0).to_shape().back())
                 return false;
 
             // Eliminate Reshape before Softmax

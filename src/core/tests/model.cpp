@@ -623,8 +623,8 @@ TEST(model_reshape, ReshapeBatchReLU) {
         model = std::make_shared<ov::Model>(results, params);
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
 
     {
         std::map<std::string, ov::PartialShape> new_shape;
@@ -632,8 +632,8 @@ TEST(model_reshape, ReshapeBatchReLU) {
         EXPECT_NO_THROW(model->reshape(new_shape));
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3, 22, 22}));
 }
 
 TEST(model_reshape, ReshapeSpatialReLU) {
@@ -652,8 +652,8 @@ TEST(model_reshape, ReshapeSpatialReLU) {
         model = std::make_shared<ov::Model>(results, params);
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
 
     {
         std::map<std::string, ov::PartialShape> new_shape;
@@ -661,8 +661,8 @@ TEST(model_reshape, ReshapeSpatialReLU) {
         EXPECT_NO_THROW(model->reshape(new_shape));
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 25, 25}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 25, 25}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 25, 25}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 25, 25}));
 }
 
 TEST(model_reshape, ReshapeSpatialReLUWithoutReplaceParameter) {
@@ -680,8 +680,8 @@ TEST(model_reshape, ReshapeSpatialReLUWithoutReplaceParameter) {
         model = std::make_shared<ov::Model>(results, params);
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
 
     {
         model->get_parameters()[0]->set_partial_shape({1, 3, 25, 25});
@@ -709,8 +709,8 @@ TEST(model_reshape, ReshapeSpatialReLUStaticToDynamic) {
         model = std::make_shared<ov::Model>(results, params);
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
 
     {
         std::map<std::string, ov::PartialShape> new_shape;
@@ -741,8 +741,8 @@ TEST(model_reshape, ReshapeSpatialReLUStaticToFullyDynamic) {
         model = std::make_shared<ov::Model>(results, params);
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
 
     {
         std::map<std::string, ov::PartialShape> new_shape;
@@ -801,7 +801,7 @@ TEST(model_reshape, TestInvalidReshape) {
     EXPECT_THROW(f->reshape({{"tensor", ov::Shape({4})}}), ov::Exception);
 
     auto param = f->get_parameters().front();
-    EXPECT_EQ(param->get_output_shape(0), ov::Shape({1, 1000, 4}));
+    EXPECT_EQ(param->get_output_partial_shape(0).to_shape(), ov::Shape({1, 1000, 4}));
 
     EXPECT_NO_THROW(f->reshape({{"tensor", ov::Shape({1, 1000, 4})}}));
 }
@@ -857,8 +857,8 @@ TEST(model_reshape, ReshapeBatchReLUByIndex) {
         model = std::make_shared<ov::Model>(results, params);
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
 
     {
         std::map<size_t, ov::PartialShape> new_shape;
@@ -866,8 +866,8 @@ TEST(model_reshape, ReshapeBatchReLUByIndex) {
         EXPECT_NO_THROW(model->reshape(new_shape));
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3, 22, 22}));
 }
 
 TEST(model_reshape, ReshapeBatchReLUByPort) {
@@ -888,8 +888,8 @@ TEST(model_reshape, ReshapeBatchReLUByPort) {
         model = std::make_shared<ov::Model>(results, params);
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
 
     {
         std::map<ov::Output<ov::Node>, ov::PartialShape> new_shape;
@@ -897,8 +897,8 @@ TEST(model_reshape, ReshapeBatchReLUByPort) {
         EXPECT_NO_THROW(model->reshape(new_shape));
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3, 22, 22}));
 }
 
 TEST(model_reshape, ReshapeBatchReLUWithOneInput) {
@@ -919,8 +919,8 @@ TEST(model_reshape, ReshapeBatchReLUWithOneInput) {
         model = std::make_shared<ov::Model>(results, params);
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 22, 22}));
 
     {
         ov::PartialShape new_shape;
@@ -928,8 +928,8 @@ TEST(model_reshape, ReshapeBatchReLUWithOneInput) {
         EXPECT_NO_THROW(model->reshape(new_shape));
     }
 
-    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
-    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(model->get_parameters()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0).to_shape(), ov::Shape({2, 3, 22, 22}));
 }
 
 TEST(model_reshape, IncoreectReshapeBatchWithMultipleInputs) {

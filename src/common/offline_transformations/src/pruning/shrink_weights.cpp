@@ -44,7 +44,7 @@ static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
     if (!output_shape_const_op)
         return false;
 
-    const auto& input_shape = input.get_shape();
+    const auto& input_shape = input.get_partial_shape().to_shape();
     const auto& output_shape = output_shape_const_op->cast_vector<int64_t>();
     // below casts are needed due to VC warning C4244, literals are not enough in this case
     const int64_t input_elems =
@@ -227,7 +227,7 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
         if (!const_node)
             continue;
 
-        const auto& const_shape = const_node->get_shape();
+        const auto& const_shape = const_node->get_output_partial_shape(0).to_shape();
         total_weights_count += shape_size(const_shape);
 
 #ifdef ENABLE_OPENVINO_DEBUG
@@ -257,7 +257,7 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
             }
 
             const auto new_const =
-                opset6::Constant::create(const_node->get_element_type(), const_node->get_shape(), new_const_value);
+                opset6::Constant::create(const_node->get_element_type(), const_node->get_output_partial_shape(0).to_shape(), new_const_value);
             new_const->set_friendly_name(const_node->get_friendly_name());
             ov::copy_runtime_info(const_node, new_const);
             ov::replace_node(const_node, new_const);
@@ -291,7 +291,7 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
                 if (dim_size == 0)
                     continue;
                 // Broadcastable 1-size dimension shouldn't be shrank with mask
-                if (const_node->get_shape().at(dim) == 1 && dim_size > 1)
+                if (const_node->get_output_partial_shape(0).to_shape().at(dim) == 1 && dim_size > 1)
                     continue;
 
                 // Convert dims that we want remove to dims that we need to keep
@@ -312,7 +312,7 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
                                << last_output.get_partial_shape();
 
                 if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
-                    reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_shape());
+                    reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_partial_shape().to_shape());
                 } else {
                     OPENVINO_DEBUG << "[ WARNING ] Can not find the number of reduced elements due to dynamic shapes.";
                 }

@@ -300,7 +300,7 @@ public:
             auto initial_elements_const = std::dynamic_pointer_cast<opset10::Constant>(matches.at(elements));
             // New elements content depends on whether we appending to an empty list or not
             auto new_elements =
-                (initial_elements_const && shape_size(initial_elements_const->get_output_shape(0)) == 0)
+                (initial_elements_const && shape_size(initial_elements_const->get_output_partial_shape(0).to_shape()) == 0)
                     ? shared_ptr<Node>(item_flatten)
                     :  // empty initial list -- just take appended elements as a new content for the list; derive type
                        // from that tensor

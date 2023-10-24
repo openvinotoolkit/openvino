@@ -31,7 +31,7 @@ ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
             return false;
 
         auto* data = const_cast<float*>(node->get_data_ptr<float>());
-        const auto size = ov::shape_size(node->get_shape());
+        const auto size = ov::shape_size(node->get_output_partial_shape(0).to_shape());
 
         bool has_subnormals = false;
         for (size_t i = 0; i < size; ++i) {
@@ -43,7 +43,7 @@ ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
         if (!has_subnormals)
             return false;
 
-        auto new_constant = std::make_shared<ov::opset8::Constant>(ov::element::f32, node->get_shape());
+        auto new_constant = std::make_shared<ov::opset8::Constant>(ov::element::f32, node->get_output_partial_shape(0).to_shape());
         auto* dst_data = const_cast<float*>(new_constant->get_data_ptr<float>());
 
         for (size_t i = 0; i < size; ++i) {

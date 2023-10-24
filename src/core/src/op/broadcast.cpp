@@ -48,8 +48,8 @@ std::pair<bool, ov::AxisSet> ov::op::v3::Broadcast::get_broadcast_axes() const {
         bool axes_known = false;
 
         if (get_input_partial_shape(0).is_static() && get_output_partial_shape(0).is_static()) {
-            const auto arg_shape = get_input_shape(0);
-            const auto result_shape = get_output_shape(0);
+            const auto arg_shape = get_output_partial_shape(0).to_shape();
+            const auto result_shape = get_output_partial_shape(0).to_shape();
             return get_broadcast_axes_bidirectional(arg_shape, result_shape);
         }
         return std::make_pair(axes_known, broadcast_axes);

@@ -55,7 +55,7 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
     const auto splitConstant = [&](const std::shared_ptr<Node> operation) {
         // if batch is absent in constant shape - add batch
         const auto normalizedConstant = NetworkHelper::normalizeDequantizationShape(operation);
-        const auto constantShape = normalizedConstant->get_shape();
+        const auto constantShape = normalizedConstant->get_output_partial_shape(0).to_shape();
 
         OutputVector results(outputSize);
         if ((shape_size(constantShape) == 1ul) || (constantShape[normalizedAxis] == 1ul)) {

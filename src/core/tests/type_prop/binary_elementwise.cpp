@@ -89,15 +89,15 @@ void test_binary_eltwise_numpy(const ov::element::Type& et, const ov::op::AutoBr
     auto param4 = make_shared<ov::op::v0::Parameter>(et, ov::Shape{6});
     auto param5 = make_shared<ov::op::v0::Parameter>(et, ov::Shape{});
 
-    EXPECT_EQ(make_shared<T>(param1, param2, autob)->get_shape(), (ov::Shape{1, 3, 6}));
-    EXPECT_EQ(make_shared<T>(param1, param3, autob)->get_shape(), (ov::Shape{2, 3, 6}));
-    EXPECT_EQ(make_shared<T>(param4, param3, autob)->get_shape(), (ov::Shape{2, 3, 6}));
-    EXPECT_EQ(make_shared<T>(param5, param3, autob)->get_shape(), (ov::Shape{2, 3, 6}));
-    EXPECT_EQ(make_shared<T>(param3, param5, autob)->get_shape(), (ov::Shape{2, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param1, param2, autob)->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param1, param3, autob)->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param4, param3, autob)->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param5, param3, autob)->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 6}));
+    EXPECT_EQ(make_shared<T>(param3, param5, autob)->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 6}));
 
     auto pp1 = make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{1, ov::Dimension::dynamic(), 6});
     auto pp2 = make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{3, 1});
-    EXPECT_EQ(make_shared<T>(pp1, pp2, autob)->get_shape(), (ov::Shape{1, 3, 6}));
+    EXPECT_EQ(make_shared<T>(pp1, pp2, autob)->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 3, 6}));
 }
 
 template <typename T>
@@ -170,7 +170,7 @@ TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_static_partial_shape_no_broadca
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_element_type(), ov::element::boolean);
     EXPECT_EQ(op->get_output_partial_shape(0), shape);
-    EXPECT_EQ(op->get_shape(), shape.get_shape());
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), shape.get_shape());
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(3, 4, 5));
     EXPECT_THAT(get_shape_labels(a->get_output_partial_shape(0)), ElementsAre(3, 4, 5));
     EXPECT_THAT(get_shape_labels(b->get_output_partial_shape(0)), Each(0));
@@ -189,7 +189,7 @@ TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_static_partial_shape_pdpd_broad
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_element_type(), ov::element::boolean);
     EXPECT_EQ(op->get_output_partial_shape(0), ov::PartialShape({1, 3, 6}));
-    EXPECT_EQ(op->get_shape(), ov::Shape({1, 3, 6}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), ov::Shape({1, 3, 6}));
 }
 
 TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_dynamic_partial_shape_no_broadcast) {
@@ -395,7 +395,7 @@ TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_right_ran
     auto add = make_shared<ov::op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(add->get_shape(), (ov::Shape{1, 2, 3}));
+    ASSERT_EQ(add->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 2, 3}));
 }
 
 TEST(type_prop,
@@ -417,7 +417,7 @@ TEST(type_prop, binary_elementwise_arithmetic_left_static_right_rank_static_dyna
     auto add = make_shared<ov::op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(add->get_shape(), (ov::Shape{1, 2, 3}));
+    ASSERT_EQ(add->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 2, 3}));
 }
 
 TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_right_static) {
@@ -426,7 +426,7 @@ TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_right_sta
     auto add = make_shared<ov::op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(add->get_shape(), (ov::Shape{1, 2, 3}));
+    ASSERT_EQ(add->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 2, 3}));
 }
 
 TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_inconsistent) {

@@ -39,7 +39,7 @@ ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             return false;
 
         auto output_shape = shape_node->cast_vector<int64_t>();
-        auto input_shape = data_node.get_shape();
+        auto input_shape = data_node.get_partial_shape().to_shape();
         int64_t cur_dim_id = output_shape.size() - 1;
         size_t dims_count = output_shape.size();
 

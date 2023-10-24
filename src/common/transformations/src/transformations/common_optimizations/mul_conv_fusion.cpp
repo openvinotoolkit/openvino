@@ -39,8 +39,8 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         const auto& weights = pattern_to_output.at(weights_pattern);
         const auto& mul_const = pattern_to_output.at(mul_const_pattern);
 
-        const auto& weights_shape = weights.get_shape();
-        const auto& mul_const_shape = mul_const.get_shape();
+        const auto& weights_shape = weights.get_partial_shape().to_shape();
+        const auto& mul_const_shape = mul_const.get_partial_shape().to_shape();
         // Check if mul_const if broadcastable to weights.
         // Also if mul_const's rank matches weights rank and mul_const.shape[0] != 1
         // then we can't fuse the multiply, since first dimension in mul_const corresponds to
@@ -92,9 +92,9 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
         const auto& weights = pattern_to_output.at(weights_pattern);
         std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
 
-        const auto& weights_shape = weights.get_shape();
-        if (shape_size(mul_const->get_shape()) > 1) {
-            auto mul_const_shape = mul_const->get_shape();
+        const auto& weights_shape = weights.get_partial_shape().to_shape();
+        if (shape_size(mul_const->get_output_partial_shape(0).to_shape()) > 1) {
+            auto mul_const_shape = mul_const->get_output_partial_shape(0).to_shape();
             // extend mul_const_shape rank with unit dimensions
             if (weights_shape.size() - mul_const_shape.size() > 1)
                 mul_const_shape.insert(mul_const_shape.begin(), weights_shape.size() - mul_const_shape.size() - 1, 1);
@@ -158,11 +158,11 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
             return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
-        const auto& weights_shape = weights.get_shape();
+        const auto& weights_shape = weights.get_partial_shape().to_shape();
         std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
 
-        if (shape_size(mul_const->get_shape()) > 1) {
-            auto mul_const_shape = mul_const->get_shape();
+        if (shape_size(mul_const->get_output_partial_shape(0).to_shape()) > 1) {
+            auto mul_const_shape = mul_const->get_output_partial_shape(0).to_shape();
             // extend mul_const_shape rank with unit dimensions
             if (weights_shape.size() > mul_const_shape.size())
                 mul_const_shape.insert(mul_const_shape.begin(), weights_shape.size() - mul_const_shape.size(), 1);
@@ -230,9 +230,9 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
         const auto& weights = pattern_to_output.at(weights_pattern);
         std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
 
-        const auto& weights_shape = weights.get_shape();
-        if (shape_size(mul_const->get_shape()) > 1) {
-            auto mul_const_shape = mul_const->get_shape();
+        const auto& weights_shape = weights.get_partial_shape().to_shape();
+        if (shape_size(mul_const->get_output_partial_shape(0).to_shape()) > 1) {
+            auto mul_const_shape = mul_const->get_output_partial_shape(0).to_shape();
             // extend mul_const_shape rank with unit dimensions
             if (weights_shape.size() - mul_const_shape.size() > 1)
                 mul_const_shape.insert(mul_const_shape.begin(), weights_shape.size() - mul_const_shape.size() - 1, 1);

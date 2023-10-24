@@ -60,7 +60,9 @@ TYPED_TEST_P(topk_type_prop, default_ctor) {
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("Value type", &Output<Node>::get_element_type, exp_data_type),
                             Property("Index type", &Output<Node>::get_element_type, exp_idx_type)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(), Each(Property("Shape", &Output<Node>::get_shape, Shape({1, 2, 2, 4}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TYPED_TEST_P(topk_type_prop, default_ctor_no_arguments) {
@@ -108,7 +110,9 @@ TYPED_TEST_P(topk_type_prop, negative_axis_support) {
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("Value type", &Output<Node>::get_element_type, exp_data_type),
                             Property("Index type", &Output<Node>::get_element_type, exp_idx_type)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(), Each(Property("Shape", &Output<Node>::get_shape, Shape({1, 2, 3, 2}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     EXPECT_THAT(op->outputs(),
                 Each(Property(&Output<Node>::get_partial_shape,
                               ResultOf(get_shape_labels, ElementsAre(10, 11, 12, ov::no_label)))));
@@ -126,7 +130,9 @@ TYPED_TEST_P(topk_type_prop, default_index_element_type) {
         EXPECT_THAT(op->outputs(),
                     ElementsAre(Property("Value type", &Output<Node>::get_element_type, exp_data_type),
                                 Property("Index type", &Output<Node>::get_element_type, this->exp_default_idx_type)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
         EXPECT_THAT(op->outputs(), Each(Property("Shape", &Output<Node>::get_shape, Shape({3, 2, 3, 4}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     }
     {
         // k < dimension
@@ -135,7 +141,9 @@ TYPED_TEST_P(topk_type_prop, default_index_element_type) {
         EXPECT_THAT(op->outputs(),
                     ElementsAre(Property("Value type", &Output<Node>::get_element_type, exp_data_type),
                                 Property("Index type", &Output<Node>::get_element_type, this->exp_default_idx_type)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
         EXPECT_THAT(op->outputs(), Each(Property("Shape", &Output<Node>::get_shape, Shape({1, 2, 3, 3}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 

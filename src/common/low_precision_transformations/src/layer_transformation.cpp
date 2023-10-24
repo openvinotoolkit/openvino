@@ -109,14 +109,14 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 
         if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
             dequantization.subtract->get_output_partial_shape(0),
-            dequantization.subtractConstant->get_shape(),
+            dequantization.subtractConstant->get_output_partial_shape(0).to_shape(),
             dequantization.channelDimIndex))) {
             return false;
         }
 
         if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
             dequantization.multiply->get_output_partial_shape(0),
-            dequantization.multiplyConstant->get_shape(),
+            dequantization.multiplyConstant->get_output_partial_shape(0).to_shape(),
             dequantization.channelDimIndex))) {
             return false;
         }

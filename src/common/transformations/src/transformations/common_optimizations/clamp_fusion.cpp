@@ -37,13 +37,13 @@ ov::pass::ClampFusion::ClampFusion() {
             std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(min_const_pattern).get_node_shared_ptr());
         if (!min_const)
             return false;
-        if (shape_size(min_const->get_shape()) != 1)
+        if (shape_size(min_const->get_output_partial_shape(0).to_shape()) != 1)
             return false;
         auto max_const =
             std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(max_const_pattern).get_node_shared_ptr());
         if (!max_const)
             return false;
-        if (shape_size(max_const->get_shape()) != 1)
+        if (shape_size(max_const->get_output_partial_shape(0).to_shape()) != 1)
             return false;
 
         double min_value = min_const->cast_vector<double>()[0];

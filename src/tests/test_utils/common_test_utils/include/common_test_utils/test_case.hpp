@@ -135,7 +135,7 @@ public:
 
         OPENVINO_ASSERT(m_output_index < results.size(), "All model results already have expected outputs.");
 
-        const auto shape = results.at(m_output_index)->get_shape();
+        const auto shape = results.at(m_output_index)->get_output_partial_shape(0).to_shape();
         add_expected_output<T>(shape, values);
     }
 

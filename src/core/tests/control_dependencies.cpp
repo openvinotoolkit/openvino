@@ -42,10 +42,10 @@ public:
         }
 
         if (args.size() != 0) {
-            set_output_type(0, args.at(0).get_element_type(), args.at(0).get_shape());
+            set_output_type(0, args.at(0).get_element_type(), args.at(0).get_partial_shape().to_shape());
         } else {
             auto dn = *(deps.begin());
-            set_output_type(0, dn->get_element_type(), dn->get_shape());
+            set_output_type(0, dn->get_element_type(), dn->get_output_partial_shape(0).to_shape());
         }
     }
 };

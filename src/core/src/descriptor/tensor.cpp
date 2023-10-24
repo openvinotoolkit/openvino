@@ -97,8 +97,8 @@ const ov::Shape& ov::descriptor::Tensor::get_shape() const {
 
 size_t ov::descriptor::Tensor::size() const {
     const bool bitwidth_less_than_byte = m_element_type.bitwidth() < 8;
-    return bitwidth_less_than_byte ? (shape_size(get_shape()) * m_element_type.bitwidth() + 7) >> 3
-                                   : (shape_size(get_shape()) * m_element_type.size());
+    return bitwidth_less_than_byte ? (shape_size(get_partial_shape().to_shape()) * m_element_type.bitwidth() + 7) >> 3
+                                   : (shape_size(get_partial_shape().to_shape()) * m_element_type.size());
 }
 
 const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {

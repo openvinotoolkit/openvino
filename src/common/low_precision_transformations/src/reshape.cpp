@@ -42,7 +42,7 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
         const auto& pattern_map = m.get_pattern_value_map();
         if (pattern_map.count(reshape_pattern_nonconst)) {
             const auto mul_const = as_type_ptr<ov::opset1::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
-            if (!mul_const || ov::shape_size(mul_const->get_shape()) != 1) {
+            if (!mul_const || ov::shape_size(mul_const->get_output_partial_shape(0).to_shape()) != 1) {
                 return false;
             }
         }
@@ -65,7 +65,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
     //    3. Reshape and replace
     auto replaceConstant = [](const std::shared_ptr<ov::opset1::Reshape>& reshape, const std::shared_ptr<ov::opset1::Constant>& originalConstant) {
         // reshape for element-wise constant is not required
-        auto constantShape = originalConstant->get_shape();
+        auto constantShape = originalConstant->get_output_partial_shape(0).to_shape();
         if (NetworkHelper::isScalarLike(originalConstant)) {
             if (!constantShape.empty()) {
                 const auto newConstant = NetworkHelper::toScalar(originalConstant);
@@ -99,7 +99,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
                 return constant;
             }
 
-            Shape newOperationConstantBroadcastedShape = constant->get_shape();
+            Shape newOperationConstantBroadcastedShape = constant->get_output_partial_shape(0).to_shape();
             // add dimensions to broadcast values
             if (newOperationConstantBroadcastedShape.size() == 2ul) {
                 newOperationConstantBroadcastedShape[0] = dimensionsToBroadcast;
@@ -215,7 +215,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtractConstant->get_shape();
+    const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtractConstant->get_output_partial_shape(0).to_shape();
     Shape subtractShapeWithBatch = subtractShape;
     const PartialShape inputPShape = op->get_input_partial_shape(0);
     if (inputPShape.rank().is_dynamic()) {
@@ -230,7 +230,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         subtractShapeWithBatch.insert(subtractShapeWithBatch.begin(), 1ul);
     }
 
-    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiplyConstant->get_shape();
+    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiplyConstant->get_output_partial_shape(0).to_shape();
     Shape multiplyShapeWithBatch = multiplyShape;
     if ((dequantization.multiply != nullptr) &&
         (multiplyShapeWithBatch.size() > 1ul) &&

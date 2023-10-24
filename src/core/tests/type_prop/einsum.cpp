@@ -41,7 +41,7 @@ TEST_F(TypePropEinsumTest, static_shape_dot_product) {
     EXPECT_EQ(o->get_equation(), equation);
     EXPECT_EQ(o->get_element_type(), et);
     EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
-    EXPECT_EQ(o->get_shape(), Shape({}));
+    EXPECT_EQ(o->get_output_partial_shape(0).to_shape(), Shape({}));
 }
 
 TEST_F(TypePropEinsumTest, static_shape_matmul) {
@@ -53,7 +53,7 @@ TEST_F(TypePropEinsumTest, static_shape_matmul) {
     EXPECT_EQ(o->get_equation(), equation);
     EXPECT_EQ(o->get_element_type(), et);
     EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
-    EXPECT_EQ(o->get_shape(), Shape({2, 4}));
+    EXPECT_EQ(o->get_output_partial_shape(0).to_shape(), Shape({2, 4}));
 }
 
 TEST_F(TypePropEinsumTest, static_shape_trace) {
@@ -104,7 +104,7 @@ TEST_F(TypePropEinsumTest, static_shape_multi_matmul) {
     EXPECT_EQ(o->get_equation(), equation);
     EXPECT_EQ(o->get_element_type(), et);
     EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
-    EXPECT_EQ(o->get_shape(), Shape({3, 2}));
+    EXPECT_EQ(o->get_output_partial_shape(0).to_shape(), Shape({3, 2}));
 }
 
 TEST_F(TypePropEinsumTest, static_shape_ellipsis_one_input) {
@@ -129,7 +129,7 @@ TEST_F(TypePropEinsumTest, static_shape_ellipsis_with_1d) {
     EXPECT_EQ(o->get_equation(), equation);
     EXPECT_EQ(o->get_element_type(), et);
     EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
-    EXPECT_EQ(o->get_shape(), Shape({3, 5}));
+    EXPECT_EQ(o->get_output_partial_shape(0).to_shape(), Shape({3, 5}));
 }
 
 TEST_F(TypePropEinsumTest, static_shape_ellipsis) {
@@ -141,7 +141,7 @@ TEST_F(TypePropEinsumTest, static_shape_ellipsis) {
     EXPECT_EQ(o->get_equation(), equation);
     EXPECT_EQ(o->get_element_type(), et);
     EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
-    EXPECT_EQ(o->get_shape(), Shape({11, 11, 7, 4}));
+    EXPECT_EQ(o->get_output_partial_shape(0).to_shape(), Shape({11, 11, 7, 4}));
 }
 
 // Dynamic shapes test also label propagation as each Einsum tests different equation

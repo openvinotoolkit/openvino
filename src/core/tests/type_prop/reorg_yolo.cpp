@@ -38,7 +38,7 @@ TEST_F(TypePropReorgYoloTest, stride_2) {
     // in_shape [N,C,H,W] -> out_shape [N, C*stride*stride, H/stride, W/stride]
     Shape expected_shape = Shape{1, 256, 13, 13};
 
-    EXPECT_EQ(reorg_yolo->get_output_shape(0), expected_shape);
+    EXPECT_EQ(reorg_yolo->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST_F(TypePropReorgYoloTest, stride_2_dynamic_shape) {
@@ -77,7 +77,7 @@ TEST_F(TypePropReorgYoloTest, stride_2_batch_2) {
     // in_shape [N,C,H,W] -> out_shape [N, C*stride*stride, H/stride, W/stride]
     Shape expected_shape = Shape{2, 256, 13, 13};
 
-    EXPECT_EQ(reorg_yolo->get_output_shape(0), expected_shape);
+    EXPECT_EQ(reorg_yolo->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST_F(TypePropReorgYoloTest, stride_2_smaller_H) {
@@ -88,7 +88,7 @@ TEST_F(TypePropReorgYoloTest, stride_2_smaller_H) {
 
     // in_shape [N,C,H,W] -> out_shape [N, C*stride*stride, H/stride, W/stride]
     Shape expected_shape = Shape{1, 96, 17, 31};
-    EXPECT_EQ(reorg_yolo->get_output_shape(0), expected_shape);
+    EXPECT_EQ(reorg_yolo->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST_F(TypePropReorgYoloTest, stride_3) {
@@ -101,7 +101,7 @@ TEST_F(TypePropReorgYoloTest, stride_3) {
     Shape expected_shape =
         Shape{in_shape[0], in_shape[1] * stride * stride, in_shape[2] / stride, in_shape[3] / stride};
 
-    EXPECT_EQ(reorg_yolo->get_output_shape(0), expected_shape);
+    EXPECT_EQ(reorg_yolo->get_output_partial_shape(0).to_shape(), expected_shape);
 }
 
 TEST_F(TypePropReorgYoloTest, catch_small_shape_stride) {

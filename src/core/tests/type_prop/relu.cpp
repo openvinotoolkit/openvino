@@ -14,7 +14,7 @@ TEST(type_prop, relu_2d) {
     Shape relu_shape{2, 4};
     auto relu = make_shared<op::v0::Relu>(param);
     ASSERT_EQ(relu->get_element_type(), element::f32);
-    ASSERT_EQ(relu->get_shape(), relu_shape);
+    ASSERT_EQ(relu->get_output_partial_shape(0).to_shape(), relu_shape);
 }
 
 TEST(type_prop, relu_4d) {
@@ -22,5 +22,5 @@ TEST(type_prop, relu_4d) {
     Shape relu_shape{2, 2, 2, 2};
     auto relu = make_shared<op::v0::Relu>(param);
     ASSERT_EQ(relu->get_element_type(), element::f32);
-    ASSERT_EQ(relu->get_shape(), relu_shape);
+    ASSERT_EQ(relu->get_output_partial_shape(0).to_shape(), relu_shape);
 }

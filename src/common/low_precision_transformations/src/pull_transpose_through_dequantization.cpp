@@ -30,8 +30,8 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transp
         elementwiseValuesConvert->get_input_node_shared_ptr(0ul);
     assert(ov::is_type<opset1::Constant>(elementwiseValues));
 
-    const auto transposeValuesShape = transposeValues->get_output_shape(0);
-    const auto elementwiseValuesShape = elementwiseValues->get_output_shape(0);
+    const auto transposeValuesShape = transposeValues->get_output_partial_shape(0).to_shape();
+    const auto elementwiseValuesShape = elementwiseValues->get_output_partial_shape(0).to_shape();
     if (elementwiseValuesShape.size() != shape_size(transposeValuesShape)) {
         if (shape_size(elementwiseValuesShape) != 1ul) {
             return nullptr;

@@ -239,7 +239,7 @@ TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_max_out) {
     // batch * class * box
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{2}));
 }
 
 TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_nms_topk) {
@@ -255,7 +255,7 @@ TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_nms_topk) {
     // batch * class * min(nms_topk, box)
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 3), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 3), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{2}));
 }
 
 TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_keep_topk) {
@@ -272,7 +272,7 @@ TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_keep_topk) {
     // batch * min(keep_topk, class * box))
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 8), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 8), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{2}));
 }
 
 TYPED_TEST(type_prop, multiclass_nms_input_f16) {
@@ -287,7 +287,7 @@ TYPED_TEST(type_prop, multiclass_nms_input_f16) {
     // batch * class * box
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{2}));
 }
 
 TYPED_TEST(type_prop, multiclass_nms_output_shape_i32) {
@@ -303,7 +303,7 @@ TYPED_TEST(type_prop, multiclass_nms_output_shape_i32) {
     // batch * class * box
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+    EXPECT_EQ(nms->get_output_partial_shape(2).to_shape(), (Shape{2}));
 }
 
 TYPED_TEST(type_prop, multiclass_nms_dynamic_boxes_and_scores) {

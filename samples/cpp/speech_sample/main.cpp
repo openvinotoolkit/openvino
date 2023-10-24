@@ -287,7 +287,7 @@ int main(int argc, char* argv[]) {
                 for (auto& info : imported_inputs) {
                     auto imported_layout = ov::layout::get_layout(info);
                     if (ov::layout::has_batch(imported_layout)) {
-                        batchSize = (uint32_t)info.get_shape()[ov::layout::batch_idx(imported_layout)];
+                        batchSize = (uint32_t)info.get_partial_shape().to_shape()[ov::layout::batch_idx(imported_layout)];
                         break;
                     }
                 }
@@ -510,7 +510,7 @@ int main(int argc, char* argv[]) {
                                 const auto output_name = outputs.size() > next_output
                                                              ? outputs[next_output]
                                                              : executableNet.output(next_output).get_any_name();
-                                auto dims = executableNet.output(output_name).get_shape();
+                                auto dims = executableNet.output(output_name).get_partial_shape().to_shape();
                                 numScoresPerOutput[next_output] = std::accumulate(std::begin(dims),
                                                                                   std::end(dims),
                                                                                   size_t{1},

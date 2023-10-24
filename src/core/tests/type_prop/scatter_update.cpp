@@ -29,7 +29,7 @@ void type_check(const type& refType) {
     auto A = ov::op::v0::Constant::create(element::i32, Shape{1}, {1});
     auto scatter_update = make_shared<op::v3::ScatterUpdate>(R, I, U, A);
     EXPECT_EQ(scatter_update->get_output_element_type(0), refType);
-    EXPECT_EQ(scatter_update->get_output_shape(0), ref_shape);
+    EXPECT_EQ(scatter_update->get_output_partial_shape(0).to_shape(), ref_shape);
 }
 
 void incorrect_type_check(const type& refType,

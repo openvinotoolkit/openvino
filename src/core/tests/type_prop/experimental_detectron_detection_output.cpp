@@ -44,10 +44,12 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, default_ctor) {
                 ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::f32),
                             Property("Classes type", &Output<Node>::get_element_type, element::i32),
                             Property("Scores types", &Output<Node>::get_element_type, element::f32)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("Boxes shape", &Output<Node>::get_shape, Shape({max_detection, 4})),
                             Property("Classes shape", &Output<Node>::get_shape, Shape({max_detection})),
                             Property("Scores shape", &Output<Node>::get_shape, Shape({max_detection}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, basic_shape_inference) {
@@ -62,10 +64,12 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, basic_shape_inference
                 ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::f64),
                             Property("Classes type", &Output<Node>::get_element_type, element::i32),
                             Property("Scores types", &Output<Node>::get_element_type, element::f64)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("Boxes shape", &Output<Node>::get_shape, Shape({exp_detection, 4})),
                             Property("Classes shape", &Output<Node>::get_shape, Shape({exp_detection})),
                             Property("Scores shape", &Output<Node>::get_shape, Shape({exp_detection}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, all_input_got_dynamic_type) {
@@ -80,10 +84,12 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, all_input_got_dynamic
                 ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::dynamic),
                             Property("Classes type", &Output<Node>::get_element_type, element::i32),
                             Property("Scores types", &Output<Node>::get_element_type, element::dynamic)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("Boxes shape", &Output<Node>::get_shape, Shape({exp_detection, 4})),
                             Property("Classes shape", &Output<Node>::get_shape, Shape({exp_detection})),
                             Property("Scores shape", &Output<Node>::get_shape, Shape({exp_detection}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, some_input_got_dynamic_type) {
@@ -98,10 +104,12 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, some_input_got_dynami
                 ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::f64),
                             Property("Classes type", &Output<Node>::get_element_type, element::i32),
                             Property("Scores types", &Output<Node>::get_element_type, element::f64)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("Boxes shape", &Output<Node>::get_shape, Shape({exp_detection, 4})),
                             Property("Classes shape", &Output<Node>::get_shape, Shape({exp_detection})),
                             Property("Scores shape", &Output<Node>::get_shape, Shape({exp_detection}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, interval_shapes) {

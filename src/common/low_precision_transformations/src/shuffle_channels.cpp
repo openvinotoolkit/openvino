@@ -43,7 +43,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov
 
     const auto shuffleDequantizationConstant = [&](const std::shared_ptr<Node>& eltwise) {
         const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise, true);
-        const auto constShape = normalizedConst->get_shape();
+        const auto constShape = normalizedConst->get_output_partial_shape(0).to_shape();
 
         if (shape_size(constShape) == 1ul) {
             return NetworkHelper::toScalar(normalizedConst);
@@ -98,10 +98,10 @@ bool ShuffleChannelsTransformation::canBeTransformed(const TransformationContext
     // but it's necessary when dequantization operations are per channel
     if (shuffleChannels->get_input_partial_shape(0).rank().is_dynamic() && shuffleChannels->get_axis() < 0) {
         const bool perChannelSub = dequantization.subtractConstant ?
-            ov::shape_size(dequantization.subtractConstant->get_shape()) > 0 :
+            ov::shape_size(dequantization.subtractConstant->get_output_partial_shape(0).to_shape()) > 0 :
             false;
         const bool perChannelMul = dequantization.multiplyConstant ?
-            ov::shape_size(dequantization.multiplyConstant->get_shape()) > 0 :
+            ov::shape_size(dequantization.multiplyConstant->get_output_partial_shape(0).to_shape()) > 0 :
             false;
         if (perChannelMul || perChannelSub) {
             return false;

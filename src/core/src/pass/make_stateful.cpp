@@ -107,11 +107,11 @@ bool ov::pass::MakeStateful::run_on_model(const std::shared_ptr<ov::Model>& f) {
         // Create Variable
         std::string var_name = variable_names[i];
         auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{param->get_shape(), param->get_element_type(), var_name});
+            ov::op::util::VariableInfo{param->get_output_partial_shape(0).to_shape(), param->get_element_type(), var_name});
         variables.push_back(variable);
 
         // Create ReadValue
-        auto const_zero = std::make_shared<ov::op::v0::Constant>(param->get_element_type(), param->get_shape(), 0);
+        auto const_zero = std::make_shared<ov::op::v0::Constant>(param->get_element_type(), param->get_output_partial_shape(0).to_shape(), 0);
         auto read_val = std::make_shared<ov::op::v6::ReadValue>(const_zero, variable);
         replace_node(param, read_val);
         ov::copy_runtime_info(param, {read_val, const_zero});

@@ -84,13 +84,13 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
             return ov::as_type_ptr<ov::opset1::Constant>(fold<ov::opset1::Broadcast>(constant, bCastConst));
         };
 
-        if (dequantization.subtract && shape_size(dequantization.subtractConstant->get_shape()) == 1ul) {
+        if (dequantization.subtract && shape_size(dequantization.subtractConstant->get_output_partial_shape(0).to_shape()) == 1ul) {
             const auto broadcastedConstant = bcastConstant(dequantization.subtractConstant);
             replace_node(dequantization.subtractConstant, broadcastedConstant);
             dequantization.subtractConstant = broadcastedConstant;
         }
 
-        if (padConstantValue != 0.f && shape_size(dequantization.multiplyConstant->get_shape()) == 1ul) {
+        if (padConstantValue != 0.f && shape_size(dequantization.multiplyConstant->get_output_partial_shape(0).to_shape()) == 1ul) {
             const auto broadcastedConstant = bcastConstant(dequantization.multiplyConstant);
             replace_node(dequantization.multiplyConstant, broadcastedConstant);
             dequantization.multiplyConstant = broadcastedConstant;
@@ -101,7 +101,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
         const std::shared_ptr<ov::opset1::Constant>& constant,
         const std::shared_ptr<ov::op::util::PadBase>& pad,
         float padVal) {
-        const auto constantShape = constant->get_shape();
+        const auto constantShape = constant->get_output_partial_shape(0).to_shape();
         if (shape_size(constantShape) == 1ul) {
             return NetworkHelper::toScalar(constant);
         }
@@ -236,7 +236,7 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
 
 
             const size_t inputRankValue = padInputRank.get_length();
-            auto deqShape = deqConst->get_shape();
+            auto deqShape = deqConst->get_output_partial_shape(0).to_shape();
             if (shape_size(deqShape) > 1ul) {
                 while (deqShape.size() < inputRankValue) {
                     deqShape.insert(deqShape.begin(), 1ul);
@@ -265,7 +265,7 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
     }
 
     if (mode == op::PadMode::REFLECT) {
-        auto deqShape = dequantization.multiplyConstant->get_shape();
+        auto deqShape = dequantization.multiplyConstant->get_output_partial_shape(0).to_shape();
         if (shape_size(deqShape) == 1ul) {
             return true;
         } else {

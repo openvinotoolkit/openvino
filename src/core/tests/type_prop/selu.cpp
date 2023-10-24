@@ -16,7 +16,7 @@ TEST(type_prop, selu_basic_inference_f32_3D) {
     const auto selu = make_shared<op::v0::Selu>(param, alpha, lambda);
 
     ASSERT_EQ(selu->get_element_type(), element::f32);
-    ASSERT_EQ(selu->get_shape(), (Shape{1, 32, 32}));
+    ASSERT_EQ(selu->get_output_partial_shape(0).to_shape(), (Shape{1, 32, 32}));
 }
 
 TEST(type_prop, selu_basic_inference_f16_3D) {
@@ -26,7 +26,7 @@ TEST(type_prop, selu_basic_inference_f16_3D) {
     const auto selu = make_shared<op::v0::Selu>(param, alpha, lambda);
 
     ASSERT_EQ(selu->get_element_type(), element::f16);
-    ASSERT_EQ(selu->get_shape(), (Shape{1, 32, 32}));
+    ASSERT_EQ(selu->get_output_partial_shape(0).to_shape(), (Shape{1, 32, 32}));
 }
 
 TEST(type_prop, selu_basic_inference_f32_5D) {
@@ -36,7 +36,7 @@ TEST(type_prop, selu_basic_inference_f32_5D) {
     const auto selu = make_shared<op::v0::Selu>(param, alpha, lambda);
 
     ASSERT_EQ(selu->get_element_type(), element::f32);
-    ASSERT_EQ(selu->get_shape(), (Shape{12, 135, 221, 31, 15}));
+    ASSERT_EQ(selu->get_output_partial_shape(0).to_shape(), (Shape{12, 135, 221, 31, 15}));
 }
 
 TEST(type_prop, selu_basic_inference_f16_5D) {
@@ -46,7 +46,7 @@ TEST(type_prop, selu_basic_inference_f16_5D) {
     const auto selu = make_shared<op::v0::Selu>(param, alpha, lambda);
 
     ASSERT_EQ(selu->get_element_type(), element::f16);
-    ASSERT_EQ(selu->get_shape(), (Shape{12, 135, 221, 31, 15}));
+    ASSERT_EQ(selu->get_output_partial_shape(0).to_shape(), (Shape{12, 135, 221, 31, 15}));
 }
 
 TEST(type_prop, selu_incompatible_input_type_boolean) {

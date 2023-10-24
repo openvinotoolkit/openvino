@@ -25,7 +25,7 @@ MarkupBias::MarkupBias() {
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& const_shape = pattern_map.at(bias_const_m).get_shape();
+        const auto& const_shape = pattern_map.at(bias_const_m).get_partial_shape().to_shape();
 
         const bool per_channel = std::count_if(const_shape.begin(), const_shape.end(), [](size_t x) { return x > 1; }) == 1;
         if (ov::shape_size(const_shape) == 1 || per_channel) {

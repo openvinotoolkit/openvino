@@ -98,7 +98,7 @@ TEST(type_prop_layers, detection_output_basic) {
                                       attrs,
                                       element::f32,
                                       element::f32);
-    EXPECT_EQ(op->get_shape(), (Shape{1, 1, 800, 7}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1, 1, 800, 7}));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
@@ -180,7 +180,7 @@ TEST(type_prop_layers, detection_output_v0_f16) {
                                       attrs,
                                       element::f16,
                                       element::f16);
-    EXPECT_EQ(op->get_shape(), (Shape{1, 1, 800, 7}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1, 1, 800, 7}));
     EXPECT_EQ(op->get_element_type(), element::f16);
 }
 
@@ -197,7 +197,7 @@ TEST(type_prop_layers, detection_f16_with_proposals_f32) {
                                       attrs,
                                       element::f16,
                                       element::f32);
-    EXPECT_EQ(op->get_shape(), (Shape{1, 1, 800, 7}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1, 1, 800, 7}));
     EXPECT_EQ(op->get_element_type(), element::f16);
 }
 
@@ -214,7 +214,7 @@ TEST(type_prop_layers, detection_output_v0_not_normalized) {
                                       attrs,
                                       element::f32,
                                       element::f32);
-    EXPECT_EQ(op->get_shape(), (Shape{1, 1, 800, 7}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1, 1, 800, 7}));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
@@ -232,7 +232,7 @@ TEST(type_prop_layers, detection_output_v0_negative_keep_top_k) {
                                       attrs,
                                       element::f32,
                                       element::f32);
-    EXPECT_EQ(op->get_shape(), (Shape{1, 1, 40, 7}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1, 1, 40, 7}));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
@@ -251,7 +251,7 @@ TEST(type_prop_layers, detection_output_v0_no_share_location) {
                                       attrs,
                                       element::f32,
                                       element::f32);
-    EXPECT_EQ(op->get_shape(), (Shape{1, 1, 40, 7}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1, 1, 40, 7}));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
@@ -270,7 +270,7 @@ TEST(type_prop_layers, detection_output_v0_calculated_num_prior_boxes) {
                                       attrs,
                                       element::f32,
                                       element::f32);
-    EXPECT_EQ(op->get_shape(), (Shape{1, 1, 80, 7}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1, 1, 80, 7}));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
@@ -288,7 +288,7 @@ TEST(type_prop_layers, detection_output_v0_top_k) {
                                       attrs,
                                       element::f32,
                                       element::f32);
-    EXPECT_EQ(op->get_shape(), (Shape{1, 1, 56, 7}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1, 1, 56, 7}));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 

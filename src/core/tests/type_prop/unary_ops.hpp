@@ -18,12 +18,12 @@ TYPED_TEST_SUITE_P(UnaryOperator);
 TYPED_TEST_P(UnaryOperator, shape_inference_Shape1) {
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
     auto op = std::make_shared<TypeParam>(param);
-    ASSERT_EQ(op->get_shape(), (Shape{2, 2}));
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{2, 2}));
 }
 TYPED_TEST_P(UnaryOperator, shape_inference_Shape2) {
     auto param = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{21, 15, 2});
     auto op = std::make_shared<TypeParam>(param);
-    ASSERT_EQ(op->get_shape(), (Shape{21, 15, 2}));
+    ASSERT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{21, 15, 2}));
 }
 
 TYPED_TEST_P(UnaryOperator, input_type_inference_F32) {

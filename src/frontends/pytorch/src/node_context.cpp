@@ -220,7 +220,7 @@ namespace {
 template <typename T>
 Any get_constant_data(const std::shared_ptr<v0::Constant>& constant) {
     const T* ptr = reinterpret_cast<const T*>(constant->get_data_ptr());
-    const auto& shape = constant->get_shape();
+    const auto& shape = constant->get_output_partial_shape(0).to_shape();
     if (is_scalar(shape)) {
         return ptr[0];
     }

@@ -214,7 +214,7 @@ TEST(constant_folding, constant_squeeze) {
     auto new_const = get_result_constant(m);
     EXPECT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), shape_out);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), shape_out);
 
     auto values_out = new_const->get_vector<float>();
     ASSERT_TRUE(ov::test::utils::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
@@ -243,7 +243,7 @@ TEST(constant_folding, constant_unsqueeze) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), shape_out);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), shape_out);
 
     auto values_out = new_const->get_vector<float>();
     ASSERT_TRUE(ov::test::utils::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
@@ -914,7 +914,7 @@ TEST(constant_folding, const_reduceprod) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), output_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), output_shape);
 
     auto values_out = new_const->get_vector<int32_t>();
 
@@ -946,7 +946,7 @@ TEST(constant_folding, const_reduceprod_keepdims) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), output_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), output_shape);
 
     auto values_out = new_const->get_vector<int32_t>();
 
@@ -977,7 +977,7 @@ TEST(constant_folding, const_reducesum) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), output_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), output_shape);
 
     auto values_out = new_const->get_vector<int32_t>();
 
@@ -1009,7 +1009,7 @@ TEST(constant_folding, const_reducesum_keepdims) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), output_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), output_shape);
 
     auto values_out = new_const->get_vector<int32_t>();
 
@@ -1041,7 +1041,7 @@ TEST(constant_folding, const_reducemax) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), output_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), output_shape);
 
     auto values_out = new_const->get_vector<int32_t>();
 
@@ -1073,7 +1073,7 @@ TEST(constant_folding, const_reducemax_keepdims) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), output_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), output_shape);
 
     auto values_out = new_const->get_vector<int32_t>();
 
@@ -1105,7 +1105,7 @@ TEST(constant_folding, const_reducemin) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), output_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), output_shape);
 
     auto values_out = new_const->get_vector<int32_t>();
 
@@ -1137,7 +1137,7 @@ TEST(constant_folding, const_reducemin_keepdims) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), output_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), output_shape);
 
     auto values_out = new_const->get_vector<int32_t>();
 
@@ -1169,7 +1169,7 @@ TEST(constant_folding, const_reducemean) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), output_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), output_shape);
 
     auto values_out = new_const->get_vector<int32_t>();
 
@@ -1201,7 +1201,7 @@ TEST(constant_folding, const_reducemean_keepdims) {
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
-    ASSERT_EQ(new_const->get_shape(), output_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), output_shape);
 
     auto values_out = new_const->get_vector<int32_t>();
 
@@ -1232,7 +1232,7 @@ TEST(constant_folding, const_reduce_logical_and__no_keepdims) {
     check_names(new_const, {"data", "axes", "test"});
 
     const Shape expected_out_shape{3};
-    ASSERT_EQ(new_const->get_shape(), expected_out_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), expected_out_shape);
 
     const auto values_out = new_const->get_vector<char>();
 
@@ -1265,7 +1265,7 @@ TEST(constant_folding, const_reduce_logical_and__keepdims) {
     // the output shape is expected to have 'ones' at the positions specified in the reduction axes
     // in case the keep_dims attribute of ReduceLogicalAnd is set to true
     const Shape expected_out_shape{3, 1};
-    ASSERT_EQ(new_const->get_shape(), expected_out_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), expected_out_shape);
 
     const auto values_out = new_const->get_vector<char>();
 
@@ -1296,7 +1296,7 @@ TEST(constant_folding, const_reduce_logical_and__keepdims_3d) {
     check_names(new_const, {"data", "axes", "test"});
 
     const Shape expected_out_shape{1, 2, 1};
-    ASSERT_EQ(new_const->get_shape(), expected_out_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), expected_out_shape);
 
     const auto values_out = new_const->get_vector<char>();
 
@@ -1327,7 +1327,7 @@ TEST(constant_folding, const_reduce_logical_or__no_keepdims) {
     check_names(new_const, {"data", "axes", "test"});
 
     const Shape expected_out_shape{3};
-    ASSERT_EQ(new_const->get_shape(), expected_out_shape);
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), expected_out_shape);
 
     const auto values_out = new_const->get_vector<char>();
 
@@ -1378,7 +1378,7 @@ TEST(constant_folding, const_concat_3d_single_elem) {
 
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant_1", "constant_2", "test"});
-    ASSERT_EQ(new_const->get_output_shape(0), (Shape{2, 1, 1}));
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), (Shape{2, 1, 1}));
 
     auto values_out = new_const->get_vector<int32_t>();
     vector<int32_t> values_expected{1, 2};
@@ -1405,7 +1405,7 @@ TEST(constant_folding, const_concat_axis_2) {
 
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant_1", "constant_2", "test"});
-    ASSERT_EQ(new_const->get_output_shape(0), (Shape{3, 1, 6}));
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), (Shape{3, 1, 6}));
 
     auto values_out = new_const->get_vector<int32_t>();
     vector<int32_t> values_expected{1, 2, 7, 8, 9, 10, 3, 4, 11, 12, 13, 14, 5, 6, 15, 16, 17, 18};
@@ -1435,7 +1435,7 @@ TEST(constant_folding, const_concat_axis_1_bool_type) {
 
     ASSERT_TRUE(new_const);
     check_names(new_const, {"constant_1", "constant_2", "constant_3", "test"});
-    ASSERT_EQ(new_const->get_output_shape(0), (Shape{1, 6, 2}));
+    ASSERT_EQ(new_const->get_output_partial_shape(0).to_shape(), (Shape{1, 6, 2}));
 
     auto values_out = new_const->get_vector<char>();
     vector<char> values_expected{true, true, true, false, true, false, true, false, true, false, true, false};
@@ -2974,7 +2974,7 @@ TEST(constant_folding, constant_v1_one_hot) {
     auto res = get_result_constant(f);
     ASSERT_TRUE(res);
 
-    ASSERT_EQ((Shape{3, 3}), res->get_output_shape(0));
+    ASSERT_EQ((Shape{3, 3}), res->get_output_partial_shape(0).to_shape());
     ASSERT_EQ(
         vector<float>({on_value, off_value, off_value, off_value, on_value, off_value, off_value, off_value, on_value}),
         res->get_vector<float>());
@@ -3002,7 +3002,7 @@ TEST(constant_folding, constant_v1_one_hot_negative_axes) {
     auto res = get_result_constant(f);
     ASSERT_TRUE(res);
 
-    ASSERT_EQ((Shape{4, 3}), res->get_output_shape(0));
+    ASSERT_EQ((Shape{4, 3}), res->get_output_partial_shape(0).to_shape());
     ASSERT_EQ(vector<int32_t>({on_value,
                                off_value,
                                off_value,
@@ -3046,7 +3046,7 @@ TEST(constant_folding, constant_v1_one_hot_negative_axes_2) {
     ASSERT_TRUE(res);
     check_names(res, {"indices_const", "depth_const", "on_const", "off_const", "test"});
 
-    ASSERT_EQ((Shape{2, 2, 3}), res->get_output_shape(0));
+    ASSERT_EQ((Shape{2, 2, 3}), res->get_output_partial_shape(0).to_shape());
     ASSERT_EQ(vector<bool>({on_value,
                             off_value,
                             off_value,
@@ -3257,7 +3257,7 @@ TEST(constant_folding, constant_non_zero_0D) {
 
     const vector<int64_t> values_expected{0};
     ASSERT_EQ(values_expected, values_out);
-    ASSERT_EQ((Shape{1, 1}), new_const->get_shape());
+    ASSERT_EQ((Shape{1, 1}), new_const->get_output_partial_shape(0).to_shape());
 }
 
 TEST(constant_folding, constant_non_zero_1D) {
@@ -3280,7 +3280,7 @@ TEST(constant_folding, constant_non_zero_1D) {
 
     const vector<int64_t> values_expected{1, 3};
     ASSERT_EQ(values_expected, values_out);
-    ASSERT_EQ((Shape{1, 2}), new_const->get_shape());
+    ASSERT_EQ((Shape{1, 2}), new_const->get_output_partial_shape(0).to_shape());
 }
 
 TEST(constant_folding, constant_non_zero_int32_output_type) {
@@ -3304,7 +3304,7 @@ TEST(constant_folding, constant_non_zero_int32_output_type) {
 
     const vector<int32_t> values_expected{1, 3};
     ASSERT_EQ(values_expected, values_out);
-    ASSERT_EQ((Shape{1, 2}), new_const->get_shape());
+    ASSERT_EQ((Shape{1, 2}), new_const->get_output_partial_shape(0).to_shape());
 }
 
 TEST(constant_folding, constant_non_zero_1D_all_indices) {
@@ -3327,7 +3327,7 @@ TEST(constant_folding, constant_non_zero_1D_all_indices) {
 
     const vector<int64_t> values_expected{0, 1, 2, 3, 4, 5, 6, 7};
     ASSERT_EQ(values_expected, values_out);
-    ASSERT_EQ((Shape{1, values_in.size()}), new_const->get_shape());
+    ASSERT_EQ((Shape{1, values_in.size()}), new_const->get_output_partial_shape(0).to_shape());
 }
 
 TEST(constant_folding, constant_non_zero_2D) {
@@ -3350,7 +3350,7 @@ TEST(constant_folding, constant_non_zero_2D) {
 
     const vector<int64_t> values_expected{0, 1, 2, 2, 0, 1, 0, 1};
     ASSERT_EQ(values_expected, values_out);
-    ASSERT_EQ((Shape{2, 4}), new_const->get_shape());
+    ASSERT_EQ((Shape{2, 4}), new_const->get_output_partial_shape(0).to_shape());
 }
 
 TEST(constant_folding, DISABLED_constant_non_zero_2D_all_indices) {
@@ -3373,7 +3373,7 @@ TEST(constant_folding, DISABLED_constant_non_zero_2D_all_indices) {
 
     const vector<int64_t> values_expected{0, 0, 0, 1, 1, 1, 2, 2, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2};
     ASSERT_EQ(values_expected, values_out);
-    ASSERT_EQ((Shape{2, values_in.size()}), new_const->get_shape());
+    ASSERT_EQ((Shape{2, values_in.size()}), new_const->get_output_partial_shape(0).to_shape());
 }
 
 TEST(constant_folding, DISABLED_constant_non_zero_2D_all_zeros) {
@@ -3393,7 +3393,7 @@ TEST(constant_folding, DISABLED_constant_non_zero_2D_all_zeros) {
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
     check_names(new_const, {"data", "test"});
-    ASSERT_EQ(shape_size(new_const->get_shape()), 0);
+    ASSERT_EQ(shape_size(new_const->get_output_partial_shape(0).to_shape()), 0);
 }
 
 TEST(constant_folding, constant_non_zero_3D) {
@@ -3417,7 +3417,7 @@ TEST(constant_folding, constant_non_zero_3D) {
     const vector<int64_t> values_expected{0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 2, 2, 2,
                                           0, 0, 0, 1, 1, 2, 0, 2, 1, 0, 1, 2, 0, 1, 2, 0, 2, 1};
     ASSERT_EQ(values_expected, values_out);
-    ASSERT_EQ((Shape{3, 12}), new_const->get_shape());
+    ASSERT_EQ((Shape{3, 12}), new_const->get_output_partial_shape(0).to_shape());
 }
 
 TEST(constant_folding, constant_scatter_elements_update_basic) {
@@ -3448,7 +3448,7 @@ TEST(constant_folding, constant_scatter_elements_update_basic) {
     auto result_node = get_result_constant(f);
     ASSERT_TRUE(result_node);
     check_names(result_node, {"data_const", "indices_const", "updates_const", "axis_const", "test"});
-    ASSERT_EQ(data_shape, result_node->get_output_shape(0));
+    ASSERT_EQ(data_shape, result_node->get_output_partial_shape(0).to_shape());
     std::vector<float> expected{2.f, 1.1f, 0.0f, 1.f, 0.0f, 2.2f, 0.f, 2.1f, 1.2f};
     range_test_check(result_node->cast_vector<float>(), expected);
 }
@@ -3475,7 +3475,7 @@ TEST(constant_folding, constant_scatter_elements_update_negative_axis) {
 
     auto result_node = get_result_constant(f);
     ASSERT_TRUE(result_node);
-    ASSERT_EQ(data_shape, result_node->get_output_shape(0));
+    ASSERT_EQ(data_shape, result_node->get_output_partial_shape(0).to_shape());
     std::vector<float> expected{1.1f, 1.0f, 1.2f, 2.0f, 2.2f, 2.1f, 0.0f, 0.0f, 0.0f};
     range_test_check(result_node->cast_vector<float>(), expected);
 }
@@ -3502,7 +3502,7 @@ TEST(constant_folding, constant_scatter_elements_update_1d_axis) {
 
     auto result_node = get_result_constant(f);
     ASSERT_TRUE(result_node);
-    ASSERT_EQ(data_shape, result_node->get_output_shape(0));
+    ASSERT_EQ(data_shape, result_node->get_output_partial_shape(0).to_shape());
     std::vector<float> expected{2.f, 1.1f, 0.0f, 1.f, 0.0f, 2.2f, 0.f, 2.1f, 1.2f};
     range_test_check(result_node->cast_vector<float>(), expected);
 }
@@ -3530,7 +3530,7 @@ TEST(constant_folding, constant_scatter_elements_update_3d_i16) {
 
     auto result_node = get_result_constant(f);
     ASSERT_TRUE(result_node);
-    ASSERT_EQ(data_shape, result_node->get_output_shape(0));
+    ASSERT_EQ(data_shape, result_node->get_output_partial_shape(0).to_shape());
     std::vector<int16_t> expected{4, 2, 0, 1, 0, 6, 0, 5, 3, 10, 0, 12, 0, 11, 0, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     range_test_check(result_node->cast_vector<int16_t>(), expected);
 }
@@ -3556,7 +3556,7 @@ TEST(constant_folding, constant_scatter_elements_update_one_elem) {
 
     auto result_node = get_result_constant(f);
     ASSERT_TRUE(result_node);
-    ASSERT_EQ(data_shape, result_node->get_output_shape(0));
+    ASSERT_EQ(data_shape, result_node->get_output_partial_shape(0).to_shape());
     std::vector<int32_t> expected{input_data};
     // we have updated coordinate (1, 0, 0)
     expected.at(9) = 2;
@@ -3758,8 +3758,8 @@ TEST(constant_folding, constant_loop) {
     const ov::Shape shape_0{1, 1, 3};
     const ov::Shape shape_1{2, 1, 3};
 
-    ASSERT_EQ(shape_0, result_node_0->get_output_shape(0));
-    ASSERT_EQ(shape_1, result_node_1->get_output_shape(0));
+    ASSERT_EQ(shape_0, result_node_0->get_output_partial_shape(0).to_shape());
+    ASSERT_EQ(shape_1, result_node_1->get_output_partial_shape(0).to_shape());
     std::vector<float> expected_0{4, 6, 8};
     std::vector<float> expected_1{1, 3, 5, 4, 6, 8};
     range_test_check(result_node_0->cast_vector<float>(), expected_0);
@@ -3873,7 +3873,7 @@ TEST(constant_folding, evaluate_on_tensor_vector) {
     vector<int> add_expected{2, 4, 6, 8};
     auto result_node = get_result_constant(model);
     ASSERT_TRUE(result_node);
-    ASSERT_EQ(data_shape, result_node->get_output_shape(0));
+    ASSERT_EQ(data_shape, result_node->get_output_partial_shape(0).to_shape());
     ASSERT_EQ(add_expected, result_node->cast_vector<int>());
 }
 

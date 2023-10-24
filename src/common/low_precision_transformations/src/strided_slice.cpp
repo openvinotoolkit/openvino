@@ -21,7 +21,7 @@ std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
     const std::shared_ptr<Node> node,
     const std::shared_ptr<Node> dequantizaiton_constant) {
     const auto constant = ov::as_type_ptr<ov::opset1::Constant>(dequantizaiton_constant);
-    const auto& original_constant_shape = constant->get_shape();
+    const auto& original_constant_shape = constant->get_output_partial_shape(0).to_shape();
     if (shape_size(original_constant_shape) == 1ul) {
         return NetworkHelper::toScalar(constant);
     }
@@ -148,8 +148,8 @@ bool StridedSliceTransformation::canBeTransformed(const TransformationContext& c
     }
 
     const auto is_dequantization_scalar =
-        ((dequantization.subtract && shape_size(dequantization.subtractConstant->get_shape()) == 1ull) &&
-        (dequantization.multiply && shape_size(dequantization.multiplyConstant->get_shape()) == 1ull));
+        ((dequantization.subtract && shape_size(dequantization.subtractConstant->get_output_partial_shape(0).to_shape()) == 1ull) &&
+        (dequantization.multiply && shape_size(dequantization.multiplyConstant->get_output_partial_shape(0).to_shape()) == 1ull));
 
     if (operation->get_input_partial_shape(0).rank().is_dynamic() && !is_dequantization_scalar) {
         return false;

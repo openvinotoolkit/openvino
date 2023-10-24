@@ -34,14 +34,15 @@ size_t get_lcm(size_t a, size_t b) {
 
 bool is_supported_matmul_for_split_dim_m_optimization(const std::shared_ptr<const ov::Node>& node) {
     const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(node);
-    return matmul && !matmul->get_transpose_a() && !matmul->is_dynamic() && node->get_shape().size() == 3; // It's needed only for 3D MHA patterns
+    return matmul && !matmul->get_transpose_a() && !matmul->is_dynamic() &&
+        node->get_output_partial_shape(0).size() == 3; // It's needed only for 3D MHA patterns
 }
 }  // namespace
 
 bool CommonOptimizations::CanOptimizeParallelWA(const std::shared_ptr<const ov::Node>& node, size_t concurrency) {
     if (!is_supported_matmul_for_split_dim_m_optimization(node))
         return false;
-    const auto mm_shape = node->get_shape();
+    const auto mm_shape = node->get_output_partial_shape(0).to_shape();
     const auto current_parallel_work_amount =
         std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), size_t(1), std::multiplies<size_t>());
     const auto dim_M = *(mm_shape.rbegin() + 1);
@@ -82,7 +83,7 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
         return *(shape.rbegin() + 1);
     };
 
-    const auto mm_shape = matmul0->get_shape();
+    const auto mm_shape = matmul0->get_output_partial_shape(0).to_shape();
     const auto m_dim = get_dim_M(mm_shape);  // M
     const auto batch_dim =
         std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), size_t(1), std::multiplies<size_t>());  // B (batch)
@@ -237,7 +238,7 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
 
     // Return the previous shape on outputs
     for (size_t i = 0; i < subgraph->get_output_size() && updated; ++i) {
-        const auto output_shape = subgraph->get_output_shape(i);
+        const auto output_shape = subgraph->get_output_partial_shape(i).to_shape();
         if (is_scalar(output_shape))
             continue;
 
@@ -290,7 +291,7 @@ void CommonOptimizations::ExtractConstants(const std::shared_ptr<ov::snippets::o
 
     for (auto& op : body->get_ops()) {
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
-        if (!constant || ov::shape_size(constant->get_shape()) == 1ul)
+        if (!constant || ov::shape_size(constant->get_output_partial_shape(0).to_shape()) == 1ul)
             continue;
 
         const auto child = constant->get_output_target_inputs(0).begin()->get_node()->shared_from_this();

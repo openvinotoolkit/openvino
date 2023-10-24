@@ -38,9 +38,9 @@ bool is_equal_consts(const shared_ptr<ov::Node>& l, const shared_ptr<ov::Node>& 
     if (l_const && r_const) {
         auto l_ptr = l_const->get_data_ptr();
         auto r_ptr = r_const->get_data_ptr();
-        size_t bytes = shape_size(l_const->get_shape()) * l_const->get_element_type().size();
+        size_t bytes = shape_size(l_const->get_output_partial_shape(0).to_shape()) * l_const->get_element_type().size();
         return l_const->get_element_type() == r_const->get_element_type() &&
-               l_const->get_shape() == r_const->get_shape() && (l_ptr == r_ptr || memcmp(l_ptr, r_ptr, bytes) == 0);
+               l_const->get_output_partial_shape(0).to_shape() == r_const->get_output_partial_shape(0).to_shape() && (l_ptr == r_ptr || memcmp(l_ptr, r_ptr, bytes) == 0);
     }
     return false;
 }

@@ -13,7 +13,7 @@ bool evaluate(const std::shared_ptr<ov::op::v0::NormalizeL2>& op,
     using T = typename ov::element_type_traits<ET>::value_type;
     ov::reference::normalize_l2<T>(inputs[0].data<const T>(),
                                    outputs[0].data<T>(),
-                                   op->get_input_shape(0),
+                                   op->get_input_partial_shape(0).to_shape(),
                                    op->get_reduction_axes(),
                                    op->get_eps(),
                                    op->get_eps_mode());

@@ -29,9 +29,9 @@ TEST(type_prop, lstm_cell) {
     EXPECT_EQ(lstm_cell->get_activations()[1], "tanh");
     EXPECT_EQ(lstm_cell->get_activations()[2], "tanh");
     EXPECT_EQ(lstm_cell->get_output_element_type(0), element::f32);
-    EXPECT_EQ(lstm_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(0).to_shape(), (Shape{batch_size, hidden_size}));
     EXPECT_EQ(lstm_cell->get_output_element_type(1), element::f32);
-    EXPECT_EQ(lstm_cell->get_output_shape(1), (Shape{batch_size, hidden_size}));
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(1).to_shape(), (Shape{batch_size, hidden_size}));
 }
 
 TEST(type_prop, lstm_cell_invalid_input) {

@@ -54,12 +54,12 @@ Tensor::Tensor(const Tensor& owner, const Coordinate& begin, const Coordinate& e
 
 Tensor::Tensor(const ov::Output<const ov::Node>& port, const Allocator& allocator)
     : Tensor(port.get_element_type(),
-             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
+             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_partial_shape().to_shape(),
              allocator) {}
 
 Tensor::Tensor(const ov::Output<const ov::Node>& port, void* host_ptr, const Strides& byte_strides)
     : Tensor(port.get_element_type(),
-             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
+             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_partial_shape().to_shape(),
              host_ptr,
              byte_strides) {}
 

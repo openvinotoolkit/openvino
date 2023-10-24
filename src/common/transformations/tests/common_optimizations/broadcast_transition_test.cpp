@@ -63,7 +63,7 @@ std::shared_ptr<ov::Model> getReference(const ov::element::Type& precision,
 
     const auto target_shape = [&]() {
         auto new_shape = original_target_shape;
-        auto op_shape = operation->get_shape();
+        auto op_shape = operation->get_output_partial_shape(0).to_shape();
         while (new_shape.size() < op_shape.size())
             new_shape.insert(new_shape.begin(), 1);
         while (op_shape.size() < new_shape.size())

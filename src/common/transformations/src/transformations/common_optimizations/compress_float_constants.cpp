@@ -22,9 +22,9 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     using src_type = typename ov::element_type_traits<PREC_FROM>::value_type;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
-    const auto size = ov::shape_size(constant->get_shape());
+    const auto size = ov::shape_size(constant->get_output_partial_shape(0).to_shape());
 
-    auto new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f16, constant->get_shape());
+    auto new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f16, constant->get_output_partial_shape(0).to_shape());
     auto* dst_data = const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(new_constant->get_data_ptr()));
     if (!dst_data || !size)
         return nullptr;

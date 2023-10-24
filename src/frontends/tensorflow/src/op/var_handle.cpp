@@ -161,7 +161,7 @@ OutputVector translate_readvariable_op(const NodeContext& node) {
     for (size_t i = 0; i < output_shapes.size(); ++i) {
         std::shared_ptr<ov::Node> output_node;
         if (node.get_input(0).get_partial_shape().is_static() &&
-            output_shapes[i].get_shape() != node.get_input(0).get_shape()) {
+            output_shapes[i].get_shape() != node.get_input(0).get_partial_shape().to_shape()) {
             auto reshape_shape = make_shared<Constant>(ov::element::i32, output_shapes[i].get_shape());
             output_node = make_shared<Reshape>(node.get_input(0), reshape_shape, false);
         } else {

@@ -27,7 +27,7 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
     const std::shared_ptr<ov::Node> &gather,
     const std::shared_ptr<ov::Node> &dequantizationConstant) {
     auto constant = ov::as_type_ptr<ov::opset1::Constant>(dequantizationConstant);
-    auto constantShape = constant->get_shape();
+    auto constantShape = constant->get_output_partial_shape(0).to_shape();
     if (shape_size(constantShape) == 1ul) {
         return NetworkHelper::toScalar(constant);
     }
@@ -164,7 +164,7 @@ bool GatherTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
     const auto canBeFolded = [&](const std::shared_ptr<ov::Node> dequantizationConstant) {
-        auto constantShape = dequantizationConstant->get_shape();
+        auto constantShape = dequantizationConstant->get_output_partial_shape(0).to_shape();
         const auto rank = operation->get_input_partial_shape(0).size();
         if (rank != constantShape.size()) {
             while ((constantShape.size() > 1) && (constantShape.size() < rank)) {
@@ -180,7 +180,7 @@ bool GatherTransformation::canBeTransformed(const TransformationContext& context
             const auto indicesConstant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1));
             if (indicesConstant == nullptr)
                 return false;
-            const auto indicesShape = indicesConstant->get_shape();
+            const auto indicesShape = indicesConstant->get_output_partial_shape(0).to_shape();
             if (indicesShape.size() != 0 && indicesShape.size() != 1) {
                 return false;
             }

@@ -60,7 +60,7 @@ protected:
             auto inf_req = compiled_model.create_infer_request();
             irs.push_back(inf_req);
             for (auto& iter : inputs) {
-                auto tensor = ov::test::utils::create_and_fill_tensor(iter.get_element_type(), iter.get_shape());
+                auto tensor = ov::test::utils::create_and_fill_tensor(iter.get_element_type(), iter.get_partial_shape().to_shape());
                 if (use_get_tensor)
                     memcpy(reinterpret_cast<uint8_t*>(inf_req.get_tensor(iter).data()),
                            reinterpret_cast<const uint8_t*>(tensor.data()),
@@ -72,7 +72,7 @@ protected:
             }
             for (auto& iter : outputs) {
                 if (!use_get_tensor) {
-                    auto tensor = ov::Tensor(iter.get_element_type(), iter.get_shape());
+                    auto tensor = ov::Tensor(iter.get_element_type(), iter.get_partial_shape().to_shape());
                     inf_req.set_tensor(iter, tensor);
                 }
             }

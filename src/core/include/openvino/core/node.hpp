@@ -332,6 +332,8 @@ public:
     const element::Type& get_element_type() const;
 
     /// Returns the shape for output i
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2024.0 release. Please use "
+                        "get_output_partial_shape() method instead.")
     const Shape& get_output_shape(size_t i) const;
 
     /// Returns the partial shape for output i
@@ -351,6 +353,8 @@ public:
     // TODO: deprecate in favor of node->get_output_shape(0) with a suitable check in the
     // calling code, or updates to the calling code if it is making an invalid assumption of
     // only one output.
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2024.0 release. Please use "
+                        "get_output_partial_shape(0) method instead.")
     const Shape& get_shape() const;
 
     /// Returns the tensor for output or input i
@@ -367,7 +371,8 @@ public:
     const element::Type& get_input_element_type(size_t i) const;
 
     /// Returns the shape of input i
-    // TODO: deprecate in favor of node->get_input_shape(i)
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2024.0 release. Please use "
+                        "get_input_partial_shape() method instead.")
     const Shape& get_input_shape(size_t i) const;
 
     /// Returns the partial shape of input i

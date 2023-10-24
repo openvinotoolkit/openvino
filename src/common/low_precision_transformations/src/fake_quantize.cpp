@@ -56,7 +56,7 @@ namespace {
 
 std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const PartialShape& targetShape) {
     assert(constantOp->get_output_partial_shape(0).is_static());
-    const Shape shape = constantOp->get_output_shape(0);
+    const Shape shape = constantOp->get_output_partial_shape(0).to_shape();
 
     if ((shape.size() > 1ul) && (shape.size() < static_cast<size_t>(targetShape.rank().get_length()))) {
         constantOp = fold<opset1::Unsqueeze>(
@@ -135,7 +135,7 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
         return false;
     }
 
-    Shape shape = constant->get_shape();
+    Shape shape = constant->get_output_partial_shape(0).to_shape();
     if (shape_size(shape) != 1ul) {
         const auto eltwiseInputPShape = eltwise->get_input_partial_shape(0);
         const auto eltwiseOutputPShape = eltwise->get_output_partial_shape(0);

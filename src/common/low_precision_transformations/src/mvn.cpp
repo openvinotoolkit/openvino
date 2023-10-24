@@ -36,7 +36,7 @@ std::shared_ptr<ov::op::v0::Constant> createNewScalesConst(const ov::op::v0::Con
     }
 
     const ov::element::Type type = originalConst.get_output_element_type(0);
-    return ov::op::v0::Constant::create(type, originalConst.get_shape(), newData);
+    return ov::op::v0::Constant::create(type, originalConst.get_output_partial_shape(0).to_shape(), newData);
 }
 
 } // namespace mvn

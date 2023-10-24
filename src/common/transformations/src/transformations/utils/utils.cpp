@@ -53,7 +53,7 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
 }
 
 std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::v0::Constant>& constant, const PartialShape& shape) {
-    auto const_shape = constant->get_shape();
+    auto const_shape = constant->get_output_partial_shape(0).to_shape();
     if (static_cast<int64_t>(const_shape.size()) == shape.rank().get_length()) {
         return constant;
     }
@@ -318,7 +318,7 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
 
     // fuse uncoditionally if constant is a scalar
-    const auto& constant_shape = constant.get_shape();
+    const auto& constant_shape = constant.get_partial_shape().to_shape();
     if (ov::is_scalar(constant_shape)) {
         return true;
     }

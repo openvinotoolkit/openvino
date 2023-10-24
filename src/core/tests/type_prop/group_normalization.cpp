@@ -19,7 +19,7 @@ TEST(type_prop, group_normalization_basic) {
 
     const auto gn = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f);
     EXPECT_EQ(gn->get_element_type(), element::f32);
-    EXPECT_EQ(gn->get_shape(), (Shape{1, 12, 6, 6}));
+    EXPECT_EQ(gn->get_output_partial_shape(0).to_shape(), (Shape{1, 12, 6, 6}));
 }
 
 TEST(type_prop, group_normalization_labels) {

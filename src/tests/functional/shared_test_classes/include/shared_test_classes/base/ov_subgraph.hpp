@@ -118,7 +118,7 @@ public:
     void run() override {
         std::vector<ov::Shape> input_shapes;
         for (const auto& param : function->get_parameters())
-            input_shapes.emplace_back(param->get_shape());
+            input_shapes.emplace_back(param->get_partial_shape().to_shape());
         init_input_shapes(ov::test::static_shapes_to_test_representation(input_shapes));
         ov::test::SubgraphBaseTest::run();
     }

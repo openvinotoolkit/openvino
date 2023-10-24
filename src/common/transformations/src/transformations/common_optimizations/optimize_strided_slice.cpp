@@ -35,7 +35,7 @@ bool ov::pass::UselessSliceEraser::run_on_model(const std::shared_ptr<ov::Model>
         if (!is_slice || node->get_output_partial_shape(0).is_dynamic() ||
             node->get_input_partial_shape(0).is_dynamic())
             continue;
-        if (node->get_input_shape(0) != node->get_output_shape(0))
+        if (node->get_input_partial_shape(0) != node->get_output_partial_shape(0))
             continue;
 
         auto stridesNode = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(3));
@@ -76,7 +76,7 @@ op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> sli
     const auto begin_mask = convert_mask_to_axis_set(slice->get_begin_mask());
     const auto end_mask = convert_mask_to_axis_set(slice->get_end_mask());
 
-    const auto plan = op::util::make_slice_plan(slice->input(0).get_shape(),
+    const auto plan = op::util::make_slice_plan(slice->input(0).get_partial_shape().to_shape(),
                                                 begin_vec,
                                                 end_vec,
                                                 strides_vec,
@@ -173,7 +173,7 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
         if (!valid_for_replacement)
             continue;
 
-        auto input_shape = pair.first.get_shape();
+        auto input_shape = pair.first.get_partial_shape().to_shape();
         auto axis = -1;
 
         struct OutputToPatrition {
@@ -285,7 +285,7 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
         if (!constant)
             return false;
-        if (shape_size(constant->get_shape()) != 1)
+        if (shape_size(constant->get_output_partial_shape(0).to_shape()) != 1)
             return false;
         value = constant->cast_vector<int64_t>()[0];
         return true;

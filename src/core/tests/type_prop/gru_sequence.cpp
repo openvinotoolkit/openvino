@@ -121,9 +121,9 @@ TEST(type_prop, gru_sequence_forward) {
     EXPECT_EQ(sequence->get_linear_before_reset(), false);
     EXPECT_EQ(sequence->get_output_element_type(0), element::f32);
     EXPECT_EQ(sequence->outputs().size(), 2);
-    EXPECT_EQ(sequence->get_output_shape(0), (Shape{batch_size, num_directions, seq_length, hidden_size}));
+    EXPECT_EQ(sequence->get_output_partial_shape(0).to_shape(), (Shape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(sequence->get_output_element_type(1), element::f32);
-    EXPECT_EQ(sequence->get_output_shape(1), (Shape{batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(sequence->get_output_partial_shape(1).to_shape(), (Shape{batch_size, num_directions, hidden_size}));
 }
 
 TEST(type_prop, gru_sequence_bidirectional) {
@@ -169,9 +169,9 @@ TEST(type_prop, gru_sequence_bidirectional) {
     EXPECT_EQ(sequence->get_linear_before_reset(), false);
     EXPECT_EQ(sequence->get_output_element_type(0), element::f32);
     EXPECT_EQ(sequence->outputs().size(), 2);
-    EXPECT_EQ(sequence->get_output_shape(0), (Shape{batch_size, num_directions, seq_length, hidden_size}));
+    EXPECT_EQ(sequence->get_output_partial_shape(0).to_shape(), (Shape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(sequence->get_output_element_type(1), element::f32);
-    EXPECT_EQ(sequence->get_output_shape(1), (Shape{batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(sequence->get_output_partial_shape(1).to_shape(), (Shape{batch_size, num_directions, hidden_size}));
 }
 
 TEST(type_prop, gru_sequence_dynamic_batch_size) {

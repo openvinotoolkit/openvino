@@ -101,8 +101,8 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2) {
 
     auto results = ResultVector{result0, result1};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
 }
 
 TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
@@ -170,10 +170,10 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
 
     auto results = ResultVector{result0, result1};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
 
-    EXPECT_EQ(body->get_results()[0]->get_output_shape(0), out0_shape);
+    EXPECT_EQ(body->get_results()[0]->get_output_partial_shape(0).to_shape(), out0_shape);
 }
 
 TEST(type_prop, tensor_iterator_with_dynamic_reshape) {

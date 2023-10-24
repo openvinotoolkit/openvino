@@ -84,7 +84,7 @@ std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov
         InputInfo in_info(node->get_input_partial_shape(port_id));
         std::string input_name = input_node->get_friendly_name();
         if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)) {
-            if (ov::shape_size(input_node->get_output_shape(0)) == 0)
+            if (ov::shape_size(input_node->get_output_partial_shape(0).to_shape()) == 0)
                 continue;
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(input_node);
             in_info.is_const = true;
@@ -120,7 +120,7 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
         if (constant_input) {
             if (is_save_const || constant_input->get_byte_size() < 1024) {
                 auto in_const = std::make_shared<ov::op::v0::Constant>(constant_input->get_element_type(),
-                                                                       constant_input->get_shape(),
+                                                                       constant_input->get_output_partial_shape(0).to_shape(),
                                                                        constant_input->get_data_ptr());
                 in_const->set_friendly_name(input_name);
                 inputs[i] = in_const;

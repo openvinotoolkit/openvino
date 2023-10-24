@@ -151,7 +151,7 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
             const auto unsqueeze_adjusted_axes = adjust_axes(unsqueeze_axes_val, reduce_axes_val);
             if (unsqueeze_adjusted_axes != unsqueeze_axes_val) {
                 unsqueeze_axes_input = ov::op::v0::Constant::create(unsqueeze_axes_input->get_element_type(),
-                                                                    unsqueeze_axes_input->get_shape(),
+                                                                    unsqueeze_axes_input->get_output_partial_shape(0).to_shape(),
                                                                     unsqueeze_adjusted_axes);
             }
         }
@@ -159,7 +159,7 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
         const auto reduce_adjusted_axes = adjust_axes(reduce_axes_val, unsqueeze_axes_val);
         if (reduce_adjusted_axes != reduce_axes_val) {
             reduce_axes_input = ov::op::v0::Constant::create(reduce_axes_input->get_element_type(),
-                                                             reduce_axes_input->get_shape(),
+                                                             reduce_axes_input->get_output_partial_shape(0).to_shape(),
                                                              reduce_adjusted_axes);
         }
 
@@ -202,7 +202,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
             return false;
         }
         const auto unsqueeze_axes =
-            try_get_unsqueeze_axes_from_reshape(reshape_node->get_shape(), input_node.get_shape());
+            try_get_unsqueeze_axes_from_reshape(reshape_node->get_output_partial_shape(0).to_shape(), input_node.get_partial_shape().to_shape());
         if (unsqueeze_axes.empty()) {
             return false;
         }
@@ -225,14 +225,14 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
 
         if (reduce_adjusted_axes != reduce_axes_val) {
             reduce_axes_input = ov::op::v0::Constant::create(reduce_axes_input->get_element_type(),
-                                                             reduce_axes_input->get_shape(),
+                                                             reduce_axes_input->get_output_partial_shape(0).to_shape(),
                                                              reduce_adjusted_axes);
         }
 
         const auto new_reduce_node = reduce_node->clone_with_new_inputs({input_node, reduce_axes_input});
         new_reduce_node->set_friendly_name(reshape_node->get_friendly_name());
         const auto new_reshape_node = reshape_node->clone_with_new_inputs(
-            {new_reduce_node, update_reshape_target_shape(new_reduce_node->get_shape(), unsqueeze_adjusted_axes)});
+            {new_reduce_node, update_reshape_target_shape(new_reduce_node->get_output_partial_shape(0).to_shape(), unsqueeze_adjusted_axes)});
         new_reshape_node->set_friendly_name(reduce_node->get_friendly_name());
 
         copy_runtime_info({reduce_node, reshape_node}, {new_reduce_node, new_reshape_node});

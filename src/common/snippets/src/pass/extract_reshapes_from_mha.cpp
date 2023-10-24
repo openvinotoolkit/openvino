@@ -35,8 +35,8 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
             return false;
 
         const auto& reshape_2 = pattern_map.at(reshape_2_m);
-        const auto& matmul_shape = matmul.get_shape();
-        const auto& output_shape = reshape_2.get_shape();
+        const auto& matmul_shape = matmul.get_partial_shape().to_shape();
+        const auto& output_shape = reshape_2.get_partial_shape().to_shape();
         if (matmul_shape != output_shape)
             return false;
 

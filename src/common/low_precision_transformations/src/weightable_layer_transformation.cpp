@@ -32,7 +32,7 @@ std::vector<size_t> getWeightsDequantizationIdces(const std::shared_ptr<const No
 }
 
 bool checkConstShape(const std::vector<size_t>& idcesToCheck, const std::shared_ptr<ov::opset1::Constant> constant) {
-    const auto& shape = constant->get_shape();
+    const auto& shape = constant->get_output_partial_shape(0).to_shape();
     if (shape_size(shape) == 1) {
         return true;
     }
@@ -108,7 +108,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             return false;
         }
 
-        const Shape multiplyConstShape = dequantization.multiplyConstant->get_shape();
+        const Shape multiplyConstShape = dequantization.multiplyConstant->get_output_partial_shape(0).to_shape();
         if (!multiplyConstShape.empty() && (shape_size(multiplyConstShape) != 1ul)) {
             const size_t groupsCount = NetworkHelper::getGroupsCount(layer);
             const PartialShape inputPShape = layer->get_input_partial_shape(0);
@@ -149,7 +149,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             // optimize cast:
             // two branches depending on real type of the constant?
             const auto scalesBuffer = dequantization.multiplyConstant->cast_vector<float>();
-            size_t scalesBufferSize = shape_size(dequantization.multiplyConstant->get_shape());
+            size_t scalesBufferSize = shape_size(dequantization.multiplyConstant->get_output_partial_shape(0).to_shape());
             for (size_t i = 1ul; i < scalesBufferSize; ++i) {
                 if (scalesBuffer[i - 1] != scalesBuffer[i]) {
                     return false;

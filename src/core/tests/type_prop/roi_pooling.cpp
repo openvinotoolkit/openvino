@@ -45,7 +45,7 @@ TEST_F(TypePropROIPoolingV0, basic_shape_inference) {
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_method(), "max");
-    EXPECT_EQ(op->get_shape(), (Shape{4, 3, 2, 2}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{4, 3, 2, 2}));
 }
 
 TEST_F(TypePropROIPoolingV0, dynamic_channels_dim) {

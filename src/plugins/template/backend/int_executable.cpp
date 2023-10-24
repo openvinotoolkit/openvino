@@ -65,7 +65,7 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
         if (auto var_extension = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
             auto variable = var_extension->get_variable();
             if (!variable_context.get_variable_value(variable)) {
-                auto h_tensor = ov::Tensor(op->get_input_element_type(0), op->get_input_shape(0));
+                auto h_tensor = ov::Tensor(op->get_input_element_type(0), op->get_input_partial_shape(0).to_shape());
                 variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(h_tensor));
             }
         }
@@ -177,12 +177,12 @@ std::shared_ptr<ov::op::v0::Result> ov::runtime::interpreter::INTExecutable::get
 }
 ov::Tensor ov::runtime::interpreter::INTExecutable::create_input_tensor(size_t input_index) {
     std::shared_ptr<op::v0::Parameter> parameter = get_parameter(input_index);
-    return ov::Tensor(parameter->get_element_type(), parameter->get_shape());
+    return ov::Tensor(parameter->get_element_type(), parameter->get_output_partial_shape(0).to_shape());
 }
 
 ov::Tensor ov::runtime::interpreter::INTExecutable::create_output_tensor(size_t output_index) {
     std::shared_ptr<op::v0::Result> result = get_result(output_index);
-    return ov::Tensor(result->get_element_type(), result->get_shape());
+    return ov::Tensor(result->get_element_type(), result->get_output_partial_shape(0).to_shape());
 }
 
 std::vector<ov::Tensor> ov::runtime::interpreter::INTExecutable::create_input_tensor(size_t input_index,
@@ -191,7 +191,7 @@ std::vector<ov::Tensor> ov::runtime::interpreter::INTExecutable::create_input_te
     std::shared_ptr<op::v0::Parameter> parameter = get_parameter(input_index);
     for (size_t i = 0; i < pipeline_depth; i++) {
         ov::Tensor tensor;
-        auto t = ov::Tensor(parameter->get_element_type(), parameter->get_shape());
+        auto t = ov::Tensor(parameter->get_element_type(), parameter->get_output_partial_shape(0).to_shape());
         tensors.push_back(t);
     }
     return tensors;
@@ -203,7 +203,7 @@ std::vector<ov::Tensor> ov::runtime::interpreter::INTExecutable::create_output_t
     std::shared_ptr<op::v0::Result> result = get_result(output_index);
     for (size_t i = 0; i < pipeline_depth; i++) {
         ov::Tensor tensor;
-        auto t = ov::Tensor(result->get_element_type(), result->get_shape());
+        auto t = ov::Tensor(result->get_element_type(), result->get_output_partial_shape(0).to_shape());
         tensors.push_back(t);
     }
     return tensors;

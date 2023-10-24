@@ -96,13 +96,13 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes) {
 
     auto results = ResultVector{result0, result1, result2};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
-    EXPECT_EQ(result2->get_output_shape(0), out2_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
+    EXPECT_EQ(result2->get_output_partial_shape(0).to_shape(), out2_shape);
 
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
-    EXPECT_EQ(loop->get_output_shape(1), out1_shape);
-    EXPECT_EQ(loop->get_output_shape(2), out2_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(1).to_shape(), out1_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(2).to_shape(), out2_shape);
 }
 
 // trip_count = 10
@@ -181,13 +181,13 @@ TEST(type_prop, loop_operation_dowhile_mode_1_iter_static_shapes) {
 
     auto results = ResultVector{result0, result1, result2};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
-    EXPECT_EQ(result2->get_output_shape(0), out2_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
+    EXPECT_EQ(result2->get_output_partial_shape(0).to_shape(), out2_shape);
 
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
-    EXPECT_EQ(loop->get_output_shape(1), out1_shape);
-    EXPECT_EQ(loop->get_output_shape(2), out2_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(1).to_shape(), out1_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(2).to_shape(), out2_shape);
 }
 
 // trip_count = 10
@@ -261,11 +261,11 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_static_shapes
 
     auto results = ResultVector{result0, result1};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
 
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
-    EXPECT_EQ(loop->get_output_shape(1), out1_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(1).to_shape(), out1_shape);
 }
 
 // trip_count = 10
@@ -343,12 +343,12 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
 
     auto results = ResultVector{result0, result1, result2};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
     EXPECT_EQ(result2->get_output_partial_shape(0), out2_shape);
 
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
-    EXPECT_EQ(loop->get_output_shape(1), out1_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(1).to_shape(), out1_shape);
     EXPECT_EQ(loop->get_output_partial_shape(2), out2_shape);
 }
 
@@ -429,11 +429,11 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dyn
 
     auto results = ResultVector{result0, result1, result2};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
     EXPECT_EQ(result1->get_output_partial_shape(0), out1_shape);
     EXPECT_EQ(result2->get_output_partial_shape(0), out2_shape);
 
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
     EXPECT_EQ(loop->get_output_partial_shape(1), out1_shape);
     EXPECT_EQ(loop->get_output_partial_shape(2), out2_shape);
 }
@@ -561,12 +561,12 @@ TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes) {
 
     auto results = ResultVector{result0, result1, result2};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
     EXPECT_EQ(result2->get_output_partial_shape(0), out2_shape);
 
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
-    EXPECT_EQ(loop->get_output_shape(1), out1_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(1).to_shape(), out1_shape);
     EXPECT_EQ(loop->get_output_partial_shape(2), out2_shape);
 }
 
@@ -647,13 +647,13 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
 
     auto results = ResultVector{result0, result1, result2};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
-    EXPECT_EQ(result2->get_output_shape(0), out2_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
+    EXPECT_EQ(result2->get_output_partial_shape(0).to_shape(), out2_shape);
 
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
-    EXPECT_EQ(loop->get_output_shape(1), out1_shape);
-    EXPECT_EQ(loop->get_output_shape(2), out2_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(1).to_shape(), out1_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(2).to_shape(), out2_shape);
 }
 
 // Scalars instead of 1d tensors with 1 element <-- test specific
@@ -733,13 +733,13 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
 
     auto results = ResultVector{result0, result1, result2};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
-    EXPECT_EQ(result2->get_output_shape(0), out2_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
+    EXPECT_EQ(result2->get_output_partial_shape(0).to_shape(), out2_shape);
 
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
-    EXPECT_EQ(loop->get_output_shape(1), out1_shape);
-    EXPECT_EQ(loop->get_output_shape(2), out2_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(1).to_shape(), out1_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(2).to_shape(), out2_shape);
 }
 
 // SliceInputs testing
@@ -822,15 +822,15 @@ TEST(type_prop, loop_operation_10_iter_static_shapes_sliced_inputs) {
 
     auto results = ResultVector{result0, result1, result2, result3};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, M});
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
-    EXPECT_EQ(result2->get_output_shape(0), out2_shape);
-    EXPECT_EQ(result3->get_output_shape(0), out3_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
+    EXPECT_EQ(result2->get_output_partial_shape(0).to_shape(), out2_shape);
+    EXPECT_EQ(result3->get_output_partial_shape(0), out3_shape);
 
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
-    EXPECT_EQ(loop->get_output_shape(1), out1_shape);
-    EXPECT_EQ(loop->get_output_shape(2), out2_shape);
-    EXPECT_EQ(loop->get_output_shape(3), out3_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(1).to_shape(), out1_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(2).to_shape(), out2_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(3).to_shape(), out3_shape);
 }
 
 // SliceInputs testing
@@ -916,26 +916,26 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_batch_shapes_sliced_inputs_c
     auto results = ResultVector{result0, result1, result2, result3};
     auto f = make_shared<Model>(results, ParameterVector{X, Y, T, M});
     EXPECT_EQ(f->get_output_size(), 4);
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
-    EXPECT_EQ(result1->get_output_shape(0), out1_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(result1->get_output_partial_shape(0).to_shape(), out1_shape);
     EXPECT_EQ(result2->get_output_partial_shape(0), out2_shape);
-    EXPECT_EQ(result3->get_output_shape(0), out3_shape);
+    EXPECT_EQ(result3->get_output_partial_shape(0).to_shape(), out3_shape);
 
     const auto inp0_shape = Shape{1, 1, 10};
     const auto inp1_shape = Shape{32, 1, 10};
     const auto inp2_shape = Shape{};
     const auto inp3_shape = Shape{32, 1, 10};
     EXPECT_EQ(body->get_parameters().size(), 4);
-    EXPECT_EQ(body->get_parameters().at(0)->get_shape(), inp0_shape);
-    EXPECT_EQ(body->get_parameters().at(1)->get_shape(), inp1_shape);
-    EXPECT_EQ(body->get_parameters().at(2)->get_shape(), inp2_shape);
-    EXPECT_EQ(body->get_parameters().at(3)->get_shape(), inp3_shape);
+    EXPECT_EQ(body->get_parameters().at(0)->get_output_partial_shape(0).to_shape(), inp0_shape);
+    EXPECT_EQ(body->get_parameters().at(1)->get_output_partial_shape(0).to_shape(), inp1_shape);
+    EXPECT_EQ(body->get_parameters().at(2)->get_output_partial_shape(0).to_shape(), inp2_shape);
+    EXPECT_EQ(body->get_parameters().at(3)->get_output_partial_shape(0).to_shape(), inp3_shape);
 
     EXPECT_EQ(loop->get_output_size(), 4);
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
-    EXPECT_EQ(loop->get_output_shape(1), out1_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(1).to_shape(), out1_shape);
     EXPECT_EQ(loop->get_output_partial_shape(2), out2_shape);
-    EXPECT_EQ(loop->get_output_shape(3), out3_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(3).to_shape(), out3_shape);
 }
 
 // SliceInputs testing
@@ -1011,7 +1011,7 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_sliced_inputs_concate
     auto results = ResultVector{result0, result1, result2};
     auto f = make_shared<Model>(results, ParameterVector{X, T});
     EXPECT_EQ(f->get_output_size(), 3);
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
     EXPECT_EQ(result1->get_output_partial_shape(0), out1_shape);
     EXPECT_EQ(result2->get_output_partial_shape(0), out2_shape);
 
@@ -1019,10 +1019,10 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_sliced_inputs_concate
     const auto inp1_shape = Shape{};
     EXPECT_EQ(body->get_parameters().size(), 2);
     EXPECT_EQ(body->get_parameters().at(0)->get_partial_shape(), inp0_shape);
-    EXPECT_EQ(body->get_parameters().at(1)->get_shape(), inp1_shape);
+    EXPECT_EQ(body->get_parameters().at(1)->get_output_partial_shape(0).to_shape(), inp1_shape);
 
     EXPECT_EQ(loop->get_output_size(), 3);
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
     EXPECT_EQ(loop->get_output_partial_shape(1), out1_shape);
     EXPECT_EQ(loop->get_output_partial_shape(2), out2_shape);
 }
@@ -1095,7 +1095,7 @@ TEST(type_prop, loop_operation_dynamic_iter_static_shapes_inputs_dynamic_shape_o
     auto results = ResultVector{result0, result1};
     auto f = make_shared<Model>(results, ParameterVector{X, T});
     EXPECT_EQ(f->get_output_size(), 2);
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
     // should be dynamic
     EXPECT_TRUE(result1->get_output_partial_shape(0).compatible(out1_shape));
 
@@ -1106,7 +1106,7 @@ TEST(type_prop, loop_operation_dynamic_iter_static_shapes_inputs_dynamic_shape_o
     EXPECT_EQ(body->get_parameters().at(0)->get_partial_shape(), inp0_shape);
 
     EXPECT_EQ(loop->get_output_size(), 2);
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
     // map from the submodel, should be dynamic
     EXPECT_TRUE(loop->get_output_partial_shape(1).compatible(out1_shape));
 }
@@ -1178,7 +1178,7 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_inputs_dynamic_shape_
     auto results = ResultVector{result0, result1};
     auto f = make_shared<Model>(results, ParameterVector{X, T});
     EXPECT_EQ(f->get_output_size(), 2);
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
     // should be dynamic
     EXPECT_EQ(result1->get_output_partial_shape(0), out1_shape);
 
@@ -1189,7 +1189,7 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_inputs_dynamic_shape_
     EXPECT_EQ(body->get_parameters().at(0)->get_partial_shape(), inp0_shape);
 
     EXPECT_EQ(loop->get_output_size(), 2);
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
     // map from the submodel, should be dynamic
     EXPECT_EQ(loop->get_output_partial_shape(1), out1_shape);
 }
@@ -1289,7 +1289,7 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes2_inputs_dynamic_shape
     auto results = ResultVector{result0, result1, result2, result3};
     auto f = make_shared<Model>(results, ParameterVector{X0, X1, T});
     EXPECT_EQ(f->get_output_size(), 4);
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
     // should be dynamic
     EXPECT_EQ(result1->get_output_partial_shape(0), out1_shape);
     EXPECT_EQ(result2->get_output_partial_shape(0), out1_shape);
@@ -1303,7 +1303,7 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes2_inputs_dynamic_shape
     EXPECT_EQ(body->get_parameters().at(1)->get_partial_shape(), inp0_shape);
 
     EXPECT_EQ(loop->get_output_size(), 4);
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
     // map from the submodel, should be dynamic
     EXPECT_EQ(loop->get_output_partial_shape(1), out1_shape);
     EXPECT_EQ(loop->get_output_partial_shape(2), out1_shape);
@@ -1378,7 +1378,7 @@ TEST(type_prop, loop_operation_dynamic_iter_1d_shapes_inputs_dynamic_shape_outpu
     auto results = ResultVector{result0, result1};
     auto f = make_shared<Model>(results, ParameterVector{X, T});
     EXPECT_EQ(f->get_output_size(), 2);
-    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
+    EXPECT_EQ(result0->get_output_partial_shape(0).to_shape(), out0_shape);
     // should be dynamic
     EXPECT_EQ(result1->get_output_partial_shape(0), out1_shape);
 
@@ -1389,7 +1389,7 @@ TEST(type_prop, loop_operation_dynamic_iter_1d_shapes_inputs_dynamic_shape_outpu
     EXPECT_EQ(body->get_parameters().at(0)->get_partial_shape(), inp0_shape);
 
     EXPECT_EQ(loop->get_output_size(), 2);
-    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
+    EXPECT_EQ(loop->get_output_partial_shape(0).to_shape(), out0_shape);
     // map from the submodel, should be dynamic
     EXPECT_EQ(loop->get_output_partial_shape(1), out1_shape);
 }

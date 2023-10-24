@@ -209,7 +209,7 @@ TEST(type_prop, nms_v3_output_shape_i32) {
                                                             element::i32);
 
     ASSERT_EQ(nms->get_element_type(), element::i32);
-    ASSERT_EQ(nms->get_shape(), (Shape{1, 3}));
+    ASSERT_EQ(nms->get_output_partial_shape(0).to_shape(), (Shape{1, 3}));
 }
 
 // ------------------------------ V4 ------------------------------
@@ -230,7 +230,7 @@ TEST(type_prop, nms_v4_output_shape_i32) {
                                                             element::i32);
 
     ASSERT_EQ(nms->get_element_type(), element::i32);
-    ASSERT_EQ(nms->get_shape(), (Shape{30, 3}));
+    ASSERT_EQ(nms->get_output_partial_shape(0).to_shape(), (Shape{30, 3}));
 }
 
 template <class TOp>

@@ -18,7 +18,7 @@ TEST(type_prop, convert_deduce) {
     auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3, 4});
     auto c = make_shared<ov::op::v0::Convert>(param, ov::element::i32);
     ASSERT_EQ(c->get_element_type(), ov::element::i32);
-    ASSERT_EQ(c->get_shape(), (ov::Shape{2, 3, 4}));
+    ASSERT_EQ(c->get_output_partial_shape(0).to_shape(), (ov::Shape{2, 3, 4}));
 }
 
 TEST(type_prop, convert_dynamic_value_and_label_propagation) {
@@ -34,7 +34,7 @@ TEST(type_prop, convert_dynamic_value_and_label_propagation) {
     auto convert_1 = make_shared<ov::op::v0::Convert>(convert_0, ov::element::i64);
 
     auto bc = make_shared<ov::op::v1::Broadcast>(param, convert_1);
-    ASSERT_EQ(bc->get_shape(), (ov::Shape{3, 4}));
+    ASSERT_EQ(bc->get_output_partial_shape(0).to_shape(), (ov::Shape{3, 4}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 500);

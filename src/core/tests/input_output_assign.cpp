@@ -22,7 +22,7 @@ TEST(input_output, param_tensor) {
 
     ASSERT_EQ(param->get_output_size(), 1);
     ASSERT_EQ(et, param->get_element_type());
-    ASSERT_EQ(shape, param->get_shape());
+    ASSERT_EQ(shape, param->get_output_partial_shape(0).to_shape());
 }
 
 TEST(input_output, simple_output) {

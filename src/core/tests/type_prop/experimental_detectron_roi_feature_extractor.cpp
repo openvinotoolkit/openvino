@@ -42,9 +42,11 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, default_ctor) {
     EXPECT_EQ(op->get_input_size(), 5);
     EXPECT_EQ(op->get_output_size(), 2);
     EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::f16)));
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("ROIs feat shape", &Output<Node>::get_shape, Shape({1000, 256, 21, 21})),
                             Property("ROIs order shape", &Output<Node>::get_shape, Shape({1000, 4}))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, static_shapes) {
@@ -58,7 +60,7 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, static_shapes) {
         make_op(NodeVector{rois, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3}, make_attrs(14));
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_shape(0), (Shape{1000, 256, 14, 14}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{1000, 256, 14, 14}));
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, dims_and_labels_propagation_all_inputs_labeled) {

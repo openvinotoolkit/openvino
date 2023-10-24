@@ -14,9 +14,9 @@ bool evaluate(const std::shared_ptr<ov::op::v0::ROIPooling>& op,
     ov::reference::roi_pooling<T>(inputs[0].data<const T>(),
                                   inputs[1].data<const T>(),
                                   outputs[0].data<T>(),
-                                  op->get_input_shape(0),
-                                  op->get_input_shape(1),
-                                  op->get_output_shape(0),
+                                  op->get_input_partial_shape(0).to_shape(),
+                                  op->get_input_partial_shape(1).to_shape(),
+                                  op->get_output_partial_shape(0).to_shape(),
                                   op->get_spatial_scale(),
                                   op->get_method());
     return true;

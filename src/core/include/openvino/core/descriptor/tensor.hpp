@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <openvino/core/deprecated.hpp>
 #include <string>
 #include <unordered_set>
 
@@ -82,6 +83,8 @@ public:
     const element::Type& get_element_type() const {
         return m_element_type;
     }
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2024.0 release. Please use "
+                        "get_partial_shape() method instead.")
     const Shape& get_shape() const;
     const PartialShape& get_partial_shape() const {
         return m_partial_shape;

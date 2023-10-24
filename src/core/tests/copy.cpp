@@ -156,7 +156,7 @@ TEST(copy, constant) {
     ASSERT_TRUE(nullptr != new_node);
     ASSERT_TRUE(OutputVector{} == new_node->input_values());
     ASSERT_TRUE(node_cast->get_vector<float>() == c);
-    ASSERT_TRUE(node_cast->get_shape() == shape);
+    ASSERT_TRUE(node_cast->get_output_partial_shape(0).to_shape() == shape);
     ASSERT_TRUE(node_cast->get_element_type() == et);
 }
 
@@ -291,7 +291,7 @@ TEST(copy, reshape) {
 
     ASSERT_TRUE(nullptr != new_node);
     ASSERT_TRUE(new_args == new_node->input_values());
-    ASSERT_TRUE(shape_out == node_cast->get_output_shape(0));
+    ASSERT_TRUE(shape_out == node_cast->get_output_partial_shape(0).to_shape());
 }
 
 TEST(copy, select) {
@@ -436,9 +436,9 @@ TEST(copy, loop) {
     Shape out0_shape{};
     Shape out1_shape{3, 2, 5};
     Shape out2_shape{3, 20, 5};
-    EXPECT_EQ(loop_copy->get_output_shape(0), out0_shape);
-    EXPECT_EQ(loop_copy->get_output_shape(1), out1_shape);
-    EXPECT_EQ(loop_copy->get_output_shape(2), out2_shape);
+    EXPECT_EQ(loop_copy->get_output_partial_shape(0).to_shape(), out0_shape);
+    EXPECT_EQ(loop_copy->get_output_partial_shape(1).to_shape(), out1_shape);
+    EXPECT_EQ(loop_copy->get_output_partial_shape(2).to_shape(), out2_shape);
 }
 
 TEST(copy, random_uniform) {
@@ -454,9 +454,9 @@ TEST(copy, random_uniform) {
     // Call `evaluate` to update m_state
     auto outputs = ov::TensorVector{{element::i64, {1lu, 2lu, 3lu}}};
     ru->evaluate(outputs,
-                 ov::TensorVector{{element::i64, out_shape->get_shape(), shape.data()},
-                                  {element::f32, min_val_param->get_shape(), &min},
-                                  {element::f32, max_val_param->get_shape(), &max}});
+                 ov::TensorVector{{element::i64, out_shape->get_output_partial_shape(0).to_shape(), shape.data()},
+                                  {element::f32, min_val_param->get_output_partial_shape(0).to_shape(), &min},
+                                  {element::f32, max_val_param->get_output_partial_shape(0).to_shape(), &max}});
 
     auto out_shape_c = make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{4, 3, 2, 1});
     const auto min_val_param_c = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -469,7 +469,7 @@ TEST(copy, random_uniform) {
     ASSERT_TRUE(nullptr != new_ru);
     ASSERT_TRUE(new_args == new_ru->input_values());
     ASSERT_TRUE(ru->get_out_type() == node_cast->get_out_type());
-    ASSERT_TRUE(out_shape_c->get_shape_val() == node_cast->get_shape());
+    ASSERT_TRUE(out_shape_c->get_shape_val() == node_cast->get_output_partial_shape(0).to_shape());
     ASSERT_TRUE(ru->get_global_seed() == node_cast->get_global_seed());
     ASSERT_TRUE(ru->get_op_seed() == node_cast->get_op_seed());
     ASSERT_TRUE(ru->get_state() == node_cast->get_state());

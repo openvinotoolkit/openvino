@@ -87,7 +87,7 @@ TEST(type_prop, proposal_v0_default_ctor) {
     EXPECT_EQ(op->get_input_size(), 3);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
-    EXPECT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{batch_size * attrs.post_nms_topn, 5}));
 }
 
 TEST(type_prop, proposal_v0_shape_infer) {
@@ -103,7 +103,7 @@ TEST(type_prop, proposal_v0_shape_infer) {
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
 
     EXPECT_EQ(op->get_output_element_type(0), element::bf16);
-    EXPECT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{batch_size * attrs.post_nms_topn, 5}));
 }
 
 TEST(type_prop, proposal_v0_dynamic_class_probs_dim1_batch_size_infer) {
@@ -392,8 +392,8 @@ TEST(type_prop, proposal_v4_default_ctor) {
     EXPECT_EQ(op->get_output_size(), 2);
 
     EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::f16)));
-    EXPECT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
-    EXPECT_EQ(op->get_output_shape(1), (Shape{batch_size * attrs.post_nms_topn}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(1).to_shape(), (Shape{batch_size * attrs.post_nms_topn}));
 }
 
 TEST(type_prop, proposal_v4_shape_infer) {
@@ -409,8 +409,8 @@ TEST(type_prop, proposal_v4_shape_infer) {
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
 
     EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::f32)));
-    EXPECT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
-    EXPECT_EQ(op->get_output_shape(1), (Shape{batch_size * attrs.post_nms_topn}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(1).to_shape(), (Shape{batch_size * attrs.post_nms_topn}));
 }
 
 TEST(type_prop, proposal_v4_dynamic_class_probs_dim1_batch_size_infer) {

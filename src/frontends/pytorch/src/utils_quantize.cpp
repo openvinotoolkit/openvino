@@ -189,7 +189,7 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     if (weights_u8->get_output_element_type(0) != element::u8)
         return nullptr;
 
-    if (axis != -1 && static_cast<uint64_t>(axis) != weights_u8->get_shape().size() - 1)
+    if (axis != -1 && static_cast<uint64_t>(axis) != weights_u8->get_output_partial_shape(0).size() - 1)
         return nullptr;
 
     if (!ov::op::util::has_constant_value<uint64_t>(bitwise_and->get_input_node_shared_ptr(1), 0x0F))
@@ -203,7 +203,7 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     // Part 2: Form u4 constant by repacking of the original weights_u8
     // Repacking transformes half of lanes to interleaved representation.
 
-    auto u8_shape = weights_u8->get_shape();
+    auto u8_shape = weights_u8->get_output_partial_shape(0).to_shape();
     size_t full_size = shape_size(u8_shape);
     auto src = weights_u8->get_data_ptr<uint8_t>();
 

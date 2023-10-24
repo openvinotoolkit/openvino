@@ -78,7 +78,7 @@ public:
 
             if (cur_node->get_output_partial_shape(0).is_dynamic())
                 return false;
-            const auto input_size = cur_node->get_output_shape(0).size();
+            const auto input_size = cur_node->get_output_partial_shape(0).size();
             auto dim_order = std::vector<int64_t>(input_size);
             std::iota(dim_order.begin(), dim_order.end(), 0);
 
@@ -115,7 +115,7 @@ public:
             }
             // 2. Get constant rank to set mask on last dimension
             const auto const_op = std::dynamic_pointer_cast<opset6::Constant>(cur_node);
-            const auto shape_rank = const_op->get_shape().size();
+            const auto shape_rank = const_op->get_output_partial_shape(0).size();
             const size_t shift = (matmul->get_transpose_b()) ? 2 : 1;
             if (shape_rank < shift) {
                 OPENVINO_DEBUG << "Can't init mask for MatMul: " << matmul->get_friendly_name() << std::endl;

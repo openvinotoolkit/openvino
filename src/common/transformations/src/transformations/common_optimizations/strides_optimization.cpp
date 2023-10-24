@@ -24,7 +24,7 @@ using namespace std;
 using namespace ov;
 
 static bool can_propagate_conv_stride(const std::shared_ptr<ov::Node>& conv) {
-    const auto& kernel_shape = conv->input_value(1).get_shape();
+    const auto& kernel_shape = conv->input_value(1).get_partial_shape().to_shape();
     return std::all_of(kernel_shape.begin() + 2, kernel_shape.end(), [](size_t s) -> bool {
         return s == 1;
     });

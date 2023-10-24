@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 
 #include <iostream>
+#include "openvino/core/partial_shape.hpp"
 
 #ifdef _WIN32
 #    include "samples/os/windows/w_dirent.h"
@@ -180,8 +181,8 @@ void printInputAndOutputsInfo(const ov::Model& network) {
         const ov::element::Type type = input.get_element_type();
         slog::info << "        input type: " << type << slog::endl;
 
-        const ov::Shape shape = input.get_shape();
-        slog::info << "        input shape: " << shape << slog::endl;
+        const ov::PartialShape shape = input.get_partial_shape();
+        slog::info << "        input partial shape: " << shape << slog::endl;
     }
 
     const std::vector<ov::Output<const ov::Node>> outputs = network.outputs();
@@ -194,8 +195,8 @@ void printInputAndOutputsInfo(const ov::Model& network) {
         const ov::element::Type type = output.get_element_type();
         slog::info << "        output type: " << type << slog::endl;
 
-        const ov::Shape shape = output.get_shape();
-        slog::info << "        output shape: " << shape << slog::endl;
+        const ov::PartialShape shape = output.get_partial_shape();
+        slog::info << "        output partial shape: " << shape << slog::endl;
     }
 }
 

@@ -93,7 +93,8 @@ ov::Output<ov::Node> alternative_source_from_existing_value(const ov::label_t& l
     auto alternative_source = ov::Output<ov::Node>();
     if (label_value_source.count(label)) {
         alternative_source = label_value_source[label];
-        const auto &original_shape = original_output.get_shape(), &alternative_shape = alternative_source.get_shape();
+        const auto &original_shape = original_output.get_partial_shape().to_shape(),
+                   &alternative_shape = alternative_source.get_partial_shape().to_shape();
         const auto &original_et = original_output.get_element_type(),
                    &alternative_et = alternative_source.get_element_type();
         if (alternative_shape != original_shape && (original_shape.empty() || original_shape == ov::Shape{0})) {
@@ -135,7 +136,8 @@ ov::Output<ov::Node> alternative_source_from_shape_source(const LTS_map& label_s
             ov::copy_runtime_info(original_output.get_node_shared_ptr(), shape);
             shape = std::make_shared<ov::op::v0::Convert>(shape, original_et);
         }
-        auto indices = ov::op::v0::Constant::create(ov::element::i64, original_output.get_shape(), {idx});
+        auto indices =
+            ov::op::v0::Constant::create(ov::element::i64, original_output.get_partial_shape().to_shape(), {idx});
         auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
         auto gather = std::make_shared<ov::op::v8::Gather>(shape, indices, axis);
         ov::copy_runtime_info(original_output.get_node_shared_ptr(), {shape, indices, axis, gather});

@@ -25,9 +25,11 @@ TEST(type_prop, split_v1_axis_const_positive) {
 
     const auto outputs = split->outputs();
     EXPECT_EQ(outputs.size(), num_splits);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(outputs,
                 Each(AllOf(Property("Element type", &Output<Node>::get_element_type, element::f16),
                            Property("Shape", &Output<Node>::get_shape, Shape({2, 1, 4})))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(type_prop, split_v1_axis_const_negative) {
@@ -38,9 +40,11 @@ TEST(type_prop, split_v1_axis_const_negative) {
 
     const auto outputs = split->outputs();
     EXPECT_EQ(outputs.size(), num_splits);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_THAT(outputs,
                 Each(AllOf(Property("Element type", &Output<Node>::get_element_type, element::i32),
                            Property("Shape", &Output<Node>::get_shape, Shape({1, 6})))));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(type_prop, split_v1_axis_const_data_axis_dim_known) {

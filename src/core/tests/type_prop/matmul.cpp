@@ -23,7 +23,7 @@ TEST(type_prop, matmul_2D_same) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{2, 2}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{2, 2}));
 }
 
 TEST(type_prop, matmul_4D_same) {
@@ -33,7 +33,7 @@ TEST(type_prop, matmul_4D_same) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{2, 2, 3, 3}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{2, 2, 3, 3}));
 }
 
 TEST(type_prop, matmul_2D) {
@@ -43,7 +43,7 @@ TEST(type_prop, matmul_2D) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{3, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{3, 4}));
 }
 
 TEST(type_prop, matmul_4D) {
@@ -53,7 +53,7 @@ TEST(type_prop, matmul_4D) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{2, 2, 3, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{2, 2, 3, 4}));
 }
 
 TEST(type_prop, matmul_5D_x_3D_transpose_a_transpose_b) {
@@ -63,7 +63,7 @@ TEST(type_prop, matmul_5D_x_3D_transpose_a_transpose_b) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, true, true);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{7, 2, 5, 3, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{7, 2, 5, 3, 4}));
 }
 
 TEST(type_prop, matmul_2D_transpose_a) {
@@ -73,7 +73,7 @@ TEST(type_prop, matmul_2D_transpose_a) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, 1);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{3, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{3, 4}));
 }
 
 TEST(type_prop, matmul_4D_transpose_a) {
@@ -83,7 +83,7 @@ TEST(type_prop, matmul_4D_transpose_a) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, 1);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{2, 2, 3, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{2, 2, 3, 4}));
 }
 
 TEST(type_prop, matmul_2D_transpose_b) {
@@ -93,7 +93,7 @@ TEST(type_prop, matmul_2D_transpose_b) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, 0, 1);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{3, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{3, 4}));
 }
 
 TEST(type_prop, matmul_4D_transpose_b) {
@@ -103,7 +103,7 @@ TEST(type_prop, matmul_4D_transpose_b) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, 0, 1);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{2, 2, 3, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{2, 2, 3, 4}));
 }
 
 TEST(type_prop, matmul_dynamic_5D_transpose_b) {
@@ -148,7 +148,7 @@ TEST(type_prop, matmul_1D_x_1D_false_false) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, false, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{}));
 }
 
 TEST(type_prop, matmul_1D_x_1D_false_true) {
@@ -158,7 +158,7 @@ TEST(type_prop, matmul_1D_x_1D_false_true) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, false, true);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{}));
 }
 
 TEST(type_prop, matmul_1D_x_1D_true_false) {
@@ -168,7 +168,7 @@ TEST(type_prop, matmul_1D_x_1D_true_false) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, true, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{}));
 }
 
 TEST(type_prop, matmul_1D_x_1D_true_true) {
@@ -178,7 +178,7 @@ TEST(type_prop, matmul_1D_x_1D_true_true) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, true, true);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{}));
 }
 
 TEST(type_prop, matmul_1D_x_1D_incompatible) {
@@ -204,7 +204,7 @@ TEST(type_prop, matmul_2D_x_1D_false_false) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, false, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{1}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{1}));
 }
 
 TEST(type_prop, matmul_2D_x_1D_false_true) {
@@ -214,7 +214,7 @@ TEST(type_prop, matmul_2D_x_1D_false_true) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, false, true);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{1}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{1}));
 }
 
 TEST(type_prop, matmul_2D_x_1D_true_false) {
@@ -255,7 +255,7 @@ TEST(type_prop, matmul_1D_x_2D_false_false) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, false, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{1}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{1}));
 }
 
 TEST(type_prop, matmul_1D_x_2D_false_true) {
@@ -279,7 +279,7 @@ TEST(type_prop, matmul_1D_x_2D_true_false) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, true, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{1}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{1}));
 }
 
 TEST(type_prop, matmul_1D_x_2D_true_true) {
@@ -305,7 +305,7 @@ TEST(type_prop, matmul_1D_x_4D_false_false) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, false, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{1, 2, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{1, 2, 4}));
 }
 
 // 4D x 1D
@@ -316,7 +316,7 @@ TEST(type_prop, matmul_4D_x_1D_false_false) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, false, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{1, 2, 3}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{1, 2, 3}));
 }
 
 // Batch broadcast
@@ -327,7 +327,7 @@ TEST(type_prop, matmul_batch_broadcast) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, false, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{5, 1, 6, 4, 2}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{5, 1, 6, 4, 2}));
 }
 
 TEST(type_prop, matmul_batch_broadcast_expand_to_A) {
@@ -337,7 +337,7 @@ TEST(type_prop, matmul_batch_broadcast_expand_to_A) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, false, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{7, 8, 5, 4, 2}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{7, 8, 5, 4, 2}));
 }
 
 TEST(type_prop, matmul_batch_broadcast_expand_to_B) {
@@ -347,7 +347,7 @@ TEST(type_prop, matmul_batch_broadcast_expand_to_B) {
     auto matmul = make_shared<ov::op::v0::MatMul>(A, B, false, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{8, 7, 6, 5, 4, 2}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0).to_shape(), (Shape{8, 7, 6, 5, 4, 2}));
 }
 
 TEST(type_prop, matmul_incompatible_batch_dims) {

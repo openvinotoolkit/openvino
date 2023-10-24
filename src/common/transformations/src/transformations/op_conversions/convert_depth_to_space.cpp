@@ -40,7 +40,7 @@ ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
          *
          */
 
-        auto input_shape = dts_node->input(0).get_shape();
+        auto input_shape = dts_node->input(0).get_partial_shape().to_shape();
         auto spatial_dims = input_shape.size() - 2;
         auto block_size = dts_node->get_block_size();
         auto mode = dts_node->get_mode();

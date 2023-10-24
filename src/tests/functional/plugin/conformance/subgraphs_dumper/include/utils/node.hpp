@@ -19,7 +19,7 @@ namespace subgraph_dumper {
 
 template <typename dType>
 inline InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& node) {
-    size_t elements_count = ov::shape_size(node->get_shape());
+    size_t elements_count = ov::shape_size(node->get_output_partial_shape(0).to_shape());
     const auto& const_values = node->cast_vector<dType>();
     auto max = *std::max_element(const_values.begin(), const_values.end());
     auto min = *std::min_element(const_values.begin(), const_values.end());

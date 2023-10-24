@@ -32,7 +32,7 @@ TEST(type_prop, assign_deduce) {
     auto assign = make_shared<ov::op::v3::Assign>(read_value, "variable_id");
 
     ASSERT_EQ(assign->get_element_type(), ov::element::f32);
-    ASSERT_EQ(assign->get_shape(), (ov::Shape{1, 2, 64, 64}));
+    ASSERT_EQ(assign->get_output_partial_shape(0).to_shape(), (ov::Shape{1, 2, 64, 64}));
 }
 
 TEST(type_prop, assign_read_value_new_shape) {
@@ -44,7 +44,7 @@ TEST(type_prop, assign_read_value_new_shape) {
     auto assign = make_shared<ov::op::v6::Assign>(read_value, variable);
 
     ASSERT_EQ(assign->get_element_type(), ov::element::f16);
-    ASSERT_EQ(assign->get_shape(), (ov::Shape{4, 3, 2, 1}));
+    ASSERT_EQ(assign->get_output_partial_shape(0).to_shape(), (ov::Shape{4, 3, 2, 1}));
 
     auto m = std::make_shared<ov::Model>(ov::ResultVector{}, ov::SinkVector{assign}, ov::ParameterVector{input});
 

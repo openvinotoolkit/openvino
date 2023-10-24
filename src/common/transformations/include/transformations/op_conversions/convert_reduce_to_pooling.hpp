@@ -89,13 +89,13 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             return replace_output_update_name(reduce->output(0), input);
         }
 
-        auto input_shape = input.get_shape();
+        auto input_shape = input.get_partial_shape().to_shape();
 
         // If Reduce op reduces only 1 dims we replace it with Reshape
         if (std::all_of(axes_vector.begin(), axes_vector.end(), [&input_shape](const int64_t& axis) {
                 return input_shape[axis] == 1;
             })) {
-            const auto reshape_shape = reduce->output(0).get_shape();
+            const auto reshape_shape = reduce->output(0).get_partial_shape().to_shape();
             auto reshape = std::make_shared<ov::opset1::Reshape>(
                 input,
                 ov::opset1::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),
@@ -154,7 +154,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             // The batch dimenstion is repositioned in the shape
             // only in case of batch dimension reduction
             shape_begin.assign({dims_begin, 1, dims_prod, dims_end});
-            shape_end = reduce->output(0).get_shape();
+            shape_end = reduce->output(0).get_partial_shape().to_shape();
             strides.assign({1, 1});
             pads_begin.assign({0, 0});
             pads_end.assign({0, 0});
@@ -169,7 +169,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             for (auto& axis : axes_vector) {
                 kernel[axis - 2] = input_shape[axis];
             }
-            shape_end = reduce->output(0).get_shape();
+            shape_end = reduce->output(0).get_partial_shape().to_shape();
         }
 
         /*
@@ -189,7 +189,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
          */
         ov::NodeVector new_ops;
 
-        if (!shape_begin.empty() && shape_begin != input.get_shape()) {
+        if (!shape_begin.empty() && shape_begin != input.get_partial_shape().to_shape()) {
             input = std::make_shared<ov::opset1::Reshape>(
                 input,
                 ov::opset1::Constant::create(ov::element::i64, ov::Shape{shape_begin.size()}, shape_begin),
@@ -253,7 +253,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             return false;
         }
 
-        if (shape_end != input.get_shape()) {
+        if (shape_end != input.get_partial_shape().to_shape()) {
             input = std::make_shared<ov::opset1::Reshape>(
                 input,
                 ov::opset1::Constant::create(ov::element::i64, ov::Shape{shape_end.size()}, shape_end),

@@ -139,7 +139,7 @@ TEST(type_prop, roll_static_axes_dynamic_shift) {
     auto r = make_shared<opset7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::i32);
-    EXPECT_EQ(r->get_output_shape(0), Shape({1, 2, 4}));
+    EXPECT_EQ(r->get_output_partial_shape(0).to_shape(), Shape({1, 2, 4}));
 }
 
 TEST_F(TypePropRollV7Test, static_axes_dynamic_data) {

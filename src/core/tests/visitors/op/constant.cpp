@@ -20,7 +20,7 @@ TEST(attributes, constant_op) {
     g_k->validate_and_infer_types();
     ASSERT_TRUE(g_k);
     EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
-    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    EXPECT_EQ(k->get_output_partial_shape(0).to_shape(), g_k->get_output_partial_shape(0).to_shape());
     vector<float> g_data = g_k->get_vector<float>();
     EXPECT_EQ(data, g_data);
 }
@@ -33,7 +33,7 @@ TEST(attributes, constant_op_different_elements) {
     g_k->validate_and_infer_types();
     ASSERT_TRUE(g_k);
     EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
-    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    EXPECT_EQ(k->get_output_partial_shape(0).to_shape(), g_k->get_output_partial_shape(0).to_shape());
     vector<int64_t> g_data = g_k->get_vector<int64_t>();
     EXPECT_EQ(data, g_data);
     ASSERT_FALSE(g_k->get_all_data_elements_bitwise_identical());
@@ -47,7 +47,7 @@ TEST(attributes, constant_op_identical_elements) {
     g_k->validate_and_infer_types();
     ASSERT_TRUE(g_k);
     EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
-    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    EXPECT_EQ(k->get_output_partial_shape(0).to_shape(), g_k->get_output_partial_shape(0).to_shape());
     vector<int64_t> g_data = g_k->get_vector<int64_t>();
     EXPECT_EQ(data, g_data);
     ASSERT_TRUE(g_k->get_all_data_elements_bitwise_identical());
@@ -63,7 +63,7 @@ TEST(attributes, constant_op_from_host_tensor_different_elements) {
     g_k->validate_and_infer_types();
     ASSERT_TRUE(g_k);
     EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
-    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    EXPECT_EQ(k->get_output_partial_shape(0).to_shape(), g_k->get_output_partial_shape(0).to_shape());
     vector<int64_t> g_data = g_k->get_vector<int64_t>();
     EXPECT_EQ(data, g_data);
     ASSERT_FALSE(g_k->get_all_data_elements_bitwise_identical());
@@ -79,7 +79,7 @@ TEST(attributes, constant_op_from_host_tensor_identical_elements) {
     g_k->validate_and_infer_types();
     ASSERT_TRUE(g_k);
     EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
-    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    EXPECT_EQ(k->get_output_partial_shape(0).to_shape(), g_k->get_output_partial_shape(0).to_shape());
     vector<int64_t> g_data = g_k->get_vector<int64_t>();
     EXPECT_EQ(data, g_data);
     ASSERT_TRUE(g_k->get_all_data_elements_bitwise_identical());

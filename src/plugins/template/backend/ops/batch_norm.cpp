@@ -34,7 +34,7 @@ bool evaluate(const std::shared_ptr<ov::op::v5::BatchNormInference>& op,
                                            inputs[3].data<const T>(),
                                            inputs[4].data<const T>(),
                                            outputs[0].data<T>(),
-                                           op->get_input_shape(0));
+                                           op->get_input_partial_shape(0).to_shape());
     return true;
 }
 

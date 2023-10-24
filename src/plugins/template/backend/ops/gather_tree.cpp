@@ -14,10 +14,10 @@ bool evaluate(const std::shared_ptr<ov::op::v1::GatherTree>& op,
                                static_cast<const char*>(inputs[2].data()),
                                static_cast<const char*>(inputs[3].data()),
                                static_cast<char*>(outputs[0].data()),
-                               op->get_input_shape(0),
-                               op->get_input_shape(1),
-                               op->get_input_shape(2),
-                               op->get_input_shape(3),
+                               op->get_input_partial_shape(0).to_shape(),
+                               op->get_input_partial_shape(1).to_shape(),
+                               op->get_input_partial_shape(2).to_shape(),
+                               op->get_input_partial_shape(3).to_shape(),
                                inputs[1].get_element_type());
     return true;
 }

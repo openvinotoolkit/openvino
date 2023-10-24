@@ -26,7 +26,7 @@ TEST(type_prop, gelu_default_mode_inference_f32) {
     auto gelu = make_shared<op::v7::Gelu>(param);
 
     ASSERT_EQ(gelu->get_element_type(), element::f32);
-    ASSERT_EQ(gelu->get_shape(), (Shape{1, 32, 32}));
+    ASSERT_EQ(gelu->get_output_partial_shape(0).to_shape(), (Shape{1, 32, 32}));
     ASSERT_EQ(gelu->get_approximation_mode(), op::GeluApproximationMode::ERF);
 }
 
@@ -35,7 +35,7 @@ TEST(type_prop, gelu_default_mode_inference_f16) {
     auto gelu = make_shared<op::v7::Gelu>(param);
 
     ASSERT_EQ(gelu->get_element_type(), element::f16);
-    ASSERT_EQ(gelu->get_shape(), (Shape{1, 32, 32}));
+    ASSERT_EQ(gelu->get_output_partial_shape(0).to_shape(), (Shape{1, 32, 32}));
     ASSERT_EQ(gelu->get_approximation_mode(), op::GeluApproximationMode::ERF);
 }
 
@@ -44,7 +44,7 @@ TEST(type_prop, gelu_tanh_mode_inference_f32) {
     auto gelu = make_shared<op::v7::Gelu>(param, op::GeluApproximationMode::TANH);
 
     ASSERT_EQ(gelu->get_element_type(), element::f32);
-    ASSERT_EQ(gelu->get_shape(), (Shape{1, 32, 32}));
+    ASSERT_EQ(gelu->get_output_partial_shape(0).to_shape(), (Shape{1, 32, 32}));
     ASSERT_EQ(gelu->get_approximation_mode(), op::GeluApproximationMode::TANH);
 }
 
@@ -53,7 +53,7 @@ TEST(type_prop, gelu_tanh_mode_inference_f16) {
     auto gelu = make_shared<op::v7::Gelu>(param, op::GeluApproximationMode::TANH);
 
     ASSERT_EQ(gelu->get_element_type(), element::f16);
-    ASSERT_EQ(gelu->get_shape(), (Shape{1, 32, 32}));
+    ASSERT_EQ(gelu->get_output_partial_shape(0).to_shape(), (Shape{1, 32, 32}));
     ASSERT_EQ(gelu->get_approximation_mode(), op::GeluApproximationMode::TANH);
 }
 

@@ -15,7 +15,7 @@ TEST(type_prop, isfinite_output_shape) {
 
     EXPECT_EQ(isfinite->get_output_partial_shape(0), ov::PartialShape({4, 2}))
         << "The output shape of IsFinite is incorrect";
-    ASSERT_EQ(isfinite->get_shape(), (ov::Shape{4, 2})) << "The output shape of IsFinite is incorrect";
+    ASSERT_EQ(isfinite->get_output_partial_shape(0).to_shape(), (ov::Shape{4, 2})) << "The output shape of IsFinite is incorrect";
 }
 
 TEST(type_prop, isfnite_sample_dynamic_batch) {

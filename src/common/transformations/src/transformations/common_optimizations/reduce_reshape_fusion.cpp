@@ -43,9 +43,9 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
         }
 
         const auto reduce_axes_val = reduce_node->get_reduction_axes().to_vector();
-        const auto& reshape_shape = reshape_node->get_shape();
+        const auto& reshape_shape = reshape_node->get_output_partial_shape(0).to_shape();
 
-        auto reduce_shape = reduce_node->get_shape();
+        auto reduce_shape = reduce_node->get_output_partial_shape(0).to_shape();
         for (const auto& axis : reduce_axes_val) {
             reduce_shape.insert(std::next(std::begin(reduce_shape), axis), 1);
         }

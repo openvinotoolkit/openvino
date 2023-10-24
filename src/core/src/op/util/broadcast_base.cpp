@@ -198,7 +198,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
         auto concat_inputs = concat->inputs();
 
         if (!output_shape_defined && concat->get_output_partial_shape(0).is_static() &&
-            concat->get_shape().size() == 1 && concat_inputs.size() == shape_size(concat->get_shape())) {
+            concat->get_output_partial_shape(0).size() == 1 && concat_inputs.size() == shape_size(concat->get_output_partial_shape(0).to_shape())) {
             auto output_partial_shape = std::vector<Dimension>{};
             for (const auto& concat_input : concat_inputs) {
                 auto source_node_ptr = concat_input.get_source_output().get_node_shared_ptr();
@@ -220,8 +220,8 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
         // Validate axes_mapping
         if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static() &&
             get_input_partial_shape(2).is_static()) {
-            auto arg_shape = get_input_shape(0);
-            auto axes_shape = get_input_shape(2);
+            auto arg_shape = get_input_partial_shape(0).to_shape();
+            auto axes_shape = get_input_partial_shape(2).to_shape();
             auto input_rank = (arg_shape.size() == 0 && shape_size(axes_shape) > 0) ? 1 : arg_shape.size();
 
             // Rank(arg_shape) == shape_size(axes_mapping)
@@ -297,14 +297,14 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (get_input_partial_shape(1).is_static() && axes_mapping_constant) {
             auto axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
-            auto target_shape = get_input_shape(1);
+            auto target_shape = get_input_partial_shape(1).to_shape();
             OPENVINO_ASSERT(target_shape.size() == 1);
             return get_broadcast_axes_none(axes_mapping_val, target_shape[0]);
         }
     } else if (m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::PDPD) {
         if (get_input_partial_shape(0).is_static() && get_output_partial_shape(0).is_static()) {
-            auto arg_shape = get_input_shape(0);
-            auto result_shape = get_output_shape(0);
+            auto arg_shape = get_input_partial_shape(0).to_shape();
+            auto result_shape = get_output_partial_shape(0).to_shape();
             return get_broadcast_axes_numpy_pdpd(arg_shape, result_shape, m_mode);
         }
     } else {

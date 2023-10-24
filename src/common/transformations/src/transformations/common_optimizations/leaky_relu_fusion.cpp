@@ -27,7 +27,7 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& original_alpha_pattern = pattern_map.at(alpha_pattern);
 
-        if (shape_size(original_alpha_pattern.get_shape()) != 1)
+        if (shape_size(original_alpha_pattern.get_partial_shape().to_shape()) != 1)
             return false;
 
         auto constant = ov::as_type_ptr<op::v0::Constant>(original_alpha_pattern.get_node_shared_ptr());

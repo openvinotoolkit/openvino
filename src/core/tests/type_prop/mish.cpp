@@ -13,7 +13,7 @@ TEST(type_prop, mish) {
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 6});
     auto mish_func = make_shared<op::v4::Mish>(data);
     EXPECT_EQ(mish_func->get_element_type(), element::f32);
-    EXPECT_EQ(mish_func->get_shape(), (Shape{1, 3, 6}));
+    EXPECT_EQ(mish_func->get_output_partial_shape(0).to_shape(), (Shape{1, 3, 6}));
 }
 
 TEST(type_prop, mish_partial) {

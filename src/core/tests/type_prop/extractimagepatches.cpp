@@ -27,7 +27,7 @@ TEST(type_prop, extractimagepatches_default_ctor) {
 
     EXPECT_EQ(op->get_input_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
-    EXPECT_EQ(op->get_output_shape(0), (Shape{64, 27, 2, 2}));
+    EXPECT_EQ(op->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 2, 2}));
 }
 
 TEST(type_prop, extractimagepatches_i32) {
@@ -39,7 +39,7 @@ TEST(type_prop, extractimagepatches_i32) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 2, 2}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 2, 2}));
 }
 
 TEST(type_prop, extractimagepatches_i64) {
@@ -51,7 +51,7 @@ TEST(type_prop, extractimagepatches_i64) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i64);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 2, 2}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 2, 2}));
 }
 
 TEST(type_prop, extractimagepatches_rates_change) {
@@ -63,7 +63,7 @@ TEST(type_prop, extractimagepatches_rates_change) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 6, 8}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 6, 8}));
 }
 
 TEST(type_prop, extractimagepatches_input_shape_change) {
@@ -77,7 +77,7 @@ TEST(type_prop, extractimagepatches_input_shape_change) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 1, 1}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 1, 1}));
     EXPECT_THAT(get_shape_labels(extractimagepatches->get_output_partial_shape(0)), ElementsAre(10, 0, 0, 0));
 }
 
@@ -133,7 +133,7 @@ TEST(type_prop, extractimagepatches_padding_same_lower1) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 7, 6}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 7, 6}));
 }
 
 TEST(type_prop, extractimagepatches_padding_same_lower2) {
@@ -145,7 +145,7 @@ TEST(type_prop, extractimagepatches_padding_same_lower2) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 2, 2}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 2, 2}));
 }
 TEST(type_prop, extractimagepatches_padding_same_upper) {
     auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 3, 23, 11});
@@ -156,7 +156,7 @@ TEST(type_prop, extractimagepatches_padding_same_upper) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 5, 3}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 5, 3}));
 }
 
 TEST(type_prop, extractimagepatches_padding_same_upper2) {
@@ -168,7 +168,7 @@ TEST(type_prop, extractimagepatches_padding_same_upper2) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 2, 3}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 2, 3}));
 }
 
 TEST(type_prop, extractimagepatches_zero_dim_inputs) {
@@ -180,7 +180,7 @@ TEST(type_prop, extractimagepatches_zero_dim_inputs) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 0, 0, 0}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 0, 0, 0}));
 }
 
 TEST(type_prop, extractimagepatches_large_stride_valid_padding) {
@@ -192,7 +192,7 @@ TEST(type_prop, extractimagepatches_large_stride_valid_padding) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 1, 1}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 1, 1}));
 }
 
 TEST(type_prop, extractimagepatches_large_stride_same_padding) {
@@ -204,7 +204,7 @@ TEST(type_prop, extractimagepatches_large_stride_same_padding) {
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
-    EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 1, 1}));
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0).to_shape(), (Shape{64, 27, 1, 1}));
 }
 
 TEST(type_prop, extractimagepatches_dyn) {

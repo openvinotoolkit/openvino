@@ -33,7 +33,7 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
         const size_t input_shape_rank = input_shape.rank().get_length();
 
         auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
-        if (!order || !ov::shape_size(order->get_shape())) {
+        if (!order || !ov::shape_size(order->get_output_partial_shape(0).to_shape())) {
             return false;
         }
 

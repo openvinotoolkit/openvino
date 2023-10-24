@@ -34,7 +34,7 @@ ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
 
         const auto& channel_dim = m_weights.get_partial_shape()[0].get_length();
         const auto& weights_rank = m_weights.get_partial_shape().rank().get_length();
-        const auto& const_shape = m_const.get_shape();
+        const auto& const_shape = m_const.get_partial_shape().to_shape();
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
@@ -98,7 +98,7 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         const auto& G = weights_shape[0].get_length();
         const auto& O = weights_shape[1].get_length();
         const auto& weights_rank = weights_shape.rank().get_length();
-        const auto& const_shape = m_const.get_shape();
+        const auto& const_shape = m_const.get_partial_shape().to_shape();
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
@@ -186,7 +186,7 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
 
         const auto& channel_dim = m_weights.get_partial_shape()[1].get_length();
         const auto& weights_rank = m_weights.get_partial_shape().rank().get_length();
-        const auto& const_shape = m_const.get_shape();
+        const auto& const_shape = m_const.get_partial_shape().to_shape();
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
@@ -263,7 +263,7 @@ ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDa
         const auto& G = m_weights.get_partial_shape()[0].get_length();
         const auto& O = m_weights.get_partial_shape()[2].get_length();
         const auto& weights_rank = m_weights.get_partial_shape().rank().get_length();
-        const auto& const_shape = m_const.get_shape();
+        const auto& const_shape = m_const.get_partial_shape().to_shape();
 
         bool is_scalar_multiplier(shape_size(const_shape) == 1);
 

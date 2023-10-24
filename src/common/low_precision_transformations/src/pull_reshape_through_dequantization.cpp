@@ -31,12 +31,12 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
 
     const auto newElementwiseValues = [&]() -> std::shared_ptr<Node> {
         // Firstly is checked whether the result constant shape can be set without any calculations
-        const auto& elementwiseValuesShape = elementwiseValues->get_shape();
+        const auto& elementwiseValuesShape = elementwiseValues->get_output_partial_shape(0).to_shape();
         if (ov::shape_size(elementwiseValuesShape) == 1) {
             return std::make_shared<opset1::Constant>(*elementwiseValues, Shape{});
         }
 
-        const auto& targetShape = reshape->get_output_shape(0);
+        const auto& targetShape = reshape->get_output_partial_shape(0).to_shape();
         if (targetShape.size() == elementwiseValuesShape.size()) {
             bool eltwiseConstAffected = false;
             for (size_t i = 0; i < targetShape.size(); ++i) {
@@ -53,7 +53,7 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
         // If shape calculation is needed, fold_reshape is used for result constant shape computation
         const auto newReshapeValuesVector = ov::pass::low_precision::NetworkHelper::updateReshapeValues(
             elementwiseValuesShape,
-            elementwise->get_output_shape(0),
+            elementwise->get_output_partial_shape(0).to_shape(),
             targetShape);
 
         // in some cases it's impossible to definitely reshape eltwise constant using Reshape

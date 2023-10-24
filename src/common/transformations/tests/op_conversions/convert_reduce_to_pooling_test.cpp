@@ -119,7 +119,7 @@ public:
         // Convert std::vector<int64_t> -> ov::Shape
         ov::Shape reshape_end(params.reshape_end.begin(), params.reshape_end.end());
 
-        if (reshape_end != input.get_shape()) {
+        if (reshape_end != input.get_partial_shape().to_shape()) {
             input = std::make_shared<opset1::Reshape>(
                 input,
                 opset1::Constant::create(element::i64, Shape{reshape_end.size()}, reshape_end),

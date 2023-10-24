@@ -169,7 +169,7 @@ bool default_bound_evaluator(const ov::Node* node,
 ov::Tensor equality_mask(const ov::Tensor& tensor, const std::shared_ptr<op::v0::Constant>& constant) {
     auto mask_out = ov::TensorVector{{element::boolean, tensor.get_shape()}};
 
-    auto c_tensor = ov::Tensor(constant->get_element_type(), constant->get_shape());
+    auto c_tensor = ov::Tensor(constant->get_element_type(), constant->get_output_partial_shape(0).to_shape());
     memcpy(c_tensor.data(), constant->get_data_ptr(), c_tensor.get_byte_size());
 
     const auto& param = std::make_shared<op::v0::Parameter>(tensor.get_element_type(), tensor.get_shape());
@@ -182,7 +182,7 @@ ov::Tensor or_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
                                         std::make_shared<op::v0::Parameter>(rhs.get_element_type(), rhs.get_shape()),
                                         op::AutoBroadcastType::NUMPY);
 
-    auto outs = ov::TensorVector{{lhs.get_element_type(), logical_or.get_output_shape(0)}};
+    auto outs = ov::TensorVector{{lhs.get_element_type(), logical_or.get_output_partial_shape(0).to_shape()}};
     logical_or.evaluate(outs, ov::TensorVector{lhs, rhs});
     return outs.front();
 }
@@ -489,14 +489,14 @@ bool ov::tensor_is_non_negative(const Tensor& bound) {
                       ->constant_fold(greater, {bound_constant, zero_constant});
     OPENVINO_ASSERT(folded);
 
-    auto axes_vector = std::vector<int64_t>(greater[0].get_shape().size());
+    auto axes_vector = std::vector<int64_t>(greater[0].get_partial_shape().size());
     std::iota(axes_vector.begin(), axes_vector.end(), 0);
     const auto axes = op::v0::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
 
     OutputVector all(1);
     folded = std::make_shared<op::v1::ReduceLogicalAnd>(greater[0], axes)->constant_fold(all, {greater[0], axes});
     OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
-    OPENVINO_ASSERT(all[0].get_shape() == Shape{});
+    OPENVINO_ASSERT(all[0].get_partial_shape().get_shape() == Shape{});
     return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
@@ -512,14 +512,14 @@ bool ov::tensor_has_max_value(const Tensor& bound) {
                       ->constant_fold(equal, {bound_constant, max_constant});
     OPENVINO_ASSERT(folded);
 
-    auto axes_vector = std::vector<int64_t>(equal[0].get_shape().size());
+    auto axes_vector = std::vector<int64_t>(equal[0].get_partial_shape().size());
     std::iota(axes_vector.begin(), axes_vector.end(), 0);
     const auto axes = op::v0::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
 
     OutputVector all(1);
     folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
     OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
-    OPENVINO_ASSERT(all[0].get_shape() == Shape{});
+    OPENVINO_ASSERT(all[0].get_partial_shape().to_shape() == Shape{});
     return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
@@ -533,14 +533,14 @@ bool ov::tensor_has_zero_value(const Tensor& bound) {
                       ->constant_fold(equal, {bound_constant, zero_constant});
     OPENVINO_ASSERT(folded);
 
-    auto axes_vector = std::vector<int64_t>(equal[0].get_shape().size());
+    auto axes_vector = std::vector<int64_t>(equal[0].get_partial_shape().size());
     std::iota(axes_vector.begin(), axes_vector.end(), 0);
     const auto axes = op::v0::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
 
     OutputVector all(1);
     folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
     OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
-    OPENVINO_ASSERT(all[0].get_shape() == Shape{});
+    OPENVINO_ASSERT(all[0].get_partial_shape().to_shape() == Shape{});
     return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
@@ -579,8 +579,8 @@ bool ov::default_label_evaluator(const Node* node,
             }
 
             if (node->get_input_partial_shape(i).is_static()) {
-                labels.resize(shape_size(node->get_input_shape(i)), no_label);
-                inputs.emplace_back(element::from<label_t>(), node->get_input_shape(i));
+                labels.resize(shape_size(node->get_input_partial_shape(i).to_shape()), no_label);
+                inputs.emplace_back(element::from<label_t>(), node->get_input_partial_shape(i).to_shape());
                 std::copy(labels.begin(), labels.end(), inputs.back().data<label_t>());
             } else {
                 return false;

@@ -102,8 +102,8 @@ pass::GatherNopElimination::GatherNopElimination() {
 
     matcher_pass_callback callback = [](Matcher& m) {
         auto gather = m.get_match_root();
-        const auto& number_of_indices = shape_size(gather->get_input_shape(1));
-        if (gather->get_input_shape(0) != gather->get_output_shape(0) || shape_size(gather->get_input_shape(2)) != 1 ||
+        const auto& number_of_indices = shape_size(gather->get_input_partial_shape(1).to_shape());
+        if (gather->get_input_partial_shape(0) != gather->get_output_partial_shape(0) || shape_size(gather->get_input_partial_shape(2).to_shape()) != 1 ||
             number_of_indices > 10)
             return false;
         std::vector<int64_t> expected_vector(number_of_indices);
@@ -231,7 +231,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         bool gather_folded = false;
 
         auto update_expected_gather_location = [&](const Output<Node>& concat_input) {
-            const auto concat_input_shape = concat_input.get_shape();
+            const auto concat_input_shape = concat_input.get_partial_shape().to_shape();
             OPENVINO_ASSERT(concat_input_shape.size() == 1,
                             "concat input rank is not valid for matched Concat with 1D output");
             gather_dims_expected_location += concat_input_shape[0];

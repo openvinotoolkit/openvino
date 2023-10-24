@@ -209,7 +209,7 @@ public:
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
                                      input.get_element_type(),
-                                     input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape(),
+                                     input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_partial_shape().to_shape(),
                                      compiled_model->has_context(),
                                      compiled_model->get_context());
             });
@@ -219,7 +219,7 @@ public:
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
                                      output.get_element_type(),
-                                     output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape(),
+                                     output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_partial_shape().to_shape(),
                                      compiled_model->has_context(),
                                      compiled_model->get_context());
             });

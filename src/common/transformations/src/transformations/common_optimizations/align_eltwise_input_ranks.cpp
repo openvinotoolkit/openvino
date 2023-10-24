@@ -51,7 +51,7 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
             auto const_node = as_type<ov::op::v0::Constant>(node->get_input_node_ptr(i));
             if (const_node == nullptr)
                 continue;
-            const auto& const_shape = const_node->get_shape();
+            const auto& const_shape = const_node->get_output_partial_shape(0).to_shape();
             auto diff = rank - static_cast<int64_t>(const_shape.size());
             if (diff > 0) {
                 Shape new_shape = const_shape;

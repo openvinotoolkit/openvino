@@ -170,8 +170,8 @@ ov::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             }
 
             bool zero_point_is_zero = true;
-            PartialShape merged_shape{output_low->get_shape()};
-            PartialShape::broadcast_merge_into(merged_shape, output_high->get_shape(), op::AutoBroadcastType::NUMPY);
+            PartialShape merged_shape{output_low->get_output_partial_shape(0).to_shape()};
+            PartialShape::broadcast_merge_into(merged_shape, output_high->get_output_partial_shape(0).to_shape(), op::AutoBroadcastType::NUMPY);
             Shape scale_or_zero_point_shape = merged_shape.to_shape();
             Tensor scale_tensor(high_precision_type, scale_or_zero_point_shape);
             Tensor zero_point_tensor(high_precision_type, scale_or_zero_point_shape);
@@ -225,7 +225,7 @@ ov::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
 }
 
 static ov::Tensor tensor_from_constant(const std::shared_ptr<ov::op::v0::Constant>& constant) {
-    return ov::Tensor(constant->get_element_type(), constant->get_shape(), const_cast<void*>(constant->get_data_ptr()));
+    return ov::Tensor(constant->get_element_type(), constant->get_output_partial_shape(0).to_shape(), const_cast<void*>(constant->get_data_ptr()));
 }
 
 static bool evaluate_node(const std::shared_ptr<ov::Node>& node,
@@ -234,7 +234,7 @@ static bool evaluate_node(const std::shared_ptr<ov::Node>& node,
     if (node->get_output_size() != 1)
         return false;
 
-    ov::TensorVector output_tensors{ov::Tensor(node->get_output_element_type(0), node->get_output_shape(0))};
+    ov::TensorVector output_tensors{ov::Tensor(node->get_output_element_type(0), node->get_output_partial_shape(0).to_shape())};
     if (!node->evaluate(output_tensors, input_tensors))
         return false;
 
@@ -350,8 +350,8 @@ static void compute_scale_and_zero_point_internal(const std::shared_ptr<ov::op::
         output_low->get_data_ptr<T>(),
         output_high->get_data_ptr<T>(),
         scale,
-        output_low->get_shape(),
-        output_high->get_shape(),
+        output_low->get_output_partial_shape(0).to_shape(),
+        output_high->get_output_partial_shape(0).to_shape(),
         ov::op::AutoBroadcastType::NUMPY,
         [input_range, new_output_low, zero_point, &zero_point_is_zero](float output_low_value,
                                                                        float output_high_value) mutable {
@@ -677,7 +677,7 @@ std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights(
     const std::shared_ptr<ov::Node>& zero_point,
     bool& can_fuse_zero_point) {
     std::shared_ptr<ov::op::v0::Constant> new_weights;
-    const auto& weights_shape = weights->get_shape();
+    const auto& weights_shape = weights->get_output_partial_shape(0).to_shape();
     const auto& type = weights->get_element_type();
     const auto& low_precision_type = convert->get_output_element_type(0);
 
@@ -694,15 +694,15 @@ std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights(
                                                           weights->get_data_ptr<float>(),
                                                           weights_shape,
                                                           input_low->get_data_ptr<float>(),
-                                                          input_low->get_shape(),
+                                                          input_low->get_output_partial_shape(0).to_shape(),
                                                           input_high->get_data_ptr<float>(),
-                                                          input_low->get_shape(),
+                                                          input_low->get_output_partial_shape(0).to_shape(),
                                                           output_low->get_data_ptr<float>(),
-                                                          output_low->get_shape(),
+                                                          output_low->get_output_partial_shape(0).to_shape(),
                                                           output_high->get_data_ptr<float>(),
-                                                          output_low->get_shape(),
+                                                          output_low->get_output_partial_shape(0).to_shape(),
                                                           zero_point_constant->get_data_ptr<float>(),
-                                                          zero_point_constant->get_shape(),
+                                                          zero_point_constant->get_output_partial_shape(0).to_shape(),
                                                           fq->get_levels(),
                                                           can_fuse_zero_point);
         break;
@@ -712,15 +712,15 @@ std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights(
                                                           weights->get_data_ptr<ov::float16>(),
                                                           weights_shape,
                                                           input_low->get_data_ptr<ov::float16>(),
-                                                          input_low->get_shape(),
+                                                          input_low->get_output_partial_shape(0).to_shape(),
                                                           input_high->get_data_ptr<ov::float16>(),
-                                                          input_low->get_shape(),
+                                                          input_low->get_output_partial_shape(0).to_shape(),
                                                           output_low->get_data_ptr<ov::float16>(),
-                                                          output_low->get_shape(),
+                                                          output_low->get_output_partial_shape(0).to_shape(),
                                                           output_high->get_data_ptr<ov::float16>(),
-                                                          output_low->get_shape(),
+                                                          output_low->get_output_partial_shape(0).to_shape(),
                                                           zero_point_constant->get_data_ptr<ov::float16>(),
-                                                          zero_point_constant->get_shape(),
+                                                          zero_point_constant->get_output_partial_shape(0).to_shape(),
                                                           fq->get_levels(),
                                                           can_fuse_zero_point);
         break;
@@ -805,7 +805,7 @@ std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights(
     const ov::Tensor& zero_point_tensor,
     bool& can_fuse_zero_point) {
     std::shared_ptr<ov::op::v0::Constant> new_weights;
-    const auto& weights_shape = weights->get_shape();
+    const auto& weights_shape = weights->get_output_partial_shape(0).to_shape();
     const auto& type = weights->get_element_type();
     switch (type) {
     case ov::element::f32: {
@@ -813,9 +813,9 @@ std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights(
                                                           weights->get_data_ptr<float>(),
                                                           weights_shape,
                                                           input_low->get_data_ptr<float>(),
-                                                          input_low->get_shape(),
+                                                          input_low->get_output_partial_shape(0).to_shape(),
                                                           input_high->get_data_ptr<float>(),
-                                                          input_low->get_shape(),
+                                                          input_low->get_output_partial_shape(0).to_shape(),
                                                           zero_point_tensor.data<float>(),
                                                           zero_point_tensor.get_shape(),
                                                           levels,
@@ -828,9 +828,9 @@ std::shared_ptr<ov::op::v0::Constant> compress_quantized_weights(
                                                           weights->get_data_ptr<ov::float16>(),
                                                           weights_shape,
                                                           input_low->get_data_ptr<ov::float16>(),
-                                                          input_low->get_shape(),
+                                                          input_low->get_output_partial_shape(0).to_shape(),
                                                           input_high->get_data_ptr<ov::float16>(),
-                                                          input_low->get_shape(),
+                                                          input_low->get_output_partial_shape(0).to_shape(),
                                                           zero_point_tensor.data<ov::float16>(),
                                                           zero_point_tensor.get_shape(),
                                                           levels,

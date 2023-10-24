@@ -14,5 +14,5 @@ TEST(type_prop, read_value_deduce) {
     auto read_value = make_shared<ov::op::v3::ReadValue>(input, "variable_id");
 
     ASSERT_EQ(read_value->get_element_type(), element::f32);
-    ASSERT_EQ(read_value->get_shape(), (Shape{1, 2, 64, 64}));
+    ASSERT_EQ(read_value->get_output_partial_shape(0).to_shape(), (Shape{1, 2, 64, 64}));
 }

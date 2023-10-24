@@ -21,7 +21,7 @@ ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
         if (!const_node)
             return false;
 
-        const auto& shape = const_node->get_shape();
+        const auto& shape = const_node->get_output_partial_shape(0).to_shape();
         const auto& values = const_node->cast_vector<double>();
 
         auto mask = std::make_shared<ov::Mask>(shape);

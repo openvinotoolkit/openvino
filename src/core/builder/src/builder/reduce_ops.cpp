@@ -48,7 +48,7 @@ std::shared_ptr<Node> builder::opset1::mean(const Output<Node>& value, const Axi
         ngraph::opset1::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector());
     const auto value_elems_sum = std::make_shared<ngraph::opset1::ReduceSum>(value, reduction_axes_const, keep_dims);
     if (value.get_partial_shape().is_static()) {
-        const auto elems_number_value = get_num_elements(value.get_shape(), reduction_axes);
+        const auto elems_number_value = get_num_elements(value.get_partial_shape().to_shape(), reduction_axes);
         elems_number = ngraph::opset1::Constant::create(value_elem_type, Shape{}, {elems_number_value});
     } else {
         elems_number = get_num_elements(value, reduction_axes_const);
@@ -84,7 +84,7 @@ std::shared_ptr<Node> builder::opset1::variance(const Output<Node>& value,
         false);
 
     const auto& et = value.get_element_type();
-    const auto N = get_num_elements(value.get_shape(), reduction_axes);
+    const auto N = get_num_elements(value.get_partial_shape().to_shape(), reduction_axes);
 
     std::shared_ptr<Node> result;
     if (bessel_correction) {
