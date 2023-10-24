@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/convert_u4_weights_zero_point_to_scalar.hpp"
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
@@ -215,6 +216,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
     ADD_MATCHER(common_fusions, NonZeroHorizontalFusion)
     ADD_MATCHER(common_fusions, AdaptivePoolToReduce)
+    ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     REGISTER_PASS(manager, BinarizeWeights)
