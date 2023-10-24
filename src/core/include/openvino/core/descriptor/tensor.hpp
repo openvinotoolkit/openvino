@@ -8,7 +8,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <openvino/core/deprecated.hpp>
 #include <string>
 #include <unordered_set>
 
