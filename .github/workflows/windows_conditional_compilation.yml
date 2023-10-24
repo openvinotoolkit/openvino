@@ -90,6 +90,7 @@ jobs:
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          restore: false
           key: ${{ github.job }}-${{ runner.os }}-itt
           restore-keys: |
             ${{ github.job }}-${{ runner.os }}-itt
