@@ -31,11 +31,11 @@ Running
 `convert.py` allow to reproduce IRs stored on shared drive.
 
 Prerequisites:
-install conversion dependencies using requirements_conversion.txt
+install conversion dependencies using requirements.txt
 
    .. code-block:: sh
 
-      pip install -r requirements/requirements_conversion.txt
+      pip install -r requirements/requirements.txt
 
 Usage:
 
@@ -91,18 +91,19 @@ notes: **You can specify the installed openvino version through pip install**
 
    .. code-block:: sh
 
-      python benchmark.py -m <model> -d <device> -r <report_csv> -f <framework> -t <prompts> -n <num_iters>
+      python benchmark.py -m <model> -d <device> -r <report_csv> -f <framework> -p <prompts> -n <num_iters>
       # e.g.
       python benchmark.py -m models/llama-2-7b-chat/pytorch/dldt/FP32 -n 2
-      python benchmark.py -m models/llama-2-7b-chat/pytorch/dldt/FP32 -t "What is openvino?" -n 2
-      python benchmark.py -m models/llama-2-7b-chat/pytorch/dldt/FP32 -t prompts/llama-2-7b-chat_l.jsonl -n 2
+      python benchmark.py -m models/llama-2-7b-chat/pytorch/dldt/FP32 -p "What is openvino?" -n 2
+      python benchmark.py -m models/llama-2-7b-chat/pytorch/dldt/FP32 -pf prompts/llama-2-7b-chat_l.jsonl -n 2
 
 Parameters:
 * `-m` - model path
 * `-d` - inference device (default=cpu)
 * `-r` - report csv
 * `-f` - framework (default=ov)
-* `-t` - interactive prompt text or jsonl file
+* `-p` - interactive prompt text
+* `-pf` - path of JSONL file including interactive prompts
 * `-n` - number of benchmarking iterations, if the value greater 0, will exclude the first iteration. (default=0)
 
    .. code-block:: sh
