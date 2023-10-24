@@ -48,7 +48,7 @@ class TestLen(PytorchLayerTest):
     def test_len_int_list(self, ie_device, precision, ir_version, input_tensor):
         self.input_tensor = input_tensor
         self._test(*self.create_model_int_list(),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestLenEmpty(PytorchLayerTest):
