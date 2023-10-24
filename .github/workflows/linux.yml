@@ -82,7 +82,7 @@ jobs:
           ref: 'master'
 
       - name: System info
-        uses: ${OPENVINO_REPO}/.github/actions/system_info
+        uses: .github/actions/system_info
 
       #
       # Dependencies
