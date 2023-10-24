@@ -59,12 +59,12 @@ const auto matMulParams_x64 = ::testing::Combine(::testing::ValuesIn(IS_x64),
                                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(additionalConfig()));
 
-const auto testParams_x64 = ::testing::Combine(matMulParams_x64,
+const auto testParams_Static_IS_x64 = ::testing::Combine(matMulParams_x64,
                                            ::testing::Values(MatMulNodeType::MatMul),
                                            ::testing::ValuesIn(matmulFusingParams()),
                                            ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
 
-INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_IS_x64, MatMulLayerCPUTest, testParams_x64, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_IS_x64, MatMulLayerCPUTest, testParams_Static_IS_x64, MatMulLayerCPUTest::getTestCaseName);
 
 const auto testParams2D_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke()),
                                                                 ::testing::Values(ElementType::f32),
@@ -386,14 +386,6 @@ const std::vector<fusingSpecificParams> matmulFusingParams_x64{
             fusingFakeQuantizePerTensorRelu,
             fusingScaleShiftAndFakeQuantizePerChannel,
 };
-
-const auto matMulParams_x64 = ::testing::Combine(::testing::ValuesIn(IS),
-                                             ::testing::ValuesIn(netPRCs()),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                             ::testing::ValuesIn(additionalConfig()));
 
 const auto testParams_x64 = ::testing::Combine(matMulParams_x64,
                                            ::testing::Values(MatMulNodeType::MatMul),
