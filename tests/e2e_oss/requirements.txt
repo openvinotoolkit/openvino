@@ -30,6 +30,7 @@ pytest-xdist==2.1.0
 pytest-timeout==1.3.2
 
 # for common utils, e2e_oss
+openvino-dev
 distro==1.8.0
 pyyaml==6.0
 jsonschema==4.17.0
