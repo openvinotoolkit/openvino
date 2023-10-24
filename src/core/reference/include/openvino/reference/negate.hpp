@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <functional>
 
 namespace ov {
 namespace reference {
@@ -18,9 +19,7 @@ namespace reference {
  */
 template <typename T>
 void negate(const T* arg, T* out, const size_t count) {
-    std::transform(arg, std::next(arg, count), out, [](const T value) {
-        return -value;
-    });
+    std::transform(arg, std::next(arg, count), out, std::negate<T>());
 }
 }  // namespace reference
 }  // namespace ov
