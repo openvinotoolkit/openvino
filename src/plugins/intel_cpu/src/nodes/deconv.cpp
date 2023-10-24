@@ -941,8 +941,10 @@ void Deconvolution::prepareParams() {
         } else {
             std::tie(desc, fwd_conv_pd) = createDefaultMkldnnDeconvDesc(key.inp0->getDnnlDesc(), key.inp1->getDnnlDesc(), key.out->getDnnlDesc(),
                                                                         key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
+#if defined(SELECTIVE_BUILD_ANALYZER)
             // Create dummy primitive to WA CC issue.
             OPENVINO_ASSERT(dnnl::primitive(fwd_conv_pd));
+#endif
         }
 
         primitive_desc_iterator itpd = desc;
@@ -995,8 +997,10 @@ void Deconvolution::prepareParams() {
             } else {
                 std::tie(anyDeconvDesc, fwdConvPd) = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc,
                                                               key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
+#if defined(SELECTIVE_BUILD_ANALYZER)
                 // Create dummy primitive to WA CC issue.
                 OPENVINO_ASSERT(dnnl::primitive(fwd_conv_pd));
+#endif
             }
 
             if (anyDeconvDesc) {
