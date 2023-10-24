@@ -4,28 +4,34 @@
 
 #include <vector>
 
-#include "single_layer_tests/gru_cell.hpp"
+#include "single_op_tests/gru_cell.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
-    std::vector<bool> should_decompose{false, true};
-    std::vector<size_t> batch{5};
-    std::vector<size_t> hidden_size{1, 10};
-    std::vector<size_t> input_size{1, 30};
-    std::vector<std::vector<std::string>> activations = {{"relu", "tanh"}, {"tanh", "sigmoid"}, {"sigmoid", "tanh"},
-                                                         {"tanh", "relu"}};
-    std::vector<float> clip = {0.0f, 0.7f};
-    std::vector<bool> linear_before_reset = {true, false};
-    std::vector<ngraph::helpers::InputLayerType> layer_types = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
-    };
-    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                             InferenceEngine::Precision::FP16};
+using ov::test::GRUCellTest;
 
-    INSTANTIATE_TEST_SUITE_P(GRUCellCommon, GRUCellTest,
+std::vector<bool> should_decompose{false, true};
+std::vector<size_t> batch{5};
+std::vector<size_t> hidden_size{1, 10};
+std::vector<size_t> input_size{1, 30};
+std::vector<std::vector<std::string>> activations = {
+        {"relu", "tanh"},
+        {"tanh", "sigmoid"},
+        {"sigmoid", "tanh"},
+        {"tanh", "relu"}
+};
+
+std::vector<float> clip = {0.0f, 0.7f};
+std::vector<bool> linear_before_reset = {true, false};
+std::vector<ov::test::utils::InputLayerType> layer_types = {
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::PARAMETER
+};
+
+std::vector<ov::element::Type> netPrecisions = {ov::element::f32,
+                                                ov::element::f16};
+
+INSTANTIATE_TEST_SUITE_P(GRUCellCommon, GRUCellTest,
             ::testing::Combine(
             ::testing::ValuesIn(should_decompose),
             ::testing::ValuesIn(batch),
