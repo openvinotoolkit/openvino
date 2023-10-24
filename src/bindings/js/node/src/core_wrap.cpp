@@ -263,7 +263,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
 
         context_data->nativeThread = std::thread(compileModelThreadPath, context_data);
         return context_data->deferred.Promise();
-    } else if (info.Length() < 2 && info.Length() > 3) {
+    } else if (info.Length() < 2 || info.Length() > 3) {
         reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
         return Napi::Value();
     } else {
