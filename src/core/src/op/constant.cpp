@@ -13,6 +13,9 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/core/type/nf4.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
 template <typename T>
@@ -605,4 +608,8 @@ bool ov::op::v0::Constant::evaluate_lower(TensorVector& outputs) const {
 }
 bool ov::op::v0::Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
+}
+
+uint8_t ov::op::v0::Constant::quantize_nf4(float x) {
+    return ov::ConvertNF4::quantize(x);
 }
