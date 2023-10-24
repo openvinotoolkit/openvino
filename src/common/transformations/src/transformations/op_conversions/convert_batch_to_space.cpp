@@ -158,8 +158,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
             nodes.erase(remove_if(nodes.begin(),
                                   nodes.end(),
                                   [](const Output<Node>& n) {
-                                      return n.get_partial_shape().is_static() &&
-                                             n.get_partial_shape().size() > 0 &&
+                                      return n.get_partial_shape().is_static() && n.get_partial_shape().size() > 0 &&
                                              n.get_partial_shape().to_shape()[0] == 0;
                                   }),
                         nodes.end());

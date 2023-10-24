@@ -48,14 +48,14 @@ ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar()
             return false;
         // Due to the matcher specific and Subtract branches similarity,
         // weights and zero_point might be mixed up with each other
-        if (ov::shape_size(weights->get_shape()) < ov::shape_size(zero_point->get_shape()))
+        if (ov::shape_size(weights->get_output_partial_shape(0).to_shape()) < ov::shape_size(zero_point->get_output_partial_shape(0).to_shape()))
             std::swap(zero_point, weights);
 
-        auto zero_point_shape = zero_point->get_shape();
+        auto zero_point_shape = zero_point->get_output_partial_shape(0).to_shape();
         if (ov::shape_size(zero_point_shape) == 1)
             return false;
 
-        const auto& weights_shape = weights->get_shape();
+        const auto& weights_shape = weights->get_output_partial_shape(0).to_shape();
         const size_t weights_rank = weights_shape.size();
         const size_t zero_point_rank = zero_point_shape.size();
         // Zero point constant can be converted into scalar only if this does not affect Subtract output shape
