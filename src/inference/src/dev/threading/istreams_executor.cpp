@@ -553,23 +553,19 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
     return config;
 }
 
-IStreamsExecutor::Config IStreamsExecutor::Config::update_executor_config(
-    const IStreamsExecutor::Config& initial,
+void IStreamsExecutor::Config::update_executor_config(
+    IStreamsExecutor::Config& config,
     int stream_nums,
-    int stream_nums_per_thread,
+    int threads_per_stream,
     IStreamsExecutor::Config::PreferredCoreType core_type,
     bool cpu_pinning) {
     const auto proc_type_table = ov::get_proc_type_table();
 
     if (proc_type_table.empty()) {
-        return initial;
+        return;
     }
 
-    IStreamsExecutor::Config config = initial;
-
-    config._threadPreferredCoreType = core_type;
-    config._threadsPerStream = stream_nums_per_thread;
-
+    // IStreamsExecutor::Config config = initial;
     const auto total_num_cores = proc_type_table[0][ALL_PROC];
     const auto total_num_big_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
     const auto total_num_little_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
@@ -581,11 +577,15 @@ IStreamsExecutor::Config IStreamsExecutor::Config::update_executor_config(
         num_cores = total_num_little_cores;
     }
 
-    config._streams = std::min(stream_nums, num_cores);
+    int streams = std::min(stream_nums, num_cores);
 
-    if (config._streams == 0) {
-        return initial;
+    if (streams == 0) {
+        return;
     }
+
+    config._streams = streams;
+    config._threadPreferredCoreType = core_type;
+    config._threadsPerStream = threads_per_stream;
 
     // create stream_info_table based on core type
     std::vector<int> stream_info(ov::CPU_STREAMS_TABLE_SIZE, 0);
@@ -650,11 +650,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::update_executor_config(
 
     if (cpu_pinning) {
         config._cpu_reservation = cpu_pinning;
-        auto new_config = reserve_cpu_threads(config);
-        config = new_config;
+        config = reserve_cpu_threads(config);
     }
-
-    return config;
 }
 
 }  // namespace threading
