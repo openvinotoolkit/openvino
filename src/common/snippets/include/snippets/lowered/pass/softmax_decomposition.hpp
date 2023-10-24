@@ -18,8 +18,8 @@ namespace pass {
  */
 class SoftmaxDecomposition : public Pass {
 public:
-    explicit SoftmaxDecomposition(size_t vector_size);
     OPENVINO_RTTI("SoftmaxDecomposition", "Pass")
+    explicit SoftmaxDecomposition(size_t vector_size);
     bool run(LinearIR& linear_ir) override;
 
 private:
