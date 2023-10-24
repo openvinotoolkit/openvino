@@ -63,7 +63,8 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     : ov::ICompiledModel(model,
                          plugin,
                          wrap_if_old_api(context, plugin->is_new_api()),
-                         create_task_executor(plugin, config))
+                         create_task_executor(plugin, config),
+                         nullptr)
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
