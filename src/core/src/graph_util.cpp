@@ -319,7 +319,8 @@ bool replace_output_update_name(Output<Node> output, const Output<Node>& replace
 
 bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement) {
     for (auto& output : target->output(0).get_target_inputs()) {
-        if (ov::as_type<op::v0::Parameter>(replacement->input_value(0).get_node()) &&
+        if (replacement->get_input_size() > 0 &&
+            ov::as_type<op::v0::Parameter>(replacement->input_value(0).get_node()) &&
             ov::as_type<op::v0::Result>(output.get_node())) {
             return false;
         }
