@@ -110,20 +110,13 @@ public:
             bool has_scale = !primitive->decompression_scale.empty();
 
             size_t offset = primitive->bias.empty() ? 2 : 3;
-            const auto& weights_pshape = input1_layout.get_partial_shape();
             if (has_scale) {
                 auto scale_layout = input_layouts[offset++];
-                if (input1_pshape.size() != 2) {
-                    scale_layout.set_partial_shape(reshape_to_2d(scale_layout.get_partial_shape(), weights_pshape[0], primitive->weights_rank));
-                }
                 layouts.push_back(scale_layout);
             }
 
             if (has_zp) {
                 auto zp_layout = input_layouts[offset];
-                if (input1_pshape.size() != 2) {
-                    zp_layout.set_partial_shape(reshape_to_2d(zp_layout.get_partial_shape(), weights_pshape[0], primitive->weights_rank));
-                }
                 layouts.push_back(zp_layout);
             }
 

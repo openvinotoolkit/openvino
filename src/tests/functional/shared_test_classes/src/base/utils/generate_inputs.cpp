@@ -9,7 +9,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 
-#include "shared_test_classes/single_layer/roi_align.hpp"
+#include "shared_test_classes/single_op/roi_align.hpp"
 #include "shared_test_classes/single_layer/psroi_pooling.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
@@ -537,13 +537,13 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v3::ROIAlign>& node,
             if (node->get_sampling_ratio() != 0) {
                 const auto &inputShape = node->get_input_shape(0);
                 std::vector<float> blobData(node->get_shape()[0] * 4);
-                LayerTestsDefinitions::ROIAlignLayerTest::fillCoordTensor(blobData,
-                                                                          inputShape[2],
-                                                                          inputShape[3],
-                                                                          node->get_spatial_scale(),
-                                                                          node->get_sampling_ratio(),
-                                                                          node->get_pooled_h(),
-                                                                          node->get_pooled_w());
+                ov::test::ROIAlignLayerTest::fillCoordTensor(blobData,
+                                                             inputShape[2],
+                                                             inputShape[3],
+                                                             node->get_spatial_scale(),
+                                                             node->get_sampling_ratio(),
+                                                             node->get_pooled_h(),
+                                                             node->get_pooled_w());
                 return ov::test::utils::create_tensor<float>(ov::element::f32, targetShape, blobData);
             } else {
                 return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
@@ -551,7 +551,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v3::ROIAlign>& node,
         }
         case 2: {
             std::vector<int> roiIdxVector(node->get_shape()[0]);
-            LayerTestsDefinitions::ROIAlignLayerTest::fillIdxTensor(roiIdxVector, node->get_shape()[0]);
+            ov::test::ROIAlignLayerTest::fillIdxTensor(roiIdxVector, node->get_shape()[0]);
             return ov::test::utils::create_tensor<int>(elemType, targetShape, roiIdxVector);
         }
         default:
@@ -632,13 +632,17 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::HSigmoid>& no
     return Activation::generate(elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::LSTMSequence>& node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::LSTMSequence>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     if (port == 2) {
         unsigned int m_max_seq_len = 10;
         return ov::test::utils::create_and_fill_tensor(elemType, targetShape, m_max_seq_len, 0);
+    }
+    if (port == 3 && node->input(0).get_partial_shape().is_static()) {
+        auto seq_len = node->input(0).get_shape()[1];
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, seq_len);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -852,6 +856,28 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v8::Softmax>& nod
 }
 
 ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v1::DeformablePSROIPooling>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 1) {
+        ov::Tensor tensor(elemType, targetShape);
+        auto data_input_shape = node->input(0).get_shape();
+        const auto batch_distrib = data_input_shape[0] - 1;
+        const auto height = data_input_shape[2] / node->get_spatial_scale();
+        const auto width  = data_input_shape[3] / node->get_spatial_scale();
+
+        ov::test::utils::fill_data_roi(tensor, batch_distrib, height, width, 1.0f, true);
+        return tensor;
+    } else if (port == 2) {
+        ov::Tensor tensor(elemType, targetShape);
+        ov::test::utils::fill_tensor_random(tensor, 1.8, -0.9);
+        return tensor;
+    }
+    return generate(std::static_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const
                              std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& node,
                              size_t port,
                              const ov::element::Type& elemType,
@@ -1022,6 +1048,7 @@ ov::runtime::Tensor generate(const
     comparison::fill_tensor(tensor);
     return tensor;
 }
+
 ov::runtime::Tensor generate(const
                              std::shared_ptr<ov::op::v10::IsNaN>& node,
                              size_t port,
@@ -1029,6 +1056,44 @@ ov::runtime::Tensor generate(const
                              const ov::Shape& targetShape) {
     ov::Tensor tensor{elemType, targetShape};
     comparison::fill_tensor(tensor);
+    return tensor;
+}
+
+namespace is_inf {
+template <typename T>
+void fill_tensor(ov::Tensor& tensor) {
+    int range = ov::shape_size(tensor.get_shape());
+    float startFrom = -static_cast<float>(range) / 2.f;
+
+    auto pointer = tensor.data<T>();
+    testing::internal::Random random(1);
+    for (size_t i = 0; i < range; i++) {
+        if (i % 7 == 0) {
+            pointer[i] = std::numeric_limits<T>::infinity();
+        } else if (i % 7 == 1) {
+            pointer[i] = std::numeric_limits<T>::quiet_NaN();
+        } else if (i % 7 == 3) {
+            pointer[i] = -std::numeric_limits<T>::infinity();
+        } else if (i % 7 == 5) {
+            pointer[i] = -std::numeric_limits<T>::quiet_NaN();
+        } else {
+            pointer[i] = static_cast<T>(startFrom + random.Generate(range));
+        }
+    }
+}
+} // namespace is_inf
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v10::IsInf>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    auto tensor = ov::Tensor(elemType, targetShape);
+    if (elemType == ov::element::f16) {
+        is_inf::fill_tensor<ov::float16>(tensor);
+    } else {
+        is_inf::fill_tensor<float>(tensor);
+    }
     return tensor;
 }
 
@@ -1139,6 +1204,18 @@ ov::runtime::Tensor generate(const
     ov::Tensor tensor(elemType, targetShape);
     color_conversion::fill_tensor(tensor, color_conversion::ColorFormat::nv12);
     return tensor;
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v0::NormalizeL2>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 0) {
+        InputGenerateData inGenData(-5, 10, 7, 222);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
 template<typename T>

@@ -38,7 +38,7 @@ function(ov_generate_frontends_hpp)
     ov_target_link_frontends(openvino)
 
     set(ov_frontends_hpp "${CMAKE_BINARY_DIR}/src/frontends/common/src/ov_frontends.hpp")
-    set(frontends_hpp_in "${IEDevScripts_DIR}/frontends/ov_frontends.hpp.in")
+    set(frontends_hpp_in "${OpenVINODeveloperScripts_DIR}/frontends/ov_frontends.hpp.in")
 
     add_custom_command(OUTPUT "${ov_frontends_hpp}"
                        COMMAND
@@ -46,10 +46,10 @@ function(ov_generate_frontends_hpp)
                         -D "OV_FRONTENDS_HPP_HEADER_IN=${frontends_hpp_in}"
                         -D "OV_FRONTENDS_HPP_HEADER=${ov_frontends_hpp}"
                         -D "FRONTEND_NAMES=${FRONTEND_NAMES}"
-                        -P "${IEDevScripts_DIR}/frontends/create_frontends_hpp.cmake"
+                        -P "${OpenVINODeveloperScripts_DIR}/frontends/create_frontends_hpp.cmake"
                        DEPENDS
                          "${frontends_hpp_in}"
-                         "${IEDevScripts_DIR}/frontends/create_frontends_hpp.cmake"
+                         "${OpenVINODeveloperScripts_DIR}/frontends/create_frontends_hpp.cmake"
                        COMMENT
                          "Generate ov_frontends.hpp for static build"
                        VERBATIM)
@@ -125,17 +125,24 @@ macro(ov_add_frontend)
     source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
     # Generate protobuf file on build time for each '.proto' file in src/proto
-    file(GLOB proto_files ${frontend_root_dir}/src/proto/*.proto)
+    set(protofiles_root_dir "${frontend_root_dir}/src/proto")
+    file(GLOB_RECURSE proto_files ${protofiles_root_dir}/*.proto)
 
     foreach(proto_file IN LISTS proto_files)
+        # filter out standaard google proto files
+        if(proto_file MATCHES ".*google.*")
+            continue()
+        endif()
+
         file(RELATIVE_PATH proto_file_relative "${CMAKE_SOURCE_DIR}" "${proto_file}")
-        get_filename_component(FILE_DIR ${proto_file} DIRECTORY)
         get_filename_component(FILE_WE ${proto_file} NAME_WE)
-        set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.cc)
-        set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.pb.h)
+        file(RELATIVE_PATH relative_path ${protofiles_root_dir} ${proto_file})
+        get_filename_component(relative_path ${relative_path} DIRECTORY)
+        set(OUTPUT_PB_SRC ${CMAKE_CURRENT_BINARY_DIR}/${relative_path}/${FILE_WE}.pb.cc)
+        set(OUTPUT_PB_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${relative_path}/${FILE_WE}.pb.h)
         add_custom_command(
                 OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
-                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
+                COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${protofiles_root_dir} ${proto_file}
                 DEPENDS ${PROTOC_DEPENDENCY} ${proto_file}
                 COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${proto_file_relative}"
                 VERBATIM
