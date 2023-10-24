@@ -541,10 +541,12 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
             ov::ISyncInferRequest::set_tensor(port, tensor);
 
-            auto mem_desc = MemoryDescUtils::createCpuBlockedMemoryDesc(tensor);
-            if (!isDynamic && mem_desc.isCompatible(
-                                  graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc())) {
-                external_ptr[name] = tensor;
+            if (!isDynamic) {
+                auto mem_desc = MemoryDescUtils::createCpuBlockedMemoryDesc(tensor);
+                if (mem_desc.isCompatible(
+                        graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc())) {
+                    external_ptr[name] = tensor;
+                }
             }
         }
     }

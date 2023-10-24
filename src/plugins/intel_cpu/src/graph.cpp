@@ -905,13 +905,14 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         }
 
         auto expectedDesc = MemoryDescUtils::createCpuBlockedMemoryDesc(ext_blob);
-        const auto actualDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(intr_blob.getDesc());
+        const auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
+
         DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()));
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
         bool isScalarOutput = false;
-        if (ov::is_scalar(actualDesc.getShape().getStaticDims())) {
+        if (ov::is_scalar(actualDesc->getShape().getStaticDims())) {
             const auto& expectedDims = expectedDesc.getShape().getStaticDims();
             isScalarOutput =
                 ov::is_scalar(expectedDims) ||
@@ -943,7 +944,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             continue;
         }
 
-        auto srcPrec = actualDesc.getPrecision();
+        auto srcPrec = actualDesc->getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
         if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize())
             OPENVINO_THROW("Output blob byte size is not equal network output byte size (",
@@ -959,7 +960,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        if (actualDesc.isCompatible(expectedDesc) && !isScalarOutput) {
+        if (actualDesc->isCompatible(expectedDesc) && !isScalarOutput) {
             Memory outBloMem(getEngine(), expectedDesc, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {
