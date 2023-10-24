@@ -43,7 +43,7 @@ class TestAdd(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ["add", "add_"])
     def test_add(self, ie_device, precision, ir_version, alpha, input_rhs, op_type):
         self.input_rhs = input_rhs
-        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version)
+        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestAddTypes(PytorchLayerTest):
