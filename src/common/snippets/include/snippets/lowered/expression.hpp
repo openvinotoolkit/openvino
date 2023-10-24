@@ -74,7 +74,6 @@ protected:
     std::vector<size_t> m_loop_ids{};
     std::shared_ptr<IShapeInferSnippets> m_shapeInference{nullptr};
 };
-using ExpressionPtr = std::shared_ptr<Expression>;
 
 class IOExpression : public Expression {
     friend class LinearIR;

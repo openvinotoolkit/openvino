@@ -63,6 +63,7 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(ov::op::v0::Result, EmptyShapeInfer),
         //
         SHAPE_INFER_OP_SPECIFIC(op::LoadReshape),
+        SHAPE_INFER_OP_SPECIFIC(op::RankNormalization),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastLoad),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastMove),
 };

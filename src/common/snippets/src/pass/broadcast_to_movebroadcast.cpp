@@ -5,7 +5,7 @@
 #include "snippets/itt.hpp"
 
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
-#include "snippets/pass/insert_movebroadcast.hpp"
+#include "snippets/op/broadcastmove.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "openvino/opsets/opset1.hpp"
@@ -30,15 +30,19 @@ ov::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
 
         const auto target_shape = root->get_output_partial_shape(0);
         const auto value_shape = root->get_input_partial_shape(0);
-        if (target_shape.is_dynamic() || value_shape.is_dynamic()) {
-            return false;
+        OPENVINO_ASSERT(target_shape.is_static() && value_shape.rank().is_static(), "Broadcast with dynamic target shape is not supported in Snippets");
+        // Insert BroadcastMove only if the last dimension needs to be broadcasted. Higher-level dims broadcasting
+        // will be handled by pointer arithmetics. Note that this behavior should be changed in case of full op::Boradcast support.
+        Output<ov::Node> in_value = root->input_value(0);
+        if (*target_shape.rbegin() != *value_shape.rbegin()) {
+            auto broadcasted_shape = value_shape;
+            *broadcasted_shape.rbegin() = *target_shape.rbegin();
+            const auto& broadcast_node = std::make_shared<ov::snippets::op::BroadcastMove>(in_value, broadcasted_shape);
+            in_value = broadcast_node->output(0);
         }
 
-        const auto broadcast_node = ov::snippets::pass::InsertMoveBroadcast::BroadcastNodeLastDim(root->input_value(0),
-                                                                                                      target_shape.get_shape(),
-                                                                                                      value_shape.get_shape());
-        replace_output_update_name(root->output(0), broadcast_node);
-        ov::copy_runtime_info(root, broadcast_node.get_node_shared_ptr());
+        replace_output_update_name(root->output(0), in_value);
+        ov::copy_runtime_info(root, in_value.get_node_shared_ptr());
 
         return true;
     };

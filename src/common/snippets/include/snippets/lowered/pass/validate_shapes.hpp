@@ -6,24 +6,23 @@
 
 #include "pass.hpp"
 
+#include "snippets/lowered/loop_manager.hpp"
+
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
 /**
- * @interface SoftmaxDecomposition
- * @brief Decomposes Softmax to a range of low-level operations on linear IR
+ * @interface ValidateShapes
+ * @brief The pass checks that there are no dynamic shapes in the IR
  * @ingroup snippets
  */
-class SoftmaxDecomposition : public Pass {
+class ValidateShapes : public Pass {
 public:
-    OPENVINO_RTTI("SoftmaxDecomposition", "Pass")
-    explicit SoftmaxDecomposition(size_t vector_size);
+    OPENVINO_RTTI("ValidateShapes", "Pass")
+    ValidateShapes() = default;
     bool run(LinearIR& linear_ir) override;
-
-private:
-    size_t m_vector_size;
 };
 
 } // namespace pass

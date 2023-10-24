@@ -22,6 +22,7 @@ OV_OP(Store, ov::snippets::op)
 OV_OP(BroadcastMove, ov::snippets::op)
 OV_OP(Scalar, ov::snippets::op)
 OV_OP(Nop, ov::snippets::op)
+OV_OP(RankNormalization, ov::snippets::op)
 
 // Layout-oblivious from opset1
 

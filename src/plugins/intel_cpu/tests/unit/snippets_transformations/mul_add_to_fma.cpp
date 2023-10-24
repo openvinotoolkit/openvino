@@ -6,8 +6,10 @@
 #include <subgraph_simple.hpp>
 #include <transformations/snippets/x64/pass/mul_add_to_fma.hpp>
 #include <transformations/snippets/x64/op/fused_mul_add.hpp>
+#include <transformations/snippets/x64/shape_inference.hpp>
 #include "snippets/op/scalar.hpp"
 #include "lowering_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "snippets/pass_manager.hpp"
 
 namespace ov {
@@ -61,7 +63,7 @@ protected:
         ParameterVector parameters{data0, data1};
         std::shared_ptr<Node> data2;
         if (scalar_input) {
-            data2 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{}, 2.f);
+            data2 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, 2.f);
         } else {
             auto parameter = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
             parameters.push_back(parameter);
@@ -110,8 +112,8 @@ public:
 
         std::ostringstream result;
         for (size_t i = 0; i < inputShapes.size(); i++)
-            result << "IS[" << i << "]=" << inputShapes[i] << "_";
-        result << "MS=" << master_shape << "_";
+            result << "IS[" << i << "]=" <<  ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
+        result << "MS=" << ov::test::utils::partialShape2str({master_shape}) << "_";
         result << "add_input_idx=" << add_input_idx;
         return result.str();
     }
@@ -146,7 +148,8 @@ TEST_P(MulAddToFMATests, MulAddToFMATests) {
                                        backend_passes,
                                        {},
                                        {},
-                                       generator);
+                                       generator,
+                                       std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>());
     model = subgraph->body_ptr();
     model_ref = snippets_model->getLowered();
 }

@@ -12,18 +12,14 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface SoftmaxDecomposition
- * @brief Decomposes Softmax to a range of low-level operations on linear IR
+ * @interface InsertMovebroadcast
+ * @brief Injects explicit Movebroadcast operations when the most varying dim is broadcasted
  * @ingroup snippets
  */
-class SoftmaxDecomposition : public Pass {
+class InsertBroadcastMove : public Pass {
 public:
-    OPENVINO_RTTI("SoftmaxDecomposition", "Pass")
-    explicit SoftmaxDecomposition(size_t vector_size);
+    OPENVINO_RTTI("InsertBroadcastMove", "Pass")
     bool run(LinearIR& linear_ir) override;
-
-private:
-    size_t m_vector_size;
 };
 
 } // namespace pass

@@ -116,6 +116,7 @@ public:
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
+    LinearIR deep_copy() const;
 
 private:
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;

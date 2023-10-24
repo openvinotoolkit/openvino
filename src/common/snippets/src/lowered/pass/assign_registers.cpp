@@ -46,12 +46,21 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     for (const auto& expr : expressions) {
         auto op = expr->get_node();
         if (const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr)) {
-            if (io_expr->get_type() == IOExpression::io_type::INPUT)
-                manually_assigned_gprs[expr->get_output_port_connector(0)] = io_expr->get_index();
-            else if (io_expr->get_type() == IOExpression::io_type::OUTPUT)
+            if (io_expr->get_type() == IOExpression::io_type::INPUT) {
+                const auto& out_connector = expr->get_output_port_connector(0);
+                manually_assigned_gprs[out_connector] = io_expr->get_index();
+                const auto& consumer_inputs = out_connector->get_consumers();
+                const auto& first_consumer = consumer_inputs.begin()->get_expr();
+                // TODO [96434]: Support RankNormalization (Reshape) in arbitrary place in pipeline, not just after inputs
+                if (ov::is_type<op::RankNormalization>(first_consumer->get_node())) {
+                    OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
+                    manually_assigned_gprs[first_consumer->get_output_port_connector(0)] = io_expr->get_index();
+                }
+            } else if (io_expr->get_type() == IOExpression::io_type::OUTPUT) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
-            else
+            } else {
                 OPENVINO_THROW("Unsupported io_type detected");
+            }
         } else if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
             const auto buffer_id = buffer->get_id();
             // All buffers have one common data pointer
