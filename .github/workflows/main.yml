@@ -1,0 +1,16 @@
+name: Test workflow
+on: [pull_request]
+
+jobs:
+  hello_world_job:
+    runs-on: ubuntu-latest
+    name: A job to say hello
+    steps:
+      # To use this repository's private action,
+      # you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: System info
+        uses: ./.github/actions/system_info
+        id: hello
