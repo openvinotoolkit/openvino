@@ -5,14 +5,20 @@
 #include "include/batch_headers/fetch_weights.cl"
 
 KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output) {
-    const unsigned o = (uint)get_global_id(0);
-    const unsigned i = (uint)get_global_id(1);
-
 #if defined(INPUT0_LAYOUT_IOYX) && defined(OUTPUT_LAYOUT_OIYX)
-    const uint output_offset = (o*OUTPUT_IFM_NUM + 2*i);
+    const uint out_byte_offset = get_global_id(0);
 
-    const uint input0_offset = o + (i*2+0)*INPUT0_OFM_NUM;
-    const uint input1_offset = o + (i*2+1)*INPUT0_OFM_NUM;
+    const uint offset0 = out_byte_offset * 2 + 0;
+    const uint offset1 = out_byte_offset * 2 + 1;
+
+    const uint i0 = offset0 % OUTPUT_IFM_NUM;
+    const uint i1 = offset1 % OUTPUT_IFM_NUM;
+
+    const uint o0 = offset0 / OUTPUT_IFM_NUM;
+    const uint o1 = offset1 / OUTPUT_IFM_NUM;
+
+    const uint input0_offset = GET_FILTER_INDEX(INPUT0, 0, o0, i0, 0, 0);
+    const uint input1_offset = GET_FILTER_INDEX(INPUT0, 0, o1, i1, 0, 0);
 
     const uint input0_idx = input0_offset % 2;
     const uint input1_idx = input1_offset % 2;
@@ -20,9 +26,12 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     INPUT0_TYPE in0 = (input[input0_offset / 2] >> input0_idx*4) & 0x0F;
     INPUT0_TYPE in1 = (input[input1_offset / 2] >> input1_idx*4) & 0x0F;
 
-    INPUT0_TYPE packed_out_channels = in0 | (in1 << 4);
-    output[output_offset / 2] = packed_out_channels;
+    OUTPUT_TYPE out = in0 | (in1 << 4);
+    output[out_byte_offset] = out;
 #elif defined(OUTPUT_LAYOUT_OS_IYX_OSV32)
+    const unsigned o = (uint)get_global_id(0);
+    const unsigned i = (uint)get_global_id(1);
+
     const unsigned o0 = (o / 16) * 32 + (o % 16);
     const unsigned o1 = (o / 16) * 32 + (o % 16) + 16;
 

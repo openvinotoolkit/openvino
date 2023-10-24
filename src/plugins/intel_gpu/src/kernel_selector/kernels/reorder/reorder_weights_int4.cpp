@@ -38,7 +38,7 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
     if (output.GetLayout() == WeightsLayout::os_iyx_osv32) {
         dispatchData.gws = { Align(output.OFM().v, 32) / 2, output.IFM().v, 1 };
     } else {
-        dispatchData.gws = { output.OFM().v, CeilDiv(output.IFM().v, 2), 1 };
+        dispatchData.gws = { CeilDiv(output.LogicalSize(), 2), 1, 1 };
     }
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
