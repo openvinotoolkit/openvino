@@ -27,7 +27,7 @@ elseif(AARCH64)
     if(APPLE)
         # Apple M1 / M2 is assumed
         set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
-        add_definitions(-DOV_CPU_ARM_ENABLE_FP16)
+        add_compile_definitions(OV_CPU_ARM_ENABLE_FP16)
     else()
         set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8a)
     endif()
