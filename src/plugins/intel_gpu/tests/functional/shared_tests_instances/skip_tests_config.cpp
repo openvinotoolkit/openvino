@@ -117,5 +117,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
             // Issue: 123507
             R"(.*ReverseLayerTest.*mask.*f16.*)",
+            // Issue: 123516
+            R"(.*RandomUniformLayerTest.*f16.*)",
     };
 }
