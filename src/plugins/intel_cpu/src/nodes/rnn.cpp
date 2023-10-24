@@ -735,26 +735,24 @@ void RNN::fillSequenceDesc() {
 
 template <typename Prec>
 void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx) {
-    const auto& weightPrec       = DnnlExtensionUtils::DataTypeToIEPrecision(inDataTypes[wIdx]);
-    const auto& targetWeightPrec = DnnlExtensionUtils::DataTypeToIEPrecision(weightsByinputDataType.at(inDataTypes[xIdx]));
+    const auto& weightPrec = DnnlExtensionUtils::DataTypeToIEPrecision(inDataTypes[wIdx]);
+    const auto& targetWeightDataType = weightsByinputDataType.at(inDataTypes[xIdx]);
+    const auto& targetWeightPrec = DnnlExtensionUtils::DataTypeToIEPrecision(targetWeightDataType);
 
     // create weight blobs (data and state part)
-    const VectorDims dims_w = { L, D, DC, G, SC };
-    TensorDesc w_data_desc(targetWeightPrec, dims_w, getWeightsLayoutByDims(dims_w, false));
-
-    Blob::Ptr w_data_mem = make_shared_blob<Prec>(w_data_desc);
-    w_data_mem->allocate();
-    auto w_ptr = static_cast<Prec*>(w_data_mem->buffer());
+    const VectorDims dims_w = {L, D, DC, G, SC};
+    auto w_data_desc = DnnlBlockedMemoryDesc(Shape(dims_w), targetWeightDataType, getWeightsFormatTagByDims(dims_w));
+    MemoryPtr w_data_mem = std::make_shared<Memory>(getEngine(), w_data_desc);
+    auto w_ptr = static_cast<Prec*>(w_data_mem->getData());
     if (w_ptr == nullptr)
-        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
+        OPENVINO_THROW("NotAllocated : Internal blob was not allocated for node ", getName(), ".");
 
-    const VectorDims dims_s = { L, D, SC, G, SC };
-    TensorDesc w_state_desc(targetWeightPrec, dims_s, getWeightsLayoutByDims(dims_s, false));
-    Blob::Ptr w_state_mem = make_shared_blob<Prec>(w_state_desc);
-    w_state_mem->allocate();
-    auto r_ptr = static_cast<Prec*>(w_state_mem->buffer());
+    const VectorDims dims_s = {L, D, SC, G, SC};
+    auto w_state_desc = DnnlBlockedMemoryDesc(Shape(dims_w), targetWeightDataType, getWeightsFormatTagByDims(dims_s));
+    MemoryPtr w_state_mem = std::make_shared<Memory>(getEngine(), w_state_desc);
+    auto r_ptr = static_cast<Prec*>(w_state_mem->getData());
     if (r_ptr == nullptr)
-        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
+        OPENVINO_THROW("NotAllocated : Internal blob was not allocated for node ", getName(), ".");
 
     const size_t ie_w_vec_size = getInputShapeAtPort(wIdx).getElementsCount();
     const size_t ie_r_vec_size = getInputShapeAtPort(rIdx).getElementsCount();
@@ -792,7 +790,6 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
             }
         }
     }
-
     internalBlobs.push_back(w_data_mem);
     internalBlobs.push_back(w_state_mem);
 }
@@ -806,12 +803,13 @@ void RNN::fillBiases(const int *gate_map) {
     }
 
     VectorDims dims_b = { L, D, Gb, SC };
-    TensorDesc w_bias_data_desc(Prec, dims_b, getWeightsLayoutByDims(dims_b, false));
-    Blob::Ptr w_bias_data_mem = make_shared_blob<dataType>(w_bias_data_desc);
-    w_bias_data_mem->allocate();
-    auto b_ptr = static_cast<dataType*>(w_bias_data_mem->buffer());
+
+    auto _data_type = DnnlExtensionUtils::IEPrecisionToDataType(Prec);
+    auto w_bias_data_desc = DnnlBlockedMemoryDesc(Shape(dims_b), _data_type, getWeightsFormatTagByDims(dims_b));
+    MemoryPtr w_bias_data_mem = std::make_shared<Memory>(getEngine(), w_bias_data_desc);
+    auto b_ptr = static_cast<dataType*>(w_bias_data_mem->getData());
     if (b_ptr == nullptr)
-        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
+        OPENVINO_THROW("NotAllocated : Internal blob was not allocated for node ", getName(), ".");
 
     auto *constInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();

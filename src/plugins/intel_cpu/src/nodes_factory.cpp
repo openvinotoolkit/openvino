@@ -10,7 +10,6 @@
 #include "nodes/conv.h"
 #include "nodes/roi_align.h"
 #include "nodes/lrn.h"
-#include "nodes/generic.h"
 #include "nodes/experimental_detectron_roifeatureextractor.h"
 #include "nodes/eltwise.h"
 #include "nodes/reorg_yolo.h"
@@ -103,7 +102,6 @@ namespace intel_cpu {
 Node::NodesFactory::NodesFactory()
     : Factory("NodesFactory") {
     using namespace node;
-    INTEL_CPU_NODE(Generic, Type::Generic);
     INTEL_CPU_NODE(CumSum, Type::CumSum);
     INTEL_CPU_NODE(Convolution, Type::Convolution);
     INTEL_CPU_NODE(BinaryConvolution, Type::BinaryConvolution);

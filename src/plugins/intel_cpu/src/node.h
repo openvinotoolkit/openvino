@@ -528,7 +528,7 @@ public:
         return outputShapes[port];
     }
 
-    const std::vector<InferenceEngine::Blob::Ptr>& getInternalBlobs() const {
+    const std::vector<MemoryPtr>& getInternalBlobs() const {
         return internalBlobs;
     }
 
@@ -607,7 +607,7 @@ protected:
     };
     mutable InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
-    std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
+    std::vector<MemoryPtr> internalBlobs;
     std::vector<MemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
@@ -635,6 +635,7 @@ protected:
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
+    dnnl::memory::format_tag getWeightsFormatTagByDims(const InferenceEngine::SizeVector& dims) const;
 
     /**
      * @brief Auxiliary function to get node input precisions

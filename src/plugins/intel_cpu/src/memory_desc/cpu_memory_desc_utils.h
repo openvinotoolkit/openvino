@@ -7,7 +7,8 @@
 #include <onednn/dnnl.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
-
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include <ie_layouts.h>
 #include <ie_blob.h>
 
@@ -40,6 +41,49 @@ public:
     static DnnlBlockedMemoryDesc convertToDnnlBlockedMemoryDesc(const MemoryDesc& desc);
 
     /**
+     * @brief Create DnnlBlockedMemoryDesc from prcision, shape, blockedDims and blockedOrder
+     * @param prc precision for DnnlBlockedMemoryDesc
+     * @param shape shape for DnnlBlockedMemoryDesc
+     * @param blockedDims blocked dim for DnnlBlockedMemoryDesc
+     * @param blockedOrder blocked order for DnnlBlockedMemoryDesc
+     * @return created DnnlBockedMemoryDesc
+     */
+    static DnnlBlockedMemoryDesc createDnnlBlockedMemoryDesc(InferenceEngine::Precision prc,
+                                                             const Shape& shape,
+                                                             const VectorDims& blockedDims,
+                                                             const VectorDims& blockedOrder);
+
+    /**
+     * @brief Converts MemoryDesc to BlockedMemoryDesc
+     * @param desc MemoryDesc to be converted
+     * @return converted BlockedMemoryDesc
+     */
+    static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
+
+    /**
+     * @brief Create CpuBlockedMemoryDesc from ov::tensor
+     * @param tensor input tensor
+     * @return converted CpuBlockedMemoryDesc
+     */
+    static CpuBlockedMemoryDesc createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor);
+
+    /**
+     * @brief Create DnnlBlockedMemoryDesc from ov::tensor
+     * @param tensor input tensor
+     * @return converted CpuBlockedMemoryDesc
+     */
+    static DnnlBlockedMemoryDesc createDnnlBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor);
+
+    /**
+     * @brief Creates ov::Tensor from Memory with the memory reuse
+     * @param desc Memory from which will be created ov::Tensor
+     * @return pointer to ov::Tensor
+     */
+    static ov::SoPtr<ov::ITensor> interpretAsTensor(const IMemory &mem);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+
+    /**
      * @brief Converts InferenceEngine::TensorDesc to CpuBlockedMemoryDesc
      * @param desc InferenceEngine::TensorDesc to be converted
      * @return converted CpuBlockedMemoryDesc
@@ -54,32 +98,12 @@ public:
     static DnnlBlockedMemoryDesc convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc);
 
     /**
-     * @brief Converts MemoryDesc to BlockedMemoryDesc
-     * @param desc MemoryDesc to be converted
-     * @return converted BlockedMemoryDesc
-     */
-    static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
-
-    /**
-     * @brief Creates InferenceEngine::Blob from Memory with the memory reuse
-     * @param desc Memory from which will be created InferenceEngine::Blob
-     * @return pointer to InferenceEngine::Blob
-     */
-    static InferenceEngine::Blob::Ptr interpretAsBlob(const IMemory& mem);
-
-    /**
-     * @brief Creates InferenceEngine::TensorDesc from Memory with the memory reuse
-     * @param desc Memory from which will be created InferenceEngine::Blob
-     * @return InferenceEngine::TensorDesc
-     */
-    static InferenceEngine::TensorDesc interpretAsBlobDesc(const IMemory& mem);
-
-    /**
      * @brief Converts MemoryDesc to InferenceEngine::TensorDesc
      * @param desc MemoryDesc to be converted
      * @return converted InferenceEngine::TensorDesc
      */
     static InferenceEngine::TensorDesc convertToTensorDesc(const MemoryDesc& desc);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     static constexpr Dim DEFAULT_DUMMY_VAL = 64;
 

@@ -25,6 +25,8 @@ public:
     static uint8_t sizeOfDataType(dnnl::memory::data_type dataType);
     static dnnl::memory::data_type IEPrecisionToDataType(const InferenceEngine::Precision& prec);
     static InferenceEngine::Precision DataTypeToIEPrecision(dnnl::memory::data_type dataType);
+    static dnnl::memory::data_type ElementTypeToDataType(const ov::element::Type& elementType);
+    static ov::element::Type DataTypeToElementType(const dnnl::memory::data_type& dataType);
     static Dim convertToDim(const dnnl::memory::dim &dim);
     static dnnl::memory::dim convertToDnnlDim(const Dim &dim);
     static VectorDims convertToVectorDims(const dnnl::memory::dims& dims);

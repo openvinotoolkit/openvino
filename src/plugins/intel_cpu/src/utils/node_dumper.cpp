@@ -106,12 +106,10 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
         std::string file_name = NameFromType(node->getType()) + "_" + nodeName + "_blb" + std::to_string(i) + ".ieb";
         auto dump_file = config.blobDumpDir + "/#" + std::to_string(node->getExecIndex()) + "_" + file_name;
 
-        TensorDesc desc = blb->getTensorDesc();
-        if (desc.getPrecision() == Precision::BIN)
+        if (blb->getDesc().getPrecision() == InferenceEngine::Precision::BIN)
             continue;
 
-        MemoryPtr memory = std::make_shared<Memory>(node->getEngine(), MemoryDescUtils::convertToDnnlBlockedMemoryDesc(desc), blb->buffer());
-        BlobDumper dumper(memory);
+        BlobDumper dumper(blb);
         dump(dumper, dump_file, config);
     }
 }

@@ -86,11 +86,6 @@ inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVect
     return true;
 }
 
-inline bool isEmptyTensorDesc(const InferenceEngine::TensorDesc &td) {
-    const auto dims = td.getDims();
-    return std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
-}
-
 /**
 * @brief Return precision to which given precision must be converted to be supported in plug-in
 * @param precision

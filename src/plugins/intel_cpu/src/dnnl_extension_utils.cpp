@@ -42,6 +42,7 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngine::Precision& prec) {
     switch (prec) {
         case InferenceEngine::Precision::FP32:
@@ -101,6 +102,58 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
             return InferenceEngine::Precision::UNSPECIFIED;
         default: {
             IE_THROW() << "Unsupported data type.";
+        }
+    }
+}
+OPENVINO_SUPPRESS_DEPRECATED_END
+
+dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::element::Type& elementType) {
+    switch (elementType) {
+        case ov::element::f32:
+            return memory::data_type::f32;
+        case ov::element::i32:
+            return memory::data_type::s32;
+        case ov::element::bf16:
+            return memory::data_type::bf16;
+        case ov::element::i8:
+            return memory::data_type::s8;
+        case ov::element::u8:
+        case ov::element::boolean:
+            return memory::data_type::u8;
+        case ov::element::u1:
+            return memory::data_type::bin;
+        case ov::element::f16:
+            return memory::data_type::f16;
+        case ov::element::undefined:
+            return memory::data_type::undef;
+        default: {
+            OPENVINO_THROW("The plugin does not support ", elementType.to_string());
+        }
+    }
+}
+
+ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::data_type& dataType) {
+    switch (dataType) {
+        case memory::data_type::f32:
+            return ov::element::f32;
+        case memory::data_type::s32:
+            return ov::element::i32;
+        case memory::data_type::bf16:
+            return ov::element::bf16;
+        case memory::data_type::s8:
+            return ov::element::i8;
+        case memory::data_type::u8:
+            return ov::element::u8;
+        case memory::data_type::bin:
+            return ov::element::u1;
+        case memory::data_type::f16:
+            return ov::element::f16;
+        case memory::data_type::f64:
+            return ov::element::f64;
+        case memory::data_type::undef:
+            return ov::element::undefined;
+        default: {
+            OPENVINO_THROW("Unsupported dnnl data type!");
         }
     }
 }
