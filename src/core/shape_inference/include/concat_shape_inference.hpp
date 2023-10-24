@@ -17,7 +17,7 @@ std::vector<TRShape> shape_infer(const Concat* op, const std::vector<T>& input_s
     NODE_VALIDATION_CHECK(op, !input_shapes.empty());
     using DimType = typename T::value_type;
 
-    auto concat_axis = op->get_axis();
+    auto concat_axis = op->get_concatenation_axis() < 0 ? op->get_axis() : op->get_concatenation_axis();
     const auto empty_dim = DimType{};
 
     auto concat_dim = DimType{0};
