@@ -20,7 +20,6 @@
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 namespace {
 
@@ -336,12 +335,6 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
                const std::string& bin_path,
                ov::pass::Serialize::Version version) {
     ov::pass::Manager manager;
-    // TODO: if rt_info is set in python api as a string ['disable_fp16_compression_0'] = '',
-    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
-    // ['disable_fp16_compression_0'] = '' into => rt_info['disable_fp16_compression_0'] = DisableFP16Compression{}
-    for (auto& node : m->get_ops())
-        if (fp16_compression_is_disabled(node))
-            disable_fp16_compression(node);
     manager.register_pass<ov::pass::Serialize>(xml_path, bin_path, version);
     manager.run_passes(std::const_pointer_cast<ov::Model>(m));
 }
