@@ -553,7 +553,7 @@ bool ov::has_and_set_equal_bounds(const Output<Node>& source) {
 }
 
 bool ov::have_node_inputs_bounds_set(const Node* const node, const size_t first_idx, const size_t last_idx) {
-    bool have_bound_set = last_idx <= node->get_input_size();
+    bool have_bound_set = last_idx < node->get_input_size();
     for (size_t i = first_idx; have_bound_set && (i <= last_idx); ++i) {
         have_bound_set = node->get_input_tensor(i).has_and_set_bound();
     }

@@ -9,7 +9,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 
-#include "shared_test_classes/single_layer/roi_align.hpp"
+#include "shared_test_classes/single_op/roi_align.hpp"
 #include "shared_test_classes/single_layer/psroi_pooling.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
@@ -537,13 +537,13 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v3::ROIAlign>& node,
             if (node->get_sampling_ratio() != 0) {
                 const auto &inputShape = node->get_input_shape(0);
                 std::vector<float> blobData(node->get_shape()[0] * 4);
-                LayerTestsDefinitions::ROIAlignLayerTest::fillCoordTensor(blobData,
-                                                                          inputShape[2],
-                                                                          inputShape[3],
-                                                                          node->get_spatial_scale(),
-                                                                          node->get_sampling_ratio(),
-                                                                          node->get_pooled_h(),
-                                                                          node->get_pooled_w());
+                ov::test::ROIAlignLayerTest::fillCoordTensor(blobData,
+                                                             inputShape[2],
+                                                             inputShape[3],
+                                                             node->get_spatial_scale(),
+                                                             node->get_sampling_ratio(),
+                                                             node->get_pooled_h(),
+                                                             node->get_pooled_w());
                 return ov::test::utils::create_tensor<float>(ov::element::f32, targetShape, blobData);
             } else {
                 return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
@@ -551,7 +551,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v3::ROIAlign>& node,
         }
         case 2: {
             std::vector<int> roiIdxVector(node->get_shape()[0]);
-            LayerTestsDefinitions::ROIAlignLayerTest::fillIdxTensor(roiIdxVector, node->get_shape()[0]);
+            ov::test::ROIAlignLayerTest::fillIdxTensor(roiIdxVector, node->get_shape()[0]);
             return ov::test::utils::create_tensor<int>(elemType, targetShape, roiIdxVector);
         }
         default:
