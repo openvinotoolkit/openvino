@@ -35,8 +35,6 @@ protected:
 
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
 
-    precisions_map get_ref_precisions_convert_map() override;
-
     template<typename T>
     void rndUCompare(const ov::Tensor& expected, const ov::Tensor& actual);
 

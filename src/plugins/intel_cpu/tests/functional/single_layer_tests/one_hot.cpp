@@ -101,13 +101,10 @@ protected:
         }
 
         function = createFunction(inputType.first == ngraph::helpers::InputLayerType::CONSTANT);
-    }
-    void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
         if (function->get_parameters().size() == 2) {
             generateDepth();
-            funcRef = createFunction(true);
+            functionRefs = createFunction(true);
         }
-        ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
     }
     void validate() override {
             auto actualOutputs = get_plugin_outputs();

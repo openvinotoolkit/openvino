@@ -61,7 +61,6 @@ public:
 TEST_F(InputOutputTensorReuse, smoke_Input_Output_Binding) {
     compile_model();
     std::vector<ov::Shape> inputShapes = {{1, 32, 5, 16}, {1, 32, 1, 16}};
-    init_ref_function(functionRefs, inputShapes);
     generate_inputs(inputShapes);
     validate();
 
@@ -69,7 +68,6 @@ TEST_F(InputOutputTensorReuse, smoke_Input_Output_Binding) {
     for (size_t i = 0; i < num_iter; i++) {
         auto outputTensor = inferRequest.get_output_tensor(0);
         inputShapes.back() = outputTensor.get_shape();
-        init_ref_function(functionRefs, inputShapes);
         auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
             return item.first->get_friendly_name() == "Param_1";
         });

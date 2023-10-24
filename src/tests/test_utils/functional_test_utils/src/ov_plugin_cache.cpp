@@ -55,21 +55,20 @@ std::shared_ptr<ov::Core> PluginCache::core(const std::string& deviceToCheck) {
     }
     assert(0 != ov_core.use_count());
 
-    // register template plugin if it is needed
-    try {
-        std::string pluginName = "openvino_template_plugin";
-        pluginName += OV_BUILD_POSTFIX;
+    // Register Template plugin as a reference provider
+    const auto devices = ov_core->get_available_devices();
+    if (std::find(devices.begin(), devices.end(), std::string(ov::test::utils::DEVICE_TEMPLATE)) == devices.end()) {
         ov_core->register_plugin(
-            ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
-            "TEMPLATE");
-    } catch (...) {
+            ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                               std::string(ov::test::utils::TEMPLATE_LIB) + OV_BUILD_POSTFIX),
+            ov::test::utils::DEVICE_TEMPLATE);
     }
 
     if (!deviceToCheck.empty()) {
         auto properties = ov_core->get_property(deviceToCheck, ov::supported_properties);
 
         if (std::find(properties.begin(), properties.end(), ov::available_devices) != properties.end()) {
-            auto availableDevices = ov_core->get_property(deviceToCheck, ov::available_devices);
+            const auto availableDevices = ov_core->get_property(deviceToCheck, ov::available_devices);
 
             if (availableDevices.empty()) {
                 std::cerr << "No available devices for " << deviceToCheck << std::endl;

@@ -122,6 +122,14 @@ void RandomUniformLayerTestCPU::SetUp() {
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rnd_op)};
 
     function = std::make_shared<ov::Model>(results, in_params, "RandomUniformLayerTestCPU");
+
+    // todo: issue: 123320
+    if (!InferenceEngine::with_cpu_x86_avx512_core()) {
+        convert_precisions.insert({ ov::element::bf16, ov::element::f32 });
+    }
+    if (!InferenceEngine::with_cpu_x86_avx512_core_fp16()) {
+        convert_precisions.insert({ ov::element::f16, ov::element::f32 });
+    }
 }
 
 template<typename TD, typename TS>
@@ -204,19 +212,6 @@ void RandomUniformLayerTestCPU::compare(const std::vector<ov::Tensor>& expected,
     }
 
 #undef CASE
-}
-
-precisions_map RandomUniformLayerTestCPU::get_ref_precisions_convert_map() {
-    precisions_map precisions;
-
-    if (!InferenceEngine::with_cpu_x86_avx512_core()) {
-        precisions.insert({ ov::element::bf16, ov::element::f32 });
-    }
-    if (!InferenceEngine::with_cpu_x86_avx512_core_fp16()) {
-        precisions.insert({ ov::element::f16, ov::element::f32 });
-    }
-
-    return precisions;
 }
 
 inline double less_or_equal(double a, double b) {
