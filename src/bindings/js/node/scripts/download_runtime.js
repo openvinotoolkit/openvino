@@ -116,7 +116,7 @@ async function detectOS() {
       const [major, _, __] = os.release().split('.');
 
       // os.release() returns not the macOS release but the Darwin release:
-      // https://en.wikipedia.org/wiki/Darwin_(operating_system)#Release_history
+      // https://en.wikipedia.org/wiki/Darwin_(operating_system)#Release_history - mapping could be found here
       // in the form of MAJOR.MINOR.PATCH
 
       osVersion = major === '19'
