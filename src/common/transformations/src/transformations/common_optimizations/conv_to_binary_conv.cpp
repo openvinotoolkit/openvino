@@ -109,10 +109,10 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
             new_conv->set_friendly_name(conv->get_friendly_name());
             std::vector<int64_t> axes;
             std::vector<int64_t> weights_reduced_shape = {-1};
-            for (size_t i = 1; i < weights_constant->get_output_partial_shape(0).to_shape().size(); i++) {
+            for (size_t i = 1; i < weights_constant->get_output_partial_shape(0).size(); i++) {
                 axes.push_back(i);
             }
-            for (size_t i = 2; i < weights_constant->get_output_partial_shape(0).to_shape().size(); i++) {
+            for (size_t i = 2; i < weights_constant->get_output_partial_shape(0).size(); i++) {
                 weights_reduced_shape.push_back(1);
             }
             auto weights_reduced = std::make_shared<ov::op::v1::ReduceSum>(

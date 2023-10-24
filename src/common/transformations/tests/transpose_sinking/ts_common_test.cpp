@@ -775,7 +775,7 @@ auto test_forward_interpolate = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -814,7 +814,7 @@ auto test_forward_cumsum = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -853,7 +853,7 @@ auto test_forward_tile = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -974,7 +974,7 @@ auto test_forward_slice = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1360,7 +1360,7 @@ auto test_backward_interpolate = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1398,7 +1398,7 @@ auto test_backward_cumsum = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1436,7 +1436,7 @@ auto test_backward_tile = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1474,7 +1474,7 @@ auto test_backward_tile_tf_case = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
@@ -1551,7 +1551,7 @@ auto test_backward_slice = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().to_shape().size());
+            vector<int64_t> transpose_order(out_vec[0].get_partial_shape().size());
             iota(transpose_order.begin(), transpose_order.end(), 0);
             reverse(transpose_order.begin(), transpose_order.end());
             auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);

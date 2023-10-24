@@ -735,7 +735,7 @@ public:
             };
 
             for (const auto& fq_param : fq_params_nodes) {
-                auto mask = std::make_shared<ov::Mask>(fq_param->get_output_partial_shape(0).to_shape().size());
+                auto mask = std::make_shared<ov::Mask>(fq_param->get_output_partial_shape(0).size());
                 mask->add_callback(fq_params_mask_callback, input_mask);
                 input_mask->add_callback(
                     [mask](ov::Mask::Ptr cur_mask) -> bool {

@@ -194,7 +194,7 @@ pass::BinarizeWeights::BinarizeWeights() {
         auto new_conv = conv->clone_with_new_inputs({new_activations_fq, quantized_weights_const});
 
         std::vector<int64_t> norm_factor_shape = {-1};
-        for (size_t i = 2; i < weights_const->get_output_partial_shape(0).to_shape().size(); i++)
+        for (size_t i = 2; i < weights_const->get_output_partial_shape(0).size(); i++)
             norm_factor_shape.push_back(1);
         auto norm_factor_shape_const =
             ov::op::v0::Constant::create(element::i64, Shape{norm_factor_shape.size()}, norm_factor_shape);

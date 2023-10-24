@@ -19,7 +19,7 @@
 
 namespace {
 auto is_supported_tensor(const ov::descriptor::Tensor& t) -> bool {
-    return t.get_partial_shape().is_static() && ov::snippets::utils::one_of(t.get_partial_shape().to_shape().size(), 3lu, 4lu);
+    return t.get_partial_shape().is_static() && ov::snippets::utils::one_of(t.get_partial_shape().size(), 3lu, 4lu);
 }
 
 auto is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) -> bool {
@@ -43,7 +43,7 @@ auto is_valid_transpose(const std::shared_ptr<ov::opset1::Transpose>& node, std:
         return is_supported_tensor(t) && ov::snippets::pass::TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0;
     };
 
-    return node && node->get_output_target_inputs(0).size() == 1 && node->get_output_partial_shape(0).to_shape().size() == 4 &&
+    return node && node->get_output_target_inputs(0).size() == 1 && node->get_output_partial_shape(0).size() == 4 &&
            valid_transpose_order(node->get_input_node_shared_ptr(1)) && is_supported_transpose_tensor(node->get_input_tensor(0));
 }
 

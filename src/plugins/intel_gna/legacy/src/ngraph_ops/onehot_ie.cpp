@@ -33,7 +33,7 @@ void op::OneHotIE::validate_and_infer_types() {
         vector<Dimension> output_shape{arg_shape};
         int normalized_axis = m_axis;
         if (m_axis < 0)
-            normalized_axis = m_axis + static_cast<int>(arg_shape.to_shape().size());
+            normalized_axis = m_axis + static_cast<int>(arg_shape.size());
         output_shape.insert(output_shape.begin() + normalized_axis, m_depth);
         set_output_type(0, m_type, output_shape);
     }

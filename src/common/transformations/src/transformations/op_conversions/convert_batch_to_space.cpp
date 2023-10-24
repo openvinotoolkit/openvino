@@ -49,7 +49,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
             return false;  // because StridedSlice masks are std::vector
         }
 
-        if (block.get_partial_shape().is_dynamic() || block.get_partial_shape().to_shape().size() == 0) {
+        if (block.get_partial_shape().is_dynamic() || block.get_partial_shape().size() == 0) {
             return false;
         }
         const auto block_length = static_cast<int64_t>(block.get_partial_shape().to_shape()[0]);
@@ -136,7 +136,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         const auto crops_begin = batch_to_space->input_value(2);
         const auto crops_end = batch_to_space->input_value(3);
 
-        if (block.get_partial_shape().is_dynamic() || block.get_partial_shape().to_shape().size() == 0) {
+        if (block.get_partial_shape().is_dynamic() || block.get_partial_shape().size() == 0) {
             return false;
         }
         const auto block_length = static_cast<int64_t>(block.get_partial_shape().to_shape()[0]);
@@ -159,7 +159,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
                                   nodes.end(),
                                   [](const Output<Node>& n) {
                                       return n.get_partial_shape().is_static() &&
-                                             n.get_partial_shape().to_shape().size() > 0 &&
+                                             n.get_partial_shape().size() > 0 &&
                                              n.get_partial_shape().to_shape()[0] == 0;
                                   }),
                         nodes.end());

@@ -341,7 +341,7 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initOriginal() const {
     if (add->get_output_partial_shape(0) != selectParam->get_output_partial_shape(0)) {
         const auto broadcast_shape =
                 ngraph::builder::makeConstant(ngraph::element::i64,
-                                              ov::Shape{add->get_output_partial_shape(0).to_shape().size()},
+                                              ov::Shape{add->get_output_partial_shape(0).size()},
                                               add->get_output_partial_shape(0).to_shape());
         selectCond = std::make_shared<ngraph::opset1::Broadcast>(selectCond, broadcast_shape);
     }
@@ -404,7 +404,7 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initReference() const {
     if (add->get_output_partial_shape(0) != dataSelect->get_output_partial_shape(0)) {
         const auto broadcast_shape =
                 ngraph::builder::makeConstant(ngraph::element::i64,
-                                              ov::Shape{add->get_output_partial_shape(0).to_shape().size()},
+                                              ov::Shape{add->get_output_partial_shape(0).size()},
                                               add->get_output_partial_shape(0).to_shape());
         selectCond = std::make_shared<ngraph::opset1::Broadcast>(selectCond, broadcast_shape);
     }
@@ -415,7 +415,7 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initReference() const {
             ov::op::TemporaryReplaceOutputType(selectConst, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(add, element::f32).get());
 
-    const auto softMax = std::make_shared<ngraph::opset1::Softmax>(select, add->get_output_partial_shape(0).to_shape().size() - 1);
+    const auto softMax = std::make_shared<ngraph::opset1::Softmax>(select, add->get_output_partial_shape(0).size() - 1);
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softMax, data2);
 
     const auto subgraph =

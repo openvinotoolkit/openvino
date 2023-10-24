@@ -132,10 +132,10 @@ bool evaluate_bound_shape(const Node* shape_of_node, ov::TensorVector& output_va
     if (pshape_low.to_shape() == pshape_up.to_shape()) {
         shape_of::evaluate_shape_of(output_values[0], pshape_low.to_shape());
     } else {
-        auto&& upper = is_upper ? output_values : ov::TensorVector{{output_et, Shape{pshape_up.to_shape().size()}}};
+        auto&& upper = is_upper ? output_values : ov::TensorVector{{output_et, Shape{pshape_up.size()}}};
         shape_of::evaluate_shape_of(upper[0], pshape_up.to_shape());
 
-        auto&& lower = is_upper ? ov::TensorVector{{output_et, Shape{pshape_low.to_shape().size()}}} : output_values;
+        auto&& lower = is_upper ? ov::TensorVector{{output_et, Shape{pshape_low.size()}}} : output_values;
         shape_of::evaluate_shape_of(lower[0], pshape_low.to_shape());
 
         vector<char> dynamic_mask;  // true if dimension is dynamic

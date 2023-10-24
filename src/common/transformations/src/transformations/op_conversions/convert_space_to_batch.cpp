@@ -45,7 +45,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         const auto pads_begin = space_to_batch->input_value(2);
         const auto pads_end = space_to_batch->input_value(3);
 
-        if (block.get_partial_shape().is_dynamic() || block.get_partial_shape().to_shape().size() == 0) {
+        if (block.get_partial_shape().is_dynamic() || block.get_partial_shape().size() == 0) {
             return false;
         }
         const auto block_length = static_cast<int64_t>(block.get_partial_shape().to_shape()[0]);
@@ -142,7 +142,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         const auto pads_begin = space_to_batch->input_value(2);
         const auto pads_end = space_to_batch->input_value(3);
 
-        if (block.get_partial_shape().is_dynamic() || block.get_partial_shape().to_shape().size() == 0) {
+        if (block.get_partial_shape().is_dynamic() || block.get_partial_shape().size() == 0) {
             return false;
         }
         const auto block_length = static_cast<int64_t>(block.get_partial_shape().to_shape()[0]);

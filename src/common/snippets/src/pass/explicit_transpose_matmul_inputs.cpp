@@ -58,7 +58,7 @@ void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<
                     "ExplicitTransposeMatMulInputs expects Parameter with one consumer in cases when there isn't existing Transpose on input");
     // Extract Transpose from MatMul
     OPENVINO_ASSERT(input.get_partial_shape().is_static(), "ExplicitTransposeMatMulInputs supports only static shapes");
-    const auto rank = input.get_partial_shape().to_shape().size();
+    const auto rank = input.get_partial_shape().size();
     std::vector<size_t> transpose_order(rank, 0);
     std::iota(transpose_order.begin(), transpose_order.end(), 0);
     std::swap(transpose_order[rank - 1], transpose_order[rank - 2]);

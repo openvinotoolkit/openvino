@@ -1560,11 +1560,11 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     if (is_type<ov::opset1::Concat>(operation)) {
         const auto concatNode = as_type_ptr<ov::opset1::Concat>(operation);
         auto axis = concatNode->get_concatenation_axis();
-        if (dequantization.multiply && dequantization.multiplyConstant->get_output_partial_shape(0).to_shape().size() > 1 &&
+        if (dequantization.multiply && dequantization.multiplyConstant->get_output_partial_shape(0).size() > 1 &&
             dequantization.multiplyConstant->get_output_partial_shape(0).to_shape()[axis] != 1) {
             multiplyConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.multiplyConstant });
         }
-        if (dequantization.subtract && dequantization.subtractConstant->get_output_partial_shape(0).to_shape().size() > 1 &&
+        if (dequantization.subtract && dequantization.subtractConstant->get_output_partial_shape(0).size() > 1 &&
             dequantization.subtractConstant->get_output_partial_shape(0).to_shape()[axis] != 1) {
             subtractConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.subtractConstant });
         }
