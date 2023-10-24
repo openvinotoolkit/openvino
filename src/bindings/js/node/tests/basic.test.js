@@ -79,7 +79,7 @@ describe('Core.compileModel()', () => {
 
   });
 
-  it('compileModel(model, device, config) throws when config is a string', () => {
+  it('compileModel(model, device, config) throws when config isn't an object', () => {
     assert.throws(
       () => core.compileModel(model, 'CPU', 'string').then(),
       /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
