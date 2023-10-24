@@ -47,7 +47,7 @@ ov_set_msvc_runtime(ONNX_USE_MSVC_SHARED_RUNTIME ${use_dynamic_runtime})
 # pugixml
 ov_set_msvc_runtime(STATIC_CRT ${use_static_runtime})
 # protobuf
-ov_set_msvc_runtime(protobuf_MSVC_STATIC_RUNTIME ${use_static_runtime})
+# ov_set_msvc_runtime(protobuf_MSVC_STATIC_RUNTIME ${use_static_runtime})
 # clDNN
 ov_set_msvc_runtime(CLDNN__COMPILE_LINK_USE_STATIC_RUNTIME ${use_static_runtime})
 # OpenCL
