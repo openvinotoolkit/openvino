@@ -30,16 +30,19 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
         size = ftell(sFile);
         uint8_t* ss = (uint8_t*)malloc(size);
         rewind(sFile);
-        fread(&ss[0], 1, size, sFile);
+        const size_t length = fread(&ss[0], 1, size, sFile);
+        if (size != length) {
+            std::cerr << "file size is not correct\n";
+        }
         fclose(sFile);
         return ss;
     };
 
     size_t xml_size, bin_size;
-    auto xml_str = read_file(model, xml_size);
-    auto bin_str = read_file(param, bin_size);
-    ov::Tensor weight_tensor = ov::Tensor(ov::element::u8, {1, bin_size}, bin_str);
-    std::string model_str = std::string((char*)xml_str, xml_size);
+    auto xml_ptr = read_file(model, xml_size);
+    auto bin_ptr = read_file(param, bin_size);
+    ov::Tensor weight_tensor = ov::Tensor(ov::element::u8, {1, bin_size}, bin_ptr);
+    std::string model_str = std::string((char*)xml_ptr, xml_size);
     auto function = core.read_model(model_str, weight_tensor);
 
     const auto inputType = ov::element::f32;
@@ -65,6 +68,8 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NONE);
     const FunctionsComparator::Result res = func_comparator(function, reference);
     ASSERT_TRUE(res.valid) << res.message;
+    free(xml_ptr);
+    free(bin_ptr);
 }
 
 TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
