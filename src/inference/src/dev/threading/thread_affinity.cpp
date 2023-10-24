@@ -114,7 +114,7 @@ bool pin_current_thread_to_socket(int socket) {
 std::tuple<CpuSet, int> get_process_mask() {
     DWORD_PTR pro_mask, sys_mask;
     if (0 != GetProcessAffinityMask(GetCurrentProcess(), &pro_mask, &sys_mask)) {
-        CpuSet mask(new DWORD_PTR(pro_mask));
+        CpuSet mask = std::make_unique<cpu_set_t>(pro_mask);
         return std::make_tuple(std::move(mask), 0);
     }
     return std::make_tuple(nullptr, 0);
