@@ -130,9 +130,9 @@ TYPED_TEST_P(topk_type_prop, default_index_element_type) {
         EXPECT_THAT(op->outputs(),
                     ElementsAre(Property("Value type", &Output<Node>::get_element_type, exp_data_type),
                                 Property("Index type", &Output<Node>::get_element_type, this->exp_default_idx_type)));
-    OPENVINO_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
         EXPECT_THAT(op->outputs(), Each(Property("Shape", &Output<Node>::get_shape, Shape({3, 2, 3, 4}))));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     {
         // k < dimension
@@ -141,9 +141,9 @@ TYPED_TEST_P(topk_type_prop, default_index_element_type) {
         EXPECT_THAT(op->outputs(),
                     ElementsAre(Property("Value type", &Output<Node>::get_element_type, exp_data_type),
                                 Property("Index type", &Output<Node>::get_element_type, this->exp_default_idx_type)));
-    OPENVINO_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
         EXPECT_THAT(op->outputs(), Each(Property("Shape", &Output<Node>::get_shape, Shape({1, 2, 3, 3}))));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 

@@ -59,7 +59,8 @@ TEST_F(AutoFuncTests, can_create_remotetensor_then_infer_with_affinity_2_devices
     auto remote_tensor = cldnn_context.create_tensor(input->get_element_type(), input->get_partial_shape().to_shape());
     ASSERT_EQ(remote_tensor.get_device_name(), "MOCK_GPU");
     auto cldnn_context_2 = core.get_default_context("MOCK_3");
-    auto remote_tensor_2 = cldnn_context_2.create_tensor(input->get_element_type(), input->get_partial_shape().to_shape());
+    auto remote_tensor_2 =
+        cldnn_context_2.create_tensor(input->get_element_type(), input->get_partial_shape().to_shape());
     ASSERT_EQ(remote_tensor_2.get_device_name(), "MOCK_3");
     auto infer_req_remote = compiled_model.create_infer_request();
     infer_req_remote.set_tensor(input, remote_tensor);

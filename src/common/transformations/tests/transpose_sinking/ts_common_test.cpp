@@ -588,8 +588,9 @@ auto test_forward_split = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{1});
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_partial_shape().to_shape(),
+                                               std::vector<int64_t>{1});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -736,8 +737,9 @@ auto test_forward_reduction = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{2, 0});
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_partial_shape().to_shape(),
+                                               std::vector<int64_t>{2, 0});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -891,8 +893,9 @@ auto test_forward_squeeze = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{3, 1});
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_partial_shape().to_shape(),
+                                               std::vector<int64_t>{3, 1});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -925,8 +928,9 @@ auto test_forward_unsqueeze = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{0, 2});
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_partial_shape().to_shape(),
+                                               std::vector<int64_t>{0, 2});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -1010,8 +1014,9 @@ auto test_forward_reshape_squeeze = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{6, 5, 4});
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_partial_shape().to_shape(),
+                                               std::vector<int64_t>{6, 5, 4});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -1203,8 +1208,9 @@ auto test_backward_split = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{2});
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_partial_shape().to_shape(),
+                                               std::vector<int64_t>{2});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
@@ -1317,8 +1323,9 @@ auto test_backward_reduction = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{2, 0});
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_partial_shape().to_shape(),
+                                               std::vector<int64_t>{2, 0});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
@@ -1506,8 +1513,9 @@ auto test_backward_unsqueeze = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{5, 3});
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_partial_shape().to_shape(),
+                                               std::vector<int64_t>{5, 3});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
@@ -1588,8 +1596,9 @@ auto test_backward_reshape_squeeze = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] =
-            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_partial_shape().to_shape(), std::vector<int64_t>{6, 5, 4});
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_partial_shape().to_shape(),
+                                               std::vector<int64_t>{6, 5, 4});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_transpose, new_constant}, {{0}, {1}}};

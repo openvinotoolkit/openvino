@@ -269,7 +269,8 @@ OutputVector pdpd_broadcast(const OutputVector& inputs, int64_t axis) {
 
     OutputVector broadcasted_inputs{inputs[0]};
     for (size_t i = 1; i < inputs.size(); ++i) {
-        broadcasted_inputs.push_back(broadcast_value_pdpd_style(inputs[i], inputs[0].get_partial_shape().to_shape(), axis));
+        broadcasted_inputs.push_back(
+            broadcast_value_pdpd_style(inputs[i], inputs[0].get_partial_shape().to_shape(), axis));
     }
     return broadcasted_inputs;
 }

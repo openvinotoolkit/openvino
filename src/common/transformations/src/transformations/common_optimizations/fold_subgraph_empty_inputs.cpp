@@ -50,7 +50,8 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
         if (empty_inputs.size()) {
             for (const auto& input : empty_inputs) {
                 const ov::Output<ov::Node> const_empty_replacement =
-                    std::make_shared<ov::op::v0::Constant>(input.get_element_type(), input.get_partial_shape().to_shape());
+                    std::make_shared<ov::op::v0::Constant>(input.get_element_type(),
+                                                           input.get_partial_shape().to_shape());
                 std::replace(std::begin(multi_subgraph_op_inputs),
                              std::end(multi_subgraph_op_inputs),
                              input,

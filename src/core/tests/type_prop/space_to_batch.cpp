@@ -38,7 +38,8 @@ TEST(type_prop, space_to_batch_output_shape_4D) {
     auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
     ASSERT_EQ(space_to_batch->get_element_type(), element::f32);
-    ASSERT_EQ(space_to_batch->get_output_partial_shape(0).to_shape(), (Shape{2 * 10 * 5, (64 + 3 + 3) / 10, (64 + 1) / 5, 3}));
+    ASSERT_EQ(space_to_batch->get_output_partial_shape(0).to_shape(),
+              (Shape{2 * 10 * 5, (64 + 3 + 3) / 10, (64 + 1) / 5, 3}));
 }
 
 TEST(type_prop, space_to_batch_output_shape_5D) {
@@ -50,7 +51,8 @@ TEST(type_prop, space_to_batch_output_shape_5D) {
     auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
     ASSERT_EQ(space_to_batch->get_element_type(), element::f32);
-    ASSERT_EQ(space_to_batch->get_output_partial_shape(0).to_shape(), (Shape{2 * 6 * 5 * 16, (32 + 2 + 2) / 6, (64 + 1) / 5, 128, 256 / 16}));
+    ASSERT_EQ(space_to_batch->get_output_partial_shape(0).to_shape(),
+              (Shape{2 * 6 * 5 * 16, (32 + 2 + 2) / 6, (64 + 1) / 5, 128, 256 / 16}));
 }
 
 TEST(type_prop, space_to_batch_and_batch_to_space) {

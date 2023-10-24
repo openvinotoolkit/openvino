@@ -714,8 +714,9 @@ TEST(eval, evaluate_reshape_v1_data_dynamic_shape) {
     auto model = make_shared<Model>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
     auto result_tensor = ov::Tensor();
     auto out_vector = ov::TensorVector{result_tensor};
-    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
-                                      make_tensor<element::Type_t::i64>(pattern->get_output_partial_shape(0).to_shape(), {2, 0, 1, -1, 1, 1})};
+    auto in_vector = ov::TensorVector{
+        make_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
+        make_tensor<element::Type_t::i64>(pattern->get_output_partial_shape(0).to_shape(), {2, 0, 1, -1, 1, 1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
     result_tensor = out_vector.at(0);
 
@@ -732,8 +733,9 @@ TEST(eval, evaluate_reshape_v1_not_backward_compatible_and_in_out_size_not_eq) {
     auto model = make_shared<Model>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
     auto result_tensor = ov::Tensor();
     auto out_vector = ov::TensorVector{result_tensor};
-    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
-                                      make_tensor<element::Type_t::i16>(pattern->get_output_partial_shape(0).to_shape(), {2, 1, 1, 1, 1})};
+    auto in_vector = ov::TensorVector{
+        make_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
+        make_tensor<element::Type_t::i16>(pattern->get_output_partial_shape(0).to_shape(), {2, 1, 1, 1, 1})};
 
     OV_EXPECT_THROW(model->evaluate(out_vector, in_vector),
                     NodeValidationFailure,

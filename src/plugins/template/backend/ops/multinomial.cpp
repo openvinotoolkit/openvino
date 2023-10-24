@@ -16,7 +16,8 @@ inline void evaluate_output_t(const std::shared_ptr<ov::op::v13::Multinomial>& o
     using T3 = typename ov::element_type_traits<OUTPUT_T>::value_type;
 
     const auto tensor_acc = make_tensor_accessor(inputs);
-    const std::vector<ov::PartialShape> input_shapes{op->get_input_partial_shape(0).to_shape(), op->get_input_partial_shape(1).to_shape()};
+    const std::vector<ov::PartialShape> input_shapes{op->get_input_partial_shape(0).to_shape(),
+                                                     op->get_input_partial_shape(1).to_shape()};
     const auto out_shape = ov::op::v13::shape_infer(op.get(), input_shapes, tensor_acc).front().to_shape();
     outputs[0].set_shape(out_shape);
 

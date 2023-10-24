@@ -113,7 +113,8 @@ void op::v10::Unique::validate_and_infer_types() {
 
     if (ov::op::util::is_constant(input_value(0).get_node())) {
         const auto input_const = std::dynamic_pointer_cast<op::v0::Constant>(input_value(0).get_node_shared_ptr());
-        ov::Tensor input_data = ov::Tensor(input_const->get_element_type(), input_const->get_output_partial_shape(0).to_shape());
+        ov::Tensor input_data =
+            ov::Tensor(input_const->get_element_type(), input_const->get_output_partial_shape(0).to_shape());
         memcpy(input_data.data(), input_const->get_data_ptr(), input_data.get_byte_size());
         const auto tensor_shapes = calculate_static_output_shapes(input_data, *this);
 

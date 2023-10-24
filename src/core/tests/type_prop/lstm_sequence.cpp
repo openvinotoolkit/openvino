@@ -164,7 +164,8 @@ TEST(type_prop, lstm_sequence_forward) {
     EXPECT_EQ(lstm_sequence->get_clip(), 0.f);
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::f32);
     EXPECT_EQ(lstm_sequence->outputs().size(), 3);
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(0).to_shape(), (Shape{batch_size, num_directions, seq_length, hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(0).to_shape(),
+              (Shape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_partial_shape(1).to_shape(), (Shape{batch_size, num_directions, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::f32);
@@ -212,7 +213,8 @@ TEST(type_prop, lstm_sequence_v0_forward) {
     EXPECT_EQ(lstm_sequence->get_clip_threshold(), 0.f);
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::f32);
     EXPECT_EQ(lstm_sequence->outputs().size(), 3);
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(0).to_shape(), (Shape{batch_size, num_directions, seq_length, hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(0).to_shape(),
+              (Shape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_partial_shape(1).to_shape(), (Shape{batch_size, num_directions, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::f32);
@@ -262,7 +264,8 @@ TEST(type_prop, lstm_sequence_bidirectional) {
     EXPECT_EQ(lstm_sequence->get_activations()[2], "sigmoid");
     EXPECT_EQ(lstm_sequence->get_clip(), 0.f);
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::f32);
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(0).to_shape(), (Shape{batch_size, num_directions, seq_length, hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(0).to_shape(),
+              (Shape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_partial_shape(1).to_shape(), (Shape{batch_size, num_directions, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::f32);
@@ -321,7 +324,8 @@ TEST(type_prop, lstm_sequence_v0_bidirectional) {
     EXPECT_EQ(lstm_sequence->get_input_forget(), true);
     EXPECT_EQ(lstm_sequence->get_weights_format(), ov::op::LSTMWeightsFormat::FICO);
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::f32);
-    EXPECT_EQ(lstm_sequence->get_output_partial_shape(0).to_shape(), (Shape{batch_size, num_directions, seq_length, hidden_size}));
+    EXPECT_EQ(lstm_sequence->get_output_partial_shape(0).to_shape(),
+              (Shape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_partial_shape(1).to_shape(), (Shape{batch_size, num_directions, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::f32);

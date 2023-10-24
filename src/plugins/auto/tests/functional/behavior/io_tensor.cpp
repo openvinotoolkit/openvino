@@ -38,7 +38,8 @@ TEST_P(InferRequest_IOTensor_Test, fail_to_set_nullptr_for_output) {
 TEST_P(InferRequest_IOTensor_Test, can_set_and_get_input) {
     auto compiled_model = core.compile_model(model_cannot_batch, target_device, property);
     req = compiled_model.create_infer_request();
-    auto tensor = ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_partial_shape().to_shape());
+    auto tensor =
+        ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_partial_shape().to_shape());
     ASSERT_NO_THROW(req.set_tensor(input, tensor));
     ov::Tensor actual_tensor;
     ASSERT_NO_THROW(actual_tensor = req.get_tensor(input));
@@ -53,7 +54,8 @@ TEST_P(InferRequest_IOTensor_Test, can_set_and_get_input) {
 TEST_P(InferRequest_IOTensor_Test, fail_to_set_tensor_with_incorrect_name) {
     auto compiled_model = core.compile_model(model_cannot_batch, target_device, property);
     req = compiled_model.create_infer_request();
-    auto tensor = ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_partial_shape().to_shape());
+    auto tensor =
+        ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_partial_shape().to_shape());
     ASSERT_THROW(req.set_tensor("incorrect_input", tensor), ov::Exception);
 }
 
@@ -120,9 +122,11 @@ TEST_P(InferRequest_IOTensor_Test, second_call_get_output_after_async) {
 TEST_P(InferRequest_IOTensor_Test, can_infer_with_set_tensor) {
     auto compiled_model = core.compile_model(model_cannot_batch, target_device, property);
     req = compiled_model.create_infer_request();
-    auto input_tensor = ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_partial_shape().to_shape());
+    auto input_tensor =
+        ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_partial_shape().to_shape());
     ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
-    auto output_tensor = ov::test::utils::create_and_fill_tensor(output.get_element_type(), output.get_partial_shape().to_shape());
+    auto output_tensor =
+        ov::test::utils::create_and_fill_tensor(output.get_element_type(), output.get_partial_shape().to_shape());
     ASSERT_NO_THROW(req.set_tensor(output, output_tensor));
     ASSERT_NO_THROW(req.infer());
 

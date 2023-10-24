@@ -47,7 +47,8 @@ TEST_F(TransformationTestsF, FoldLoopEmptyInputs) {
         auto loop = std::make_shared<Loop>(trip_count, condition);
         loop->set_special_body_ports({-1, 0});
         loop->set_function(body);
-        const auto const_input = std::make_shared<Constant>(a_add->get_element_type(), a_add->get_output_partial_shape(0).to_shape());
+        const auto const_input =
+            std::make_shared<Constant>(a_add->get_element_type(), a_add->get_output_partial_shape(0).to_shape());
         loop->set_invariant_input(ai, const_input);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
@@ -91,9 +92,13 @@ TEST_F(TransformationTestsF, FoldLoopManyEmptyInputs) {
         auto loop = std::make_shared<Loop>(trip_count, condition);
         loop->set_special_body_ports({-1, 0});
         loop->set_function(body);
-        loop->set_invariant_input(ai, std::make_shared<Constant>(a_add->get_element_type(), a_add->get_output_partial_shape(0).to_shape()));
+        loop->set_invariant_input(
+            ai,
+            std::make_shared<Constant>(a_add->get_element_type(), a_add->get_output_partial_shape(0).to_shape()));
         loop->set_invariant_input(bi, b_add);
-        loop->set_invariant_input(ci, std::make_shared<Constant>(c_add->get_element_type(), c_add->get_output_partial_shape(0).to_shape()));
+        loop->set_invariant_input(
+            ci,
+            std::make_shared<Constant>(c_add->get_element_type(), c_add->get_output_partial_shape(0).to_shape()));
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
         model_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{b});
@@ -127,7 +132,8 @@ TEST_F(TransformationTestsF, FoldLoopEmptyMergedInputs) {
         auto loop = std::make_shared<Loop>(trip_count, condition);
         loop->set_special_body_ports({-1, 0});
         loop->set_function(body);
-        auto x_add_const = std::make_shared<Constant>(x_add->get_element_type(), x_add->get_output_partial_shape(0).to_shape());
+        auto x_add_const =
+            std::make_shared<Constant>(x_add->get_element_type(), x_add->get_output_partial_shape(0).to_shape());
         loop->set_merged_input(xi, x_add_const, concat);
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
         model_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{});
@@ -238,9 +244,11 @@ TEST_F(TransformationTestsF, FoldIfManyEmptyInputs) {
         auto if_op = std::make_shared<If>(cond);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
-        const auto X_add_folded = std::make_shared<Constant>(X_add->get_element_type(), X_add->get_output_partial_shape(0).to_shape());
+        const auto X_add_folded =
+            std::make_shared<Constant>(X_add->get_element_type(), X_add->get_output_partial_shape(0).to_shape());
         if_op->set_input(X_add_folded, nullptr, Xe);
-        const auto Z_folded = std::make_shared<Constant>(Z->get_element_type(), Z->get_output_partial_shape(0).to_shape());
+        const auto Z_folded =
+            std::make_shared<Constant>(Z->get_element_type(), Z->get_output_partial_shape(0).to_shape());
         if_op->set_input(Z_folded, Zt, Ze);
         auto res = if_op->set_output(then_op_res, else_op_res);
         model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{});

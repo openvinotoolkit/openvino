@@ -44,7 +44,8 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
         }
 
         const auto* data = weights_node->get_data_ptr<int8_t>();
-        const int8_t weights_minimum = *std::min_element(data, data + shape_size(weights_node->get_output_partial_shape(0).to_shape()));
+        const int8_t weights_minimum =
+            *std::min_element(data, data + shape_size(weights_node->get_output_partial_shape(0).to_shape()));
         int64_t levels = (weights_minimum == static_cast<int8_t>(-128)) ? 256 : 255;
         int64_t in_low = -(levels / 2), in_high = levels + in_low - 1;
 

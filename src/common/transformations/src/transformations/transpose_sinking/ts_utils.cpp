@@ -183,7 +183,8 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     if (transpose_input_info.isEmpty()) {
         return {};
     }
-    auto num_of_val = static_cast<int64_t>(shape_size(transpose_input_info.transpose_const->get_output_partial_shape(0).to_shape()));
+    auto num_of_val =
+        static_cast<int64_t>(shape_size(transpose_input_info.transpose_const->get_output_partial_shape(0).to_shape()));
     const auto rank = output.get_partial_shape().rank();
     const auto rank_val = rank.get_length();
     AxisVector new_transpose_order;

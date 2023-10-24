@@ -330,7 +330,8 @@ TEST(type_prop, batch_to_space_output_shape_4D) {
     auto batch_to_space = make_shared<ov::op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
     ASSERT_EQ(batch_to_space->get_element_type(), ov::element::f32);
-    ASSERT_EQ(batch_to_space->get_output_partial_shape(0).to_shape(), (ov::Shape{100 / (10 * 5), 7 * 10 - 3 - 3, 13 * 5 - 1, 3}));
+    ASSERT_EQ(batch_to_space->get_output_partial_shape(0).to_shape(),
+              (ov::Shape{100 / (10 * 5), 7 * 10 - 3 - 3, 13 * 5 - 1, 3}));
 }
 
 TEST(type_prop, batch_to_space_output_shape_5D) {
@@ -343,7 +344,8 @@ TEST(type_prop, batch_to_space_output_shape_5D) {
     auto batch_to_space = make_shared<ov::op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
     ASSERT_EQ(batch_to_space->get_element_type(), ov::element::f32);
-    ASSERT_EQ(batch_to_space->get_output_partial_shape(0).to_shape(), (ov::Shape{960 / (6 * 5 * 16), 6 * 6 - 2 - 2, 13 * 5 - 1, 128, 16 * 16}));
+    ASSERT_EQ(batch_to_space->get_output_partial_shape(0).to_shape(),
+              (ov::Shape{960 / (6 * 5 * 16), 6 * 6 - 2 - 2, 13 * 5 - 1, 128, 16 * 16}));
 }
 
 TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_static) {

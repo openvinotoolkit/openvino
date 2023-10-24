@@ -36,8 +36,9 @@ NamedOutputs slice_op(const NodeContext& node, const bool& stride_input) {
     if (stride_input) {
         strides_idx_node = idx_node("StridesTensor", "StridesTensorList", "strides", node);
     } else {
-        strides_idx_node =
-            default_opset::Constant::create(element::i32, start_idx_node.get_partial_shape().to_shape(), std::vector<int32_t>{1});
+        strides_idx_node = default_opset::Constant::create(element::i32,
+                                                           start_idx_node.get_partial_shape().to_shape(),
+                                                           std::vector<int32_t>{1});
     }
     const auto axes_node = default_opset::Constant::create(element::i32, {axes.size()}, axes);
     const auto slice_node =

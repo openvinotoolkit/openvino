@@ -132,7 +132,9 @@ public:
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
         switch (get_input_element_type(0)) {
         case ov::element::f32:
-            elu(inputs[0].data<float>(), outputs[0].data<float>(), ov::shape_size(get_output_partial_shape(0).to_shape()));
+            elu(inputs[0].data<float>(),
+                outputs[0].data<float>(),
+                ov::shape_size(get_output_partial_shape(0).to_shape()));
             break;
         default:
             return false;

@@ -256,8 +256,9 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
                 new_const_value.push_back((res > 0) ? res : value[i]);
             }
 
-            const auto new_const =
-                opset6::Constant::create(const_node->get_element_type(), const_node->get_output_partial_shape(0).to_shape(), new_const_value);
+            const auto new_const = opset6::Constant::create(const_node->get_element_type(),
+                                                            const_node->get_output_partial_shape(0).to_shape(),
+                                                            new_const_value);
             new_const->set_friendly_name(const_node->get_friendly_name());
             ov::copy_runtime_info(const_node, new_const);
             ov::replace_node(const_node, new_const);
@@ -312,7 +313,8 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
                                << last_output.get_partial_shape();
 
                 if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
-                    reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_partial_shape().to_shape());
+                    reduced_weights_count +=
+                        shape_size(prev_shape.get_shape()) - shape_size(last_output.get_partial_shape().to_shape());
                 } else {
                     OPENVINO_DEBUG << "[ WARNING ] Can not find the number of reduced elements due to dynamic shapes.";
                 }

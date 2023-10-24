@@ -157,13 +157,15 @@ pass::BinarizeWeights::BinarizeWeights() {
         const std::shared_ptr<Node>& weights_norm_factor = weights_output_high_const;
 
         // Create new FQ on activations with new output low/high
-        auto output_low_normalized = ov::op::v0::Constant::create(element::f32,
-                                                                  activations_output_low_const->get_output_partial_shape(0).to_shape(),
-                                                                  activations_output_low);
+        auto output_low_normalized =
+            ov::op::v0::Constant::create(element::f32,
+                                         activations_output_low_const->get_output_partial_shape(0).to_shape(),
+                                         activations_output_low);
         output_low_normalized->set_friendly_name(activations_output_low_const->get_friendly_name());
-        auto output_high_normalized = ov::op::v0::Constant::create(element::f32,
-                                                                   activations_output_high_const->get_output_partial_shape(0).to_shape(),
-                                                                   activations_output_high);
+        auto output_high_normalized =
+            ov::op::v0::Constant::create(element::f32,
+                                         activations_output_high_const->get_output_partial_shape(0).to_shape(),
+                                         activations_output_high);
         output_high_normalized->set_friendly_name(activations_output_high_const->get_friendly_name());
         auto new_activations_fq = activations_fq->clone_with_new_inputs({activations_fq->input_value(0),
                                                                          activations_fq->input_value(1),
@@ -185,7 +187,9 @@ pass::BinarizeWeights::BinarizeWeights() {
                                                   weights_output_low,
                                                   weights_output_high);
         auto quantized_weights_const =
-            ov::op::v0::Constant::create(element::f32, weights_const->get_output_partial_shape(0).to_shape(), quantized_weights);
+            ov::op::v0::Constant::create(element::f32,
+                                         weights_const->get_output_partial_shape(0).to_shape(),
+                                         quantized_weights);
         quantized_weights_const->set_friendly_name(weights_const->get_friendly_name());
         auto new_conv = conv->clone_with_new_inputs({new_activations_fq, quantized_weights_const});
 

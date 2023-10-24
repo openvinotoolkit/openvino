@@ -68,8 +68,8 @@ static bool simplify_gather(shared_ptr<Node> node) {
             // case_3: if input_shape is (1,3,5,5) and axis = 0, indices = 0, then gather is just a Squeeze
             const auto constant_indices_size = constant_indices->get_output_partial_shape(0).size();
             const auto const_indices = constant_indices->cast_vector<int64_t>();
-            if (data.get_partial_shape().to_shape()[axis] == 1 && (constant_indices_size == 0 || constant_indices_size == 1) &&
-                const_indices[0] == 0) {
+            if (data.get_partial_shape().to_shape()[axis] == 1 &&
+                (constant_indices_size == 0 || constant_indices_size == 1) && const_indices[0] == 0) {
                 auto squeeze = std::make_shared<ov::op::v0::Squeeze>(gather->input_value(0), gather->input_value(2));
                 squeeze->set_friendly_name(gather->get_friendly_name());
                 ov::copy_runtime_info(gather, squeeze);
@@ -84,7 +84,8 @@ static bool simplify_gather(shared_ptr<Node> node) {
         // gathering the whole input tensor, so we can optimize this
         // op has Nop
 
-        if (data.get_partial_shape().to_shape()[axis] == 1 && data.get_partial_shape().to_shape() == node->get_output_partial_shape(0).to_shape()) {
+        if (data.get_partial_shape().to_shape()[axis] == 1 &&
+            data.get_partial_shape().to_shape() == node->get_output_partial_shape(0).to_shape()) {
             return replace_output_update_name(gather->output(0), gather->input_value(0));
         }
 
@@ -149,7 +150,8 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
         auto shape = node->get_output_partial_shape(0).to_shape();
 
         // remove interchangeable nodes
-        if (input_node->get_input_partial_shape(0).is_static() && input_node->get_input_partial_shape(0).to_shape() == shape) {
+        if (input_node->get_input_partial_shape(0).is_static() &&
+            input_node->get_input_partial_shape(0).to_shape() == shape) {
             return replace_output_update_name(node->output(0), input_node->input_value(0));
         } else {
             vector<int64_t> vi;

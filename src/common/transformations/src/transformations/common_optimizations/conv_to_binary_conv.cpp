@@ -91,7 +91,9 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
 
         auto bin_weights = binarize_weights(weights);
         auto bin_weights_constant =
-            std::make_shared<ov::op::v0::Constant>(element::u1, weights_constant->get_output_partial_shape(0).to_shape(), bin_weights.data());
+            std::make_shared<ov::op::v0::Constant>(element::u1,
+                                                   weights_constant->get_output_partial_shape(0).to_shape(),
+                                                   bin_weights.data());
 
         if (output_low_is_zero && output_high_is_one) {
             auto new_conv = std::make_shared<ov::op::v1::BinaryConvolution>(
@@ -114,7 +116,9 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
                 weights_reduced_shape.push_back(1);
             }
             auto weights_reduced = std::make_shared<ov::op::v1::ReduceSum>(
-                ov::op::v0::Constant::create(element::f32, weights_constant->get_output_partial_shape(0).to_shape(), weights),
+                ov::op::v0::Constant::create(element::f32,
+                                             weights_constant->get_output_partial_shape(0).to_shape(),
+                                             weights),
                 ov::op::v0::Constant::create(element::i64, Shape{axes.size()}, axes),
                 false);
             std::shared_ptr<Node> weights_reduced_reshaped = std::make_shared<ov::op::v1::Reshape>(

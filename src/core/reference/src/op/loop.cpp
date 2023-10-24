@@ -43,9 +43,10 @@ void loop(const std::shared_ptr<Model>& func,
             cur_iter->validate_and_infer_types();
         }
 
-        auto init = std::make_shared<op::v0::Constant>(func->get_parameters().at(cur_iter_idx)->get_element_type(),
-                                                       func->get_parameters().at(cur_iter_idx)->get_output_partial_shape(0).to_shape(),
-                                                       0);
+        auto init = std::make_shared<op::v0::Constant>(
+            func->get_parameters().at(cur_iter_idx)->get_element_type(),
+            func->get_parameters().at(cur_iter_idx)->get_output_partial_shape(0).to_shape(),
+            0);
         ov::Tensor in_tensor(func->get_parameters().at(cur_iter_idx)->get_element_type(),
                              func->get_parameters().at(cur_iter_idx)->get_output_partial_shape(0).to_shape());
         std::memset(in_tensor.data(), 0, in_tensor.get_byte_size());
@@ -203,7 +204,8 @@ void loop(const std::shared_ptr<Model>& func,
         // Concatenate and copy all values stored in values_to_concat vector to outputs
         for (size_t i = 0; i < concat_outputs.size(); ++i) {
             const auto& concat_desc = concat_outputs[i];
-            auto shape = func->get_results().at(concat_desc->m_body_value_index)->get_output_partial_shape(0).to_shape();
+            auto shape =
+                func->get_results().at(concat_desc->m_body_value_index)->get_output_partial_shape(0).to_shape();
             std::vector<Shape> shapes_to_concat(values_to_concat[i].size(), shape);
             shape.at(concat_desc->m_axis) = values_to_concat[i].size();
             out[concat_desc->m_output_index].set_shape(shape);

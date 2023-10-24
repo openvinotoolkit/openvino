@@ -171,7 +171,9 @@ ov::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
 
             bool zero_point_is_zero = true;
             PartialShape merged_shape{output_low->get_output_partial_shape(0).to_shape()};
-            PartialShape::broadcast_merge_into(merged_shape, output_high->get_output_partial_shape(0).to_shape(), op::AutoBroadcastType::NUMPY);
+            PartialShape::broadcast_merge_into(merged_shape,
+                                               output_high->get_output_partial_shape(0).to_shape(),
+                                               op::AutoBroadcastType::NUMPY);
             Shape scale_or_zero_point_shape = merged_shape.to_shape();
             Tensor scale_tensor(high_precision_type, scale_or_zero_point_shape);
             Tensor zero_point_tensor(high_precision_type, scale_or_zero_point_shape);
@@ -225,7 +227,9 @@ ov::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
 }
 
 static ov::Tensor tensor_from_constant(const std::shared_ptr<ov::op::v0::Constant>& constant) {
-    return ov::Tensor(constant->get_element_type(), constant->get_output_partial_shape(0).to_shape(), const_cast<void*>(constant->get_data_ptr()));
+    return ov::Tensor(constant->get_element_type(),
+                      constant->get_output_partial_shape(0).to_shape(),
+                      const_cast<void*>(constant->get_data_ptr()));
 }
 
 static bool evaluate_node(const std::shared_ptr<ov::Node>& node,
@@ -234,7 +238,8 @@ static bool evaluate_node(const std::shared_ptr<ov::Node>& node,
     if (node->get_output_size() != 1)
         return false;
 
-    ov::TensorVector output_tensors{ov::Tensor(node->get_output_element_type(0), node->get_output_partial_shape(0).to_shape())};
+    ov::TensorVector output_tensors{
+        ov::Tensor(node->get_output_element_type(0), node->get_output_partial_shape(0).to_shape())};
     if (!node->evaluate(output_tensors, input_tensors))
         return false;
 

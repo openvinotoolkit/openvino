@@ -29,7 +29,8 @@ bool has_constant_value<bool>(const std::shared_ptr<Node>& node, const bool valu
         return false;
     }
 
-    const bool is_scalar_or_single_elem = is_scalar(constant->get_output_partial_shape(0).to_shape()) || shape_size(constant->get_output_partial_shape(0).to_shape()) == 1;
+    const bool is_scalar_or_single_elem = is_scalar(constant->get_output_partial_shape(0).to_shape()) ||
+                                          shape_size(constant->get_output_partial_shape(0).to_shape()) == 1;
     if (!is_scalar_or_single_elem) {
         return false;
     }

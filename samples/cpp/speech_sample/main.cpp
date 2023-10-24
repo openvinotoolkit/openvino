@@ -287,7 +287,8 @@ int main(int argc, char* argv[]) {
                 for (auto& info : imported_inputs) {
                     auto imported_layout = ov::layout::get_layout(info);
                     if (ov::layout::has_batch(imported_layout)) {
-                        batchSize = (uint32_t)info.get_partial_shape().to_shape()[ov::layout::batch_idx(imported_layout)];
+                        batchSize =
+                            (uint32_t)info.get_partial_shape().to_shape()[ov::layout::batch_idx(imported_layout)];
                         break;
                     }
                 }
