@@ -53,10 +53,6 @@ jobs:
         if: ${{ contains(matrix.machine, 'ubuntu') }}
         run: sudo -E ${{ env.OPENVINO_REPO }}/scripts/install_dependencies/install_openvino_dependencies.sh -y
 
-      - name: Install dependencies (mac)
-        if: ${{ contains(matrix.machine, 'macos') }}
-        run: brew install coreutils
-
       #
       # Configure JS API
       #
