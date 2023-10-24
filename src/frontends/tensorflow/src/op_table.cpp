@@ -46,6 +46,14 @@ TF_OP_CONVERTER(translate_sparse_segment_sum_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
 TF_OP_CONVERTER(translate_stringjoin_op);
 TF_OP_CONVERTER(translate_switch_op);
+TF_OP_CONVERTER(translate_tensor_array_close_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_concat_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_gather_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_read_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_scatter_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_size_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_write_v3_op);
 TF_OP_CONVERTER(translate_varhandle_op);
 TF_OP_CONVERTER(translate_variable_op);
 TF_OP_CONVERTER(translate_varisinitialized_op);
@@ -174,6 +182,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Gather", CreatorFunction(translate_gather_op)},
         {"GatherV2", CreatorFunction(translate_gather_v2_op)},
         {"GatherNd", CreatorFunction(translate_gather_nd_op)},
+        {"GatherTree", CreatorFunction(translate_gather_tree_op)},
+        {"Addons>GatherTree", CreatorFunction(translate_gather_tree_op)},
         {"HashTable", CreatorFunction(translate_hash_table_op)},
         {"HashTableV2", CreatorFunction(translate_hash_table_op)},
         {"Identity", CreatorFunction(translate_identity_op)},
@@ -269,6 +279,14 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"StatelessWhile", CreatorFunction(translate_while_op)},
         {"StridedSlice", CreatorFunction(translate_strided_slice_op)},
         {"Switch", CreatorFunction(translate_switch_op)},
+        {"TensorArrayCloseV3", CreatorFunction(translate_tensor_array_close_v3_op)},
+        {"TensorArrayConcatV3", CreatorFunction(translate_tensor_array_concat_v3_op)},
+        {"TensorArrayGatherV3", CreatorFunction(translate_tensor_array_gather_v3_op)},
+        {"TensorArrayReadV3", CreatorFunction(translate_tensor_array_read_v3_op)},
+        {"TensorArrayScatterV3", CreatorFunction(translate_tensor_array_scatter_v3_op)},
+        {"TensorArraySizeV3", CreatorFunction(translate_tensor_array_size_v3_op)},
+        {"TensorArrayV3", CreatorFunction(translate_tensor_array_v3_op)},
+        {"TensorArrayWriteV3", CreatorFunction(translate_tensor_array_write_v3_op)},
         {"TensorListFromTensor", CreatorFunction(translate_tensor_list_from_tensor_op)},
         {"TensorListGetItem", CreatorFunction(translate_tensor_list_get_item_op)},
         {"TensorListLength", CreatorFunction(translate_tensor_list_length_op)},
