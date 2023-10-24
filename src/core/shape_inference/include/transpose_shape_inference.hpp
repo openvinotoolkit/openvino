@@ -70,10 +70,11 @@ std::vector<TRShape> shape_infer(const Transpose* op,
 
     if (input_order_shape.rank().is_static()) {
         NODE_SHAPE_INFER_CHECK(op, input_shapes, input_order_shape.size() == 1, "Input order must be a vector.");
-        NODE_SHAPE_INFER_CHECK(op,
-                               input_shapes,
-                               input_order_shape[0].compatible(input_rank) || input_order_shape[0] == 0,
-                               "Input order must have shape [n], where n is the rank of arg.");
+        NODE_SHAPE_INFER_CHECK(
+            op,
+            input_shapes,
+            input_order_shape[0].compatible(input_rank.get_max_length()) || input_order_shape[0] == 0,
+            "Input order must have shape [n], where n is the rank of arg.");
     }
 
     const auto axes = get_input_const_data_as<TShape, int64_t>(op, Transpose::ORDER, tensor_accessor);
