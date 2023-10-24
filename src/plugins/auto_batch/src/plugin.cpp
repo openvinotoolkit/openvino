@@ -232,12 +232,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         meta_device.device_batch_size = 1;
     }
 
-    try {
-        if (!meta_device.device_batch_size) {
-            // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
-            // let's query the optimal batch size
-            // auto cloned_model = model->clone();
-            ov::AnyMap options = {ov::hint::model(std::const_pointer_cast<ov::Model>(model))};
+    if (!meta_device.device_batch_size) {
+        // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
+        // let's query the optimal batch size
+        // auto cloned_model = model->clone();
+        ov::AnyMap options = {ov::hint::model(std::const_pointer_cast<ov::Model>(model))};
+        auto supported_properties = core->get_property(device_name, ov::supported_properties);
+        if (std::count(supported_properties.begin(), supported_properties.end(), ov::optimal_batch_size)) {
             unsigned int opt_batch_size = core->get_property(device_name, ov::optimal_batch_size, options);
             auto requests = core->get_property(device_name, ov::hint::num_requests);
             const auto& reqs = properties.find(ov::hint::num_requests.name());
@@ -250,9 +251,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 meta_device.device_batch_size = opt_batch_size;
             else
                 meta_device.device_batch_size = 1;
+        } else {
+            meta_device.device_batch_size = 1;
         }
-    } catch (const std::exception&) {
-        meta_device.device_batch_size = 1;
     }
 
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
