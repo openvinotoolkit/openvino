@@ -149,11 +149,17 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", params.score_threshold));
     }
 
-    if (params.soft_nms_sigma_type == base_params::ArgType::Input) {
-        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_TYPE", GetInputTypeStr(params.GetIndexSoftNmsSigma())));
-        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "convert_float(soft_nms_sigma[0])"));
+    if (params.rotation == NMSRotationType::NONE) {
+        if (params.soft_nms_sigma_type == base_params::ArgType::Input) {
+            jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_TYPE", GetInputTypeStr(params.GetIndexSoftNmsSigma())));
+            jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "convert_float(soft_nms_sigma[0])"));
+        } else {
+            jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", params.soft_nms_sigma));
+        }
     } else {
-        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", params.soft_nms_sigma));
+        jit.AddConstant(MakeJitConstant("ROTATION", static_cast<int>(params.rotation)));
+        // for NMSRotated it is always zero
+        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", 0.0f));
     }
 
     if (params.has_second_output) {

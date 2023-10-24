@@ -88,6 +88,7 @@
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
 #include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
+#include "transformations/op_conversions/convert_nms_rotated_to_nms_ie_internal.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -272,6 +273,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
+        manager.register_pass<ov::pass::ConvertNMSRotatedToNMSIEInternal>();
         manager.register_pass<ov::pass::ConvertGP9ToGPIEInternal>();
         manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
         manager.register_pass<ov::pass::ConvertGather0D>();
