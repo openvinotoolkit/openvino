@@ -79,6 +79,7 @@ void ov::descriptor::Tensor::set_value_label(const TensorLabel& value_label) {
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 const ov::Shape& ov::descriptor::Tensor::get_shape() const {
     if (m_partial_shape.is_static()) {
         if (m_shape_changed.load(std::memory_order_relaxed)) {
@@ -94,6 +95,7 @@ const ov::Shape& ov::descriptor::Tensor::get_shape() const {
         throw std::invalid_argument("get_shape was called on a descriptor::Tensor with dynamic shape");
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 size_t ov::descriptor::Tensor::size() const {
     const bool bitwidth_less_than_byte = m_element_type.bitwidth() < 8;

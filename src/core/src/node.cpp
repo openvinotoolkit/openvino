@@ -434,20 +434,24 @@ const ov::element::Type& ov::Node::get_element_type() const {
     return get_output_element_type(0);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 const ov::Shape& ov::Node::get_output_shape(size_t i) const {
     OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_shape();
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 const ov::PartialShape& ov::Node::get_output_partial_shape(size_t i) const {
     OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_partial_shape();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 const ov::Shape& ov::Node::get_shape() const {
     NODE_VALIDATION_CHECK(this, get_output_size() == 1, "get_shape() must be called on a node with exactly one output");
     return get_output_shape(0);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::set<ov::Input<ov::Node>> ov::Node::get_output_target_inputs(size_t i) const {
     std::set<Input<Node>> result;
@@ -479,10 +483,12 @@ const ov::element::Type& ov::Node::get_input_element_type(size_t i) const {
     return m_inputs[i].get_element_type();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 const ov::Shape& ov::Node::get_input_shape(size_t i) const {
     OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     return m_inputs[i].get_shape();
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 const ov::PartialShape& ov::Node::get_input_partial_shape(size_t i) const {
     OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);

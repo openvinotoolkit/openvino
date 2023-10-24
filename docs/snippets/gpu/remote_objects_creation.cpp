@@ -26,13 +26,13 @@ int main() {
     ov::Core core;
     auto model = core.read_model("model.xml");
     auto input = model->get_parameters().at(0);
-    auto input_size = ov::shape_size(input->get_shape());
+    auto input_size = ov::shape_size(input->get_partial_shape().to_shape());
 
     auto compiled_model = core.compile_model(model, "GPU");
     auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
 
     auto in_element_type = input->get_element_type();
-    auto in_shape = input->get_shape();
+    auto in_shape = input->get_partial_shape().to_shape();
 
 {
     //! [wrap_usm_pointer]

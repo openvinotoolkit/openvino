@@ -38,7 +38,7 @@ int main() {
     auto input0 = model->get_parameters().at(0);
     auto input1 = model->get_parameters().at(1);
 
-    auto shape = input0->get_shape();
+    auto shape = input0->get_partial_shape().to_shape();
     auto width = shape[1];
     auto height = shape[2];
 

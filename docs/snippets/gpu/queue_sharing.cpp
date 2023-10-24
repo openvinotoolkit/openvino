@@ -23,17 +23,17 @@ int main() {
     auto exec_net_shared = core.compile_model(model, remote_context);
 
     auto input = model->get_parameters().at(0);
-    auto input_size = ov::shape_size(input->get_shape());
+    auto input_size = ov::shape_size(input->get_output_partial_shape(0).to_shape());
     auto output = model->get_results().at(0);
-    auto output_size = ov::shape_size(output->get_shape());
+    auto output_size = ov::shape_size(output->get_output_partial_shape(0).to_shape());
     cl_int err;
 
     // create the OpenCL buffers within the context
     cl::Buffer shared_in_buffer(cl_context, CL_MEM_READ_WRITE, input_size, NULL, &err);
     cl::Buffer shared_out_buffer(cl_context, CL_MEM_READ_WRITE, output_size, NULL, &err);
     // wrap in and out buffers into RemoteTensor and set them to infer request
-    auto shared_in_blob = remote_context.create_tensor(input->get_element_type(), input->get_shape(), shared_in_buffer);
-    auto shared_out_blob = remote_context.create_tensor(output->get_element_type(), output->get_shape(), shared_out_buffer);
+    auto shared_in_blob = remote_context.create_tensor(input->get_element_type(), input->get_output_partial_shape(0).to_shape(), shared_in_buffer);
+    auto shared_out_blob = remote_context.create_tensor(output->get_element_type(), output->get_output_partial_shape(0).to_shape(), shared_out_buffer);
     auto infer_request = exec_net_shared.create_infer_request();
     infer_request.set_tensor(input, shared_in_blob);
     infer_request.set_tensor(output, shared_out_blob);

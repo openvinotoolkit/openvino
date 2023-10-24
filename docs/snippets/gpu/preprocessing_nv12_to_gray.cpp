@@ -28,7 +28,7 @@ int main() {
     //! [single_batch]
     cl::Image2D img_y_plane;
     auto input_y = model_with_preproc->input(0);
-    auto remote_y_tensor = remote_context.create_tensor(input_y.get_element_type(), input.get_shape(), img_y_plane);
+    auto remote_y_tensor = remote_context.create_tensor(input_y.get_element_type(), input.get_partial_shape().to_shape(), img_y_plane);
     infer_request.set_tensor(input_y.get_any_name(), remote_y_tensor);
     infer_request.infer();
     //! [single_batch]
@@ -38,8 +38,8 @@ int main() {
     //! [batched_case]
     cl::Image2D img_y_plane_0, img_y_plane_l;
     auto input_y = model_with_preproc->input(0);
-    auto remote_y_tensor_0 = remote_context.create_tensor(input_y.get_element_type(), input.get_shape(), img_y_plane_0);
-    auto remote_y_tensor_1 = remote_context.create_tensor(input_y.get_element_type(), input.get_shape(), img_y_plane_l);
+    auto remote_y_tensor_0 = remote_context.create_tensor(input_y.get_element_type(), input.get_partial_shape().to_shape(), img_y_plane_0);
+    auto remote_y_tensor_1 = remote_context.create_tensor(input_y.get_element_type(), input.get_partial_shape().to_shape(), img_y_plane_l);
     std::vector<ov::Tensor> y_tensors = {remote_y_tensor_0, remote_y_tensor_1};
     infer_request.set_tensors(input_y.get_any_name(), y_tensors);
     infer_request.infer();

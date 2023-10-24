@@ -27,11 +27,11 @@ int main() {
 
     // create the OpenCL buffer within the obtained context
     auto input = model->get_parameters().at(0);
-    auto input_size = ov::shape_size(input->get_shape());
+    auto input_size = ov::shape_size(input->get_partial_shape().to_shape());
     cl_int err;
     cl::Buffer shared_buffer(cl_context, CL_MEM_READ_WRITE, input_size, NULL, &err);
     // wrap the buffer into RemoteBlob
-    auto shared_blob = gpu_context.create_tensor(input->get_element_type(), input->get_shape(), shared_buffer);
+    auto shared_blob = gpu_context.create_tensor(input->get_element_type(), input->get_partial_shape().to_shape(), shared_buffer);
 
     // ...
     // execute user kernel
