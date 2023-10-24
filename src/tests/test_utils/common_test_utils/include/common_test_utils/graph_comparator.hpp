@@ -14,6 +14,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 class FunctionsComparator {
 public:
@@ -945,9 +946,7 @@ private:
     template <typename AttrValue>
     void verify(const std::string& name, const AttrValue& attr_value);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    void verify_mem_buf(const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    void verify_mem_buf(const std::string& name, const std::shared_ptr<ov::AlignedBuffer>& buffer);
 
     using ModelAccessor = ov::ValueAccessor<std::shared_ptr<ov::Model>>;
 

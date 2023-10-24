@@ -38,6 +38,7 @@ namespace ngraph {
 //
 // A SlicePlan is used to collect parameters for these ops.
 //
+// This class is moved to dev API
 struct NGRAPH_API_DEPRECATED NGRAPH_API SlicePlan {
     // Parameters for the Slice
     std::vector<int64_t> begins;

@@ -18,10 +18,9 @@
 #include "openvino/util/common_util.hpp"
 #include "utils.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 void parse_pre_process(pugi::xml_node& root,
-                       std::shared_ptr<ngraph::runtime::AlignedBuffer> weights,
+                       std::shared_ptr<ov::AlignedBuffer> weights,
                        std::shared_ptr<ov::Model> model) {
     /* Preprocessing block can have two preprocessing types:
      *
@@ -183,7 +182,9 @@ void parse_pre_process(pugi::xml_node& root,
             const char* data = weights->get_ptr<char>() + offset;
             per_channel_values[item.first] = ov::op::v0::Constant::create(input_type, mean_shape, data);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto const_node = get_constant_from_source(std::make_shared<ov::op::v0::Concat>(per_channel_values, 0));
+        OPENVINO_SUPPRESS_DEPRECATED_END
         OPENVINO_ASSERT(const_node);
         const auto& consumers = input_node->output(0).get_target_inputs();
         auto add = std::make_shared<ov::op::v1::Subtract>(input_node, const_node);
@@ -193,15 +194,13 @@ void parse_pre_process(pugi::xml_node& root,
     }
 }
 }  // namespace
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace ov {
 namespace frontend {
 namespace ir {
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 class InputModel::InputModelIRImpl {
-    std::shared_ptr<ngraph::runtime::AlignedBuffer> m_weights;
+    std::shared_ptr<ov::AlignedBuffer> m_weights;
     std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> m_extensions;
     std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
@@ -209,7 +208,7 @@ class InputModel::InputModelIRImpl {
 
 public:
     InputModelIRImpl(std::istream& stream,
-                     const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+                     const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
         : m_weights(weights),
           m_extensions(extensions) {
@@ -227,11 +226,10 @@ public:
 };
 
 InputModel::InputModel(std::istream& stream,
-                       const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+                       const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
     _impl = std::make_shared<InputModelIRImpl>(stream, weights, extensions);
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::shared_ptr<ov::Model> InputModel::convert() {
     return _impl->convert();

@@ -8,10 +8,10 @@
 
 #include <cmath>
 
-#include "ngraph/runtime/aligned_buffer.hpp"
 #include "openvino/reference/reshape.hpp"
 #include "openvino/reference/reverse.hpp"
 #include "openvino/reference/slice.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
 namespace reference {
@@ -30,8 +30,7 @@ void strided_slice(const char* arg,
         return;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::runtime::AlignedBuffer slice_out_buffer(shape_size(sp.reshape_in_shape) * elem_type);
+    ov::AlignedBuffer slice_out_buffer(shape_size(sp.reshape_in_shape) * elem_type);
     slice(reinterpret_cast<const char*>(arg),
           slice_out_buffer.get_ptr<char>(),
           arg_shape,
@@ -41,7 +40,7 @@ void strided_slice(const char* arg,
           sp.reshape_in_shape,
           elem_type);
 
-    ngraph::runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) * elem_type);
+    ov::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) * elem_type);
     reshape(slice_out_buffer.get_ptr<char>(), reshape_out_buffer.get_ptr<char>(), sp.reshape_in_shape, elem_type);
 
     reverse(reshape_out_buffer.get_ptr<char>(),
@@ -50,7 +49,6 @@ void strided_slice(const char* arg,
             sp.reshape_out_shape,
             sp.reverse_axes,
             elem_type);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace ov

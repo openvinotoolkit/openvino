@@ -10,8 +10,10 @@
 #include <sstream>
 
 #include "itt.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 template <typename T>
 static inline std::string to_cpp_string(T value) {
@@ -27,6 +29,14 @@ static inline std::string to_cpp_string(T value) {
     }
     return rc;
 }
+OPENVINO_SUPPRESS_DEPRECATED_START
+std::shared_ptr<ov::AlignedBuffer> ov::op::v0::Constant::legacy_to_ov_aligned_buffer(
+    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
+    return std::make_shared<ov::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(buffer->get_ptr<char>(),
+                                                                                               buffer->size(),
+                                                                                               buffer);
+}
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 ov::op::v0::Constant::Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor) {
@@ -35,7 +45,7 @@ ov::op::v0::Constant::Constant(const std::shared_ptr<ngraph::runtime::Tensor>& t
     // Share data from HostTensor if we work with it
     // And copy data in other cas
     if (auto hostTensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(tensor)) {
-        m_data = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::Tensor>>>(
+        m_data = std::make_shared<ov::SharedBuffer<std::shared_ptr<ngraph::runtime::Tensor>>>(
             static_cast<char*>(hostTensor->get_data_ptr()),
             tensor->get_size_in_bytes(),
             tensor);
@@ -51,12 +61,10 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 ov::op::v0::Constant::Constant(const ov::Tensor& tensor) {
     m_element_type = tensor.get_element_type();
     m_shape = tensor.get_shape();
-    OPENVINO_SUPPRESS_DEPRECATED_START
     // Share data from ov::Tensor
-    m_data = std::make_shared<ngraph::runtime::SharedBuffer<ov::Tensor>>(static_cast<char*>(tensor.data()),
-                                                                         tensor.get_byte_size(),
-                                                                         tensor);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    m_data = std::make_shared<ov::SharedBuffer<ov::Tensor>>(static_cast<char*>(tensor.data()),
+                                                            tensor.get_byte_size(),
+                                                            tensor);
 
     constructor_validate_and_infer_types();
 }
@@ -211,12 +219,10 @@ ov::op::v0::Constant::Constant(bool memset_allocation, const element::Type& type
 }
 
 void ov::op::v0::Constant::allocate_buffer(bool memset_allocation) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    m_data = std::make_shared<ngraph::runtime::AlignedBuffer>(mem_size(), host_alignment());
+    m_data = std::make_shared<ov::AlignedBuffer>(mem_size(), host_alignment());
     if (memset_allocation) {
         std::memset(m_data->get_ptr(), 0, m_data->size());
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
@@ -314,6 +320,18 @@ std::string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
 #    pragma GCC diagnostic pop
 #endif
     return rc;
+}
+
+size_t ov::op::v0::Constant::get_byte_size() const {
+    return m_data->size();
+}
+
+const void* ov::op::v0::Constant::get_data_ptr() const {
+    return (m_data ? m_data->get_ptr() : nullptr);
+}
+
+void* ov::op::v0::Constant::get_data_ptr_nc() {
+    return (m_data ? m_data->get_ptr() : nullptr);
 }
 
 std::vector<std::string> ov::op::v0::Constant::get_value_strings() const {

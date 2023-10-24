@@ -20,6 +20,8 @@
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "rt_info_deserializer.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "utils.hpp"
@@ -258,7 +260,6 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
 
     if (skip_names.count(name) && !getStrAttribute(m_node.child("data"), name, val))
         return;
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto a = ov::as_type<ov::AttributeAdapter<ov::element::Type>>(&adapter)) {
         static_cast<ov::element::Type&>(*a) = ov::element::Type(val);
     } else if (auto a = ov::as_type<ov::AttributeAdapter<PartialShape>>(&adapter)) {
@@ -322,7 +323,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                 ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id});
         }
         a->set(m_variables[variable_id]);
-    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         std::string value;
         pugi::xml_node dn = m_node.child("data");
         auto type = pugixml::utils::get_str_attr(m_node, "type");
@@ -331,7 +332,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
             OPENVINO_THROW("No attrtibutes defined for ", type, " op!");
 
         if (getStrAttribute(dn, name, value)) {
-            auto buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(value.size());
+            auto buffer = std::make_shared<ov::AlignedBuffer>(value.size());
             auto data = static_cast<char*>(buffer->get_ptr());
             value.copy(data, value.size());
             a->set(buffer);
@@ -356,11 +357,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                 OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
 
             char* data = m_weights->get_ptr<char>() + offset;
-            auto buffer =
-                std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                    data,
-                    size,
-                    m_weights);
+            auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
             a->set(buffer);
         }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
@@ -388,7 +385,6 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
     } else {
         OPENVINO_THROW("Error IR reading. Attribute adapter can not be found for ", name, " parameter");
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) {
@@ -409,10 +405,8 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
     adapter.set(model);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(
-    const pugi::xml_node& root,
-    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights) {
+std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_node& root,
+                                                               const std::shared_ptr<ov::AlignedBuffer>& weights) {
     // OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     struct FunctionNodes {
@@ -553,7 +547,6 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(
 
     return function;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 class MetaDataParser : public ov::Meta {
 public:
@@ -751,12 +744,10 @@ static const std::string& translate_type_name(const std::string& name) {
     return name;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(
-    const std::vector<ov::Output<ov::Node>>& inputs,
-    const pugi::xml_node& node,
-    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
-    const GenericLayerParams& params) {
+std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov::Output<ov::Node>>& inputs,
+                                                           const pugi::xml_node& node,
+                                                           const std::shared_ptr<ov::AlignedBuffer>& weights,
+                                                           const GenericLayerParams& params) {
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
@@ -959,4 +950,3 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(
 
     return ovNode;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END

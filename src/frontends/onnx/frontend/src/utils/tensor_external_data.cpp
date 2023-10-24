@@ -12,7 +12,6 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace detail {
@@ -51,13 +50,13 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
     if (m_data_length > mapped_memory->size() || mapped_memory->size() == 0) {
         throw error::invalid_external_data{*this};
     }
-    return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+    return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
         mapped_memory->data() + m_offset,
         m_data_length > 0 ? m_data_length : static_cast<uint64_t>(file_size) - m_offset,
         mapped_memory);
 }
 
-Buffer<ngraph::runtime::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
+Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
     auto full_path = ov::util::path_join({model_dir, m_data_location});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     NGRAPH_SUPPRESS_DEPRECATED_START
@@ -82,14 +81,13 @@ Buffer<ngraph::runtime::AlignedBuffer> TensorExternalData::load_external_data(co
     // default value of m_offset is 0
     external_data_stream.seekg(m_offset, std::ios::beg);
 
-    auto read_data = std::make_shared<ngraph::runtime::AlignedBuffer>(read_data_length);
+    auto read_data = std::make_shared<ov::AlignedBuffer>(read_data_length);
     external_data_stream.read(read_data->get_ptr<char>(), read_data_length);
     external_data_stream.close();
 
-    auto buffer = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-        read_data->get_ptr<char>(),
-        read_data->size(),
-        read_data);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
+                                                                                         read_data->size(),
+                                                                                         read_data);
 
     return buffer;
 }
