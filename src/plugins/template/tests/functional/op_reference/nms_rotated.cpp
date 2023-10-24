@@ -560,8 +560,8 @@ std::vector<NMSRotatedParams> generateParams() {
 std::vector<NMSRotatedParams> generateCombinedParams() {
     const std::vector<std::vector<NMSRotatedParams>> generatedParams{
         generateParams<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i32>(),
-        // generateParams<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
-        // generateParams<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
+        generateParams<element::Type_t::f16, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
+        generateParams<element::Type_t::f32, element::Type_t::i32, element::Type_t::f32, element::Type_t::i64>(),
     };
     std::vector<NMSRotatedParams> combinedParams;
 
