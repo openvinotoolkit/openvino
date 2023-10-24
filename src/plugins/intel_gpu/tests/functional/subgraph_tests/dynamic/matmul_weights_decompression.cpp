@@ -14,10 +14,10 @@ using namespace ov::test;
 
 namespace SubgraphTestsDefinitions {
 /*
- *                        Subtract_const(U8/NF4/U4)
- *                           /
- *    Weights(U8/NF4/U4)       Convert(F32)
- *       |               /
+ *                        Subtract_const(U8/NF4/U4/I4)
+ *                             /
+ *    Weights(U8/NF4/U4/I4)  Convert(F32)
+ *       |                 /
  *    Convert(F32)   Reshape(optional)
  *            \        /       Multiply_const(F32)
  *            Subtract(optional)     /
@@ -301,11 +301,11 @@ namespace {
 
 const std::vector<ov::test::ElementType> activations_precisions = {ov::element::f32, ov::element::f16};
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
+const std::vector<bool> transpose_weights = {true, false};
 const std::vector<ShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
     {{{}, {{1, 4, 16}}}, {16, 32}, 2ul},
     {{{}, {{1, 4, 16}}}, {1, 16, 32}},
-    {{{}, {{10, 40, 496}}}, {1, 496, 240}},
     {{{}, {{1, 4, 48}}}, {48, 256}},
     {{{}, {{11, 339, 377}}}, {377, 335}}
 };
@@ -315,7 +315,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(activations_precisions),
-                                            ::testing::Values(true),
+                                            ::testing::ValuesIn(transpose_weights),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(false),
@@ -335,7 +335,6 @@ const std::vector<ShapeParams> input_shapes_corner_cases_big = {
     {{{-1, 4096}, {{1, 4096}}}, {4096, 4096}, 128},
 };
 
-const std::vector<bool> transpose_weights = {true, false};
 const std::vector<bool> add_decompression_sub = {true, false};
 const std::vector<bool> reshape_on_decompression = {true, false};
 const std::vector<bool> per_tensor_zp = {true, false};

@@ -40,7 +40,7 @@
 
 #if COMPRESSED_WEIGHTS_INT4
 #   if TILE_K_OFM != TILE_K_OFM_PACKED * 2
-#       error "fully_connected_gpu_bf_tiled.cl - TILE_K_OFM must be divisible by 2 for NF4 compressed case"
+#       error "fully_connected_gpu_bf_tiled.cl - TILE_K_OFM must be divisible by 2 for 4-bit compressed case"
 #   endif
 #endif
 
