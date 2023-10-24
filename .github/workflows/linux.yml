@@ -67,8 +67,12 @@ jobs:
           apt-get update
           apt-get install --assume-yes --no-install-recommends git ca-certificates
 
+      - uses: actions/checkout@v4
+      - id: system_info
+        uses: .github/actions/system_info@v1
+
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4m
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
