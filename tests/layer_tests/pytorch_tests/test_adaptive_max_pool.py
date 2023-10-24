@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import torch
@@ -49,6 +51,8 @@ class TestAdaptiveMaxPool3D(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_adaptive_max_pool3d(self, ie_device, precision, ir_version, input_tensor, output_size, return_indices):
         self.input_tensor = input_tensor
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
@@ -94,6 +98,8 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_adaptive_max_pool2d(self, ie_device, precision, ir_version, input_tensor, output_size, return_indices):
         self.input_tensor = input_tensor
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
@@ -139,6 +145,8 @@ class TestAdaptiveMaxPool1D(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_adaptive_max_pool1d(self, ie_device, precision, ir_version, input_tensor, output_size, return_indices):
         self.input_tensor = input_tensor
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
