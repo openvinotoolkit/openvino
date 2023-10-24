@@ -148,7 +148,8 @@ TEST_P(ReferenceNMSRotatedTestWithoutConstants, CompareWithRefs) {
     Exec();
 }
 
-// clang-format off // To make the test data shape more readable
+// clang-format off
+// To make the test data shape more readable
 template <element::Type_t ET, element::Type_t ET_BOX, element::Type_t ET_TH, element::Type_t ET_IND>
 std::vector<NMSRotatedParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
