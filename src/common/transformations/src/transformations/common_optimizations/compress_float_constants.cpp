@@ -93,7 +93,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             return false;
 #else
         if (c_type == ov::element::f32) {
-            auto size = shape_size(const_node->get_output_shape(0));
+            auto size = shape_size(const_node->get_output_partial_shape(0).to_shape());
             if (size == 0)
                 return false;
             auto num_out_of_range =
