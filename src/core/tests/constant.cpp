@@ -10,6 +10,8 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 using namespace ov;
 using namespace std;
@@ -1726,14 +1728,12 @@ TEST(constant, lazy_bitwise_identical) {
     auto shape = Shape{10, 1000, 1000};
     auto type = element::i32;
     auto byte_size = shape_size(shape) * sizeof(int32_t);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto aligned_weights_buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(byte_size);
+    auto aligned_weights_buffer = std::make_shared<ov::AlignedBuffer>(byte_size);
     std::memset(aligned_weights_buffer->get_ptr<char>(), 1, byte_size);
-    auto weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-        aligned_weights_buffer->get_ptr<char>(),
-        aligned_weights_buffer->size(),
-        aligned_weights_buffer);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto weights =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(aligned_weights_buffer->get_ptr<char>(),
+                                                                               aligned_weights_buffer->size(),
+                                                                               aligned_weights_buffer);
 
     using namespace std::chrono;
     auto create_constant = [&]() {

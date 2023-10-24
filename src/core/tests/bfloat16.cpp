@@ -10,7 +10,7 @@
 #include <random>
 
 #include "common_test_utils/float_util.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/log.hpp"
 
 using namespace std;
@@ -140,9 +140,8 @@ TEST(bfloat16, numeric_limits) {
 }
 
 TEST(benchmark, bfloat16) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     size_t buffer_size = 128 * 3 * 224 * 224;
-    ngraph::runtime::AlignedBuffer data(buffer_size * sizeof(float), 4096);
+    ov::AlignedBuffer data(buffer_size * sizeof(float), 4096);
     float* f = static_cast<float*>(data.get_ptr());
     // vector<float> data(buffer_size);
     std::mt19937 rng(2112);
@@ -153,53 +152,36 @@ TEST(benchmark, bfloat16) {
     OPENVINO_INFO << "buffer size " << buffer_size << " floats or " << data.size() << " bytes";
 
     {
-        ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
+        ov::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
-        ngraph::stopwatch timer;
-        timer.start();
         for (size_t i = 0; i < buffer_size; ++i) {
             p[i] = bfloat16(f[i]);
         }
-        timer.stop();
-        OPENVINO_INFO << "float to bfloat16 ctor                  " << timer.get_milliseconds() << "ms";
     }
 
     {
-        ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
+        ov::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
-        ngraph::stopwatch timer;
-        timer.start();
         for (size_t i = 0; i < buffer_size; ++i) {
             p[i] = bfloat16::truncate(f[i]);
         }
-        timer.stop();
-        OPENVINO_INFO << "float to bfloat16 truncate              " << timer.get_milliseconds() << "ms";
     }
 
     {
-        ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
+        ov::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
-        ngraph::stopwatch timer;
-        timer.start();
         for (size_t i = 0; i < buffer_size; ++i) {
             p[i] = bfloat16::round_to_nearest(f[i]);
         }
-        timer.stop();
-        OPENVINO_INFO << "float to bfloat16 round to nearest      " << timer.get_milliseconds() << "ms";
     }
 
     {
-        ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
+        ov::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
-        ngraph::stopwatch timer;
-        timer.start();
         for (size_t i = 0; i < buffer_size; ++i) {
             p[i] = bfloat16::round_to_nearest_even(f[i]);
         }
-        timer.stop();
-        OPENVINO_INFO << "float to bfloat16 round to nearest even " << timer.get_milliseconds() << "ms";
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(bfloat16, assigns) {
