@@ -103,7 +103,7 @@ pass::GatherNopElimination::GatherNopElimination() {
     matcher_pass_callback callback = [](Matcher& m) {
         auto gather = m.get_match_root();
         const auto& number_of_indices = shape_size(gather->get_input_partial_shape(1).to_shape());
-        if (gather->get_input_partial_shape(0) != gather->get_output_partial_shape(0) ||
+        if (gather->get_input_partial_shape(0).to_shape() != gather->get_output_partial_shape(0).to_shape() ||
             shape_size(gather->get_input_partial_shape(2).to_shape()) != 1 || number_of_indices > 10)
             return false;
         std::vector<int64_t> expected_vector(number_of_indices);

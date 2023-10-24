@@ -117,7 +117,7 @@ static bool eliminate_nop(const shared_ptr<Node>& node) {
         return false;
     }
 
-    if (node->get_input_partial_shape(0) == node->get_output_partial_shape(0)) {
+    if (node->get_input_partial_shape(0).to_shape() == node->get_output_partial_shape(0).to_shape()) {
         return replace_output_update_name(node->output(0), node->input_value(0));
     }
     return false;
@@ -137,7 +137,7 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
         return false;
     }
     // remove identity op
-    if (input.get_partial_shape() == node->get_output_partial_shape(0)) {
+    if (input.get_partial_shape().to_shape() == node->get_output_partial_shape(0).to_shape()) {
         return replace_output_update_name(node->output(0), input);
     }
     // eliminate redundant reshape, squeeze, or unsqueeze
