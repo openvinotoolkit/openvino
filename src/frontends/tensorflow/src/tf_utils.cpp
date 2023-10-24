@@ -83,7 +83,7 @@ void extract_tensor_content(const string& tensor_content, Tensor* values) {
 #    pragma warning(disable : 4267)  // possible loss of data
 #endif
 template <typename T>
-void extract_compressed_tensor_content(const ::ov_tensorflow::TensorProto& tensor_proto,
+void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
                                        int64_t val_size,
                                        Tensor* values) {
     auto val_lastsaved = static_cast<T>(0);
@@ -149,30 +149,30 @@ bool CfMarkerType::is_copyable() const {
     return false;
 }
 
-Type get_ov_type(const ::ov_tensorflow::DataType& type) {
-    static const map<::ov_tensorflow::DataType, Type> type_map{{::ov_tensorflow::DataType::DT_BOOL, boolean},
-                                                               {::ov_tensorflow::DataType::DT_INT16, i16},
-                                                               {::ov_tensorflow::DataType::DT_INT32, i32},
-                                                               {::ov_tensorflow::DataType::DT_INT64, i64},
-                                                               {::ov_tensorflow::DataType::DT_HALF, f16},
-                                                               {::ov_tensorflow::DataType::DT_FLOAT, f32},
-                                                               {::ov_tensorflow::DataType::DT_DOUBLE, f64},
-                                                               {::ov_tensorflow::DataType::DT_UINT8, u8},
-                                                               {::ov_tensorflow::DataType::DT_INT8, i8},
-                                                               {::ov_tensorflow::DataType::DT_BFLOAT16, bf16}};
+Type get_ov_type(const ::tensorflow::DataType& type) {
+    static const map<::tensorflow::DataType, Type> type_map{{::tensorflow::DataType::DT_BOOL, boolean},
+                                                            {::tensorflow::DataType::DT_INT16, i16},
+                                                            {::tensorflow::DataType::DT_INT32, i32},
+                                                            {::tensorflow::DataType::DT_INT64, i64},
+                                                            {::tensorflow::DataType::DT_HALF, f16},
+                                                            {::tensorflow::DataType::DT_FLOAT, f32},
+                                                            {::tensorflow::DataType::DT_DOUBLE, f64},
+                                                            {::tensorflow::DataType::DT_UINT8, u8},
+                                                            {::tensorflow::DataType::DT_INT8, i8},
+                                                            {::tensorflow::DataType::DT_BFLOAT16, bf16}};
 
     auto it = type_map.find(type);
     // for all unsupported types return dynamic type
     return it == type_map.end() ? dynamic : it->second;
 }
 
-Any unpack_tensor_proto(const ::ov_tensorflow::TensorProto& tensor_proto) {
+Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto) {
     return unpack_tensor_proto(tensor_proto, tensor_proto.tensor_shape(), tensor_proto.dtype());
 }
 
-Any unpack_tensor_proto(const ::ov_tensorflow::TensorProto& tensor_proto,
-                        const ::ov_tensorflow::TensorShapeProto& tensor_shape,
-                        const ::ov_tensorflow::DataType& tensor_type) {
+Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
+                        const ::tensorflow::TensorShapeProto& tensor_shape,
+                        const ::tensorflow::DataType& tensor_type) {
     PartialShape pshape;
     for (int i = 0; i < tensor_shape.dim_size(); i++) {
         pshape.push_back(tensor_shape.dim(i).size());
@@ -180,7 +180,7 @@ Any unpack_tensor_proto(const ::ov_tensorflow::TensorProto& tensor_proto,
     FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
     Type ov_type = get_ov_type(tensor_type);
 
-    if (tensor_type != ::ov_tensorflow::DataType::DT_STRING) {
+    if (tensor_type != ::tensorflow::DataType::DT_STRING) {
         FRONT_END_GENERAL_CHECK(
             ov_type.is_static(),
             "Encountered unknown element type " + DataType_Name(tensor_type) + " on an empty tensor_proto");
@@ -423,7 +423,7 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     FRONT_END_GENERAL_CHECK(
         cond_results.size() == 1 && cond_results[0],
         "[TensorFlow Frontend] Internal error or inconsistent model: condition body must contain one Result node.");
-    auto body_condition_output_idx = static_cast<int64_t>(body_results.size());
+    auto body_condition_output_idx = body_results.size();
     body_model->add_results(cond_results);
 
     // type setting for body graph parameters is needed for TensorList support since DT_VARIANT type is present
@@ -435,14 +435,18 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     loop->set_function(body_model);
 
     // body_results may contain less nodes than body_params that means back edge exists not for all body_params
-    for (size_t input_ind = 0; input_ind < static_cast<size_t>(body_condition_output_idx); ++input_ind) {
+    for (size_t input_ind = 0; input_ind < body_condition_output_idx; ++input_ind) {
         loop->set_merged_input(body_params[input_ind], ov_inputs[input_ind], body_results[input_ind]->input_value(0));
     }
-    loop->set_special_body_ports({-1, body_condition_output_idx});
+    loop->set_special_body_ports({-1, static_cast<int64_t>(body_condition_output_idx)});
+    // set invariant inputs for the loop
+    for (size_t input_ind = body_condition_output_idx; input_ind < input_size; ++input_ind) {
+        loop->set_invariant_input(body_params[input_ind], ov_inputs[input_ind]);
+    }
 
     // set external outputs for Loop node
     // do not get execution condition outside of the Loop node
-    for (size_t output_ind = 0; output_ind < static_cast<size_t>(body_condition_output_idx); ++output_ind) {
+    for (size_t output_ind = 0; output_ind < body_condition_output_idx; ++output_ind) {
         loop->get_iter_value(body_results[output_ind]);
     }
     loop->validate_and_infer_types();
