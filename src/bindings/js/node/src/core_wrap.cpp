@@ -16,7 +16,7 @@ Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
                        {
                            InstanceMethod("readModelSync", &CoreWrap::read_model_sync),
                            InstanceMethod("readModel", &CoreWrap::read_model_async),
-                           InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync),
+                           InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                            InstanceMethod("compileModel", &CoreWrap::compile_model_async),
                        });
 }
@@ -85,7 +85,7 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
     }
 }
 
-Napi::Value CoreWrap::compile_model_sync_helper(const Napi::CallbackInfo& info,
+Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                                 const Napi::Object& model,
                                                 const Napi::String& device) {
     auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
@@ -93,14 +93,14 @@ Napi::Value CoreWrap::compile_model_sync_helper(const Napi::CallbackInfo& info,
     return CompiledModelWrap::Wrap(info.Env(), compiled_model);
 }
 
-Napi::Value CoreWrap::compile_model_sync_helper(const Napi::CallbackInfo& info,
+Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                                 const Napi::String& model_path,
                                                 const Napi::String& device) {
     const auto& compiled_model = _core.compile_model(model_path, device);
     return CompiledModelWrap::Wrap(info.Env(), compiled_model);
 }
 
-Napi::Value CoreWrap::compile_model_sync_helper(const Napi::CallbackInfo& info,
+Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                                 const Napi::Object& model_obj,
                                                 const Napi::String& device,
                                                 const std::map<std::string, ov::Any>& config) {
@@ -109,7 +109,7 @@ Napi::Value CoreWrap::compile_model_sync_helper(const Napi::CallbackInfo& info,
     return CompiledModelWrap::Wrap(info.Env(), compiled_model);
 }
 
-Napi::Value CoreWrap::compile_model_sync_helper(const Napi::CallbackInfo& info,
+Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                                 const Napi::String& model_path,
                                                 const Napi::String& device,
                                                 const std::map<std::string, ov::Any>& config) {
@@ -117,18 +117,18 @@ Napi::Value CoreWrap::compile_model_sync_helper(const Napi::CallbackInfo& info,
     return CompiledModelWrap::Wrap(info.Env(), compiled_model);
 }
 
-Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info) {
+Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info) {
     try {
         if (info.Length() == 2 && info[0].IsString() && info[1].IsString()) {
-            return compile_model_sync_helper(info, info[0].ToString(), info[1].ToString());
+            return compile_model_sync(info, info[0].ToString(), info[1].ToString());
         } else if (info.Length() == 2 && info[0].IsObject() && info[1].IsString()) {
-            return compile_model_sync_helper(info, info[0].ToObject(), info[1].ToString());
+            return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
         } else if (info.Length() == 3 && info[0].IsString() && info[1].IsString()) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
-            return compile_model_sync_helper(info, info[0].ToString(), info[1].ToString(), config);
+            return compile_model_sync(info, info[0].ToString(), info[1].ToString(), config);
         } else if (info.Length() == 3 && info[0].IsObject() && info[1].IsString()) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
-            return compile_model_sync_helper(info, info[0].ToObject(), info[1].ToString(), config);
+            return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
         } else if (info.Length() < 2 || info.Length() > 3) {
             reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
             return info.Env().Undefined();

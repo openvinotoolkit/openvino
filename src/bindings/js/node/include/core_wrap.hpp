@@ -52,24 +52,6 @@ public:
      */
     Napi::Value read_model_async(const Napi::CallbackInfo& info);
 
-    Napi::Value compile_model_sync_helper(const Napi::CallbackInfo& info,
-                                          const Napi::Object& model,
-                                          const Napi::String& device);
-
-    Napi::Value compile_model_sync_helper(const Napi::CallbackInfo& info,
-                                          const Napi::String& model_path,
-                                          const Napi::String& device);
-
-    Napi::Value compile_model_sync_helper(const Napi::CallbackInfo& info,
-                                          const Napi::Object& model,
-                                          const Napi::String& device,
-                                          const std::map<std::string, ov::Any>& config);
-
-    Napi::Value compile_model_sync_helper(const Napi::CallbackInfo& info,
-                                          const Napi::String& model_path,
-                                          const Napi::String& device,
-                                          const std::map<std::string, ov::Any>& config);
-
     /**
      * @brief Creates and loads a compiled model from a source model.
      * @param info contains two passed arguments.
@@ -77,7 +59,7 @@ public:
      * @param info[1] string with propetries e.g. device
      * @return A Javascript CompiledModel object.
      */
-    Napi::Value compile_model_sync(const Napi::CallbackInfo& info);
+    Napi::Value compile_model_sync_dispatch(const Napi::CallbackInfo& info);
 
     /**
      * @brief Asynchronously creates and loads a compiled model from a source model.
@@ -87,6 +69,25 @@ public:
      * @return A Javascript CompiledModel object.
      */
     Napi::Value compile_model_async(const Napi::CallbackInfo& info);
+
+protected:
+    Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
+                                          const Napi::Object& model,
+                                          const Napi::String& device);
+
+    Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
+                                          const Napi::String& model_path,
+                                          const Napi::String& device);
+
+    Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
+                                          const Napi::Object& model,
+                                          const Napi::String& device,
+                                          const std::map<std::string, ov::Any>& config);
+
+    Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
+                                          const Napi::String& model_path,
+                                          const Napi::String& device,
+                                          const std::map<std::string, ov::Any>& config);
 
 private:
     ov::Core _core;
