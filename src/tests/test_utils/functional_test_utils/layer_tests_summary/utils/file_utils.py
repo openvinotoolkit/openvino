@@ -24,18 +24,17 @@ def prepare_filelist(input_dir: os.path, patterns: list, is_save_to_file = True)
         conformance_utils.UTILS_LOGGER.info(f"{filelist_path} is exists! The script will update it!")
     model_list = list()
     for pattern in patterns:
-        for model in Path(input_dir).rglob(pattern):
-            model_list.append(model)
-    try:
-        if is_save_to_file:
+        model_list.extend(Path(input_dir).rglob(pattern))
+    if is_save_to_file:
+        try:
             with open(filelist_path, 'w') as file:
                 for xml in model_list:
                     file.write(str(xml) + '\n')
                 file.close()
-        else:
-            filelist_path = [str(model_path) for model_path in model_list]
-    except:
-        conformance_utils.UTILS_LOGGER.warning(f"Impossible to update {filelist_path}! Something going is wrong!")
+        except:
+            conformance_utils.UTILS_LOGGER.warning(f"Impossible to update {filelist_path}! Something going is wrong!")
+    else:
+        return model_list
     return filelist_path
 
 def is_archieve(input_path: os.path):

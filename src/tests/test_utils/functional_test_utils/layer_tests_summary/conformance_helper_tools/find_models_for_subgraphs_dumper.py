@@ -72,23 +72,25 @@ def generate_model_list_file(input_str: str, re_exp_file_path: str, output_file_
     with open(output_file_path, 'w', newline='\n') as output_file:
         model_dir_paths = str_to_dir_list(input_str)
         dir_re_exps = read_dir_re_exp(re_exp_file_path)
-        model_set = set()
+        model_list = list()
         for model_dir_path in model_dir_paths:
             for dir_re_exp in dir_re_exps:
-                for dir in Path(model_dir_path).glob(dir_re_exp):
+                dirs = [model_dir_path]
+                if dir_re_exp != "*":
+                    if is_latest_only:
+                        dirs = [find_latest_dir(model_dir_path, dir_re_exp)]
+                    else:
+                        dirs = Path(model_dir_path).glob(dir_re_exp)
+                for dir in dirs:
                     try:
-                        if is_latest_only:
-                            dir = find_latest_dir(model_dir_path, dir_re_exp)
-                        logger.info(f"Processing dir: {model_dir_path}")
-                        for line in prepare_filelist(str(dir), SUPPORTED_MODEL_EXTENSION, is_save_to_file=False):
-                            if line in model_set:
-                                continue
-                            model_set.update({line})
-                            output_file.write(f"{line}\n")
+                        logger.info(f"Processing dir: {dir}")
+                        model_list.extend(prepare_filelist(str(dir), SUPPORTED_MODEL_EXTENSION, is_save_to_file=False))
                         if is_latest_only:
                             break
                     except:
                         pass
+        for line in model_list:
+            output_file.write(f"{line}\n")
         output_file.close()
 
 if __name__ == "__main__":

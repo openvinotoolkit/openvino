@@ -63,7 +63,7 @@ SUPPORTED_MODEL_EXTENSION = [
     #PDPD
     "*.pdmodel",
     # TF
-    "*model.pb",
+    "*.pb",
     # OV IR
     "*.xml",
     # TFLITE
