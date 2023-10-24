@@ -37,14 +37,11 @@ struct Evaluate : ov::element::NoAction<bool> {
     static result_type visit(const Tensor& in0,
                              const Tensor& in1,
                              Tensor& out,
+                             const Shape& shape0,
+                             const Shape& shape1,
                              const AutoBroadcastSpec& broadcast_spec) {
         using T = typename element_type_traits<ET>::value_type;
-        reference::mod(in0.data<const T>(),
-                       in1.data<const T>(),
-                       out.data<T>(),
-                       in0.get_shape(),
-                       in1.get_shape(),
-                       broadcast_spec);
+        reference::mod(in0.data<const T>(), in1.data<const T>(), out.data<T>(), shape0, shape1, broadcast_spec);
         return true;
     }
 };
@@ -244,14 +241,15 @@ std::shared_ptr<Node> Mod::clone_with_new_inputs(const OutputVector& new_args) c
 bool Mod::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Mod_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
-    OPENVINO_ASSERT(inputs.size() == 2);
 
-    outputs[0].set_shape(infer_broadcast_shape(this, inputs[0].get_shape(), inputs[1].get_shape()));
+    outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
     return IfTypeOf<i8, i16, i32, i64, u8, u16, u32, u64>::apply<mod::Evaluate>(inputs[0].get_element_type(),
                                                                                 inputs[0],
                                                                                 inputs[1],
                                                                                 outputs[0],
+                                                                                inputs[0].get_shape(),
+                                                                                inputs[1].get_shape(),
                                                                                 get_autob());
 }
 
