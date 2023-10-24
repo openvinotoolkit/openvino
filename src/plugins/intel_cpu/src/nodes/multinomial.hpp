@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <node.h>
+
 #include <string>
 
 namespace ov {
@@ -23,11 +24,10 @@ public:
     bool created() const override;
     void createPrimitive() override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                     std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     bool needPrepareParams() const override;
-    void prepareParams() override; 
+    void prepareParams() override;
 
     bool isExecutable() const override;
     void execute(dnnl::stream strm) override;

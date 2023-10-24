@@ -3,7 +3,9 @@
 //
 
 #include <node.h>
+
 #include <openvino/op/multinomial.hpp>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -23,7 +25,7 @@ public:
         return EMPTY_PORT_MASK;
     }
 
-    private:
+private:
     std::shared_ptr<const ov::op::v13::Multinomial> m_op;
 };
 
