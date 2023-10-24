@@ -36,8 +36,8 @@ TEST(basic, test1) {
     auto weights1 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 1 } });
     auto weights2 = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 1, 1, 2 } });
 
-    set_values(input, { FLOAT16(1.1f), FLOAT16(1.2f), FLOAT16(1.3f), FLOAT16(1.4f) });
-    set_values(weights1, { FLOAT16(2.1f), FLOAT16(3.1f) });
+    set_values(input, { ov::float16(1.1f), ov::float16(1.2f), ov::float16(1.3f), ov::float16(1.4f) });
+    set_values(weights1, { ov::float16(2.1f), ov::float16(3.1f) });
     set_values(weights2, { 1.1f, 0.1f });
 
     topology topology;

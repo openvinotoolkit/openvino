@@ -11,12 +11,30 @@
 #include <functional>
 #include <xbyak/xbyak.h>
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace jit
-        {
+namespace ov {
+namespace runtime {
+namespace jit {
+#ifdef XBYAK64
+            static const Xbyak::Operand::Code abi_save_gpr_regs[] = {
+                Xbyak::Operand::RBX,
+                Xbyak::Operand::RBP,
+                Xbyak::Operand::R12,
+                Xbyak::Operand::R13,
+                Xbyak::Operand::R14,
+                Xbyak::Operand::R15,
+#ifdef _WIN32
+                Xbyak::Operand::RDI,
+                Xbyak::Operand::RSI,
+#endif
+            };
+
+#ifdef _WIN32
+#define abi_param1 Xbyak::Reg64(Xbyak::Operand::RCX) // RCX
+#else
+#define abi_param1 Xbyak::Reg64(Xbyak::Operand::RDI) // RDI
+#endif
+#endif  // XBYAK64
+
             class Generator : public Xbyak::CodeGenerator
             {
                 static constexpr size_t xmm_len = 16;
@@ -29,14 +47,14 @@ namespace ngraph
                 static constexpr size_t xmm_to_preserve = 0;
 #endif
 
-                static const size_t num_abi_save_gpr_regs;
+                static const size_t num_abi_save_gpr_regs = sizeof(abi_save_gpr_regs) / sizeof(abi_save_gpr_regs[0]);
                 const size_t size_of_abi_save_regs;
 
                 const Xbyak::Reg64 reg_EVEX_max_8b_offt;
                 static constexpr int EVEX_max_8b_offt = 0x200;
 
             public:
-                static const Xbyak::Reg64 param;
+                const Xbyak::Reg64 param = abi_param1;
 
                 typedef enum
                 {
@@ -73,4 +91,4 @@ namespace ngraph
             };
         }
     }
-}
+    }  // namespace ov

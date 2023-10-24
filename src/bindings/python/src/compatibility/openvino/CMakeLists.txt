@@ -27,7 +27,8 @@ else()
     message(STATUS "Found Cython version ${CYTHON_VERSION}")
 endif()
 
-set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+# Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined in FindPython3
+set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
 
 set(PYTHON_COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})
 if(OV_GENERATOR_MULTI_CONFIG)

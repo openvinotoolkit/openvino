@@ -5,36 +5,25 @@
 #include "ngraph/validation_util.hpp"
 
 #include <algorithm>
-#include <ngraph/ops.hpp>
-#include <ngraph/rt_info.hpp>
 #include <numeric>
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "ngraph/evaluator.hpp"
-#include "ngraph/op/concat.hpp"
-#include "ngraph/op/convert.hpp"
-#include "ngraph/op/gather.hpp"
-#include "ngraph/op/min.hpp"
-#include "ngraph/op/minimum.hpp"
-#include "ngraph/op/reshape.hpp"
-#include "ngraph/op/shape_of.hpp"
-#include "ngraph/op/squeeze.hpp"
-#include "ngraph/op/unsqueeze.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type_traits.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-using namespace std;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
-ngraph::Strides ngraph::conv_default_strides(const Node* /* node */,
-                                             const PartialShape& data_batch_shape,
-                                             const PartialShape& filters_shape) {
+namespace ngraph {
+
+Strides conv_default_strides(const Node* /* node */,
+                             const PartialShape& data_batch_shape,
+                             const PartialShape& filters_shape) {
     size_t rank;
 
     if (data_batch_shape.rank().is_static() && data_batch_shape.rank().get_length() >= 2) {
@@ -48,9 +37,9 @@ ngraph::Strides ngraph::conv_default_strides(const Node* /* node */,
     return Strides(rank, 1);
 }
 
-ngraph::CoordinateDiff ngraph::conv_default_padding(const Node* /* node */,
-                                                    const PartialShape& data_batch_shape,
-                                                    const PartialShape& filters_shape) {
+CoordinateDiff conv_default_padding(const Node* /* node */,
+                                    const PartialShape& data_batch_shape,
+                                    const PartialShape& filters_shape) {
     size_t rank;
 
     if (data_batch_shape.rank().is_static() && data_batch_shape.rank().get_length() >= 2) {
@@ -71,16 +60,16 @@ ngraph::CoordinateDiff ngraph::conv_default_padding(const Node* /* node */,
 // TODO(amprocte): The messages here would be a bit friendlier if we didn't say "after
 // padding/after dilation" for cases where there is actually no padding/dilation.
 //
-ngraph::PartialShape ngraph::infer_windowed_reduction_output_shape(const Node* node,
-                                                                   const PartialShape& data_shape,
-                                                                   const Strides& data_dilation,
-                                                                   const CoordinateDiff& data_padding_below,
-                                                                   const CoordinateDiff& data_padding_above,
-                                                                   const PartialShape& window_shape,
-                                                                   const Strides& window_strides,
-                                                                   const Strides& window_dilation,
-                                                                   bool is_window_all_in_padding_allowed,
-                                                                   bool ceil_mode) {
+PartialShape infer_windowed_reduction_output_shape(const Node* node,
+                                                   const PartialShape& data_shape,
+                                                   const Strides& data_dilation,
+                                                   const CoordinateDiff& data_padding_below,
+                                                   const CoordinateDiff& data_padding_above,
+                                                   const PartialShape& window_shape,
+                                                   const Strides& window_strides,
+                                                   const Strides& window_dilation,
+                                                   bool is_window_all_in_padding_allowed,
+                                                   bool ceil_mode) {
     PartialShape data_shape_merged{PartialShape::dynamic()};
 
     NODE_VALIDATION_CHECK(
@@ -203,13 +192,13 @@ ngraph::PartialShape ngraph::infer_windowed_reduction_output_shape(const Node* n
     return output_shape;
 }
 
-void ngraph::validate_conv_params_spatial_dimensions(const Node* node,
-                                                     const size_t num_spatial_dims,
-                                                     const op::PadType auto_pad,
-                                                     Strides& strides,
-                                                     Strides& dilations,
-                                                     CoordinateDiff& pads_begin,
-                                                     CoordinateDiff& pads_end) {
+void validate_conv_params_spatial_dimensions(const Node* node,
+                                             const size_t num_spatial_dims,
+                                             const op::PadType auto_pad,
+                                             Strides& strides,
+                                             Strides& dilations,
+                                             CoordinateDiff& pads_begin,
+                                             CoordinateDiff& pads_end) {
     if (strides.size() == 0) {
         strides = Strides(num_spatial_dims, 1);
     }
@@ -233,15 +222,15 @@ void ngraph::validate_conv_params_spatial_dimensions(const Node* node,
                           "Pads should be defined for all and only spatial features.");
 }
 
-ngraph::PartialShape ngraph::validate_and_infer_convolution_forward_output_shape(const Node* node,
-                                                                                 const Rank& result_ps_rank,
-                                                                                 const PartialShape& data_batch_pshape,
-                                                                                 const PartialShape& filters_pshape,
-                                                                                 const op::PadType auto_pad,
-                                                                                 Strides& strides,
-                                                                                 Strides& dilations,
-                                                                                 CoordinateDiff& pads_begin,
-                                                                                 CoordinateDiff& pads_end) {
+PartialShape validate_and_infer_convolution_forward_output_shape(const Node* node,
+                                                                 const Rank& result_ps_rank,
+                                                                 const PartialShape& data_batch_pshape,
+                                                                 const PartialShape& filters_pshape,
+                                                                 const op::PadType auto_pad,
+                                                                 Strides& strides,
+                                                                 Strides& dilations,
+                                                                 CoordinateDiff& pads_begin,
+                                                                 CoordinateDiff& pads_end) {
     PartialShape result_shape = PartialShape::dynamic();
     if (result_ps_rank.is_static()) {
         const auto num_spatial_dims = result_ps_rank.get_length() - 2;
@@ -267,7 +256,7 @@ ngraph::PartialShape ngraph::validate_and_infer_convolution_forward_output_shape
                 pads_end.clear();
 
                 const PartialShape filter_spatial_shape = [filters_pshape]() {
-                    vector<Dimension> filter_dims{filters_pshape};
+                    std::vector<Dimension> filter_dims{filters_pshape};
                     filter_dims.erase(filter_dims.begin(),
                                       filter_dims.begin() + 2);  // Remove {C_OUT, C_IN}
                     return PartialShape{filter_dims};
@@ -300,141 +289,17 @@ ngraph::PartialShape ngraph::validate_and_infer_convolution_forward_output_shape
 }
 
 //
-// Infers the output batch shape and element type for convolution fprop.
-//
-ngraph::PartialShape ov::infer_convolution_forward(const Node* node,
-                                                   const PartialShape& data_batch_shape,
-                                                   const Strides& data_dilation,
-                                                   const CoordinateDiff& data_padding_below,
-                                                   const CoordinateDiff& data_padding_above,
-                                                   const PartialShape& filters_shape,
-                                                   const Strides& filter_strides,
-                                                   const Strides& filter_dilation) {
-    Rank data_batch_filters_rank{Rank::dynamic()};
-
-    NODE_VALIDATION_CHECK(node,
-                          Rank::merge(data_batch_filters_rank, data_batch_shape.rank(), filters_shape.rank()),
-                          "Data batch and filters rank do not match (data batch shape: ",
-                          data_batch_shape,
-                          ", filters shape: ",
-                          filters_shape,
-                          ").");
-
-    NODE_VALIDATION_CHECK(node,
-                          data_batch_filters_rank.is_dynamic() || data_batch_filters_rank.get_length() >= 3,
-                          "Data batch and filters must have rank of at least 3 (one batch axis, ",
-                          "one input-channel axis, and at least one spatial dimension) ",
-                          "(data batch shape: ",
-                          data_batch_shape,
-                          ", filters shape: ",
-                          filters_shape,
-                          ").");
-
-    Rank spatial_rank{Rank::dynamic()};
-    NODE_VALIDATION_CHECK(node,
-                          Rank::merge(spatial_rank, spatial_rank, data_batch_filters_rank - 2) &&
-                              Rank::merge(spatial_rank, spatial_rank, data_dilation.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, data_padding_below.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, data_padding_above.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, filter_strides.size()) &&
-                              Rank::merge(spatial_rank, spatial_rank, filter_dilation.size()),
-                          "Ranks for data item shape/filters shape (data batch has shape ",
-                          data_batch_shape,
-                          ", so data item rank is ",
-                          (data_batch_shape.rank() - 2),
-                          " and filters have shape ",
-                          filters_shape,
-                          ", so filters spatial rank is ",
-                          (filters_shape.rank() - 2),
-                          "), data dilation (",
-                          data_dilation,
-                          "), padding below (",
-                          data_padding_below,
-                          "), padding above (",
-                          data_padding_above,
-                          "), filter strides (",
-                          filter_strides,
-                          "), and filter dilation (",
-                          filter_dilation,
-                          ") do not match.");
-
-    Dimension batch_size = (data_batch_shape.rank().is_static() ? data_batch_shape[0] : Dimension::dynamic());
-    Dimension data_channel_count = (data_batch_shape.rank().is_static() ? data_batch_shape[1] : Dimension::dynamic());
-    PartialShape data_spatial_shape(PartialShape::dynamic(spatial_rank));
-
-    Dimension filter_output_channel_count =
-        (filters_shape.rank().is_static() ? filters_shape[0] : Dimension::dynamic());
-    Dimension filter_input_channel_count = (filters_shape.rank().is_static() ? filters_shape[1] : Dimension::dynamic());
-    PartialShape filter_spatial_shape(PartialShape::dynamic(spatial_rank));
-
-    //
-    // Note: spatial_rank is definitely static at this point.
-    //
-
-    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
-        if (data_batch_shape.rank().is_static()) {
-            data_spatial_shape[i] = data_batch_shape[i + 2];
-        }
-
-        if (filters_shape.rank().is_static()) {
-            filter_spatial_shape[i] = filters_shape[i + 2];
-        }
-    }
-
-    NODE_VALIDATION_CHECK(node, batch_size.is_dynamic() || batch_size.get_length() > 0, "Batch size is zero.");
-
-    Dimension merged_channel_count;
-
-    NODE_VALIDATION_CHECK(node,
-                          Dimension::merge(merged_channel_count, data_channel_count, filter_input_channel_count),
-                          "Data batch channel count (",
-                          data_channel_count,
-                          ") does not match filter input ",
-                          "channel count (",
-                          filter_input_channel_count,
-                          ").");
-
-    NODE_VALIDATION_CHECK(node,
-                          merged_channel_count.is_dynamic() || merged_channel_count.get_length() > 0,
-                          "Data batch channel count and/or filter input channel count is zero.");
-
-    NODE_VALIDATION_CHECK(node,
-                          filter_output_channel_count.is_dynamic() || filter_output_channel_count.get_length() > 0,
-                          "Filter output channel count is zero.");
-
-    PartialShape data_output_shape = ngraph::infer_windowed_reduction_output_shape(node,
-                                                                                   data_spatial_shape,
-                                                                                   data_dilation,
-                                                                                   data_padding_below,
-                                                                                   data_padding_above,
-                                                                                   filter_spatial_shape,
-                                                                                   filter_strides,
-                                                                                   filter_dilation,
-                                                                                   true);
-
-    PartialShape batch_output_shape(PartialShape::dynamic(spatial_rank + 2));
-    batch_output_shape[0] = batch_size;
-    batch_output_shape[1] = filter_output_channel_count;
-
-    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
-        batch_output_shape[i + 2] = data_output_shape[i];
-    }
-
-    return batch_output_shape;
-}
-
-//
 // Infers the output batch shape and element type for batched pooling fprop.
 //
-ngraph::PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
-                                                           const PartialShape& data_batch_shape,
-                                                           const CoordinateDiff& data_padding_below,
-                                                           const CoordinateDiff& data_padding_above,
-                                                           const PartialShape& window_shape,
-                                                           const Strides& window_strides,
-                                                           bool is_window_all_in_padding_allowed,
-                                                           bool ceil_mode,
-                                                           const Strides& window_dilation) {
+PartialShape infer_batched_pooling_forward(const Node* node,
+                                           const PartialShape& data_batch_shape,
+                                           const CoordinateDiff& data_padding_below,
+                                           const CoordinateDiff& data_padding_above,
+                                           const PartialShape& window_shape,
+                                           const Strides& window_strides,
+                                           bool is_window_all_in_padding_allowed,
+                                           bool ceil_mode,
+                                           const Strides& window_dilation) {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
                               (data_batch_shape.rank().get_length() >= 3 && data_batch_shape.rank().get_length() <= 5),
@@ -517,15 +382,15 @@ ngraph::PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
 }
 
 struct ChannelShapedInputSpec {
-    ngraph::element::Type m_element_type;
-    ngraph::PartialShape m_shape;
+    element::Type m_element_type;
+    PartialShape m_shape;
     std::string m_input_name;
 };
 
-static std::tuple<ngraph::element::Type, ngraph::PartialShape, ngraph::PartialShape> infer_batch_norm_forward_helper(
-    const ngraph::Node* node,
-    ngraph::element::Type input_element_type,
-    const ngraph::PartialShape& input_shape,
+static std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward_helper(
+    const Node* node,
+    element::Type input_element_type,
+    const PartialShape& input_shape,
     const std::vector<ChannelShapedInputSpec>& channel_shaped_inputs) {
     // Built up a slash-separated string naming all the channel-shaped inputs, for use in error
     // messages.
@@ -541,11 +406,11 @@ static std::tuple<ngraph::element::Type, ngraph::PartialShape, ngraph::PartialSh
     std::string channel_input_names = ss.str();
 
     // Infer output element type.
-    ngraph::element::Type et_result{input_element_type};
+    element::Type et_result{input_element_type};
 
     for (const auto& inp : channel_shaped_inputs) {
         NODE_VALIDATION_CHECK(node,
-                              ngraph::element::Type::merge(et_result, et_result, inp.m_element_type),
+                              element::Type::merge(et_result, et_result, inp.m_element_type),
                               "Input element types do not match.");
     }
 
@@ -555,9 +420,9 @@ static std::tuple<ngraph::element::Type, ngraph::PartialShape, ngraph::PartialSh
                           et_result);
 
     // Extract channel dimension from input shape.
-    ngraph::Dimension channel_dim{ngraph::Dimension::dynamic()};
+    Dimension channel_dim{Dimension::dynamic()};
 
-    ngraph::Rank input_rank = input_shape.rank();
+    Rank input_rank = input_shape.rank();
     if (input_rank.is_static()) {
         NODE_VALIDATION_CHECK(node,
                               input_rank.get_length() >= 2,
@@ -570,11 +435,11 @@ static std::tuple<ngraph::element::Type, ngraph::PartialShape, ngraph::PartialSh
 
     // Infer gamma/beta/mu/sigma shape, which must be consistent with a vector of size
     // "channel_dim".
-    ngraph::PartialShape channel_shape{ngraph::PartialShape::dynamic()};
+    PartialShape channel_shape{PartialShape::dynamic()};
 
     for (const auto& inp : channel_shaped_inputs) {
         NODE_VALIDATION_CHECK(node,
-                              ngraph::PartialShape::merge_into(channel_shape, inp.m_shape),
+                              PartialShape::merge_into(channel_shape, inp.m_shape),
                               "Shapes for ",
                               channel_input_names,
                               " do not match.");
@@ -589,7 +454,7 @@ static std::tuple<ngraph::element::Type, ngraph::PartialShape, ngraph::PartialSh
                           ") does not have rank 1.");
 
     NODE_VALIDATION_CHECK(node,
-                          ngraph::Dimension::merge(channel_dim, channel_dim, channel_shape[0]),
+                          Dimension::merge(channel_dim, channel_dim, channel_shape[0]),
                           "Input channel dimension (",
                           channel_dim,
                           ") does not match shape for ",
@@ -604,27 +469,26 @@ static std::tuple<ngraph::element::Type, ngraph::PartialShape, ngraph::PartialSh
 
     // Batch result shape is same as the input shape, except we may possibly have inferred more
     // information from the channel count via gamma/beta/etc.
-    ngraph::PartialShape batch_result_shape{input_shape};
+    PartialShape batch_result_shape{input_shape};
 
     if (batch_result_shape.rank().is_static()) {
         batch_result_shape[1] = channel_dim;
     }
 
-    return std::make_tuple(et_result, batch_result_shape, ngraph::PartialShape{channel_dim});
+    return std::make_tuple(et_result, batch_result_shape, PartialShape{channel_dim});
 }
 
-std::tuple<ngraph::element::Type, ngraph::PartialShape, ngraph::PartialShape> ngraph::infer_batch_norm_forward(
-    const Node* node,
-    element::Type input_element_type,
-    element::Type gamma_element_type,
-    element::Type beta_element_type,
-    element::Type mean_element_type,
-    element::Type variance_element_type,
-    const PartialShape& input_shape,
-    const PartialShape& gamma_shape,
-    const PartialShape& beta_shape,
-    const PartialShape& mean_shape,
-    const PartialShape& variance_shape) {
+std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
+                                                                               element::Type input_element_type,
+                                                                               element::Type gamma_element_type,
+                                                                               element::Type beta_element_type,
+                                                                               element::Type mean_element_type,
+                                                                               element::Type variance_element_type,
+                                                                               const PartialShape& input_shape,
+                                                                               const PartialShape& gamma_shape,
+                                                                               const PartialShape& beta_shape,
+                                                                               const PartialShape& mean_shape,
+                                                                               const PartialShape& variance_shape) {
     return infer_batch_norm_forward_helper(node,
                                            input_element_type,
                                            input_shape,
@@ -634,14 +498,13 @@ std::tuple<ngraph::element::Type, ngraph::PartialShape, ngraph::PartialShape> ng
                                             {variance_element_type, variance_shape, "variance"}});
 }
 
-std::tuple<ngraph::element::Type, ngraph::PartialShape, ngraph::PartialShape> ngraph::infer_batch_norm_forward(
-    const Node* node,
-    element::Type input_element_type,
-    element::Type gamma_element_type,
-    element::Type beta_element_type,
-    const PartialShape& input_shape,
-    const PartialShape& gamma_shape,
-    const PartialShape& beta_shape) {
+std::tuple<element::Type, PartialShape, PartialShape> infer_batch_norm_forward(const Node* node,
+                                                                               element::Type input_element_type,
+                                                                               element::Type gamma_element_type,
+                                                                               element::Type beta_element_type,
+                                                                               const PartialShape& input_shape,
+                                                                               const PartialShape& gamma_shape,
+                                                                               const PartialShape& beta_shape) {
     return infer_batch_norm_forward_helper(
         node,
         input_element_type,
@@ -649,67 +512,32 @@ std::tuple<ngraph::element::Type, ngraph::PartialShape, ngraph::PartialShape> ng
         {{gamma_element_type, gamma_shape, "gamma"}, {beta_element_type, beta_shape, "beta"}});
 }
 
-void ov::infer_auto_padding(const Shape& image_shape,
+bool try_apply_auto_padding(const PartialShape& image_shape,
                             const Shape& filter_shape,
                             const Strides& filter_strides,
                             const Strides& filter_dilations,
                             const op::PadType pad_type,
                             CoordinateDiff& padding_above,
                             CoordinateDiff& padding_below) {
-    const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
-    // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
-    ngraph::try_apply_auto_padding(image_dims,
-                                   filter_shape,
-                                   filter_strides,
-                                   filter_dilations,
-                                   pad_type,
-                                   padding_above,
-                                   padding_below);
+    return ov::util::try_apply_auto_padding(image_shape,
+                                            filter_shape,
+                                            filter_strides,
+                                            filter_dilations,
+                                            pad_type,
+                                            padding_above,
+                                            padding_below);
 }
 
-bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
-                                    const Shape& filter_shape,
-                                    const Strides& filter_strides,
-                                    const Strides& filter_dilations,
-                                    const op::PadType pad_type,
-                                    CoordinateDiff& padding_above,
-                                    CoordinateDiff& padding_below) {
-    NGRAPH_CHECK(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
-
-    if (image_shape.rank().is_dynamic()) {
-        return false;
-    }
-    const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
-    for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++) {
-        if (image_dims[i + 2].is_static()) {
-            auto image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
-            int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
-            auto filter_stride = static_cast<int64_t>(filter_strides[i]);
-            auto output_size = (image_size + filter_stride - 1) / filter_stride;
-
-            auto padding_needed = std::max(int64_t(0), (output_size - 1) * filter_stride + filter_size - image_size);
-            auto padding_lhs = padding_needed / 2;
-            auto padding_rhs = padding_needed - padding_lhs;
-            padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
-            padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
-        } else {
-            padding_below.push_back(0);
-            padding_above.push_back(0);
-        }
-    }
-    return true;
-}
-
-ngraph::PartialShape ngraph::infer_slice_shape(const Node* node,
-                                               const PartialShape& input_shape,
-                                               const std::vector<int64_t>& begin,
-                                               const std::vector<int64_t>& end,
-                                               const std::vector<int64_t>& strides,
-                                               const AxisSet& begin_mask,
-                                               const AxisSet& end_mask,
-                                               const AxisSet& new_axis_mask,
-                                               const AxisSet& shrink_axis_mask,
-                                               const AxisSet& ellipsis_mask) {
+PartialShape infer_slice_shape(const Node* node,
+                               const PartialShape& input_shape,
+                               const std::vector<int64_t>& begin,
+                               const std::vector<int64_t>& end,
+                               const std::vector<int64_t>& strides,
+                               const AxisSet& begin_mask,
+                               const AxisSet& end_mask,
+                               const AxisSet& new_axis_mask,
+                               const AxisSet& shrink_axis_mask,
+                               const AxisSet& ellipsis_mask) {
     if (begin.size() && end.size()) {
         NODE_VALIDATION_CHECK(node,
                               begin.size() == end.size(),
@@ -853,6 +681,357 @@ ngraph::PartialShape ngraph::infer_slice_shape(const Node* node,
     return dim;
 }
 
+void opset1::infer_conv_backprop_auto_padding(const Shape& input_data_shape,
+                                              const Shape& filters_shape,
+                                              const Shape& output_shape,
+                                              const Strides& strides,
+                                              const Strides& dilations,
+                                              const op::PadType auto_pad_type,
+                                              const CoordinateDiff& output_padding,
+                                              CoordinateDiff& pads_begin,
+                                              CoordinateDiff& pads_end) {
+    OPENVINO_ASSERT(auto_pad_type == op::PadType::SAME_UPPER || auto_pad_type == op::PadType::SAME_LOWER);
+
+    size_t num_spatial_dims = input_data_shape.size();
+    OPENVINO_ASSERT(filters_shape.size() == num_spatial_dims && strides.size() == num_spatial_dims &&
+                    dilations.size() == num_spatial_dims && pads_begin.size() == num_spatial_dims &&
+                    pads_end.size() == num_spatial_dims && output_padding.size() == num_spatial_dims);
+
+    pads_begin = CoordinateDiff(num_spatial_dims);
+    pads_end = CoordinateDiff(num_spatial_dims);
+
+    for (uint64_t i = 0; i < num_spatial_dims; ++i) {
+        int total_padding = std::max<int>(
+            static_cast<int>(strides[i] * (input_data_shape[i] - 1) + dilations[i] * (filters_shape[i] - 1) + 1 -
+                             output_shape[i] + output_padding[i]),
+            0);
+        if (auto_pad_type != op::PadType::SAME_UPPER) {
+            pads_begin[i] = total_padding / 2;
+            pads_end[i] = total_padding - pads_begin[i];
+        } else {
+            pads_end[i] = total_padding / 2;
+            pads_begin[i] = total_padding - pads_end[i];
+        }
+    }
+}
+
+namespace {
+/// \brief Scalar variant describes value of an Output, for use in max shape determination
+///
+/// For tensor values, we use the maximum value in the tensor
+struct MaxValue {
+    /// \brief No information known about the output
+    MaxValue() = default;
+    /// \brief uint64_t assoiated with the output
+    MaxValue(uint64_t value) : m_value(value) {}
+    MaxValue(const std::vector<uint64_t>& slices, int64_t slice_axis) : m_slices(slices), m_slice_axis(slice_axis) {
+        m_value = *max_element(m_slices.begin(), m_slices.end());
+    }
+    uint64_t m_value{std::numeric_limits<uint64_t>::max()};
+    std::vector<uint64_t> m_slices;
+    int64_t m_slice_axis{-1};
+};
+
+std::vector<MaxValue> exec_constant(Node* node, std::vector<MaxValue>& inputs) {
+    auto result = MaxValue();
+    auto op = ov::as_type<ov::op::v0::Constant>(node);
+    auto element_type = op->get_output_element_type(0);
+    if (element_type.is_integral()) {
+        uint64_t max_val = 0;
+        if (element_type.is_signed()) {
+            for (auto elt : op->cast_vector<int64_t>()) {
+                if (max_val < static_cast<uint64_t>(elt)) {
+                    max_val = elt;
+                }
+            }
+        } else {
+            for (auto elt : op->cast_vector<uint64_t>()) {
+                if (max_val < elt) {
+                    max_val = elt;
+                }
+            }
+        }
+        result = MaxValue(max_val);
+    }
+    return {result};
+}
+
+std::vector<MaxValue> exec_minimum(Node* node, std::vector<MaxValue>& inputs) {
+    uint64_t min_value = std::numeric_limits<uint64_t>::max();
+    switch (node->get_output_element_type(0)) {
+    case element::Type_t::i8:
+        min_value = std::numeric_limits<int8_t>::max();
+        break;
+    case element::Type_t::i16:
+        min_value = std::numeric_limits<int16_t>::max();
+        break;
+    case element::Type_t::i32:
+        min_value = std::numeric_limits<int32_t>::max();
+        break;
+    case element::Type_t::i64:
+        min_value = std::numeric_limits<int64_t>::max();
+        break;
+    case element::Type_t::u8:
+        min_value = std::numeric_limits<uint8_t>::max();
+        break;
+    case element::Type_t::u16:
+        min_value = std::numeric_limits<uint16_t>::max();
+        break;
+    case element::Type_t::u32:
+        min_value = std::numeric_limits<uint32_t>::max();
+        break;
+    case element::Type_t::u64:
+        min_value = std::numeric_limits<uint64_t>::max();
+        break;
+    default:
+        break;
+    }
+    min_value = std::min(min_value, inputs.at(0).m_value);
+    min_value = std::min(min_value, inputs.at(1).m_value);
+    return {MaxValue(min_value)};
+}
+
+std::vector<MaxValue> exec_concat(Node* node, std::vector<MaxValue>& inputs) {
+    auto op = ov::as_type<ov::op::v0::Concat>(node);
+    std::vector<uint64_t> slice_maxen;
+    for (const auto& input : inputs) {
+        slice_maxen.push_back(input.m_value);
+    }
+    auto axis = op->get_concatenation_axis();
+    return {MaxValue(slice_maxen, axis)};
+}
+
+std::vector<MaxValue> exec_reduce_min(Node* node, std::vector<MaxValue>& inputs) {
+    auto data = inputs.at(0);
+    if (data.m_slice_axis >= 0 && data.m_slices.size() > 1) {
+        if (auto indices_const = ov::as_type<op::v0::Constant>(node->get_input_node_ptr(1))) {
+            if (indices_const->get_output_element_type(0).is_integral()) {
+                const auto& indices_shape = indices_const->get_output_shape(0);
+                if (indices_shape == Shape{1}) {
+                    auto indices = indices_const->cast_vector<int64_t>();
+                    auto axis = indices.at(0);
+                    if (axis == data.m_slice_axis) {
+                        return {MaxValue(*min_element(data.m_slices.begin(), data.m_slices.end()))};
+                    }
+                }
+            }
+        }
+    }
+    // Noting we can do
+    return {MaxValue(data.m_value)};
+}
+
+std::vector<MaxValue> exec_shape_of(Node* node, std::vector<MaxValue>& inputs) {
+    const auto& inputPS = node->get_input_partial_shape(0);
+    std::vector<uint64_t> shapeDims;
+    for (int64_t i = 0; i < inputPS.rank().get_length(); i++) {
+        if (inputPS[i].is_static()) {
+            shapeDims.push_back(inputPS[i].get_length());
+        } else {
+            shapeDims.push_back(std::numeric_limits<uint64_t>::max());
+        }
+    }
+
+    return {MaxValue(shapeDims, 0)};
+}
+
+std::vector<MaxValue> exec_gather(Node* node, std::vector<MaxValue>& inputs) {
+    auto gather = ov::as_type<ov::op::v1::Gather>(node);
+
+    const auto& indices = ov::as_type_ptr<op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
+    const auto& axis = ov::as_type_ptr<op::v0::Constant>(node->input_value(2).get_node_shared_ptr());
+
+    if (!indices || !axis) {
+        return {MaxValue()};
+    }
+
+    if (gather->get_axis() != 0) {
+        return {MaxValue()};
+    }
+
+    const auto& indicesVec = indices->cast_vector<int64_t>();
+    if (indicesVec.size() != 1 || indicesVec[0] >= static_cast<int64_t>(inputs[0].m_slices.size())) {
+        return {MaxValue()};
+    }
+
+    return {MaxValue(inputs[0].m_slices[indicesVec[0]])};
+}
+
+std::vector<MaxValue> exec_nop(Node* node, std::vector<MaxValue>& inputs) {
+    return {inputs.at(0)};
+}
+}  // namespace
+
+std::pair<bool, uint64_t> maximum_value(const Output<Node>& value) {
+    static ngraph::Evaluator<MaxValue>::op_handler_map handlers = {
+        {ov::op::v0::Concat::get_type_info_static(), exec_concat},
+        {ov::op::v0::Constant::get_type_info_static(), exec_constant},
+        {ov::op::v0::Convert::get_type_info_static(), exec_nop},
+        {ov::op::v1::Gather::get_type_info_static(), exec_gather},
+        {ov::op::v1::Minimum::get_type_info_static(), exec_minimum},
+        {ov::op::v1::ReduceMin::get_type_info_static(), exec_reduce_min},
+        {ov::op::v1::Reshape::get_type_info_static(), exec_nop},
+        {ov::op::v3::ShapeOf::get_type_info_static(), exec_shape_of},
+        {ov::op::v0::Squeeze::get_type_info_static(), exec_nop},
+        {ov::op::v0::Unsqueeze::get_type_info_static(), exec_nop}};
+    Evaluator<MaxValue>::value_map value_map;
+    Evaluator<MaxValue> evaluator(handlers, value_map);
+    auto val = evaluator.evaluate(value);
+    return std::pair<bool, uint64_t>(val.m_value < std::numeric_limits<uint64_t>::max(), val.m_value);
+}
+
+void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
+                    std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
+                    const OutputVector& outputs,
+                    const EvaluationContext& evaluation_context) {
+    Evaluator<HostTensorPtr> evaluator({}, value_map);
+    evaluator.set_universal_handler(
+        [&output_tensor_map, &evaluation_context](Node* node,
+                                                  const HostTensorVector& input_tensors) -> HostTensorVector {
+            HostTensorVector output_tensors;
+            for (const auto& v : node->outputs()) {
+                auto it = output_tensor_map.find(v);
+                if (it == output_tensor_map.end()) {
+                    auto c = std::make_shared<HostTensor>(v);
+                    output_tensors.push_back(c);
+                } else {
+                    output_tensors.push_back(it->second);
+                }
+            }
+            if (node->evaluate(output_tensors, input_tensors, evaluation_context)) {
+                return output_tensors;
+            } else {
+                OPENVINO_THROW("Evaluation failed on ", node);
+            }
+        });
+    for (const auto& value : outputs) {
+        evaluator.evaluate(value);
+    }
+}
+
+std::shared_ptr<op::v0::Constant> get_constant_max_of_type(element::Type_t t) {
+    auto tensor = ov::util::make_tensor_of_max_value(t);
+    return tensor ? std::make_shared<op::v0::Constant>(tensor) : nullptr;
+}
+
+std::shared_ptr<op::v0::Constant> get_constant_min_of_type(element::Type_t t) {
+#define OPENVINO_TYPE_TO_MIN_CONST(t)                                                   \
+    case t:                                                                             \
+        return ov::op::v0::Constant::create(                                            \
+            t,                                                                          \
+            {},                                                                         \
+            {std::numeric_limits<typename element_type_traits<t>::value_type>::min()}); \
+        break
+
+    switch (t) {
+        OPENVINO_TYPE_TO_MIN_CONST(element::boolean);
+        OPENVINO_TYPE_TO_MIN_CONST(element::bf16);
+        OPENVINO_TYPE_TO_MIN_CONST(element::f16);
+        OPENVINO_TYPE_TO_MIN_CONST(element::f32);
+        OPENVINO_TYPE_TO_MIN_CONST(element::f64);
+        OPENVINO_TYPE_TO_MIN_CONST(element::i8);
+        OPENVINO_TYPE_TO_MIN_CONST(element::i16);
+        OPENVINO_TYPE_TO_MIN_CONST(element::i32);
+        OPENVINO_TYPE_TO_MIN_CONST(element::i64);
+        OPENVINO_TYPE_TO_MIN_CONST(element::u1);
+        OPENVINO_TYPE_TO_MIN_CONST(element::u8);
+        OPENVINO_TYPE_TO_MIN_CONST(element::u16);
+        OPENVINO_TYPE_TO_MIN_CONST(element::u32);
+        OPENVINO_TYPE_TO_MIN_CONST(element::u64);
+    default:
+        return nullptr;
+    }
+}
+
+std::shared_ptr<op::v0::Constant> get_constant_lowest_of_type(element::Type_t t) {
+#define OPENVINO_TYPE_TO_LOWEST_CONST(t)                                                                               \
+    case t:                                                                                                            \
+        return op::v0::Constant::create(t,                                                                             \
+                                        {},                                                                            \
+                                        {std::numeric_limits<typename element_type_traits<t>::value_type>::lowest()}); \
+        break
+
+    switch (t) {
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::boolean);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::bf16);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::f16);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::f32);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::f64);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::i8);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::i16);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::i32);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::i64);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::u1);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::u8);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::u16);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::u32);
+        OPENVINO_TYPE_TO_LOWEST_CONST(element::u64);
+
+    case element::undefined:
+    case element::dynamic:
+    default:
+        return nullptr;
+    }
+}
+
+bool validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
+    return (tensor_vector.size() == size) &&
+           std::none_of(tensor_vector.cbegin(), tensor_vector.cend(), ov::cmp::Equal<HostTensorPtr>(nullptr));
+}
+
+}  // namespace ngraph
+
+void ov::infer_auto_padding(const Shape& image_shape,
+                            const Shape& filter_shape,
+                            const Strides& filter_strides,
+                            const Strides& filter_dilations,
+                            const op::PadType pad_type,
+                            CoordinateDiff& padding_above,
+                            CoordinateDiff& padding_below) {
+    const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
+    // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
+    ov::util::try_apply_auto_padding(image_dims,
+                                     filter_shape,
+                                     filter_strides,
+                                     filter_dilations,
+                                     pad_type,
+                                     padding_above,
+                                     padding_below);
+}
+
+bool ov::util::try_apply_auto_padding(const PartialShape& image_shape,
+                                      const Shape& filter_shape,
+                                      const Strides& filter_strides,
+                                      const Strides& filter_dilations,
+                                      const op::PadType pad_type,
+                                      CoordinateDiff& padding_above,
+                                      CoordinateDiff& padding_below) {
+    OPENVINO_ASSERT(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
+
+    if (image_shape.rank().is_dynamic()) {
+        return false;
+    }
+    const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
+    for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++) {
+        if (image_dims[i + 2].is_static()) {
+            auto image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
+            int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
+            auto filter_stride = static_cast<int64_t>(filter_strides[i]);
+            auto output_size = (image_size + filter_stride - 1) / filter_stride;
+
+            auto padding_needed = std::max(int64_t(0), (output_size - 1) * filter_stride + filter_size - image_size);
+            auto padding_lhs = padding_needed / 2;
+            auto padding_rhs = padding_needed - padding_lhs;
+            padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
+            padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
+        } else {
+            padding_below.push_back(0);
+            padding_above.push_back(0);
+        }
+    }
+    return true;
+}
+
 namespace {
 const auto normalize_axis_to = [](const int64_t& tensor_rank) {
     return [&tensor_rank](int64_t& axis) {
@@ -864,11 +1043,11 @@ const auto normalize_axis_to = [](const int64_t& tensor_rank) {
 
 std::string normalize_axis_error_msg(const int64_t& axis, const int64_t& lower, const int64_t& upper) {
     return std::string(" Parameter axis ")
-        .append(to_string(axis))
+        .append(std::to_string(axis))
         .append(" out of the tensor rank range [")
-        .append(to_string(lower))
+        .append(std::to_string(lower))
         .append(", ")
-        .append(to_string(upper))
+        .append(std::to_string(upper))
         .append("].");
 }
 }  // namespace
@@ -904,10 +1083,10 @@ int64_t ov::normalize_axis(const Node* node, std::int64_t axis, const Rank& tens
 int64_t ov::normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank) {
     if (axis < 0) {
         // Handling negative axis requires static tensor rank
-        NGRAPH_CHECK(tensor_rank.is_static(),
-                     node_description,
-                     " Rank must be static in order to normalize negative axis=",
-                     axis);
+        OPENVINO_ASSERT(tensor_rank.is_static(),
+                        node_description,
+                        " Rank must be static in order to normalize negative axis=",
+                        axis);
     }
     if (tensor_rank.is_dynamic()) {
         return axis;
@@ -941,233 +1120,6 @@ int64_t ov::normalize_axis(const std::string& node_description,
     return util::normalize(axis, tensor_rank);
 }
 
-void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_shape,
-                                                      const Shape& filters_shape,
-                                                      const Shape& output_shape,
-                                                      const Strides& strides,
-                                                      const Strides& dilations,
-                                                      const op::PadType auto_pad_type,
-                                                      const CoordinateDiff& output_padding,
-                                                      CoordinateDiff& pads_begin,
-                                                      CoordinateDiff& pads_end) {
-    NGRAPH_CHECK(auto_pad_type == op::PadType::SAME_UPPER || auto_pad_type == op::PadType::SAME_LOWER);
-
-    size_t num_spatial_dims = input_data_shape.size();
-    NGRAPH_CHECK(filters_shape.size() == num_spatial_dims && strides.size() == num_spatial_dims &&
-                 dilations.size() == num_spatial_dims && pads_begin.size() == num_spatial_dims &&
-                 pads_end.size() == num_spatial_dims && output_padding.size() == num_spatial_dims);
-
-    pads_begin = CoordinateDiff(num_spatial_dims);
-    pads_end = CoordinateDiff(num_spatial_dims);
-
-    for (uint64_t i = 0; i < num_spatial_dims; ++i) {
-        int total_padding = std::max<int>(
-            static_cast<int>(strides[i] * (input_data_shape[i] - 1) + dilations[i] * (filters_shape[i] - 1) + 1 -
-                             output_shape[i] + output_padding[i]),
-            0);
-        if (auto_pad_type != op::PadType::SAME_UPPER) {
-            pads_begin[i] = total_padding / 2;
-            pads_end[i] = total_padding - pads_begin[i];
-        } else {
-            pads_end[i] = total_padding / 2;
-            pads_begin[i] = total_padding - pads_end[i];
-        }
-    }
-}
-
-namespace {
-/// \brief Scalar variant describes value of an Output, for use in max shape determination
-///
-/// For tensor values, we use the maximum value in the tensor
-struct MaxValue {
-    /// \brief No information known about the output
-    MaxValue() = default;
-    /// \brief uint64_t assoiated with the output
-    MaxValue(uint64_t value) : m_value(value) {}
-    MaxValue(const vector<uint64_t>& slices, int64_t slice_axis) : m_slices(slices), m_slice_axis(slice_axis) {
-        m_value = *max_element(m_slices.begin(), m_slices.end());
-    }
-    uint64_t m_value{numeric_limits<uint64_t>::max()};
-    vector<uint64_t> m_slices;
-    int64_t m_slice_axis{-1};
-};
-
-vector<MaxValue> exec_constant(ngraph::Node* node, vector<MaxValue>& inputs) {
-    auto result = MaxValue();
-    auto op = ov::as_type<ov::op::v0::Constant>(node);
-    auto element_type = op->get_output_element_type(0);
-    if (element_type.is_integral()) {
-        uint64_t max_val = 0;
-        if (element_type.is_signed()) {
-            for (auto elt : op->cast_vector<int64_t>()) {
-                if (max_val < static_cast<uint64_t>(elt)) {
-                    max_val = elt;
-                }
-            }
-        } else {
-            for (auto elt : op->cast_vector<uint64_t>()) {
-                if (max_val < elt) {
-                    max_val = elt;
-                }
-            }
-        }
-        result = MaxValue(max_val);
-    }
-    return {result};
-}
-
-vector<MaxValue> exec_minimum(ngraph::Node* node, vector<MaxValue>& inputs) {
-    uint64_t min_value = numeric_limits<uint64_t>::max();
-    switch (node->get_output_element_type(0)) {
-    case ngraph::element::Type_t::i8:
-        min_value = numeric_limits<int8_t>::max();
-        break;
-    case ngraph::element::Type_t::i16:
-        min_value = numeric_limits<int16_t>::max();
-        break;
-    case ngraph::element::Type_t::i32:
-        min_value = numeric_limits<int32_t>::max();
-        break;
-    case ngraph::element::Type_t::i64:
-        min_value = numeric_limits<int64_t>::max();
-        break;
-    case ngraph::element::Type_t::u8:
-        min_value = numeric_limits<uint8_t>::max();
-        break;
-    case ngraph::element::Type_t::u16:
-        min_value = numeric_limits<uint16_t>::max();
-        break;
-    case ngraph::element::Type_t::u32:
-        min_value = numeric_limits<uint32_t>::max();
-        break;
-    case ngraph::element::Type_t::u64:
-        min_value = numeric_limits<uint64_t>::max();
-        break;
-    default:
-        break;
-    }
-    min_value = min(min_value, inputs.at(0).m_value);
-    min_value = min(min_value, inputs.at(1).m_value);
-    return {MaxValue(min_value)};
-}
-
-vector<MaxValue> exec_concat(ngraph::Node* node, vector<MaxValue>& inputs) {
-    auto op = ov::as_type<ngraph::op::v0::Concat>(node);
-    vector<uint64_t> slice_maxen;
-    for (const auto& input : inputs) {
-        slice_maxen.push_back(input.m_value);
-    }
-    auto axis = op->get_concatenation_axis();
-    return {MaxValue(slice_maxen, axis)};
-}
-
-vector<MaxValue> exec_reduce_min(ngraph::Node* node, vector<MaxValue>& inputs) {
-    auto data = inputs.at(0);
-    if (data.m_slice_axis >= 0 && data.m_slices.size() > 1) {
-        if (auto indices_const = ov::as_type<ngraph::op::v0::Constant>(node->get_input_node_ptr(1))) {
-            if (indices_const->get_output_element_type(0).is_integral()) {
-                const auto& indices_shape = indices_const->get_output_shape(0);
-                if (indices_shape == ngraph::Shape{1}) {
-                    auto indices = indices_const->cast_vector<int64_t>();
-                    auto axis = indices.at(0);
-                    if (axis == data.m_slice_axis) {
-                        return {MaxValue(*min_element(data.m_slices.begin(), data.m_slices.end()))};
-                    }
-                }
-            }
-        }
-    }
-    // Noting we can do
-    return {MaxValue(data.m_value)};
-}
-
-vector<MaxValue> exec_shape_of(ngraph::Node* node, vector<MaxValue>& inputs) {
-    const auto& inputPS = node->get_input_partial_shape(0);
-    std::vector<uint64_t> shapeDims;
-    for (int64_t i = 0; i < inputPS.rank().get_length(); i++) {
-        if (inputPS[i].is_static()) {
-            shapeDims.push_back(inputPS[i].get_length());
-        } else {
-            shapeDims.push_back(std::numeric_limits<uint64_t>::max());
-        }
-    }
-
-    return {MaxValue(shapeDims, 0)};
-}
-
-vector<MaxValue> exec_gather(ngraph::Node* node, vector<MaxValue>& inputs) {
-    auto gather = ov::as_type<ngraph::op::v1::Gather>(node);
-
-    const auto& indices = ov::as_type_ptr<ngraph::op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
-    const auto& axis = ov::as_type_ptr<ngraph::op::v0::Constant>(node->input_value(2).get_node_shared_ptr());
-
-    if (!indices || !axis) {
-        return {MaxValue()};
-    }
-
-    if (gather->get_axis() != 0) {
-        return {MaxValue()};
-    }
-
-    const auto& indicesVec = indices->cast_vector<int64_t>();
-    if (indicesVec.size() != 1 || indicesVec[0] >= static_cast<int64_t>(inputs[0].m_slices.size())) {
-        return {MaxValue()};
-    }
-
-    return {MaxValue(inputs[0].m_slices[indicesVec[0]])};
-}
-
-vector<MaxValue> exec_nop(ngraph::Node* node, vector<MaxValue>& inputs) {
-    return {inputs.at(0)};
-}
-}  // namespace
-
-pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value) {
-    static Evaluator<MaxValue>::op_handler_map handlers = {{op::v0::Concat::get_type_info_static(), exec_concat},
-                                                           {op::v0::Constant::get_type_info_static(), exec_constant},
-                                                           {op::v0::Convert::get_type_info_static(), exec_nop},
-                                                           {op::v1::Gather::get_type_info_static(), exec_gather},
-                                                           {op::v1::Minimum::get_type_info_static(), exec_minimum},
-                                                           {op::v1::ReduceMin::get_type_info_static(), exec_reduce_min},
-                                                           {op::v1::Reshape::get_type_info_static(), exec_nop},
-                                                           {op::v3::ShapeOf::get_type_info_static(), exec_shape_of},
-                                                           {op::v0::Squeeze::get_type_info_static(), exec_nop},
-                                                           {op::v0::Unsqueeze::get_type_info_static(), exec_nop}};
-    Evaluator<MaxValue>::value_map value_map;
-    Evaluator<MaxValue> evaluator(handlers, value_map);
-    auto val = evaluator.evaluate(value);
-    return pair<bool, uint64_t>(val.m_value < numeric_limits<uint64_t>::max(), val.m_value);
-}
-
-void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
-                            std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                            const OutputVector& outputs,
-                            const EvaluationContext& evaluation_context) {
-    Evaluator<HostTensorPtr> evaluator({}, value_map);
-    evaluator.set_universal_handler(
-        [&output_tensor_map, &evaluation_context](Node* node,
-                                                  const HostTensorVector& input_tensors) -> HostTensorVector {
-            HostTensorVector output_tensors;
-            for (const auto& v : node->outputs()) {
-                auto it = output_tensor_map.find(v);
-                if (it == output_tensor_map.end()) {
-                    auto c = make_shared<HostTensor>(v);
-                    output_tensors.push_back(c);
-                } else {
-                    output_tensors.push_back(it->second);
-                }
-            }
-            if (node->evaluate(output_tensors, input_tensors, evaluation_context)) {
-                return output_tensors;
-            } else {
-                NGRAPH_CHECK(false, "Evaluation failed on ", node);
-            }
-        });
-    for (const auto& value : outputs) {
-        evaluator.evaluate(value);
-    }
-}
-
 bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
     Tensor lb, ub;
     std::tie(lb, ub) = ov::evaluate_both_bounds(output);
@@ -1177,14 +1129,14 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
                                ->cast_vector<int64_t>();
         auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
                                ->cast_vector<int64_t>();
-        NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
+        OPENVINO_ASSERT(lower_bound.size() == upper_bound.size());
         const TensorLabel& labels = output.get_tensor().get_value_label();
-        NGRAPH_CHECK(labels.empty() || lower_bound.size() == labels.size());
+        OPENVINO_ASSERT(labels.empty() || lower_bound.size() == labels.size());
 
-        vector<Dimension> resulting_pshape(lower_bound.size());
+        std::vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
             auto low = lower_bound[i], up = upper_bound[i];
-            NGRAPH_CHECK(low >= 0 && up >= 0, "Value for partial shape evaluation can't be lower than zero.");
+            OPENVINO_ASSERT(low >= 0 && up >= 0, "Value for partial shape evaluation can't be lower than zero.");
             if (output.get_element_type() == element::i32 && low != up) {
                 if (up == std::numeric_limits<std::int32_t>::max())
                     up = std::numeric_limits<std::int64_t>::max();
@@ -1205,108 +1157,8 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
     return default_label_evaluator(node, {0}, output_labels);
 }
 
-shared_ptr<ngraph::op::v0::Constant> ngraph::get_constant_max_of_type(element::Type_t t) {
-#define NGRAPH_TYPE_TO_MAX_CONST(t)                                                     \
-    case t:                                                                             \
-        return ov::op::v0::Constant::create(                                            \
-            t,                                                                          \
-            {},                                                                         \
-            {std::numeric_limits<typename element_type_traits<t>::value_type>::max()}); \
-        break
-
-    switch (t) {
-        NGRAPH_TYPE_TO_MAX_CONST(element::boolean);
-        NGRAPH_TYPE_TO_MAX_CONST(element::bf16);
-        NGRAPH_TYPE_TO_MAX_CONST(element::f16);
-        NGRAPH_TYPE_TO_MAX_CONST(element::f32);
-        NGRAPH_TYPE_TO_MAX_CONST(element::f64);
-        NGRAPH_TYPE_TO_MAX_CONST(element::i8);
-        NGRAPH_TYPE_TO_MAX_CONST(element::i16);
-        NGRAPH_TYPE_TO_MAX_CONST(element::i32);
-        NGRAPH_TYPE_TO_MAX_CONST(element::i64);
-        NGRAPH_TYPE_TO_MAX_CONST(element::u1);
-        NGRAPH_TYPE_TO_MAX_CONST(element::u8);
-        NGRAPH_TYPE_TO_MAX_CONST(element::u16);
-        NGRAPH_TYPE_TO_MAX_CONST(element::u32);
-        NGRAPH_TYPE_TO_MAX_CONST(element::u64);
-    default:
-        return nullptr;
-    }
-}
-
-shared_ptr<ngraph::op::v0::Constant> ngraph::get_constant_min_of_type(element::Type_t t) {
-#define NGRAPH_TYPE_TO_MIN_CONST(t)                                                     \
-    case t:                                                                             \
-        return ov::op::v0::Constant::create(                                            \
-            t,                                                                          \
-            {},                                                                         \
-            {std::numeric_limits<typename element_type_traits<t>::value_type>::min()}); \
-        break
-
-    switch (t) {
-        NGRAPH_TYPE_TO_MIN_CONST(element::boolean);
-        NGRAPH_TYPE_TO_MIN_CONST(element::bf16);
-        NGRAPH_TYPE_TO_MIN_CONST(element::f16);
-        NGRAPH_TYPE_TO_MIN_CONST(element::f32);
-        NGRAPH_TYPE_TO_MIN_CONST(element::f64);
-        NGRAPH_TYPE_TO_MIN_CONST(element::i8);
-        NGRAPH_TYPE_TO_MIN_CONST(element::i16);
-        NGRAPH_TYPE_TO_MIN_CONST(element::i32);
-        NGRAPH_TYPE_TO_MIN_CONST(element::i64);
-        NGRAPH_TYPE_TO_MIN_CONST(element::u1);
-        NGRAPH_TYPE_TO_MIN_CONST(element::u8);
-        NGRAPH_TYPE_TO_MIN_CONST(element::u16);
-        NGRAPH_TYPE_TO_MIN_CONST(element::u32);
-        NGRAPH_TYPE_TO_MIN_CONST(element::u64);
-    default:
-        return nullptr;
-    }
-}
-
-std::shared_ptr<ngraph::op::v0::Constant> ngraph::get_constant_lowest_of_type(element::Type_t t) {
-#define NGRAPH_TYPE_TO_LOWEST_CONST(t)                                                                                 \
-    case t:                                                                                                            \
-        return op::v0::Constant::create(t,                                                                             \
-                                        {},                                                                            \
-                                        {std::numeric_limits<typename element_type_traits<t>::value_type>::lowest()}); \
-        break
-
-    switch (t) {
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::boolean);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::bf16);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::f16);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::f32);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::f64);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::i8);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::i16);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::i32);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::i64);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::u1);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::u8);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::u16);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::u32);
-        NGRAPH_TYPE_TO_LOWEST_CONST(element::u64);
-
-    case element::undefined:
-    case element::dynamic:
-    default:
-        return nullptr;
-    }
-}
-
-shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const Output<Node>& source) {
-    if (!has_and_set_equal_bounds(source))
-        return nullptr;
-    if (const auto& c = ov::as_type_ptr<op::v0::Constant>(source.get_node_shared_ptr()))
-        return c;
-
-    const auto t = source.get_tensor().get_upper_value();
-    return std::make_shared<op::v0::Constant>(t.get_element_type(), t.get_shape(), t.data());
-}
-
-bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
-    return (tensor_vector.size() == size) &&
-           std::none_of(tensor_vector.cbegin(), tensor_vector.cend(), ov::cmp::Equal<HostTensorPtr>(nullptr));
+std::shared_ptr<ov::op::v0::Constant> ov::get_constant_from_source(const Output<Node>& source) {
+    return ov::util::get_constant_from_source(source);
 }
 
 bool ov::has_no_labels(const ov::TensorLabel& labels) {
@@ -1370,3 +1222,194 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Outp
         return nullptr;
     return ov::as_type_ptr<op::v0::Constant>(outputs[subgraph_sink.get_index()].get_node_shared_ptr());
 }
+
+//
+// Infers the output batch shape and element type for convolution fprop.
+//
+ov::PartialShape ov::infer_convolution_forward(const Node* node,
+                                               const PartialShape& data_batch_shape,
+                                               const Strides& data_dilation,
+                                               const CoordinateDiff& data_padding_below,
+                                               const CoordinateDiff& data_padding_above,
+                                               const PartialShape& filters_shape,
+                                               const Strides& filter_strides,
+                                               const Strides& filter_dilation) {
+    Rank data_batch_filters_rank{Rank::dynamic()};
+
+    NODE_VALIDATION_CHECK(node,
+                          Rank::merge(data_batch_filters_rank, data_batch_shape.rank(), filters_shape.rank()),
+                          "Data batch and filters rank do not match (data batch shape: ",
+                          data_batch_shape,
+                          ", filters shape: ",
+                          filters_shape,
+                          ").");
+
+    NODE_VALIDATION_CHECK(node,
+                          data_batch_filters_rank.is_dynamic() || data_batch_filters_rank.get_length() >= 3,
+                          "Data batch and filters must have rank of at least 3 (one batch axis, ",
+                          "one input-channel axis, and at least one spatial dimension) ",
+                          "(data batch shape: ",
+                          data_batch_shape,
+                          ", filters shape: ",
+                          filters_shape,
+                          ").");
+
+    Rank spatial_rank{Rank::dynamic()};
+    NODE_VALIDATION_CHECK(node,
+                          Rank::merge(spatial_rank, spatial_rank, data_batch_filters_rank - 2) &&
+                              Rank::merge(spatial_rank, spatial_rank, data_dilation.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, data_padding_below.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, data_padding_above.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, filter_strides.size()) &&
+                              Rank::merge(spatial_rank, spatial_rank, filter_dilation.size()),
+                          "Ranks for data item shape/filters shape (data batch has shape ",
+                          data_batch_shape,
+                          ", so data item rank is ",
+                          (data_batch_shape.rank() - 2),
+                          " and filters have shape ",
+                          filters_shape,
+                          ", so filters spatial rank is ",
+                          (filters_shape.rank() - 2),
+                          "), data dilation (",
+                          data_dilation,
+                          "), padding below (",
+                          data_padding_below,
+                          "), padding above (",
+                          data_padding_above,
+                          "), filter strides (",
+                          filter_strides,
+                          "), and filter dilation (",
+                          filter_dilation,
+                          ") do not match.");
+
+    Dimension batch_size = (data_batch_shape.rank().is_static() ? data_batch_shape[0] : Dimension::dynamic());
+    Dimension data_channel_count = (data_batch_shape.rank().is_static() ? data_batch_shape[1] : Dimension::dynamic());
+    PartialShape data_spatial_shape(PartialShape::dynamic(spatial_rank));
+
+    Dimension filter_output_channel_count =
+        (filters_shape.rank().is_static() ? filters_shape[0] : Dimension::dynamic());
+    Dimension filter_input_channel_count = (filters_shape.rank().is_static() ? filters_shape[1] : Dimension::dynamic());
+    PartialShape filter_spatial_shape(PartialShape::dynamic(spatial_rank));
+
+    //
+    // Note: spatial_rank is definitely static at this point.
+    //
+
+    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
+        if (data_batch_shape.rank().is_static()) {
+            data_spatial_shape[i] = data_batch_shape[i + 2];
+        }
+
+        if (filters_shape.rank().is_static()) {
+            filter_spatial_shape[i] = filters_shape[i + 2];
+        }
+    }
+
+    NODE_VALIDATION_CHECK(node, batch_size.is_dynamic() || batch_size.get_length() > 0, "Batch size is zero.");
+
+    Dimension merged_channel_count;
+
+    NODE_VALIDATION_CHECK(node,
+                          Dimension::merge(merged_channel_count, data_channel_count, filter_input_channel_count),
+                          "Data batch channel count (",
+                          data_channel_count,
+                          ") does not match filter input ",
+                          "channel count (",
+                          filter_input_channel_count,
+                          ").");
+
+    NODE_VALIDATION_CHECK(node,
+                          merged_channel_count.is_dynamic() || merged_channel_count.get_length() > 0,
+                          "Data batch channel count and/or filter input channel count is zero.");
+
+    NODE_VALIDATION_CHECK(node,
+                          filter_output_channel_count.is_dynamic() || filter_output_channel_count.get_length() > 0,
+                          "Filter output channel count is zero.");
+
+    PartialShape data_output_shape = ngraph::infer_windowed_reduction_output_shape(node,
+                                                                                   data_spatial_shape,
+                                                                                   data_dilation,
+                                                                                   data_padding_below,
+                                                                                   data_padding_above,
+                                                                                   filter_spatial_shape,
+                                                                                   filter_strides,
+                                                                                   filter_dilation,
+                                                                                   true);
+
+    PartialShape batch_output_shape(PartialShape::dynamic(spatial_rank + 2));
+    batch_output_shape[0] = batch_size;
+    batch_output_shape[1] = filter_output_channel_count;
+
+    for (int64_t i = 0; i < spatial_rank.get_length(); i++) {
+        batch_output_shape[i + 2] = data_output_shape[i];
+    }
+
+    return batch_output_shape;
+}
+
+namespace ov {
+namespace util {
+using ov::op::v0::Constant;
+
+std::shared_ptr<Constant> get_constant_from_source(const Output<Node>& source) {
+    if (const auto& c = ov::as_type_ptr<Constant>(source.get_node_shared_ptr())) {
+        return c;
+    } else if (has_and_set_equal_bounds(source)) {
+        return std::make_shared<Constant>(source.get_tensor().get_upper_value());
+    } else {
+        return {};
+    }
+}
+
+template <class T>
+Tensor make_tensor_of_max_value(const element::Type_t et) {
+    Tensor t{et, Shape{}};
+    *t.data<T>() = std::numeric_limits<T>::max();
+    return t;
+}
+
+Tensor make_tensor_of_max_value(const element::Type_t et) {
+    switch (et) {
+    case element::boolean:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::boolean>>(et);
+    case element::bf16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::bf16>>(et);
+    case element::f16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::f16>>(et);
+    case element::f32:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::f32>>(et);
+    case element::f64:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::f64>>(et);
+    case element::i8:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i8>>(et);
+    case element::i16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i16>>(et);
+    case element::i32:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i32>>(et);
+    case element::i64:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::i64>>(et);
+    case element::u1:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u1>>(et);
+    case element::u8:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u8>>(et);
+    case element::u16:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u16>>(et);
+    case element::u32:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u32>>(et);
+    case element::u64:
+        return make_tensor_of_max_value<ov::fundamental_type_for<element::u64>>(et);
+    default:
+        return {};
+    }
+}
+
+std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors) {
+    std::vector<PartialShape> shapes;
+    shapes.reserve(tensors.size());
+    for (const auto& t : tensors) {
+        shapes.emplace_back(t.get_shape());
+    }
+    return shapes;
+}
+}  // namespace util
+}  // namespace ov

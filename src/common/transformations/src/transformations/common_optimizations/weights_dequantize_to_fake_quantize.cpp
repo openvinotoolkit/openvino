@@ -21,10 +21,13 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
 
     const auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches(element::i8));
     const auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights});
+    const auto sub_c_integer = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches(element::i8));
+    const auto convert_sub_c_integer = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({sub_c_integer});
+    const auto sub_integer = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, convert_sub_c_integer});
     const auto sub_c = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert, sub_c});
-
-    const auto sub_or_convert = std::make_shared<pattern::op::Or>(OutputVector{convert, sub});
+    const auto sub_or_sub_integer = std::make_shared<pattern::op::Or>(OutputVector{sub_integer, sub});
+    const auto sub_or_convert = std::make_shared<pattern::op::Or>(OutputVector{convert, sub_or_sub_integer});
 
     const auto mul_c = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_or_convert, mul_c});
@@ -32,7 +35,6 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     ov::matcher_pass_callback callback;
     callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
-
         const auto& weights_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights));
         const auto& convert_node = pattern_map.at(convert);
         const auto& multiply_node = pattern_map.at(mul);
@@ -48,10 +50,18 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
 
         const auto& input_low = ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {in_low});
         const auto& input_high = ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {in_high});
-
-        auto& zero_point = pattern_map.count(sub_c)
-                               ? pattern_map.at(sub_c)
-                               : ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {0});
+        std::shared_ptr<ov::op::v0::Constant> zero_point;
+        if (pattern_map.count(sub_c)) {
+            const auto& sub_c_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(sub_c));
+            zero_point = sub_c_node;
+        } else if (pattern_map.count(sub_c_integer)) {
+            const auto& sub_c_integer_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(sub_c_integer));
+            zero_point = ov::op::v0::Constant::create(convert_node->get_element_type(),
+                                                      sub_c_integer_node->get_output_shape(0),
+                                                      sub_c_integer_node->get_vector<int8_t>());
+        } else {
+            zero_point = ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {0});
+        }
 
         const auto& output_low = op::util::eltwise_fold<ov::op::v1::Multiply>(
             op::util::eltwise_fold<ov::op::v1::Subtract>(input_low, zero_point),

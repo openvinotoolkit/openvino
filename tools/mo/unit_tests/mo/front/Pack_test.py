@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 
 import numpy as np
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.front.Pack import Pack
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -34,10 +33,10 @@ nodes_attributes = {
 }
 
 
-@generator
-class PackTest(unittest.TestCase):
+class TestPackTest():
 
-    @generate(*[(2, 2, 0), (3, 3, 0), (4, 4, 0), (4, 4, 1), (4, 1, 0), (4, 1, 1)])
+    @pytest.mark.parametrize("num_inputs, num_placeholders, axis", [(2, 2, 0), (3, 3, 0), (4, 4, 0),
+                                                                    (4, 4, 1), (4, 1, 0), (4, 1, 1)])
     def test_pack_test_all(self, num_inputs: int, num_placeholders: int, axis: list):
 
         graph_edges = []
@@ -79,4 +78,4 @@ class PackTest(unittest.TestCase):
         replacer.find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

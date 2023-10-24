@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/log_softmax.hpp"
+#include "openvino/op/log_softmax.hpp"
 
 #include "itt.hpp"
-#include "ngraph/util.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
 
 op::v5::LogSoftmax::LogSoftmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
@@ -35,8 +33,9 @@ void op::v5::LogSoftmax::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), input_shape);
 }
 
-shared_ptr<Node> op::v5::LogSoftmax::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v5::LogSoftmax::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v5_LogSoftmax_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v5::LogSoftmax>(new_args.at(0), m_axis);
+    return std::make_shared<op::v5::LogSoftmax>(new_args.at(0), m_axis);
 }
+}  // namespace ov

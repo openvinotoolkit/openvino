@@ -30,18 +30,6 @@ std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, std::
 
 }  // namespace
 
-// The definitions below are needed to follow ODR
-// Otherwise statements like
-//     optional_value ov = type_to_data_type<float>::value;
-//     optional_value ov(type_to_data_type<float>::value);
-// violate ODR and leads to undefined behavior
-const data_types type_to_data_type<int8_t>::value;
-const data_types type_to_data_type<uint8_t>::value;
-const data_types type_to_data_type<int32_t>::value;
-const data_types type_to_data_type<int64_t>::value;
-const data_types type_to_data_type<half_t>::value;
-const data_types type_to_data_type<float>::value;
-
 size_t layout::get_rank() const {
     return format.dimension();
 }
@@ -138,6 +126,8 @@ static format to_weights_format(format f, bool is_grouped) {
     switch (f) {
         case format::bfyx:
             return format::oiyx;
+        case format::fbyx:
+            return format::ioyx;
         case format::fyxb:
             return format::iyxo;
         case format::byxf:
@@ -155,6 +145,8 @@ static format to_weights_format(format f, bool is_grouped) {
                 throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped as 4D spatials are not supported");
             return format::goizyx;
         }
+        case format::b_fs_yx_fsv4:
+            return format::o_is_yx_isv4;
         case format::b_fs_yx_fsv16:
             return format::o_is_yx_isv16;
         case format::bs_fs_fsv8_bsv8:
@@ -187,7 +179,7 @@ std::vector<size_t> layout::get_dims_order() const {
 std::string layout::to_string() const {
     std::stringstream s;
     s << "\n{\n"
-      << "\tdata_type=" << data_type_traits::name(data_type) << ";\n"
+      << "\tdata_type=" << ov::element::Type(data_type) << ";\n"
       << "\tformat=" << format.to_string() << ";\n"
       << "\tshape=" << size << ";\n"
       << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
@@ -211,7 +203,7 @@ std::string layout::to_short_string() const {
         }
     };
 
-    s << data_type_traits::name(data_type) << ":" << format.to_string() << ":";
+    s << ov::element::Type(data_type) << ":" << format.to_string() << ":";
     dump_shape(s, size);
 
     if (data_padding.get_dynamic_pad_dims() != tensor(0)) {
@@ -419,7 +411,7 @@ size_t layout::get_linear_size() const {
         static_cast<size_t>(1),
         std::multiplies<size_t>());
 
-    return (this->data_type == data_types::bin) ? ceil_div(total, 32) : total;
+    return total;
 }
 
 layout layout::with_padding(padding const& padd) const {

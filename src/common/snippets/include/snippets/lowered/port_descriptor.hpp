@@ -38,9 +38,9 @@ public:
     PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout = {});
     PortDescriptor() = default;
 
-    VectorDims get_shape() const {return m_tensor_shape;}
-    VectorDims get_subtensor() const {return m_subtensor_shape;}
-    std::vector<size_t> get_layout() const {return m_layout;}
+    const VectorDims& get_shape() const {return m_tensor_shape;}
+    const VectorDims& get_subtensor() const {return m_subtensor_shape;}
+    const std::vector<size_t>& get_layout() const {return m_layout;}
     size_t get_reg() const { return m_reg; }
 
     void set_shape(const VectorDims& tensor) { m_tensor_shape = tensor; }

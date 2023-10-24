@@ -94,8 +94,8 @@ bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVect
     bool rc = true;
     const auto& indices = input_values[0];
     switch (indices->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_onehot, i32, output_values, input_values, axis);
-        NGRAPH_TYPE_CASE(evaluate_onehot, i64, output_values, input_values, axis);
+        OPENVINO_TYPE_CASE(evaluate_onehot, i32, output_values, input_values, axis);
+        OPENVINO_TYPE_CASE(evaluate_onehot, i64, output_values, input_values, axis);
     default:
         rc = false;
     }
@@ -107,21 +107,21 @@ bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVect
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_OneHot_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
-    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 4));
+    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& ind_Pshape = input_values[0]->get_partial_shape();
     const auto& out_Pshape = output_values[0]->get_partial_shape();
-    NGRAPH_CHECK(ind_Pshape.is_static() && out_Pshape.is_static(), "Only static input/output shapes are supported");
+    OPENVINO_ASSERT(ind_Pshape.is_static() && out_Pshape.is_static(), "Only static input/output shapes are supported");
     const auto out_shape = out_Pshape.get_shape();
     const int64_t axis = get_axis();
-    NGRAPH_CHECK(axis >= 0 && static_cast<size_t>(axis) < out_shape.size(), "Invalid axis value.");
+    OPENVINO_ASSERT(axis >= 0 && static_cast<size_t>(axis) < out_shape.size(), "Invalid axis value.");
     const auto depth = std::make_shared<op::v0::Constant>(input_values[1])->cast_vector<int64_t>()[0];
     const auto ind_shape = ind_Pshape.get_shape();
-    NGRAPH_CHECK(shape_size(ind_shape) * depth == shape_size(out_shape),
-                 "Incompatible I/O shapes or wrong depth value.");
-    NGRAPH_CHECK(static_cast<int64_t>(out_shape[axis]) == depth, "Incompatible axis and depth values.");
+    OPENVINO_ASSERT(shape_size(ind_shape) * depth == shape_size(out_shape),
+                    "Incompatible I/O shapes or wrong depth value.");
+    OPENVINO_ASSERT(static_cast<int64_t>(out_shape[axis]) == depth, "Incompatible axis and depth values.");
     return one_hot::evaluate_onehot(output_values, input_values, axis);
 }
 

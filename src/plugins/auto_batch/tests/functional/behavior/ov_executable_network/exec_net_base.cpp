@@ -14,7 +14,7 @@ auto autoBatchConfigs = []() {
          {ov::auto_batch_timeout.name(), "0"}}};
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVExecutableNetworkBaseTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVExecutableNetworkBaseTest,
                          ::testing::Combine(
                                  ::testing::Values(ov::test::utils::DEVICE_BATCH),
                                  ::testing::ValuesIn(autoBatchConfigs())),

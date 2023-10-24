@@ -4,7 +4,7 @@
 
 set(TARGET_NAME conformanceTests)
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADDITIONAL_SOURCE_DIRS
@@ -18,7 +18,7 @@ addIeTargetTest(
             PUBLIC
                 conformanceShared
         LABELS
-            OP_CONFORMANCE
+            OV OP_CONFORMANCE
 )
 
 ov_build_target_faster(${TARGET_NAME} UNITY)

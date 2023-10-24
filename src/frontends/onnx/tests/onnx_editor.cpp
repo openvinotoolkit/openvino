@@ -23,7 +23,7 @@ using namespace ov;
 using namespace ov::onnx_editor;
 using namespace ngraph::test;
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 
 namespace {
 using InputTypePred = std::function<bool(const std::shared_ptr<ngraph::Node>)>;

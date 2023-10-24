@@ -14,15 +14,14 @@ namespace subgraph_dumper {
 
 class FusedNamesExtractor final : public SubgraphExtractor {
 public:
-    FusedNamesExtractor();
+    FusedNamesExtractor(const std::string& device = "");
     ~FusedNamesExtractor();
 
-    std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
-                                        bool is_extract_body = true) override;
-    void set_target_device(const std::string& _device) { device = _device; }
+    std::vector<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &modele) override;
 
 protected:
     std::unordered_set<std::string> extract_compiled_model_names(const std::shared_ptr<ov::Model>& model);
+    void set_target_device(const std::string& _device);
 
     std::string device;
     std::shared_ptr<ov::Core> core;
