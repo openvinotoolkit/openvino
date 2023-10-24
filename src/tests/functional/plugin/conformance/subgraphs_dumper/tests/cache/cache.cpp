@@ -80,7 +80,7 @@ TEST_F(ICacheUnitTest, serialize_model) {
         if (!ov::util::file_exists(meta_path)) {
             throw std::runtime_error("Meta was not serilized!");
         }
-        auto serialized_model = core->read_model(xml_path, bin_path);
+        auto serialized_model = ov::tools::subgraph_dumper::core->read_model(xml_path, bin_path);
         auto res = compare_functions(test_model, serialized_model, true, true, true, true, true, true);
         if (!res.first) {
             throw std::runtime_error("Serialized and runtime model are not equal!");
