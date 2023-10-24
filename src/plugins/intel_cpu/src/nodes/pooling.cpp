@@ -271,14 +271,31 @@ void Pooling::getSupportedDescriptors() {
     const auto &childShape = getOutputShapeAtPort(0);
     const size_t inputRank = getInputShapeAtPort(0).getRank();
 
+    if (isDynamicNode()) {
+        inShape = MemoryDescUtils::makeDummyShape(parentShape);
+        const auto& origDims = parentShape.getDims();
+        const auto& origMaxDims = parentShape.getMaxDims();
+
+        auto inDims = inShape.getStaticDims();
+        for (size_t i = 0; i < inDims.size() - 2; i++) {
+            if (origDims[i + 2] == Shape::UNDEFINED_DIM) {
+                inDims[i + 2] = std::min<Dim>(origMaxDims[i + 2], std::max<Dim>(inDims[i + 2], poolingAttrs.kernel[i]));
+            }
+        }
+        inShape = Shape(inDims);
+    } else {
+        inShape = parentShape;
+    }
+
 #if defined(OV_CPU_WITH_ACL)
     // WA: we may specify any layout here (NCHW or NHWC) since both are supported by ACL
-    arm_compute::DataLayout dataLayout = (parentShape.getDims().size() == 5) ? arm_compute::DataLayout::NDHWC : arm_compute::DataLayout::NCHW;
-    arm_compute::TensorInfo srcTensorInfo = arm_compute::TensorInfo(shapeCast(parentShape.getDims()),
+    arm_compute::DataLayout dataLayout = (inShape.getDims().size() == 5) ? arm_compute::DataLayout::NDHWC : arm_compute::DataLayout::NCHW;
+    arm_compute::TensorInfo srcTensorInfo = arm_compute::TensorInfo(shapeCast(inShape.getDims()),
                                                                     1,
                                                                     precisionToAclDataType(inputPrecision),
                                                                     dataLayout);
-    arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(shapeCast(childShape.getDims()),
+    arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(shapeCast(isDynamicNode() ? MemoryDescUtils::makeDummyShape(childShape).getDims() :
+                                                                                                childShape.getDims()),
                                                                     1,
                                                                     precisionToAclDataType(outputPrecision),
                                                                     dataLayout);
@@ -287,16 +304,19 @@ void Pooling::getSupportedDescriptors() {
     useACL = AclPoolingExecutor::isSupported(srcTensorInfo,
                                              dstTensorInfo,
                                              poolingAttrs,
-                                             parentShape.getDims().size(),
+                                             inShape.getDims().size(),
                                              getOriginalOutputsNumber(),
                                              dataLayout,
                                              (getOriginalOutputsNumber() > 1) ? &getOutputShapeAtPort(1).getDims() : nullptr,
                                              &pool_info,
-                                             &pool3d_info);
+                                             &pool3d_info,
+                                             isDynamicNode());
     //FIXME: 5D tensors case is not assigned to ACL because there is no way to check layout here
     //NEPooling3dLayer supports NDHWC only
-    if (parentShape.getDims().size() == 5)
+    if (inShape.getDims().size() == 5) {
         useACL = false;
+        DEBUG_LOG("FIXME: 5D tensors case is not assigned to ACL because there is no way to check layout in getSupportedDescriptors()");
+    }
 #endif
     if (useACL) return;
 
@@ -324,19 +344,7 @@ void Pooling::getSupportedDescriptors() {
     if ((inputRank < 3) || (inputRank > 5))
         IE_THROW() << "Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.";
 
-    inShape = MemoryDescUtils::makeDummyShape(parentShape);
-    if (isDynamicNode()) {
-        const auto& origDims = parentShape.getDims();
-        const auto& origMaxDims = parentShape.getMaxDims();
 
-        auto inDims = inShape.getStaticDims();
-        for (size_t i = 0; i < inDims.size() - 2; i++) {
-            if (origDims[i + 2] == Shape::UNDEFINED_DIM) {
-                inDims[i + 2] = std::min<Dim>(origMaxDims[i + 2], std::max<Dim>(inDims[i + 2], poolingAttrs.kernel[i]));
-            }
-        }
-        inShape = Shape(inDims);
-    }
 
     initEffectiveAttributes(inShape,
                             MemoryDescUtils::makeDummyShape(childShape));
@@ -386,7 +394,12 @@ void Pooling::prepareParams() {
     } else {
         attr = initPrimitiveAttr();
     }
-
+    if (isDynamicNode()) {
+        if (poolingAttrs.auto_pad) {
+            poolingAttrs.data_pad_begin = shapeInference->get_pads_begin();
+            poolingAttrs.data_pad_end = shapeInference->get_pads_end();
+        }
+    }
     if (useACL) {
         auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
@@ -414,10 +427,6 @@ void Pooling::prepareParams() {
         auto outDesc = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
 
         if (isDynamicNode()) {
-            if (poolingAttrs.auto_pad) {
-                poolingAttrs.data_pad_begin = shapeInference->get_pads_begin();
-                poolingAttrs.data_pad_end = shapeInference->get_pads_end();
-            }
             initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
         }
 
@@ -593,18 +602,17 @@ void Pooling::initSupportedPrimitiveDescriptors() {
             config.inConfs.resize(getParentEdges().size());
             config.outConfs.resize(getOriginalOutputsNumber());
 
-            config.inConfs[0].setMemDesc(
-                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(0)));
-            config.outConfs[0].setMemDesc(
-                creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
-
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (const auto& inConf : config.inConfs) {
-                srcMemoryDescs.push_back(inConf.getMemDesc());
+            for (size_t i = 0; i < config.inConfs.size(); i++) {
+                config.inConfs[i].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
+                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (const auto& outConf : config.outConfs) {
-                dstMemoryDescs.push_back(outConf.getMemDesc());
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
+                config.outConfs[i].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(i), getOutputShapeAtPort(i)));
+                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 
             auto factory = std::make_shared<PoolingExecutorFactory>(

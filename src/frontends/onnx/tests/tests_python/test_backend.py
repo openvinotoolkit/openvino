@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
 import logging
 
 import onnx.backend.test
@@ -24,6 +25,7 @@ from tests import (
     xfail_issue_38735,
     skip_issue_39658,
     skip_issue_39658,
+    skip_issue_58676,
     xfail_issue_44858,
     xfail_issue_44965,
     xfail_issue_45180,
@@ -674,6 +676,22 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_roialign_mode_max_cpu",
     ),
 ]
+
+if platform.system() == 'Darwin':
+    tests_expected_to_fail.extend([
+        (
+            skip_issue_58676,
+            "OnnxBackendNodeModelTest.test_mish_expanded_cpu"
+        ),
+        (
+            skip_issue_58676,
+            "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu"
+        ),
+        (
+            skip_issue_58676,
+            "OnnxBackendNodeModelTest.test_div_uint8_cpu"
+        )]
+    )
 
 for test_group in tests_expected_to_fail:
     for test_case in test_group[1:]:
