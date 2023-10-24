@@ -111,7 +111,7 @@ struct fully_connected : public primitive_base<fully_connected> {
     bool compressed_weights = false;
     primitive_id decompression_scale = "";
     primitive_id decompression_zero_point = "";
-    optional_value<float> decompression_zero_point_scalar = {};
+    optional_value<float> decompression_zero_point_scalar = optional_value<float>();
 
     /// @brief Primitive dimension size.
     size_t input_size = 2;
@@ -140,6 +140,9 @@ struct fully_connected : public primitive_base<fully_connected> {
         return input_size == rhs_casted.input_size &&
                weights_rank == rhs_casted.weights_rank &&
                bias.empty() == rhs_casted.bias.empty() &&
+               compressed_weights == rhs_casted.compressed_weights &&
+               decompression_scale.empty() == rhs_casted.decompression_scale.empty() &&
+               decompression_zero_point.empty() == rhs_casted.decompression_zero_point.empty() &&
                decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
     }
 
@@ -178,7 +181,7 @@ struct fully_connected : public primitive_base<fully_connected> {
             ib >> make_data(&decompression_zero_point_value, sizeof(float));
             decompression_zero_point_scalar = decompression_zero_point_value;
         } else {
-            decompression_zero_point_scalar = {};
+            decompression_zero_point_scalar = optional_value<float>();
         }
     }
 
