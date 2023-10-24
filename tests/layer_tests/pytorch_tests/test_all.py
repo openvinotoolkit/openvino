@@ -37,12 +37,12 @@ class TestAll(PytorchLayerTest):
         return (self.input_tensor,)
 
     @pytest.mark.parametrize("input_shape, d_type", [
-        (np.eye(5,5), np.int16),
-        (np.zeros((5, 5)), np.int16),
-        (np.zeros((9,8)) + 1, np.int16),
-        ([5, 9, 7], np.int16),
-        ([10, 13, 11], np.int16),
-        ([8, 7, 6, 5, 4], np.int16),
+        (np.eye(5,5), np.int64),
+        (np.zeros((5, 5)), np.int64),
+        (np.zeros((9,8)) + 1, np.int64),
+        ([5, 9, 7], np.int64),
+        ([10, 13, 11], np.int64),
+        ([8, 7, 6, 5, 4], np.int64),
         ([11, 11], np.uint8),
         ([7, 7], np.uint8)
     ])
@@ -57,12 +57,12 @@ class TestAll(PytorchLayerTest):
                 ie_device, precision, ir_version, trace_model=True, freeze_model=False)
 
     @pytest.mark.parametrize("input_shape, d_type", [
-        (np.eye(5,5), np.int16),
-        (np.zeros((5, 5)), np.int16),
-        (np.zeros((9,8)) + 1, np.int16),
-        ([5, 9, 7], np.int16),
-        ([10, 13, 11], np.int16),
-        ([8, 7, 6, 5, 4], np.int16),
+        (np.eye(5,5), np.int64),
+        (np.zeros((5, 5)), np.int64),
+        (np.zeros((9,8)) + 1, np.int64),
+        ([5, 9, 7], np.int64),
+        ([10, 13, 11], np.int64),
+        ([8, 7, 6, 5, 4], np.int64),
         ([11, 11], np.uint8),
         ([7, 7], np.uint8)
     ])
