@@ -12,7 +12,6 @@
 #    define WAS_OV_LIBRARY_DEFINED_CONSTANT
 #endif
 
-#include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 
@@ -21,11 +20,14 @@
 #    undef WAS_OV_LIBRARY_DEFINED_CONSTANT
 #endif
 #include "openvino/core/coordinate_diff.hpp"
-#include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
+
+class AlignedBuffer;
+
 namespace op {
 namespace v0 {
 /// \brief Class for constants.
@@ -177,13 +179,20 @@ public:
     /// \param shape The shape of the tensor constant.
     /// \param data A pointer to pre-allocated shared data.
     template <typename T>
+    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed in 2024.0 release")
     Constant(const element::Type& type, const Shape& shape, std::shared_ptr<ngraph::runtime::SharedBuffer<T>> data)
+        : m_element_type(type),
+          m_shape(shape) {
+        m_data = legacy_to_ov_aligned_buffer(data);
+        constructor_validate_and_infer_types();
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data)
         : m_element_type(type),
           m_shape(shape) {
         m_data = data;
         constructor_validate_and_infer_types();
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     Constant(const Constant& other);
     Constant(const Constant& other, const Shape& new_shape);
@@ -241,11 +250,7 @@ public:
     AxisSet get_axis_set_val() const;
 
     /// \brief Return data size in bytes
-    size_t get_byte_size() const {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return m_data->size();
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
+    size_t get_byte_size() const;
 
     /// \brief Wrapper around constructing a shared_ptr of a Constant
     ///
@@ -370,11 +375,8 @@ public:
         return rc;
     }
 
-    const void* get_data_ptr() const {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return (m_data ? m_data->get_ptr() : nullptr);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
+    const void* get_data_ptr() const;
+
     template <typename T>
     const T* get_data_ptr() const {
         OPENVINO_ASSERT(sizeof(T) <= m_element_type.size() || shape_size(m_shape) <= 0, "Buffer over-read");
@@ -405,6 +407,11 @@ public:
 
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    std::shared_ptr<ov::AlignedBuffer> legacy_to_ov_aligned_buffer(
+        const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     template <element::Type_t Type,
               typename StorageDataType = fundamental_type_for<Type>,
@@ -637,11 +644,7 @@ private:
 
     void allocate_buffer(bool memset_allocation);
 
-    void* get_data_ptr_nc() {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return (m_data ? m_data->get_ptr() : nullptr);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
+    void* get_data_ptr_nc();
 
     template <element::Type_t ET>
     typename element_type_traits<ET>::value_type* get_data_ptr_nc() {
@@ -702,15 +705,15 @@ private:
         auto p = get_data_ptr_nc<Type>();
         size_t i = 0;
         for (; i < source.size() / 2; i++) {
-            const auto idx1 = ConvertNF4::quantize(static_cast<float>(source[i * 2]));
-            const auto idx2 = ConvertNF4::quantize(static_cast<float>(source[i * 2 + 1]));
+            const auto idx1 = quantize_nf4(static_cast<float>(source[i * 2]));
+            const auto idx2 = quantize_nf4(static_cast<float>(source[i * 2 + 1]));
             const auto v1 = value_in_range<Type>(idx1) & 0x0F;
             const auto v2 = value_in_range<Type>(idx2) & 0x0F;
             const auto v = (v2 << 4) | v1;
             p[i] = static_cast<StorageDataType>(v);
         }
         if (source.size() % 2) {
-            const auto idx1 = ConvertNF4::quantize(static_cast<float>(source[i * 2]));
+            const auto idx1 = quantize_nf4(static_cast<float>(source[i * 2]));
             const auto v = value_in_range<Type>(idx1) & 0x0F;
             p[i] = static_cast<StorageDataType>(v);
         }
@@ -850,12 +853,11 @@ private:
         }
         return shape_size(m_shape) * m_element_type.size();
     }
+    static uint8_t quantize_nf4(float x);
 
     element::Type m_element_type;
     Shape m_shape{};
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    std::shared_ptr<ov::AlignedBuffer> m_data;
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes = true;
