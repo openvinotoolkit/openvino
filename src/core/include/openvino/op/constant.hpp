@@ -698,7 +698,23 @@ private:
                                           (std::is_floating_point<T>::value || std::is_same<T, bfloat16>::value ||
                                            std::is_same<T, float16>::value),
                                       bool>::type = true>
-    void write_buffer(const std::vector<T>& source);
+    void write_buffer(const std::vector<T>& source) {
+        auto p = get_data_ptr_nc<Type>();
+        size_t i = 0;
+        for (; i < source.size() / 2; i++) {
+            const auto idx1 = quantize_nf4(static_cast<float>(source[i * 2]));
+            const auto idx2 = quantize_nf4(static_cast<float>(source[i * 2 + 1]));
+            const auto v1 = value_in_range<Type>(idx1) & 0x0F;
+            const auto v2 = value_in_range<Type>(idx2) & 0x0F;
+            const auto v = (v2 << 4) | v1;
+            p[i] = static_cast<StorageDataType>(v);
+        }
+        if (source.size() % 2) {
+            const auto idx1 = quantize_nf4(static_cast<float>(source[i * 2]));
+            const auto v = value_in_range<Type>(idx1) & 0x0F;
+            p[i] = static_cast<StorageDataType>(v);
+        }
+    }
 
     template <element::Type_t Type,
               typename T,
@@ -834,6 +850,7 @@ private:
         }
         return shape_size(m_shape) * m_element_type.size();
     }
+    static uint8_t quantize_nf4(float x);
 
     element::Type m_element_type;
     Shape m_shape{};

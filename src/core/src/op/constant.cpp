@@ -31,56 +31,6 @@ static inline std::string to_cpp_string(T value) {
     return rc;
 }
 
-namespace {
-template <typename T>
-void write_nf4_buffer(int8_t* p, const std::vector<T>& source) {
-    auto value_in_range = [](const uint8_t& value) {
-        const auto result = ov::fundamental_type_for<ov::element::nf4>(value);
-        OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range u4 values");
-        return result;
-    };
-    size_t i = 0;
-    for (; i < source.size() / 2; i++) {
-        const auto idx1 = ov::ConvertNF4::quantize(static_cast<float>(source[i * 2]));
-        const auto idx2 = ov::ConvertNF4::quantize(static_cast<float>(source[i * 2 + 1]));
-        const auto v1 = value_in_range(idx1) & 0x0F;
-        const auto v2 = value_in_range(idx2) & 0x0F;
-        const auto v = (v2 << 4) | v1;
-        p[i] = static_cast<int8_t>(v);
-    }
-    if (source.size() % 2) {
-        const auto idx1 = ov::ConvertNF4::quantize(static_cast<float>(source[i * 2]));
-        const auto v = value_in_range(idx1) & 0x0F;
-        p[i] = static_cast<int8_t>(v);
-    }
-}
-}  // namespace
-
-template <>
-void ov::op::v0::Constant::write_buffer<ov::element::Type_t::nf4, float>(const std::vector<float>& source) {
-    auto p = get_data_ptr_nc<ov::element::Type_t::nf4>();
-    write_nf4_buffer(p, source);
-}
-
-template <>
-void ov::op::v0::Constant::write_buffer<ov::element::Type_t::nf4, double>(const std::vector<double>& source) {
-    auto p = get_data_ptr_nc<ov::element::Type_t::nf4>();
-    write_nf4_buffer(p, source);
-}
-
-template <>
-void ov::op::v0::Constant::write_buffer<ov::element::Type_t::nf4, ov::float16>(const std::vector<ov::float16>& source) {
-    auto p = get_data_ptr_nc<ov::element::Type_t::nf4>();
-    write_nf4_buffer(p, source);
-}
-
-template <>
-void ov::op::v0::Constant::write_buffer<ov::element::Type_t::nf4, ov::bfloat16>(
-    const std::vector<ov::bfloat16>& source) {
-    auto p = get_data_ptr_nc<ov::element::Type_t::nf4>();
-    write_nf4_buffer(p, source);
-}
-
 OPENVINO_SUPPRESS_DEPRECATED_START
 ov::op::v0::Constant::Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor) {
     m_element_type = tensor->get_element_type();
@@ -640,4 +590,8 @@ bool ov::op::v0::Constant::evaluate_lower(TensorVector& outputs) const {
 }
 bool ov::op::v0::Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
+}
+
+uint8_t ov::op::v0::Constant::quantize_nf4(float x) {
+    return ov::ConvertNF4::quantize(x);
 }
