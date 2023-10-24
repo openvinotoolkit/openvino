@@ -18,17 +18,17 @@ namespace ov {
 namespace test {
 
 using RNNSequenceParams = typename std::tuple<
-        ov::test::utils::SequenceTestsMode,       // pure Sequence or TensorIterator
-        size_t,                                   // Sequence lengths
-        size_t,                                   // Batch
-        size_t,                                   // Hidden size
-        size_t,                                   // Input size
-        std::vector<std::string>,                 // Activations
-        float,                                    // Clip
-        ov::op::RecurrentSequenceDirection,       // Direction
-        ov::test::utils::InputLayerType,          // WRB input type (Constant or Parameter)
-        ov::element::Type,                        // Model type
-        ov::test::TargetDevice                    // Device name
+    ov::test::utils::SequenceTestsMode,       // Pure Sequence or TensorIterator
+    size_t,                                   // Sequence lengths
+    size_t,                                   // Batch
+    size_t,                                   // Hidden size
+    size_t,                                   // Input size
+    std::vector<std::string>,                 // Activations
+    float,                                    // Clip
+    ov::op::RecurrentSequenceDirection,       // Direction
+    ov::test::utils::InputLayerType,          // WRB input type (Constant or Parameter)
+    ov::element::Type,                        // Model type
+    ov::test::TargetDevice                    // Device name
 >;
 
 class RNNSequenceTest : public testing::WithParamInterface<RNNSequenceParams>,

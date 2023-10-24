@@ -13,10 +13,10 @@
 namespace ov {
 namespace test {
 using ReorgYoloParamsTuple = typename std::tuple<
-        std::vector<size_t>,         // Input shape
-        size_t,                         // Stride
-        ov::element::Type,              // Model type
-        ov::test::TargetDevice          // Device name
+    std::vector<size_t>,            // Input shape
+    size_t,                         // Stride
+    ov::element::Type,              // Model type
+    ov::test::TargetDevice          // Device name
 >;
 
 class ReorgYoloLayerTest : public testing::WithParamInterface<ReorgYoloParamsTuple>,
