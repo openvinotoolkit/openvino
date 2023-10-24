@@ -17,7 +17,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_div(const NodeContext& context) {
+OutputVector translate_div_common(const NodeContext& context, bool inplace) {
     num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
@@ -34,7 +34,12 @@ OutputVector translate_div(const NodeContext& context) {
             y = context.mark_node(std::make_shared<v0::Convert>(y, element::f32));
         }
     }
-    align_eltwise_input_types(context, x, y, true);
+    if (inplace) {
+        if (x.get_element_type().is_dynamic() || x.get_element_type() != y.get_element_type())
+            y = context.mark_node(std::make_shared<v1::ConvertLike>(x, y));
+    } else {
+        align_eltwise_input_types(context, x, y, true);
+    }
     auto res = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
     // TODO: ticket 103296; Temporarily disable ConvertDivide transformation
     disable_divide_conversion(res);
@@ -44,7 +49,17 @@ OutputVector translate_div(const NodeContext& context) {
         const auto convert = context.mark_node(std::make_shared<v0::Convert>(res, element::i32));
         res = context.mark_node(std::make_shared<v1::ConvertLike>(convert, x));
     }
+    if (inplace)
+        context.mutate_input(0, res);
     return {res};
+};
+
+OutputVector translate_div(const NodeContext& context) {
+    return translate_div_common(context, false);
+};
+
+OutputVector translate_div_(const NodeContext& context) {
+    return translate_div_common(context, true);
 };
 
 }  // namespace op

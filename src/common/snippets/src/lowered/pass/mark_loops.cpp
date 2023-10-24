@@ -29,7 +29,8 @@ bool MarkLoops::run(LinearIR& linear_ir) {
     auto is_not_start_point = [](const std::shared_ptr<ov::Node>& node) {
         return ov::is_type<ov::op::v0::Result>(node) ||
                ov::is_type<ov::op::v0::Constant>(node) ||
-               ov::is_type<ov::op::v0::Parameter>(node);
+               ov::is_type<ov::op::v0::Parameter>(node) ||
+               ov::is_type<op::RankNormalization>(node);
     };
 
     auto are_conflicted = [](const ExpressionPort& lhs, const ExpressionPort& rhs) {
