@@ -700,6 +700,7 @@ void loop_inst::postprocess_output_memory(bool is_dynamic) {
     if (is_dynamic) {
         std::vector<cldnn::memory::ptr> external_outputs;
         external_outputs.resize(outputs_memory_count());
+
         for (size_t i = 0; i < _output_primitive_maps.size(); ++i) {
             const auto& output_mapping = _output_primitive_maps.at(i);
             const auto& external_id = output_mapping.external_id;
@@ -713,17 +714,21 @@ void loop_inst::postprocess_output_memory(bool is_dynamic) {
                     external_outputs[external_id.idx] = internal_mem;
                 } else {
                     auto external_mem = _outputs[external_id.idx];
-                    if (external_mem->get_layout() != internal_mem->get_layout()) {
-                        external_outputs[external_id.idx] = internal_mem;
-                    } else if (external_mem != internal_mem) {
-                        external_mem->copy_from(get_network().get_stream(), *internal_mem);
+                    if (external_mem != internal_mem) {
+                        if (external_mem->get_layout() != internal_mem->get_layout()) {
+                            external_outputs[external_id.idx] = internal_mem;
+                        } else {
+                            external_mem->copy_from(get_network().get_stream(), *internal_mem);
+                            external_outputs[external_id.idx] = external_mem;
+                        }
+                    } else {
                         external_outputs[external_id.idx] = external_mem;
                     }
                 }
             } else {
                 if (!output_allocated || shape_changed()) {
                     auto concat_layout = _impl_params->get_output_layout(external_id.idx);
-                    auto concat_mem = _network.get_engine().allocate_memory(concat_layout, 0);
+                    auto concat_mem = _network.get_engine().allocate_memory(concat_layout, false);
                     external_outputs[external_id.idx] = concat_mem;
                     auto iter = std::find_if(concatenated_output_mem_mappings.begin(),
                                                 concatenated_output_mem_mappings.end(),

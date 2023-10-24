@@ -159,7 +159,7 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         } else if (type == allocation_type::cl_mem) {
             res = std::make_shared<ocl::gpu_buffer>(this, layout);
         } else {
-            res = std::make_shared<ocl::gpu_usm>(this, layout, type);
+            res = std::make_shared<ocl::gpu_usm>(this, layout, type, bytes_count);
         }
 
         if (reset || res->is_memory_reset_needed(layout)) {
