@@ -38,6 +38,11 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <itt.h>
 
+#if defined(OV_CPU_WITH_ACL)
+#include "nodes/executors/acl/acl_ie_scheduler.hpp"
+#include "arm_compute/runtime/CPP/CPPScheduler.h"
+#endif
+
 using namespace InferenceEngine;
 
 #define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
@@ -137,11 +142,44 @@ public:
 };
 #endif // __linux__
 
+#if defined(OV_CPU_WITH_ACL)
+std::mutex Engine::SchedulerGuard::mutex;
+std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
+
+Engine::SchedulerGuard::SchedulerGuard() {
+#if IE_THREAD == IE_THREAD_SEQ
+    // To save state for ACL cores in single-thread mode
+    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+#else
+    arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
+#endif
+}
+
+std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
+    std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
+    auto scheduler_guard_ptr = SchedulerGuard::ptr.lock();
+    if (scheduler_guard_ptr == nullptr) {
+        SchedulerGuard::ptr = scheduler_guard_ptr = std::make_shared<SchedulerGuard>();
+    }
+    return scheduler_guard_ptr;
+}
+
+Engine::SchedulerGuard::~SchedulerGuard() {
+    // To save the state of scheduler after ACLScheduler has been executed
+    // TODO: find out the cause of the state
+    std::lock_guard<std::mutex> lock{this->dest_mutex};
+    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+}
+#endif
+
 Engine::Engine() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
+#if defined(OV_CPU_WITH_ACL)
+    scheduler_guard = SchedulerGuard::instance();
+#endif
 }
 
 Engine::~Engine() {

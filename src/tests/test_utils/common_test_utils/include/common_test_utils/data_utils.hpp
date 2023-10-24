@@ -232,9 +232,9 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
         auto value = static_cast<float>(dist(generator));
         value /= static_cast<float>(k);
         if (std::is_same<ov::float16, T>::value) {
-            elems.insert(static_cast<T>(ov::float16(value).to_bits()));
+            elems.insert(static_cast<T>(ov::float16(value)));
         } else if (std::is_same<ov::bfloat16, T>::value) {
-            elems.insert(static_cast<T>(ov::bfloat16(value).to_bits()));
+            elems.insert(static_cast<T>(ov::bfloat16(value)));
         } else {
             elems.insert(static_cast<T>(value));
         }

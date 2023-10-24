@@ -442,7 +442,7 @@ struct CPUStreamsExecutor::Impl {
         auto numaNodes = get_available_numa_nodes();
         if (_config._streams != 0) {
             std::copy_n(std::begin(numaNodes),
-                        std::min(static_cast<std::size_t>(_config._streams), numaNodes.size()),
+                        std::min<std::size_t>(_config._streams, numaNodes.size()),
                         std::back_inserter(_usedNumaNodes));
         } else {
             _usedNumaNodes = numaNodes;

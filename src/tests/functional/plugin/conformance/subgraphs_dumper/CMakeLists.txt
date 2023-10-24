@@ -12,7 +12,7 @@ list(APPEND LIBRARIES
 )
 
 # add subgraphs_dumpers tool
-ov_add_target(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         TYPE EXECUTABLE
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}/src
