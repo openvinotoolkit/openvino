@@ -1,5 +1,5 @@
-name: 'System Info'
-description: 'Get system information: CPU, RAM'
+name: 'System Information'
+description: 'Get system information: CPU, RAM, HDD'
 runs:
   using: "composite"
   steps:
