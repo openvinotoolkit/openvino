@@ -8,7 +8,7 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('input_shape', [[1, 2, 8, 9, 10], [2, 8, 9, 10]])
+@pytest.mark.parametrize('input_tensor', [[1, 2, 8, 9, 10], [2, 8, 9, 10]])
 @pytest.mark.parametrize('output_size', [[5, 7, 9], 7])
 class TestAdaptiveAvgPool3D(PytorchLayerTest):
 
@@ -22,8 +22,8 @@ class TestAdaptiveAvgPool3D(PytorchLayerTest):
                 super().__init__()
                 self.output_size = output_size
 
-            def forward(self, input_shape):
-                return torch.nn.functional.adaptive_avg_pool3d(input_shape, self.output_size)
+            def forward(self, input_tensor):
+                return torch.nn.functional.adaptive_avg_pool3d(input_tensor, self.output_size)
 
         ref_net = None
 
