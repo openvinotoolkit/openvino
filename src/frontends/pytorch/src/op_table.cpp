@@ -130,7 +130,7 @@ OP_CONVERTER(translate_one_hot);
 OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_or);
-OP_CONVERTER(translate_xor);
+OP_CONVERTER(translate_bitwise_xor);
 OP_CONVERTER(translate_outer);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pairwise_distance);
