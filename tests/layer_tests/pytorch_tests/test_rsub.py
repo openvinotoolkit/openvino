@@ -62,7 +62,6 @@ class TestRsub(PytorchLayerTest):
                 self.input_data.append(np.random.randn(*input).astype(np.float32))
             else:
                 self.input_data.append(input)
-        self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version)
         self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version, use_convert_model=True)
 
 
