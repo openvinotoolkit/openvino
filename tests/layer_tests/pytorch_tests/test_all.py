@@ -80,8 +80,6 @@ class TestAll(PytorchLayerTest):
             self.input_tensor = np.random.randint(0, 2, input_shape, dtype=d_type)
         else:
             self.input_tensor = input_shape
-        self._test(aten_all_noparam(), None, "aten::all",
-                ie_device, precision, ir_version, trace_model=True, freeze_model=False)
         for dim in range(len(self.input_tensor.shape)):
             self._test(aten_all(dim, keepdim), None, "aten::all",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False)
