@@ -26,19 +26,16 @@ std::shared_ptr<Node> LogicalOr::clone_with_new_inputs(const OutputVector& new_a
 bool LogicalOr::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalOr_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
-    OPENVINO_ASSERT(inputs.size() == 2);
 
-    const auto& shape_0 = inputs[0].get_shape();
-    const auto& shape_1 = inputs[1].get_shape();
-    outputs[0].set_shape(infer_broadcast_shape(this, shape_0, shape_1));
+    outputs[0].set_shape(infer_broadcast_shape(this, inputs));
 
     if (inputs[0].get_element_type() == element::boolean) {
         using T = fundamental_type_for<element::boolean>;
         reference::logical_or(inputs[0].data<const T>(),
                               inputs[1].data<const T>(),
                               outputs[0].data<T>(),
-                              shape_0,
-                              shape_1,
+                              inputs[0].get_shape(),
+                              inputs[1].get_shape(),
                               get_autob());
         return true;
     } else {
