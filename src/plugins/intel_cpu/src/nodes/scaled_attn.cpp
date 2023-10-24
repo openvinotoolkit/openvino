@@ -103,6 +103,7 @@ struct MHA_kernel {
                     const PlainTensor<float>& attention_mask,
                     PlainTensor<T>& output_emb,
                     bool has_out_transpose,
+                    bool auto_causal,
                     float d_scale = 0.0f) {
         auto B = query.size(0);
         auto H = query.size(1);
@@ -114,7 +115,6 @@ struct MHA_kernel {
             d_scale = 1.0f / sqrt(head_size);
 
         auto k_stride_s = present_key.stride(3);
-        bool auto_causal = attention_mask.size(2) == 1 && !causal_mask;
 
         parallel_for2d(B, H, [&](size_t b, size_t h) {
             std::vector<float> attn_score(kv_len);
@@ -259,6 +259,7 @@ struct MHA_kernel<KT_ONEDNN, T> {
                     const PlainTensor<float>& attention_mask,
                     PlainTensor<T>& output_emb,
                     bool has_out_transpose,
+                    bool auto_causal,
                     float d_scale = 0.0f) {
         auto B = query.size(0);
         auto H = query.size(1);
@@ -269,7 +270,6 @@ struct MHA_kernel<KT_ONEDNN, T> {
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
 
-        bool auto_causal = attention_mask.size(2) == 1 && !causal_mask;
         prepare_prim(strm, B, H, q_len, kv_len, head_size, has_out_transpose);
         exec_qk(strm, query, present_key);
 
@@ -330,6 +330,7 @@ struct MHA_kernel<KT_MLAS, float> {
                     const PlainTensor<float>& attention_mask,
                     PlainTensor<float>& output_emb,
                     bool has_out_transpose,
+                    bool auto_causal,
                     float d_scale = 0.0f) {
         auto B = query.size(0);
         auto H = query.size(1);
@@ -344,7 +345,6 @@ struct MHA_kernel<KT_MLAS, float> {
         auto k_stride_s = present_key.stride(3);
 
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
-        bool auto_causal = attention_mask.size(2) == 1 && !causal_mask;
 
         parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
             size_t thread_id = static_cast<size_t>(parallel_get_thread_num());
@@ -479,6 +479,7 @@ struct MHA_1Token {
                     PlainTensor<RT>& output_emb,
                     const PlainTensor<int32_t>& beams,
                     bool has_out_transpose,
+                    bool auto_causal,
                     float d_scale = 0.0f) {
         auto B = query.size(0);
         auto H = query.size(1);
@@ -493,8 +494,6 @@ struct MHA_1Token {
 
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(S);
-
-        bool auto_causal = attention_mask.size(2) == 1 && !causal_mask;
 
         // use per-token kernel, for each k,v token
         //  attn mask is a matrix of q_len(kv_len)
@@ -612,6 +611,7 @@ struct AttentionExecutor : public ScaledDotProductAttention::Executor {
     PlainTensor<T> v_cache;           // f32[B, H, max_kvLen, S]
     PlainTensor<int32_t> beam_table;  // i32[B, max_kvLen]
     PlainTensor<float> attn_mask;     // f32[B, qLen + kvLen]
+    float scale_input = 0.0f;         // f32[B, qLen + kvLen]
     PlainTensor<float> cos_tab;       // f32[max_kv_len, rotary_dims//2]
     PlainTensor<float> sin_tab;       // f32[max_kv_len, rotary_dims//2]
 
@@ -622,33 +622,47 @@ struct AttentionExecutor : public ScaledDotProductAttention::Executor {
 
     PlainTensor<T> m_query_emb;  // query with RoPE position embedding
 
+    void prepare_attn_mask(ScaledDotProductAttention* node) {
+        auto memory = node->getParentEdgeAt(3)->getMemoryPtr();
+        attn_mask.resize(memory->getStaticDims());
+        auto p = reinterpret_cast<uint8_t*>(node->getParentEdgeAt(3)->getMemoryPtr()->getData());
+        for (size_t i = 0; i < memory->getSize(); i++)
+            attn_mask.data()[i] = p[i] ? 0.0f : -FLT_MAX;
+    }
+
     void execute(dnnl::stream strm, ScaledDotProductAttention* node) override {
+        const auto& config = node->get_config();
+        bool has_out_transpose = config.output_BLHxS;
+        bool fuse_causal_attn = config.fuse_causal_attn;
+        bool is_causal = config.is_causal;
+        auto input_num = node->getOriginalInputsNumber();
+        if (fuse_causal_attn && input_num <= 3)
+            IE_THROW() << node->getTypeStr() << " node with name '" << node->getName() << " no attn mask input";
+
         q_input.reset(node->getParentEdgeAt(0)->getMemoryPtr());
         k_input.reset(node->getParentEdgeAt(1)->getMemoryPtr());
         v_input.reset(node->getParentEdgeAt(2)->getMemoryPtr());
-        attn_mask.reset(node->getParentEdgeAt(3)->getMemoryPtr());
-        bool has_out_transpose = node->is_out_transpose();
-        auto rope_type = node->get_rope_type();
+        if (input_num > 3) {
+            // attn_mask
+            if (node->getOriginalInputPrecisionAtPort(3) == Precision::U8) {
+                // bool->f32
+                prepare_attn_mask(node);
+            } else {
+                attn_mask.reset(node->getParentEdgeAt(3)->getMemoryPtr());
+            }
+        }
+        if (input_num > 4) {
+            scale_input = *reinterpret_cast<float*>(node->getParentEdgeAt(4)->getMemoryPtr()->getData());
+        }
 
         size_t B, H, L1, L0, S;
-        if (rope_type != -1) {
-            k_cache.reset(node->getParentEdgeAt(4)->getMemoryPtr());
-            v_cache.reset(node->getParentEdgeAt(5)->getMemoryPtr());
-            cos_tab.reset(node->getParentEdgeAt(6)->getMemoryPtr());
-            sin_tab.reset(node->getParentEdgeAt(7)->getMemoryPtr());
-            // q: [B, L1, H*S]
-            B = q_input.size(0);
-            L1 = q_input.size(1);
-            L0 = attn_mask.size(1) - L1;
-            S = k_cache.size(-1);
-        } else {
-            // q, k, v: [B, H, L0, S]
-            B = q_input.size(0);
-            H = q_input.size(1);
-            L1 = q_input.size(2);
-            L0 = k_input.size(2) - L1;
-            S = q_input.size(-1);
-        }
+
+        // q, k, v: [B, H, L1, S]
+        B = q_input.size(0);
+        H = q_input.size(1);
+        L1 = q_input.size(2);
+        L0 = k_input.size(2) - L1;
+        S = q_input.size(-1);
 
         if (has_out_transpose)
             node->redefineOutputMemory({{B, L1, H * S}});
@@ -656,101 +670,62 @@ struct AttentionExecutor : public ScaledDotProductAttention::Executor {
             node->redefineOutputMemory({{B, H, L1, S}});
 
         ov::intel_cpu::PlainTensor<T> output_emb(node->getChildEdgeAt(0)->getMemoryPtr());
-        attn_mask.assert_dims({B, 1, 0, L0 + L1}, true);
         PlainTensor<T> present_key, present_value;
 
-        if (rope_type != -1) {
-            auto half_rotary_dims = cos_tab.size(-1);
-            cos_tab.assert_dims({0, half_rotary_dims}, true);
-            sin_tab.assert_dims({0, half_rotary_dims}, true);
+        q_input.assert_dims({B, H, L1, S});
+        k_input.assert_dims({B, H, L0 + L1, S});
+        v_input.assert_dims({B, H, L0 + L1, S});
+        m_query_emb = q_input;
+        present_key = k_input;
+        present_value = v_input;
 
-            q_input.assert_dims({B, L1, H * S});
-            k_input.assert_dims({B, L1, H * S});
-            v_input.assert_dims({B, L1, H * S});
-
-            auto rope_q = q_input.reshape({B, L1, H, S});
-            auto rope_k = k_input.reshape({B, L1, H, S});
-            auto rope_v = v_input.reshape({B, L1, H, S});
-
-            // kv cache is just a partial view of a big buffer
-            m_query_emb.resize({B, H, L1, S});
-
-            present_key = k_cache.index({{0, static_cast<int>(B)},
-                                            {0, static_cast<int>(H)},
-                                            {0, static_cast<int>(L0 + L1)},
-                                            {}});
-            present_value = v_cache.index({{0, static_cast<int>(B)},
-                                                {0, static_cast<int>(H)},
-                                                {0, static_cast<int>(L0 + L1)},
-                                                {}});
-
-            auto rotary_dims = half_rotary_dims * 2;
-
-            parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t p) {
-                auto p1 = p + L0;
-                size_t position_id = p1;
-
-                auto* q_embed = &m_query_emb.at({b, h, p, 0});
-                auto* cos = &cos_tab({position_id, 0});
-                auto* sin = &sin_tab({position_id, 0});
-                T* q;
-                T* k;
-                T* v;
-
-                q = &rope_q.at({b, p, h, 0});
-                k = &rope_k.at({b, p, h, 0});
-                v = &rope_v.at({b, p, h, 0});
-                auto* present_k = &present_key.at({b, h, p1, 0});    // f32[B, H, L0+L1, 64]
-                auto* present_v = &present_value.at({b, h, p1, 0});  // f32[B, H, L0+L1, 64]
-
-                size_t s = 0;
-                if (rope_type > 0) {
-                    // gptneox RoPE
-                    for (size_t i = 0; s < half_rotary_dims; i++, s++) {
-                        q_embed[s] = cos[i] * q[s] + sin[i] * (-q[s + half_rotary_dims]);
-                        present_k[s] = cos[i] * k[s] + sin[i] * (-k[s + half_rotary_dims]);
-                        present_v[s] = v[s];
-                    }
-                    for (size_t i = 0; s < rotary_dims; i++, s++) {
-                        q_embed[s] = cos[i] * q[s] + sin[i] * (q[i]);
-                        present_k[s] = cos[i] * k[s] + sin[i] * (k[i]);
-                        present_v[s] = v[s];
-                    }
-                } else {
-                    // gptj RoPE
-                    for (size_t i = 0; s < rotary_dims; i++, s += 2) {
-                        q_embed[s] = cos[i] * q[s] - sin[i] * q[s + 1];
-                        q_embed[s + 1] = cos[i] * q[s + 1] + sin[i] * q[s];
-
-                        present_k[s] = cos[i] * k[s] - sin[i] * k[s + 1];
-                        present_k[s + 1] = cos[i] * k[s + 1] + sin[i] * k[s];
-
-                        present_v[s] = v[s];
-                        present_v[s + 1] = v[s + 1];
-                    }
-                }
-
-                for (; s < S; s++) {
-                    q_embed[s] = q[s];
-                    present_k[s] = k[s];
-                    present_v[s] = v[s];
-                }
-            });
+        // if fuse_causal_attn == true:
+        //   attn_mask will not be nullptr
+        //   attn_mask will be [B, 1, L1, L0 + L1]
+        //   causal_mask will be got automatically
+        // else:
+        //   if is_causal:
+        //      attn_mask should be nullptr
+        //      causal_mask will be got automatically
+        //   else:
+        //      attn_mask will not be nullptr
+        //      attn_mask will be [B, 1, 1, L0 + L1]
+        //      causal_mask will be nullptr
+        bool auto_causal;
+        bool use_attn_mask;
+        if (fuse_causal_attn) {
+            assert(attn_mask);
+            attn_mask.assert_dims({B, 1, 1, L0 + L1});
+            auto_causal = true;
+            use_attn_mask = true;
         } else {
-            q_input.assert_dims({B, H, L1, S});
-            k_input.assert_dims({B, H, L0 + L1, S});
-            v_input.assert_dims({B, H, L0 + L1, S});
-            m_query_emb = q_input;
-            present_key = k_input;
-            present_value = v_input;
+            if (is_causal) {
+                auto_causal = true;
+                use_attn_mask = false;
+            } else {
+                // no attn_mask but has scale, there is a 1-d fake attn_mask
+                if (input_num > 3 && attn_mask.m_rank > 1) {
+                    assert(attn_mask);
+                    auto num = std::accumulate(attn_mask.m_dims, attn_mask.m_dims + attn_mask.m_rank, size_t{1}, std::multiplies<size_t>());
+                    num /= B * (L0 + L1);
+                    attn_mask = attn_mask.reshape({B, 1, num, L0 + L1});
+                    auto_causal = false;
+                    use_attn_mask = true;
+                } else {
+                    auto_causal = false;
+                    use_attn_mask = false;
+                }
+            }
         }
 
         if (L1 > 1) {
             // multi-token version
-            kernel(strm, m_query_emb, present_key, present_value, {}, attn_mask, output_emb, has_out_transpose);
+            kernel(strm, m_query_emb, present_key, present_value, {}, use_attn_mask ? attn_mask : PlainTensor<float>(),
+                   output_emb, has_out_transpose, auto_causal, scale_input);
         } else {
             // 1-token version
-            kernel_1tok(m_query_emb, present_key, present_value, {}, attn_mask, output_emb, beam_table, has_out_transpose);
+            kernel_1tok(m_query_emb, present_key, present_value, {}, use_attn_mask ? attn_mask : PlainTensor<float>(),
+                        output_emb, beam_table, has_out_transpose, auto_causal, scale_input);
         }
     }
 };
@@ -763,7 +738,12 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
     }
 
     const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
-    m_is_causal = node->get_causal();
+    if (node) {
+        m_config.is_causal = node->get_causal();
+    } else {
+        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionNode>(op);
+        m_config = node->get_config();
+    }
 }
 
 void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
@@ -788,7 +768,17 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(0), false, -1);
     inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(1), false, -1);
     inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(2), false, -1);
-    inPortConfigs.emplace_back(LayoutType::ncsp, Precision::FP32, getInputShapeAtPort(3), false, -1);
+    if (getOriginalInputsNumber() > 3) {
+        // attn_mask
+        if (getOriginalInputPrecisionAtPort(3) == Precision::U8) {
+            inPortConfigs.emplace_back(LayoutType::ncsp, Precision::U8, getInputShapeAtPort(3), false, -1);
+        } else {
+            inPortConfigs.emplace_back(LayoutType::ncsp, Precision::FP32, getInputShapeAtPort(3), false, -1);
+        }
+    }
+    if (getOriginalInputsNumber() > 4) {
+        inPortConfigs.emplace_back(LayoutType::ncsp, Precision::FP32, getInputShapeAtPort(4), false, -1);
+    }
 
     // initialize output port
     std::vector<PortConfigurator> outPortConfigs;
@@ -804,8 +794,9 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
-        if (!node) {
-            errorMessage = "Only ScaledDotProductAttention operation is supported";
+        if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
+            !std::dynamic_pointer_cast<const ScaledDotProductAttentionNode>(op)) {
+            errorMessage = "Only ScaledDotProductAttention or ScaledDotProductAttentionNode operation are supported";
             return false;
         }
     } catch (...) {

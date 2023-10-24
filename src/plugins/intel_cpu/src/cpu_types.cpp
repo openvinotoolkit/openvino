@@ -214,7 +214,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "Unique", Type::Unique},
             { "Ngram", Type::Ngram},
             { "RoPE", Type::RoPE},
-            { "ScaledDotProductAttention", Type::ScaledDotProductAttention}
+            { "ScaledDotProductAttention", Type::ScaledDotProductAttention},
+            { "ScaledDotProductAttentionNode", Type::ScaledDotProductAttention},
     };
     return type_to_name_tbl;
 }

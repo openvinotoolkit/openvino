@@ -17,6 +17,7 @@
 #include "itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "utils/gen_pattern.hpp"
+#include "transformations/cpu_opset/x64/op/sdp.hpp"
 
 #define CALLBACK_LOG(m) \
     if (0)              \
@@ -103,7 +104,9 @@ ov::intel_cpu::CausalMaskFusion::CausalMaskFusion() {
         auto attn = pattern_map.at(attn_mask);
 
         auto old_node = root;
-        auto new_node = std::make_shared<opset13::ScaledDotProductAttention>(q, k, v, attn, true);
+        ov::intel_cpu::ScaledDotProductAttentionNode::Config config;
+        config.fuse_causal_attn = true;
+        auto new_node = std::make_shared<ScaledDotProductAttentionNode>(OutputVector{q, k, v, attn}, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::replace_node(old_node, new_node);
 

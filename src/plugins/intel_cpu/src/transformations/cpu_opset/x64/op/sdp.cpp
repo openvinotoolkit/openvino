@@ -26,19 +26,28 @@ void ov::intel_cpu::ScaledDotProductAttentionNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(ScaledDotProductAttentionNode_validate_and_infer_types);
     auto input_pshape = get_input_partial_shape(0);
 
-    NODE_VALIDATION_CHECK(this, m_config.qkv_merged == true);
-    NODE_VALIDATION_CHECK(this, m_config.past_key_var);
-    NODE_VALIDATION_CHECK(this, m_config.past_value_var);
-    NODE_VALIDATION_CHECK(this, m_config.output_BLHxS);
+    if (m_config.fuse_big_pattern) {
+        NODE_VALIDATION_CHECK(this, m_config.qkv_merged == true);
+        NODE_VALIDATION_CHECK(this, m_config.past_key_var);
+        NODE_VALIDATION_CHECK(this, m_config.past_value_var);
+        NODE_VALIDATION_CHECK(this, m_config.output_BLHxS);
 
-    auto batch = input_pshape[0];
-    auto seq_len = input_pshape[1];
-    auto h3s_len = input_pshape[2];
+        auto batch = input_pshape[0];
+        auto seq_len = input_pshape[1];
+        auto h3s_len = input_pshape[2];
 
-    NODE_VALIDATION_CHECK(this, h3s_len == m_config.num_heads * 3 * m_config.num_states_per_head);
+        NODE_VALIDATION_CHECK(this, h3s_len == m_config.num_heads * 3 * m_config.num_states_per_head);
 
-    input_pshape[2] = m_config.num_heads * m_config.num_states_per_head;
-    set_output_type(0, get_input_element_type(0), input_pshape);
+        input_pshape[2] = m_config.num_heads * m_config.num_states_per_head;
+        set_output_type(0, get_input_element_type(0), input_pshape);
+    } else {
+        NODE_VALIDATION_CHECK(this, m_config.qkv_merged == false);
+        NODE_VALIDATION_CHECK(this, m_config.past_key_var == nullptr);
+        NODE_VALIDATION_CHECK(this, m_config.past_value_var == nullptr);
+        NODE_VALIDATION_CHECK(this, m_config.output_BLHxS == false);
+        // [B, H, L1, S]
+        set_output_type(0, get_input_element_type(0), input_pshape);
+    }
 }
 
 bool ov::intel_cpu::ScaledDotProductAttentionNode::visit_attributes(ov::AttributeVisitor& visitor) {
@@ -53,6 +62,9 @@ bool ov::intel_cpu::ScaledDotProductAttentionNode::visit_attributes(ov::Attribut
     visitor.on_attribute("gather_position_arg_id", m_config.gather_position_arg_id);
     visitor.on_attribute("past_key_var", m_config.past_key_var);
     visitor.on_attribute("past_value_var", m_config.past_value_var);
+    visitor.on_attribute("fuse_causal_attn", m_config.fuse_causal_attn);
+    visitor.on_attribute("is_causal", m_config.is_causal);
+    visitor.on_attribute("fuse_big_pattern", m_config.fuse_big_pattern);
     visitor.finish_structure();
     return true;
 }

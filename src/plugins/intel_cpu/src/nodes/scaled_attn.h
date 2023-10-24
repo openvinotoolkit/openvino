@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "transformations/cpu_opset/x64/op/sdp.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -42,22 +44,12 @@ public:
         virtual void execute(dnnl::stream strm, ScaledDotProductAttention* node) = 0;
     };
 
-    bool is_causal() const {
-        return m_is_causal;
-    }
-
-    int get_rope_type() const {
-        return m_rope_type;
-    }
-
-    bool is_out_transpose() const {
-        return m_has_out_transpose;
+    const ScaledDotProductAttentionNode::Config& get_config() const {
+        return m_config;
     }
 
 private:
-    bool m_is_causal;
-    int m_rope_type = -1;  // -1 means no rope
-    bool m_has_out_transpose = false;
+    ScaledDotProductAttentionNode::Config m_config;
     std::shared_ptr<Executor> m_executor;
 };
 

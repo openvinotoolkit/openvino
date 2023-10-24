@@ -177,7 +177,9 @@ StatefulSDPFusion::StatefulSDPFusion() {
         config.output_BLHxS = true;
         config.rope_ndims = symbol_name2value["rope_ndims"];
         config.gather_position_arg_id = 4;
-        config.m_is_causal = true;
+        config.is_causal = true;
+        config.fuse_causal_attn = true;
+        config.fuse_big_pattern = true;
         config.num_heads = symbol_name2value["num_heads"];
         config.num_states_per_head = symbol_name2value["num_states_per_head"];
         config.past_key_var = past_key_read->get_variable();
