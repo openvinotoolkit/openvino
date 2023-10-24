@@ -4,12 +4,11 @@
 
 #include <vector>
 
-#include "single_layer_tests/convert_color_nv12.hpp"
+#include "single_op_tests/convert_color_nv12.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
+using ov::test::ConvertColorNV12LayerTest;
 
 const std::vector<ov::Shape> inShapes_nhwc = {
     {1, 10, 10, 1}
@@ -20,27 +19,60 @@ const std::vector<ov::element::Type> inTypes = {
     ov::element::f32
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12,
+auto generate_input_static_shapes = [] (const std::vector<ov::Shape>& original_shapes, bool single_plane) {
+    std::vector<std::vector<ov::Shape>> result_shapes;
+    for (const auto& original_shape : original_shapes) {
+        std::vector<ov::Shape> one_result_shapes;
+        if (single_plane) {
+            auto shape = original_shape;
+            shape[1] = shape[1] * 3 / 2;
+            one_result_shapes.push_back(shape);
+        } else {
+            auto shape = original_shape;
+            one_result_shapes.push_back(shape);
+            auto uvShape = ov::Shape{shape[0], shape[1] / 2, shape[2] / 2, 2};
+            one_result_shapes.push_back(uvShape);
+        }
+        result_shapes.push_back(one_result_shapes);
+    }
+    return result_shapes;
+};
+
+auto in_shapes_single_plane_static = generate_input_static_shapes(inShapes_nhwc, true);
+auto in_shapes_two_planes_static = generate_input_static_shapes(inShapes_nhwc, false);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12SinglePlane,
                          ConvertColorNV12LayerTest,
-                         ::testing::Combine(::testing::ValuesIn(inShapes_nhwc),
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_single_plane_static)),
                                             ::testing::ValuesIn(inTypes),
                                             ::testing::Bool(),
-                                            ::testing::Bool(),
+                                            ::testing::Values(true),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorNV12LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_acc,
-                         ConvertColorNV12AccuracyTest,
-                         ::testing::Combine(::testing::Values(ov::Shape{1, 16 * 6, 16, 1}),
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12TwoPlane,
+                         ConvertColorNV12LayerTest,
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_two_planes_static)),
+                                            ::testing::ValuesIn(inTypes),
+                                            ::testing::Bool(),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         ConvertColorNV12LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12SinglePlane_acc,
+                         ConvertColorNV12LayerTest,
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
+                                                generate_input_static_shapes({{1, 16 * 6, 16, 1}}, true))),
                                             ::testing::Values(ov::element::u8),
-                                            ::testing::Bool(),
-                                            ::testing::Bool(),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorNV12LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorNV12_acc,
-                         ConvertColorNV12AccuracyTest,
-                         ::testing::Combine(::testing::Values(ov::Shape{1, 256 * 256, 256, 1}),
+INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorNV12SinglePlane_acc,
+                         ConvertColorNV12LayerTest,
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
+                                                generate_input_static_shapes({{1, 256 * 256, 256, 1}}, true))),
                                             ::testing::Values(ov::element::u8),
                                             ::testing::Values(false),
                                             ::testing::Values(true),
