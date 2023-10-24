@@ -15,13 +15,13 @@
 namespace ov {
 namespace test {
 using ReverseSequenceParamsTuple = typename std::tuple<
-        int64_t,                           // Index of the batch dimension
-        int64_t,                           // Index of the sequence dimension
-        std::vector<size_t>,               // Input shapes
-        std::vector<size_t>,               // Shape of the input vector with sequence lengths to be reversed
-        ov::test::utils::InputLayerType,   // Secondary input type
-        ov::element::Type,                 // Model type
-        ov::test::TargetDevice             // Device name
+    int64_t,                           // Index of the batch dimension
+    int64_t,                           // Index of the sequence dimension
+    std::vector<size_t>,               // Input shapes
+    std::vector<size_t>,               // Shape of the input vector with sequence lengths to be reversed
+    ov::test::utils::InputLayerType,   // Secondary input type
+    ov::element::Type,                 // Model type
+    ov::test::TargetDevice             // Device name
 >;
 
 class ReverseSequenceLayerTest : public testing::WithParamInterface<ReverseSequenceParamsTuple>,

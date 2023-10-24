@@ -16,17 +16,17 @@ namespace ov {
 namespace test {
 
 using RNNCellParams = typename std::tuple<
-        bool,                              // Use decompose to sub-ops transformation
-        size_t,                            // Batch
-        size_t,                            // Hidden size
-        size_t,                            // Input size
-        std::vector<std::string>,          // Activations
-        float,                             // Clip
-        ov::test::utils::InputLayerType,   // W input type (Constant or Parameter)
-        ov::test::utils::InputLayerType,   // R input type (Constant or Parameter)
-        ov::test::utils::InputLayerType,   // B input type (Constant or Parameter)
-        ov::element::Type,                 // Model type
-        ov::test::TargetDevice             // Device name
+    bool,                              // Use decompose to sub-ops transformation
+    size_t,                            // Batch
+    size_t,                            // Hidden size
+    size_t,                            // Input size
+    std::vector<std::string>,          // Activations
+    float,                             // Clip
+    ov::test::utils::InputLayerType,   // W input type (Constant or Parameter)
+    ov::test::utils::InputLayerType,   // R input type (Constant or Parameter)
+    ov::test::utils::InputLayerType,   // B input type (Constant or Parameter)
+    ov::element::Type,                 // Model type
+    ov::test::TargetDevice             // Device name
 >;
 
 class RNNCellTest : public testing::WithParamInterface<RNNCellParams >,
