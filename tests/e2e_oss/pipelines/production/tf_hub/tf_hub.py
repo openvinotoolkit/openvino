@@ -26,7 +26,7 @@ def get_models_list(file_name: str):
     return models
 
 
-model_files = ['nightly', 'precommit']
+model_files = ['precommit']
 models = []
 for file in model_files:
     models += get_models_list(os.path.join(os.path.dirname(__file__), f"{file}.yml"))
