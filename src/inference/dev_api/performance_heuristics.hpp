@@ -34,7 +34,8 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
         return (cache_size / (size_data_moved * datatype_size));
     };
     auto isLowPrecision = [&](ov::element::Type type) -> bool {
-        return (type == ov::element::i8) || (type == ov::element::u8);
+        return (type == ov::element::i8) || (type == ov::element::u8) || (type == ov::element::i4) ||
+               (type == ov::element::u4) || (type == ov::element::nf4);
     };
     auto isHalfPrecision = [&](ov::element::Type type) -> bool {
         return (type == ov::element::bf16) || (type == ov::element::f16);
