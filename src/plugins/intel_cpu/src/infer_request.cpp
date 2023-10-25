@@ -624,10 +624,12 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                 }
             }
             m_outputs[name] = tensor;
-            auto desc = MemoryDescUtils::createCpuBlockedMemoryDesc(tensor);
-            if (!port_shape.is_dynamic() && !external_ptr.count(name) &&
-                desc.isCompatible(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
-                external_ptr[name] = tensor;
+
+            if (!port_shape.is_dynamic() && !external_ptr.count(name)) {
+                auto desc = MemoryDescUtils::createCpuBlockedMemoryDesc(tensor);
+                if (desc.isCompatible(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
+                    external_ptr[name] = tensor;
+                }
             }
             // update tensors in case of multiple output ports with the same name
             for (const auto& out : get_outputs()) {

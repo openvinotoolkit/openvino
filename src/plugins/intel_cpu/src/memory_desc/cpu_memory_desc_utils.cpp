@@ -67,6 +67,8 @@ CpuBlockedMemoryDesc MemoryDescUtils::createCpuBlockedMemoryDesc(const ov::SoPtr
     auto byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
     if (byte_strides.empty()) {
         blk_strides = ov::row_major_strides(shape);
+    } else if (tensor->get_size() == 0) {
+        blk_strides.resize(shape.size());
     } else {
         // ROI tensor need figure out correct blk_strides
         blk_strides.resize(byte_strides.size());
