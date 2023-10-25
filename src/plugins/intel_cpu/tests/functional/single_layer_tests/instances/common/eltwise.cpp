@@ -278,7 +278,7 @@ const auto params_4D_bitwise_NOT = ::testing::Combine(
     ::testing::Combine(
         ::testing::Values(bitwise_in_shapes_4D),
         ::testing::ValuesIn({ ngraph::helpers::EltwiseTypes::BITWISE_NOT }),
-        ::testing::ValuesIn({ ngraph::helpers::InputLayerType::NONE }),
+        ::testing::ValuesIn({ ngraph::helpers::InputLayerType::CONSTANT }),
         ::testing::ValuesIn({ ov::test::utils::OpType::VECTOR }),
         ::testing::ValuesIn({ ov::element::Type_t::i8, ov::element::Type_t::u8, ov::element::Type_t::i32 }),
         ::testing::Values(ov::element::Type_t::undefined),
@@ -295,7 +295,7 @@ const auto params_4D_bitwise_NOT_i16 = ::testing::Combine(
     ::testing::Combine(
         ::testing::Values(bitwise_in_shapes_4D),
         ::testing::ValuesIn({ ngraph::helpers::EltwiseTypes::BITWISE_NOT }),
-        ::testing::ValuesIn({ ngraph::helpers::InputLayerType::NONE }),
+        ::testing::ValuesIn({ ngraph::helpers::InputLayerType::CONSTANT }),
         ::testing::ValuesIn({ ov::test::utils::OpType::VECTOR }),
         ::testing::ValuesIn({ ov::element::Type_t::i16, ov::element::Type_t::u16 }),
         ::testing::Values(ov::element::Type_t::undefined),
