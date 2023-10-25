@@ -8,7 +8,6 @@
 #include "openvino/op/loop.hpp"
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
 
 #include "matchers/subgraph/fused_names.hpp"
 #include "utils/model.hpp"
@@ -22,7 +21,8 @@ void FusedNamesExtractor::set_target_device(const std::string& _device) {
         std::cout << "[ WARNING ][ GRAPH CACHE ] " << device <<
             " will be used for `fused_names` extractor" << std::endl;
         return;
-    } else if (std::find(available_devices.begin(),
+    } else if (_device != "TEMPLATE" &&
+               std::find(available_devices.begin(),
                          available_devices.end(),
                          _device) == available_devices.end()) {
         std::string message = "Incorrect device ";
@@ -49,12 +49,7 @@ FusedNamesExtractor::extract_compiled_model_names(const std::shared_ptr<ov::Mode
 }
 
 FusedNamesExtractor::FusedNamesExtractor(const std::string& device) {
-    core = ov::test::utils::PluginCache::get().core();
     set_target_device(device);
-}
-
-FusedNamesExtractor::~FusedNamesExtractor() {
-    core.reset();
 }
 
 std::vector<ExtractedPattern>

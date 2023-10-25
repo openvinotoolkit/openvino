@@ -12,6 +12,7 @@
 
 #include "cache/op_cache.hpp"
 #include "utils/node.hpp"
+#include "utils/model.hpp"
 
 #include "base_test.hpp"
 
@@ -164,8 +165,7 @@ TEST_F(OpCacheUnitTest, serialize_op) {
     auto serialized_model_path = ov::util::path_join({test_artifacts_dir,
         "operation", "static", "Convert-0", "f16", "Convert-0_0.xml"});
     ASSERT_TRUE(ov::util::file_exists(serialized_model_path));
-    auto core = ov::Core();
-    auto serialized_model = core.read_model(serialized_model_path);
+    auto serialized_model = core->read_model(serialized_model_path);
     auto res = compare_functions(test_model, serialized_model, true, false, true, true, true, false);
     ASSERT_TRUE(res.first);
 }

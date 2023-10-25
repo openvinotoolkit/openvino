@@ -36,8 +36,8 @@ public:
             model_bytesize_gb >>= 30;
             auto mem_size_gb = mem_size;
             mem_size_gb >>= 30;
-            // std::cout << "[ WARNING ] Model " << model_path << " bytesize is " << model_bytesize_gb <<
-            // "is larger than RAM size: " << mem_size_gb << ". Model will be skipped!" << std::endl;
+            std::cout << "[ WARNING ] Model " << model_path << " bytesize is " << model_bytesize_gb <<
+            "is larger than RAM size: " << mem_size_gb << ". Model will be skipped!" << std::endl;
             return true;
         }
         return false;
