@@ -15,10 +15,10 @@ These stages include:
 -	Convert ngraph-based network to CNNNetwork-based
 -	Pass network through CNNNetwork-based transformations.
 -	Creating and connecting GNA primitives withing libGNA from CNNNetwork-bases graph
-Transformations are the way of modifying input graph. Ngraph-based transformations usually are the next types:
--	inherited from ov::pass::ModelPass. They implement run_on_model method. It allows them to be a container of other transformations. For example, ngraph::pass::CommonOptimizations executes multiple transformations in it. Each of them do some basic transormations.
+Transformations are the way of modifying input graph. Ngraph-based transformations usually are of the following types:
+-	inherited from ov::pass::ModelPass. They implement run_on_model method. It allows them to be a container of other transformations. For example, ngraph::pass::CommonOptimizations executes multiple transformations in it. Each of them do some basic transformations.
 -	inherited from ov::pass::MatcherPass. Such transformations usually have a constructor. That constructor defines a pattern with the several connected together layers and a function that modifies found group of layers. The pattern can also handle additional predicates that do any checks on the traversed nodes. It is preferable to use that predicates explicitly rather than check and return from the transform function.
-GNA-specific ngraph-based transformations are placed in src/plugins/intel_gna/src/transformations. All transformations should have brief comments in it’s header. That brief should describe what pattern transformation handles and what modifications doing.
+GNA-specific ngraph-based transformations are placed in src/plugins/intel_gna/src/transformations. All transformations should have brief comments in their headers. That brief should describe what pattern transformation handles and what modifications do.
 There is also a directory src/plugins/intel_gna/src/transformations/rt_info with auxiliary runtime attributes. That attributes could be added into node rt_info map. That attributes can be read/write in transformations which is useful in some cases. For example, transformation can proceed some node in a special way if the node has special attribute.
 All new transformations should have unit tests, that are placed in src/plugins/intel_gna/tests/unit/transformations. All that unit tests are compiled in ov_gna_unit_tests binary.
 CNNNetwork transformations are so-called passes. They are placed in src/plugins/intel_gna/src/optimizer/gna_pass_manager.cpp. Passes proceed network as a
