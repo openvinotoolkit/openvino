@@ -555,7 +555,8 @@ std::shared_ptr<Node> GenPattern(const std::vector<GenPatternNode>& inputs,
     auto& rt_info = pattern_node->get_rt_info();
     rt_info["pattern_attrs"] = std::vector<attr>(attrs);
 
-    pattern_node->set_predicate([p_type_info, vt, pattern_node, friendly_name, mark_at_friendly_name](const Output<Node>& value) {
+    auto * pgen_node = pattern_node.get();
+    pattern_node->set_predicate([p_type_info, vt, pgen_node, friendly_name, mark_at_friendly_name](const Output<Node>& value) {
         (void)friendly_name;
         if (!value.get_node_shared_ptr()->get_type_info().is_castable(*p_type_info)) {
             _VERBOSE_LOG("*mismatched GenPattern OP type: ", friendly_name, "vs", value);
@@ -568,7 +569,7 @@ std::shared_ptr<Node> GenPattern(const std::vector<GenPatternNode>& inputs,
         }
 
         // match parent node with attribute a0/a1/...
-        auto& rt_info = pattern_node->get_rt_info();
+        auto& rt_info = pgen_node->get_rt_info();
         if (rt_info.count("pattern_attrs")) {
             auto& attrs = rt_info["pattern_attrs"].as<std::vector<attr>>();
             if (!attrs.empty() && !attr_compatible(*value.get_node_shared_ptr(), attrs)) {
