@@ -31,6 +31,7 @@ env:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -201,6 +202,7 @@ jobs:
   CC_Build:
     name: Conditional Compilation
     needs: Build
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
@@ -296,6 +298,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: Build
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
@@ -341,7 +344,7 @@ jobs:
 
       - name: Intel CPU plugin func tests (parallel)
         run: python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 40
+        timeout-minutes: 20
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
