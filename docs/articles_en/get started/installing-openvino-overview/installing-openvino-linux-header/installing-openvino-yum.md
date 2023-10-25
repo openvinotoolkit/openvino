@@ -10,7 +10,7 @@
    
    Note that the YUM distribution:
    
-   * offers C/C++ APIs only
+   * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
    * is dedicated to Linux users only
    * additionally includes code samples 
@@ -21,7 +21,7 @@
       :sync: system-requirements
    
       | Full requirement listing is available in:
-      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+      | :doc:`System Requirements Page <system_requirements>`
    
       .. note::
    

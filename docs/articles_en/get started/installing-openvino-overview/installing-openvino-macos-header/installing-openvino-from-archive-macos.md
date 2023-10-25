@@ -14,6 +14,7 @@
    * offers both C/C++ and Python APIs
    * additionally includes code samples 
    * is dedicated to macOS users (archives for other systems are also available)
+   * is only supported for CPU Plugin
 
 
 .. tab-set::
@@ -22,7 +23,7 @@
       :sync: system-requirements
    
       | Full requirement listing is available in:
-      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+      | :doc:`System Requirements Page <system_requirements>`
 
    .. tab-item:: Software Requirements
       :sync: software-requirements
