@@ -196,10 +196,8 @@ void nms_rotated(const float* boxes_data,
 
     if (sort_result_descending) {
         std::stable_sort(filteredBoxes.begin(), filteredBoxes.end(), [](const BoxInfo& l, const BoxInfo& r) {
-            return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
-                   (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
-                   (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index &&
-                    l.index < r.index);
+            return (l.score > r.score) || ((l.score == r.score) && (std::tie(l.batch_index, l.class_index, l.index) <
+                                                                    std::tie(r.batch_index, r.class_index, r.index)));
         });
     }
 
