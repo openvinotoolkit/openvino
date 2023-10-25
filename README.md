@@ -128,6 +128,16 @@ OpenVINO™ Toolkit also contains several plugins which simplify loading models 
 OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
 By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
+## Telemetry
+OpenVINO™ collects software performance and usage data for the purpose of improving OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4.
+You can opt-out at any time by running the command:
+
+``` bash
+opt_in_out --opt_out
+```
+
+More Information is available at https://docs.openvino.ai/latest/openvino_docs_telemetry_information.html.
+
 ## Documentation
 
 ### User documentation
@@ -167,6 +177,8 @@ See [How to build OpenVINO](./docs/dev/build.md) to get more information about t
 See [Contributions Welcome](https://github.com/openvinotoolkit/openvino/issues/17502) for good first issues.
 
 See [CONTRIBUTING](./CONTRIBUTING.md) for contribution details. Thank you!
+## Take the issue
+If you wish to be assigned to an issue please add a comment with `.take` command.  
 
 ## Get a support
 
