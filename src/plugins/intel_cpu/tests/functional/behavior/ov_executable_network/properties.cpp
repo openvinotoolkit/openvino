@@ -7,7 +7,7 @@
 #include "test_utils/properties_test.hpp"
 #include <common_test_utils/test_assertions.hpp>
 #include "ie_system_conf.h"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -96,7 +96,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriori
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint) {
     ov::Core ie;
-    int32_t streams = 4; // latency hint should apply lower number of streams
+    int32_t streams = ov::get_number_of_cpu_cores(); // latency hint should apply lower number of streams
     int32_t value = 0;
 
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::num_streams(streams)));
@@ -109,7 +109,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriori
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint) {
     ov::Core ie;
-    int32_t streams = 4; // latency hint should apply lower number of streams
+    int32_t streams = ov::get_number_of_cpu_cores(); // latency hint should apply lower number of streams
     int32_t value = 0;
 
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));

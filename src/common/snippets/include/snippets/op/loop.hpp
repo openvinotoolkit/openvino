@@ -6,7 +6,7 @@
 
 #include "openvino/op/op.hpp"
 #include "snippets/emitter.hpp"
-#include "ngraph/op/parameter.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov {
 namespace snippets {
@@ -62,6 +62,7 @@ private:
  * @param ptr_increments specifies i/o pointer increment performed on every iteration. This is an alternative to
  * apply_increments, which enables more flexibility.
  * @param finalization_offsets pointer increments that are be applied to i/o pointers before exiting the loop
+ * @param id the identifier of Loop in Loop system in LoopManager
  * @ingroup snippets
  */
 class LoopEnd : public LoopBase {
@@ -69,10 +70,10 @@ public:
     OPENVINO_OP("LoopEnd", "SnippetsOpset", LoopBase);
     LoopEnd(const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
               std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets,
-              std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num);
+              std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id);
     LoopEnd(const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
             std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets,
-            std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num);
+            std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id);
     LoopEnd() = default;
     std::shared_ptr<LoopBegin> get_loop_begin();
     void validate_and_infer_types() override;
@@ -97,17 +98,19 @@ public:
     size_t get_work_amount() const;
     size_t get_increment() const;
     bool get_evaluate_once() const;
+    size_t get_id() const;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
-    std::vector<int64_t> ptr_increments = {};
-    std::vector<int64_t> finalization_offsets = {};
-    std::vector<int64_t> element_type_sizes = {};
-    size_t work_amount = 0;
-    size_t work_amount_increment = 0;
-    size_t input_num = 0;
-    size_t output_num = 0;
-    bool evaluate_once = false; // true if the Loop is executed only once, used to skip setting and testing the loop counter
+    std::vector<int64_t> m_ptr_increments = {};
+    std::vector<int64_t> m_finalization_offsets = {};
+    std::vector<int64_t> m_element_type_sizes = {};
+    size_t m_work_amount = 0;
+    size_t m_work_amount_increment = 0;
+    size_t m_input_num = 0;
+    size_t m_output_num = 0;
+    size_t m_id = 0;  // the corresponding Loop identificator in LoopManager
+    bool m_evaluate_once = false; // true if the Loop is executed only once, used to skip setting and testing the loop counter
 };
 
 } // namespace op

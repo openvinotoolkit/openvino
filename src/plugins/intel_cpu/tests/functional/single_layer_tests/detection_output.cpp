@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/detection_output.hpp"
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -90,8 +90,6 @@ public:
             inShapes[i].first[0] = batch;
         }
 
-
-
         std::ostringstream result;
         result << "IS = { ";
 
@@ -141,7 +139,7 @@ public:
             const std::vector<ov::Tensor>& actualTensors) override {
         ASSERT_EQ(expectedTensors.size(), actualTensors.size());
 
-        for (auto i = 0; i < expectedTensors.size(); ++i) {
+        for (size_t i = 0; i < expectedTensors.size(); ++i) {
             auto expected = expectedTensors[i];
             auto actual = actualTensors[i];
             ASSERT_EQ(expected.get_size(), actual.get_size());
@@ -199,7 +197,10 @@ public:
 
         init_input_shapes({ inShapes });
 
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
         auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
@@ -220,10 +221,10 @@ private:
                 auto interval_min = -1;
                 auto interval_max = 0;
                 for (auto& input_static_shape : input_shape.second) {
-                    if ((interval_min == -1) || (interval_min > input_static_shape[dimension])) {
+                    if ((interval_min == -1) || (static_cast<size_t>(interval_min) > input_static_shape[dimension])) {
                         interval_min = input_static_shape[dimension];
                     }
-                    if (interval_max < input_static_shape[dimension]) {
+                    if (static_cast<size_t>(interval_max) < input_static_shape[dimension]) {
                         interval_max = input_static_shape[dimension];
                     }
                 }
@@ -361,13 +362,64 @@ const auto params3InputsDynamic = ::testing::Combine(
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(0.0f),
         ::testing::Values(false, true),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_CPUDetectionOutputDynamic3In,
         DetectionOutputLayerCPUTest,
         params3InputsDynamic,
+        DetectionOutputLayerCPUTest::getTestCaseName);
+
+//////////////////large tensor/////////////////
+// There are two major implemenation for DO node, sparsity and dense manner.
+// This test config(shapes, threshold...) go to sparsity path in most machines(as long as L3 per core cache is smaller than 8M).
+const std::vector<ParamsWhichSizeDependsDynamic> specificParams3InDynamicLargeTensor = {
+    // dynamic input shapes
+    ParamsWhichSizeDependsDynamic {
+        true, true, true, 1, 1,
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 381360}, {1, 381360}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 1048740}, {1, 1048740}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 1, 381360}, {1, 1, 381360}}},
+        {},
+        {}
+    },
+    ParamsWhichSizeDependsDynamic {
+        false, true, true, 1, 1,
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 381360}, {1, 381360}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 1048740}, {1, 1048740}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 1, 381360}, {1, 1, 381360}}},
+        {},
+        {}
+    },
+};
+
+const std::vector<float> confThreshold = {0.032f, 0.88f};
+const auto commonAttributesLargeTensor = ::testing::Combine(
+    ::testing::Values(numClasses),
+    ::testing::Values(backgroundLabelId),
+    ::testing::ValuesIn(topK),
+    ::testing::ValuesIn(keepTopK),
+    ::testing::ValuesIn(codeType),
+    ::testing::Values(nmsThreshold),
+    ::testing::ValuesIn(confThreshold),
+    ::testing::ValuesIn(clipAfterNms),
+    ::testing::ValuesIn(clipBeforeNms),
+    ::testing::Values(false)
+);
+
+const auto params3InputsDynamicLargeTensor = ::testing::Combine(
+        commonAttributesLargeTensor,
+        ::testing::ValuesIn(specificParams3InDynamicLargeTensor),
+        ::testing::ValuesIn(numberBatch),
+        ::testing::Values(0.0f),
+        ::testing::Values(false, true),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
+);
+INSTANTIATE_TEST_SUITE_P(
+        CPUDetectionOutputDynamic3InLargeTensor,
+        DetectionOutputLayerCPUTest,
+        params3InputsDynamicLargeTensor,
         DetectionOutputLayerCPUTest::getTestCaseName);
 
 /* =============== 5 inputs cases =============== */
@@ -447,13 +499,48 @@ const auto params5InputsDynamic = ::testing::Combine(
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(objectnessScore),
         ::testing::Values(false, true),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_CPUDetectionOutputDynamic5In,
         DetectionOutputLayerCPUTest,
         params5InputsDynamic,
+        DetectionOutputLayerCPUTest::getTestCaseName);
+
+//////////////////large tensor/////////////////
+const std::vector<ParamsWhichSizeDependsDynamic> specificParams5InDynamicLargeTensor = {
+    // dynamic input shapes
+    ParamsWhichSizeDependsDynamic {
+        true, true, true, 1, 1,
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 381360}, {1, 381360}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 1048740}, {1, 1048740}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 1, 381360}, {1, 1, 381360}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 190680}, {1, 190680}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 381360}, {1, 381360}}},
+    },
+    ParamsWhichSizeDependsDynamic {
+        true, false, true, 1, 1,
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 4194960}, {1, 4194960}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 1048740}, {1, 1048740}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 1, 381360}, {1, 1, 381360}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 190680}, {1, 190680}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 4194960}, {1, 4194960}}},
+    },
+};
+const auto params5InputsDynamicLargeTensor = ::testing::Combine(
+        commonAttributesLargeTensor,
+        ::testing::ValuesIn(specificParams5InDynamicLargeTensor),
+        ::testing::ValuesIn(numberBatch),
+        ::testing::Values(objectnessScore),
+        ::testing::Values(false, true),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        CPUDetectionOutputDynamic5InLargeTensor,
+        DetectionOutputLayerCPUTest,
+        params5InputsDynamicLargeTensor,
         DetectionOutputLayerCPUTest::getTestCaseName);
 
 }  // namespace

@@ -1,0 +1,74 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Variables to export in plugin's projects
+
+set(ov_options "@OV_OPTIONS@")
+list(APPEND ov_options CPACK_GENERATOR)
+
+if(APPLE)
+    list(APPEND ov_options CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
+endif()
+
+get_property(_OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(_OV_GENERATOR_MULTI_CONFIG)
+    list(APPEND ov_options CMAKE_CONFIGURATION_TYPES)
+    if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+        list(APPEND ov_options CMAKE_DEFAULT_BUILD_TYPE)
+    endif()
+else()
+    list(APPEND ov_options CMAKE_BUILD_TYPE)
+endif()
+unset(_OV_GENERATOR_MULTI_CONFIG)
+
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
+
+message(STATUS "The following CMake options are exported from OpenVINO Developer package")
+message(" ")
+foreach(option IN LISTS ov_options)
+    if(NOT DEFINED "${option}")
+        load_cache("${cache_path}" READ_WITH_PREFIX "" ${option})
+    endif()
+    message("    ${option}: ${${option}}")
+endforeach()
+message(" ")
+
+# Restore TBB installation directory (requires for proper LC_RPATH on macOS with SIP)
+load_cache("${cache_path}" READ_WITH_PREFIX "" TBB_INSTALL_DIR)
+
+# activate generation of plugins.xml
+set(ENABLE_PLUGINS_XML ON)
+
+# Disable warning as error for private components
+set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+
+#
+# Content
+#
+
+# OpenVINO_DIR is supposed to be set as an environment variable
+find_dependency(OpenVINO)
+
+find_dependency(OpenVINODeveloperScripts
+                PATHS "${CMAKE_CURRENT_LIST_DIR}"
+                NO_CMAKE_FIND_ROOT_PATH
+                NO_DEFAULT_PATH)
+
+_ov_find_tbb()
+_ov_find_pugixml()
+
+include("${CMAKE_CURRENT_LIST_DIR}/OpenVINODeveloperPackageTargets.cmake")
+#
+# Extra Compile Flags
+#
+
+# don't fail on strict compilation options in 3rd party modules
+ov_dev_package_no_errors()
+
+# Don't threat deprecated API warnings as errors in 3rd party apps
+ov_deprecated_no_errors()

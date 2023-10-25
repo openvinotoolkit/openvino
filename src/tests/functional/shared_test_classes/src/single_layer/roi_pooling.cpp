@@ -18,9 +18,9 @@ namespace LayerTestsDefinitions {
 
         std::ostringstream result;
 
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-        result << "CS=" << CommonTestUtils::vec2str(coordsShape) << "_";
-        result << "PS=" << CommonTestUtils::vec2str(poolShape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+        result << "CS=" << ov::test::utils::vec2str(coordsShape) << "_";
+        result << "PS=" << ov::test::utils::vec2str(poolShape) << "_";
         result << "Scale=" << spatial_scale << "_";
         switch (pool_method) {
             case ngraph::helpers::ROIPoolingTypes::ROI_MAX:
@@ -51,7 +51,7 @@ namespace LayerTestsDefinitions {
             if (it == 1) {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, feat_map_shape[0] - 1,
+                ov::test::utils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, feat_map_shape[0] - 1,
                                                                                  height, width, 1.0f, is_roi_max_mode);
             } else {
                 blob = GenerateInput(*info);
@@ -72,7 +72,8 @@ namespace LayerTestsDefinitions {
         std::tie(inputShape, coordsShape, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape, coordsShape});
+        ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
+                                    std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(coordsShape))};
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         std::shared_ptr<ngraph::Node> roi_pooling = ngraph::builder::makeROIPooling(paramOuts[0],

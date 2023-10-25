@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_average,
                                             ::testing::Values(2),
                                             ::testing::Values("avg"),
                                             ::testing::ValuesIn(netPRCs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ROIAlignLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_max,
@@ -49,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_max,
                                             ::testing::Values(2),
                                             ::testing::Values("max"),
                                             ::testing::ValuesIn(netPRCs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ROIAlignLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_avg_asym,
@@ -66,7 +66,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_avg_asym,
                                             ::testing::Values("avg"),
                                             ::testing::Values("asymmetric"),
                                             ::testing::ValuesIn(netPRCs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ROIAlignV9LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_avg_hpfn,
@@ -83,7 +83,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_avg_hpfn,
                                             ::testing::Values("avg"),
                                             ::testing::Values("half_pixel_for_nn"),
                                             ::testing::ValuesIn(netPRCs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ROIAlignV9LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_max_hp,
@@ -100,5 +100,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_max_hp,
                                             ::testing::Values("max"),
                                             ::testing::Values("half_pixel"),
                                             ::testing::ValuesIn(netPRCs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ROIAlignV9LayerTest::getTestCaseName);

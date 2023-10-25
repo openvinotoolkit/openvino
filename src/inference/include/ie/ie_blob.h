@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <cstring>
 #include <functional>
 #include <map>
@@ -28,13 +38,16 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
+
+class RemoteBlob;
 
 /**
  * @brief This class represents a universal container in the Inference Engine
  *
  * @note Each Blob implementation must be derived from this Blob class directly or indirectly
  */
-class INFERENCE_ENGINE_API_CLASS(Blob) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(Blob) {
 public:
     /**
      * @brief A smart pointer containing Blob object
@@ -69,7 +82,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() noexcept {
-        return dynamic_cast<T*>(this) != nullptr;
+        return dynamic_cast<T*>(getHardwareBlob()) != nullptr;
     }
 
     /**
@@ -82,7 +95,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() const noexcept {
-        return dynamic_cast<const T*>(this) != nullptr;
+        return dynamic_cast<const T*>(getHardwareBlob()) != nullptr;
     }
 
     /**
@@ -93,9 +106,25 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type T or nullptr on error
      */
+    template <
+        typename T,
+        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+        typename std::enable_if<std::is_base_of<Blob, T>::value && !std::is_same<RemoteBlob, T>::value, int>::type = 0>
+    T* as() noexcept {
+        return dynamic_cast<T*>(getHardwareBlob());
+    }
+
+    /**
+     * @brief Casts this Blob object to the type RemoteBlob.
+     *
+     * Use InferenceEngine::as() to operate with shared Blob objects instead of raw pointers
+     *
+     * @tparam T Type to cast to. Must represent a class derived from the Blob
+     * @return Raw pointer to the object of the type T or nullptr on error
+     */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
+              typename std::enable_if<std::is_same<RemoteBlob, T>::value, int>::type = 0>
     T* as() noexcept {
         return dynamic_cast<T*>(this);
     }
@@ -108,11 +137,27 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type const T or nullptr on error
      */
+    template <
+        typename T,
+        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+        typename std::enable_if<std::is_base_of<Blob, T>::value && !std::is_same<RemoteBlob, T>::value, int>::type = 0>
+    const T* as() const noexcept {
+        return dynamic_cast<const T*>(getHardwareBlob());
+    }
+
+    /**
+     * @brief Casts this Blob object to the type RemoteBlob.
+     *
+     * Use InferenceEngine::as() to operate with shared Blob objects instead of raw pointers
+     *
+     * @tparam T Type to cast to. Must represent a class derived from the Blob
+     * @return Raw pointer to the object of the type T or nullptr on error
+     */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
+              typename std::enable_if<std::is_same<RemoteBlob, T>::value, int>::type = 0>
     const T* as() const noexcept {
-        return dynamic_cast<const T*>(this);
+        return dynamic_cast<T*>(this);
     }
 
     /**
@@ -275,6 +320,9 @@ protected:
      * @return The allocator for allocator-based blobs or nullptr if there is none
      */
     virtual const std::shared_ptr<IAllocator>& getAllocator() const noexcept = 0;
+
+    const Blob* getHardwareBlob() const;
+    Blob* getHardwareBlob();
 };
 
 /**
@@ -286,7 +334,7 @@ protected:
 template <typename T,
           typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
           typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
-std::shared_ptr<T> as(const Blob::Ptr& blob) noexcept {
+INFERENCE_ENGINE_1_0_DEPRECATED std::shared_ptr<T> as(const Blob::Ptr& blob) noexcept {
     return std::dynamic_pointer_cast<T>(blob);
 }
 
@@ -299,7 +347,7 @@ std::shared_ptr<T> as(const Blob::Ptr& blob) noexcept {
 template <typename T,
           typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
           typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
-std::shared_ptr<const T> as(const Blob::CPtr& blob) noexcept {
+INFERENCE_ENGINE_1_0_DEPRECATED std::shared_ptr<const T> as(const Blob::CPtr& blob) noexcept {
     return std::dynamic_pointer_cast<const T>(blob);
 }
 
@@ -310,7 +358,7 @@ std::shared_ptr<const T> as(const Blob::CPtr& blob) noexcept {
  * @note Any Blob implementation that represents a concept of a tensor in memory (for example,
  * TBlob) must be a subclass of MemoryBlob instead of Blob
  */
-class INFERENCE_ENGINE_API_CLASS(MemoryBlob) : public Blob {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(MemoryBlob) : public Blob {
 public:
     /**
      * @brief A smart pointer to the MemoryBlob object
@@ -509,7 +557,7 @@ using BlobMap = std::map<std::string, Blob::Ptr>;
  * @brief Represents real host memory allocated for a Tensor/Blob per C type.
  */
 template <typename T, typename = std::enable_if<std::is_standard_layout<T>::value && std::is_trivial<T>::value>>
-class TBlob : public MemoryBlob {
+class INFERENCE_ENGINE_1_0_DEPRECATED TBlob : public MemoryBlob {
     template <typename, typename>
     friend class TBlob;
 
@@ -834,7 +882,8 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
  * @return A shared pointer to the newly created blob of the given type
  */
 template <typename Type>
-inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc) {
+inline INFERENCE_ENGINE_1_0_DEPRECATED typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(
+    const TensorDesc& tensorDesc) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
         IE_THROW() << "Cannot make shared blob! "
                    << "The blob type cannot be used to store objects of current precision";
@@ -851,9 +900,8 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorD
  * @return A shared pointer to the newly created blob of the given type
  */
 template <typename Type>
-inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc,
-                                                                   Type* ptr,
-                                                                   size_t size = 0) {
+inline INFERENCE_ENGINE_1_0_DEPRECATED typename InferenceEngine::TBlob<Type>::Ptr
+make_shared_blob(const TensorDesc& tensorDesc, Type* ptr, size_t size = 0) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
         IE_THROW() << "Cannot make shared blob! "
                    << "The blob type cannot be used to store objects of current precision";
@@ -869,7 +917,7 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorD
  * @return A shared pointer to the newly created blob of the given type
  */
 template <typename Type>
-inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(
+inline INFERENCE_ENGINE_1_0_DEPRECATED typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(
     const TensorDesc& tensorDesc,
     const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
@@ -886,7 +934,8 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(
  * @return A shared pointer to the newly created blob of the given type
  */
 template <typename TypeTo>
-inline typename InferenceEngine::TBlob<TypeTo>::Ptr make_shared_blob(const TBlob<TypeTo>& arg) {
+inline INFERENCE_ENGINE_1_0_DEPRECATED typename InferenceEngine::TBlob<TypeTo>::Ptr make_shared_blob(
+    const TBlob<TypeTo>& arg) {
     return std::make_shared<InferenceEngine::TBlob<TypeTo>>(arg);
 }
 
@@ -897,7 +946,7 @@ inline typename InferenceEngine::TBlob<TypeTo>::Ptr make_shared_blob(const TBlob
  * @return A shared pointer to the newly created Blob object
  */
 template <typename T, typename... Args, typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
-std::shared_ptr<T> make_shared_blob(Args&&... args) {
+INFERENCE_ENGINE_1_0_DEPRECATED std::shared_ptr<T> make_shared_blob(Args&&... args) {
     return std::make_shared<T>(std::forward<Args>(args)...);
 }
 
@@ -908,7 +957,8 @@ std::shared_ptr<T> make_shared_blob(Args&&... args) {
  * @param roi A ROI object inside of the original blob.
  * @return A shared pointer to the newly created blob.
  */
-INFERENCE_ENGINE_API_CPP(Blob::Ptr) make_shared_blob(const Blob::Ptr& inputBlob, const ROI& roi);
+INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CPP(Blob::Ptr)
+    make_shared_blob(const Blob::Ptr& inputBlob, const ROI& roi);
 
 /**
  * @brief Creates a blob describing given ROI object based on the given blob with pre-allocated memory.
@@ -918,7 +968,8 @@ INFERENCE_ENGINE_API_CPP(Blob::Ptr) make_shared_blob(const Blob::Ptr& inputBlob,
  * @param end A ROI object end coordinate inside of the original blob.
  * @return A shared pointer to the newly created blob.
  */
-INFERENCE_ENGINE_API_CPP(Blob::Ptr)
-make_shared_blob(const Blob::Ptr& inputBlob, const std::vector<size_t>& begin, const std::vector<size_t>& end);
+INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CPP(Blob::Ptr)
+    make_shared_blob(const Blob::Ptr& inputBlob, const std::vector<size_t>& begin, const std::vector<size_t>& end);
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

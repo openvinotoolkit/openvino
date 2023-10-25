@@ -2,29 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/group_conv.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, group_conv_op) {
-    NodeBuilder::get_ops().register_factory<opset1::GroupConvolution>();
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 12, 224, 224});
-    auto filters = make_shared<op::Parameter>(element::f32, Shape{4, 1, 3, 5, 5});
+    NodeBuilder::get_ops().register_factory<ov::op::v1::GroupConvolution>();
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 12, 224, 224});
+    auto filters = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 1, 3, 5, 5});
     auto strides = Strides{1, 1};
     auto pads_begin = CoordinateDiff{1, 2};
     auto pads_end = CoordinateDiff{1, 2};
     auto dilations = Strides{1, 1};
-    auto group_conv = make_shared<opset1::GroupConvolution>(data,
+    auto group_conv = make_shared<op::v1::GroupConvolution>(data,
                                                             filters,
                                                             strides,
                                                             pads_begin,
@@ -32,7 +28,7 @@ TEST(attributes, group_conv_op) {
                                                             dilations,
                                                             op::PadType::VALID);
     NodeBuilder builder(group_conv, {data, filters});
-    auto g_group_conv = ov::as_type_ptr<opset1::GroupConvolution>(builder.create());
+    auto g_group_conv = ov::as_type_ptr<op::v1::GroupConvolution>(builder.create());
     EXPECT_EQ(g_group_conv->get_strides(), group_conv->get_strides());
     EXPECT_EQ(g_group_conv->get_pads_begin(), group_conv->get_pads_begin());
     EXPECT_EQ(g_group_conv->get_pads_end(), group_conv->get_pads_end());
@@ -41,10 +37,10 @@ TEST(attributes, group_conv_op) {
 }
 
 TEST(attributes, group_conv_backprop_data_op) {
-    NodeBuilder::get_ops().register_factory<opset1::GroupConvolutionBackpropData>();
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 20, 224, 224});
-    const auto filter = make_shared<op::Parameter>(element::f32, Shape{4, 5, 2, 3, 3});
-    const auto output_shape = make_shared<op::Parameter>(element::i32, Shape{2});
+    NodeBuilder::get_ops().register_factory<op::v1::GroupConvolutionBackpropData>();
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 20, 224, 224});
+    const auto filter = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 5, 2, 3, 3});
+    const auto output_shape = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
     const auto strides = Strides{2, 1};
     const auto pads_begin = CoordinateDiff{3, 4};
@@ -53,7 +49,7 @@ TEST(attributes, group_conv_backprop_data_op) {
     const auto auto_pad = op::PadType::EXPLICIT;
     const auto output_padding = CoordinateDiff{3, 4};
 
-    const auto gcbd = make_shared<opset1::GroupConvolutionBackpropData>(data,
+    const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(data,
                                                                         filter,
                                                                         output_shape,
                                                                         strides,
@@ -63,7 +59,7 @@ TEST(attributes, group_conv_backprop_data_op) {
                                                                         auto_pad,
                                                                         output_padding);
     NodeBuilder builder(gcbd, {data, filter});
-    const auto g_gcbd = ov::as_type_ptr<opset1::GroupConvolutionBackpropData>(builder.create());
+    const auto g_gcbd = ov::as_type_ptr<op::v1::GroupConvolutionBackpropData>(builder.create());
 
     EXPECT_EQ(g_gcbd->get_strides(), gcbd->get_strides());
     EXPECT_EQ(g_gcbd->get_pads_begin(), gcbd->get_pads_begin());

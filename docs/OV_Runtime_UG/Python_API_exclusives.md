@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ Runtime Python API includes additional features to 
+                 improve user experience and provide simple yet powerful tool 
+                 for Python users.
+
+
 OpenVINO™ Runtime Python API offers additional features and helpers to enhance user experience. The main goal of Python API is to provide user-friendly and simple yet powerful tool for Python users.
 
 Easier Model Compilation
@@ -120,6 +126,10 @@ The ``start_async`` function call is not required to be synchronized - it waits 
    :language: python
    :fragment: [asyncinferqueue]
 
+.. warning:: 
+
+   ``InferRequest`` objects that can be acquired by iterating over a ``AsyncInferQueue`` object or by ``[id]`` guaranteed to work with read-only methods like getting tensors.
+   Any mutating methods (e.g. start_async, set_callback) of a single request will put the parent AsyncInferQueue object in an invalid state.
 
 Acquiring Results from Requests
 -------------------------------

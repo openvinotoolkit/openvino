@@ -238,32 +238,6 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
 }
 
 /**
- * @brief identifies if a model must be converted to NHWC, it must not be neither NHWC, nor Kaldi
- * @param layers model sorted layers
- */
-inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr>& layers) {
-    for (auto& l : layers) {
-        if (!LayerInfo(l).isConvolution())
-            continue;
-
-        InferenceEngine::CNNLayerPtr next;
-        std::tie(std::ignore, next) = FindPermutationsAroundConvolutionInNHWCModel(l);
-        if (next != nullptr)
-            return false;
-        // If a convolution has only 1-dimension input and output we should skip it
-        auto in_dims = l->insData.begin()->lock()->getDims();
-        auto out_dims = l->outData.front()->getDims();
-
-        if (ov::intel_gna::graph_utils::is_one_dim_shapes(in_dims, out_dims)) {
-            continue;
-        }
-
-        return FindPermutationAfterConvolutionInKaldiModel(l) == nullptr;
-    }
-    return false;
-}
-
-/**
  * @brief returns transposition information for a layer based on the previous convolution or pooling dimensions order
  * @param layer layer from which transposition info search must be started
  * @return bool value which identifies if transposition info is found and transposition information
@@ -343,7 +317,7 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
         }
 
         std::vector<TranspositionInfo> transpositionInfo;
-        for (int idx = 0; idx < layer->insData.size(); ++idx) {
+        for (int idx = 0; idx < static_cast<int>(layer->insData.size()); ++idx) {
             if (!InferenceEngine::CNNNetHasPrevLayer(layer.get(), idx))
                 continue;
             auto inputLayer = InferenceEngine::CNNNetPrevLayer(layer, idx);
@@ -427,8 +401,8 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
             size_t crop_offset = 1;
             size_t crop_out_size = 1;
             bool first_cropped_dim = true;
-            for (int i = 0; i < crop_layer->axis.size(); ++i) {
-                if (crop_layer->offset[i] == 0 && crop_layer->dim[i] == in_dims[i])
+            for (size_t i = 0; i < crop_layer->axis.size(); ++i) {
+                if (crop_layer->offset[i] == 0 && crop_layer->dim[i] == static_cast<int32_t>(in_dims[i]))
                     continue;
                 crop_offset *= first_cropped_dim ? crop_layer->offset[i] : crop_layer->dim[i];
                 crop_out_size *= crop_layer->dim[i];

@@ -4,8 +4,8 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -22,12 +22,12 @@ public:
         std::vector<size_t> inputShape = {10, 20, 30, 40};
 
         InferenceEngine::Precision netPrecision = inPrc = outPrc = Precision::FP32;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size())
                                     << "Indices vector size and provided indices shape doesn't fit each other";
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto indicesNode = ngraph::opset3::Constant::create(secondConstantType, ngraph::Shape(indicesShape), indices);

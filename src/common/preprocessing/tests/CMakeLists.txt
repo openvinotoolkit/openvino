@@ -4,9 +4,11 @@
 
 set(TARGET fluid_preproc_tests)
 
+ov_deprecated_no_errors()
+
 find_package(OpenCV QUIET COMPONENTS gapi core imgproc)
-if(NOT OpenCV_FOUND)
-    message(WARNING "No suitable OpenCV version detected, ${TARGET} skipped")
+if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 4)
+    message(WARNING "OpenCV ver. 4.0+ is not found, ${TARGET} skipped")
     return()
 endif()
 

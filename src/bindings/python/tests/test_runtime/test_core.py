@@ -8,34 +8,28 @@ import numpy as np
 import os
 from pathlib import Path
 
-from openvino.runtime import (
+from openvino import (
     Model,
     Core,
-    CompiledModel,
     Tensor,
     PartialShape,
-    Extension,
+    CompiledModel,
     tensor_from_file,
     compile_model,
+    serialize,
 )
 
-from tests.conftest import (
-    model_path,
-    model_onnx_path,
-    get_model_with_template_extension,
-)
-
-from tests.test_utils.test_utils import (
+import openvino.properties.hint as hints
+from openvino.runtime import Extension
+from tests.utils.helpers import (
     generate_image,
     generate_relu_compiled_model,
     get_relu_model,
     plugins_path,
     compare_models,
+    create_filename_for_test,
+    get_model_with_template_extension,
 )
-
-
-test_net_xml, test_net_bin = model_path()
-test_net_onnx = model_onnx_path()
 
 
 def test_compact_api_xml():
@@ -45,11 +39,6 @@ def test_compact_api_xml():
     assert isinstance(compiled_model, CompiledModel)
     results = compiled_model.infer_new_request({"data": img})
     assert np.argmax(results[list(results)[0]]) == 531
-
-
-def test_compact_api_xml_posix_path():
-    compiled_model = compile_model(Path(test_net_xml))
-    assert isinstance(compiled_model, CompiledModel)
 
 
 def test_compact_api_wrong_path():
@@ -79,33 +68,85 @@ def test_core_class(device):
     assert np.allclose(results[list(results)[0]], expected_output)
 
 
-def test_compile_model(device):
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+@pytest.mark.parametrize("device_name", [
+    None,
+    "CPU",
+])
+def test_compile_model(request, tmp_path, device_name):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    compiled_model = core.compile_model(model, device)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+    model = core.read_model(model=xml_path, weights=bin_path)
+    compiled_model = None
+    if device_name is None:
+        compiled_model = core.compile_model(model)
+    else:
+        compiled_model = core.compile_model(model, device_name)
+
     assert isinstance(compiled_model, CompiledModel)
 
 
-def test_compile_model_without_device():
-    core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    compiled_model = core.compile_model(model)
+@pytest.fixture()
+def get_model():
+    return get_relu_model()
+
+
+@pytest.fixture()
+def get_model_path(request, tmp_path):
+    xml_path, _ = create_filename_for_test(request.node.name, tmp_path, True)
+    serialize(get_relu_model(), xml_path)
+    return Path(xml_path)
+
+
+@pytest.mark.parametrize("model_type", [
+    "get_model",
+    "get_model_path",
+])
+@pytest.mark.parametrize("device_name", [
+    None,
+    "CPU",
+])
+@pytest.mark.parametrize("config", [
+    None,
+    {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
+])
+def test_compact_api(model_type, device_name, config, request):
+    compiled_model = None
+
+    model = request.getfixturevalue(model_type)
+    if device_name is not None:
+        compiled_model = compile_model(model=model, device_name=device_name, config=config)
+    else:
+        compiled_model = compile_model(model=model, config=config)
+
     assert isinstance(compiled_model, CompiledModel)
 
 
-def test_read_model_from_ir():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_from_ir(request, tmp_path):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+    model = core.read_model(model=xml_path, weights=bin_path)
     assert isinstance(model, Model)
 
-    model = core.read_model(model=test_net_xml)
+    model = core.read_model(model=xml_path)
     assert isinstance(model, Model)
 
 
-def test_read_model_from_tensor():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_from_tensor(request, tmp_path):
     core = Core()
-    model = open(test_net_xml).read()
-    tensor = tensor_from_file(test_net_bin)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path, is_xml_path=True, is_bin_path=True)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+    arr = np.ones(shape=(10), dtype=np.int8)
+    arr.tofile(bin_path)
+    model = open(xml_path).read()
+    tensor = tensor_from_file(bin_path)
     model = core.read_model(model=model, weights=tensor)
     assert isinstance(model, Model)
 
@@ -117,48 +158,49 @@ def test_read_model_with_wrong_input():
     assert "Provided python object type <class 'int'> isn't supported as 'model' argument." in str(e.value)
 
 
-def test_read_model_as_path():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_as_path(request, tmp_path):
     core = Core()
-    model = core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path, True, True)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+
+    model = core.read_model(model=Path(xml_path), weights=Path(bin_path))
     assert isinstance(model, Model)
 
-    model = core.read_model(model=test_net_xml, weights=Path(test_net_bin))
+    model = core.read_model(model=xml_path, weights=Path(bin_path))
     assert isinstance(model, Model)
 
-    model = core.read_model(model=Path(test_net_xml))
+    model = core.read_model(model=Path(xml_path))
     assert isinstance(model, Model)
 
 
-def test_read_model_from_onnx():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_from_buffer(request, tmp_path):
     core = Core()
-    model = core.read_model(model=test_net_onnx)
-    assert isinstance(model, Model)
-
-
-def test_read_model_from_onnx_as_path():
-    core = Core()
-    model = core.read_model(model=Path(test_net_onnx))
-    assert isinstance(model, Model)
-
-
-def test_read_model_from_buffer():
-    core = Core()
-    with open(test_net_bin, "rb") as f:
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+    with open(bin_path, "rb") as f:
         weights = f.read()
-    with open(model_path()[0], "rb") as f:
+    with open(xml_path, "rb") as f:
         xml = f.read()
     model = core.read_model(model=xml, weights=weights)
     assert isinstance(model, Model)
 
 
-def test_model_from_buffer_valid():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_model_from_buffer_valid(request, tmp_path):
     core = Core()
-    with open(test_net_bin, "rb") as f:
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+    with open(bin_path, "rb") as f:
         weights = f.read()
-    with open(model_path()[0], "rb") as f:
+    with open(xml_path, "rb") as f:
         xml = f.read()
     model = core.read_model(model=xml, weights=weights)
-    ref_model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    ref_model = core.read_model(model=xml_path, weights=bin_path)
     assert compare_models(model, ref_model)
 
 
@@ -254,7 +296,7 @@ def test_get_property_str():
 
 def test_query_model(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     query_model = core.query_model(model=model, device_name=device)
     ops_model = model.get_ordered_ops()
     ops_func_names = [op.friendly_name for op in ops_model]
@@ -301,9 +343,8 @@ def test_unload_plugin(device):
     core.unload_plugin(device)
 
 
-@pytest.mark.template_plugin()
-@pytest.mark.skip(reason="Sporadically failed on mac with error:  Cannot add extension."
-                         "Cannot find entry point to the extension library")
+@pytest.mark.template_extension()
+@pytest.mark.dynamic_library()
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
     assert isinstance(model, Model)
@@ -327,7 +368,7 @@ def test_add_extension():
     core = Core()
     core.add_extension(EmptyExtension())
     core.add_extension([EmptyExtension(), EmptyExtension()])
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     assert isinstance(model, Model)
 
 
@@ -399,7 +440,7 @@ def test_read_model_from_buffer_no_weights():
 
 def test_infer_new_request_return_type(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     img = generate_image()
     compiled_model = core.compile_model(model, device)
     res = compiled_model.infer_new_request({"data": img})
@@ -407,6 +448,6 @@ def test_infer_new_request_return_type(device):
 
     assert isinstance(arr, np.ndarray)
     assert arr.itemsize == 4
-    assert arr.shape == (10,)
+    assert arr.shape == (3, 32, 32)
     assert arr.dtype == "float32"
-    assert arr.nbytes == 40
+    assert arr.nbytes == 12288

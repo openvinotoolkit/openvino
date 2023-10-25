@@ -16,7 +16,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
 
     std::string variable_id;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::read_value_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<read_value_impl>(*this);
@@ -29,7 +29,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<read_value>());
+        OPENVINO_ASSERT(arg.is_type<read_value>());
         const auto& node = arg.as<read_value>();
         variable_id = node.get_primitive()->variable_id;
     }
@@ -81,3 +81,4 @@ attach_read_value_impl::attach_read_value_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::read_value_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::read_value)

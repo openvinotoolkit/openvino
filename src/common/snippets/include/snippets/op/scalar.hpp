@@ -5,7 +5,7 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
-#include "ngraph/op/constant.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace snippets {

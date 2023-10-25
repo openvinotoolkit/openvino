@@ -1,12 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include <cfloat>
 
-#include "ngraph/ngraph.hpp"
+#include <cfloat>
+#include <memory>
+
+#include "openvino/core/model.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 struct MemBandwidthPressure {
@@ -24,7 +25,7 @@ struct MemBandwidthPressure {
 };
 
 static MemBandwidthPressure MemBandwidthPressureTolerance(
-    const std::shared_ptr<ngraph::Function> nGraphFunc,
+    const std::shared_ptr<ov::Model> model,
     const float cache_size,
     const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
@@ -32,16 +33,16 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
     auto memLimitedFactor = [&](size_t size_data_moved, int datatype_size = 4) -> float {
         return (cache_size / (size_data_moved * datatype_size));
     };
-    auto isLowPrecision = [&](ngraph::element::Type type) -> bool {
-        return (type == ngraph::element::i8) || (type == ngraph::element::u8);
+    auto isLowPrecision = [&](ov::element::Type type) -> bool {
+        return (type == ov::element::i8) || (type == ov::element::u8);
     };
-    auto isHalfPrecision = [&](ngraph::element::Type type) -> bool {
-        return (type == ngraph::element::bf16) || (type == ngraph::element::f16);
+    auto isHalfPrecision = [&](ov::element::Type type) -> bool {
+        return (type == ov::element::bf16) || (type == ov::element::f16);
     };
 
     float worst_case = MemBandwidthPressure::UNKNOWN;
-    // Traverse nGraph Function in topological order
-    for (auto& node : nGraphFunc->get_ordered_ops()) {
+    // Traverse OpenVINO Model in topological order
+    for (auto& node : model->get_ordered_ops()) {
         const auto node_name = node->get_type_info().name;
         if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name) &&
             std::strcmp("ConvolutionBackpropData", node_name)) {
@@ -67,9 +68,7 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
                 output.get_partial_shape().is_static()) {
                 const auto& shapeInput0 = input0.get_shape();
                 const auto& shapeInput1 = input1.get_shape();
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto non_const = !get_constant_from_source(node->input_value(1));
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                const auto non_const = !ov::op::util::is_on_constant_path(node->input_value(1));
                 const auto& shapeOutput = output.get_shape();
                 const auto dataSizeInput0 =
                     std::accumulate(shapeInput0.begin(), shapeInput0.end(), size_t(1), std::multiplies<size_t>());
@@ -88,11 +87,14 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
             const auto input = node->input(0);
             const auto output = node->output(0);
             const auto kernels = node->input(1);
-            const auto& shape = kernels.get_shape();
+
             total_convs++;
-            if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
-                compute_convs++;
-                continue;
+            if (kernels.get_partial_shape().is_static()) {
+                const auto& shape = kernels.get_shape();
+                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
+                    compute_convs++;
+                    continue;
+                }
             }
             if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
                 const auto& shapeInput = input.get_shape();

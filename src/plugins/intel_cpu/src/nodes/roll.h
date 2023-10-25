@@ -34,7 +34,7 @@ private:
 
         template<typename T>
         void exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shiftMemPtr, const MemoryPtr& axesMemPtr,
-                  MemoryPtr& dstMemPtr);
+                  const MemoryPtr& dstMemPtr);
 
     private:
         const size_t numOfDims;

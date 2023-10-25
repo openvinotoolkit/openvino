@@ -16,6 +16,18 @@ void register_implementations() {
     REGISTER_CPU(proposal);
     REGISTER_CPU(read_value);
     REGISTER_CPU(non_max_suppression);
+    REGISTER_CPU(shape_of);
+    REGISTER_CPU(concatenation);
+    REGISTER_CPU(gather);
+    REGISTER_CPU(strided_slice);
+    REGISTER_CPU(range);
+    REGISTER_CPU(scatter_update);
+    REGISTER_CPU(eltwise);
+    REGISTER_CPU(crop);
+    REGISTER_CPU(activation);
+    REGISTER_CPU(reorder);
+    REGISTER_CPU(broadcast);
+    REGISTER_CPU(tile);
 }
 
 }  // namespace cpu

@@ -57,7 +57,7 @@ public:
 
 private:
     void run(program& p) override;
-    void add_reorder(program& p, program_node* node, program_node* usr);
+    void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
 };
 
 class add_reshape_to_primitives : public base_pass {
@@ -102,6 +102,36 @@ public:
 
 private:
     void run(program& p) override;
+};
+
+class clamp_fp16_output : public base_pass {
+public:
+    clamp_fp16_output() : base_pass("clamp_fp16_output") {}
+
+private:
+    void run(program& p) override;
+};
+
+class mark_shape_of_subgraphs : public base_pass {
+    // This optimization pass aggregates nodes into shape_of subgraphs for further optimizations.
+    // There are few key requirements to decide if node belongs to shape_of subgraph or not:
+    // - Node type is shape_of OR
+    // - All node's dependencies are marked as members of shape_of subgraphs OR
+    // - Node is a shape infer dependency of any user
+    // Also, there is some additional requirement:
+    // - Primitive must have CPU implementation (this requirement is ignored for reshape
+    //   primitives, since currently ocl optimized_out implementation is used for reshape execution in such subgraphs)
+public:
+    mark_shape_of_subgraphs(bool update_impls = false) :
+        base_pass("mark_shape_of_subgraphs"), _update_impls(update_impls) {}
+
+private:
+    void run(program& p) override;
+    void look_for_shape_of_subgraph(program_node& node);
+    bool can_mark_node(const program_node& node);
+    void mark_node(program_node& node);
+
+    bool _update_impls;
 };
 
 class prepare_buffer_fusing : public base_pass {
@@ -166,6 +196,7 @@ private:
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
+    void fuse_constant_transposes(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
     layout_optimizer& _lo;
@@ -232,7 +263,7 @@ private:
     void run(program& p) override;
     std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
                                                               const ExecutionConfig& config,
-                                                              std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor);
+                                                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
@@ -356,9 +387,9 @@ public:
     void run(program& p) override;
 };
 
-class update_loop_primitive_map : public base_pass {
+class update_inner_program_io_map : public base_pass {
 public:
-    update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}
+    update_inner_program_io_map() : base_pass("update_inner_program_io_map") {}
 
 private:
     void run(program& p) override;
@@ -373,6 +404,14 @@ public:
 class build_implementations : public base_pass {
 public:
     build_implementations() : base_pass("build_implementations") {}
+    void run(program& p) override;
+};
+
+class reorder_transfer : public base_pass {
+public:
+    reorder_transfer() : base_pass("reorder_transfer") {}
+
+private:
     void run(program& p) override;
 };
 

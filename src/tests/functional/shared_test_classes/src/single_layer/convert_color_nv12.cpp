@@ -15,7 +15,7 @@ std::string ConvertColorNV12LayerTest::getTestCaseName(const testing::TestParamI
     std::string targetName;
     std::tie(inputShape, type, conversion, singlePlane, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "netPRC=" << type.c_type_string() << "_";
     result << "convRGB=" << conversion << "_";
     result << "singlePlane=" << singlePlane << "_";

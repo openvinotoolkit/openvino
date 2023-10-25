@@ -9,8 +9,13 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "backend/gna_limitations.hpp"
+#include "common/gna_target.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
+
+using namespace ov::intel_gna::limitations;
+using namespace ov::intel_gna::target;
 
 namespace testing {
 namespace {
@@ -126,42 +131,40 @@ ngraph::Output<ngraph::Node> CreateConvolution::createOutputNode(const ngraph::O
 }
 
 // should be used only after CreateBaseDecorator
+template <const ngraph::Shape& kernel_shape, const ngraph::Shape& split_shape>
 class CreateSplittedConvolution : public CreateGraphDecorator {
 public:
-    CreateSplittedConvolution(CreateGraphDecoratorPtr prev,
-                              const ngraph::Shape& kernel_shape = ngraph::Shape{1, 64, 1, 1},
-                              const ngraph::Shape& split_shape = ngraph::Shape{960, 960, 960, 960, 256})
+    CreateSplittedConvolution(CreateGraphDecoratorPtr prev)
         : CreateGraphDecorator(std::move(prev)),
           kernel_shape_(kernel_shape),
           split_shape_(split_shape) {}
 
 protected:
-    void updateGraph(Graph& graph) override;
+    void updateGraph(Graph& graph) override {
+        auto split_node_c1 =
+            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{3});
+        auto split_node_c2 =
+            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({split_shape_.size()}), split_shape_);
+        auto split_node =
+            std::make_shared<ngraph::opset7::VariadicSplit>(graph.input_params, split_node_c1, split_node_c2);
+
+        auto kernel = ngraph::opset7::Constant::create(ngraph::element::f32, kernel_shape_, {1});
+
+        for (int i = 0; i < split_shape_.size(); ++i) {
+            auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(split_node->output(i),
+                                                                                       kernel,
+                                                                                       ngraph::Strides{1, 1},
+                                                                                       ngraph::CoordinateDiff{0, 0},
+                                                                                       ngraph::CoordinateDiff{0, 0},
+                                                                                       ngraph::Strides{1, 1});
+            graph.output_nodes.push_back(convolution_operation);
+        }
+    }
 
 private:
     const ngraph::Shape kernel_shape_;
     const ngraph::Shape split_shape_;
 };
-
-void CreateSplittedConvolution::updateGraph(Graph& graph) {
-    auto split_node_c1 =
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{3});
-    auto split_node_c2 =
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({split_shape_.size()}), split_shape_);
-    auto split_node = std::make_shared<ngraph::opset7::VariadicSplit>(graph.input_params, split_node_c1, split_node_c2);
-
-    auto kernel = ngraph::opset7::Constant::create(ngraph::element::f32, kernel_shape_, {1});
-
-    for (int i = 0; i < split_shape_.size(); ++i) {
-        auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(split_node->output(i),
-                                                                                   kernel,
-                                                                                   ngraph::Strides{1, 1},
-                                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                                   ngraph::Strides{1, 1});
-        graph.output_nodes.push_back(convolution_operation);
-    }
-}
 
 class CreateAdd : public CreateAppendableGraphDecorator {
 public:
@@ -261,9 +264,10 @@ Graph createSolidGraph(const ngraph::Shape& input_shape, const ngraph::Shape& ke
 
 // -------------------------------------------------------------------------------------------------------
 
-class SplitConvolutionFixture : public CommonTestUtils::TestsCommon,
-                                public ::testing::WithParamInterface<
-                                    std::tuple<Graph /* tranformed */, Graph /* reference */, ngraph::pass::Manager>> {
+using TestParams = std::tuple<Graph, Graph, ngraph::pass::Manager>;
+
+class SplitConvolutionFixture : public ov::test::TestsCommon,
+                                public ::testing::WithParamInterface<std::tuple<DeviceVersion, TestParams>> {
 public:
     void SetUp() override;
 
@@ -274,10 +278,14 @@ public:
 
 void SplitConvolutionFixture::SetUp() {
     // TODO: use auto & [transformed_graph, reference_graph] = this->GetParam() when C++17
+    DeviceVersion device_version;
+    TestParams params;
     Graph transformed_graph;
     Graph reference_graph;
-    std::tie(transformed_graph, reference_graph, pass_manager) = this->GetParam();
+    std::tie(device_version, params) = this->GetParam();
+    std::tie(transformed_graph, reference_graph, pass_manager) = params;
 
+    Limitations::init(device_version);
     function = transformed_graph.createFunction();
     reference_function = reference_graph.createFunction();
 }
@@ -305,34 +313,70 @@ TEST_P(SplitConvolutionFixture, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    SplitConvolutionTestSuite,
+    SplitConvolution_GNA3_0_3_5_3_6_TestSuite,
     SplitConvolutionFixture,
-    ::testing::Values(
-        std::make_tuple(createGraph<CreateConvolution>(),
-                        createGraph<CreateConcat, CreateSplittedConvolution>(),
-                        createPassManager<ov::intel_gna::pass::SplitConvolution>()),
-        std::make_tuple(createGraph<CreateAdd, CreateConvolution>(),
-                        createGraph<CreateConcat, CreateAdd, CreateSplittedConvolution>(),
-                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithBias>()),
-        std::make_tuple(createGraph<CreateFakeQuantize, CreateConvolution>(),
-                        createGraph<CreateConcat, CreateFakeQuantize, CreateSplittedConvolution>(),
-                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()),
-        std::make_tuple(createGraph<CreateFakeQuantize, CreateAdd, CreateConvolution>(),
-                        createGraph<CreateConcat, CreateFakeQuantize, CreateAdd, CreateSplittedConvolution>(),
-                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()),
-        std::make_tuple(createSolidGraph(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createSolidGraph(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createPassManager<ov::intel_gna::pass::SplitConvolution>()),
-        std::make_tuple(createSolidGraph<CreateAdd>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createSolidGraph<CreateAdd>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithBias>()),
-        std::make_tuple(createSolidGraph<CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createSolidGraph<CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-                        createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()),
-        std::make_tuple(
-            createSolidGraph<CreateAdd, CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-            createSolidGraph<CreateAdd, CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
-            createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>())));
+    ::testing::Combine(
+        ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5, DeviceVersion::GNA3_6),
+        ::testing::Values(
+            std::make_tuple(createSolidGraph(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
+                            createSolidGraph(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
+                            createPassManager<ov::intel_gna::pass::SplitConvolution>()),
+            std::make_tuple(createSolidGraph<CreateAdd>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
+                            createSolidGraph<CreateAdd>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
+                            createPassManager<ov::intel_gna::pass::SplitConvolutionWithBias>()),
+            std::make_tuple(createSolidGraph<CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
+                            createSolidGraph<CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
+                            createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()),
+            std::make_tuple(
+                createSolidGraph<CreateAdd, CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
+                createSolidGraph<CreateAdd, CreateFakeQuantize>(ngraph::Shape{1, 1, 1, 1}, ngraph::Shape{1, 1, 1, 1}),
+                createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()))));
+
+ngraph::Shape kernel_shape_3_5 = {1, 64, 1, 1};
+ngraph::Shape split_shape_3_5 = {960, 960, 960, 960, 256};
+using CreateSplitedConvolution3_5 = CreateSplittedConvolution<kernel_shape_3_5, split_shape_3_5>;
+
+INSTANTIATE_TEST_SUITE_P(
+    SplitConvolution_GNA3_0_3_5_TestSuite,
+    SplitConvolutionFixture,
+    ::testing::Combine(
+        ::testing::Values(DeviceVersion::GNA3_0, DeviceVersion::GNA3_5),
+        ::testing::Values(
+            std::make_tuple(createGraph<CreateConvolution>(),
+                            createGraph<CreateConcat, CreateSplitedConvolution3_5>(),
+                            createPassManager<ov::intel_gna::pass::SplitConvolution>()),
+            std::make_tuple(createGraph<CreateAdd, CreateConvolution>(),
+                            createGraph<CreateConcat, CreateAdd, CreateSplitedConvolution3_5>(),
+                            createPassManager<ov::intel_gna::pass::SplitConvolutionWithBias>()),
+            std::make_tuple(createGraph<CreateFakeQuantize, CreateConvolution>(),
+                            createGraph<CreateConcat, CreateFakeQuantize, CreateSplitedConvolution3_5>(),
+                            createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()),
+            std::make_tuple(createGraph<CreateFakeQuantize, CreateAdd, CreateConvolution>(),
+                            createGraph<CreateConcat, CreateFakeQuantize, CreateAdd, CreateSplitedConvolution3_5>(),
+                            createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()))));
+
+ngraph::Shape kernel_shape_3_6 = {1, 64, 1, 1};
+ngraph::Shape split_shape_3_6 = {1008, 1008, 1008, 1008, 64};
+using CreateSplitedConvolution3_6 = CreateSplittedConvolution<kernel_shape_3_6, split_shape_3_6>;
+
+INSTANTIATE_TEST_SUITE_P(
+    SplitConvolution_GNA3_6_TestSuite,
+    SplitConvolutionFixture,
+    ::testing::Combine(
+        ::testing::Values(DeviceVersion::GNA3_6),
+        ::testing::Values(
+            std::make_tuple(createGraph<CreateConvolution>(),
+                            createGraph<CreateConcat, CreateSplitedConvolution3_6>(),
+                            createPassManager<ov::intel_gna::pass::SplitConvolution>()),
+            std::make_tuple(createGraph<CreateAdd, CreateConvolution>(),
+                            createGraph<CreateConcat, CreateAdd, CreateSplitedConvolution3_6>(),
+                            createPassManager<ov::intel_gna::pass::SplitConvolutionWithBias>()),
+            std::make_tuple(createGraph<CreateFakeQuantize, CreateConvolution>(),
+                            createGraph<CreateConcat, CreateFakeQuantize, CreateSplitedConvolution3_6>(),
+                            createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()),
+            std::make_tuple(createGraph<CreateFakeQuantize, CreateAdd, CreateConvolution>(),
+                            createGraph<CreateConcat, CreateFakeQuantize, CreateAdd, CreateSplitedConvolution3_6>(),
+                            createPassManager<ov::intel_gna::pass::SplitConvolutionWithFq>()))));
 
 }  // namespace
 }  // namespace testing

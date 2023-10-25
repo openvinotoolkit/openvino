@@ -15,9 +15,9 @@ std::string CascadeConcat::getTestCaseName(const testing::TestParamInfo<CascadeC
     std::tie(input1, input2, input3, netPrecision, multioutput, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(input1[0]) << "_";
-    results << CommonTestUtils::vec2str(input2[0]) << "_";
-    results << CommonTestUtils::vec2str(input3[0]) << "_";
+    results << "IS=" << ov::test::utils::vec2str(input1[0]) << "_";
+    results << ov::test::utils::vec2str(input2[0]) << "_";
+    results << ov::test::utils::vec2str(input3[0]) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "Multioutput=" << multioutput << "_";
     results << "targetDevice=" << targetName << "_";
@@ -32,7 +32,10 @@ void CascadeConcat::SetUp() {
     std::tie(input1, input2, input3, netPrecision, multioutput, targetDevice, additional_config) = this->GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto input = ngraph::builder::makeParams(ngPrc, {input1[0], input2[0], input3[0]});
+    ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input1[0])),
+                              std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input2[0])),
+                              std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input3[0]))};
+
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(input[0]);
     auto relu2 = std::make_shared<ngraph::opset1::Relu>(input[1]);
     auto relu3 = std::make_shared<ngraph::opset1::Relu>(input[2]);
@@ -65,7 +68,7 @@ std::string CascadeConcatWithMultiConnReshape::getTestCaseName(const testing::Te
     std::tie(inputShape, netPrecision, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    results << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";
     for (auto const& configItem : additional_config) {
@@ -100,7 +103,7 @@ void CascadeConcatWithMultiConnReshape::SetUp() {
 
     auto inputShapeSqueezed = inputShape;
     inputShapeSqueezed.insert(std::begin(inputShapeSqueezed), 1);
-    auto input = ngraph::builder::makeParams(ngPrc, {inputShapeSqueezed});
+    ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapeSqueezed))};
     auto relu = std::make_shared<ngraph::opset8::Relu>(input[0]);
     auto const1 = ngraph::builder::makeConstant(ngPrc, inputShapeSqueezed, std::vector<float>{}, true);
     auto concat1 = ngraph::builder::makeConcat({relu, const1}, inputShapeSqueezed.size() - 1);

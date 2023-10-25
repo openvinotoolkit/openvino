@@ -9,8 +9,6 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 
-using namespace std;
-
 namespace ov {
 op::v3::Bucketize::Bucketize(const Output<Node>& data,
                              const Output<Node>& buckets,
@@ -58,10 +56,10 @@ void op::v3::Bucketize::validate_and_infer_types() {
     set_output_type(0, m_output_type, output_shapes[0]);
 }
 
-shared_ptr<Node> op::v3::Bucketize::clone_with_new_inputs(const OutputVector& inputs) const {
+std::shared_ptr<Node> op::v3::Bucketize::clone_with_new_inputs(const OutputVector& inputs) const {
     OV_OP_SCOPE(v3_Bucketize_clone_with_new_inputs);
     check_new_args_count(this, inputs);
 
-    return make_shared<v3::Bucketize>(inputs.at(0), inputs.at(1), m_output_type, m_with_right_bound);
+    return std::make_shared<v3::Bucketize>(inputs.at(0), inputs.at(1), m_output_type, m_with_right_bound);
 }
 }  // namespace ov

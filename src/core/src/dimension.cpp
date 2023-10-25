@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/dimension.hpp"
+#include "openvino/core/dimension.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <limits>
-#include <openvino/util/common_util.hpp>
 #include <sstream>
 
-#include "dimension_tracker.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/util/common_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace {
 /**
@@ -230,7 +230,7 @@ bool Dimension::broadcast_merge(Dimension& dst, const Dimension& d1, const Dimen
 
 Dimension::value_type Dimension::get_length() const {
     if (is_dynamic()) {
-        throw std::invalid_argument("Cannot get length of dynamic dimension");
+        OPENVINO_THROW("Cannot get length of dynamic dimension");
     }
     return m_dimension.get_min_val();
 }

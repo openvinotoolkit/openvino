@@ -16,16 +16,31 @@
 
 #include <sys/stat.h>
 
-#include <openvino/util/log.hpp>
 #include <string>
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "plugin_loader.hpp"
 
 using namespace ov;
 using namespace ov::frontend;
+
+// Note, static methods below are required to create an order of initialization of static variables
+// e.g. if users (not encouraged) created ov::Model globally, we need to ensure proper order of initialization
+
+/// \return map of shared object per frontend <frontend_name, frontend_so_ptr>
+std::unordered_map<std::string, std::shared_ptr<void>>& ov::frontend::get_shared_objects_map() {
+    static std::unordered_map<std::string, std::shared_ptr<void>> shared_objects_map;
+    return shared_objects_map;
+}
+
+/// \return Mutex to guard access the shared object map
+std::mutex& ov::frontend::get_shared_objects_mutex() {
+    static std::mutex shared_objects_map_mutex;
+    return shared_objects_map_mutex;
+}
 
 #ifdef OPENVINO_STATIC_LIBRARY
 
@@ -131,6 +146,10 @@ bool PluginInfo::load() {
         m_load_failed = true;
         return false;
     }
+
+    std::lock_guard<std::mutex> guard(get_shared_objects_mutex());
+    get_shared_objects_map().emplace(get_creator().m_name, get_so_pointer());
+
     return true;
 }
 
@@ -143,7 +162,8 @@ bool PluginInfo::load_internal() {
         so = ov::util::load_shared_object(m_file_path.c_str());
 #endif
     } catch (const std::exception& ex) {
-        OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
+        OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what()
+                       << " Please check that frontend library doesn't have unresolved dependencies." << std::endl;
         return false;
     }
 

@@ -278,7 +278,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
         }
 
         // Benchmark
-        for (size_t i = 0; i < num_attempts_; ++i) {
+        for (int i = 0; i < num_attempts_; ++i) {
             this->inferRequest.infer();
             const auto& profiling_info = this->inferRequest.get_profiling_info();
             for (auto& res : results_us) {

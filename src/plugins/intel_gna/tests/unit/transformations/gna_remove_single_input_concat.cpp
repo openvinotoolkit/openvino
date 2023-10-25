@@ -9,7 +9,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 
 namespace testing {
@@ -93,7 +93,7 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
 // -------------------------------------------------------------------------------------------------------
 
 class RemoveSingleInputConcatFixture
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public ::testing::WithParamInterface<std::tuple<Graph /* tranformed */, Graph /* reference */>> {
 public:
     void SetUp() override;

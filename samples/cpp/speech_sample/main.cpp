@@ -223,6 +223,7 @@ int main(int argc, char* argv[]) {
         gnaPluginConfig[ov::hint::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
         const std::unordered_map<std::string, ov::intel_gna::HWGeneration> StringHWGenerationMap{
             {"GNA_TARGET_1_0", ov::intel_gna::HWGeneration::GNA_1_0},
+            {"GNA_TARGET_1_0_E", ov::intel_gna::HWGeneration::GNA_1_0_E},
             {"GNA_TARGET_2_0", ov::intel_gna::HWGeneration::GNA_2_0},
             {"GNA_TARGET_3_0", ov::intel_gna::HWGeneration::GNA_3_0},
             {"GNA_TARGET_3_1", ov::intel_gna::HWGeneration::GNA_3_1},
@@ -292,7 +293,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
+        // --------------------------- Exporting gna model using OpenVINO API---------------------
         if (!FLAGS_wg.empty()) {
             slog::info << "Writing GNA Model to file " << FLAGS_wg << slog::endl;
             t0 = Time::now();

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/activation_concats_eltwise.hpp"
 
 namespace SubgraphTestsDefinitions {
 
-using namespace CommonTestUtils;
+using namespace ov::test::utils;
 using namespace InferenceEngine;
 
 std::string ActivationConcatsEltwise::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
@@ -23,6 +23,9 @@ std::string ActivationConcatsEltwise::getTestCaseName(const testing::TestParamIn
     result << "CS=" << concatSize << "_";
     result << "PRC=" << netPrecision.name() << "_";
     result << "dev=" << targetDevice;
+    for (auto const& configItem : configuration) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return result.str();
 }
 
@@ -35,12 +38,12 @@ void ActivationConcatsEltwise::SetUp() {
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
+    ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputSize})};
 
     auto relu = ngraph::builder::makeActivation(input[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
 
-    auto concat_vals_1 = CommonTestUtils::generate_float_numbers(concatSize, 14, 14);
-    auto concat_vals_2 = CommonTestUtils::generate_float_numbers(concatSize, 14, 14);
+    auto concat_vals_1 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
+    auto concat_vals_2 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
     auto concat_const_1 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_1);
     auto concat_const_2 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_2);
 

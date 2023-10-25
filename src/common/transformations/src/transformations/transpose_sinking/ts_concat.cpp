@@ -21,45 +21,39 @@ using namespace ov::pass::transpose_sinking::utils;
 TSConcatForward::TSConcatForward() {
     MATCHER_SCOPE(TSConcatForward);
 
-    auto main_node_label = wrap_type<ov::op::v0::Concat>(IfNodeHasTransposeInputs);
+    create_pattern<ov::op::v0::Concat>(true);
 
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_value_map();
-
-        auto& main_node_output = pattern_to_output.at(main_node_label);
-        auto main_node = main_node_output.get_node_shared_ptr();
-        if (transformation_callback(main_node)) {
+    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
+                                      const TransposeInputsInfo& transpose_info) -> bool {
+        // todo: support dynamic rank case
+        auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
+        if (!concat_node) {
             return false;
         }
 
-        TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
-        auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
+        if (transformation_callback(concat_node)) {
+            return false;
+        }
+
         auto concat_axis = concat_node->get_concatenation_axis();
         if (concat_axis < 0) {
             return false;
         }
         // todo: support dyn rank case
-        bool updated = sink_forward::UpdateInputTransposes(main_node, transpose_input_info);
+        bool updated = sink_forward::UpdateInputTransposes(main_node, transpose_info);
         if (!updated) {
             return false;
         }
 
-        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
+        const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
         const int64_t transposed_concat_axis = transpose_axis_order[concat_axis];
         concat_node->set_axis(transposed_concat_axis);
         concat_node->set_concatenation_axis(-1);
 
-        main_node->validate_and_infer_types();
-        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
-            register_new_node(new_node);
-            UpdateForwardSinkingAbility(new_node);
-        }
-
+        default_outputs_update(main_node, transpose_info);
         return true;
     };
-
-    auto m = std::make_shared<Matcher>(main_node_label, matcher_name);
-    register_matcher(m, matcher_pass_callback);
+    transpose_sinking(matcher_name, sinking_transformation);
 }
 
 TSConcatBackward::TSConcatBackward() {

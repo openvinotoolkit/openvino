@@ -9,12 +9,13 @@ import sys
 import numpy as np
 
 import openvino.runtime as ov
-from openvino.runtime import Tensor
+import openvino.runtime.opset11 as ops
+from openvino import Tensor
 from openvino.helpers import pack_data, unpack_data
 
 import pytest
 
-from tests.test_utils.test_utils import generate_image
+from tests.utils.helpers import generate_image, generate_relu_compiled_model
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -146,6 +147,62 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     assert np.array_equal(ov_tensor.data, arr)
     assert ov_tensor.size == arr.size
     assert ov_tensor.byte_size == arr.nbytes
+
+
+def test_init_with_node_output_port():
+    param1 = ops.parameter(ov.Shape([1, 3, 2, 2]), dtype=np.float64)
+    param2 = ops.parameter(ov.Shape([1, 3, 32, 32]), dtype=np.float64)
+    param3 = ops.parameter(ov.PartialShape.dynamic(), dtype=np.float64)
+    ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float64)
+    tensor1 = Tensor(param1.output(0))
+    tensor2 = Tensor(param2.output(0), ones_arr)
+    tensor3 = Tensor(param3.output(0))
+    tensor4 = Tensor(param3.output(0), ones_arr)
+    assert tensor1.shape == param1.shape
+    assert tensor1.element_type == param1.get_element_type()
+    assert tensor2.shape == param2.shape
+    assert tensor2.element_type == param2.get_element_type()
+    assert tensor3.shape == ov.Shape([0])
+    assert tensor3.element_type == param3.get_element_type()
+    assert tensor4.shape == ov.Shape([0])
+    assert tensor4.element_type == param3.get_element_type()
+
+
+def test_init_with_node_constoutput_port(device):
+    compiled_model = generate_relu_compiled_model(device)
+    output = compiled_model.output(0)
+    ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
+
+    tensor1 = Tensor(output)
+    tensor2 = Tensor(output, ones_arr)
+
+    output_node = output.get_node()
+    assert tensor1.shape == output_node.shape
+    assert tensor1.element_type == output_node.get_element_type()
+    assert tensor2.shape == output_node.shape
+    assert tensor2.element_type == output_node.get_element_type()
+    assert np.array_equal(tensor2.data, ones_arr)
+
+
+def test_init_with_output_port_different_shapes():
+    param1 = ops.parameter(ov.Shape([2]), dtype=np.float32)
+    param2 = ops.parameter(ov.Shape([5]), dtype=np.float32)
+
+    ones_arr = np.ones(shape=(2, 2), dtype=np.float32)
+    with pytest.warns(RuntimeWarning):
+        Tensor(param1.output(0), ones_arr)
+
+    with pytest.raises(RuntimeError) as e:
+        Tensor(param2.output(0), ones_arr)
+    assert "Shape of the port exceeds shape of the array." in str(e.value)
+
+
+def test_init_with_output_port_different_types():
+    param1 = ops.parameter(ov.Shape([2]), dtype=np.int16)
+    ones_arr = np.ones(shape=(2, 2), dtype=np.int8)
+    with pytest.warns(RuntimeWarning):
+        tensor = Tensor(param1.output(0), ones_arr)
+    assert not np.array_equal(tensor.data, ones_arr)
 
 
 def test_init_with_roi_tensor():
@@ -320,6 +377,7 @@ def test_init_with_packed_buffer(dtype, ov_type):
     (0, 2, ov.Type.u1, np.uint8),
     (0, 16, ov.Type.u4, np.uint8),
     (-8, 7, ov.Type.i4, np.int8),
+    (0, 16, ov.Type.nf4, np.uint8),
 ])
 def test_packing(shape, low, high, ov_type, dtype):
     ov_tensor = Tensor(ov_type, shape)
@@ -378,3 +436,53 @@ def test_stride_calculation():
 
     elements = (ov_tensor.shape[1] * ov_tensor.shape[2] * ov_tensor.shape[3])
     assert ov_tensor.strides[0] == elements * ov_tensor.get_element_type().size
+
+
+@pytest.mark.parametrize(("element_type", "dtype"), [
+    (ov.Type.f32, np.float32),
+    (ov.Type.f64, np.float64),
+    (ov.Type.f16, np.float16),
+    (ov.Type.bf16, np.float16),
+    (ov.Type.i8, np.int8),
+    (ov.Type.u8, np.uint8),
+    (ov.Type.i32, np.int32),
+    (ov.Type.u32, np.uint32),
+    (ov.Type.i16, np.int16),
+    (ov.Type.u16, np.uint16),
+    (ov.Type.i64, np.int64),
+    (ov.Type.u64, np.uint64),
+])
+def test_copy_to(dtype, element_type):
+    tensor = ov.Tensor(shape=ov.Shape([3, 2, 2]), type=element_type)
+    target_tensor = ov.Tensor(shape=ov.Shape([3, 2, 2]), type=element_type)
+
+    ones_arr = np.ones(list(tensor.shape), dtype)
+    tensor.data[:] = ones_arr
+
+    zeros = np.zeros(list(target_tensor.shape), dtype)
+    target_tensor.data[:] = zeros
+
+    tensor.copy_to(target_tensor)
+    assert tensor.shape == target_tensor.shape
+    assert tensor.element_type == target_tensor.element_type
+    assert tensor.byte_size == target_tensor.byte_size
+    assert np.array_equal(tensor.data, target_tensor.data)
+
+
+@pytest.mark.parametrize("element_type", [
+    (ov.Type.f32),
+    (ov.Type.f64),
+    (ov.Type.f16),
+    (ov.Type.bf16),
+    (ov.Type.i8),
+    (ov.Type.u8),
+    (ov.Type.i32),
+    (ov.Type.u32),
+    (ov.Type.i16),
+    (ov.Type.u16),
+    (ov.Type.i64),
+    (ov.Type.u64),
+])
+def test_is_continuous(element_type):
+    tensor = ov.Tensor(shape=ov.Shape([3, 2, 2]), type=element_type)
+    assert tensor.is_continuous()

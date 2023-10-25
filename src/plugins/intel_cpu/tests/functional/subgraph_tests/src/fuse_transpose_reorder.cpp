@@ -3,7 +3,7 @@
 //
 
 #include "subgraph_tests/include/fuse_transpose_reorder.hpp"
-#include <ngraph_functions/preprocess/preprocess_builders.hpp>
+#include <ov_models/preprocess/preprocess_builders.hpp>
 #include <openvino/openvino.hpp>
 
 using namespace InferenceEngine;
@@ -17,7 +17,7 @@ std::string FuseTransposeAndReorderTest::getTestCaseName(testing::TestParamInfo<
     Precision inPrec;
     std::tie(inputShape, inPrec) = obj.param;
 
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "Precision=" << inPrec.name();
 
     return result.str();
@@ -44,7 +44,7 @@ void FuseTransposeAndReorderTest::CheckTransposeCount(size_t expectedTransposeCo
 }
 
 void FuseTransposeAndReorderTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     std::tie(inputShape, inPrec) = this->GetParam();
     CreateGraph();
@@ -77,7 +77,7 @@ const auto fuseTransposeAndReorderCommonParams = ::testing::Combine(
 
 void FuseTransposeAndReorderTest::CreateGraph() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 2, 3, 4, 1} : std::vector<int64_t>{0, 2, 3, 1};
     auto memFmt = inputShape.size() == 5 ? ndhwc : nhwc;
@@ -136,7 +136,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest, fuseTranspose
 
 void FuseTransposeAndReorderTest1::CreateGraph() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 2, 3, 4, 1} : std::vector<int64_t>{0, 2, 3, 1};
 
@@ -204,8 +204,8 @@ void FuseTransposeAndReorderTest2::CreateGraph() {
 
     auto inputShape2(inputShape);
     inputShape2[inputShape2.size() - 1] *= 2;
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape2});
-
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape2))};
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 4, 1, 2, 3} : std::vector<int64_t>{0, 3, 1, 2};
 
     auto constOrder1 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
@@ -258,7 +258,7 @@ void FuseTransposeAndReorderTest3::CreateGraph() {
     std::vector<ptrdiff_t> padBegin{0, 0}, padEnd{0, 0};
     size_t convOutChannels = 32;
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     IE_ASSERT(inputShape[1] >= 8 && (inputShape[1] % 8 == 0));
 
     auto convolutionNode = ngraph::builder::makeConvolution(params.front(), ngPrc, kernel, stride, padBegin,
@@ -317,20 +317,20 @@ void FuseTransposeAndReorderTest4::CreateGraph() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
     auto memFmt = nhwc;
 
-    auto inputParams = ngraph::builder::makeParams(ngPrc, {inputShape});
-    const auto relu = std::make_shared<ov::opset8::Relu>(inputParams[0]);
-    const auto transposeOrder = ov::opset8::Constant::create(ov::element::i32, {4}, {0, 3, 1, 2});
-    const auto transpose1 = std::make_shared<ov::opset8::Transpose>(relu, transposeOrder);
+    ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+    const auto relu = std::make_shared<ov::op::v0::Relu>(inputParams[0]);
+    const auto transposeOrder = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 3, 1, 2});
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(relu, transposeOrder);
     const auto conv1 = ngraph::builder::makeConvolution(transpose1, ngPrc, kernel, stride, padBegin,
                                                     padEnd, dilation, ngraph::op::PadType::AUTO, convOutChannels);
     conv1->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
-    const auto transpose2 = std::make_shared<ov::opset8::Transpose>(relu, transposeOrder);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(relu, transposeOrder);
     const auto conv2 = ngraph::builder::makeConvolution(transpose2, ngPrc, kernel, stride, padBegin,
                                                     padEnd, dilation, ngraph::op::PadType::AUTO, convOutChannels);
     conv2->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
-    const auto add = std::make_shared<ov::opset8::Add>(conv1, conv2);
+    const auto add = std::make_shared<ov::op::v1::Add>(conv1, conv2);
 
-    ov::ResultVector results{std::make_shared<ov::opset8::Result>(add->output(0))};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add->output(0))};
     function = std::make_shared<ov::Model>(results, inputParams, "TransposeReorder");
 }
 

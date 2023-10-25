@@ -130,7 +130,7 @@ inline bool nextIterationStep(std::vector<size_t>& counters, const std::vector<s
     auto itWork = iterationRange.rbegin();
 
     while (itCounter != counters.rend() && itWork != iterationRange.rend()) {
-        if (std::distance(itCounter, counters.rend()) == axis + 1) {
+        if (static_cast<size_t>(std::distance(itCounter, counters.rend())) == axis + 1) {
             ++itCounter;
             ++itWork;
             continue;
@@ -239,13 +239,13 @@ void DFT::execute(dnnl::stream strm) {
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
     const auto outputDataEdge = getChildEdgeAt(0);
 
-    const auto src = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->GetPtr());
-    auto dst = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->GetPtr());
+    const auto src = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->getData());
+    auto dst = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->getData());
 
-    const auto inputRank = inputDataEdge->getMemory().GetShape().getRank();
+    const auto inputRank = inputDataEdge->getMemory().getShape().getRank();
 
-    const auto& inputStrides = inputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    const auto& outputStrides = outputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto& inputStrides = inputDataEdge->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto& outputStrides = outputDataEdge->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     size_t nComplexMaxFFT = 0;
     for (size_t axis : axes) {
@@ -393,7 +393,7 @@ void DFT::fft(float* inBuffer,
     for (size_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
         blockSize = nextIterationBlockSize;
         nextIterationBlockSize /= 2;
-        if (parallelize && blockSize >= 4 * elementsPerCacheLine) {
+        if (parallelize && blockSize >= static_cast<size_t>(4 * elementsPerCacheLine)) {
             parallel_for(numBlocks, [&](const size_t block) {
                 blockIteration(block, 1, nextIterationBlockSize);
             });
@@ -542,7 +542,7 @@ void DFT::prepareParams() {
 
 std::vector<int32_t> DFT::getAxes() const {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
-    const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
+    const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->getData());
     auto axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
     for (auto& axis : axes) {
         if (axis < 0) {

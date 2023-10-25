@@ -44,7 +44,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose,
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::ValuesIn(inputShapes),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          TransposeLayerTest::getTestCaseName);
 
 /**
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose_5D,
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::ValuesIn(inputShapes5D),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          TransposeLayerTest::getTestCaseName);
 
 /**
@@ -106,7 +106,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose_6D,
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::ValuesIn(inputShapes6D),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          TransposeLayerTest::getTestCaseName);
 
 /**
@@ -129,7 +129,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose_8D,
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::ValuesIn(inputShapes8D),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          TransposeLayerTest::getTestCaseName);
 
 }  // namespace

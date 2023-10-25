@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -35,8 +36,8 @@ TEST(basic, test1) {
     auto weights1 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 1 } });
     auto weights2 = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 1, 1, 2 } });
 
-    set_values(input, { FLOAT16(1.1f), FLOAT16(1.2f), FLOAT16(1.3f), FLOAT16(1.4f) });
-    set_values(weights1, { FLOAT16(2.1f), FLOAT16(3.1f) });
+    set_values(input, { ov::float16(1.1f), ov::float16(1.2f), ov::float16(1.3f), ov::float16(1.4f) });
+    set_values(weights1, { ov::float16(2.1f), ov::float16(3.1f) });
     set_values(weights2, { 1.1f, 0.1f });
 
     topology topology;
@@ -179,6 +180,7 @@ TEST(add_intermediate_gpu, test2)
 }
 
 TEST(processing_order, bfs_order_restoring) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -194,9 +196,9 @@ TEST(processing_order, bfs_order_restoring) {
     auto output_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
     auto output_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
 
-    set_values(eltwise_mem,  generate_random_1d<float>(1, 0, 10));
-    set_values(input_low_mem,  generate_random_1d<float>(3, -10, 0));
-    set_values(input_high_mem, generate_random_1d<float>(3, 1, 10));
+    set_values(eltwise_mem,  rg.generate_random_1d<float>(1, 0, 10));
+    set_values(input_low_mem,  rg.generate_random_1d<float>(3, -10, 0));
+    set_values(input_high_mem, rg.generate_random_1d<float>(3, 1, 10));
     set_values(output_low_mem, { -127.0f });
     set_values(output_high_mem, { 127.0f });
 

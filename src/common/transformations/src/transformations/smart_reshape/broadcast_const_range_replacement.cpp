@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/smart_reshape/broadcast_const_range_replacement.hpp"
+
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
-#include <transformations/smart_reshape/broadcast_const_range_replacement.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -18,6 +18,7 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
@@ -31,7 +32,7 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         // The transformation was requested only for models with BroadcastType::BIDIRECTIONAL
         // Further analysis is needed for other broadcast modes enablement
         const auto broadcast_ptr = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(broadcast);
-        if (!broadcast_ptr || broadcast_ptr->get_broadcast_spec().m_type != ngraph::op::BroadcastType::BIDIRECTIONAL)
+        if (!broadcast_ptr || broadcast_ptr->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
             return false;
 
         const auto data_const_out = broadcast->get_input_source_output(0);
@@ -69,9 +70,9 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
 
         NodeRegistry node_registry;
 
-        const auto axis_node = node_registry.add(ov::op::v0::Constant::create(ngraph::element::i32, {}, {0}));
+        const auto axis_node = node_registry.add(ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
         const auto target_dim_index_node =
-            node_registry.add(ov::op::v0::Constant::create(ngraph::element::i64, {}, {target_dim_neg_index}));
+            node_registry.add(ov::op::v0::Constant::create(ov::element::i64, {}, {target_dim_neg_index}));
         const auto gather_dim =
             node_registry.make<ov::op::v8::Gather>(target_shape_out, target_dim_index_node, axis_node);
 
@@ -96,7 +97,7 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
             std::iota(final_shape_axes.begin(), final_shape_axes.end(), 0);
             final_shape_axes.erase(final_shape_axes.begin() + target_dim_index);
             const auto axes_to_unsqueeze = node_registry.add(
-                ov::op::v0::Constant::create(ngraph::element::i64, {final_shape_axes.size()}, final_shape_axes));
+                ov::op::v0::Constant::create(ov::element::i64, {final_shape_axes.size()}, final_shape_axes));
             replacement = node_registry.make<ov::op::v0::Unsqueeze>(replacement, axes_to_unsqueeze);
         }
 
@@ -105,6 +106,6 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast_pattern_node, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(broadcast_pattern_node, matcher_name);
     this->register_matcher(m, callback);
 }

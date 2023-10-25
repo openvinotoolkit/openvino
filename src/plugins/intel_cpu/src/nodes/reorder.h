@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "nodes/executors/transpose.hpp"
 #include <utils/general_utils.h>
 
 namespace ov {
@@ -24,7 +25,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
     bool isExecutable() const override;
 
@@ -61,7 +62,7 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
-    static void reorderData(const Memory &input, const Memory &output, MultiCachePtr cache = nullptr);
+    static void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache = nullptr);
 
 private:
     dnnl::reorder::primitive prim;
@@ -83,6 +84,10 @@ private:
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
     void createReorderPrimitive(const dnnl::memory::desc &srcDesc, void* srcPtr, const dnnl::memory::desc &dstDesc, void* dstPtr);
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    void prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr childDesc);
+    TransposeExecutorPtr transposeExecutor;
+#endif
 };
 
 }   // namespace node

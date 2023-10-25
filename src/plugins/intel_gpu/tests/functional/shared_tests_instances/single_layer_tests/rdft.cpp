@@ -26,7 +26,7 @@ const auto combine = [](const std::vector<InferenceEngine::SizeVector>& inputSha
                             testing::ValuesIn(axes),
                             testing::ValuesIn(signalSizes),
                             testing::ValuesIn(opTypes),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 using namespace LayerTestsDefinitions;
@@ -39,7 +39,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_1d,
                                           testing::Values(std::vector<int64_t>{0}),
                                           testing::Values(std::vector<int64_t>{}),
                                           testing::Values(ngraph::helpers::DFTOpType::FORWARD),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          RDFTLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RDFT_3d,
@@ -85,7 +85,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_5d_last_axis,
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}}}),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {3, 10, 8, 6, 2}}),
                                           testing::Values(ngraph::helpers::DFTOpType::FORWARD),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          RDFTLayerTest::getTestCaseName);
 
 // IRDFT can support 6d
@@ -96,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_6d,
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}}}),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {3, 10, 8, 6, 2}}),
                                           testing::Values(ngraph::helpers::DFTOpType::INVERSE),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          RDFTLayerTest::getTestCaseName);
 
 }  // namespace

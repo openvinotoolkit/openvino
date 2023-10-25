@@ -34,21 +34,21 @@ std::vector<ov::element::Type> supported_input_prcs = {ov::element::f32, ov::ele
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestIOTensorTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          OVInferRequestIOTensorTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(::testing::ValuesIn(supported_input_prcs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 

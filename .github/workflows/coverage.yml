@@ -20,24 +20,24 @@ jobs:
         with:
           python-version: '3.10.10'
           architecture: 'x64'
-          
-        
+
+
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           max-size: 50G
-      
+
       - name: Clone OpenVINO
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          submodules: recursive
-      
+          submodules: 'true'
+
       - name: Install dependencies
         run: |
           sudo apt --assume-yes update
           sudo -E ${{ github.workspace }}/install_build_dependencies.sh
           sudo apt --assume-yes install lcov
-          
+
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
@@ -56,9 +56,9 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_onnx.txt
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_tf2.txt
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
-          
+
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: Build OpenVINO with CMake
@@ -85,28 +85,34 @@ jobs:
             -DENABLE_SYSTEM_SNAPPY=ON
           build-type: Release
           parallel: ${{ steps.cpu-cores.outputs.count }}
-      
+
       - name: Install wheel packages
         run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P '${{ github.workspace }}/build/cmake_install.cmake'
-      
+
       - name: Install python wheels
         run: python3 -m pip install openvino-dev --find-links=${{ github.workspace }}/install_pkg/tools
-      
+
       - name: List binaries
         run: ls -la ${{ github.workspace }}/bin/intel64/Release
-      
+
       - name: Install OpenVINO
         run: cmake -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P '${{ github.workspace }}/build/cmake_install.cmake'
-      
+
       - name: Run OV core unit tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests # --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ github.workspace }}/testdata/TEST-NGraphUT.xml
+        run: ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests
+
+      - name: Run OV Proxy plugin tests
+        run: ${{ github.workspace }}/bin/intel64/Release/ov_proxy_plugin_tests
+
+      - name: Run OV Hetero Func tests
+        run: ${{ github.workspace }}/bin/intel64/Release/ov_hetero_func_tests
 
       - name: Run IR frontend tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests # --gtest_print_time=1 --gtest_output=xml:${{ github.workspace }}/testdata/TEST-IRFrontend.xml
-      
+        run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests
+
       - name: Run ONNX frontend tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*
-      
+
       #- name: Run Paddle frontend unit tests
       #  run: ${{ github.workspace }}/bin/intel64/Release/paddle_tests --gtest_filter=-*IE_GPU*
 
@@ -128,7 +134,7 @@ jobs:
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
           parallel: ${{ steps.cpu-cores.outputs.count }}
 
-      
+
       - name: Print info
         run: |
           ls -laR
@@ -138,6 +144,6 @@ jobs:
           lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
           genhtml coverage.info --output-directory coverage-report
       - name: Collect coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           verbose: true

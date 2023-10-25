@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/gather_tree.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -34,10 +34,10 @@ public:
         std::tie(inputShape, secondaryInputType, netPrecision, targetName) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
         for (const auto& item : inputShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "secondaryInputType=" << secondaryInputType << "_";
         result << "netPRC=" << netPrecision << "_";
@@ -77,7 +77,7 @@ protected:
         std::shared_ptr<ngraph::Node> inp3;
         std::shared_ptr<ngraph::Node> inp4;
 
-        auto paramsIn = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
         if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
             inp2 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[1]);
             inp3 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[2]);
@@ -166,7 +166,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_gathertree_parameter_compareWithRefs_dynamic, Gat
                             ::testing::ValuesIn(inputDynamicShapesParameter),
                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         GatherTreeLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_gathertree_constant_compareWithRefs_dynamic, GatherTreeLayerGPUTest,
@@ -174,7 +174,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_gathertree_constant_compareWithRefs_dynamic, Gath
                             ::testing::ValuesIn(inputDynamicShapesConstant),
                             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         GatherTreeLayerGPUTest::getTestCaseName);
 
 } // namespace

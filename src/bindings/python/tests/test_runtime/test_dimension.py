@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime import Dimension
+from openvino import Dimension
 
 
 def test_dynamic_dimension():

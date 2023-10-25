@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
+
 #include <gtest/gtest.h>
 
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp>
-#include <transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
 using namespace testing;
 using namespace ov;

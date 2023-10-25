@@ -10,10 +10,11 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/file_util.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
 #include "utils.hpp"
-#include "openvino/util/file_util.hpp"
+#include "runtime/ocl/ocl_event.hpp"
 
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -40,22 +41,37 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     PrimDescType _pd;
     PrimType _prim;
     std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _args;
+    dnnl::memory::desc _scratchpad_md;
     bool _enable_profiling = false;
 
     typed_primitive_onednn_impl(const engine& engine,
             const ExecutionConfig& config,
             std::shared_ptr<dnnl::primitive_attr> attrs,
             const PrimDescType& pd,
-            kernel_selector::WeightsReorderParams weights_reorder = {})
-        : typed_primitive_impl<PType>(create_weights_reorder_params(weights_reorder), pd.impl_info_str()),
+            std::shared_ptr<WeightsReorderParams> weights_reorder = {})
+        : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
         _engine(&engine),
         _attrs(attrs),
         _pd(pd) {
             _enable_profiling = config.get_property(ov::enable_profiling);
+
+            _scratchpad_md = _pd.scratchpad_desc();
+
             GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
                 _enable_profiling = true;
             }
+
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                if (_scratchpad_md.get_size() > 0) {
+                    static std::atomic_llong total{0};
+                    int64_t size = _scratchpad_md.get_size() / 1048576;
+                    total += size;
+                    GPU_DEBUG_TRACE_DETAIL << " [scratchpad] kind: " << static_cast<int>(_pd.get_kind())
+                        << ", " << size << "MB, total " << total << "MB" << std::endl;
+                }
+            }
+
             build_primitive(config);
         }
 
@@ -73,6 +89,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
     typed_primitive_onednn_impl()
         : typed_primitive_impl<PType>({}, "undef"),
+          _engine(nullptr),
           _pd(), _prim() {
         _attrs = std::make_shared<dnnl::primitive_attr>();
     }
@@ -192,7 +209,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
         if (has_attrs) {
             {
-                dnnl::scratchpad_mode _scratchpad_mode = dnnl::scratchpad_mode::library;
+                dnnl::scratchpad_mode _scratchpad_mode = dnnl::scratchpad_mode::user;
                 ib >> make_data(&_scratchpad_mode, sizeof(dnnl::scratchpad_mode));
                 _attrs->set_scratchpad_mode(_scratchpad_mode);
             }
@@ -352,7 +369,7 @@ private:
 
                 {
                     std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                    ov::util::save_binary(generate_cache_path_from_key(config, key), cache);
+                    ov::intel_gpu::save_binary(generate_cache_path_from_key(config, key), cache);
                 }
             } else {
                 _prim = PrimType(_pd, cache);
@@ -443,14 +460,20 @@ protected:
 
         {
             auto& input = instance.input_memory(0);
-            auto offset = onednn::get_f_offset(instance.get_input_layout(), _pd.dnnl::primitive_desc_base::src_desc(0));
+            auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
             args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            auto offset = onednn::get_f_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
+        }
+
+        if (_scratchpad_md.get_size() != 0) {
+            // onednn primitive can have only 1 scratchpad memory.
+            auto scratchpad = instance.get_intermediates_memories()[0];
+            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
         }
 
         configure_post_ops_arguments(instance, args);
@@ -459,16 +482,6 @@ protected:
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
-
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
-        if (events.size() == 1 && !is_output)
-            return events[0];
-
-        if (group && !is_output)
-            return stream.group_events(events);
-
-        return stream.enqueue_marker(events, is_output);
-    }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
         if (instance.can_be_optimized())
@@ -485,8 +498,11 @@ protected:
         event::ptr event;
 
         if (_enable_profiling) {
-            stream.finish();
-            event = stream.create_user_event(false);
+            if (instance.can_be_optimized()) {
+                event = stream.create_user_event(true);
+            } else {
+                dnnl::reset_profiling(stream.get_onednn_stream());
+            }
         }
 
         if (!instance.can_be_optimized()) {
@@ -499,14 +515,33 @@ protected:
                 }
                 throw;    // rethrowing dnnl::error if not out_of_memory
             }
-        }
 
-        if (_enable_profiling) {
-            stream.finish();
-            event->set();
+            if (_enable_profiling) {
+                // Call wait() function here instead of finish() to prevent cache flushing,
+                // this synchronization point is needed for correct OneDNN's profiling process
+                stream.wait();
+
+                std::vector<uint64_t> duration = dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
+                OPENVINO_ASSERT(duration.size() == 1, "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
+                                                      "actual number is ", duration.size());
+
+                event = std::make_shared<ocl::ocl_event>(duration[0]);
+            } else {
+                // If oneDNN primitive is the output primitive or it's user is CPU implementation, then enqueue marker
+                // with empty events wait list (which will trigger wait for all previously enqueued tasks) and
+                // return it as oneDNN primitive's event as it is a single option for proper synchronization
+                if (instance.needs_completion_event())
+                    event = stream.enqueue_marker({});
+            }
         }
 
         return event;
+    }
+
+    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+        if (_scratchpad_md.get_size() == 0)
+            return {};
+        return {{{1, 1, 1, (tensor::value_type)(_scratchpad_md.get_size())}, cldnn::data_types::u8, format::bfyx}};
     }
 };
 

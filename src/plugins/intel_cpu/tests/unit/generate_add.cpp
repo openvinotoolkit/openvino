@@ -27,7 +27,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 
 using namespace testing;
 
@@ -58,7 +58,7 @@ inline auto compare(std::shared_ptr<ngraph::Function>& s, std::shared_ptr<ngraph
     const float* pact = reinterpret_cast<float*>(&act[0].second[0]);
 
     bool isCorrect = true;
-    for (int i = 0; i < ngraph::shape_size(f->get_result()->get_shape()); i++) {
+    for (size_t i = 0; i < ngraph::shape_size(f->get_result()->get_shape()); i++) {
         if (std::abs(pexp[i]-pact[i]) > std::numeric_limits<float>::epsilon()
             || std::isnan(pexp[i]) != std::isnan(pact[i])) {
             isCorrect = false;
@@ -113,7 +113,7 @@ TEST(SnippetsTests, GenerateAddConstant) {
         auto input0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, shape);
 
         std::vector<float> vals(ngraph::shape_size(shape));
-        for (int i = 0; i < ngraph::shape_size(shape); i++) {
+        for (size_t i = 0; i < ngraph::shape_size(shape); i++) {
             vals[i] = 1-i/2048.f;
         }
         auto input1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, shape, vals);
@@ -198,7 +198,7 @@ TEST(SnippetsTests, GenerateAddBroadcastX2Edges) {
     float* in0 = reinterpret_cast<float*>(&referenceInputs[0][0]);
     float* in1 = reinterpret_cast<float*>(&referenceInputs[1][0]);
     float* in2 = reinterpret_cast<float*>(&referenceInputs[2][0]);
-    for (int i = 0; i < ngraph::shape_size(shape0); i++) {
+    for (size_t i = 0; i < ngraph::shape_size(shape0); i++) {
         in0[i] = i/2048.f;
     }
 
@@ -212,7 +212,7 @@ TEST(SnippetsTests, GenerateAddBroadcastX2Edges) {
     const float* pact = reinterpret_cast<float*>(&act[0].second[0]);
 
     bool isCorrect = true;
-    for (int i = 0; i < ngraph::shape_size(shape0); i++) {
+    for (size_t i = 0; i < ngraph::shape_size(shape0); i++) {
         if (pexp[i] != pact[i]) {
             isCorrect = false;
             std::cout << i << " expected " << pexp[i] << " actual " << pact[i] << std::endl;
@@ -401,11 +401,11 @@ TEST(SnippetsTests, GenerateAddBroadcastAutomatic) {
     })(shapes[0], shapes[1], shapes[2]);
 
     std::vector<std::vector<std::uint8_t>> referenceInputs(3);
-    for (int k = 0; k < referenceInputs.size(); k++) {
+    for (size_t k = 0; k < referenceInputs.size(); k++) {
         referenceInputs[k].resize(ngraph::shape_size(shapes[k]) * sizeof(float));
 
         auto in0 = reinterpret_cast<float*>(&referenceInputs[k][0]);
-        for (int i = 0; i < ngraph::shape_size(shapes[k]); i++) {
+        for (size_t i = 0; i < ngraph::shape_size(shapes[k]); i++) {
             in0[i] = k == 0 ? i/2048.f : (k == 1 ? 1.f : 0.42f);
         }
     }

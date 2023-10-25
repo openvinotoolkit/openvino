@@ -16,11 +16,11 @@ std::string SplitLayerTest::getTestCaseName(const testing::TestParamInfo<splitPa
     std::string targetDevice;
     std::tie(numSplits, axis, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, outIndices, targetDevice) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "numSplits=" << numSplits << "_";
     result << "axis=" << axis << "_";
     if (!outIndices.empty()) {
-        result << "outIndices" << CommonTestUtils::vec2str(outIndices) << "_";
+        result << "outIndices" << ov::test::utils::vec2str(outIndices) << "_";
     }
     result << "IS";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -43,7 +43,7 @@ void SplitLayerTest::SetUp() {
         }
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(ngraph::builder::makeSplit(paramOuts[0],

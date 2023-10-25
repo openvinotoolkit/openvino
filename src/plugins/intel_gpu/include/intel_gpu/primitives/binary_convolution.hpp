@@ -14,6 +14,8 @@ namespace cldnn {
 struct binary_convolution : public primitive_base<binary_convolution> {
     CLDNN_DECLARE_PRIMITIVE(binary_convolution)
 
+    binary_convolution() : primitive_base("", {}) {}
+
     /// @brief Constructs binary_convolution primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -59,9 +61,9 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
     /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
-    int groups;
+    int groups = 1;
     /// @brief Logical value of padding. Can be one of 3 values: 1 - pad bits equal to 1; -1 -> pad bits equal to 0; 0 -> pad is not counted
-    float pad_value;
+    float pad_value = 0.0f;
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
 
@@ -88,6 +90,28 @@ struct binary_convolution : public primitive_base<binary_convolution> {
                groups == rhs_casted.groups &&
                pad_value == rhs_casted.pad_value &&
                weights.size() == rhs_casted.weights.size();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<binary_convolution>::save(ob);
+        ob << pad;
+        ob << stride;
+        ob << dilation;
+        ob << output_size;
+        ob << groups;
+        ob << pad_value;
+        ob << weights;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<binary_convolution>::load(ib);
+        ib >> pad;
+        ib >> stride;
+        ib >> dilation;
+        ib >> output_size;
+        ib >> groups;
+        ib >> pad_value;
+        ib >> *const_cast<primitive_id_arr*>(&weights);
     }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

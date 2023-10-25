@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "base_reference_test.hpp"
 #include "openvino/op/range.hpp"
+
+#include <gtest/gtest.h>
+
+#include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 
 using namespace ov;
@@ -104,13 +106,13 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(Shape& ishape,
-                                                    Shape& oshape,
-                                                    element::Type& itype,
-                                                    element::Type& otype,
-                                                    element::Type& ntype,
-                                                    float fstart,
-                                                    float fstop,
-                                                    float fstep) {
+                                                 Shape& oshape,
+                                                 element::Type& itype,
+                                                 element::Type& otype,
+                                                 element::Type& ntype,
+                                                 float fstart,
+                                                 float fstop,
+                                                 float fstep) {
         auto start = CreateConstant(ishape, ntype, fstart);
         auto stop = CreateConstant(ishape, ntype, fstop);
         auto step = CreateConstant(ishape, ntype, fstep);
@@ -147,13 +149,13 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(Shape& ishape,
-                                                    Shape& oshape,
-                                                    element::Type& itype,
-                                                    element::Type& otype,
-                                                    element::Type& ntype,
-                                                    float fstart,
-                                                    float fstop,
-                                                    float fstep) {
+                                                 Shape& oshape,
+                                                 element::Type& itype,
+                                                 element::Type& otype,
+                                                 element::Type& ntype,
+                                                 float fstart,
+                                                 float fstop,
+                                                 float fstep) {
         auto start = CreateConstant(ishape, ntype, fstart);
         auto stop = CreateConstant(ishape, ntype, fstop);
         auto step = CreateConstant(ishape, ntype, fstep);
@@ -175,26 +177,8 @@ std::vector<RangeParams> generateParamsForRangeV0Int() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<RangeParams> params{
-        RangeParams(
-            ov::Shape{},
-            ov::Shape{4},
-            IN_ET,
-            IN_ET,
-            IN_ET,
-            std::vector<T>{-5, -2, 1, 4},
-            -5,
-            6,
-            3),
-        RangeParams(
-            ov::Shape{},
-            ov::Shape{2},
-            IN_ET,
-            IN_ET,
-            IN_ET,
-            std::vector<T>{10, 7},
-            10,
-            5,
-            -3)};
+        RangeParams(ov::Shape{}, ov::Shape{4}, IN_ET, IN_ET, IN_ET, std::vector<T>{-5, -2, 1, 4}, -5, 6, 3),
+        RangeParams(ov::Shape{}, ov::Shape{2}, IN_ET, IN_ET, IN_ET, std::vector<T>{10, 7}, 10, 5, -3)};
     return params;
 }
 
@@ -202,18 +186,15 @@ template <element::Type_t IN_ET>
 std::vector<RangeParams> generateParamsForRangeV0UnsignedInt() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<RangeParams> params{
-        RangeParams(
-            ov::Shape{},
-            ov::Shape{10},
-            IN_ET,
-            IN_ET,
-            IN_ET,
-            std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-            0,
-            10,
-            1)
-    };
+    std::vector<RangeParams> params{RangeParams(ov::Shape{},
+                                                ov::Shape{10},
+                                                IN_ET,
+                                                IN_ET,
+                                                IN_ET,
+                                                std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+                                                0,
+                                                10,
+                                                1)};
     return params;
 }
 
@@ -231,15 +212,7 @@ std::vector<RangeParams> generateParamsForRangeV0Float() {
                     0.0f,
                     1.0f,
                     0.25f),
-        RangeParams(ov::Shape{},
-                    ov::Shape{},
-                    IN_ET,
-                    IN_ET,
-                    IN_ET,
-                    std::vector<T>{1.0f, 4.f, 7.f},
-                    1.0f,
-                    10.0f,
-                    3.0f),
+        RangeParams(ov::Shape{}, ov::Shape{}, IN_ET, IN_ET, IN_ET, std::vector<T>{1.0f, 4.f, 7.f}, 1.0f, 10.0f, 3.0f),
         RangeParams(ov::Shape{},
                     ov::Shape{10},
                     IN_ET,
@@ -266,27 +239,8 @@ std::vector<RangeParams> generateParamsForRangeV4Int() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<RangeParams> params{
-        RangeParams(
-            ov::Shape{},
-            ov::Shape{4},
-            IN_ET,
-            IN_ET,
-            IN_ET,
-            std::vector<T>{-5, -2, 1, 4},
-            -5,
-            6,
-            3),
-        RangeParams(
-            ov::Shape{},
-            ov::Shape{2},
-            IN_ET,
-            IN_ET,
-            IN_ET,
-            std::vector<T>{10, 7},
-            10,
-            5,
-            -3)
-    };
+        RangeParams(ov::Shape{}, ov::Shape{4}, IN_ET, IN_ET, IN_ET, std::vector<T>{-5, -2, 1, 4}, -5, 6, 3),
+        RangeParams(ov::Shape{}, ov::Shape{2}, IN_ET, IN_ET, IN_ET, std::vector<T>{10, 7}, 10, 5, -3)};
 
     return params;
 }
@@ -295,28 +249,24 @@ template <element::Type_t IN_ET>
 std::vector<RangeParams> generateParamsForRangeV4UnsignedInt() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<RangeParams> params{
-        RangeParams(
-            ov::Shape{},
-            ov::Shape{10},
-            IN_ET,
-            IN_ET,
-            element::Type_t::f32,
-            std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-            1.2f,
-            11.3f,
-            1.6f),
-        RangeParams(
-            ov::Shape{},
-            ov::Shape{10},
-            IN_ET,
-            IN_ET,
-            IN_ET,
-            std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-            0,
-            10,
-            1)
-    };
+    std::vector<RangeParams> params{RangeParams(ov::Shape{},
+                                                ov::Shape{10},
+                                                IN_ET,
+                                                IN_ET,
+                                                element::Type_t::f32,
+                                                std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+                                                1.2f,
+                                                11.3f,
+                                                1.6f),
+                                    RangeParams(ov::Shape{},
+                                                ov::Shape{10},
+                                                IN_ET,
+                                                IN_ET,
+                                                IN_ET,
+                                                std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+                                                0,
+                                                10,
+                                                1)};
 
     return params;
 }
@@ -352,8 +302,7 @@ std::vector<RangeParams> generateParamsForRangeV4Float() {
                     std::vector<T>{2.0f, 1.75f, 1.5f, 1.25f, 1.0f, 0.75f, 0.5f, 0.25f},
                     2,
                     0,
-                    -0.25)
-    };
+                    -0.25)};
 
     return params;
 }
@@ -404,16 +353,14 @@ std::vector<RangeParams> generateCombinedParamsForRangeV4() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Range_V0_With_Hardcoded_Refs,
-    ReferenceRangeV0LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForRangeV0()),
-    ReferenceRangeV0LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Range_V0_With_Hardcoded_Refs,
+                         ReferenceRangeV0LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForRangeV0()),
+                         ReferenceRangeV0LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Range_V4_With_Hardcoded_Refs,
-    ReferenceRangeV4LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForRangeV4()),
-    ReferenceRangeV4LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Range_V4_With_Hardcoded_Refs,
+                         ReferenceRangeV4LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForRangeV4()),
+                         ReferenceRangeV4LayerTest::getTestCaseName);
 
 }  // namespace

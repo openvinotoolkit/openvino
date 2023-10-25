@@ -50,8 +50,7 @@ OutputVector translate_to(const NodeContext& context) {
         }
     } else if (context.get_input_size() == 8) {
         // aten::to(Tensor(a) self, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
-        // pin_memory=None,
-        // bool non_blocking=False, bool copy=False, MemoryFormat? memory_format=None)
+        // pin_memory=None, bool non_blocking=False, bool copy=False, MemoryFormat? memory_format=None)
         dtype_idx = 1;
         memory_format_idx = 7;
         if (context.input_is_none(dtype_idx)) {

@@ -6,12 +6,12 @@
 
 #include <string>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace ExecutionGraphTests {
 
-class ExecGraphInputsFusingBinConv : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::string> {
+class ExecGraphInputsFusingBinConv : public ov::test::TestsCommon, public testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
     std::shared_ptr<ngraph::Function> fnPtr;

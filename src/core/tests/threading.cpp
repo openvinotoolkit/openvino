@@ -17,10 +17,10 @@
 #include "openvino/opsets/opset8.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
-std::shared_ptr<ov::Model> create_complex_function(size_t wide = 50) {
+static std::shared_ptr<ov::Model> create_complex_function(size_t wide = 50) {
     const auto& split_subgraph = [](const ov::Output<ov::Node>& input) -> ov::OutputVector {
         auto relu = std::make_shared<ov::opset8::Relu>(input);
         auto type_relaxed =
@@ -70,7 +70,7 @@ std::shared_ptr<ov::Model> create_complex_function(size_t wide = 50) {
         nodes.push(out);
     }
     auto result = std::make_shared<ov::opset8::Result>(nodes.front());
-    return std::make_shared<Function>(ov::ResultVector{result}, ov::ParameterVector{parameter});
+    return std::make_shared<Model>(ov::ResultVector{result}, ov::ParameterVector{parameter});
 }
 
 TEST(threading, get_friendly_name) {
@@ -83,14 +83,14 @@ TEST(threading, get_friendly_name) {
     auto add_a3 = make_shared<ov::opset8::Add>(add_a2, iconst0);
     auto abs_add_a3 = std::make_shared<ov::opset8::Abs>(add_a3);
 
-    auto b = make_shared<op::Parameter>(element::i32, shape);
+    auto b = make_shared<ov::op::v0::Parameter>(element::i32, shape);
     auto add_b1 = make_shared<ov::opset8::Add>(b, iconst0);
     auto add_b2 = make_shared<ov::opset8::Add>(add_b1, iconst0);
     auto abs_add_b2 = std::make_shared<ov::opset8::Abs>(add_b2);
 
     auto graph = make_shared<ov::opset8::Multiply>(abs_add_a3, abs_add_b2);
 
-    auto f = std::make_shared<Function>(ov::NodeVector{graph}, ParameterVector{a, b});
+    auto f = std::make_shared<Model>(ov::NodeVector{graph}, ParameterVector{a, b});
 
     const auto compare_names = [](const std::vector<std::string>& names) {
         static std::unordered_set<std::string> ref_names;
@@ -104,7 +104,7 @@ TEST(threading, get_friendly_name) {
         }
     };
 
-    const auto get_friendly_name = [&](const std::shared_ptr<ngraph::Function>& f) {
+    const auto get_friendly_name = [&](const std::shared_ptr<ov::Model>& f) {
         std::vector<std::string> names;
         for (const auto& op : f->get_ops()) {
             names.emplace_back(op->get_friendly_name());
@@ -149,12 +149,12 @@ TEST(threading, check_atomic_guard) {
 
 TEST(threading, clone_with_new_inputs) {
     auto function = create_complex_function(100);
-    const auto cloneNodes = [&](const std::shared_ptr<const ngraph::Function>& f) {
+    const auto cloneNodes = [&](const std::shared_ptr<const ov::Model>& f) {
         auto orderedOps = function->get_ordered_ops();
         std::vector<std::shared_ptr<ov::Node>> nodes;
         for (const auto& op : orderedOps) {
-            ngraph::OutputVector inputsForShapeInfer;
-            std::shared_ptr<ngraph::Node> opToShapeInfer;
+            ov::OutputVector inputsForShapeInfer;
+            std::shared_ptr<ov::Node> opToShapeInfer;
 
             const auto inSize = op->get_input_size();
             for (size_t i = 0; i < inSize; i++) {

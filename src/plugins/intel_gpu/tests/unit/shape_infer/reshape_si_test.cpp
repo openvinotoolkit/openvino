@@ -82,6 +82,11 @@ INSTANTIATE_TEST_SUITE_P(smoke, reshape_test_two_inputs,
             layout{ov::PartialShape{1, 384, 16, 64}, data_types::f32, format::bfyx}
         },
         {
+            layout{ov::PartialShape{1, 128, 1024}, data_types::f32, format::bfyx},
+            layout{ov::PartialShape{}, data_types::i64, format::bfyx}, {131072}, ov::PartialShape::dynamic(1), true,
+            layout{ov::PartialShape{131072}, data_types::f32, format::bfyx}
+        },
+        {
             layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {0, 1, 2, 3}, ov::PartialShape::dynamic(4), true,
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}

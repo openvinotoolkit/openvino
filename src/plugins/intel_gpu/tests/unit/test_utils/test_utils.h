@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "openvino/core/type/float16.hpp"
+
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/runtime/tensor.hpp>
 #include <intel_gpu/runtime/engine.hpp>
@@ -30,7 +32,6 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "float16.h"
 #include "random_gen.h"
 #include "uniform_quantized_real_distribution.hpp"
 #include "to_string_utils.h"
@@ -44,13 +45,6 @@
 #include <chrono>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-
-namespace cldnn {
-template <>
-struct type_to_data_type<FLOAT16> {
-    static constexpr data_types value = data_types::f16;
-};
-}  // namespace cldnn
 
 namespace tests {
 
@@ -117,6 +111,32 @@ template<typename T>
 using VVVVVF = std::vector<VVVVF<T>>;    // split of bfyx filters
 template<typename T>
 using VVVVVVF = std::vector<VVVVVF<T>>;    // split of bfyx filters
+
+template<typename T>
+inline VF<T> flatten_2d(cldnn::format input_format, VVF<T> &data) {
+    size_t a = data.size();
+    size_t b = data[0].size();
+
+    VF<T> vec(a * b, (T)(0.0f));
+    size_t idx = 0;
+
+    switch (input_format.value) {
+        case cldnn::format::bfyx:
+            for (size_t bi = 0; bi < a; ++bi)
+                for (size_t fi = 0; fi < b; ++fi)
+                    vec[idx++] = data[bi][fi];
+            break;
+
+        default:
+            assert(0);
+    }
+    return vec;
+}
+
+inline float half_to_float(uint16_t val) {
+    auto half = ov::float16::from_bits(val);
+    return static_cast<float>(half);
+}
 
 template<typename T>
 inline VF<T> flatten_4d(cldnn::format input_format, VVVVF<T> &data) {
@@ -219,62 +239,6 @@ inline VF<T> flatten_6d(cldnn::format input_format, VVVVVVF<T> &data) {
     return vec;
 }
 
-template<typename T>
-std::vector<T> generate_random_1d(size_t a, int min, int max, int k = 8) {
-    static std::default_random_engine generator(random_seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int> distribution(k * min, k * max);
-    std::vector<T> v(a);
-
-    for (size_t i = 0; i < a; ++i) {
-        v[i] = (T)distribution(generator);
-        v[i] /= k;
-    }
-    return v;
-}
-
-template<typename T>
-std::vector<std::vector<T>> generate_random_2d(size_t a, size_t b, int min, int max, int k = 8) {
-    std::vector<std::vector<T>> v(a);
-    for (size_t i = 0; i < a; ++i)
-        v[i] = generate_random_1d<T>(b, min, max, k);
-    return v;
-}
-
-template<typename T>
-std::vector<std::vector<std::vector<T>>> generate_random_3d(size_t a, size_t b, size_t c, int min, int max, int k = 8) {
-    std::vector<std::vector<std::vector<T>>> v(a);
-    for (size_t i = 0; i < a; ++i)
-        v[i] = generate_random_2d<T>(b, c, min, max, k);
-    return v;
-}
-
-// parameters order is assumed to be bfyx or bfyx
-template<typename T>
-std::vector<std::vector<std::vector<std::vector<T>>>> generate_random_4d(size_t a, size_t b, size_t c, size_t d, int min, int max, int k = 8) {
-    std::vector<std::vector<std::vector<std::vector<T>>>> v(a);
-    for (size_t i = 0; i < a; ++i)
-        v[i] = generate_random_3d<T>(b, c, d, min, max, k);
-    return v;
-}
-
-// parameters order is assumed to be sbfyx for filters when split > 1
-template<typename T>
-std::vector<std::vector<std::vector<std::vector<std::vector<T>>>>> generate_random_5d(size_t a, size_t b, size_t c, size_t d, size_t e, int min, int max, int k = 8) {
-    std::vector<std::vector<std::vector<std::vector<std::vector<T>>>>> v(a);
-    for (size_t i = 0; i < a; ++i)
-        v[i] = generate_random_4d<T>(b, c, d, e, min, max, k);
-    return v;
-}
-
-template<typename T>
-VVVVVVF<T> generate_random_6d(size_t a, size_t b, size_t c, size_t d, size_t e, size_t f, int min, int max, int k = 8) {
-    VVVVVVF<T> v(a);
-    for (size_t i = 0; i < a; ++i)
-        v[i] = generate_random_5d<T>(b, c, d, e, f, min, max, k);
-    return v;
-}
-
 template <class T> void set_value(T* ptr, uint32_t index, T value) { ptr[index] = value; }
 template <class T> T    get_value(T* ptr, uint32_t index) { return ptr[index]; }
 
@@ -315,7 +279,7 @@ void set_values_per_batch_and_feature(cldnn::memory::ptr mem, std::vector<T> arg
 }
 
 template<typename T, typename std::enable_if<std::is_floating_point<T>::value ||
-                                             std::is_same<T, FLOAT16>::value>::type* = nullptr>
+                                             std::is_same<T, ov::float16>::value>::type* = nullptr>
 void set_random_values(cldnn::memory::ptr mem, bool sign = false, unsigned significand_bit = 8, unsigned scale = 1)
 {
     cldnn::mem_lock<T> ptr(mem, get_test_stream());
@@ -329,12 +293,15 @@ void set_random_values(cldnn::memory::ptr mem, bool sign = false, unsigned signi
 template<class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 void set_random_values(cldnn::memory::ptr mem)
 {
+    using T1 = typename std::conditional<std::is_same<int8_t, T>::value, int, T>::type;
+    using T2 = typename std::conditional<std::is_same<uint8_t, T1>::value, unsigned int, T1>::type;
+
     cldnn::mem_lock<T> ptr(mem, get_test_stream());
 
     std::mt19937 gen;
-    static std::uniform_int_distribution<T> uid(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    static std::uniform_int_distribution<T2> uid(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
     for (auto it = ptr.begin(); it != ptr.end(); ++it) {
-        *it = uid(gen);
+        *it = static_cast<T>(uid(gen));
     }
 }
 
@@ -381,10 +348,10 @@ inline bool are_equal(
         return true;
 }
 
-inline bool floating_point_equal(FLOAT16 x, FLOAT16 y, int max_ulps_diff = 4) {
+inline bool floating_point_equal(ov::float16 x, ov::float16 y, int max_ulps_diff = 4) {
     int16_t sign_bit_mask = 1;
     sign_bit_mask <<= 15;
-    int16_t a = x.v, b = y.v;
+    int16_t a = reinterpret_cast<int16_t&>(x), b = reinterpret_cast<int16_t&>(y);;
     if ((a & sign_bit_mask) != (b & sign_bit_mask)) {
         a &= ~sign_bit_mask;
         b &= ~sign_bit_mask;
@@ -544,7 +511,7 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         (void)sm;
     } else if (primitive->type == cldnn::reorder::type_id()) {
         auto reorder = std::static_pointer_cast<cldnn::reorder>(primitive);
-        str << "Output data type: " << cldnn::data_type_traits::name(*reorder->output_data_types[0]) << " Mean: " << reorder->mean << "Subtract per feature: " << "TODO" /*std::vector<float> subtract_per_feature*/;
+        str << "Output data type: " << ov::element::Type(*reorder->output_data_types[0]) << " Mean: " << reorder->mean << "Subtract per feature: " << "TODO" /*std::vector<float> subtract_per_feature*/;
     } else if (primitive->type == cldnn::normalize::type_id()) {
         auto normalize = std::static_pointer_cast<cldnn::normalize>(primitive);
         std::string norm_region = normalize->across_spatial ? "across_spatial" : "within_spatial";
@@ -579,56 +546,35 @@ T div_up(const T a, const U b) {
 }
 
 template <class T>
-std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::network_output& output, size_t max_cnt = std::numeric_limits<size_t>::max()) {
     std::vector<float> ret;
-    auto ptr = net.get_output_memory(output_id);
-    auto out_ids = net.get_output_ids();
-    if (find(out_ids.begin(), out_ids.end(), output_id) == out_ids.end())
-        IE_THROW() << "Non output node's memory may have been reused. "
-                      "Make target node to output by using ov::intel_gpu::custom_outputs in ExecutionConfig.";
+    auto ptr = output.get_memory();
     cldnn::mem_lock<T, cldnn::mem_lock_type::read> mem(ptr, net.get_stream());
-    if (ptr->get_layout().data_type != cldnn::type_to_data_type<T>::value)
-        IE_THROW() << "target type " << cldnn::data_type_traits::name(cldnn::type_to_data_type<T>::value)
-                    << " mismatched with actual type " << cldnn::data_type_traits::name(ptr->get_layout().data_type);
+    if (ptr->get_layout().data_type != ov::element::from<T>())
+        OPENVINO_THROW("target type ", ov::element::from<T>().get_type_name(),
+                       " mismatched with actual type ", ov::element::Type(ptr->get_layout().data_type).get_type_name());
     for (size_t i = 0; i < std::min(max_cnt, ptr->get_layout().count()); i++)
         ret.push_back(mem[i]);
     return ret;
 }
 
-inline std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
-    switch(net.get_output_layout(output_id).data_type){
+inline std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::network_output& output, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+    switch(output.get_layout().data_type){
         case cldnn::data_types::f16:
-            return get_output_values_to_float<FLOAT16>(net, output_id, max_cnt);
+            return get_output_values_to_float<ov::float16>(net, output, max_cnt);
         case cldnn::data_types::f32:
-            return get_output_values_to_float<float>(net, output_id, max_cnt);
+            return get_output_values_to_float<float>(net, output, max_cnt);
         case cldnn::data_types::i8:
-            return get_output_values_to_float<int8_t>(net, output_id, max_cnt);
+            return get_output_values_to_float<int8_t>(net, output, max_cnt);
         case cldnn::data_types::u8:
-            return get_output_values_to_float<uint8_t>(net, output_id, max_cnt);
+            return get_output_values_to_float<uint8_t>(net, output, max_cnt);
         case cldnn::data_types::i32:
-            return get_output_values_to_float<int32_t>(net, output_id, max_cnt);
+            return get_output_values_to_float<int32_t>(net, output, max_cnt);
         case cldnn::data_types::i64:
-            return get_output_values_to_float<int64_t>(net, output_id, max_cnt);
+            return get_output_values_to_float<int64_t>(net, output, max_cnt);
         default:
-            IE_THROW() << "Unknown output data_type";
+            OPENVINO_THROW( "Unknown output data_type");
     }
-}
-
-inline cldnn::memory::ptr get_generated_random_1d_mem(cldnn::engine& engine, cldnn::layout l) {
-    auto prim = engine.allocate_memory(l);
-    cldnn::tensor s = l.get_tensor();
-    if (l.data_type == cldnn::data_types::i8 || l.data_type == cldnn::data_types::u8) {
-        VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(s.count(), -200, 200);
-        set_values(prim, rnd_vec);
-    } else if (l.data_type == cldnn::data_types::f16) {
-        VF<FLOAT16> rnd_vec = generate_random_1d<FLOAT16>(s.count(), -1, 1);
-        set_values(prim, rnd_vec);
-    } else {
-        VF<float> rnd_vec = generate_random_1d<float>(s.count(), -1, 1);
-        set_values(prim, rnd_vec);
-    }
-
-    return prim;
 }
 
 double default_tolerance(cldnn::data_types dt);
@@ -775,7 +721,7 @@ inline cldnn::network::ptr get_network(cldnn::engine& engine,
         {
             std::istream in_mem(&mem_buf);
             cldnn::BinaryInputBuffer ib = cldnn::BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, config, stream, engine);
+            network = std::make_shared<cldnn::network>(ib, config, stream, engine, true, 0);
         }
     } else {
         network = std::make_shared<cldnn::network>(engine, topology, config);

@@ -16,6 +16,7 @@
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
@@ -32,66 +33,34 @@ namespace {
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
 
-/**
- * @brief SwapNodes allows to perform swapping nodes even if there are more than one consumers but has less performance
- *
- * @param first_node first node pointer
- * @param second_node first node pointer
- * @return NodePair pair of nodes in new order that allows to register them in MatcherPass
- */
-NodePair SwapNodes(const NodePtr& first_node, const NodePtr& second_node) {
-    auto second_node_inputs = second_node->input_values();
-    second_node_inputs[0] = first_node->input_value(0);
-
-    auto new_first_node = second_node->clone_with_new_inputs(second_node_inputs);
-
-    auto first_node_inputs = first_node->input_values();
-    first_node_inputs[0] = new_first_node;
-    auto new_second_node = first_node->clone_with_new_inputs(first_node_inputs);
-
-    new_second_node->set_friendly_name(second_node->get_friendly_name());
-    ov::copy_runtime_info({first_node, second_node}, {new_first_node, new_second_node});
-
-    ov::replace_node(second_node, new_second_node);
-
-    return std::make_pair(new_first_node, new_second_node);
-}
-
 }  // namespace
 
 TSUnaryForward::TSUnaryForward() {
     MATCHER_SCOPE(TSUnaryForward);
 
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), any_input()});
-    auto unary_label = wrap_type<UnaryElementwiseArithmetic,
-                                 ov::op::v0::Clamp,
-                                 ov::op::v0::Elu,
-                                 ov::op::v4::SoftPlus,
-                                 ov::op::v1::LogicalNot,
-                                 ov::op::v0::Convert,
-                                 ov::op::v10::IsInf,
-                                 ov::op::v10::IsNaN,
-                                 ov::op::v10::IsFinite>({transpose_label});
-
-    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_value_map();
-        auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
-        auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
-        if (transformation_callback(unary)) {
-            return false;
-        }
-
-        const NodePair new_nodes = SwapNodes(transpose, unary);
-
-        register_new_node(new_nodes.first);
-        register_new_node(new_nodes.second);
-
-        UpdateForwardSinkingAbility(new_nodes.second);
+    create_pattern<UnaryElementwiseArithmetic,
+                   ov::op::v0::Clamp,
+                   ov::op::v0::Elu,
+                   ov::op::v4::SoftPlus,
+                   ov::op::v1::LogicalNot,
+                   ov::op::v0::Convert,
+                   ov::op::v10::IsInf,
+                   ov::op::v10::IsNaN,
+                   ov::op::v10::IsFinite,
+                   ov::op::v0::Selu,
+                   ov::op::v4::Swish,
+                   ov::op::v0::HardSigmoid,
+                   ov::op::v5::LogSoftmax,
+                   ov::op::v1::ConvertLike>(true);
+    auto ts_unary_sinking_function = [this](const std::shared_ptr<Node>& main_node,
+                                            const utils::TransposeInputsInfo& transpose_info) -> bool {
+        bool res = utils::sink_forward::UpdateInputTransposes(main_node, transpose_info, {0});
+        if (!res)
+            return res;
+        default_outputs_update(main_node, transpose_info);
         return true;
     };
-
-    auto m = std::make_shared<Matcher>(unary_label, "ov::pass::TSUnaryForward");
-    register_matcher(m, matcher_pass_callback);
+    transpose_sinking(matcher_name, ts_unary_sinking_function);
 }
 
 TSUnaryBackward::TSUnaryBackward() {
@@ -101,15 +70,25 @@ TSUnaryBackward::TSUnaryBackward() {
         return CheckTransposeConsumers(output);
     };
 
-    auto unary_label = wrap_type<UnaryElementwiseArithmetic,
-                                 ov::op::v0::Clamp,
-                                 ov::op::v0::Elu,
-                                 ov::op::v4::SoftPlus,
-                                 ov::op::v1::LogicalNot,
-                                 ov::op::v0::Convert,
-                                 ov::op::v10::IsInf,
-                                 ov::op::v10::IsNaN,
-                                 ov::op::v10::IsFinite>({any_input()}, unary_restrictions);
+    auto unary_with_1_input_label = wrap_type<UnaryElementwiseArithmetic,
+                                              ov::op::v0::Clamp,
+                                              ov::op::v0::Elu,
+                                              ov::op::v4::SoftPlus,
+                                              ov::op::v1::LogicalNot,
+                                              ov::op::v0::Convert,
+                                              ov::op::v10::IsInf,
+                                              ov::op::v10::IsNaN,
+                                              ov::op::v10::IsFinite,
+                                              ov::op::v5::LogSoftmax>({any_input()}, unary_restrictions);
+
+    auto unary_with_2_inputs_label =
+        wrap_type<ov::op::v4::Swish, ov::op::v1::ConvertLike>({any_input(), any_input()}, unary_restrictions);
+    auto unary_with_3_inputs_label =
+        wrap_type<ov::op::v0::Selu, ov::op::v0::HardSigmoid>({any_input(), any_input(), any_input()},
+                                                             unary_restrictions);
+
+    auto unary_label = std::make_shared<pattern::op::Or>(
+        ov::OutputVector{unary_with_1_input_label, unary_with_2_inputs_label, unary_with_3_inputs_label});
 
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
 
@@ -120,12 +99,12 @@ TSUnaryBackward::TSUnaryBackward() {
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
-        auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
+        auto unary = transpose->get_input_node_shared_ptr(0);
         if (transformation_callback(unary)) {
             return false;
         }
 
-        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(unary, transpose_const)) {
+        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(unary, transpose_const, {0})) {
             register_new_node(new_node);
         }
         unary->validate_and_infer_types();

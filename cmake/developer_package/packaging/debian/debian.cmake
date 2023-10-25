@@ -21,10 +21,13 @@ macro(ov_debian_cpack_set_dirs)
             set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/aarch64-linux-gnu")
         elseif(X86)
             set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/i386-linux-gnu")
+        elseif(X86_64)
+            set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/x86_64-linux-gnu")
+        elseif(RISCV64)
+            set(OV_CPACK_RUNTIMEDIR "${OV_CPACK_RUNTIMEDIR}/riscv64-linux-gnu")
         endif()
     endif()
     set(OV_CPACK_LIBRARYDIR ${OV_CPACK_RUNTIMEDIR})
-    set(OV_WHEEL_RUNTIMEDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_CPACK_ARCHIVEDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR}/openvino-${OpenVINO_VERSION})
     set(OV_CPACK_IE_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/inferenceengine${OpenVINO_VERSION})
@@ -42,11 +45,6 @@ macro(ov_debian_cpack_set_dirs)
 
     # skipped during debian packaging
     set(OV_CPACK_WHEELSDIR "tools")
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
 ov_debian_cpack_set_dirs()
@@ -61,20 +59,59 @@ macro(ov_override_component_names)
     # merge C++ and C runtimes
     set(OV_CPACK_COMP_CORE_C "${OV_CPACK_COMP_CORE}")
     set(OV_CPACK_COMP_CORE_C_DEV "${OV_CPACK_COMP_CORE_DEV}")
-    # merge all pythons into a single component
-    set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
-    set(OV_CPACK_COMP_PYTHON_IE_API "${OV_CPACK_COMP_PYTHON_OPENVINO}")
-    set(OV_CPACK_COMP_PYTHON_NGRAPH "${OV_CPACK_COMP_PYTHON_OPENVINO}")
     # merge all C / C++ samples as a single samples component
     set(OV_CPACK_COMP_CPP_SAMPLES "samples")
     set(OV_CPACK_COMP_C_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
-    # move requirements.txt to core-dev
-    set(OV_CPACK_COMP_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
-    # move core_tools to core-dev
-    # set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
 endmacro()
 
 ov_override_component_names()
+
+#
+# Override include / exclude rules for components
+# This is required to exclude some files from installation
+# (e.g. debian packages don't require setupvars scripts)
+#
+
+macro(ov_define_component_include_rules)
+    # core components
+    unset(OV_CPACK_COMP_CORE_EXCLUDE_ALL)
+    set(OV_CPACK_COMP_CORE_C_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
+    unset(OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL)
+    set(OV_CPACK_COMP_CORE_C_DEV_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
+    # licensing
+    set(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # samples
+    unset(OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL)
+    set(OV_CPACK_COMP_C_SAMPLES_EXCLUDE_ALL ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
+    if(ENABLE_PYTHON_PACKAGING)
+        unset(OV_CPACK_COMP_PYTHON_SAMPLES_EXCLUDE_ALL)
+    else()
+        set(OV_CPACK_COMP_PYTHON_SAMPLES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    endif()
+    # python
+    if(ENABLE_PYTHON_PACKAGING)
+        # pack artifacts of setup.py install
+        unset(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL)
+    else()
+        set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    endif()
+    # we don't pack python components itself, we pack artifacts of setup.py install
+    set(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    set(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    set(OV_CPACK_COMP_OVC_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    # we don't need wheels in Debian packages
+    set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # because numpy is installed by apt
+    set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # tools
+    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    set(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # scripts
+    set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    set(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+endmacro()
+
+ov_define_component_include_rules()
 
 #
 # Common Debian specific settings
@@ -92,7 +129,9 @@ macro(ov_debian_specific_settings)
     # homepage
     set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://docs.openvino.ai/")
     # use lintian to check packages in post-build step
-    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/debian/post_build.cmake")
+    set(CPACK_POST_BUILD_SCRIPTS "${OpenVINODeveloperScripts_DIR}/packaging/debian/post_build.cmake")
+    # to make sure that lib/<multiarch-triplet> is created on Debian
+    set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
     # enable for debug cpack run
     if(NOT DEFINED CPACK_DEBIAN_PACKAGE_DEBUG)
         set(CPACK_DEBIAN_PACKAGE_DEBUG OFF)
@@ -106,7 +145,14 @@ macro(ov_debian_specific_settings)
     # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
 
     if(DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-        set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+        if(OV_GENERATOR_MULTI_CONFIG)
+            # $<CONFIG> generator expression does not work in this place, have to add all possible configs
+            foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
+                list(APPEND CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${config}")
+            endforeach()
+        else()
+            set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+        endif()
     else()
         message(FATAL_ERROR "CMAKE_LIBRARY_OUTPUT_DIRECTORY is empty")
     endif()
@@ -131,16 +177,23 @@ macro(ov_debian_specific_settings)
             set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE armhf)
         elseif(x86)
             set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
+        elseif(X86_64)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE x86_64)
+        elseif(RISCV64)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE riscv64)
         endif()
     endif()
+
+    # we don't need RPATHs, because libraries are search by standard paths
+    set(CMAKE_SKIP_INSTALL_RPATH ON)
 endmacro()
 
 ov_debian_specific_settings()
 
 # needed to override cmake auto generated files
-set(def_postinst "${OpenVINO_BINARY_DIR}/_CPack_Packages/postinst")
-set(def_postrm "${OpenVINO_BINARY_DIR}/_CPack_Packages/postrm")
-set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers")
+set(def_postinst "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/postinst")
+set(def_postrm "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/postrm")
+set(def_triggers "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/triggers")
 
 set(triggers_content "activate-noawait ldconfig\n\n")
 set(post_content "#!/bin/sh\n\nset -e;\nset -e\n\n")
@@ -276,7 +329,7 @@ macro(ov_debian_add_latest_component comp)
     set(upper_case "${ucomp}_LATEST")
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
-    set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "all")
+    set(CPACK_DEBIAN_${upper_case}_PACKAGE_ARCHITECTURE "all")
     set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
     set(${comp_name}_copyright "generic")
 

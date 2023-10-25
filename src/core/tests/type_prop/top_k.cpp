@@ -3,10 +3,10 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
-#include "dimension_tracker.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "topk_shape_inference.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ov;
 using namespace ov::opset11;
@@ -73,10 +73,9 @@ TYPED_TEST_P(topk_type_prop, default_ctor_no_arguments) {
     op->set_mode(op::TopKMode::MIN);
     op->set_sort_type(op::TopKSortType::SORT_INDICES);
 
-    const auto constant_map =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{}, &k)}};
+    const auto constant_map = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, Shape{}, &k}}};
 
-    const auto outputs = shape_infer(op.get(), PartialShapes{data_shape, {}}, constant_map);
+    const auto outputs = shape_infer(op.get(), PartialShapes{data_shape, {}}, ov::make_tensor_accessor(constant_map));
 
     EXPECT_EQ(op->get_provided_axis(), exp_axis);
     EXPECT_EQ(op->get_axis(), exp_axis);

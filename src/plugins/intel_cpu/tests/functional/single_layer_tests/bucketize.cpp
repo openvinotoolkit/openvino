@@ -3,7 +3,7 @@
 //
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -36,16 +36,16 @@ public:
         std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({dataShape.first}) << "_"
-               << CommonTestUtils::partialShape2str({bucketsShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({dataShape.first}) << "_"
+               << ov::test::utils::partialShape2str({bucketsShape.first}) << "_";
 
         result << "TS=";
         for (const auto& item : dataShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "BS=";
         for (const auto& item : bucketsShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
 
         result << "with_right_bound=" << with_right_bound;
@@ -87,7 +87,7 @@ protected:
         ElementType inBucketsPrc;
         ElementType netPrc;
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc) = this->GetParam();
         init_input_shapes({dataShape, bucketsShape});
 

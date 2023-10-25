@@ -6,8 +6,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-
-
 typedef enum { /*:int32_t*/
     lrn_norm_region_across_channel,
     lrn_norm_region_within_channel
@@ -26,6 +24,8 @@ typedef enum { /*:int32_t*/
 ///   @li k, alpha, beta : hyper parameters (equal to 2, 10e-4, 0.75 in paper).
 struct lrn : public primitive_base<lrn> {
     CLDNN_DECLARE_PRIMITIVE(lrn)
+
+    lrn() : primitive_base("", {}) {}
 
     /// @brief Constructs LRN primitive.
     /// @param id This primitive id.
@@ -51,15 +51,15 @@ struct lrn : public primitive_base<lrn> {
           norm_region(lrn_norm_region) {}
 
     /// @brief Size of normalization.
-    uint32_t size;
+    uint32_t size = 0;
     /// @brief Hyper parameter "k".
-    float k;
+    float k = 0.0f;
     /// @brief Hyper parameter "alpha".
-    float alpha;
+    float alpha = 0.0f;
     /// @brief Hyper parameter "beta".
-    float beta;
+    float beta = 0.0f;
     /// @brief Normalize across or within channel
-    lrn_norm_region norm_region;
+    lrn_norm_region norm_region = lrn_norm_region::lrn_norm_region_within_channel;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -82,6 +82,24 @@ struct lrn : public primitive_base<lrn> {
                alpha == rhs_casted.alpha &&
                beta == rhs_casted.beta &&
                norm_region == rhs_casted.norm_region;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lrn>::save(ob);
+        ob << size;
+        ob << k;
+        ob << alpha;
+        ob << beta;
+        ob << make_data(&norm_region, sizeof(lrn_norm_region));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<lrn>::load(ib);
+        ib >> size;
+        ib >> k;
+        ib >> alpha;
+        ib >> beta;
+        ib >> make_data(&norm_region, sizeof(lrn_norm_region));
     }
 };
 }  // namespace cldnn

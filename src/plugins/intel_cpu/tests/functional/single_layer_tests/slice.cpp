@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -41,18 +41,18 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : shapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : shapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "start="  << CommonTestUtils::vec2str(params.start) << "_";
-        result << "stop="   << CommonTestUtils::vec2str(params.stop) << "_";
-        result << "step="   << CommonTestUtils::vec2str(params.step) << "_";
-        result << "axes="   << CommonTestUtils::vec2str(params.axes) << "_";
+        result << "start="  << ov::test::utils::vec2str(params.start) << "_";
+        result << "stop="   << ov::test::utils::vec2str(params.stop) << "_";
+        result << "step="   << ov::test::utils::vec2str(params.step) << "_";
+        result << "axes="   << ov::test::utils::vec2str(params.axes) << "_";
         result << "netPRC=" << netPrecision << "_";
         result << "secondaryInputType=" << secondaryInputType << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -66,10 +66,10 @@ protected:
 
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            if (i == 0)
+            if (i == 0u)
                 // Fill the slice input0 tensor with random data.
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 1, 1);
             else
@@ -87,7 +87,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> input_shapes = {shapes};
         init_input_shapes({input_shapes});
         for (auto& targetShapes : targetStaticShapes) {
@@ -98,7 +98,10 @@ protected:
                 targetShapes.push_back({sliceParams.axes.size()});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         std::shared_ptr<ngraph::Node> sliceNode;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             // Slice start, stop, step, axes are parameters.

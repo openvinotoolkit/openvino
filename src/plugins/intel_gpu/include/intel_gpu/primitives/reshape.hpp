@@ -15,6 +15,8 @@ namespace cldnn {
 struct reshape : public primitive_base<reshape> {
     CLDNN_DECLARE_PRIMITIVE(reshape)
 
+    reshape() : primitive_base("", {}) {}
+
     enum reshape_mode : uint32_t {
         base,
         squeeze,
@@ -78,7 +80,7 @@ struct reshape : public primitive_base<reshape> {
 
     ov::PartialShape output_partial_shape;
 
-    reshape_mode mode;
+    reshape_mode mode = reshape_mode::base;
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
@@ -88,6 +90,24 @@ struct reshape : public primitive_base<reshape> {
 
         return special_zero == rhs_casted.special_zero &&
                mode == rhs_casted.mode;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reshape>::save(ob);
+        ob << output_shape;
+        ob << special_zero;
+        ob << output_pattern;
+        ob << output_partial_shape;
+        ob << make_data(&mode, sizeof(reshape_mode));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<reshape>::load(ib);
+        ib >> output_shape;
+        ib >> special_zero;
+        ib >> output_pattern;
+        ib >> output_partial_shape;
+        ib >> make_data(&mode, sizeof(reshape_mode));
     }
 };
 

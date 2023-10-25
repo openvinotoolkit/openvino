@@ -2,15 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/scatter_nd_base.hpp"
-
-#include <scatter_nd_base_shape_inference.hpp>
+#include "openvino/op/util/scatter_nd_base.hpp"
 
 #include "itt.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/shape.hpp"
-
-using namespace std;
+#include "scatter_nd_base_shape_inference.hpp"
 
 constexpr int ov::op::util::ScatterNDBase::INPUTS;
 constexpr int ov::op::util::ScatterNDBase::INDICES;
@@ -47,9 +42,7 @@ void ov::op::util::ScatterNDBase::validate_and_infer_types() {
     const auto& indices = get_input_partial_shape(1);
     const auto& updates = get_input_partial_shape(2);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes = {inputs, indices, updates};
-
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, outputs_et, output_shapes[0]);
 }

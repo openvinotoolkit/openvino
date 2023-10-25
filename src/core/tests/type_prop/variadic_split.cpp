@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/variadic_split.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
-#include "dimension_tracker.hpp"
-#include "gmock/gmock.h"
-#include "ngraph/ngraph.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "sequnce_generator.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 using VSplitTypePropTestParam = std::tuple<PartialShape,          // Input shape
@@ -40,7 +44,7 @@ protected:
 
         auto exp_labels = in_labels;
         OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto n_axis = normalize_axis("", axis, p_shape.rank());
+        const auto n_axis = ov::normalize_axis("", axis, p_shape.rank());
         OPENVINO_SUPPRESS_DEPRECATED_END
         exp_labels[n_axis] = ov::no_label;
 
@@ -92,9 +96,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(VariadicSplitTest, dimension_propagation_axis_scalar) {
     constexpr auto dtype = element::i32;
-    const auto data = make_shared<op::Parameter>(dtype, p_shape);
-    const auto axis_node = make_shared<op::Constant>(element::i16, Shape{}, axis);
-    const auto lengths_node = std::make_shared<op::Constant>(element::i16, Shape{split_lengths.size()}, split_lengths);
+    const auto data = make_shared<ov::op::v0::Parameter>(dtype, p_shape);
+    const auto axis_node = make_shared<ov::op::v0::Constant>(element::i16, Shape{}, axis);
+    const auto lengths_node =
+        std::make_shared<ov::op::v0::Constant>(element::i16, Shape{split_lengths.size()}, split_lengths);
 
     const auto var_split = make_shared<op::v1::VariadicSplit>(data, axis_node, lengths_node);
 
@@ -105,9 +110,10 @@ TEST_P(VariadicSplitTest, dimension_propagation_axis_scalar) {
 
 TEST_P(VariadicSplitTest, dimension_propagation_axis_1d) {
     constexpr auto dtype = element::u64;
-    const auto data = make_shared<op::Parameter>(dtype, p_shape);
-    const auto axis_node = make_shared<op::Constant>(element::i32, Shape{1}, axis);
-    const auto lengths_node = std::make_shared<op::Constant>(element::i32, Shape{split_lengths.size()}, split_lengths);
+    const auto data = make_shared<ov::op::v0::Parameter>(dtype, p_shape);
+    const auto axis_node = make_shared<ov::op::v0::Constant>(element::i32, Shape{1}, axis);
+    const auto lengths_node =
+        std::make_shared<ov::op::v0::Constant>(element::i32, Shape{split_lengths.size()}, split_lengths);
 
     const auto var_split = make_shared<op::v1::VariadicSplit>(data, axis_node, lengths_node);
 
@@ -118,9 +124,10 @@ TEST_P(VariadicSplitTest, dimension_propagation_axis_1d) {
 
 TEST_P(VariadicSplitTest, use_default_ctor) {
     constexpr auto dtype = element::f32;
-    const auto param = make_shared<op::Parameter>(dtype, p_shape);
-    const auto axis_node = make_shared<op::Constant>(element::i64, Shape{}, axis);
-    const auto lengths_node = std::make_shared<op::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
+    const auto param = make_shared<ov::op::v0::Parameter>(dtype, p_shape);
+    const auto axis_node = make_shared<ov::op::v0::Constant>(element::i64, Shape{}, axis);
+    const auto lengths_node =
+        std::make_shared<ov::op::v0::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
 
     const auto var_split = make_shared<op::v1::VariadicSplit>();
     var_split->set_arguments(NodeVector{param, axis_node, lengths_node});
@@ -136,9 +143,10 @@ TEST_P(VariadicSplitTest, label_propagation) {
     std::tie(in_labels, exp_labels) = make_in_exp_labels();
 
     set_shape_labels(p_shape, in_labels);
-    const auto data = make_shared<op::Parameter>(element::f32, p_shape);
-    const auto axis_node = make_shared<op::Constant>(element::i64, Shape{}, axis);
-    const auto lengths_node = std::make_shared<op::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
+    const auto axis_node = make_shared<ov::op::v0::Constant>(element::i64, Shape{}, axis);
+    const auto lengths_node =
+        std::make_shared<ov::op::v0::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
 
     const auto var_split = make_shared<op::v1::VariadicSplit>(data, axis_node, lengths_node);
     EXPECT_EQ(var_split->get_output_size(), split_lengths.size());
@@ -206,12 +214,12 @@ TEST_P(VariadicSplitBoundTest, propagate_label_and_dynamic_value) {
     set_shape_labels(p_shape, in_labels);
 
     constexpr auto et = element::i64;
-    const auto labeled_param = std::make_shared<op::Parameter>(et, p_shape);
-    const auto labeled_shape_of = std::make_shared<op::ShapeOf>(labeled_param);
+    const auto labeled_param = std::make_shared<ov::op::v0::Parameter>(et, p_shape);
+    const auto labeled_shape_of = std::make_shared<op::v0::ShapeOf>(labeled_param);
 
     const auto zero = std::vector<int64_t>{0};
     const auto axis_node = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto lengths_node = std::make_shared<op::Constant>(et, Shape{split_lengths.size()}, split_lengths);
+    const auto lengths_node = std::make_shared<ov::op::v0::Constant>(et, Shape{split_lengths.size()}, split_lengths);
     const auto var_split = std::make_shared<op::v1::VariadicSplit>(labeled_shape_of, axis_node, lengths_node);
 
     for (auto& output : var_split->outputs()) {

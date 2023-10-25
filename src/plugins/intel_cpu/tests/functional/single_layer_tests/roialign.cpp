@@ -6,8 +6,8 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -60,13 +60,13 @@ public:
 
         result << netPrecision << "_IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             for (const auto& targetShape : shape.second) {
-                result << CommonTestUtils::vec2str(targetShape) << "_";
+                result << ov::test::utils::vec2str(targetShape) << "_";
             }
             result << ")_";
         }
@@ -116,7 +116,7 @@ protected:
         auto roisIdxTensor = ov::Tensor{ funcInputs[2].get_element_type(), targetInputStaticShapes[2] };
         auto roisIdxTensorData = static_cast<std::int32_t*>(roisIdxTensor.data());
         std::int32_t batchIdx = 0;
-        for (int i = 0; i < roisIdxTensor.get_size(); i++) {
+        for (size_t i = 0; i < roisIdxTensor.get_size(); i++) {
             roisIdxTensorData[i] = batchIdx;
             batchIdx = (batchIdx + 1) % targetInputStaticShapes[0][0];
         }
@@ -147,12 +147,15 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto float_params = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[1] });
-        auto int_params = ngraph::builder::makeDynamicParams(ngraph::element::i32, { inputDynamicShapes[2] });
+        ov::ParameterVector float_params;
+        for (auto&& shape : { inputDynamicShapes[0], inputDynamicShapes[1] }) {
+            float_params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
+        }
+        auto int_param = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i32, inputDynamicShapes[2]);
         auto pooling_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::PoolingMode>::as_enum(mode);
         auto aligned_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::AlignedMode>::as_enum(alignedMode);
 
-        auto roialign = std::make_shared<ngraph::opset9::ROIAlign>(float_params[0], float_params[1], int_params[0], pooledH, pooledW,
+        auto roialign = std::make_shared<ngraph::opset9::ROIAlign>(float_params[0], float_params[1], int_param, pooledH, pooledW,
                                                                    samplingRatio, spatialScale, pooling_mode, aligned_mode);
 
         selectedType = makeSelectedTypeStr(selectedType, inputPrecision);
@@ -160,7 +163,7 @@ protected:
             rel_threshold = 1e-2;
         }
 
-        ngraph::ParameterVector params{ float_params[0], float_params[1], int_params[0] };
+        ngraph::ParameterVector params{ float_params[0], float_params[1], int_param };
         function = makeNgraphFunction(inputPrecision, params, roialign, "ROIAlign");
     }
 };
@@ -259,7 +262,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ROIAlignLayoutTest, ROIAlignLayerCPUTest,
                 ::testing::Combine(
                         roiAlignParams,
                         ::testing::ValuesIn(netPrecisions),
-                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 ::testing::ValuesIn(filterCPUInfoForDevice())),
                 ROIAlignLayerCPUTest::getTestCaseName);
 } // namespace

@@ -10,8 +10,8 @@
 #include <string>
 
 #include "openvino/core/type/element_type.hpp"
-#include "tensor_bundle.pb.h"
-#include "trackable_object_graph.pb.h"
+#include "ov_tensorflow/tensor_bundle.pb.h"
+#include "ov_tensorflow/trackable_object_graph.pb.h"
 
 namespace ov {
 namespace frontend {
@@ -71,6 +71,31 @@ std::basic_string<wchar_t> get_variables_index_name<wchar_t>() {
     return L"/variables/variables.index";
 }
 #endif
+
+std::vector<std::string> GraphIteratorSavedModel::split_tags(const std::string tags) const {
+    std::vector<std::string> tag_list = {};
+    std::size_t len = tags.length();
+    if (len == 0) {
+        return tag_list;
+    }
+    std::string tag = "";
+    std::size_t last_delimeter_pos = 0;
+    std::size_t delimeter_pos = std::string::npos;
+    while ((delimeter_pos = tags.find_first_of(",", last_delimeter_pos)) != std::string::npos) {
+        tag = tags.substr(last_delimeter_pos, delimeter_pos - last_delimeter_pos);
+        tag_list.push_back(tag);
+        last_delimeter_pos = delimeter_pos + 1;
+    }
+    if (last_delimeter_pos != std::string::npos) {
+        if (last_delimeter_pos < len) {
+            tag = tags.substr(last_delimeter_pos);
+        } else {
+            tag = "";
+        }
+        tag_list.push_back(tag);
+    }
+    return tag_list;
+}
 
 }  // namespace tensorflow
 }  // namespace frontend

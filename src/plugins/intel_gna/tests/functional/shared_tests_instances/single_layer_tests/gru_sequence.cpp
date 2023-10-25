@@ -13,6 +13,8 @@
 
 namespace LayerTestsDefinitions {
 
+using ngraph::helpers::InputLayerType;
+
 class GRUSequenceGNATest : public GRUSequenceTest {
 protected:
     void SetUp() override {
@@ -27,6 +29,7 @@ protected:
         std::vector<float> activations_beta;
         float clip;
         bool linear_before_reset;
+        InputLayerType WRBType;
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
         std::tie(m_mode,
@@ -37,8 +40,11 @@ protected:
                  clip,
                  linear_before_reset,
                  direction,
+                 WRBType,
                  netPrecision,
                  targetDevice) = this->GetParam();
+
+        ASSERT_EQ(InputLayerType::CONSTANT, WRBType);
 
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
         std::vector<std::vector<size_t>> inputShapes = {
@@ -51,17 +57,18 @@ protected:
         };
         m_max_seq_len = seq_lengths;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
 
         std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5], inputShapes[2]};
 
         auto in = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params));
         std::vector<float> weights_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
         std::vector<float> reccurrenceWeights_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[1]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[1]), -0.0001f, 0.0001f);
         std::vector<float> bias_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[2]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[2]), -0.0001f, 0.0001f);
 
         auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], weights_vals);
         auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
@@ -109,7 +116,7 @@ protected:
         InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
         blob->allocate();
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.002f, 0.002f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.002f, 0.002f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -160,8 +167,9 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(clip),
                        ::testing::ValuesIn(linear_before_reset),
                        ::testing::ValuesIn(direction),
+                       ::testing::Values(InputLayerType::CONSTANT),
                        ::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                       ::testing::Values(ov::test::utils::DEVICE_GNA)),
     GRUSequenceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -176,8 +184,9 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(clip_non_zeros),
                        ::testing::ValuesIn(linear_before_reset),
                        ::testing::ValuesIn(direction),
+                       ::testing::Values(InputLayerType::CONSTANT),
                        ::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                       ::testing::Values(ov::test::utils::DEVICE_GNA)),
     GRUSequenceTest::getTestCaseName);
 
 }  // namespace

@@ -5,8 +5,8 @@ import numpy as np
 import os
 import pytest
 from openvino.runtime import Model, Layout, PartialShape, Shape, layout_helpers, Type, Dimension
-from openvino.tools.mo.convert import InputCutInfo, LayoutMap
-
+from openvino.tools.mo import LayoutMap, InputCutInfo
+import openvino.runtime as ov
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.tf_layer_test_class import save_to_pb
 
@@ -133,11 +133,12 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'input_shape': [PartialShape([2, 3, 4]),
                                          [2, 3, 4],
                                          [Dimension(2), Dimension(3), Dimension(4)]],
-                         'input':['Input1', 'Input2', 'Relu3']},
+                         'input':['Input1', 'Input2', 'Relu3'], 'compress_to_fp16': True},
          'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Relu3'}},
         {'params_test': {'input_shape': [PartialShape([Dimension(), Dimension(1, 3), Dimension(4, -1), Dimension(-1, 5)]),
                                          [Dimension(), Dimension(1, 3), 4, Dimension(-1, 5)],
                                          [Dimension(), 3, Dimension(4, -1), Dimension(-1, 5)]],
+                         'compress_to_fp16': True,
                          'input':['Input1', 'Input2', 'Relu3']},
          'params_ref': {'input_shape': "[?,1..3,4..,..5],[?,1..3,4,..5],[?,3,4..,..5]", 'input': 'Input1,Input2,Relu3'}},
         {'params_test': {'input': [InputCutInfo("Relu1", Shape([3, 2]), Type(np.int32)),
@@ -150,26 +151,28 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input': "Relu1[3 2]{i32},Relu2[3..10 2..]{i32},Relu3[3 2]{i32}"}},
         {'params_test': {'output': ["Sigmoid_0", "Sigmoid_2"]},
          'params_ref': {'output': "Sigmoid_0,Sigmoid_2"}},
-        {'params_test': {'mean_values': {'Input1': [0.5,1.3,0.67], 'Input2':[4.2, 6.7, 3.15], 'Input3':[0.757, 4.6, 7.3]}},
+        {'params_test': {'mean_values': {'Input1': [0.5,1.3,0.67], 'Input2':[4.2, 6.7, 3.15], 'Input3':[0.757, 4.6, 7.3]},
+                         'compress_to_fp16': True},
          'params_ref': {'mean_values': "Input1[0.5,1.3,0.67],Input2[4.2,6.7,3.15],Input3[0.757,4.6,7.3]"}},
         {'params_test': {
-            'mean_values': [[0.5, 1.3, 0.67], [4.2, 6.7, 3.15], [0.757, 4.6, 7.3]]},
+            'mean_values': [[0.5, 1.3, 0.67], [4.2, 6.7, 3.15], [0.757, 4.6, 7.3]], 'compress_to_fp16': True},
          'params_ref': {'mean_values': "[0.5,1.3,0.67],[4.2,6.7,3.15],[0.757,4.6,7.3]"}},
-        {'params_test': {'scale_values': {'Input1': [0.5,1.3,0.67], 'Input2':[4.2, 6.7, 3.15], 'Input3':[0.757, 4.6, 7.3]}},
+        {'params_test': {'scale_values': {'Input1': [0.5,1.3,0.67], 'Input2':[4.2, 6.7, 3.15], 'Input3':[0.757, 4.6, 7.3]},
+                         'compress_to_fp16': True},
          'params_ref': {'scale_values': "Input1[0.5,1.3,0.67],Input2[4.2,6.7,3.15],Input3[0.757,4.6,7.3]"}},
         {'params_test': {
-            'scale_values': [[0.5, 1.3, 0.67], [4.2, 6.7, 3.15], [0.757, 4.6, 7.3]]},
+            'scale_values': [[0.5, 1.3, 0.67], [4.2, 6.7, 3.15], [0.757, 4.6, 7.3]], 'compress_to_fp16': True},
          'params_ref': {'scale_values': "[0.5,1.3,0.67],[4.2,6.7,3.15],[0.757,4.6,7.3]"}},
         {'params_test': {
-            'source_layout': {'Input1': Layout("nchw"), 'Input2': "nchw", 'Input3': "nc??"}},
+            'source_layout': {'Input1': Layout("nchw"), 'Input2': "nchw", 'Input3': "nc??"}, 'compress_to_fp16': True},
          'params_ref': {'source_layout': "Input1(nchw),Input2(nchw),Input3(nc??)"}},
         {'params_test': {
-            'target_layout': {'Input1': Layout("nhwc"), 'Input2': "nhwc", 'Input3': "n??c"}},
+            'target_layout': {'Input1': Layout("nhwc"), 'Input2': "nhwc", 'Input3': "n??c"}, 'compress_to_fp16': True},
             'params_ref': {'target_layout': "Input1(nhwc),Input2(nhwc),Input3(n??c)"}},
         {'params_test': {
             'layout': {'Input1': LayoutMap(source_layout=Layout("nchw"), target_layout="nhwc"),
                        'Input2': LayoutMap(source_layout="nc??", target_layout=Layout("n??c")),
-                       'Input3': LayoutMap(source_layout="abcd", target_layout="acdb")}},
+                       'Input3': LayoutMap(source_layout="abcd", target_layout="acdb")}, 'compress_to_fp16': True},
             'params_ref': {'layout': "Input1(nchw->nhwc),Input2(nc??->n??c),Input3(abcd->acdb)"}},
         {'params_test': {'input': [PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)]]},
          'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
@@ -189,6 +192,7 @@ class TestComplexParams(CommonMOConvertTest):
 
         test_params = params['params_test']
         ref_params = params['params_ref']
+        test_params.update({'use_convert_model_from_mo': True})
         test_params.update({'input_model': tf_net_path})
         ref_params.update({'input_model': tf_net_path})
         self._test(temp_dir, test_params, ref_params)
@@ -223,13 +227,38 @@ class TestComplexParams(CommonMOConvertTest):
         test_params = params['params_test']
         ref_params = params['params_ref']
         test_params.update({'input_model': tf_net_path})
+        test_params.update({'use_convert_model_from_mo': True, 'compress_to_fp16': True})
         ref_params.update({'input_model': tf_net_path})
         self._test(temp_dir, test_params, ref_params)
 
     test_data = [
-        {'params_test': {'input_shape': PartialShape([2, 3, 4])},
+        # When use_convert_model_from_mo=True legacy openvino.tools.mo.convert_model is used
+        # By default compress_to_fp16 in Python API is False but for mo cli tool (used for params_ref) it's True.
+        # compress_to_fp16 should be specified explicitly either in 'param_test' or  'params_ref' (or in both)
+        # Check all args combinations.
+        {'params_test': {'input_shape': PartialShape([2, 3, 4]), 'compress_to_fp16': True},
          'params_ref': {'input_shape': "[2,3,4]"}},
-        {'params_test': {'input_shape': [Dimension(), Dimension(1, 3), 4, Dimension(-1, 5)]},
+        {'params_test': {'input_shape': PartialShape([2, 3, 4])},
+         'params_ref': {'input_shape': "[2,3,4]", 'compress_to_fp16': False}},
+        {'params_test': {'input_shape': PartialShape([2, 3, 4]), 'compress_to_fp16': True},
+         'params_ref': {'input_shape': "[2,3,4]", 'compress_to_fp16': True}},
+        {'params_test': {'input_shape': PartialShape([2, 3, 4]), 'compress_to_fp16': False},
+         'params_ref': {'input_shape': "[2,3,4]", 'compress_to_fp16': False}},
+
+        # ovc.convert_model with save_model are used, by default save_model compresses to fp16 same as cli tool.
+        # Check all args combinations.
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])},
+         'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]"}},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': True},
+         'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]"}},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])},
+         'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]", 'compress_to_fp16': True}},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': True},
+         'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]", 'compress_to_fp16': True}},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': False},
+         'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]", 'compress_to_fp16': False}},
+
+        {'params_test': {'input_shape': [Dimension(), Dimension(1, 3), 4, Dimension(-1, 5)], 'compress_to_fp16': True},
          'params_ref': {'input_shape': "[?,1..3,4,..5]"}},
         {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])},
          'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]"}},
@@ -241,17 +270,17 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input': "Relu[3 2]"}},
         {'params_test': {'input': ("Relu")},
          'params_ref': {'input': "Relu"}},
-        {'params_test': {'mean_values': [0.5, 1.3, 0.67]},
+        {'params_test': {'mean_values': [0.5, 1.3, 0.67], 'compress_to_fp16': True},
          'params_ref': {'mean_values': "[0.5,1.3,0.67]"}},
-        {'params_test': {'scale_values': [0.5, 1.3, 0.67]},
+        {'params_test': {'scale_values': [0.5, 1.3, 0.67], 'compress_to_fp16': True},
          'params_ref': {'scale_values': "[0.5,1.3,0.67]"}},
-        {'params_test': {'source_layout': Layout("nchw")},
+        {'params_test': {'source_layout': Layout("nchw"), 'compress_to_fp16': True},
          'params_ref': {'source_layout': "nchw"}},
-        {'params_test': {'target_layout': Layout("nchw")},
+        {'params_test': {'target_layout': Layout("nchw"), 'compress_to_fp16': True},
          'params_ref': {'target_layout': "nchw"}},
-        {'params_test': {'layout': LayoutMap(source_layout=Layout("nchw"), target_layout="nhwc")},
+        {'params_test': {'layout': LayoutMap(source_layout=Layout("nchw"), target_layout="nhwc"), 'compress_to_fp16': True},
          'params_ref': {'layout': "nchw->nhwc"}},
-        {'params_test': {'layout': Layout("nchw")},
+        {'params_test': {'layout': Layout("nchw"), 'compress_to_fp16': True},
          'params_ref': {'layout': "nchw"}},
         {'params_test': {'input': [3, 2]},
          'params_ref': {'input': "Input[3 2]"}},
@@ -267,13 +296,13 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input': "Input[1]{i32}->[10]"}},
         {'params_test': {'input': (np.int32, [1, 2, 3])},
          'params_ref': {'input': "Input[1,2,3]{i32}"}},
-        {'params_test': {'input_shape': [Dimension(3, 10), 10, -1]},
+        {'params_test': {'input_shape': [Dimension(3, 10), 10, -1], 'compress_to_fp16': True},
          'params_ref': {'input_shape': '[3..10,10,?]'}},
         {'params_test': {'input': [Dimension(3, 10), 10, -1]},
          'params_ref': {'input': 'Input[3..10,10,?]'}},
-        {'params_test': {'input': PartialShape([1, 100, 100, 3]), 'mean_values': [0.5, 1.3, 0.67]},
+        {'params_test': {'input': PartialShape([1, 100, 100, 3]), 'mean_values': [0.5, 1.3, 0.67], 'compress_to_fp16': True},
          'params_ref': {'input': "Input[1,100,100,3]", 'mean_values': "[0.5,1.3,0.67]"}},
-        {'params_test': {'input': [1, 100, 100, 3], 'scale_values': [0.5, 1.3, 0.67]},
+        {'params_test': {'input': [1, 100, 100, 3], 'scale_values': [0.5, 1.3, 0.67], 'compress_to_fp16': True},
          'params_ref': {'input': "Input[1,100,100,3]", 'scale_values': "[0.5,1.3,0.67]"}},
     ]
 
@@ -286,24 +315,7 @@ class TestComplexParams(CommonMOConvertTest):
 
         test_params = params['params_test']
         ref_params = params['params_ref']
-        test_params.update({'input_model': tf_net_path})
-        ref_params.update({'input_model': tf_net_path})
-        self._test(temp_dir, test_params, ref_params)
-
-    test_data = [
-        {
-            'params_test': {'transform': ('MakeStateful', {'param_res_names': {'Input:0': 'Identity:0'}})},
-            'params_ref': {'transform': "MakeStateful[param_res_names={\'Input:0\':\'Identity:0\'}]"}}
-    ]
-
-    @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.nightly
-    def test_mo_convert_transform(self, params, ie_device, precision, ir_version,
-                                  temp_dir, use_new_frontend, use_old_api):
-        tf_net_path = self.create_tf_param_res_model(temp_dir)
-
-        test_params = params['params_test']
-        ref_params = params['params_ref']
+        test_params.update({'use_convert_model_from_mo': True})
         test_params.update({'input_model': tf_net_path})
         ref_params.update({'input_model': tf_net_path})
         self._test(temp_dir, test_params, ref_params)

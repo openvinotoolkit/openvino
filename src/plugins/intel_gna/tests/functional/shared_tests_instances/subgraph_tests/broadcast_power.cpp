@@ -15,11 +15,9 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP16,
 };
 
-const std::vector<std::map<std::string, std::string>> configs = {{
-    {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-    {"GNA_COMPACT_MODE", "NO"},
-    {"GNA_SCALE_FACTOR_0", "2048"},
-}};
+const std::vector<std::map<std::string, std::string>> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_COMPACT_MODE", "NO"}, {"GNA_SCALE_FACTOR_0", "2048"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
 const std::vector<std::vector<std::vector<size_t>>> input_shapes{
     {{1, 8224}, {1, 257, 32}},
@@ -40,7 +38,7 @@ INSTANTIATE_TEST_SUITE_P(PowerBroadcast,
                          BroadcastPowerTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          BroadcastPowerTest::getTestCaseName);
 

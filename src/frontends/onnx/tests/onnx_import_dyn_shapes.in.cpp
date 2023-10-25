@@ -17,27 +17,27 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "default_opset.hpp"
-#include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "onnx_utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::onnx_import;
-using namespace ngraph::test;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
+static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_onnx_dynamic_dims_to_ngraph_dynamic_dims) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_onnx_dynamic_dims_to_ngraph_dynamic_dims) {
     // the model represents a linear function A * x + B
     // where all 3 operands are model inputs (no initializers)
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/ab_plus_c.onnx"));
 
@@ -70,12 +70,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_onnx_dynamic_dims_to_ngraph_dynamic
     EXPECT_EQ(out_ps[1].get_length(), 2);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/ab_plus_c.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     struct ExpectedValuesGenerator {
         int64_t i = 1;
@@ -107,11 +107,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_scalar_initializers_shape_check) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_scalar_initializers_shape_check) {
     // initializers defined witout the "dims" field should produce Constants with an empty Shape
     // initializers with "dims: 0" should be have the same way (Shape{} not Shape{0})
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/scalar_initializers.onnx"));
 
@@ -122,10 +122,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_scalar_initializers_shape_check) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_check) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_check) {
     // the model contains a single Add operation that takes a fully dynamic input and a scalar
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/a_plus_b_dyn_rank.onnx"));
 
@@ -147,14 +147,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_check) {
     EXPECT_TRUE(out->get_output_partial_shape(0).rank().is_dynamic());
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_inference) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_inference) {
     // the model contains a single Add operation that takes a fully dynamic input and a scalar
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/a_plus_b_dyn_rank.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const size_t RANKS_TO_TEST = 3;
     const int64_t SCALAR_INPUT_VAL = 5;
@@ -177,72 +177,72 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_inference) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_1_3) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_1_3) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/acosh_dyn_shape.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{1, 3}, {1.0f, 2.5f, 4.3f});
     test_case.add_expected_output<float>(Shape{1, 3}, {0.0f, 1.5667993f, 2.1379586f});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_3_2) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_3_2) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/acosh_dyn_shape.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 2}, {1.0f, 2.5f, 4.3f, 1.0f, 2.5f, 4.3f});
     test_case.add_expected_output<float>(Shape{3, 2}, {0.0f, 1.5667993f, 2.1379586f, 0.0f, 1.5667993f, 2.1379586f});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_1_3) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_1_3) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/asinh_dyn_shape.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{1, 3}, {-1.5f, 0.0f, 1.5f});
     test_case.add_expected_output<float>(Shape{1, 3}, {-1.1947632f, 0.0f, 1.1947632f});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_3_2) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_3_2) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/asinh_dyn_shape.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 2}, {-1.5f, 0.0f, 1.5f, -1.5f, 0.0f, 1.5f});
     test_case.add_expected_output<float>(Shape{3, 2}, {-1.1947632f, 0.0f, 1.1947632f, -1.1947632f, 0.0f, 1.1947632f});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_1_3) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_1_3) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/atanh_dyn_shape.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{1, 3}, {-0.9f, 0.0f, 0.9f});
     test_case.add_expected_output<float>(Shape{1, 3}, {-1.47221948f, 0.0f, 1.47221948f});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_3_2) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_3_2) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/atanh_dyn_shape.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 2}, {-0.9f, 0.0f, 0.9f, -0.9f, 0.0f, 0.9f});
     test_case.add_expected_output<float>(Shape{3, 2},
                                          {-1.47221948f, 0.0f, 1.47221948f, -1.47221948f, 0.0f, 1.47221948f});
@@ -250,13 +250,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_3_2) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/conv_with_dynamic_batch.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const auto data_shape = Shape{1, 3, 7, 7};
     const auto filters_shape = Shape{10, 3, 2, 2};
@@ -274,13 +274,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/conv_with_dynamic_bias.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const auto data_shape = Shape{1, 3, 7, 7};
     const auto filters_shape = Shape{10, 3, 2, 2};
@@ -298,13 +298,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_avg_pool_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_avg_pool_dyn_shape) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/average_pool_2d_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape shape{1, 1, 4, 4};
     const auto elems_in_tensor = shape_size(shape);
@@ -319,13 +319,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_avg_pool_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_dyn_shape) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/max_pool_2d_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape shape{1, 1, 4, 4};
     const auto elems_in_tensor = shape_size(shape);
@@ -340,13 +340,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_with_indices_output) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_with_indices_output) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/max_pool_with_indices_output.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape shape{1, 1, 5, 5};
     std::vector<float> input_values(shape_size(shape));
@@ -364,13 +364,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_with_indices_output) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_avg_pool_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_avg_pool_dyn_shape) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/global_average_pool_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape shape{1, 3, 5, 5};
     const auto elems_in_tensor = shape_size(shape);
@@ -385,13 +385,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_avg_pool_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_max_pool_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_max_pool_dyn_shape) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/global_max_pool_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape shape{1, 3, 5, 5};
     const auto elems_in_tensor = shape_size(shape);
@@ -406,12 +406,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_max_pool_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_max_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_max_dyn_shape) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/argmax_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape shape{3, 2, 2};
     const auto elems_in_tensor = shape_size(shape);
@@ -426,13 +426,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_max_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/argmin_no_keep_dims_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape shape{3, 2, 2};
     const auto elems_in_tensor = shape_size(shape);
@@ -447,15 +447,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_float_zeros) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_float_zeros) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/constant_of_shape_float_zeros.onnx"));
 
     std::vector<float> expected_values(24, 0);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>(Shape{3}, std::vector<int64_t>{2, 3, 4});
     test_case.add_expected_output<float>(Shape{2, 3, 4}, expected_values);
@@ -463,15 +463,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_float_zeros) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_int_ones) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_int_ones) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/constant_of_shape_int_ones.onnx"));
 
     std::vector<int32_t> expected_values(6, 1);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>(Shape{2}, std::vector<int64_t>{2, 3});
     test_case.add_expected_output<int32_t>(Shape{2, 3}, expected_values);
@@ -479,12 +479,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_int_ones) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_1_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_1_dyn_shape) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(Shape{3, 1}, std::vector<float>{1.f, 2.f, 3.f});
     test_case.add_input<int64_t>(Shape{3}, std::vector<int64_t>{2, 1, 6});
@@ -497,12 +497,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_1_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_2_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_2_dyn_shape) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(Shape{3, 1}, std::vector<float>{1.f, 2.f, 3.f});
     test_case.add_input<int64_t>(Shape{3}, std::vector<int64_t>{2, 3, 4});
@@ -514,12 +514,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_2_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_3_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_3_dyn_shape) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(Shape{2, 1}, std::vector<float>{4.f, 5.f});
     test_case.add_input<int64_t>(Shape{2}, std::vector<int64_t>{2, 4});
@@ -530,12 +530,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_3_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_4_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_4_dyn_shape) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(Shape{1, 3, 1}, std::vector<float>{7.f, 8.f, 9.f});
     test_case.add_input<int64_t>(Shape{2}, std::vector<int64_t>{3, 1});
@@ -546,12 +546,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_4_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_5_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_5_dyn_shape) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(Shape{1, 4, 1}, std::vector<float>{7.f, 8.f, 9.f, 10.f});
     test_case.add_input<int64_t>(Shape{2}, std::vector<int64_t>{1, 4});
@@ -563,12 +563,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_5_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_6_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_6_dyn_shape) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(Shape{1, 3, 1}, std::vector<float>{7.f, 8.f, 9.f});
     test_case.add_input<int64_t>(Shape{3}, std::vector<int64_t>{3, 1, 3});
@@ -580,13 +580,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_6_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_uint16_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_uint16_dyn_shape) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/expand_uint16_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<uint16_t>(Shape{1, 2, 1}, std::vector<uint16_t>{1, 2});
     test_case.add_input<int64_t>(Shape{4}, std::vector<int64_t>{2, 2, 1, 2});
@@ -597,34 +597,34 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_uint16_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/tile.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/tile.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<std::int16_t>({0, 1, 2, 3, 4, 5});  // input
     test_case.add_input<std::int64_t>({2, 1});              // repeats
     test_case.add_expected_output<std::int16_t>(Shape{4, 3}, {0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile_static) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile_static) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/tile_static.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/tile_static.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<std::int16_t>({0, 1, 2, 3, 4, 5});  // input
     test_case.add_expected_output<std::int16_t>(Shape{4, 6}, {0, 1, 2, 0, 1, 2, 3, 4, 5, 3, 4, 5,
                                                               0, 1, 2, 0, 1, 2, 3, 4, 5, 3, 4, 5});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_data) {
-    auto ct_fn = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_data) {
+    auto ct_fn = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/convtranspose_dyn_data.onnx"));
 
-    auto test_case = test::TestCase(ct_fn);
+    auto test_case = ov::test::TestCase(ct_fn);
 
     // data
     test_case.add_input<float>(
@@ -661,12 +661,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_data) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_filters) {
-    auto ct_fn = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_filters) {
+    auto ct_fn = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/convtranspose_dyn_filters.onnx"));
 
-    auto test_case = test::TestCase(ct_fn);
+    auto test_case = ov::test::TestCase(ct_fn);
 
     // data
     test_case.add_input<float>(
@@ -703,11 +703,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_filters) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_transpose) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_transpose) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/transpose.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{2, 2, 4, 3};
     const auto elems_in_tensor = shape_size(shape);
@@ -739,12 +739,12 @@ Shape get_flattened_shape(const Shape& in_shape, size_t axis) {
 }
 }  // namespace
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis_0) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis_0) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/flatten_dyn_shape_axis0.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const size_t RANKS_TO_TEST = 4;
     const size_t AXIS = 0;
@@ -766,12 +766,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis_0) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/flatten_dyn_shape_axis.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const size_t RANKS_TO_TEST = 4;
     const size_t AXIS = 3;
@@ -793,12 +793,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/flatten_dyn_shape_neg_axis.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const size_t RANKS_TO_TEST = 4;
     const int64_t AXIS = -3;
@@ -820,24 +820,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_flatten) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_flatten) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/flatten.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/flatten.onnx"));
 
     std::vector<float> data{1, 2, 3, 4, 5, 6, 7, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{1, 2, 2, 2}, data);
     test_case.add_expected_output<float>(Shape{1, 8}, data);
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_global_lp_dynamic_hw) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_global_lp_dynamic_hw) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/global_lp_pool_dynamic_hw.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<int64_t>(Shape{1, 2, 3, 4},
                                  {1, 0, -4, 0, 2, 1, -6, 1, 0, 0, 0, 0, -7, 1, -1, 0, -1, 8, 0, 10, 9, 0, 0, 5});
     test_case.add_expected_output(Shape{1, 2, 1, 1}, std::vector<int64_t>{6, 8});
@@ -845,12 +845,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_global_lp_dynamic_hw) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_2d_input) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_2d_input) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/slice_2d_input.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
     test_case.add_input<int64_t>({1, 0});
     test_case.add_input<int64_t>({2, 3});
@@ -859,13 +859,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_2d_input) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_steps) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_steps) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/slice_default_steps.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1, 2, 3, 4, 5, 6, 7, 8});
     test_case.add_input<int64_t>({1, 0});
     test_case.add_input<int64_t>({2, 3});
@@ -873,13 +873,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_steps) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/dynamic_shapes/slice_2d_default_steps_dyn_begin_end.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1, 2, 3, 4});
     test_case.add_input<int64_t>({2}, {1, 1});
     test_case.add_input<int64_t>({2}, {2, 2});
@@ -887,13 +887,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_clamp_neg_ends) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_clamp_neg_ends) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/slice_default_steps.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
     test_case.add_input<int64_t>({0, 1});
     test_case.add_input<int64_t>({-1, 1000});
@@ -901,12 +901,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_clamp_neg_ends) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/slice_3d_input.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape input_shape{3, 4, 1};
     std::vector<float> input_values(shape_size(input_shape));
@@ -919,13 +919,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_neg_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_neg_axes) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/slice_3d_input_neg_axes.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape input_shape{3, 4, 1};
     std::vector<float> input_values(shape_size(input_shape));
@@ -938,13 +938,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_neg_axes) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_12_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_12_axes) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/slice_3d_input_12_axes.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape input_shape{4, 3, 2};
     std::vector<float> input_values(shape_size(input_shape));
@@ -956,13 +956,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_12_axes) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_20_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_20_axes) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/slice_3d_input_20_axes.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape input_shape{4, 3, 2};
     std::vector<float> input_values(shape_size(input_shape));
@@ -975,13 +975,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_20_axes) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/slice_4d_input_23_axes.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape input_shape{2, 2, 2, 2};
     std::vector<float> input_values(shape_size(input_shape));
@@ -993,13 +993,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/dynamic_shapes/slice_4d_input_0231_axes_ends_max.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape input_shape{2, 2, 2, 2};
     std::vector<float> input_values(shape_size(input_shape));
@@ -1014,13 +1014,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_ma
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/slice_4d_input_2103_axes.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape input_shape{2, 2, 2, 5};
     std::vector<float> input_values(shape_size(input_shape));
@@ -1036,13 +1036,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_ma
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/dynamic_shapes/slice_4d_input_23_axes_21_steps.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape input_shape{2, 2, 6, 2};
     std::vector<float> input_values(shape_size(input_shape));
@@ -1054,12 +1054,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/slice_default_axes.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape input_shape{4, 3, 2};
     std::vector<float> input_values(shape_size(input_shape));
@@ -1070,24 +1070,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
     test_case.add_expected_output<float>(Shape{1, 1, 1}, {9});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_the_same_output_same) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_the_same_output_same) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/slice_2d_the_same_out_shape.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
     test_case.add_input<float>(std::vector<float>{1.0f, 1.0f});
     test_case.add_expected_output<float>(Shape{3, 2}, {2.0f, 1.0f, 4.0f, 3.0f, 6.0f, 5.0f});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_hardmax) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_model_hardmax) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/hardmax.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/hardmax.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(
         {-2.02458119f, 0.00126542f,  -0.58045743f, -0.75186814f, 0.9406899f,   -0.513188f,   0.85887463f,
          1.61444086f,  0.23801147f,  -0.26816885f, 0.6597208f,   1.43889519f,  0.28798895f,  1.44769952f,
@@ -1114,9 +1114,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_hardmax) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/softmax_axis_2.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/softmax_axis_2.onnx"));
 
     const std::vector<float> input = {
         2.75793882f,  -0.50841322f, 0.82013929f,  -0.62409912f, -0.96136118f, 0.21004745f,  1.38337255f,
@@ -1131,7 +1131,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2) {
         -1.24478184f, 2.65316853f,  1.19509542f,  -0.95523998f, 0.5149006f,   -0.01151649f, 0.68327026f,
         -0.4589638f,  -0.46554745f, 0.21055324f,  0.39266729f,  2.05098086f,  1.83207919f};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(input);
 
     test_case.add_expected_output<float>(
@@ -1151,11 +1151,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2) {
     test_case.run(3);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_positive_step) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_range_positive_step) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/range.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/range.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.f});
     test_case.add_input<float>({10.f});
@@ -1165,11 +1165,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_positive_step) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_negative_step) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_range_negative_step) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/range.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/range.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({10.f});
     test_case.add_input<float>({1.f});
@@ -1179,9 +1179,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_negative_step) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/instance_norm_dyn_shape.onnx"));
 
@@ -1189,7 +1189,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
     std::vector<float> data(shape_size(data_shape));
     std::iota(std::begin(data), std::end(data), 1.f);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(data_shape, data);
     test_case.add_input<float>(Shape{2}, std::vector<float>{2.134f, 3.256f});
@@ -1202,9 +1202,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/instance_norm_dyn_shape2.onnx"));
 
@@ -1212,7 +1212,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
     std::vector<float> data(shape_size(data_shape));
     std::iota(std::begin(data), std::end(data), 1.f);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(data_shape, data);
     test_case.add_input<float>(std::vector<float>{2.134f, 3.256f});
@@ -1225,17 +1225,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
     test_case.run();
 }
 
-// NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_input_nearest_infer)
+// OPENVINO_TEST(${BACKEND_NAME}, onnx_upsample9_scales_input_nearest_infer)
 // {
 //     const auto function = onnx_import::import_onnx_model(
-//         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO,
+//         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO,
 //         "onnx/upsample9_scales_input_nearest.onnx"));
 //
 //     // Input data shape (1, 1, 2, 2)
 //     // mode: nearest
 //
 //     Shape expected_output_shape{1, 1, 4, 6};
-//     auto test_case = test::TestCase(function, s_device);
+//     auto test_case = ov::test::TestCase(function, s_device);
 //     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
 //     test_case.add_input<float>({1.0, 1.0, 2.0, 3.0});
 //     test_case.add_expected_output<float>(
@@ -1244,37 +1244,37 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
 //     test_case.run();
 // }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_2d_input) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_2d_input) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/slice_2d_input_opset1.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
     test_case.add_expected_output<float>(Shape{1, 4}, {5, 6, 7, 8});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_clamp_neg_ends) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_clamp_neg_ends) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/slice_2d_clamp_neg_ends_opset1.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
     test_case.add_expected_output<float>(Shape{1, 3}, {2, 3, 4});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/dynamic_shapes/slice_3d_input_21_axes_ends_max_opset1.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     const Shape input_shape{1, 2, 3, 4};
     std::vector<float> input_values(shape_size(input_shape));
@@ -1284,37 +1284,37 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max) 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis) {
     // the ReduceMax node has a fully dynamic input and the reduction axis is -1
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/dynamic_shapes/reduce_max_dynamic_input_rank_negative_axis.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2, 4}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
     test_case.add_expected_output<float>(Shape{2, 1}, {4, 8});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_size_dyn_op) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_size_dyn_op) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/size_op_dyn.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
     test_case.add_expected_output<int64_t>(Shape{}, {6});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/dynamic_shapes/max_pool_dyn_rank_without_default_attrs.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape input_shape{1, 1, 4, 4};
     std::vector<float> input(shape_size(input_shape));
@@ -1324,8 +1324,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/depth_to_space.onnx"));
 
@@ -1336,14 +1336,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input) {
                                        11.f, 18.f, 26.f, 19.f, 27.f, 4.f,  12.f, 5.f,  13.f, 20.f, 28.f,
                                        21.f, 29.f, 6.f,  14.f, 7.f,  15.f, 22.f, 30.f, 23.f, 31.f};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 8, 2, 2}, input);
     test_case.add_expected_output(Shape{1, 2, 4, 4}, expected_output);
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/space_to_depth.onnx"));
 
@@ -1355,32 +1355,32 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
         4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
     };
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 2, 4, 4}, input);
     test_case.add_expected_output(Shape{1, 8, 2, 2}, expected_output);
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_shape) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/eye_like_dyn_shape.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 4}, {5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f});
     test_case.add_expected_output<float>(Shape{3, 4}, {0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_rank) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_rank) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dynamic_shapes/eye_like_dyn_rank.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 4}, {5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f});
     test_case.add_expected_output<float>(Shape{3, 4}, {0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f});
 

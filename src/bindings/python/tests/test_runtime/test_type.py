@@ -5,7 +5,7 @@
 import pytest
 import numpy as np
 
-from openvino.runtime import Type
+from openvino import Type
 
 
 @pytest.mark.parametrize(("dtype_string", "dtype", "ovtype"), [

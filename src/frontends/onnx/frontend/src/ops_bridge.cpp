@@ -29,6 +29,7 @@
 #include "op/average_pool.hpp"
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
+#include "op/blackmanwindow.hpp"
 #include "op/cast.hpp"
 #include "op/cast_like.hpp"
 #include "op/ceil.hpp"
@@ -75,6 +76,8 @@
 #include "op/greater.hpp"
 #include "op/grid_sample.hpp"
 #include "op/gru.hpp"
+#include "op/hammingwindow.hpp"
+#include "op/hannwindow.hpp"
 #include "op/hard_sigmoid.hpp"
 #include "op/hard_swish.hpp"
 #include "op/hardmax.hpp"
@@ -104,6 +107,7 @@
 #include "op/mod.hpp"
 #include "op/mul.hpp"
 #include "op/neg.hpp"
+#include "op/nms_rotated.hpp"
 #include "op/non_max_suppression.hpp"
 #include "op/non_zero.hpp"
 #include "op/not.hpp"
@@ -176,6 +180,7 @@
 #include "op/upsample.hpp"
 #include "op/where.hpp"
 #include "op/xor.hpp"
+#include "openvino/util/log.hpp"
 
 using namespace ov::frontend::onnx;
 
@@ -210,8 +215,8 @@ void OperatorsBridge::register_operator_in_custom_domain(std::string name,
         register_operator(name, version, domain, fn);
     }
     if (!warning_mes.empty()) {
-        NGRAPH_WARN << "Operator: " << name << " since version: " << range.m_since
-                    << " until version: " << range.m_until << " registered with warning: " << warning_mes;
+        OPENVINO_WARN << "Operator: " << name << " since version: " << range.m_since
+                      << " until version: " << range.m_until << " registered with warning: " << warning_mes;
     }
 }
 
@@ -228,26 +233,26 @@ void OperatorsBridge::register_operator(const std::string& name,
         m_map[domain][name].emplace(version, std::move(fn));
     } else {
         it->second = std::move(fn);
-        NGRAPH_WARN << "Overwriting existing operator: " << (domain.empty() ? "ai.onnx" : domain)
-                    << "." + name + ":" + std::to_string(version);
+        OPENVINO_WARN << "Overwriting existing operator: " << (domain.empty() ? "ai.onnx" : domain)
+                      << "." + name + ":" + std::to_string(version);
     }
 }
 
 void OperatorsBridge::unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
     auto domain_it = m_map.find(domain);
     if (domain_it == m_map.end()) {
-        NGRAPH_ERR << "unregister_operator: domain '" + domain + "' was not registered before";
+        OPENVINO_ERR << "unregister_operator: domain '" + domain + "' was not registered before";
         return;
     }
     auto name_it = domain_it->second.find(name);
     if (name_it == domain_it->second.end()) {
-        NGRAPH_ERR << "unregister_operator: operator '" + name + "' was not registered before";
+        OPENVINO_ERR << "unregister_operator: operator '" + name + "' was not registered before";
         return;
     }
     auto version_it = name_it->second.find(version);
     if (version_it == name_it->second.end()) {
-        NGRAPH_ERR << "unregister_operator: operator '" + name + "' with version " + std::to_string(version) +
-                          " was not registered before";
+        OPENVINO_ERR << "unregister_operator: operator '" + name + "' with version " + std::to_string(version) +
+                            " was not registered before";
         return;
     }
     m_map[domain][name].erase(version_it);
@@ -264,12 +269,12 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
 
     const auto dm = m_map.find(domain);
     if (dm == std::end(m_map)) {
-        NGRAPH_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
+        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
         return result;
     }
     if (domain == "" && version > LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
-        NGRAPH_WARN << "Currently ONNX operator set version: " << version
-                    << " is unsupported. Falling back to: " << LATEST_SUPPORTED_ONNX_OPSET_VERSION;
+        OPENVINO_WARN << "Currently ONNX operator set version: " << version
+                      << " is unsupported. Falling back to: " << LATEST_SUPPORTED_ONNX_OPSET_VERSION;
     }
     for (const auto& op : dm->second) {
         const auto& it = find(version, op.second);
@@ -309,6 +314,7 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
 
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
 static const char* const PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
+static const char* const MMDEPLOY_DOMAIN = "mmdeploy";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
@@ -342,6 +348,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
+    REGISTER_OPERATOR("BlackmanWindow", 1, blackmanwindow);
     REGISTER_OPERATOR("Cast", 1, cast);
     REGISTER_OPERATOR("CastLike", 1, cast_like);
     REGISTER_OPERATOR("Ceil", 1, ceil);
@@ -389,6 +396,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Greater", 1, greater);
     REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GRU", 1, gru);
+    REGISTER_OPERATOR("HannWindow", 1, hannwindow);
+    REGISTER_OPERATOR("HammingWindow", 1, hammingwindow);
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
@@ -560,6 +569,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
 
     REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
+    REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "NMSRotated", 1, nms_rotated);
 }
 
 #undef REGISTER_OPERATOR

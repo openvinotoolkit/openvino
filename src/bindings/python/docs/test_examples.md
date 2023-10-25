@@ -10,7 +10,7 @@ python -m pip install -r openvino/src/bindings/python/requirements_test.txt
 
 Make sure that Python libraries are added to the user environment variables: 
 ```
-export PYTHONPATH=PYTHONPATH:<openvino_repo>/bin/intel64/Release/python_api/python3.7
+export PYTHONPATH=PYTHONPATH:<openvino_repo>/bin/intel64/Release/python
 ```
 ## Run OpenVINO™ Python API tests
 *For simplicity, all of these commands require to navigate to the [main Python API folder](./../) first:*
@@ -107,7 +107,7 @@ Let's add a test case for new class. Start with imports and simple test of the c
 ```python
 import pytest
 import numpy as np 
-import openvino.runtime as ov
+import openvino as ov
 
 def test_mytensor_creation():
     tensor = ov.MyTensor([1, 2, 3])

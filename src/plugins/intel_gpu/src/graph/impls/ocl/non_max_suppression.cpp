@@ -17,7 +17,7 @@ struct non_max_suppression_impl : typed_primitive_impl_ocl<non_max_suppression> 
     using kernel_selector_t = kernel_selector::non_max_suppression_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::non_max_suppression_params, kernel_selector::non_max_suppression_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::non_max_suppression_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<non_max_suppression_impl>(*this);
@@ -143,6 +143,17 @@ public:
         params.sort_result_descending = primitive->sort_result_descending;
         params.box_encoding = primitive->center_point_box ? kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER
                                                           : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
+        switch (primitive->rotation) {
+            case non_max_suppression::Rotation::CLOCKWISE:
+                params.rotation = kernel_selector::NMSRotationType::CLOCKWISE;
+                break;
+            case non_max_suppression::Rotation::COUNTERCLOCKWISE:
+                params.rotation = kernel_selector::NMSRotationType::COUNTERCLOCKWISE;
+                break;
+            default:
+                params.rotation = kernel_selector::NMSRotationType::NONE;
+        }
+
         if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
             params.reuse_internal_buffer = true;
         }
@@ -162,8 +173,8 @@ private:
         auto& stream = node.get_program().get_stream();
         switch (mem->get_layout().data_type) {
         case data_types::f16: {
-            mem_lock<half_t, mem_lock_type::read> lock(mem, stream);
-            auto mem_value = static_cast<half_t*>(lock.data());
+            mem_lock<ov::float16, mem_lock_type::read> lock(mem, stream);
+            auto mem_value = static_cast<ov::float16*>(lock.data());
             retValue = static_cast<T>(*mem_value);
         } break;
         case data_types::f32: {

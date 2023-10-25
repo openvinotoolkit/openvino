@@ -9,16 +9,19 @@
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "reshape_inst.h"
+#include "proposal_inst.h"
 #include "quantize_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
+#include "condition_inst.h"
+#include "loop_inst.h"
 #include "program_node.h"
 
 #include <iostream>
 #include <cmath>
 #include <iomanip>
 
-#include <threading/ie_cpu_streams_executor.hpp>
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 using namespace cldnn;
 
@@ -33,7 +36,7 @@ void compile_graph::run(program& p) {
 
     auto task_executor = p.get_task_executor();
     auto& proc_order = p.get_processing_order();
-    std::vector<InferenceEngine::Task> tasks;
+    std::vector<ov::threading::Task> tasks;
     std::exception_ptr exception;
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
@@ -52,14 +55,14 @@ void compile_graph::run(program& p) {
         if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
             can_select_impl = false;
 
-        // TODO: Remove this WA once we have shape agnostic quantize_scale_shift kernel
-        if (node->is_type<quantize>() && node->is_dynamic() && node->as<quantize>().get_scale_shift_opt()) {
+        // TODO: Remove this WA once we have shape agnostic conv kernl with specified auto_pad attributes
+        if (node->is_type<convolution>() && node->is_dynamic() && !node->as<convolution>().use_explicit_padding()) {
             can_select_impl = false;
         }
 
         // TODO: need to come up with better handling of unsupported shape agnostic cases
         // e.g. process exceptions from choose_impl() and ignore those for dynamic parameters
-        if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_layout().get_partial_shape().size() > 3)
+        if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_pshape().size() > 3)
             can_select_impl = false;
 
         // TODO: Remove this WA once we have shape agnostic arg_max_min_axis kernel with non-const k input
@@ -71,6 +74,9 @@ void compile_graph::run(program& p) {
 
         if (node->is_dynamic() && !is_planar)
             can_select_impl = false;
+
+        if (node->is_type<condition>() || node->is_type<loop>() || node->is_type<proposal>())
+            can_select_impl = true;
 
         if (can_select_impl) {
             tasks.push_back([node, &exception, change_initial_impl, original_impl_type] {
@@ -92,7 +98,7 @@ void compile_graph::run(program& p) {
         }
     }
 
-    task_executor->runAndWait(tasks);
+    task_executor->run_and_wait(tasks);
     tasks.clear();
 
     if (exception) {

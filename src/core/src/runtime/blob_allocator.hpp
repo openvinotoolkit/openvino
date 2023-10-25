@@ -10,6 +10,7 @@
 #include "openvino/runtime/common.hpp"
 #include "system_allocator.hpp"  // IE private header
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 struct BlobAllocator : public IAllocator {
     BlobAllocator(const ov::Allocator& impl) : _impl{impl} {}
@@ -46,7 +47,7 @@ struct BlobAllocator : public IAllocator {
 
 namespace ov {
 struct BlobAllocator {
-    BlobAllocator() : _impl{std::make_shared<ie::SystemMemoryAllocator>()} {}
+    BlobAllocator() : _impl{std::make_shared<InferenceEngine::SystemMemoryAllocator>()} {}
 
     void* allocate(const size_t bytes, const size_t alignment) {
         OPENVINO_ASSERT(alignment == alignof(max_align_t),
@@ -69,13 +70,15 @@ struct BlobAllocator {
     bool is_equal(const BlobAllocator& other) const {
         if (other._impl == _impl)
             return true;
-        auto other_system_memory_allocator = dynamic_cast<const ie::SystemMemoryAllocator*>(other._impl.get());
-        auto system_allocator = dynamic_cast<const ie::SystemMemoryAllocator*>(_impl.get());
+        auto other_system_memory_allocator =
+            dynamic_cast<const InferenceEngine::SystemMemoryAllocator*>(other._impl.get());
+        auto system_allocator = dynamic_cast<const InferenceEngine::SystemMemoryAllocator*>(_impl.get());
         if (system_allocator != nullptr && other_system_memory_allocator != nullptr)
             return true;
         return false;
     }
 
-    std::shared_ptr<ie::IAllocator> _impl;
+    std::shared_ptr<InferenceEngine::IAllocator> _impl;
 };
 }  // namespace ov
+IE_SUPPRESS_DEPRECATED_END

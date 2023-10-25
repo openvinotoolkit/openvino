@@ -4,14 +4,17 @@
 
 
 import numpy as np
+from utils import get_image, get_path_to_extension_library, get_path_to_model
 
 #! [ov_api_2_0:create_core]
-import openvino.runtime as ov
+import openvino as ov
 core = ov.Core()
 #! [ov_api_2_0:create_core]
 
+model_path = get_path_to_model()
+
 #! [ov_api_2_0:read_model]
-model = core.read_model("model.xml")
+model = core.read_model(model_path)
 #! [ov_api_2_0:read_model]
 
 #! [ov_api_2_0:compile_model]
@@ -30,7 +33,7 @@ assert input_tensor1.data.dtype == np.int64
 # Fill the first data ...
 
 # Get input tensor by tensor name
-input_tensor2 = infer_request.get_tensor("data2_t")
+input_tensor2 = infer_request.get_tensor("input")
 assert input_tensor2.data.dtype == np.int64
 # Fill the second data ...
 #! [ov_api_2_0:get_input_tensor_aligned]
@@ -43,7 +46,7 @@ assert input_tensor1.data.dtype == np.int32
 # Fill the first data ...
 
 # Get input tensor by tensor name
-input_tensor2 = infer_request.get_tensor("data2_t")
+input_tensor2 = infer_request.get_tensor("input")
 # IR v10 works with converted precisions (i64 -> i32)
 assert input_tensor2.data.dtype == np.int32
 # Fill the second data ..
@@ -53,7 +56,7 @@ assert input_tensor2.data.dtype == np.int32
 results = infer_request.infer()
 #! [ov_api_2_0:inference]
 
-input_data = iter(list())
+input_data = get_image()
 
 def process_results(results, frame_id):
     pass
@@ -83,7 +86,7 @@ infer_queue.set_callback(callback)
 total_frames = 100
 for i in range(total_frames):
     # Wait for at least one available infer request and start asynchronous inference
-    infer_queue.start_async(next(input_data), userdata=i)
+    infer_queue.start_async(input_data, userdata=i)
 # Wait for all requests to complete
 infer_queue.wait_all()
 #! [ov_api_2_0:start_async_and_wait]
@@ -104,6 +107,8 @@ assert output_tensor.data.dtype == np.int32
 # process output data ...
 #! [ov_api_2_0:get_output_tensor_v10]
 
+path_to_extension_library = get_path_to_extension_library()
+
 #! [ov_api_2_0:load_old_extension]
-core.add_extension("path_to_extension_library.so")
+core.add_extension(path_to_extension_library)
 #! [ov_api_2_0:load_old_extension]

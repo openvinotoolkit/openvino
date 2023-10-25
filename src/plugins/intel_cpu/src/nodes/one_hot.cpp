@@ -11,67 +11,14 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
 #include "common/cpu_memcpy.h"
+#include "shape_inference/custom/one_hot.hpp"
 
 using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-namespace {
-/**
- * Implements One Hot shape inference algorithm. The output shape is the input `indices` tensor shape, where a new axis
- * of size `depth` is inserted at the dimension defined by the `axis` parameter.
- *  
- */
-class OneHotShapeInfer : public ShapeInferEmptyPads {
-public:
-    explicit OneHotShapeInfer(int64_t axis) : m_axis(axis) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr())[0];
-
-        auto result = input_shapes.front().get();
-        result.insert(result.begin() + m_axis, depth);
-
-        return {{std::move(result)}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return PortMask(1);
-    }
-
-private:
-    int64_t m_axis = 0;
-};
-
-class OneHotShapeInferFactory : public ShapeInferFactory {
-public:
-    OneHotShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        auto oneHot = ov::as_type_ptr<const ngraph::opset1::OneHot>(m_op);
-        if (!oneHot) {
-            IE_THROW() << "Unexpected op type in OneHot shape inference factory: " << m_op->get_type_name();
-        }
-        auto axis = oneHot->get_axis();
-        auto dstShape = oneHot->get_output_partial_shape(0);
-        int output_dims_size = dstShape.size();
-        if (0 == output_dims_size) output_dims_size = 1;
-        if (axis < 0) {
-            axis += output_dims_size;
-        }
-        return std::make_shared<OneHotShapeInfer>(axis);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
-} // namespace
 
 bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -132,8 +79,8 @@ OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 }
 
 bool OneHot::needShapeInfer() const {
-    const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
-    if (depth != depthNodePtr[0]) {
+    const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->getData());
+    if (depth != static_cast<size_t>(depthNodePtr[0])) {
         depth = depthNodePtr[0];
         return true;
     }
@@ -162,11 +109,11 @@ void OneHot::initSupportedPrimitiveDescriptors() {
 
 template<typename out_type>
 void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
-    const auto *src_data = reinterpret_cast<const in_type *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<out_type *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *src_data = reinterpret_cast<const in_type *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    auto *dst_data = reinterpret_cast<out_type *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
-    const out_type on_value = reinterpret_cast<const out_type *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr())[0];
-    const out_type off_value = reinterpret_cast<const out_type *>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr())[0];
+    const out_type on_value = reinterpret_cast<const out_type *>(getParentEdgeAt(2)->getMemoryPtr()->getData())[0];
+    const out_type off_value = reinterpret_cast<const out_type *>(getParentEdgeAt(3)->getMemoryPtr()->getData())[0];
 
     // fill the output with off_value
     std::size_t dst_size = prefix_size * depth * suffix_size;
@@ -198,7 +145,7 @@ void OneHot::execute(dnnl::stream strm) {
     for (size_t i = 0; i < actual_axis; ++i)
         prefix_size *= input_dims[i];
 
-    std::size_t suffix_size = getParentEdgeAt(0)->getMemory().GetShape().getElementsCount() / prefix_size;
+    std::size_t suffix_size = getParentEdgeAt(0)->getMemory().getShape().getElementsCount() / prefix_size;
 
     OneHotContext ctx = {this, prefix_size, suffix_size};
     OV_SWITCH(intel_cpu, OneHotExecute, ctx, output_precision.size(),

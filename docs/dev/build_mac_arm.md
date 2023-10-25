@@ -9,12 +9,12 @@ There are two options how to use OpenVINO on Apple Silicon:
 The software was validated on:
 - macOS 11.x, 12.x, 13.x, arm64
 
-## Software requirements 
+## Software requirements
 
 - [brew](https://brew.sh) package manager to install additional dependencies. Use [install brew](https://brew.sh) guide to achieve this.
 
 - Installation step for python and python libraries varies depending on the host architecture:
-  - **arm64** Python 3.7 or higher for the OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
+  - **arm64** Python 3.8 - 3.11 for the OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
   ```sh
   % # let's have a look what python versions are available in brew
   % brew search python
@@ -49,10 +49,10 @@ The software was validated on:
 
 ## How to build
 
-1. (Get sources) Clone submodules:
+1. (Get sources) Clone the repository and submodules:
 ```sh
 git clone https://github.com/openvinotoolkit/openvino.git
-cd ../openvino
+cd openvino
 git submodule update --init
 ```
 2. Create a build folder:
@@ -68,7 +68,7 @@ cmake -G "Ninja Multi-Config" -DENABLE_SYSTEM_PUGIXML=ON -DENABLE_SYSTEM_SNAPPY=
 ```sh
 cmake --build . --config Release --parallel $(sysctl -n hw.ncpu)
 ```
-All built binaries are located in `<openvino_source_dir>/bin/<arm64 | intel64>/Release/` and wheel packages are located in `<openvino_build_dir>/wheels`. 
+All built binaries are located in `<openvino_source_dir>/bin/<arm64 | intel64>/Release/` and wheel packages are located in `<openvino_build_dir>/wheels`.
 
 5. (Optional install) Once you have built OpenVINO, you can install artifacts to a preferred location:
 ```sh
@@ -89,7 +89,7 @@ file /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib
 /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib: Mach-O 64-bit dynamically linked shared library arm64
 ```
 
-The same goes for other external dependencies like `libusb`. If you want to enable extra functionality like enable MYRIAD plugin build, you need to provide either x86_64 or universal2 `libusb` library. All other steps are the same as for usual compilation: build, install.
+The same goes for other external dependencies like `pugixml`.
 
 > **NOTE**: When building with `universal2` python libraries, wheel package is created with the `openvino-2022.3.0-000-cp311-cp311-macosx_12_0_universal2.whl` name and have a proper `universal2` tags, so they can *potentially* be used on both Apple Silicon and Intel CPU.
 

@@ -21,6 +21,8 @@ namespace cldnn {
 struct extract_image_patches : public primitive_base<extract_image_patches> {
     CLDNN_DECLARE_PRIMITIVE(extract_image_patches)
 
+    extract_image_patches() : primitive_base("", {}) {}
+
     /// @brief Constructs select primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id containing input 4-D tensor.
@@ -74,6 +76,24 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
                strides == rhs_casted.strides &&
                rates == rhs_casted.rates &&
                auto_pad == rhs_casted.auto_pad;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<extract_image_patches>::save(ob);
+        ob << sizes;
+        ob << strides;
+        ob << rates;
+        ob << auto_pad;
+        ob << output_shape;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<extract_image_patches>::load(ib);
+        ib >> sizes;
+        ib >> strides;
+        ib >> rates;
+        ib >> auto_pad;
+        ib >> output_shape;
     }
 };
 }  // namespace cldnn

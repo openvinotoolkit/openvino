@@ -10,7 +10,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class MHAFusionBase : public ngraph::pass::MatcherPass {
+class MHAFusionBase : public ov::pass::MatcherPass {
 protected:
     bool valid_transpose_order(const std::shared_ptr<ngraph::Node>& node, const std::vector<int64_t>& expected_order) {
         if (auto transpose_pattern = ngraph::as_type_ptr<ngraph::opset4::Constant>(node)) {
@@ -49,7 +49,7 @@ public:
     MHAQuantFusion2();
 };
 
-class MHAFusion : public ngraph::pass::GraphRewrite {
+class MHAFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("MHAFusion", "0");
     MHAFusion() {

@@ -68,9 +68,9 @@ namespace SubgraphTestsDefinitions {
         ASSERT_EQ(memory_size % 2, 0);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {{1, 3 * memory_size}});
+        ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 3 * memory_size})};
 
-        memory_init = CommonTestUtils::generate_float_numbers(memory_size, -0.2f, 0.2f);
+        memory_init = ov::test::utils::generate_float_numbers(memory_size, -0.2f, 0.2f);
 
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{1, memory_size}, memory_init);
 
@@ -99,7 +99,7 @@ namespace SubgraphTestsDefinitions {
         ASSERT_EQ(memory_size % 2, 0);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {{1, 3 * memory_size}});
+        ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 3 * memory_size})};
 
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{1, memory_size}, memory_init);
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{mem_c, input[0]}, 1);
@@ -121,9 +121,9 @@ namespace SubgraphTestsDefinitions {
         ASSERT_EQ(memory_size % 8, 0);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {{1, memory_size / 2}});
+        ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, memory_size / 2})};
 
-        memory_init = CommonTestUtils::generate_float_numbers(memory_size, -0.2f, 0.2f);
+        memory_init = ov::test::utils::generate_float_numbers(memory_size, -0.2f, 0.2f);
 
         auto mem_c = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{8, memory_size / 8}, memory_init);
         auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");
@@ -157,7 +157,7 @@ namespace SubgraphTestsDefinitions {
         ASSERT_EQ(memory_size % 8, 0);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {{1, memory_size / 2}});
+        ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, memory_size / 2})};
 
         auto mem_c = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1, memory_size}, memory_init);
         auto reshape_pattern1 = ngraph::builder::makeConstant(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, memory_size});

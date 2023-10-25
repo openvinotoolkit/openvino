@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -38,11 +38,11 @@ public:
 
         std::ostringstream result;
         if (inputShape.first.size() != 0) {
-            result << "IS=(" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+            result << "IS=(" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShape.second) {
-                result << CommonTestUtils::vec2str(shape) << "_";
+                result << ov::test::utils::vec2str(shape) << "_";
         }
         result << "axis=" << axis << "_";
         if (inputType.first == ngraph::helpers::InputLayerType::CONSTANT && !inputType.second) {
@@ -61,7 +61,7 @@ public:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
 
@@ -78,7 +78,7 @@ public:
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         InputShape inputShape;
         std::pair<ngraph::helpers::InputLayerType, bool> inputType;
@@ -101,13 +101,10 @@ protected:
         }
 
         function = createFunction(inputType.first == ngraph::helpers::InputLayerType::CONSTANT);
-    }
-    void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
         if (function->get_parameters().size() == 2) {
             generateDepth();
-            funcRef = createFunction(true);
+            functionRefs = createFunction(true);
         }
-        ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
     }
     void validate() override {
             auto actualOutputs = get_plugin_outputs();
@@ -129,7 +126,7 @@ protected:
         compare(expectedOutputs, actualOutputs);
     }
     std::shared_ptr<ngraph::Function> createFunction(bool depthConst) {
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::i32, {inputDynamicShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngraph::element::i32, inputDynamicShapes.front())};
         params.front()->set_friendly_name("ParamsIndices");
         std::shared_ptr<ov::Node> depth;
         if (depthConst) {

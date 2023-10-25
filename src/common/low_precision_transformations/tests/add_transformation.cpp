@@ -4,42 +4,42 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/add.hpp>
+#include "low_precision/add.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 #include <utility>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/add_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/add.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class AddTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precision1;
+        ov::element::Type precision1;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
-        ngraph::element::Type precision2;
+        ov::element::Type precision2;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
         std::vector<float> constValues;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precision1;
+        ov::element::Type precision1;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
-        ngraph::element::Type precision2;
+        ov::element::Type precision2;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
         std::vector<float> constValues;
@@ -47,9 +47,9 @@ public:
 
         Expected() = default;
 
-        Expected(const ngraph::element::Type& precision1,
+        Expected(const ov::element::Type& precision1,
                  ngraph::builder::subgraph::DequantizationOperations dequantization1,
-                 const ngraph::element::Type& precision2,
+                 const ov::element::Type& precision2,
                  ngraph::builder::subgraph::DequantizationOperations dequantization2,
                  ngraph::builder::subgraph::DequantizationOperations dequantizationAfter,
                  std::vector<float> constValues,
@@ -72,15 +72,15 @@ public:
     std::string postops_configuration;
 };
 
-typedef std::tuple<ngraph::element::Type,
-                   std::pair<ngraph::PartialShape, ngraph::PartialShape>,  // PShapes for each input
+typedef std::tuple<ov::element::Type,
+                   std::pair<ov::PartialShape, ov::PartialShape>,  // PShapes for each input
                    AddTransformationTestValues>
     AddTransformationParams;
 
 class AddTransformation : public LayerTransformation, public testing::WithParamInterface<AddTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
         const auto inputShapes = std::get<1>(GetParam());
         const AddTransformationTestValues& testValues = std::get<2>(GetParam());
 
@@ -99,7 +99,7 @@ public:
                                                   testValues.postops_configuration);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
+        transform.add<ov::pass::low_precision::AddTransformation, ov::op::v1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         auto inputShape1Ref = inputShapes.first;
@@ -150,10 +150,10 @@ TEST_P(AddTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ngraph::element::Type> netPrecision = {element::f32, element::f16};
+const std::vector<ov::element::Type> netPrecision = {element::f32, element::f16};
 
 namespace testValues1 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapes4D = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()},
      {Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}},
@@ -164,15 +164,15 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::f32, {}, ngraph::element::u8, {{ngraph::element::f32}, {7.f}, {{1.f, 0.f, 2.f, 3.f}}}, {}},
-     {ngraph::element::f32, {}, ngraph::element::u8, {{ngraph::element::f32}, {7.f}, {{1.f, 0.f, 2.f, 3.f}}}, {}, {}},
+     {ov::element::f32, {}, ov::element::u8, {{ov::element::f32}, {7.f}, {{1.f, 0.f, 2.f, 3.f}}}, {}},
+     {ov::element::f32, {}, ov::element::u8, {{ov::element::f32}, {7.f}, {{1.f, 0.f, 2.f, 3.f}}}, {}, {}},
      ""},
     // Multiply with zero on the second branch
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {7.f}, {{1.f, 0.f, 2.f, 3.f}}}, ngraph::element::f32, {}, {}},
-     {ngraph::element::u8, {{ngraph::element::f32}, {7.f}, {{1.f, 0.f, 2.f, 3.f}}}, ngraph::element::f32, {}, {}, {}},
+     {ov::element::u8, {{ov::element::f32}, {7.f}, {{1.f, 0.f, 2.f, 3.f}}}, ov::element::f32, {}, {}},
+     {ov::element::u8, {{ov::element::f32}, {7.f}, {{1.f, 0.f, 2.f, 3.f}}}, ov::element::f32, {}, {}, {}},
      ""},
 
     // Actual:
@@ -208,14 +208,14 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {7.f}, {10.f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {3.f}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {7.f}, {10.f}},
+      ov::element::u8,
+      {{ov::element::f32}, {3.f}, {5.f}},
       {}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {8.5f}, {2.f}},
-      ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32}, {8.5f}, {2.f}},
+      ov::element::u8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {}},
@@ -254,14 +254,14 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {{7.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true}, {10.f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{3.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {{7.f}, ov::element::f32, {}, false, 1, ov::element::u8, true}, {10.f}},
+      ov::element::u8,
+      {{ov::element::f32}, {{3.f}, ov::element::f32, {}, false, 1, ov::element::u8, true}, {5.f}},
       {}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {8.5f}, {2.f}},
-      ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32}, {8.5f}, {2.f}},
+      ov::element::u8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {}},
@@ -269,14 +269,14 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {2.f}, {10.f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {2.f}, {10.f}},
+      ov::element::u8,
+      {{ov::element::f32}, {}, {5.f}},
       {}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {2.f}, {2.f}},
-      ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32}, {2.f}, {2.f}},
+      ov::element::u8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {}},
@@ -284,24 +284,24 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {10.f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {}, {10.f}},
+      ov::element::u8,
+      {{ov::element::f32}, {}, {5.f}},
       {}},
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {2.f}}, ngraph::element::u8, {{}, {}, {}}, {{}, {}, {5.f}}, {}},
+     {ov::element::u8, {{ov::element::f32}, {}, {2.f}}, ov::element::u8, {{}, {}, {}}, {{}, {}, {5.f}}, {}},
      ""},
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {2.f}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {2.f}, {}},
+      ov::element::u8,
+      {{ov::element::f32}, {}, {5.f}},
       {}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {2.f}, {0.2f}},
-      ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32}, {2.f}, {0.2f}},
+      ov::element::u8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {}},
@@ -309,14 +309,14 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {2.f}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {3.f}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {2.f}, {}},
+      ov::element::u8,
+      {{ov::element::f32}, {3.f}, {5.f}},
       {}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {17.f}, {0.2f}},
-      ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32}, {17.f}, {0.2f}},
+      ov::element::u8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {}},
@@ -327,14 +327,14 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {true,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {7.f}, {10.f}},
-      ngraph::element::i8,
-      {{ngraph::element::f32}, {3.f}, {5.f}},
+     {ov::element::i8,
+      {{ov::element::f32}, {7.f}, {10.f}},
+      ov::element::i8,
+      {{ov::element::f32}, {3.f}, {5.f}},
       {}},
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {8.5f}, {2.f}},
-      ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32}, {8.5f}, {2.f}},
+      ov::element::i8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {}},
@@ -342,14 +342,14 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {true,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {2.f}, {10.f}},
-      ngraph::element::i8,
-      {{ngraph::element::f32}, {}, {5.f}},
+     {ov::element::i8,
+      {{ov::element::f32}, {2.f}, {10.f}},
+      ov::element::i8,
+      {{ov::element::f32}, {}, {5.f}},
       {}},
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {2.f}, {2.f}},
-      ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32}, {2.f}, {2.f}},
+      ov::element::i8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {}},
@@ -357,24 +357,24 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {true,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {}, {10.f}},
-      ngraph::element::i8,
-      {{ngraph::element::f32}, {}, {5.f}},
+     {ov::element::i8,
+      {{ov::element::f32}, {}, {10.f}},
+      ov::element::i8,
+      {{ov::element::f32}, {}, {5.f}},
       {}},
-     {ngraph::element::i8, {{ngraph::element::f32}, {}, {2.f}}, ngraph::element::i8, {{}, {}, {}}, {{}, {}, {5.f}}, {}},
+     {ov::element::i8, {{ov::element::f32}, {}, {2.f}}, ov::element::i8, {{}, {}, {}}, {{}, {}, {5.f}}, {}},
      ""},
     {true,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {2.f}, {}},
-      ngraph::element::i8,
-      {{ngraph::element::f32}, {}, {5.f}},
+     {ov::element::i8,
+      {{ov::element::f32}, {2.f}, {}},
+      ov::element::i8,
+      {{ov::element::f32}, {}, {5.f}},
       {}},
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {2.f}, {0.2f}},
-      ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32}, {2.f}, {0.2f}},
+      ov::element::i8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {}},
@@ -382,14 +382,14 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {true,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {2.f}, {}},
-      ngraph::element::i8,
-      {{ngraph::element::f32}, {3.f}, {5.f}},
+     {ov::element::i8,
+      {{ov::element::f32}, {2.f}, {}},
+      ov::element::i8,
+      {{ov::element::f32}, {3.f}, {5.f}},
       {}},
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {17.f}, {0.2f}},
-      ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32}, {17.f}, {0.2f}},
+      ov::element::i8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {}},
@@ -398,15 +398,15 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {1.f}, {std::numeric_limits<float>::max()}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {0.009f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {1.f}, {std::numeric_limits<float>::max()}},
+      ov::element::u8,
+      {{ov::element::f32}, {}, {0.009f}},
       {}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {1.f}, {std::numeric_limits<float>::max()}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {0.009f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {1.f}, {std::numeric_limits<float>::max()}},
+      ov::element::u8,
+      {{ov::element::f32}, {}, {0.009f}},
       {{}, {}, {}},
       {}},
      ""},
@@ -414,15 +414,15 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {0.009f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {std::numeric_limits<float>::max()}, {2.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {}, {0.009f}},
+      ov::element::u8,
+      {{ov::element::f32}, {std::numeric_limits<float>::max()}, {2.f}},
       {}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {0.009f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {std::numeric_limits<float>::max()}, {2.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {}, {0.009f}},
+      ov::element::u8,
+      {{ov::element::f32}, {std::numeric_limits<float>::max()}, {2.f}},
       {{}, {}, {}},
       {}},
      ""},
@@ -431,15 +431,15 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {7.f}, {10.f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {3.f}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {7.f}, {10.f}},
+      ov::element::u8,
+      {{ov::element::f32}, {3.f}, {5.f}},
       {}},
-     {ngraph::element::u8,
+     {ov::element::u8,
       {{}, {}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {17.f}, {0.5f}},
+      ov::element::u8,
+      {{ov::element::f32}, {17.f}, {0.5f}},
       {{}, {}, {10.f}},
       {}},
      "convolution"},
@@ -447,15 +447,15 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {7.f}, {10.f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {3.f}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {7.f}, {10.f}},
+      ov::element::u8,
+      {{ov::element::f32}, {3.f}, {5.f}},
       {}},
-     {ngraph::element::u8,
+     {ov::element::u8,
       {{}, {}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {17.f}, {0.5f}},
+      ov::element::u8,
+      {{ov::element::f32}, {17.f}, {0.5f}},
       {{}, {}, {10.f}},
       {}},
      "convolution",
@@ -464,14 +464,14 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {7.f}, {10.f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {3.f}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {7.f}, {10.f}},
+      ov::element::u8,
+      {{ov::element::f32}, {3.f}, {5.f}},
       {}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {8.5f}, {2.f}},
-      ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32}, {8.5f}, {2.f}},
+      ov::element::u8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {}},
@@ -480,15 +480,15 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {7.f}, {10.f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {3.f}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {7.f}, {10.f}},
+      ov::element::u8,
+      {{ov::element::f32}, {3.f}, {5.f}},
       {}},
-     {ngraph::element::u8,
+     {ov::element::u8,
       {{}, {}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {17.f}, {0.5f}},
+      ov::element::u8,
+      {{ov::element::f32}, {17.f}, {0.5f}},
       {{}, {}, {10.f}},
       {}},
      "group_convolution"},
@@ -503,7 +503,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapes4D = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{1, 4, 16, 16}, {Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}},
 };
@@ -539,14 +539,14 @@ const std::vector<AddTransformationTestValues> testValuesWithFirstConstantBranch
     {false,
      0,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {{7.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true}, {10.f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {3.f}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {{7.f}, ov::element::f32, {}, false, 1, ov::element::u8, true}, {10.f}},
+      ov::element::u8,
+      {{ov::element::f32}, {3.f}, {5.f}},
       {10.f}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {}},
-      ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32}, {}, {}},
+      ov::element::u8,
       {},
       {{}, {}, {5.f}},
       {-3.f},
@@ -562,7 +562,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues2
 
 namespace testValues3 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapes4D = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}, {1, 4, 16, 16}},
 };
@@ -598,14 +598,14 @@ const std::vector<AddTransformationTestValues> testValuesWithSecondConstantBranc
     {false,
      1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {7.f}, {10.f}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{3.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true}, {5.f}},
+     {ov::element::u8,
+      {{ov::element::f32}, {7.f}, {10.f}},
+      ov::element::u8,
+      {{ov::element::f32}, {{3.f}, ov::element::f32, {}, false, 1, ov::element::u8, true}, {5.f}},
       {10.f}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {}},
-      ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32}, {}, {}},
+      ov::element::u8,
       {},
       {{}, {}, {10.f}},
       {3.5f},
@@ -622,7 +622,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues3
 
 namespace spatialDimensions {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapes4D = {
     {{1, 2, 2, 2}, {1, 2, 2, 2}},
 };
 
@@ -631,14 +631,14 @@ const std::vector<AddTransformationTestValues> specialTestValues = {
     {false,
      1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {}, {5.f}},
-      ngraph::element::i8,
+     {ov::element::i8,
+      {{ov::element::f32}, {}, {5.f}},
+      ov::element::i8,
       {{}, {}, {}},
       {10.f, 5.f, 2.f, 4.f, 3.f, 12.f, 8.f, 14.f}},
-     {ngraph::element::i8,
-      {{ngraph::element::f32}, {}, {}},
-      ngraph::element::f32,
+     {ov::element::i8,
+      {{ov::element::f32}, {}, {}},
+      ov::element::f32,
       {{}, {}, {}},
       {{}, {}, {5.f}},
       {-2.f, -1.f, -0.4f, -0.8f, -0.6f, -2.4f, -1.6f, -2.8f},
@@ -650,14 +650,14 @@ const std::vector<AddTransformationTestValues> specialTestValues = {
         false,
         0,
         LayerTransformation::createParamsU8I8(),
-        {ngraph::element::i8,
+        {ov::element::i8,
          {{}, {}, {}},
-         ngraph::element::i8,
-         {{ngraph::element::f32}, {}, {5.f}},
+         ov::element::i8,
+         {{ov::element::f32}, {}, {5.f}},
          {10.f, 5.f, 2.f, 4.f, 3.f, 12.f, 8.f, 14.f}},
-        {ngraph::element::i8,
-         {{ngraph::element::f32}, {}, {}},
-         ngraph::element::f32,
+        {ov::element::i8,
+         {{ov::element::f32}, {}, {}},
+         ov::element::f32,
          {{}, {}, {}},
 
          {{}, {}, {5.f}},
@@ -676,7 +676,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace spatialDimensions
 
 namespace tensor2D {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapes = {
     {{4, 1}, {4, 1}},
 };
 
@@ -684,14 +684,14 @@ const std::vector<AddTransformationTestValues> specialTestValues = {
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {4, 1}, true, 0ul}},
-      ngraph::element::f32,
+     {ov::element::u8,
+      {{ov::element::f32}, {}, {{1.f, 2.f, 3.f, 4.f}, ov::element::f32, {4, 1}, true, 0ul}},
+      ov::element::f32,
       {},
       {5.f, 6.f, 7.f, 8.f}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {}, {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {4, 1}, true, 0ul}},
-      ngraph::element::f32,
+     {ov::element::u8,
+      {{ov::element::f32}, {}, {{1.f, 2.f, 3.f, 4.f}, ov::element::f32, {4, 1}, true, 0ul}},
+      ov::element::f32,
       {{}, {}, {}},
       {{}, {}, {}},
       {5.f, 6.f, 7.f, 8.f}},
@@ -707,9 +707,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace tensor2D
 
 namespace oneBranchQuantizationFp16 {
-const std::vector<ngraph::element::Type> netPrecision = {element::f16};
+const std::vector<ov::element::Type> netPrecision = {element::f16};
 
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapesWithDynamicChannels = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapesWithDynamicChannels = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{1, 4, 16, 16}, {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
     {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
@@ -719,28 +719,28 @@ const std::vector<AddTransformationTestValues> testValues = {
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::f32, {}, ngraph::element::u8, {{ngraph::element::f32}, {127.f}, {4.f}}, {}},
-     {ngraph::element::f32, {{ngraph::element::f32}, {508.f}, {0.25f}}, ngraph::element::u8, {}, {{}, {}, {4.f}}, {}},
+     {ov::element::f32, {}, ov::element::u8, {{ov::element::f32}, {127.f}, {4.f}}, {}},
+     {ov::element::f32, {{ov::element::f32}, {508.f}, {0.25f}}, ov::element::u8, {}, {{}, {}, {4.f}}, {}},
      ""},
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {127.f}, {4.f}}, ngraph::element::f32, {}, {}},
-     {ngraph::element::u8, {}, ngraph::element::f32, {{ngraph::element::f32}, {508.f}, {0.25f}}, {{}, {}, {4.f}}, {}},
+     {ov::element::u8, {{ov::element::f32}, {127.f}, {4.f}}, ov::element::f32, {}, {}},
+     {ov::element::u8, {}, ov::element::f32, {{ov::element::f32}, {508.f}, {0.25f}}, {{}, {}, {4.f}}, {}},
      ""},
     // multiply with zero
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::f32,
+     {ov::element::f32,
       {},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{7.f, 8.f, 9.f, 10.f}}, {{1.f, 0.f, 2.f, 3.f}}},
+      ov::element::u8,
+      {{ov::element::f32}, {{7.f, 8.f, 9.f, 10.f}}, {{1.f, 0.f, 2.f, 3.f}}},
       {}},
-     {ngraph::element::f32,
+     {ov::element::f32,
       {},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{7.f, 8.f, 9.f, 10.f}}, {{1.f, 0.f, 2.f, 3.f}}},
+      ov::element::u8,
+      {{ov::element::f32}, {{7.f, 8.f, 9.f, 10.f}}, {{1.f, 0.f, 2.f, 3.f}}},
       {},
       {}},
      ""},
@@ -748,8 +748,8 @@ const std::vector<AddTransformationTestValues> testValues = {
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::f32, {}, ngraph::element::u8, {{ngraph::element::f32}, {}, {4.f}}, {}},
-     {ngraph::element::f32, {{ngraph::element::f32}, {}, {0.25f}}, ngraph::element::u8, {}, {{}, {}, {4.f}}, {}},
+     {ov::element::f32, {}, ov::element::u8, {{ov::element::f32}, {}, {4.f}}, {}},
+     {ov::element::f32, {{ov::element::f32}, {}, {0.25f}}, ov::element::u8, {}, {{}, {}, {4.f}}, {}},
      ""},
 };
 
@@ -762,11 +762,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace oneBranchQuantizationFp16
 
 namespace oneBranchQuantizationFp32 {
-const std::vector<ngraph::element::Type> netPrecision = {
+const std::vector<ov::element::Type> netPrecision = {
     element::f32,
 };
 
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapesWithDynamicChannels = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapesWithDynamicChannels = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{1, 4, 16, 16}, {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
     {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
@@ -776,28 +776,28 @@ const std::vector<AddTransformationTestValues> testValues = {
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::f32, {}, ngraph::element::u8, {{ngraph::element::f32}, {127.f}, {4.f}}, {}},
-     {ngraph::element::f32, {{}, {508.f}, {0.25f}}, ngraph::element::u8, {}, {{}, {}, {4.f}}, {}},
+     {ov::element::f32, {}, ov::element::u8, {{ov::element::f32}, {127.f}, {4.f}}, {}},
+     {ov::element::f32, {{}, {508.f}, {0.25f}}, ov::element::u8, {}, {{}, {}, {4.f}}, {}},
      ""},
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {127.f}, {4.f}}, ngraph::element::f32, {}, {}},
-     {ngraph::element::u8, {}, ngraph::element::f32, {{}, {508.f}, {0.25f}}, {{}, {}, {4.f}}, {}},
+     {ov::element::u8, {{ov::element::f32}, {127.f}, {4.f}}, ov::element::f32, {}, {}},
+     {ov::element::u8, {}, ov::element::f32, {{}, {508.f}, {0.25f}}, {{}, {}, {4.f}}, {}},
      ""},
     // multiply with zero
     {false,
      -1,
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::f32,
+     {ov::element::f32,
       {},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{7.f, 8.f, 9.f, 10.f}}, {{1.f, 0.f, 2.f, 3.f}}},
+      ov::element::u8,
+      {{ov::element::f32}, {{7.f, 8.f, 9.f, 10.f}}, {{1.f, 0.f, 2.f, 3.f}}},
       {}},
-     {ngraph::element::f32,
+     {ov::element::f32,
       {},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{7.f, 8.f, 9.f, 10.f}}, {{1.f, 0.f, 2.f, 3.f}}},
+      ov::element::u8,
+      {{ov::element::f32}, {{7.f, 8.f, 9.f, 10.f}}, {{1.f, 0.f, 2.f, 3.f}}},
       {},
       {}},
      ""},
@@ -812,11 +812,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace oneBranchQuantizationFp32
 
 namespace oneBranchQuantizationFp32DontUpdatePrecision {
-const std::vector<ngraph::element::Type> netPrecision = {
+const std::vector<ov::element::Type> netPrecision = {
     element::f32,
 };
 
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapesWithDynamicChannels = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapesWithDynamicChannels = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{1, 4, 16, 16}, {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
     {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
@@ -827,29 +827,29 @@ const std::vector<AddTransformationTestValues> testValues = {
     {false,
      -1,
      LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-     {ngraph::element::f32, {}, ngraph::element::f32, {{ngraph::element::f32}, {127.f}, {4.f}}, {}},
-     {ngraph::element::f32, {{}, {508.f}, {0.25f}}, ngraph::element::f32, {}, {{}, {}, {4.f}}, {}},
+     {ov::element::f32, {}, ov::element::f32, {{ov::element::f32}, {127.f}, {4.f}}, {}},
+     {ov::element::f32, {{}, {508.f}, {0.25f}}, ov::element::f32, {}, {{}, {}, {4.f}}, {}},
      ""},
     // FP32 model, quantized branch: 0
     {false,
      -1,
      LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-     {ngraph::element::f32, {{ngraph::element::f32}, {127.f}, {4.f}}, ngraph::element::f32, {}, {}},
-     {ngraph::element::f32, {}, ngraph::element::f32, {{}, {508.f}, {0.25f}}, {{}, {}, {4.f}}, {}},
+     {ov::element::f32, {{ov::element::f32}, {127.f}, {4.f}}, ov::element::f32, {}, {}},
+     {ov::element::f32, {}, ov::element::f32, {{}, {508.f}, {0.25f}}, {{}, {}, {4.f}}, {}},
      ""},
     // INT8 model (FQ decomposition before LPT), quantized branch: 1
     {false,
      -1,
      LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-     {ngraph::element::f32, {}, ngraph::element::u8, {{ngraph::element::f32}, {127.f}, {4.f}}, {}},
-     {ngraph::element::f32, {{}, {508.f}, {0.25f}}, ngraph::element::u8, {}, {{}, {}, {4.f}}, {}},
+     {ov::element::f32, {}, ov::element::u8, {{ov::element::f32}, {127.f}, {4.f}}, {}},
+     {ov::element::f32, {{}, {508.f}, {0.25f}}, ov::element::u8, {}, {{}, {}, {4.f}}, {}},
      ""},
     // INT8 model (FQ decomposition before LPT), quantized branch: 0
     {false,
      -1,
      LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-     {ngraph::element::u8, {{ngraph::element::f32}, {127.f}, {4.f}}, ngraph::element::f32, {}, {}},
-     {ngraph::element::u8, {}, ngraph::element::f32, {{}, {508.f}, {0.25f}}, {{}, {}, {4.f}}, {}},
+     {ov::element::u8, {{ov::element::f32}, {127.f}, {4.f}}, ov::element::f32, {}, {}},
+     {ov::element::u8, {}, ov::element::f32, {{}, {508.f}, {0.25f}}, {{}, {}, {4.f}}, {}},
      ""}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

@@ -11,16 +11,16 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
-#include <low_precision/network_helper.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/network_helper.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/compose_fake_quantize_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/compose_fake_quantize.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
 using namespace testing;
-using namespace ngraph::pass;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class ComposeFakeQuantizeTransformationParams {
@@ -32,13 +32,13 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
     };
 
-    ngraph::element::Type originalPrecision;
+    ov::element::Type originalPrecision;
     Values actual;
     Values expected;
 };
 
 typedef std::tuple<
-    ngraph::Shape,
+    ov::Shape,
     ComposeFakeQuantizeTransformationParams> ComposeFakeQuantizeTransformationValues;
 
 class ComposeFakeQuantizeTransformation :
@@ -58,8 +58,8 @@ public:
         const auto input = actualFunction->get_parameters()[0];
         const auto fakeQuantizes = input->output(0).get_target_inputs();
         const auto it = fakeQuantizes.begin();
-        const auto fakeQuantize = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(it->get_node()->shared_from_this());
-        low_precision::NetworkHelper::composeFakeQuantize(fakeQuantize);
+        const auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(it->get_node()->shared_from_this());
+        ov::pass::low_precision::NetworkHelper::composeFakeQuantize(fakeQuantize);
 
         referenceFunction = ngraph::builder::subgraph::ComposeFakeQuantizeFunction::get(
             testValues.originalPrecision,
@@ -93,17 +93,17 @@ TEST_P(ComposeFakeQuantizeTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> inputShapes = {
+const std::vector<ov::Shape> inputShapes = {
     { 1, 3, 16, 16 },
     { 4, 3, 16, 16 }
 };
 
 const std::vector<ComposeFakeQuantizeTransformationParams> testValues = {
     {
-        ngraph::element::f32,
+        ov::element::f32,
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
-            { {ngraph::element::f32},  {}, { 0.01f } },
+            { {ov::element::f32},  {}, { 0.01f } },
             {}
         },
         {
@@ -113,10 +113,10 @@ const std::vector<ComposeFakeQuantizeTransformationParams> testValues = {
         },
     },
     {
-        ngraph::element::f32,
+        ov::element::f32,
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
-            { {ngraph::element::f32},  {-128}, { 0.01f } },
+            { {ov::element::f32},  {-128}, { 0.01f } },
             {}
         },
         {
@@ -126,16 +126,16 @@ const std::vector<ComposeFakeQuantizeTransformationParams> testValues = {
         },
     },
     {
-        ngraph::element::f32,
+        ov::element::f32,
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
-            { {ngraph::element::f32},  {-128}, { 0.01f } },
-            { {ngraph::element::f32},  {-128}, { 0.01f } }
+            { {ov::element::f32},  {-128}, { 0.01f } },
+            { {ov::element::f32},  {-128}, { 0.01f } }
         },
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
-            { {ngraph::element::f32},  {-128}, { 0.01f } },
-            { {ngraph::element::f32},  {-128}, { 0.01f } }
+            { {ov::element::f32},  {-128}, { 0.01f } },
+            { {ov::element::f32},  {-128}, { 0.01f } }
         },
     }
 };

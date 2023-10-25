@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ngraph;
@@ -13,9 +13,10 @@ namespace SubgraphTestsDefinitions {
 class NotFusedConvSimpleOp : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
-        auto inputParams = builder::makeParams(element::f32, {{1, 3, 12, 9}, {1, 16, 12, 9}});
+        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 9}),
+                                        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 12, 9})};
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
         std::shared_ptr<Node> conv;

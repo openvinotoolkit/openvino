@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "base_reference_cnn_test.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 
 #include <gtest/gtest.h>
 
+#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/utils/utils.hpp"
-#include "ie_ngraph_utils.hpp"
 
 using namespace ov;
 
 namespace reference_tests {
 
-ReferenceCNNTest::ReferenceCNNTest(): targetDevice("TEMPLATE") {
+ReferenceCNNTest::ReferenceCNNTest() : targetDevice("TEMPLATE") {
     core = test::utils::PluginCache::get().core(targetDevice);
     legacy_core = PluginCache::get().ie(targetDevice);
 }
@@ -43,22 +42,25 @@ void ReferenceCNNTest::LoadNetworkLegacy() {
     auto inputInfo = legacy_network.getInputsInfo();
     auto outputInfo = legacy_network.getOutputsInfo();
     for (const auto& param : function->get_parameters()) {
-        inputInfo[param->get_friendly_name()]->setPrecision(InferenceEngine::details::convertPrecision(param->get_element_type()));
+        inputInfo[param->get_friendly_name()]->setPrecision(
+            InferenceEngine::details::convertPrecision(param->get_element_type()));
     }
     for (const auto& result : function->get_results()) {
         outputInfo[ov::op::util::create_ie_output_name(result->input_value(0))]->setPrecision(
-                InferenceEngine::details::convertPrecision(result->get_element_type()));
+            InferenceEngine::details::convertPrecision(result->get_element_type()));
     }
     legacy_exec_network = legacy_core->LoadNetwork(legacy_network, targetDevice);
 }
 
 void ReferenceCNNTest::FillInputs() {
     const auto& params = function->get_parameters();
-    std::default_random_engine random(0); // hard-coded seed to make test results predictable
+    std::default_random_engine random(0);  // hard-coded seed to make test results predictable
     std::uniform_int_distribution<int> distrib(0, 255);
     for (const auto& param : params) {
         auto elem_count = shape_size(param->get_output_tensor(0).get_shape());
-        InferenceEngine::TensorDesc d(InferenceEngine::Precision::FP32, param->get_output_tensor(0).get_shape(), InferenceEngine::Layout::NCHW);
+        InferenceEngine::TensorDesc d(InferenceEngine::Precision::FP32,
+                                      param->get_output_tensor(0).get_shape(),
+                                      InferenceEngine::Layout::NCHW);
         auto blob = make_blob_with_precision(d);
         blob->allocate();
 
@@ -97,7 +99,6 @@ void ReferenceCNNTest::InferLegacy() {
     legacy_infer_request.SetInput(legacy_input_blobs);
     legacy_infer_request.Infer();
 }
-
 
 void ReferenceCNNTest::Validate() {
     for (const auto& result : function->get_results()) {

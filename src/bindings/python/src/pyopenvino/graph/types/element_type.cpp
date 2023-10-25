@@ -48,15 +48,17 @@ void regclass_graph_Type(py::module m) {
     type.attr("u32") = ov::element::u32;
     type.attr("u64") = ov::element::u64;
     type.attr("bf16") = ov::element::bf16;
+    type.attr("nf4") = ov::element::nf4;
 
     type.def("__hash__", &ov::element::Type::hash);
     type.def("__repr__", [](const ov::element::Type& self) {
+        std::string class_name = Common::get_class_name(self);
         if (self == ov::element::f32 || self == ov::element::f64) {
             std::string bitwidth = std::to_string(self.bitwidth());
-            return "<Type: '" + self.c_type_string() + bitwidth + "'>";
+            return "<" + class_name + ": '" + self.c_type_string() + bitwidth + "'>";
         }
 
-        return "<Type: '" + self.c_type_string() + "'>";
+        return "<" + class_name + ": '" + self.c_type_string() + "'>";
     });
     type.def(
         "__eq__",
@@ -77,6 +79,7 @@ void regclass_graph_Type(py::module m) {
     type.def_property_readonly("signed", &ov::element::Type::is_signed);
     type.def("is_quantized", &ov::element::Type::is_quantized);
     type.def_property_readonly("quantized", &ov::element::Type::is_quantized);
+    type.def("to_string", &ov::element::Type::to_string);
     type.def("get_type_name", &ov::element::Type::get_type_name);
     type.def_property_readonly("type_name", &ov::element::Type::get_type_name);
     type.def("compatible",

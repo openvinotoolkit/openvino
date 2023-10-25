@@ -8,11 +8,11 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
-#include "util/test_common.hpp"
 
 class DeterministicityCommon {
 protected:
@@ -23,7 +23,7 @@ protected:
     std::string filePrefix{};
 
     void SetupFileNames() {
-        filePrefix = CommonTestUtils::generateTestFilePrefix();
+        filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path_1 = filePrefix + "1" + ".xml";
         m_out_bin_path_1 = filePrefix + "1" + ".bin";
         m_out_xml_path_2 = filePrefix + "2" + ".xml";
@@ -72,7 +72,7 @@ protected:
 
 TEST_F(SerializationDeterministicityTest, BasicModel) {
     const std::string model =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"}));
 
     auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -89,7 +89,7 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
     const std::string model =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"}));
 
     auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -108,9 +108,9 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
     const std::string model =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"}));
     const std::string weights =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"}));
 
     auto expected = ov::test::readModel(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -127,9 +127,9 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
 
 TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
     const std::string model =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"}));
     const std::string weights =
-        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"}));
 
     auto expected = ov::test::readModel(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -295,6 +295,6 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromIrModel) {
     EXPECT_TRUE(files_equal(xml_2, xml_1));
 }
 
-INSTANTIATE_TEST_CASE_P(DeterministicityInputOutput,
-                        SerializationDeterministicityInputOutputTest,
-                        ::testing::Values(ov::pass::Serialize::Version::IR_V10, ov::pass::Serialize::Version::IR_V11));
+INSTANTIATE_TEST_SUITE_P(DeterministicityInputOutput,
+                         SerializationDeterministicityInputOutputTest,
+                         ::testing::Values(ov::pass::Serialize::Version::IR_V10, ov::pass::Serialize::Version::IR_V11));

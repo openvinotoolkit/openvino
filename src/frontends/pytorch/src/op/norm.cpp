@@ -111,9 +111,10 @@ Output<Node> frobenius_norm(const NodeContext& context, Output<Node> x, Output<N
 };  // namespace
 
 OutputVector translate_norm(const NodeContext& context) {
-    num_inputs_check(context, 4, 6);
+    num_inputs_check(context, 2, 6);
     auto input_tensor = context.get_input(0);
     auto p_node_type = context.get_input_type(1);
+    bool keep_dim = false;
     Output<Node> dim;
     if (context.input_is_none(2)) {
         auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -125,7 +126,9 @@ OutputVector translate_norm(const NodeContext& context) {
     } else {
         dim = context.get_input(2);
     }
-    auto keep_dim = context.const_input<bool>(3);
+    if (!context.input_is_none(3)) {
+        keep_dim = context.const_input<bool>(3);
+    }
     if (!context.input_is_none(4)) {
         input_tensor = apply_dtype(context, 4, input_tensor);
     }
@@ -153,7 +156,7 @@ OutputVector translate_linalg_vector_norm(const NodeContext& context) {
     // dtype=None) -> Tensor
     // aten::linalg_vector_norm.out(Tensor self, Scalar ord=2, int[1]? dim=None, bool
     // keepdim=False, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!):
-    num_inputs_check(context, 5, 6);
+    num_inputs_check(context, 4, 6);
     auto x = context.get_input(0);
     // ord defines the vector norm that is computed.
     auto ord = context.const_input<float>(1);
@@ -256,7 +259,7 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
             auto input_rank = x.get_partial_shape().rank();
             if (input_rank.is_static() && input_rank.get_length() == 2) {
                 result = frobenius_norm(context, x, dim, keep_dim);
-            } else if (input_rank.is_static() && input_rank.get_length() == 1) {
+            } else if (input_rank.is_dynamic() || input_rank.get_length() == 1) {
                 result = norm_vector(context, x, dim, 2, keep_dim);
             } else {
                 FRONT_END_OP_CONVERSION_CHECK(false,
@@ -294,6 +297,26 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     }
     return {result};
 };
+
+OutputVector translate_frobenius_norm(const NodeContext& context) {
+    // aten::frobenius_norm.dim(Tensor self, int[1] dim, bool keepdim=False) -> Tensor
+    // aten::frobenius_norm.out(Tensor self, int[1] dim, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
+    num_inputs_check(context, 3, 4);
+    auto x = context.get_input(0);
+    bool keep_dim = context.const_input<bool>(2);
+    Output<Node> dim;
+    if (context.input_is_none(1)) {
+        dim = get_axes_range(context, 0);
+
+    } else {
+        dim = context.get_input(1);
+    }
+    auto result = frobenius_norm(context, x, dim, keep_dim);
+    if (!context.input_is_none(3)) {
+        context.mutate_input(3, result);
+    }
+    return {result};
+}
 
 }  // namespace op
 }  // namespace pytorch

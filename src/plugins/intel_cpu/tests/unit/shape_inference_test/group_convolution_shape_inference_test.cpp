@@ -48,7 +48,8 @@ TEST_F(GroupConvolutionV1StaticShapeInferenceTest, default_ctor) {
 
     input_shapes = ShapeVector{{1, 6, 10, 12}, {3, 2, 2, 5, 5}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 6, 10, 11}));
@@ -67,7 +68,8 @@ TEST_F(GroupConvolutionV1StaticShapeInferenceTest, default_ctor_three_input_shap
     // Third input shape (bias) can be provided, but is not used
     input_shapes = ShapeVector{{1, 6, 10, 12}, {3, 2, 2, 5, 5}, {3}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 6, 10, 11}));
@@ -88,7 +90,7 @@ TEST_F(GroupConvolutionV1StaticShapeInferenceTest, 1d_explicit_pads_inputs_stati
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     input_shapes = ShapeVector{{1, 12, 20}, {12, 1, 1, 3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({1, 12, 18}));
@@ -107,7 +109,7 @@ TEST_F(GroupConvolutionV1StaticShapeInferenceTest, 2d_auto_pads_same_lower_input
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     input_shapes = ShapeVector{{1, 4, 5, 5}, {2, 1, 2, 3, 3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({1, 2, 5, 5}));
@@ -126,7 +128,7 @@ TEST_F(GroupConvolutionV1StaticShapeInferenceTest, 3d_auto_pad_same_lower_inputs
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     input_shapes = ShapeVector{{3, 6, 5, 5, 5}, {1, 6, 6, 3, 3, 3}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({3, 6, 5, 5, 5}));

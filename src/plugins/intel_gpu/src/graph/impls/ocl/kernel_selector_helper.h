@@ -14,7 +14,7 @@
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/generic_layer.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 
 #include "kernel_selector_params.h"
@@ -80,21 +80,23 @@ using multi_data_tensor = kernel_selector::MultiDataTensor;
 
 using params = kernel_selector::Params;
 using weights_reorder_params = kernel_selector::WeightsReorderParams;
-using generic_kernel_params = kernel_selector::GenericKernelParams;
 
 }  // namespace kernel_selector
-
+namespace ov {
+namespace element {
+enum class Type_t;
+}  // namespaec element
+}  // namespaec ov
 namespace cldnn {
-enum class data_types : size_t;
 struct format;
 struct layout;
 struct program;
 struct fused_primitive_desc;
 
-kernel_selector::data_type to_data_type(data_types dt);
-data_types from_data_type(kernel_selector::data_type dt);
-kernel_selector::weights_type to_weights_type(data_types dt);
-data_types from_weights_type(kernel_selector::weights_type dt);
+kernel_selector::data_type to_data_type(ov::element::Type_t dt);
+ov::element::Type_t from_data_type(kernel_selector::data_type dt);
+kernel_selector::weights_type to_weights_type(ov::element::Type_t dt);
+ov::element::Type_t from_weights_type(kernel_selector::weights_type dt);
 kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
@@ -133,7 +135,7 @@ void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_i
 
 template <typename params_t>
 inline params_t get_default_params(const kernel_impl_params& param_info, bool is_shape_agnostic = false) {
-    params_t params;
+    params_t params = params_t();
     set_default_params(param_info, params, is_shape_agnostic);
     return params;
 }
@@ -272,106 +274,12 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     return updated_impl_params;
 }
 
-class WeightsReorderParamsOCL : public WeightsReorderParams {
-public:
-    explicit WeightsReorderParamsOCL(const kernel_selector::WeightsReorderParams& params)
-    : WeightsReorderParams(from_weights_tensor(params.src), from_weights_tensor(params.dest)) {
-        cl_kernel = params.clKernel;
-    }
-
-    size_t hash() const override {
-        size_t seed = WeightsReorderParams::hash();
-
-        if (cl_kernel == nullptr)
-            return seed;
-
-        seed = hash_combine(seed, cl_kernel->skip_execution);
-
-        auto& gws = cl_kernel->params.workGroups.global;
-        seed = hash_range(seed, gws.begin(), gws.end());
-
-        auto& lws = cl_kernel->params.workGroups.local;
-        seed = hash_range(seed, lws.begin(), lws.end());
-
-        auto& arguments = cl_kernel->params.arguments;
-        for (auto& args : arguments) {
-            seed = hash_combine(seed, args.index);
-            seed = hash_combine(seed, args.t);
-        }
-
-        auto& scalars = cl_kernel->params.scalars;
-        for (auto& s : scalars) {
-            seed = hash_combine(seed, s.t);
-        }
-
-        return seed;
-    }
-
-    bool operator==(const WeightsReorderParams& rhs) const override {
-        if (typeid(*this) != typeid(rhs))
-            return false;
-
-        if (!WeightsReorderParams::operator==(rhs))
-            return false;
-
-        auto rhs_casted = downcast<const WeightsReorderParamsOCL>(rhs);
-
-        if (cl_kernel != nullptr && rhs_casted.cl_kernel != nullptr) {
-            auto& clKernel_rhs = rhs_casted.cl_kernel;
-            if (cl_kernel->skip_execution != clKernel_rhs->skip_execution)
-                return false;
-
-            auto& gws       = cl_kernel->params.workGroups.global;
-            auto& gws_rhs   = clKernel_rhs->params.workGroups.global;
-            if (gws != gws_rhs)
-                return false;
-
-            auto& lws       = cl_kernel->params.workGroups.local;
-            auto& lws_rhs   = clKernel_rhs->params.workGroups.local;
-            if (lws != lws_rhs)
-                return false;
-
-            auto& arguments     = cl_kernel->params.arguments;
-            auto& arguments_rhs = clKernel_rhs->params.arguments;
-            if (arguments.size() != arguments_rhs.size())
-                return false;
-
-            for (size_t idx = 0; idx < arguments.size(); idx++) {
-                if (arguments[idx].index != arguments_rhs[idx].index)
-                    return false;
-
-                if (arguments[idx].t != arguments_rhs[idx].t)
-                    return false;
-            }
-
-            auto& scalars     = cl_kernel->params.scalars;
-            auto& scalars_rhs = clKernel_rhs->params.scalars;
-            if (scalars.size() != scalars_rhs.size())
-                return false;
-
-            for (size_t idx = 0; idx < scalars.size(); idx++) {
-                if (scalars[idx].t != scalars_rhs[idx].t)
-                    return false;
-            }
-        }
-
-        return true;
-    }
-
-    std::shared_ptr<kernel_selector::clKernelData> get_cl_kernel() {
-        return cl_kernel;
-    }
-
-private:
-    std::shared_ptr<kernel_selector::clKernelData> cl_kernel;
-};
-
 inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {
-    if (params.engine == kernel_selector::generic_kernel_params::Engine::NONE) {
+    if (!params.is_initialized) {
         return nullptr;
     }
 
-    return std::make_shared<WeightsReorderParamsOCL>(params);
+    return std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src), from_weights_tensor(params.dest), params.rotate);
 }
 
 }  // namespace cldnn

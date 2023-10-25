@@ -4,19 +4,20 @@
 
 set(TARGET_NAME ov_inference_unit_tests)
 
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             template_extension
         LINK_LIBRARIES
-            unitTestUtils
+            unit_test_utils
         ADD_CLANG_FORMAT
         LABELS
-            OV
+            OV UNIT RUNTIME
 )
 
-check_cxx_compiler_flag(-Wno-suggest-override SUPPORT_WNO_SUGGEST_OVERRIDE)
-if (SUPPORT_WNO_SUGGEST_OVERRIDE)
-    ie_add_compiler_flags(-Wno-suggest-override)
-endif()
+ov_set_threading_interface_for(${TARGET_NAME})

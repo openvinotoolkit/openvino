@@ -4,21 +4,19 @@
 
 #include <vector>
 
-#include "single_layer_tests/select.hpp"
+#include "single_op_tests/select.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::SelectLayerTest;
 
-const std::vector<InferenceEngine::Precision> inputPrecision = {
-    InferenceEngine::Precision::I8,
-    InferenceEngine::Precision::I16,
-    InferenceEngine::Precision::I32,
-    InferenceEngine::Precision::FP32
-    // CPU plug-in doesn't support I64 and U64 precisions at the moment
-    // InferenceEngine::Precision::I64
+const std::vector<ov::element::Type> model_types = {
+    ov::element::i8,
+    ov::element::i16,
+    ov::element::i32,
+    ov::element::f32
 };
 
-const std::vector<std::vector<std::vector<size_t>>> noneShapes = {
+const std::vector<std::vector<ov::Shape>> none_shapes = {
     {{1}, {1}, {1}},
     {{8}, {8}, {8}},
     {{4, 5}, {4, 5}, {4, 5}},
@@ -27,14 +25,14 @@ const std::vector<std::vector<std::vector<size_t>>> noneShapes = {
     {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}}
 };
 
-const auto noneCases = ::testing::Combine(
-    ::testing::ValuesIn(noneShapes),
-    ::testing::ValuesIn(inputPrecision),
-    ::testing::Values(ngraph::op::AutoBroadcastType::NONE),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+const auto none_cases = ::testing::Combine(
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(none_shapes)),
+    ::testing::ValuesIn(model_types),
+    ::testing::Values(ov::op::AutoBroadcastType::NONE),
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const std::vector<std::vector<std::vector<size_t>>> numpyShapes = {
+const std::vector<std::vector<ov::Shape>> numpy_shapes = {
     {{1}, {1}, {1}},
     {{1}, {16}, {1}},
     {{1}, {1}, {16}},
@@ -74,13 +72,13 @@ const std::vector<std::vector<std::vector<size_t>>> numpyShapes = {
     {{7, 6, 5, 8}, {4, 7, 6, 5, 8}, {6, 1, 8}}
 };
 
-const auto numpyCases = ::testing::Combine(
-    ::testing::ValuesIn(numpyShapes),
-    ::testing::ValuesIn(inputPrecision),
-    ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+const auto numpy_cases = ::testing::Combine(
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(numpy_shapes)),
+    ::testing::ValuesIn(model_types),
+    ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsSelect_none, SelectLayerTest, noneCases, SelectLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsSelect_none, SelectLayerTest, none_cases, SelectLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsSelect_numpy, SelectLayerTest, numpyCases, SelectLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsSelect_numpy, SelectLayerTest, numpy_cases, SelectLayerTest::getTestCaseName);

@@ -49,6 +49,8 @@ private:
 
     void GetPerformanceStreams(Config &config, const std::shared_ptr<ngraph::Function>& ngraphFunc);
 
+    void CalculateStreams(Config& conf, const std::shared_ptr<ngraph::Function>& ngraphFunc, bool imported = false);
+
     StreamCfg GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                             int stream_mode,
                             const bool enable_hyper_thread = true) const;
@@ -61,6 +63,20 @@ private:
     const std::string deviceFullName;
 
     std::shared_ptr<void> specialSetup;
+
+#if defined(OV_CPU_WITH_ACL)
+    struct SchedulerGuard {
+        SchedulerGuard();
+        ~SchedulerGuard();
+        static std::shared_ptr<SchedulerGuard> instance();
+        static std::mutex mutex;
+        // separate mutex for saving ACLScheduler state in destructor
+        mutable std::mutex dest_mutex;
+        static std::weak_ptr<SchedulerGuard> ptr;
+    };
+
+    std::shared_ptr<SchedulerGuard> scheduler_guard;
+#endif
 };
 
 }   // namespace intel_cpu

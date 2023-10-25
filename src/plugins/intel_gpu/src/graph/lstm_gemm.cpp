@@ -42,7 +42,7 @@ std::string lstm_gemm_inst::to_string(lstm_gemm_node const& node) {
     json_composite lstm_gemm_info;
     lstm_gemm_info.add("weights id", weights_id);
     lstm_gemm_info.add("recurrent id", recurrent_id);
-    lstm_gemm_info.add("bias id", bias_id);
+    lstm_gemm_info.add("bias id", std::move(bias_id));
     lstm_gemm_info.add("hidden id", hidden_id);
     node_info->add("lstm gemm info", lstm_gemm_info);
     node_info->dump(primitive_description);

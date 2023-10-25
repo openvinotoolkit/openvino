@@ -33,15 +33,15 @@ if args.__dict__["isWorkingDir"]:
 
     commitList.reverse()
     p = Mode.factory(cfgData)
-    p.run(0, len(commitList) - 1, commitList, cfgData)
-    p.getResult()
+    p.run(commitList, cfgData)
+    p.printResult()
 
 else:
     workPath = cfgData["workPath"]
     if not os.path.exists(workPath):
         os.mkdir(workPath)
     else:
-        safeClearDir(workPath)
+        safeClearDir(workPath, cfgData)
     curPath = os.getcwd()
     copy_tree(curPath, workPath)
     scriptName = os.path.basename(__file__)
@@ -54,12 +54,12 @@ else:
     # copy logs and cache back to general repo
     tempLogPath = cfgData["logPath"].format(workPath=workPath)
     permLogPath = cfgData["logPath"].format(workPath=curPath)
-    safeClearDir(permLogPath)
+    safeClearDir(permLogPath, cfgData)
     copy_tree(tempLogPath, permLogPath)
 
     tempCachePath = cfgData["cachePath"].format(workPath=workPath)
     permCachePath = cfgData["cachePath"].format(workPath=curPath)
-    safeClearDir(permCachePath)
+    safeClearDir(permCachePath, cfgData)
     copy_tree(tempCachePath, permCachePath)
 
     shutil.copyfile(
@@ -67,4 +67,4 @@ else:
         os.path.join(curPath, customCfgPath),
         follow_symlinks=True,
     )
-    safeClearDir(workPath)
+    safeClearDir(workPath, cfgData)

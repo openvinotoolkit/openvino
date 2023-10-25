@@ -52,6 +52,9 @@ public:
     inline bool supported(const Types&... vars) const {
         return supported_impl({ov::Any(vars)...});
     }
+    inline bool supported(const ov::AnyVector& vars) const {
+        return supported_impl(vars);
+    }
 
     /// \brief Loads an input model by any specified arguments. Each FrontEnd separately
     /// defines what arguments it can accept.
@@ -80,9 +83,10 @@ public:
     virtual void convert(const std::shared_ptr<ov::Model>& partially_converted) const;
 
     /// \brief Convert only those parts of the model that can be converted leaving others
-    /// as-is. Converted parts are not normalized by additional transformations; normalize
-    /// Model or another form of convert Model should be called to finalize the
-    /// conversion process.
+    /// as-is wrapped by FrameworkNode. Converted parts are normalized by additional
+    /// transformations like it is done in convert method. If part of the graph cannot be
+    /// converted, it is not guaranteed that the converted regions are completely normalized.
+    /// Normalize should be called for each completely converted parts individually in this case.
     /// \param model Input model
     /// \return partially converted OV Model
     virtual std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const;

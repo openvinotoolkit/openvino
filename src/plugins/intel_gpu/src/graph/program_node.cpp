@@ -6,6 +6,7 @@
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "loop_inst.h"
+#include "shape_of_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
@@ -41,18 +42,19 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
+        add_memory_dependency(id());
     }
 }
 
-void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
-    if (dependencies[idx].first == &new_dep)
+    if (dependencies[idx].first == new_dep.first)
         return;
 
     if (is_type<loop>()) {
         loop_node& loop = *this;
-        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.id(), true);
+        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.first->id(), true);
     }
 
     auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
@@ -63,14 +65,23 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
     if (remove_if_dangling)
         myprog.remove_if_dangling(*dependencies[idx].first);
 
-    dependencies[idx].first = &new_dep;
-    new_dep.users.push_back(this);
+    dependencies[idx].first = new_dep.first;
+    dependencies[idx].second = new_dep.second;
+    new_dep.first->users.push_back(this);
 }
 
-void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
+    return replace_dependency(idx, std::make_pair(&new_dep, 0), remove_if_dangling);
+}
+
+void program_node::replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &old_dep)
             return replace_dependency(i, new_dep, remove_if_dangling);
+}
+
+void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
+    return replace_dependency(old_dep, std::make_pair(&new_dep, 0), remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
@@ -106,7 +117,11 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     s << get_preferred_impl_type();
     node_info->add("preferred impl", s.str());
 
-    node_info->add("output layout", output_layouts[0].to_short_string());
+    json_composite output_layouts_desc;
+    for (size_t i = 0; i < output_layouts.size(); i++) {
+        output_layouts_desc.add(std::to_string(i), output_layouts[i].to_short_string());
+    }
+    node_info->add("output layouts", output_layouts_desc);
 
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
@@ -157,7 +172,9 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
             if (empty) {
                 empty = false;
             }
-            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(itr->first)));
+            auto ptr = std::to_string(reinterpret_cast<uintptr_t>(itr->first));
+            auto port = std::to_string(itr->second);
+            deps_ptrs.push_back(ptr + "(" + port + ")");
             itr++;
         }
         if (deps_ptrs.empty()) {
@@ -191,7 +208,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #endif
         impls.push_back(selected_impl->get_kernel_name());
 
-        if (get_preferred_impl_type() == impl_types::ocl) {
+        auto preferred_impl_type = get_preferred_impl_type();
+        if (preferred_impl_type != impl_types::onednn && preferred_impl_type != impl_types::cpu) {
             json_composite cl_dump_info;
             cl_dump_info.add("batch_hash", selected_impl->get_kernels_dump_info().first);
             cl_dump_info.add("kernel_entry", selected_impl->get_kernels_dump_info().second);
@@ -202,6 +220,13 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #endif
     }
     node_info->add("implementation", impls);
+
+    std::vector<std::string> dependant_shape_of_nodes_ids;
+    for (auto shape_of : dependant_shape_of_nodes) {
+        dependant_shape_of_nodes_ids.push_back(shape_of->id());
+    }
+    node_info->add("dependant_shape_of_nodes_ids", dependant_shape_of_nodes_ids);
+    node_info->add("in_shape_of_subgraph", in_shape_of_subgraph);
     return node_info;
 }
 
@@ -211,7 +236,7 @@ void program_node::remove_dependency(program_node& node) {
             remove_dependency(i);
 }
 
-size_t program_node::get_user_index(program_node& node) const {
+size_t program_node::get_user_index(const program_node& node) const {
     size_t idx = 0;
     for (auto& user : users) {
         if (user == &node)
@@ -223,7 +248,7 @@ size_t program_node::get_user_index(program_node& node) const {
     OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
 }
 
-size_t program_node::get_dependency_index(program_node& node) const {
+size_t program_node::get_dependency_index(const program_node& node) const {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &node)
             return i;
@@ -270,8 +295,8 @@ layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t 
     if (valid_output_layouts[idx])
         return output_layouts[idx];
 
-    auto new_layout = calc_output_layout();
-    set_output_layout(new_layout, invalidate_users_if_changed, idx);
+    auto new_layouts = calc_output_layouts();
+    set_output_layouts(new_layouts, invalidate_users_if_changed);
     return output_layouts[idx];
 }
 
@@ -307,6 +332,8 @@ layout program_node::get_non_padded_output_layout(bool invalidate_users_if_chang
 
 bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_if_changed, size_t idx) {
     merge_output_padding(new_layout.data_padding, idx);
+    OPENVINO_ASSERT(idx < output_layouts.size(), id(), " has invalid index : index is ", std::to_string(idx),
+                                        " but output_layouts length is ", std::to_string(output_layouts.size()));
     new_layout.data_padding = output_layouts[idx].data_padding;
     bool changed = (new_layout != output_layouts[idx]);
     if (changed && invalidate_users_if_changed)  // output_layout has changed! invalidate users
@@ -463,7 +490,14 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     return true;
 }
 
- void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
+bool program_node::is_padded_spatial(size_t idx) const {
+    auto lower_size = get_output_layout(idx).data_padding.lower_size();
+    auto upper_size = get_output_layout(idx).data_padding.upper_size();
+    return std::any_of(lower_size.spatial.begin(), lower_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; }) ||
+        std::any_of(upper_size.spatial.begin(), upper_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; });
+}
+
+void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
     selected_impl = std::move(impl);
 }
 
@@ -493,6 +527,11 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
         preferred_output_fmts.resize(idx+1, format::any);
 
     preferred_output_fmts.at(idx) = type;
+}
+
+void program_node::add_dependant_shape_of_node(const program_node* node) {
+    OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
+    dependant_shape_of_nodes.insert(node);
 }
 
     /* ----------------------------------------- */
@@ -922,6 +961,10 @@ void program_node::init_onednn_primitive_attributes() {
     // Added this for debug purposes only
     size_t empty_mem = 0xff;
 
+    // Change scratchpad mode to user
+    if (attrs->get_scratchpad_mode() == dnnl::scratchpad_mode::library)
+        attrs->set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
     // Add information about post-operation into the list, update indices
     auto update_onednn_post_op_list = [&](onednn_post_op_type type, size_t m_dep,
                                           dnnl::memory::format_tag tag = dnnl::memory::format_tag::undef,
@@ -949,10 +992,15 @@ void program_node::init_onednn_primitive_attributes() {
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
+            bool allow_new_shape_infer = get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
-                int oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
+                int oc_dim = 1;
+                if (allow_new_shape_infer)
+                    oc_dim = static_cast<int>(desc.output_layout.get_partial_shape()[1].get_max_length());
+                else
+                    oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
@@ -969,8 +1017,8 @@ void program_node::init_onednn_primitive_attributes() {
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
                 if (alg == dnnl::algorithm::undef)
-                    IE_THROW() << "Activations that are undef algorithms must be converted to other activations before "
-                                  "pushing to post-op.";
+                    OPENVINO_THROW("Activations that are undef algorithms must be converted to other activations before "
+                                   "pushing to post-op.");
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
@@ -1000,7 +1048,7 @@ void program_node::init_onednn_primitive_attributes() {
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);
                     dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
-                    dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims);
+                    dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims, in.format);
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
                     update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
                 } else {
@@ -1255,4 +1303,3 @@ void program_node::init_onednn_primitive_attributes() {
 
 
 #endif // ENABLE_ONEDNN_FOR_GPU
-

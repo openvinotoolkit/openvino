@@ -21,7 +21,7 @@ std::string TransposeMatMul::getTestCaseName(testing::TestParamInfo<ov::test::sn
     std::tie(input_shapes, transpose_position, elem_types, num_nodes, num_subgraphs, targetDevice) = obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); ++i) {
-        result << "IS[" << i << "]=" << CommonTestUtils::partialShape2str({input_shapes[i]}) << "_";
+        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({input_shapes[i]}) << "_";
     }
     result << "Pos=" << transpose_position << "_";
     for (size_t i = 0; i < elem_types.size(); i++)

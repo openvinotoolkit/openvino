@@ -19,7 +19,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_avg_poolnd(const NodeContext& context) {
-    num_inputs_check(context, 6, 7);
+    num_inputs_check(context, 3, 7);
     auto input = context.get_input(0);
     auto kernel = context.const_input<Shape>(1);
     Strides strides;
@@ -30,9 +30,21 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
         // In case strides are not provided default is kernel
         strides = kernel;
     }
-    auto pads = context.const_input<Shape>(3);  // pytorch supports only symmetric padding
-    auto rounding_type = context.const_input<bool>(4) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
-    auto count_include_pad = context.const_input<bool>(5);
+    Shape pads;
+    bool count_include_pad = true;
+    if (context.input_is_none(3)) {
+        count_include_pad = false;
+        pads = Shape(kernel.size(), 0);
+    } else {
+        pads = context.const_input<Shape>(3);  // pytorch supports only symmetric padding
+    }
+    ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR;
+    if (!(context.input_is_none(4))) {
+        rounding_type = context.const_input<bool>(4) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
+    }
+    if (!(context.input_is_none(5))) {
+        count_include_pad = context.const_input<bool>(5);
+    }
     FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(6),
                                   "Translation for aten::avg_pool2d do not support divisor_override input.");
     // Although ov::AvgPool provides exclude_pad=false,
@@ -48,8 +60,7 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
         auto pads_len = context.mark_node(v0::Constant::create(element::i32, Shape{}, {pads.size()}));
         auto pads_diff = context.mark_node(std::make_shared<v1::Subtract>(rank, pads_len));
         auto pads_remaining = context.mark_node(std::make_shared<v3::Broadcast>(zero_i32, pads_diff));
-        auto padding = context.mark_node(
-            std::make_shared<v0::Concat>(NodeVector{pads_remaining, pad_values.get_node_shared_ptr()}, 0));
+        auto padding = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, pad_values}, 0));
         input = context.mark_node(std::make_shared<v1::Pad>(input, padding, padding, zero, ov::op::PadMode::CONSTANT));
         pads = Shape(pads.size(), 0);
     }

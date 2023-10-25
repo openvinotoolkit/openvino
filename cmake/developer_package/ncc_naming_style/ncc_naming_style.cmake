@@ -6,33 +6,36 @@ if(NOT COMMAND ov_check_pip_packages)
     message(FATAL_ERROR "Internal error: ncc_naming_style.cmake must be included after ov_check_pip_packages")
 endif()
 
-set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
+set(ncc_style_dir "${OpenVINODeveloperScripts_DIR}/ncc_naming_style")
 set(ncc_style_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style")
 
 # find python3
 
-find_host_package(PythonInterp 3 QUIET)
-if(NOT PYTHONINTERP_FOUND)
-    message(WARNING "Python3 interpreter was not found (required for ncc naming style check)")
-    set(ENABLE_NCC_STYLE OFF)
+if(ENABLE_NCC_STYLE)
+    find_host_package(Python3 QUIET COMPONENTS Interpreter)
+    if(NOT Python3_Interpreter_FOUND)
+        message(WARNING "Python3 interpreter was not found (required for ncc naming style check)")
+        set(ENABLE_NCC_STYLE OFF)
+    endif()
 endif()
 
-if(PYTHON_VERSION_MINOR EQUAL 6)
-    set(clang_version 10)
-elseif(PYTHON_VERSION_MINOR EQUAL 7)
-    set(clang_version 11)
-elseif(PYTHON_VERSION_MINOR EQUAL 8)
-    set(clang_version 12)
-elseif(PYTHON_VERSION_MINOR EQUAL 9)
-    set(clang_version 12)
-elseif(PYTHON_VERSION_MINOR EQUAL 10)
-    set(clang_version 14)
-elseif(PYTHON_VERSION_MINOR EQUAL 11)
-    set(clang_version 14)
-else()
-    message(WARNING "Cannot suggest clang package for python ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+if(ENABLE_NCC_STYLE)
+    if(Python3_VERSION_MINOR EQUAL 6)
+        set(clang_version 10)
+    elseif(Python3_VERSION_MINOR EQUAL 7)
+        set(clang_version 11)
+    elseif(Python3_VERSION_MINOR EQUAL 8)
+        set(clang_version 12)
+    elseif(Python3_VERSION_MINOR EQUAL 9)
+        set(clang_version 12)
+    elseif(Python3_VERSION_MINOR EQUAL 10)
+        set(clang_version 14)
+    elseif(Python3_VERSION_MINOR EQUAL 11)
+        set(clang_version 14)
+    else()
+        message(WARNING "Cannot suggest clang package for python ${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+    endif()
 endif()
-
 
 if(ENABLE_NCC_STYLE)
     # try to find_package(Clang QUIET)
@@ -58,16 +61,22 @@ endif()
 # Since we were able to find_package(Clang) in a separate process
 # let's try to find in current process
 if(ENABLE_NCC_STYLE)
-    if(WIN32)
-        set(CLANG_LIB_NAME libclang.dll)
-        find_host_program(CLANG NAMES ${CLANG_LIB_NAME} PATHS ENV PATH)
-        if(CLANG)
-            set(libclang_location ${CLANG})
-        endif()
-    elseif(APPLE)
+    if(CMAKE_HOST_WIN32)
+        find_host_program(libclang_location NAMES libclang.dll
+                          PATHS $ENV{PATH}
+                          NO_CMAKE_FIND_ROOT_PATH)
+    elseif(CMAKE_HOST_APPLE)
+        set(_old_CMAKE_FIND_LIBRARY_PREFIXES ${CMAKE_FIND_LIBRARY_PREFIXES})
+        set(_old_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+        set(CMAKE_FIND_LIBRARY_PREFIXES "lib")
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ".dylib")
         find_host_library(libclang_location NAMES clang
                           PATHS /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib
-                          DOC "Path to clang library")
+                          DOC "Path to clang library"
+                          NO_DEFAULT_PATH
+                          NO_CMAKE_FIND_ROOT_PATH)
+        set(CMAKE_FIND_LIBRARY_PREFIXES ${_old_CMAKE_FIND_LIBRARY_PREFIXES})
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ${_old_CMAKE_FIND_LIBRARY_SUFFIXES})
     else()
         find_host_package(Clang QUIET)
     endif()
@@ -161,7 +170,7 @@ function(ov_ncc_naming_style)
                 ${output_file}
             COMMAND
                 "${CMAKE_COMMAND}"
-                -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
+                -D "Python3_EXECUTABLE=${Python3_EXECUTABLE}"
                 -D "NCC_PY_SCRIPT=${ncc_script_py}"
                 -D "INPUT_FILE=${source_file}"
                 -D "OUTPUT_FILE=${output_file}"

@@ -9,21 +9,34 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <map>
 #include <memory>
 #include <string>
 
+#include "ie_api.h"
 #include "ie_parameter.hpp"
 #include "ie_remote_blob.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief This class represents an Inference Engine abstraction
  * for remote (non-CPU) accelerator device-specific execution context.
  * Such context represents a scope on the device within which executable
  * networks and remote memory blobs can exist, function and exchange data.
  */
-class INFERENCE_ENGINE_API_CLASS(RemoteContext) : public std::enable_shared_from_this<RemoteContext> {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(RemoteContext)
+    : public std::enable_shared_from_this<RemoteContext> {
 public:
     /**
      * @brief A smart pointer to the RemoteContext object
@@ -50,7 +63,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     bool is() noexcept {
-        return dynamic_cast<T*>(this) != nullptr;
+        return dynamic_cast<T*>(GetHardwareContext().get()) != nullptr;
     }
 
     /**
@@ -63,7 +76,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     bool is() const noexcept {
-        return dynamic_cast<const T*>(this) != nullptr;
+        return dynamic_cast<const T*>(GetHardwareContext().get()) != nullptr;
     }
 
     /**
@@ -76,7 +89,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     T* as() noexcept {
-        return dynamic_cast<T*>(this);
+        return dynamic_cast<T*>(GetHardwareContext().get());
     }
 
     /**
@@ -89,7 +102,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     const T* as() const noexcept {
-        return dynamic_cast<const T*>(this);
+        return dynamic_cast<const T*>(GetHardwareContext().get());
     }
 
     /**
@@ -128,6 +141,20 @@ public:
      * @return A map of name/parameter elements.
      */
     virtual ParamMap getParams() const = 0;
+
+    /**
+     * @brief Unwrap hardware remote context
+     *
+     * @return shared pointer to plugin specific remote context
+     */
+    const std::shared_ptr<InferenceEngine::RemoteContext> GetHardwareContext();
+
+    /**
+     * @brief Unwrap hardware remote context
+     *
+     * @return shared pointer to plugin specific remote context
+     */
+    const std::shared_ptr<const InferenceEngine::RemoteContext> GetHardwareContext() const;
 };
 
 /**
@@ -137,8 +164,10 @@ public:
  * @param ctx Pointer to the plugin object derived from RemoteContext.
  * @return A pointer to plugin object that implements RemoteBlob interface.
  */
-inline RemoteBlob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx) {
+inline INFERENCE_ENGINE_1_0_DEPRECATED RemoteBlob::Ptr make_shared_blob(const TensorDesc& desc,
+                                                                        RemoteContext::Ptr ctx) {
     return ctx->CreateBlob(desc);
 }
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

@@ -52,11 +52,11 @@ OutputVector translate_pad(const NodeContext& context) {
         int64_t pad_l;
         int64_t pad_r;
         auto pad_last_id = paddings.size();
-        auto cur = data.get_node_shared_ptr();
+        auto cur = data;
         auto step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
         auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
         for (size_t i = 0; i < pad_size_half; i++) {
-            ov::NodeVector tensors;
+            OutputVector tensors;
             pad_r = paddings[pad_last_id - (2 * i + 1)];
             pad_l = paddings[pad_last_id - (2 * i + 2)];
             auto axes = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2 + i}));

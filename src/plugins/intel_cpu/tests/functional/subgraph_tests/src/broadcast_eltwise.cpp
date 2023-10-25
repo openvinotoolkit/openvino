@@ -5,8 +5,8 @@
 #include <openvino/opsets/opset1.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -34,11 +34,11 @@ public:
         std::tie(input_precision, input_shape, target_shape) = obj.param;
 
         std::ostringstream result;
-        result << "precision=" << input_precision << "IS=(" << CommonTestUtils::partialShape2str({input_shape.first}) << ")_TS=(";
+        result << "precision=" << input_precision << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_TS=(";
         for (const auto& item : input_shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
-        result << ")_target_shape=" << CommonTestUtils::vec2str(target_shape);
+        result << ")_target_shape=" << ov::test::utils::vec2str(target_shape);
         return result.str();
     }
 
@@ -47,13 +47,17 @@ protected:
         ElementType input_precision;
         InputShape input_shape;
         std::tie(input_precision, input_shape, target_shape) = GetParam();
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape> input_shapes{input_shape, {{}, {{target_shape.size()}}}};
         init_input_shapes(input_shapes);
 
         ov::element::TypeVector input_precisions{input_precision, ov::element::i64};
-        const auto params = ngraph::builder::makeDynamicParams(input_precisions, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (size_t i = 0; i < input_precisions.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(input_precisions[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
+        }
         const auto bcast_data = ov::opset10::Constant::create(input_precision, {}, {1.f});
         const auto bcast = std::make_shared<ov::opset10::Broadcast>(bcast_data, params[1]);
         const auto add = std::make_shared<ov::opset10::Add>(params[0], bcast);

@@ -6,6 +6,7 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/not_equal.hpp"
@@ -25,9 +26,8 @@ using namespace ov::op;
 StringEqualityReplacer::StringEqualityReplacer() {
     auto framework_node_lhs = pattern::wrap_type<PtFrameworkNode>();
     auto framework_node_rhs = pattern::wrap_type<PtFrameworkNode>();
-    auto convert_like = pattern::wrap_type<v1::ConvertLike>({framework_node_rhs, framework_node_lhs});
-    auto equal_op = pattern::wrap_type<v1::Equal>({framework_node_lhs, convert_like});
-    auto not_equal_op = pattern::wrap_type<v1::NotEqual>({framework_node_lhs, convert_like});
+    auto equal_op = pattern::wrap_type<v1::Equal>({framework_node_lhs, framework_node_rhs});
+    auto not_equal_op = pattern::wrap_type<v1::NotEqual>({framework_node_lhs, framework_node_rhs});
 
     auto string_equality_pattern = std::make_shared<pattern::op::Or>(OutputVector{equal_op, not_equal_op});
 
@@ -59,14 +59,14 @@ StringEqualityReplacer::StringEqualityReplacer() {
         auto equal_node = pattern_map.at(equal_op).get_node_shared_ptr();
         if (auto equal = std::dynamic_pointer_cast<v1::Equal>(equal_node)) {
             auto const_result = v0::Constant::create(element::boolean, Shape{}, {lhs == rhs});
-            copy_runtime_info({lhs_node, rhs_node, equal_node}, const_result);
+            copy_runtime_info_and_name(equal_node, {const_result});
             replace_node(equal_node, const_result);
             return true;
         };
         auto not_equal_node = pattern_map.at(not_equal_op).get_node_shared_ptr();
         if (auto equal = std::dynamic_pointer_cast<v1::NotEqual>(not_equal_node)) {
             auto const_result = v0::Constant::create(element::boolean, Shape{}, {lhs != rhs});
-            copy_runtime_info({lhs_node, rhs_node, not_equal_node}, const_result);
+            copy_runtime_info_and_name(equal_node, {const_result});
             replace_node(equal_node, const_result);
             return true;
         };

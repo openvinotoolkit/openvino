@@ -2,245 +2,40 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
-#include <map>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
+#include "ov_extension_test.hpp"
 
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/test_common.hpp"
-#include "ie_iextension.h"
-#include "ngraph/op/op.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/core/op_extension.hpp"
-#include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
-using namespace CommonTestUtils;
-
-class OVExtensionTests : public TestsCommon {
-public:
-    ov::Core core;
-
-    void test() {
-        std::string model = R"V0G0N(
-<net name="Activation" version="10">
-    <layers>
-        <layer name="in1" type="Parameter" id="0" version="opset1">
-            <data shape="1,3,22,22" element_type="f32"/>
-            <output>
-                <port id="0" precision="FP32" names="in_data">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="activation" id="1" type="Identity" version="extension">
-            <input>
-                <port id="1" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2" precision="FP32" names="out_data">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
-    </edges>
-</net>
-)V0G0N";
-        ov::Tensor weights;
-        ov::PartialShape refBeforeReshape{1, 3, 22, 22};
-        ov::PartialShape refAfterReshape{8, 9, 33, 66};
-
-        auto network = core.read_model(model, weights);
-        std::map<std::string, ov::PartialShape> newShapes;
-        newShapes["in_data"] = refAfterReshape;
-
-        EXPECT_EQ(refBeforeReshape, network->output().get_partial_shape());
-        EXPECT_NO_THROW(network->reshape(newShapes));
-        EXPECT_EQ(refAfterReshape, network->output().get_partial_shape());
-    }
-
-    void test_two_op() {
-        std::string model = R"V0G0N(
-<net name="Activation" version="10">
-    <layers>
-        <layer name="in1" type="Parameter" id="0" version="opset1">
-            <data shape="1,3,22,22" element_type="f32"/>
-            <output>
-                <port id="0" precision="FP32" names="in_data">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="activation" id="1" type="Identity" version="extension">
-            <input>
-                <port id="1" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2" precision="FP32" names="out_data">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="activation2" id="2" type="CustomReLU" version="extension">
-            <input>
-                <port id="1" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2" precision="FP32" names="out_relu_data">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="output" type="Result" id="3" version="opset1">
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-        <edge from-layer="1" from-port="2" to-layer="2" to-port="1"/>
-        <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
-    </edges>
-</net>
-)V0G0N";
-        ov::Tensor weights;
-        ov::PartialShape refBeforeReshape{1, 3, 22, 22};
-        ov::PartialShape refAfterReshape{8, 9, 33, 66};
-
-        auto network = core.read_model(model, weights);
-        std::map<std::string, ov::PartialShape> newShapes;
-        newShapes["in_data"] = refAfterReshape;
-
-        EXPECT_EQ(refBeforeReshape, network->output().get_partial_shape());
-        EXPECT_NO_THROW(network->reshape(newShapes));
-        EXPECT_EQ(refAfterReshape, network->output().get_partial_shape());
-    }
-};
+using namespace ov::test::utils;
 
 namespace {
 
 std::string getOVExtensionPath() {
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                              std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                              std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 }
 
 std::string getOldExtensionPath() {
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                              std::string("template_extension") + IE_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                              std::string("template_extension") + OV_BUILD_POSTFIX);
 }
 
 std::string getIncorrectExtensionPath() {
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                              std::string("incorrect") + IE_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                              std::string("incorrect") + OV_BUILD_POSTFIX);
 }
 
 std::string getRelativeOVExtensionPath() {
     std::string absolutePath =
-        ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                           std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
-    return CommonTestUtils::getRelativePath(CommonTestUtils::getCurrentWorkingDir(), absolutePath);
+        ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                           std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
+    return ov::test::utils::getRelativePath(ov::test::utils::getCurrentWorkingDir(), absolutePath);
 }
 
 }  // namespace
-
-class CustomOldIdentity : public ngraph::op::Op {
-public:
-    OPENVINO_OP("Identity");
-
-    CustomOldIdentity() = default;
-    CustomOldIdentity(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
-        constructor_validate_and_infer_types();
-    }
-
-    void validate_and_infer_types() override {
-        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-    }
-
-    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
-        if (new_args.size() != 1) {
-            OPENVINO_THROW("Incorrect number of new arguments");
-        }
-
-        return std::make_shared<CustomOldIdentity>(new_args.at(0));
-    }
-
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
-        return true;
-    }
-};
-
-class TestTileOldExtension : public InferenceEngine::IExtension {
-public:
-    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
-
-    void Unload() noexcept override {}
-
-    std::map<std::string, ngraph::OpSet> getOpSets() override {
-        static std::map<std::string, ngraph::OpSet> opsets;
-        if (opsets.empty()) {
-            ngraph::OpSet opset;
-            opset.insert<CustomOldIdentity>();
-            opsets["extension"] = opset;
-        }
-        return opsets;
-    }
-};
 
 class CustomNewIdentity : public ov::op::Op {
 public:
@@ -291,12 +86,6 @@ public:
 };
 
 #if defined(ENABLE_OV_IR_FRONTEND)
-TEST_F(OVExtensionTests, ReshapeIRWithOldExtension) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    core.add_extension(std::make_shared<TestTileOldExtension>());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    test();
-}
 
 TEST_F(OVExtensionTests, ReshapeIRWithNewExtensionsLib) {
     core.add_extension(getOVExtensionPath());

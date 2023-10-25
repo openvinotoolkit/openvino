@@ -12,6 +12,12 @@
 #include "ie/ie_core.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/runtime/core.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
@@ -148,20 +154,20 @@ TEST_F(RTInfoDeserialization, node_v10) {
     {
         ov::Shape shape{1, 3, 22, 22};
         auto type = ov::element::f32;
-        auto param = std::make_shared<ov::opset8::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor", param->get_friendly_name()});
 
         // TODO: No guarantee that exactly 'Convert' will be added
-        auto convert_param = std::make_shared<ov::opset8::Convert>(param, ov::element::f16);
+        auto convert_param = std::make_shared<ov::op::v0::Convert>(param, ov::element::f16);
 
-        auto round = std::make_shared<ov::opset8::Round>(convert_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
+        auto round = std::make_shared<ov::op::v5::Round>(convert_param, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
 
-        auto convert_result = std::make_shared<ov::opset8::Convert>(round, type);
+        auto convert_result = std::make_shared<ov::op::v0::Convert>(round, type);
         convert_result->set_friendly_name("Round");
         convert_result->get_output_tensor(0).set_names({"output_tensor", convert_result->get_friendly_name()});
 
-        auto result = std::make_shared<ov::opset8::Result>(convert_result);
+        auto result = std::make_shared<ov::op::v0::Result>(convert_result);
         result->set_friendly_name("output");
 
         auto f_10_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
@@ -393,18 +399,18 @@ TEST_F(RTInfoDeserialization, input_and_output_v10) {
     {
         const ov::Shape shape{1, 3, 22, 22};
         const auto type = ov::element::i64;
-        auto param = std::make_shared<ov::opset8::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor", param->get_friendly_name()});
 
-        auto sum = std::make_shared<ov::opset8::Add>(param, param);
+        auto sum = std::make_shared<ov::op::v1::Add>(param, param);
 
         // TODO: No guarantee that exactly 'convert' will be added by post-processing
-        auto convert_result = std::make_shared<ov::opset8::Convert>(sum, ov::element::i32);
+        auto convert_result = std::make_shared<ov::op::v0::Convert>(sum, ov::element::i32);
         convert_result->set_friendly_name("sum");
         convert_result->get_output_tensor(0).set_names({"output_tensor", convert_result->get_friendly_name()});
 
-        auto result = std::make_shared<ov::opset8::Result>(convert_result);
+        auto result = std::make_shared<ov::op::v0::Result>(convert_result);
         result->set_friendly_name("output");
 
         auto f_10_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
@@ -554,31 +560,31 @@ TEST_F(RTInfoDeserialization, node_v11) {
     {
         const ov::PartialShape shape{1, 3, 22, 22};
         auto type = ov::element::f16;
-        auto param = std::make_shared<ov::opset8::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
         // TODO: No guarantee that Transpose will use exactly 'uint64_t' constant
         auto constant_param =
-            std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 2, 3, 1});
-        auto transpose_param = std::make_shared<ov::opset8::Transpose>(param, constant_param);
+            std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 2, 3, 1});
+        auto transpose_param = std::make_shared<ov::op::v1::Transpose>(param, constant_param);
 
         // TODO: No guarantee that only 'convert' will be added by implicit pre-processing
-        auto convert_param = std::make_shared<ov::opset8::Convert>(transpose_param, ov::element::f32);
+        auto convert_param = std::make_shared<ov::op::v0::Convert>(transpose_param, ov::element::f32);
 
-        auto round = std::make_shared<ov::opset8::Round>(convert_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
+        auto round = std::make_shared<ov::op::v5::Round>(convert_param, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
         // TODO: runtime information should migrate as well?
         round->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("Round1,Round2");
 
         // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit post-processing
         auto constant_result =
-            std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
-        auto transpose_result = std::make_shared<ov::opset8::Transpose>(round, constant_result);
+            std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
+        auto transpose_result = std::make_shared<ov::op::v1::Transpose>(round, constant_result);
 
         transpose_result->set_friendly_name("Round");
         transpose_result->get_output_tensor(0).set_names({"output_tensor"});
 
-        auto result = std::make_shared<ov::opset8::Result>(transpose_result);
+        auto result = std::make_shared<ov::op::v0::Result>(transpose_result);
         result->set_friendly_name("output");
 
         auto f_10_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
@@ -697,24 +703,24 @@ TEST_F(RTInfoDeserialization, node_v11_uint8) {
     // read IR v11 with old API and check that old_api_map is applied
     const ov::PartialShape shape{1, 3, 22, 22};
     auto type = ov::element::f16;
-    auto param = std::make_shared<ov::opset8::Parameter>(type, shape);
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
     param->set_friendly_name("in1");
     param->get_output_tensor(0).set_names({"input_tensor"});
 
     auto constant_param =
-        std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 2, 3, 1});
-    auto transpose_param = std::make_shared<ov::opset8::Transpose>(param, constant_param);
+        std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 2, 3, 1});
+    auto transpose_param = std::make_shared<ov::op::v1::Transpose>(param, constant_param);
 
-    auto round = std::make_shared<ov::opset8::Round>(transpose_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
+    auto round = std::make_shared<ov::op::v5::Round>(transpose_param, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
     round->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("Round1,Round2");
     auto constant_result =
-        std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
-    auto transpose_result = std::make_shared<ov::opset8::Transpose>(round, constant_result);
+        std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
+    auto transpose_result = std::make_shared<ov::op::v1::Transpose>(round, constant_result);
 
     transpose_result->set_friendly_name("Round");
     transpose_result->get_output_tensor(0).set_names({"output_tensor"});
 
-    auto result = std::make_shared<ov::opset8::Result>(transpose_result);
+    auto result = std::make_shared<ov::op::v0::Result>(transpose_result);
     result->set_friendly_name("output");
 
     auto f_10_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});

@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConvBackpropData2D, QuantGroupConvBackp
                                 quantGroupConvBackpropData2DParams,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes2D),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         QuantGroupConvBackpropDataLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolutionBackpropData ============= */
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConvBackpropData3D, QuantGroupConvBackp
                                 quantGroupConvBackpropData3DParams,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes3D),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         QuantGroupConvBackpropDataLayerTest::getTestCaseName);
 
 }  // namespace

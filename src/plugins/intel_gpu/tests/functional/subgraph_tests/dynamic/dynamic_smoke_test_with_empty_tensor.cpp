@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/single_layer/strided_slice.hpp"
@@ -45,9 +45,9 @@ public:
         std::tie(inputShapes, netType, targetDevice, additionalConfig) = basicParamsSet;
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
             for (const auto& actual_shape : shape.second) {
-                result << CommonTestUtils::partialShape2str({actual_shape}) << "_";
+                result << ov::test::utils::partialShape2str({actual_shape}) << "_";
             }
         }
         result << "NetType=" << netType << "_";
@@ -90,7 +90,10 @@ protected:
           init_input_shapes(inputShapes);
           const auto AllZeroData = inputDynamicShapes[0];
           const auto ConcatInputData = inputDynamicShapes[1];
-          auto params = builder::makeDynamicParams(netType, {AllZeroData, ConcatInputData});
+          ov::ParameterVector params;
+          for (auto&& shape : {AllZeroData, ConcatInputData}) {
+              params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+          }
           auto paramOuts =
               helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
           const ElementType intInputsPrecision = ElementType::i32;
@@ -145,7 +148,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
 
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                    ::testing::ValuesIn(netPrecisions), // netprec
-                                                   ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                   ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                    ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_empty_tensor, EmptyTensorDynamicGPUTest,

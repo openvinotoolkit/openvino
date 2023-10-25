@@ -10,6 +10,7 @@
 
 #include "openvino/frontend/exception.hpp"
 #include "pyopenvino/frontend/manager.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -76,15 +77,19 @@ void regclass_frontend_FrontEndManager(py::module m) {
 
     fem.def(
         "load_by_model",
-        [](const std::shared_ptr<ov::frontend::FrontEndManager>& fem, const std::string& model_path) {
-            return fem->load_by_model(model_path);
+        [](const std::shared_ptr<ov::frontend::FrontEndManager>& fem, const py::object& model) {
+            if (py::isinstance(model, py::module_::import("pathlib").attr("Path"))) {
+                std::string model_path = Common::utils::convert_path_to_string(model);
+                return fem->load_by_model(model_path);
+            }
+            return fem->load_by_model({Common::utils::py_object_to_any(model)});
         },
-        py::arg("model_path"),
+        py::arg("model"),
         R"(
-                Selects and loads appropriate frontend depending on model file extension and other file info (header).
+                Selects and loads appropriate frontend depending on model type or model file extension and other file info (header).
 
-                :param model_path: A path to a model file/directory.
-                :type model_path: str
+                :param model_path: A model object or path to a model file/directory.
+                :type model_path: Any
                 :return: Frontend interface for further loading of models. 'None' if no suitable frontend is found.
                 :rtype: openvino.frontend.FrontEnd
             )");

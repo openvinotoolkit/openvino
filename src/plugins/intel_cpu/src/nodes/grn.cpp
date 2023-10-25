@@ -94,8 +94,8 @@ void GRN::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void GRN::execute(dnnl::stream strm) {
-    const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
     parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;

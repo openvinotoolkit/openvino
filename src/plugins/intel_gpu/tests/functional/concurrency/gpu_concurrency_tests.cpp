@@ -12,19 +12,21 @@
 #include <gpu/gpu_config.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 using namespace ::testing;
 
 using ConcurrencyTestParams = std::tuple<size_t,   // number of streams
                                          size_t>;  // number of requests
 
-class OVConcurrencyTest : public CommonTestUtils::TestsCommon,
+class OVConcurrencyTest : public ov::test::TestsCommon,
     public testing::WithParamInterface<ConcurrencyTestParams> {
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();
@@ -48,9 +50,9 @@ public:
             std::stringstream ss;
             ss << "OVConcurrencyTest_nstreams_" << num_streams << "_nireq_" << num_requests;
             cacheFolderName = ss.str();
-            CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
-            CommonTestUtils::removeDir(cacheFolderName);
+            ov::test::utils::removeFilesWithExt(cacheFolderName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");
+            ov::test::utils::removeDir(cacheFolderName);
             ie.set_property(ov::cache_dir(cacheFolderName));
             ie.set_property(ov::intel_gpu::enable_loop_unrolling(false));
         }
@@ -67,15 +69,15 @@ public:
 
             if (is_caching_test) {
                 {
-                    auto _dummy_exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
+                    auto _dummy_exec_net = ie.compile_model(fn_ptrs[i], ov::test::utils::DEVICE_GPU,
                                                     ov::num_streams(ov::streams::Num(num_streams)), ov::hint::inference_precision(ov::element::f32));
                 }
                 {
-                    exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
+                    exec_net = ie.compile_model(fn_ptrs[i], ov::test::utils::DEVICE_GPU,
                                                     ov::num_streams(ov::streams::Num(num_streams)), ov::hint::inference_precision(ov::element::f32));
                 }
             } else {
-                exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
+                exec_net = ie.compile_model(fn_ptrs[i], ov::test::utils::DEVICE_GPU,
                                                 ov::num_streams(ov::streams::Num(num_streams)), ov::hint::inference_precision(ov::element::f32));
             }
 
@@ -90,7 +92,7 @@ public:
                 std::vector<std::vector<uint8_t>> inputs;
                 for (size_t param_idx = 0; param_idx < fn_ptrs[i]->get_parameters().size(); ++param_idx) {
                     auto input = fn_ptrs[i]->get_parameters().at(param_idx);
-                    auto tensor = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+                    auto tensor = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
                     inf_req.set_tensor(input, tensor);
 
                     const auto in_tensor = inf_req.get_tensor(input);
@@ -128,9 +130,9 @@ public:
         }
 
         if (is_caching_test) {
-            CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
-            CommonTestUtils::removeDir(cacheFolderName);
+            ov::test::utils::removeFilesWithExt(cacheFolderName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");
+            ov::test::utils::removeDir(cacheFolderName);
         }
     }
 
@@ -162,7 +164,7 @@ TEST(canSwapTensorsBetweenInferRequests, inputs) {
     auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
+    auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     const int infer_requests_num = 2;
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
@@ -189,7 +191,7 @@ TEST(canSwapTensorsBetweenInferRequests, inputs) {
     };
 
     for (int32_t i = 0; i < infer_requests_num; i++) {
-        FuncTestUtils::fill_tensor(input_tensors[i], 10, -5, 1, i);
+        ov::test::utils::fill_tensor_random(input_tensors[i], 10, -5, 1, i);
         calc_ref_results(input_tensors[i]);
     }
 
@@ -240,15 +242,15 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
     auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
+    auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
     ov::InferRequest infer_request2 = compiled_model.create_infer_request();
 
     auto input_tensor1 = infer_request1.get_input_tensor();
-    FuncTestUtils::fill_tensor(input_tensor1, 20, 0, 1, 0);
+    ov::test::utils::fill_tensor_random(input_tensor1, 20, 0, 1, 0);
 
-    auto output_tensor1 = FuncTestUtils::create_and_fill_tensor(compiled_model.output().get_element_type(), compiled_model.output().get_shape());
+    auto output_tensor1 = ov::test::utils::create_and_fill_tensor(compiled_model.output().get_element_type(), compiled_model.output().get_shape());
     auto output_tensor2 = infer_request2.get_output_tensor();
 
     // Use tensor from infer request #2 as an output for infer request #1
@@ -256,7 +258,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
     ASSERT_NO_THROW(infer_request1.infer());
 
     // Modify tensor somehow and save as a reference values
-    FuncTestUtils::fill_tensor(output_tensor2);
+    ov::test::utils::fill_tensor_random(output_tensor2);
 
     std::vector<float> ref_values;
     ref_values.resize(output_tensor2.get_byte_size());
@@ -279,21 +281,21 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
     auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
+    auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
     ov::InferRequest infer_request2 = compiled_model.create_infer_request();
 
     auto input_tensor1 = infer_request1.get_input_tensor();
-    FuncTestUtils::fill_tensor(input_tensor1, 20, 0, 1, 0);
+    ov::test::utils::fill_tensor_random(input_tensor1, 20, 0, 1, 0);
 
-    auto output_tensor1 = FuncTestUtils::create_and_fill_tensor(compiled_model.output().get_element_type(), compiled_model.output().get_shape());
+    auto output_tensor1 = ov::test::utils::create_and_fill_tensor(compiled_model.output().get_element_type(), compiled_model.output().get_shape());
     auto output_tensor2 = infer_request2.get_output_tensor();
 
     infer_request1.set_output_tensor(output_tensor2);
     ASSERT_NO_THROW(infer_request1.infer());
 
-    FuncTestUtils::fill_tensor(input_tensor1, 10, 0, 1, 1);
+    ov::test::utils::fill_tensor_random(input_tensor1, 10, 0, 1, 1);
     infer_request1.set_output_tensor(output_tensor1);
     ASSERT_NO_THROW(infer_request1.infer());
 }
@@ -305,7 +307,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
     auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
+    auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     const int infer_requests_num = 2;
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
@@ -334,7 +336,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
     };
 
     for (int32_t i = 0; i < infer_requests_num; i++) {
-        FuncTestUtils::fill_tensor(input_tensors[i], 10, -5, 1, i);
+        ov::test::utils::fill_tensor_random(input_tensors[i], 10, -5, 1, i);
         calc_ref_results(input_tensors[i]);
     }
 

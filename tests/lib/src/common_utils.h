@@ -10,6 +10,13 @@
 #include <random>
 
 
+template <typename T>
+using uniformDistribution = typename std::conditional<
+    std::is_floating_point<T>::value,
+    std::uniform_real_distribution<T>,
+    typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
+
+
 /**
  * @brief Determine if InferenceEngine blob means image or not (OV API 1.0)
  */
@@ -84,27 +91,20 @@ void fillBlobRandom(InferenceEngine::Blob::Ptr &inputBlob) {
 /**
  * @brief Fill InferenceEngine tensor with random values (OV API 2.0)
  */
-template<typename T, typename U>
-ov::Tensor fillTensorRandom(T &input) {
-    ov::Tensor tensor{input.get_element_type(), input.get_shape()};
-    std::vector<U> values(ov::shape_size(input.get_shape()));
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-
-    if (std::is_floating_point<U>::value == true) {
-        std::uniform_real_distribution<> distrib_f = std::uniform_real_distribution<>(0, std::numeric_limits<U>::max());
-        for (size_t i = 0; i < values.size(); ++i)
-            values[i] = distrib_f(gen);
-    } else {
-        std::uniform_int_distribution<> distrib_i = std::uniform_int_distribution<>(0, std::numeric_limits<U>::max());
-        for (size_t i = 0; i < values.size(); ++i)
-            values[i] = distrib_i(gen);
+template<typename T, typename T2>
+void fillTensorRandom(ov::Tensor& tensor,
+                      T rand_min = std::numeric_limits<uint8_t>::min(),
+                      T rand_max = std::numeric_limits<uint8_t>::max()) {
+    std::mt19937 gen(0);
+    size_t tensor_size = tensor.get_size();
+    if (0 == tensor_size) {
+        throw std::runtime_error(
+            "Models with dynamic shapes aren't supported. Input tensors must have specific shapes before inference");
     }
-
-    std::memcpy(tensor.data(), values.data(), sizeof(U) * values.size());
-
-    return tensor;
+    T* data = tensor.data<T>();
+    uniformDistribution<T2> distribution(rand_min, rand_max);
+    for (size_t i = 0; i < tensor_size; i++)
+        data[i] = static_cast<T>(distribution(gen));
 }
 
 
@@ -141,26 +141,34 @@ void fillBlobImInfo(InferenceEngine::Blob::Ptr &inputBlob,
 template<typename T>
 void fillTensors(ov::InferRequest &infer_request, std::vector<T> &inputs) {
     for (size_t i = 0; i < inputs.size(); ++i) {
-        ov::Tensor input_tensor;
-
-        if (inputs[i].get_element_type() == ov::element::f32) {
-            input_tensor = fillTensorRandom<T, float>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::f64) {
-            input_tensor = fillTensorRandom<T, double>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::f16) {
-            input_tensor = fillTensorRandom<T, short>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::i32) {
-            input_tensor = fillTensorRandom<T, int32_t>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::i64) {
-            input_tensor = fillTensorRandom<T, int64_t>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::u8) {
-            input_tensor = fillTensorRandom<T, uint8_t>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::i8) {
-            input_tensor = fillTensorRandom<T, int8_t>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::u16) {
-            input_tensor = fillTensorRandom<T, uint16_t>(inputs[i]);
-        } else if (inputs[i].get_element_type() == ov::element::i16) {
-            input_tensor = fillTensorRandom<T, int16_t>(inputs[i]);
+        auto input_tensor = infer_request.get_tensor(inputs[i]);
+        auto type = inputs[i].get_element_type();
+        if (type == ov::element::f32) {
+            fillTensorRandom<float, float>(input_tensor);
+        } else if (type == ov::element::f64) {
+            fillTensorRandom<double, double>(input_tensor);
+        } else if (type == ov::element::f16) {
+            fillTensorRandom<ov::float16, float>(input_tensor);
+        } else if (type == ov::element::i32) {
+            fillTensorRandom<int32_t, int32_t>(input_tensor);
+        } else if (type == ov::element::i64) {
+            fillTensorRandom<int64_t, int64_t>(input_tensor);
+        } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
+            // uniform_int_distribution<uint8_t> is not allowed in the C++17
+            // standard and vs2017/19
+            fillTensorRandom<uint8_t, uint32_t>(input_tensor);
+        } else if (type == ov::element::i8) {
+            // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
+            // and vs2017/19
+            fillTensorRandom<int8_t, int32_t>(input_tensor,
+                                              std::numeric_limits<int8_t>::min(),
+                                              std::numeric_limits<int8_t>::max());
+        } else if (type == ov::element::u16) {
+            fillTensorRandom<uint16_t, uint16_t>(input_tensor);
+        } else if (type == ov::element::i16) {
+            fillTensorRandom<int16_t, int16_t>(input_tensor);
+        } else if (type == ov::element::boolean) {
+            fillTensorRandom<uint8_t, uint32_t>(input_tensor, 0, 1);
         } else {
             throw std::logic_error(
                     "Input precision is not supported for " + inputs[i].get_element_type().get_type_name());

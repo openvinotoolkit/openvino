@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief This is a header file for the Inference Engine plugin C++ API
+ * @brief This is a header file for the OpenVINO plugin C++ API
  *
  * @file plugin.hpp
  */
@@ -12,6 +12,7 @@
 #include "ie_iextension.h"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 
@@ -40,7 +41,7 @@ public:
 
     const ov::Version get_version() const;
 
-    void add_extension(const ie::IExtensionPtr& extension);
+    void add_extension(const InferenceEngine::IExtensionPtr& extension);
 
     void set_property(const ov::AnyMap& config);
 
@@ -50,7 +51,7 @@ public:
     SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path, const ov::AnyMap& properties) const;
 
     SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                            const ov::RemoteContext& context,
+                                            const ov::SoPtr<ov::IRemoteContext>& context,
                                             const ov::AnyMap& properties) const;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) const;
@@ -58,12 +59,12 @@ public:
     SoPtr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const;
 
     SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,
-                                           const ov::RemoteContext& context,
+                                           const ov::SoPtr<ov::IRemoteContext>& context,
                                            const ov::AnyMap& config) const;
 
-    ov::RemoteContext create_context(const AnyMap& params) const;
+    ov::SoPtr<ov::IRemoteContext> create_context(const AnyMap& params) const;
 
-    ov::RemoteContext get_default_context(const AnyMap& params) const;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const AnyMap& params) const;
 
     Any get_property(const std::string& name, const AnyMap& arguments) const;
 
@@ -76,6 +77,7 @@ public:
     T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
         return get_property(property.name(), arguments).template as<T>();
     }
+    bool supports_model_caching(bool check_old_api = true) const;
 };
 
 }  // namespace ov

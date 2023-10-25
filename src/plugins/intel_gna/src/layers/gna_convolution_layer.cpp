@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,11 +59,11 @@ double getWeightsReducer(InferenceEngine::ConvolutionLayer& conv) {
     const std::vector<KRT> reducers{{49, 3.0}, {36, 2.6}, {21, 2.3}, {14, 1.7}, {9, 1.3}, {7, 1.2}};
     auto reducer = 1.0;
     const auto inDepth =
-        InferenceEngine::GetDataDimByName(conv.insData.front().lock(), InferenceEngine::DataDimName::C);
+        InferenceEngine::GetDataDimSizeNHWC(conv.insData.front().lock(), InferenceEngine::DataDimName::C);
     const auto inHeight =
-        InferenceEngine::GetDataDimByName(conv.insData.front().lock(), InferenceEngine::DataDimName::H);
+        InferenceEngine::GetDataDimSizeNHWC(conv.insData.front().lock(), InferenceEngine::DataDimName::H);
     const auto inWidth =
-        InferenceEngine::GetDataDimByName(conv.insData.front().lock(), InferenceEngine::DataDimName::W);
+        InferenceEngine::GetDataDimSizeNHWC(conv.insData.front().lock(), InferenceEngine::DataDimName::W);
     if (is3DInputOr2DKernel(inHeight, inWidth, inDepth, conv._kernel_y, conv._kernel_x) &&
         !isMappableFrom2DTo1D(inHeight,
                               inWidth,

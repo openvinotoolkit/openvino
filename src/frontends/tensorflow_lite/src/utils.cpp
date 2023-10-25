@@ -7,7 +7,6 @@
 #include <openvino/frontend/tensorflow_lite/node_context.hpp>
 #include <openvino/opsets/opset10.hpp>
 
-#include "schema_generated.h"
 #include "tflite_ops/tflite_quantize.hpp"
 
 using namespace ov;
@@ -45,6 +44,7 @@ ov::element::Type ov::frontend::tensorflow_lite::get_ov_type(const tflite::Tenso
         {tflite::TensorType_UINT16, element::u16},
         {tflite::TensorType_INT4, element::i4},
         {tflite::TensorType_COMPLEX64, element::dynamic},
+        {tflite::TensorType_STRING, element::dynamic},
         // TODO: support the following types
         //          {TensorType_STRING,         element::string},
         //          {TensorType_COMPLEX128,     element::complex128},

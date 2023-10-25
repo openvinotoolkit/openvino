@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/dimension.hpp"
+#include "openvino/core/dimension.hpp"
 
 #include "gtest/gtest.h"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(dimension, broadcast_merge_static_1_and_10) {
     Dimension result;
@@ -119,4 +120,45 @@ TEST(dimension, division_of_static_dims) {
     Dimension::value_type four(4);
     Dimension empty(2, 1);
     EXPECT_EQ(seven / four, empty);
+}
+
+TEST(dimension, dimension_equality) {
+    auto te = make_shared<TableOfEquivalence>();
+    DimensionTracker dt(te);
+
+    // labeling dimensions
+    PartialShape dimensions = PartialShape::dynamic(5);  // A, B, C, D, E
+    for (auto& dimension : dimensions)
+        dt.set_up_for_tracking(dimension);
+
+    // checking labels are unique
+    for (const auto& dimension : dimensions)
+        EXPECT_NE(DimensionTracker::get_label(dimension), no_label);
+
+    for (const auto& lhs : dimensions) {
+        for (const auto& rhs : dimensions) {
+            if (&lhs == &rhs)
+                continue;
+            EXPECT_NE(DimensionTracker::get_label(lhs), DimensionTracker::get_label(rhs));
+            EXPECT_FALSE(te->are_equal(lhs, rhs));
+        }
+    }
+
+    te->set_as_equal(dimensions[0], dimensions[1]);  // A == B
+    te->set_as_equal(dimensions[3], dimensions[4]);  // D == E
+    te->set_as_equal(dimensions[2], dimensions[3]);  // C == D
+    te->set_as_equal(dimensions[1], dimensions[2]);  // B == C
+
+    // expected to see A == B == C == D == E
+    for (const auto& lhs : dimensions)
+        for (const auto& rhs : dimensions)
+            EXPECT_TRUE(te->are_equal(lhs, rhs));
+
+    // clear up all the tracking info
+    for (auto& dimension : dimensions)
+        DimensionTracker::reset_tracking_info(dimension);
+
+    // checking labels are unique
+    for (const auto& dimension : dimensions)
+        EXPECT_EQ(DimensionTracker::get_label(dimension), no_label);
 }

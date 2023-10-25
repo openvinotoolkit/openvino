@@ -3,7 +3,7 @@
 //
 
 #include <shared_test_classes/single_layer/strided_slice.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -46,21 +46,21 @@ public:
         std::tie(shapes, params, secondaryInputType, dataType, cpuParams) = obj.param;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
         results << "secondaryInputType=" << secondaryInputType << "_";
         results << "netPRC=" << dataType << "_";
-        results << "begin=" << CommonTestUtils::vec2str(params.begin) << "_";
-        results << "end=" << CommonTestUtils::vec2str(params.end) << "_";
-        results << "stride=" << CommonTestUtils::vec2str(params.strides) << "_";
-        results << "begin_m=" << CommonTestUtils::vec2str(params.beginMask) << "_";
-        results << "end_m=" << CommonTestUtils::vec2str(params.endMask) << "_";
-        results << "new_axis_m=" << (params.newAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.newAxisMask)) << "_";
-        results << "shrink_m=" << (params.shrinkAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.shrinkAxisMask)) << "_";
-        results << "ellipsis_m=" << (params.ellipsisAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.ellipsisAxisMask)) << "_";
+        results << "begin=" << ov::test::utils::vec2str(params.begin) << "_";
+        results << "end=" << ov::test::utils::vec2str(params.end) << "_";
+        results << "stride=" << ov::test::utils::vec2str(params.strides) << "_";
+        results << "begin_m=" << ov::test::utils::vec2str(params.beginMask) << "_";
+        results << "end_m=" << ov::test::utils::vec2str(params.endMask) << "_";
+        results << "new_axis_m=" << (params.newAxisMask.empty() ? "def" : ov::test::utils::vec2str(params.newAxisMask)) << "_";
+        results << "shrink_m=" << (params.shrinkAxisMask.empty() ? "def" : ov::test::utils::vec2str(params.shrinkAxisMask)) << "_";
+        results << "ellipsis_m=" << (params.ellipsisAxisMask.empty() ? "def" : ov::test::utils::vec2str(params.ellipsisAxisMask)) << "_";
         results << CPUTestsBase::getTestCaseName(cpuParams);
 
         return results.str();
@@ -72,7 +72,7 @@ protected:
 
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
@@ -93,7 +93,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         selectedType = makeSelectedTypeStr("ref", dataType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> input_shapes = {shapes};
 
         init_input_shapes({input_shapes});
@@ -103,7 +103,10 @@ protected:
             targetShapes.push_back({ssParams.strides.size()});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(dataType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(dataType, shape));
+        }
         std::shared_ptr<ngraph::Node> ss;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             ov::Shape inShape = {ssParams.begin.size()};

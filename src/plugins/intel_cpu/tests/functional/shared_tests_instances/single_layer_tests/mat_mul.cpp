@@ -4,60 +4,100 @@
 
 #include <vector>
 
-#include "single_layer_tests/mat_mul.hpp"
-
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/mat_mul.hpp"
 
 namespace {
+using ov::test::MatMulLayerTest;
+using ov::test::utils::InputLayerType;
 
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::I32,
+const std::vector<ov::element::Type> model_types = {
+    ov::element::f32,
+    ov::element::i32,
 };
 
-const std::vector<ShapeRelatedParams> shapeRelatedParams = {
-        { { {1, 4, 5, 6}, false }, { {1, 4, 6, 4}, false } },
-        { { {4, 5, 6}, false }, { {6, 3}, false } },
-        { { {9, 9, 9}, false }, { {9, 9}, false } },
-        { { {1, 2, 3}, false }, { {1, 10, 3}, true } },
-        { { {1, 2, 3}, false }, { {1, 3, 10}, false } },
-        { { {1, 2, 3}, false }, { {1, 1, 3, 2}, false } },
-        { { {1, 3, 2, 4}, false }, { {2, 1, 4, 2}, false } },
-        { { {2, 1, 2, 4}, false }, { {1, 3, 4, 2}, false } },
-        { { {3, 2, 4}, false }, { {2, 1, 4, 2}, false } },
-        { { {2, 1, 4, 2}, false }, { {3, 2, 4}, false } },
-        { { {2, 1, 2, 3}, true }, { {3, 2, 4}, false } },
-        { { {2, 1, 3, 2}, false }, { {3, 4, 2}, true } },
-        { { {2, 1, 2, 3}, true }, { {3, 4, 2}, true } },
-        { { {3}, false }, { {2, 2, 3, 1}, false } },
-        { { {2, 2, 1, 3}, false }, { {3}, false } },
-        { { {1, 5}, false }, { {5, 1}, false } },
-        { { {5, 1}, true }, { {5, 1}, false } },
-        { { {1, 5}, false }, { {10, 5}, true } },
-        { { {1, 5}, false }, { {5}, false } },
-        { { {5}, false }, { {5, 1}, false } },
-        { { {5}, false }, { {5}, false } },
-        { { {5}, true }, { {5}, true } }
+std::vector<std::vector<ov::Shape>> input_shapes_no_transpose_static {
+    { {1, 4, 5, 6}, {1, 4, 6, 4} },
+    { {4, 5, 6}, {6, 3} },
+    { {9, 9, 9}, {9, 9} },
+    { {1, 2, 3}, {1, 3, 10} },
+    { {1, 2, 3}, {1, 1, 3, 2} },
+    { {1, 3, 2, 4}, {2, 1, 4, 2} },
+    { {2, 1, 2, 4}, {1, 3, 4, 2} },
+    { {3, 2, 4}, {2, 1, 4, 2} },
+    { {2, 1, 4, 2}, {3, 2, 4} },
+    { {3}, {2, 2, 3, 1} },
+    { {2, 2, 1, 3}, {3} },
+    { {1, 5}, {5, 1} },
+    { {1, 5}, {5} },
+    { {5}, {5, 1} },
+    { {5}, {5} },
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<std::vector<ov::Shape>> input_shapes_first_transpose_static {
+    { {2, 1, 2, 3}, {3, 2, 4} },
+    { {5, 1}, {5, 1} },
+};
+
+std::vector<std::vector<ov::Shape>> input_shapes_second_transpose_static {
+    { {1, 2, 3}, {1, 10, 3} },
+    { {2, 1, 3, 2}, {3, 4, 2} },
+    { {1, 5}, {10, 5} },
+};
+
+std::vector<std::vector<ov::Shape>> input_shapes_both_transpose_static {
+    { {2, 1, 2, 3}, {3, 4, 2} },
+    { {5}, {5}, },
+};
+
+
+std::vector<InputLayerType> secondary_input_types = {
+        InputLayerType::CONSTANT,
+        InputLayerType::PARAMETER,
 };
 
 std::map<std::string, std::string> additional_config = {};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMul, MatMulTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul_NoTranspose, MatMulLayerTest,
         ::testing::Combine(
-                ::testing::ValuesIn(shapeRelatedParams),
-                ::testing::ValuesIn(inputPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::ValuesIn(secondaryInputTypes),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_no_transpose_static)),
+                ::testing::Values(std::make_pair(false, false)),
+                ::testing::ValuesIn(model_types),
+                ::testing::ValuesIn(secondary_input_types),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        MatMulTest::getTestCaseName);
+        MatMulLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul_FirstTranspose, MatMulLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_first_transpose_static)),
+                ::testing::Values(std::make_pair(true, false)),
+                ::testing::ValuesIn(model_types),
+                ::testing::ValuesIn(secondary_input_types),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        MatMulLayerTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul_SecondTranspose, MatMulLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_second_transpose_static)),
+                ::testing::Values(std::make_pair(false, true)),
+                ::testing::ValuesIn(model_types),
+                ::testing::ValuesIn(secondary_input_types),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        MatMulLayerTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul_BothTranspose, MatMulLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_both_transpose_static)),
+                ::testing::Values(std::make_pair(true, true)),
+                ::testing::ValuesIn(model_types),
+                ::testing::ValuesIn(secondary_input_types),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        MatMulLayerTest::getTestCaseName);
 
 } // namespace
 

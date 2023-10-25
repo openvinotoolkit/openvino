@@ -5,28 +5,32 @@
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
     MATCHER_SCOPE(FakeQuantizeReshapeFusion);
-    const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
-        {ngraph::pattern::wrap_type<opset4::Constant>(),  // for weights only
+    const auto fq_node_p = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
+        {ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),  // for weights only
          pattern::any_input(),
          pattern::any_input(),
          pattern::any_input(),
          pattern::any_input()},
         pattern::consumers_count(1));
-    const auto reshape_node_p =
-        ngraph::pattern::wrap_type<opset4::Reshape>({fq_node_p, pattern::any_input()}, [](const Output<Node>& output) {
+    const auto reshape_node_p = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
+        {fq_node_p, pattern::any_input()},
+        [](const Output<Node>& output) {
             // WA: check that all Reshape node consumers are not GroupConvolution operations
             const auto& target_inputs = output.get_target_inputs();
             return std::all_of(target_inputs.begin(), target_inputs.end(), [](const Input<Node>& input) {
-                return input.get_node()->get_type_info() != opset4::GroupConvolution::get_type_info_static();
+                return input.get_node()->get_type_info() != ov::op::v1::GroupConvolution::get_type_info_static();
             });
         });
 
@@ -42,10 +46,10 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         for (auto i = 1; i < 5; ++i) {
             Output<Node> limit_input = fq_node->input_value(i);
             auto limit_shape = limit_input.get_shape();
-            NGRAPH_CHECK(limit_shape.size() <= original_data_rank, "FakeQuantize limit input has unexpected rank");
+            OPENVINO_ASSERT(limit_shape.size() <= original_data_rank, "FakeQuantize limit input has unexpected rank");
             if (limit_shape.size() < original_data_rank)  // aligning limit rank with data rank
                 limit_shape.insert(limit_shape.begin(), original_data_rank - limit_shape.size(), uint64_t(1));
-            NGRAPH_CHECK(limit_shape.size() == original_data_rank, "FakeQuantize limit input has unexpected rank");
+            OPENVINO_ASSERT(limit_shape.size() == original_data_rank, "FakeQuantize limit input has unexpected rank");
             const auto& limit_size = shape_size(limit_shape);
             const auto& max_element = *std::max_element(limit_shape.begin(), limit_shape.end());
             if (max_element == limit_size) {  // per-tensor / per-channel limit
@@ -63,7 +67,7 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
                     else
                         renewed_inputs.push_back(reshape_node->clone_with_new_inputs(
                             {limit_input,
-                             opset4::Constant::create(element::i64, {new_limit_shape.size()}, new_limit_shape)}));
+                             ov::op::v0::Constant::create(element::i64, {new_limit_shape.size()}, new_limit_shape)}));
                     continue;
                 }
             }
@@ -79,6 +83,6 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_node_p, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_node_p, matcher_name);
     this->register_matcher(m, callback);
 }

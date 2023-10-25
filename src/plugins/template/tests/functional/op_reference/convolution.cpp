@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/convolution.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/convolution.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -13,10 +14,17 @@ using namespace ov;
 namespace {
 struct ConvolutionParams {
     template <class IT>
-    ConvolutionParams(const PartialShape& inputShape, const PartialShape& filterShape, const PartialShape& outputShape,
+    ConvolutionParams(const PartialShape& inputShape,
+                      const PartialShape& filterShape,
+                      const PartialShape& outputShape,
                       const element::Type& iType,
-                      const std::vector<IT>& iValues, const std::vector<IT>& filterValues, const std::vector<IT>& oValues,
-                      const Strides& strides, const CoordinateDiff& padBegin, const CoordinateDiff& padEnd, const Strides& dialations)
+                      const std::vector<IT>& iValues,
+                      const std::vector<IT>& filterValues,
+                      const std::vector<IT>& oValues,
+                      const Strides& strides,
+                      const CoordinateDiff& padBegin,
+                      const CoordinateDiff& padEnd,
+                      const Strides& dialations)
         : inputShape(inputShape),
           filterShape(filterShape),
           outputShape(outputShape),
@@ -32,10 +40,17 @@ struct ConvolutionParams {
           dialations(dialations) {}
 
     template <class IT>
-    ConvolutionParams(const PartialShape& inputShape, const PartialShape& filterShape, const PartialShape& outputShape,
+    ConvolutionParams(const PartialShape& inputShape,
+                      const PartialShape& filterShape,
+                      const PartialShape& outputShape,
                       const element::Type& iType,
-                      const std::vector<IT>& iValues, const std::vector<IT>& filterValues, const std::vector<IT>& oValues,
-                      const Strides& strides, const CoordinateDiff& padBegin, const CoordinateDiff& padEnd, const Strides& dialations,
+                      const std::vector<IT>& iValues,
+                      const std::vector<IT>& filterValues,
+                      const std::vector<IT>& oValues,
+                      const Strides& strides,
+                      const CoordinateDiff& padBegin,
+                      const CoordinateDiff& padEnd,
+                      const Strides& dialations,
                       const bool convolutionOutlining)
         : inputShape(inputShape),
           filterShape(filterShape),
@@ -109,15 +124,15 @@ private:
 
         if (params.convolutionOutlining == true) {
             const auto Convolution2 = std::make_shared<op::v1::Convolution>(Convolution,
-                                                                           filter,
-                                                                           params.strides,
-                                                                           params.padBegin,
-                                                                           params.padEnd,
-                                                                           params.dialations,
-                                                                           auto_pad);
-            return std::make_shared<ov::Model>(NodeVector {Convolution2}, ParameterVector {in, filter});
+                                                                            filter,
+                                                                            params.strides,
+                                                                            params.padBegin,
+                                                                            params.padEnd,
+                                                                            params.dialations,
+                                                                            auto_pad);
+            return std::make_shared<ov::Model>(NodeVector{Convolution2}, ParameterVector{in, filter});
         } else {
-            return std::make_shared<ov::Model>(NodeVector {Convolution}, ParameterVector {in, filter});
+            return std::make_shared<ov::Model>(NodeVector{Convolution}, ParameterVector{in, filter});
         }
     }
 };
@@ -130,9 +145,9 @@ template <element::Type_t IN_ET>
 std::vector<ConvolutionParams> generateConvolutionI8Params() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ConvolutionParams> convolutionParams {
-// --------------------- 1D convolution ------------------------------------------
-// clang-format off
+    std::vector<ConvolutionParams> convolutionParams{
+        // --------------------- 1D convolution ------------------------------------------
+        // clang-format off
         ConvolutionParams(PartialShape {1, 1, 6},
                           PartialShape {1, 1, 3},
                           PartialShape {1, 1, 4},
@@ -1069,12 +1084,11 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
 // clang-format on
 
 std::vector<ConvolutionParams> generateConvolutionCombinedParams() {
-    const std::vector<std::vector<ConvolutionParams>> convolutionTypeParams {
+    const std::vector<std::vector<ConvolutionParams>> convolutionTypeParams{
         generateConvolutionFloatParams<element::Type_t::f32>(),
         generateConvolutionFloatParams<element::Type_t::f16>(),
         generateConvolutionFloatParams<element::Type_t::bf16>(),
-        generateConvolutionI8Params<element::Type_t::i8>()
-        };
+        generateConvolutionI8Params<element::Type_t::i8>()};
     std::vector<ConvolutionParams> combinedParams;
 
     for (const auto& params : convolutionTypeParams) {
@@ -1083,7 +1097,9 @@ std::vector<ConvolutionParams> generateConvolutionCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution_With_Hardcoded_Refs, ReferenceConvolutionLayerTest,
-    testing::ValuesIn(generateConvolutionCombinedParams()), ReferenceConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution_With_Hardcoded_Refs,
+                         ReferenceConvolutionLayerTest,
+                         testing::ValuesIn(generateConvolutionCombinedParams()),
+                         ReferenceConvolutionLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

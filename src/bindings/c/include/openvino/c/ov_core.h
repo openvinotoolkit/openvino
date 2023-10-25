@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "openvino/c/deprecated.h"
 #include "openvino/c/ov_common.h"
 #include "openvino/c/ov_compiled_model.h"
 #include "openvino/c/ov_model.h"
@@ -173,8 +174,31 @@ ov_core_read_model_unicode(const ov_core_t* core,
 /**
  * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats.
  * @ingroup ov_core_c_api
+ * @deprecated Use ov_core_read_model_from_memory_buffer instead.
  * @param core A pointer to the ie_core_t instance.
- * @param model_str String with a model in IR / ONNX / PDPD / TF / TFLite format.
+ * @param model_str String with a model in IR / ONNX / PDPD / TF / TFLite format, string is null-terminated.
+ * @param weights Shared pointer to a constant tensor with weights.
+ * @param model A pointer to the newly created model.
+ * Reading ONNX / PDPD / TF / TFLite models does not support loading weights from the @p weights tensors.
+ * @note Created model object shares the weights with the @p weights object.
+ * Thus, do not create @p weights on temporary data that can be freed later, since the model
+ * constant data will point to an invalid memory.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(OPENVINO_DEPRECATED(
+    "This API is deprecated and will be replaced by ov_core_read_model_from_memory_buffer") ov_status_e)
+ov_core_read_model_from_memory(const ov_core_t* core,
+                               const char* model_str,
+                               const ov_tensor_t* weights,
+                               ov_model_t** model);
+
+/**
+ * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats with models string size.
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ie_core_t instance.
+ * @param model_str String with a model in IR / ONNX / PDPD / TF / TFLite format, support model string containing
+ * several null chars.
+ * @param str_len The length of model string.
  * @param weights Shared pointer to a constant tensor with weights.
  * @param model A pointer to the newly created model.
  * Reading ONNX / PDPD / TF / TFLite models does not support loading weights from the @p weights tensors.
@@ -184,10 +208,11 @@ ov_core_read_model_unicode(const ov_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_read_model_from_memory(const ov_core_t* core,
-                               const char* model_str,
-                               const ov_tensor_t* weights,
-                               ov_model_t** model);
+ov_core_read_model_from_memory_buffer(const ov_core_t* core,
+                                      const char* model_str,
+                                      const size_t str_len,
+                                      const ov_tensor_t* weights,
+                                      ov_model_t** model);
 
 /**
  * @brief Creates a compiled model from a source model object.
@@ -199,7 +224,7 @@ ov_core_read_model_from_memory(const ov_core_t* core,
  * @param device_name Name of a device to load a model to.
  * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
  * @param compiled_model A pointer to the newly created compiled_model.
- * @param property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * @param ... property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
  * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -338,7 +363,8 @@ ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_na
  * @ingroup ov_core_c_api
  * @param versions A pointer to the ie_core_versions to free memory.
  */
-OPENVINO_C_API(void) ov_core_versions_free(ov_core_version_list_t* versions);
+OPENVINO_C_API(void)
+ov_core_versions_free(ov_core_version_list_t* versions);
 
 /**
  * @brief Creates a new remote shared context object on the specified accelerator device
@@ -348,7 +374,7 @@ OPENVINO_C_API(void) ov_core_versions_free(ov_core_version_list_t* versions);
  * @param device_name Device name to identify a plugin.
  * @param context_args_size How many property args will be for this remote context creation.
  * @param context A pointer to the newly created remote context.
- * @param variadic parmameters Actual context property parameter for remote context
+ * @param ... variadic parmameters Actual context property parameter for remote context
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
@@ -366,7 +392,7 @@ ov_core_create_context(const ov_core_t* core,
  * @param context A pointer to the newly created remote context.
  * @param property_args_size How many args will be for this compiled model.
  * @param compiled_model A pointer to the newly created compiled_model.
- * @param variadic parmameters Actual property parameter for remote context
+ * @param ... variadic parmameters Actual property parameter for remote context
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
@@ -387,3 +413,14 @@ ov_core_compile_model_with_context(const ov_core_t* core,
  */
 OPENVINO_C_API(ov_status_e)
 ov_core_get_default_context(const ov_core_t* core, const char* device_name, ov_remote_context_t** context);
+
+/**
+ * @brief Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
+ * dependent resources
+ * @ingroup ov_c_api
+ * @note This function should be used by advanced user to control unload the resources.
+ *
+ * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
+ * resources after itself when the library is unloaded.
+ */
+OPENVINO_C_API(void) ov_shutdown();

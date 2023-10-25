@@ -8,24 +8,22 @@
 #include <openvino/opsets/opset1.hpp>
 
 #include "snippets/emitter.hpp"
-#include "snippets/target_machine.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/expression_port.hpp"
 
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 
 class LinearIR;
-
+using ExpressionPtr = std::shared_ptr<Expression>;
 class Expression : public std::enable_shared_from_this<Expression> {
     friend class LinearIR;
     friend class ExpressionPort;
 
 public:
-    static size_t LOOP_NULL_ID;
-
     Expression() = default;
     virtual ~Expression() = default;
 
@@ -48,21 +46,20 @@ public:
     size_t get_input_count() const { return m_input_port_connectors.size(); }
     size_t get_output_count() const { return m_output_port_connectors.size(); }
 
-    std::vector<size_t> get_loop_ids() const { return m_loop_ids; }
-    void set_loop_ids(const std::vector<size_t>& loops) { m_loop_ids = loops; }
-    void set_loop_id(size_t id, size_t idx);
-    void remove_loop_id(size_t id);
-
     void validate() const;
-    void init_emitter(const std::shared_ptr<const TargetMachine>& target);
 
     ExpressionPort get_input_port(size_t i);
     ExpressionPort get_output_port(size_t i);
+    void updateShapes();
+    virtual bool needShapeInfer() const {return true; }
+
+    std::vector<size_t> get_loop_ids() const;
+    void set_loop_ids(const std::vector<size_t>& loops);
 
 protected:
     // Note: The constructor initialization is private since an expression can be created only by Linear IR.
     //       The method must be used only by Linear IR builder of expressions!
-    explicit Expression(const std::shared_ptr<Node>& n);
+    Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
 
     void replace_input(size_t port, PortConnectorPtr to);
 
@@ -73,9 +70,10 @@ protected:
     std::vector<PortDescriptorPtr> m_input_port_descriptors{};
     std::vector<PortDescriptorPtr> m_output_port_descriptors{};
     // The order Loops identifies: Outer ---> Inner
-    std::vector<size_t> m_loop_ids;
+    // Note: The loops with the same dimension index (splitted dimension) should be successively nested
+    std::vector<size_t> m_loop_ids{};
+    std::shared_ptr<IShapeInferSnippets> m_shapeInference{nullptr};
 };
-using ExpressionPtr = std::shared_ptr<Expression>;
 
 class IOExpression : public Expression {
     friend class LinearIR;
@@ -85,10 +83,11 @@ public:
 
     int64_t get_index() const  { return m_index; }
     io_type get_type() const { return m_type; }
-
+    // Result needs shapeInfer to copy shape from Parent's output to this expr input
+    bool needShapeInfer() const override {return m_type == io_type::OUTPUT; }
 private:
-    explicit IOExpression(const std::shared_ptr<ov::opset1::Parameter>& n, int64_t index);
-    explicit IOExpression(const std::shared_ptr<ov::opset1::Result>& n, int64_t index);
+    explicit IOExpression(const std::shared_ptr<ov::opset1::Parameter>& n, int64_t index, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
+    explicit IOExpression(const std::shared_ptr<ov::opset1::Result>& n, int64_t index, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
 
     int64_t m_index = -1;
     io_type m_type = io_type::UNDEFINED;

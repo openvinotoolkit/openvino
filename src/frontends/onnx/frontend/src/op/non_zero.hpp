@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "openvino/core/deprecated.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
@@ -26,3 +29,4 @@ OutputVector non_zero(const Node& node);
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

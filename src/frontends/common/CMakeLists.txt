@@ -4,10 +4,6 @@
 
 set(TARGET_NAME "frontend_common")
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wmissing-declarations)
-endif()
-
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
@@ -43,7 +39,7 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util openvino::core::
 set_target_properties(${TARGET_NAME}_obj PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
-set(FRONTEND_LIB_SUFFIX "${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}")
+set(FRONTEND_LIB_SUFFIX "${FRONTEND_NAME_SUFFIX}${OV_BUILD_POSTFIX}")
 if(APPLE)
     set(FRONTEND_LIB_SUFFIX "${FRONTEND_LIB_SUFFIX}${OpenVINO_VERSION_SUFFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 else()
@@ -54,7 +50,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE
     FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}${FRONTEND_NAME_PREFIX}"
     FRONTEND_LIB_SUFFIX="${FRONTEND_LIB_SUFFIX}")
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 # FEM is public API => need to mark this library as important for ABI free
 ov_abi_free_target(${TARGET_NAME}_obj)
@@ -74,8 +70,6 @@ target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${FRONTEND
 add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
 add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
 add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
-
-openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 # Installation rules header files
 

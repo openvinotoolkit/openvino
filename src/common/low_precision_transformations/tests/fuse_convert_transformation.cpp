@@ -9,33 +9,33 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/fuse_convert.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/fuse_convert_function.hpp"
+#include "ov_lpt_models/fuse_convert.hpp"
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class FuseConvertTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     };
 
     class Expected {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     };
@@ -47,13 +47,13 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     FuseConvertTransformationTestValues> FuseConvertTransformationParams;
 
 class FuseConvertTransformation : public LayerTransformation, public testing::WithParamInterface<FuseConvertTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const FuseConvertTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::FuseConvertFunction::get(
@@ -64,7 +64,7 @@ public:
                 testValues.constInput);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FuseConvertTransformation, ngraph::opset1::Convert>(testValues.params);
+        transformer.add<ov::pass::low_precision::FuseConvertTransformation, ov::op::v0::Convert>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FuseConvertFunction::get(
@@ -76,7 +76,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FuseConvertTransformationParams> obj) {
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const FuseConvertTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -102,7 +102,7 @@ TEST_P(FuseConvertTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 4, 16, 16},
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
     PartialShape::dynamic()
@@ -114,19 +114,19 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
         false,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32 },
+                { ov::element::f32 },
                 {1.f},
                 {0.45f}
             },
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
-                DequantizationOperations::Subtract({1.f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32),
+                DequantizationOperations::Subtract({1.f}, ov::element::f32).setConstantPrecision(ov::element::f32),
                 {0.45f}
             },
             {}
@@ -137,20 +137,20 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
         false,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32 },
+                { ov::element::f32 },
                 {},
                 {0.45f}
             },
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
                 {},
-                DequantizationOperations::Multiply({0.45f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32)
+                DequantizationOperations::Multiply({0.45f}, ov::element::f32).setConstantPrecision(ov::element::f32)
             },
             {}
         }
@@ -160,13 +160,13 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
         false,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
-            {{ ngraph::element::i32 }, {}, {3.f}},
+            ov::element::f32,
+            {{ ov::element::i32 }, {}, {3.f}},
             {}
         },
         {
-            ngraph::element::f32,
-            {{ ngraph::element::i32 }, {}, {3.f}},
+            ov::element::f32,
+            {{ ov::element::i32 }, {}, {3.f}},
             {}
         }
     },
@@ -182,7 +182,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 4, 16, 16},
 };
 
@@ -198,12 +198,12 @@ const std::vector<FuseConvertTransformationTestValues> testValuesWithConstant = 
         true,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {}},
+            ov::element::u8,
+            {{ov::element::f32}, {}, {}},
             { 256, {}, {0.f}, {0.1f}, {0.f}, {0.1f}, ov::element::f32}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
             { 256, {}, {0.f}, {0.1f}, {0.f}, {0.1f}, ov::element::f32}
         }
@@ -213,16 +213,16 @@ const std::vector<FuseConvertTransformationTestValues> testValuesWithConstant = 
         true,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32 },
+                { ov::element::f32 },
                 {1.f},
                 {0.45f}
             },
             {}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {
                 {},
                 {1.f},

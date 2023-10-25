@@ -39,21 +39,21 @@ protected:
                            [](const StaticDimension& a, const StaticDimension& b) {
                                return std::max(a.get_length(), b.get_length());
                            });
-            exp_shape.push_back(*std::next(a_shape.rbegin()));
-            exp_shape.push_back(b_shape.back());
+            exp_shape.push_back(*std::next((*a_shape).rbegin()));
+            exp_shape.push_back((*b_shape).back());
         } else if (a_shape.size() == 1 && b_shape.size() > 1) {
             exp_shape = b_shape;
-            exp_shape.erase(std::prev(exp_shape.end(), 2));
+            (*exp_shape).erase(std::prev((*exp_shape).end(), 2));
         } else if (b_shape.size() == 1 && a_shape.size() > 1) {
             exp_shape = a_shape;
-            exp_shape.erase(std::prev(exp_shape.end()));
+            (*exp_shape).erase(std::prev((*exp_shape).end()));
         }
     }
 
     static StaticShape make_transpose_input(const StaticShape& in) {
         StaticShape out(in);
         if (out.size() > 1) {
-            std::iter_swap(out.rbegin(), std::next(out.rbegin()));
+            std::iter_swap((*out).rbegin(), std::next((*out).rbegin()));
         }
         return out;
     }
@@ -81,7 +81,7 @@ TEST_P(MatMulTest, no_input_transpose) {
 
     std::vector<StaticShape> static_input_shapes = {a_shape, b_shape}, static_output_shapes = {StaticShape{}};
 
-    shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
+    static_output_shapes = shape_inference(matmul.get(), static_input_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
 }
 
@@ -91,7 +91,7 @@ TEST_P(MatMulTest, transpose_input_a) {
     const auto a_transpose = make_transpose_input(a_shape);
     std::vector<StaticShape> static_input_shapes = {a_transpose, b_shape}, static_output_shapes = {StaticShape{}};
 
-    shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
+    static_output_shapes = shape_inference(matmul.get(), static_input_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
 }
 
@@ -101,7 +101,7 @@ TEST_P(MatMulTest, transpose_input_b) {
     const auto b_transpose = make_transpose_input(b_shape);
     std::vector<StaticShape> static_input_shapes = {a_shape, b_transpose}, static_output_shapes = {StaticShape{}};
 
-    shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
+    static_output_shapes = shape_inference(matmul.get(), static_input_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
 }
 
@@ -113,6 +113,6 @@ TEST_P(MatMulTest, transpose_inputs_a_b) {
 
     std::vector<StaticShape> static_input_shapes = {a_transpose, b_transpose}, static_output_shapes = {StaticShape{}};
 
-    shape_inference(matmul.get(), static_input_shapes, static_output_shapes);
+    static_output_shapes = shape_inference(matmul.get(), static_input_shapes);
     ASSERT_EQ(static_output_shapes.front(), exp_shape);
 }

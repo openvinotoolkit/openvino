@@ -4,7 +4,7 @@
 
 #include <fstream>
 
-#include <ngraph_functions/subgraph_builders.hpp>
+#include <ov_models/subgraph_builders.hpp>
 #include <base/behavior_test_utils.hpp>
 #include "behavior/plugin/life_time.hpp"
 
@@ -72,13 +72,13 @@ namespace BehaviorTestsDefinitions {
 
     TEST_P(HoldersTest, Orders) {
         // in case of crash jump will be made and work will be continued
-        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+        auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
         // Test failed if crash happens
 #ifdef _WIN32
-        if (setjmp(CommonTestUtils::env) == CommonTestUtils::JMP_STATUS::ok) {
+        if (setjmp(ov::test::utils::env) == ov::test::utils::JMP_STATUS::ok) {
 #else
-        if (sigsetjmp(CommonTestUtils::env, 1) == CommonTestUtils::JMP_STATUS::ok) {
+        if (sigsetjmp(ov::test::utils::env, 1) == ov::test::utils::JMP_STATUS::ok) {
 #endif
             EXPECT_NO_THROW(release_order_test(order, target_device, function));
         } else {
@@ -88,13 +88,13 @@ namespace BehaviorTestsDefinitions {
 
     TEST_P(HoldersTestImportNetwork, Orders) {
         // in case of crash jump will be made and work will be continued
-        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+        auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
         // Test failed if crash happens
 #ifdef _WIN32
-        if (setjmp(CommonTestUtils::env) == CommonTestUtils::JMP_STATUS::ok) {
+        if (setjmp(ov::test::utils::env) == ov::test::utils::JMP_STATUS::ok) {
 #else
-        if (sigsetjmp(CommonTestUtils::env, 1) == CommonTestUtils::JMP_STATUS::ok) {
+        if (sigsetjmp(ov::test::utils::env, 1) == ov::test::utils::JMP_STATUS::ok) {
 #endif
             EXPECT_NO_THROW(release_order_test(order, target_device, function));
         } else {

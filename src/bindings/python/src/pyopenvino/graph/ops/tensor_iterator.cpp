@@ -7,6 +7,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
 namespace py = pybind11;
@@ -54,11 +55,15 @@ void regclass_graph_op_TensorIterator(py::module m) {
             py::arg("successive_value"));
 
     cls.def("get_body", [](const std::shared_ptr<ov::op::v0::TensorIterator>& self) {
-        return self->get_body();
+        auto model = self->get_body();
+        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        return model_class(py::cast(model));
     });
 
     cls.def("get_function", [](const std::shared_ptr<ov::op::v0::TensorIterator>& self) {
-        return self->get_function();
+        auto model = self->get_function();
+        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        return model_class(py::cast(model));
     });
 
     cls.def(
@@ -101,4 +106,15 @@ void regclass_graph_op_TensorIterator(py::module m) {
             self->set_output_descriptions(0, MultiSubgraphHelpers::list_to_output_descriptor(outputs));
         },
         py::arg("outputs"));
+
+    cls.def("__repr__", [](const ov::op::v0::TensorIterator& self) {
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<" + Common::get_class_name(self) + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+    });
 }

@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -28,11 +28,11 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         fusingSpecificParams fusingParams = this->GetParam();
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
-        auto inputParams = builder::makeParams(element::f32, {Shape{1, 3, 40, 40}});
+        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 40, 40})};
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
         std::shared_ptr<Node> conv;

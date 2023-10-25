@@ -3,16 +3,14 @@
 //
 
 #include "pad.h"
-#include <string>
-#include <cmath>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include <limits>
+
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/op/constant.hpp>
+#include <openvino/op/pad.hpp>
+#include <openvino/core/type/float16.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -22,21 +20,21 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto pad = ov::as_type_ptr<const ngraph::opset1::Pad>(op);
-        if (!pad) {
-            errorMessage = "Only opset1 Pad operation is supported";
+        if (!one_of(op->get_type_info(), op::v1::Pad::get_type_info_static(), op::v12::Pad::get_type_info_static())) {
+            errorMessage = "Only Pad operations from opset1 and opset12 are supported";
             return false;
         }
 
+        auto pad = ov::as_type<const op::util::PadBase>(op.get());
         const auto pad_mode = pad->get_pad_mode();
         if (!one_of(pad_mode,
-                    ngraph::op::PadMode::CONSTANT,
-                    ngraph::op::PadMode::EDGE,
-                    ngraph::op::PadMode::REFLECT,
-                    ngraph::op::PadMode::SYMMETRIC)) {
-            errorMessage = "Has unsupported pad_mode: " + ngraph::as_string(pad_mode);
+                    op::PadMode::CONSTANT,
+                    op::PadMode::EDGE,
+                    op::PadMode::REFLECT,
+                    op::PadMode::SYMMETRIC)) {
+            errorMessage = "Has unsupported pad_mode: " + ov::as_string(pad_mode);
             return false;
         }
     } catch (...) {
@@ -45,8 +43,8 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, PortMask(PADS_BEGIN_ID, PADS_END_ID))) {
+Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, PortMask(PADS_BEGIN_ID, PADS_END_ID))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -62,19 +60,19 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
     if (srcDimsRank != dstDimsRank)
         IE_THROW() << errorPrefix << "has incorrect number of input/output dimensions!";
 
-    auto pad = ov::as_type_ptr<const ngraph::opset1::Pad>(op);
+    auto pad = ov::as_type<const op::util::PadBase>(op.get());
     if (!pad) {
         IE_THROW() << errorPrefix << "couldn't be casted to op of opset1";
     }
 
-    shapeHasDataDependency = !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(PADS_BEGIN_ID)) ||
-            !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(PADS_END_ID));
+    shapeHasDataDependency = !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_BEGIN_ID)) ||
+            !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_END_ID));
 
     auto fillingInParameters = [&](VectorIdxs& parameter, const size_t type) {
         if (type < PADS_BEGIN_ID)
             return;
 
-        const auto constNode = ov::as_type_ptr<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(type));
+        const auto constNode = ov::as_type_ptr<const op::v0::Constant>(op->get_input_node_shared_ptr(type));
         if (constNode) {
             auto pad_data = constNode->cast_vector<int32_t>();
             for (const auto& value : pad_data) {
@@ -90,25 +88,25 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
 
     const auto pad_mode = pad->get_pad_mode();
     isPadValueSpecified = pad->get_input_size() == 4;
-    if (pad_mode == ngraph::op::PadMode::CONSTANT) {
+    if (pad_mode == op::PadMode::CONSTANT) {
         attrs.padMode = CONSTANT;
         if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() ==
                                        ov::op::v0::Constant::get_type_info_static()) {
-            if (!ngraph::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
+            if (!ov::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
                 IE_THROW() << errorPrefix << "has non scalar 'pad_value' input";
             attrs.padValue =
-                ov::as_type_ptr<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
+                ov::as_type_ptr<const op::v0::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
                     ->cast_vector<float>()[0];
             attrs.constPadValue = true;
         }
-    } else if (pad_mode == ngraph::op::PadMode::EDGE) {
+    } else if (pad_mode == op::PadMode::EDGE) {
         attrs.padMode = EDGE;
-    } else if (pad_mode == ngraph::op::PadMode::REFLECT) {
+    } else if (pad_mode == op::PadMode::REFLECT) {
         attrs.padMode = REFLECT;
-    } else if (pad_mode == ngraph::op::PadMode::SYMMETRIC) {
+    } else if (pad_mode == op::PadMode::SYMMETRIC) {
         attrs.padMode = SYMMETRIC;
     } else {
-        IE_THROW() << errorPrefix << "has unsupported pad_mode: " + ngraph::as_string(pad_mode);
+        IE_THROW() << errorPrefix << "has unsupported pad_mode: " + ov::as_string(pad_mode);
     }
 }
 
@@ -119,8 +117,8 @@ void Pad::initSupportedPrimitiveDescriptors() {
         return;
 
     std::vector<InferenceEngine::Precision> supportedPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32,
-                                                                   InferenceEngine::Precision::BF16, InferenceEngine::Precision::I8,
-                                                                   InferenceEngine::Precision::U8};
+                                                                   InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16,
+                                                                   InferenceEngine::Precision::I8, InferenceEngine::Precision::U8};
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(DATA_ID);
     if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end())
         precision = precision.is_float() ? InferenceEngine::Precision::FP32 : InferenceEngine::Precision::I32;
@@ -180,7 +178,7 @@ bool Pad::needPrepareParams() const {
 
 void Pad::createPrimitive() {
     if (srcMemory.empty()) {
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
             srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
         }
     }
@@ -226,8 +224,8 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
         IE_THROW() << errorPrefix << "has not allocated source memory.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << "has not allocated destination memory.";
-    const auto srcBlockMemDesc = srcMemPtr->GetDescWithType<BlockedMemoryDesc>();
-    const auto dstBlockMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
+    const auto srcBlockMemDesc = srcMemPtr->getDescWithType<BlockedMemoryDesc>();
+    const auto dstBlockMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto& srcDims = srcBlockMemDesc->getBlockDims();
     const auto& dstDims = dstBlockMemDesc->getBlockDims();
 
@@ -238,7 +236,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
 
     auto fillingInParameters =
         [&](VectorIdxs& parameter, const size_t type, const size_t size, const int value) {
-            const int* ptr = reinterpret_cast<const int32_t*>(srcMemory[type]->GetPtr());
+            const int* ptr = reinterpret_cast<const int32_t*>(srcMemory[type]->getData());
             parameter.resize(size);
             for (size_t i = 0; i < size; i++) {
                 parameter[i] = static_cast<int>(ptr[i]);
@@ -250,7 +248,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     if (params.attrs.padsEnd.empty())
         fillingInParameters(params.attrs.padsEnd, PADS_END_ID, srcDims.size(), 0);
     if (!params.attrs.constPadValue)
-        params.attrs.padValue = reinterpret_cast<const float*>(srcMemory[PAD_VALUE_ID]->GetPtr())[0];
+        params.attrs.padValue = reinterpret_cast<const float*>(srcMemory[PAD_VALUE_ID]->getData())[0];
     // pads are constant, so we can calculate new collapsing pads for first target dimensions and use it for the next
     // dimensions to avoid permanent identical pad calculations
     const size_t blockSize = srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)
@@ -276,7 +274,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     params.attrs.beginPadIdx = 0;
     params.attrs.endPadIdx = params.attrs.padsBegin.size() - 1;
 
-    for (int i = 0; i < params.attrs.padsBegin.size(); ++i) {
+    for (size_t i = 0; i < params.attrs.padsBegin.size(); ++i) {
         if (params.attrs.padsBegin[i] != 0 || params.attrs.padsEnd[i] != 0) {
             params.attrs.beginPadIdx = i - 1;
             break;
@@ -368,7 +366,7 @@ void Pad::PadExecutor::innerParamsInitialization() {
                             std::min(params.attrs.padsEnd[params.nDimsForWork], 0)) * params.shift;
 }
 
-void Pad::PadExecutor::exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
     if (zeroInputDimsCase) {
         padConstant(srcMemPtr, dstMemPtr);
     } else {
@@ -411,14 +409,14 @@ static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims&
 static inline void parallel_step(size_t nDims, const VectorDims& dims, std::vector<int32_t>& indexes) {
     for (int j = nDims - 1; j >= 0; --j) {
         ++indexes[j];
-        if (indexes[j] < dims[j])
+        if (static_cast<size_t>(indexes[j]) < dims[j])
             break;
         else
             indexes[j] = 0;
     }
 }
 
-void Pad::PadExecutor::padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::padConstant(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
     if (params.attrs.padValue == 0 && !zeroInputDimsCase) {
         padConstantZero(srcMemPtr, dstMemPtr);
         return;
@@ -432,16 +430,17 @@ void Pad::PadExecutor::padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),
               OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
+              OV_CASE(InferenceEngine::Precision::FP16, ov::float16),
               OV_CASE(InferenceEngine::Precision::I8, int8_t),
               OV_CASE(InferenceEngine::Precision::U8, uint8_t));
 }
 
 template <typename T>
-void Pad::PadExecutor::padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    T* dstData = reinterpret_cast<T*>(dstMemPtr->GetPtr());
+void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
+    T* dstData = reinterpret_cast<T*>(dstMemPtr->getData());
     const T value = static_cast<T>(params.attrs.padValue);
     if (zeroInputDimsCase) {
-        const auto workAmount = dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        const auto workAmount = dstMemPtr->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         parallel_for(workAmount, [&](size_t i) {
             dstData[i] = value;
         });
@@ -449,7 +448,7 @@ void Pad::PadExecutor::padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMem
         return;
     }
 
-    const T* srcData = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
+    const T* srcData = reinterpret_cast<const T*>(srcMemPtr->getData());
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -463,7 +462,7 @@ void Pad::PadExecutor::padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMem
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t j = 0;
             for (; j < params.nDimsForWork; ++j) {
-                if (indexes[j] < params.attrs.padsBegin[j] || indexes[j] >= params.srcODims[j])
+                if (indexes[j] < params.attrs.padsBegin[j] || static_cast<size_t>(indexes[j]) >= params.srcODims[j])
                     break;
             }
 
@@ -486,9 +485,9 @@ void Pad::PadExecutor::padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMem
     });
 }
 
-void Pad::PadExecutor::padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -503,7 +502,7 @@ void Pad::PadExecutor::padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPt
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t j = 0;
             for (; j < params.nDimsForWork; ++j) {
-                if (indexes[j] < params.attrs.padsBegin[j] || indexes[j] >= params.srcODims[j])
+                if (indexes[j] < params.attrs.padsBegin[j] || static_cast<size_t>(indexes[j]) >= params.srcODims[j])
                     break;
             }
 
@@ -527,9 +526,9 @@ void Pad::PadExecutor::padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPt
     });
 }
 
-void Pad::PadExecutor::padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -544,11 +543,11 @@ void Pad::PadExecutor::padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx) {
-                size_t shift =
-                    (indexes[idx] < params.attrs.padsBegin[idx])
-                        ? 0
-                        : ((indexes[idx] >= params.srcODims[idx]) ? (params.srcDims[idx] - 1)
-                                                                  : (indexes[idx] - params.attrs.padsBegin[idx]));
+                size_t shift = (indexes[idx] < params.attrs.padsBegin[idx])
+                                   ? 0
+                                   : ((static_cast<size_t>(indexes[idx]) >= params.srcODims[idx])
+                                          ? (params.srcDims[idx] - 1)
+                                          : (indexes[idx] - params.attrs.padsBegin[idx]));
                 srcIdx += shift * params.srcStrides[idx];
             }
             srcIdx *= params.dataSize;
@@ -568,9 +567,9 @@ void Pad::PadExecutor::padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     });
 }
 
-void Pad::PadExecutor::padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const bool isSymmetric) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const bool isSymmetric) {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
     const size_t shift = isSymmetric ? 1 : 0;
     const size_t endSrcShift = (params.srcDimsForReflectOrSymmetric[params.nDimsForWork] - params.srcODims[params.nDimsForWork]) * params.shift;
 
@@ -587,11 +586,11 @@ void Pad::PadExecutor::padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& ds
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t i = 0; i < params.nDimsForWork; ++i) {
-                size_t idx =
-                    (indexes[i] < params.attrs.padsBegin[i])
-                        ? (params.attrs.padsBegin[i] - indexes[i] - shift)
-                        : ((indexes[i] >= params.srcODims[i]) ? (params.srcDimsForReflectOrSymmetric[i] - indexes[i])
-                                                              : (indexes[i] - params.attrs.padsBegin[i]));
+                size_t idx = (indexes[i] < params.attrs.padsBegin[i])
+                                 ? (params.attrs.padsBegin[i] - indexes[i] - shift)
+                                 : ((static_cast<size_t>(indexes[i]) >= params.srcODims[i])
+                                        ? (params.srcDimsForReflectOrSymmetric[i] - indexes[i])
+                                        : (indexes[i] - params.attrs.padsBegin[i]));
                 srcIdx += idx * params.srcStrides[i];
             }
             srcIdx *= params.dataSize;

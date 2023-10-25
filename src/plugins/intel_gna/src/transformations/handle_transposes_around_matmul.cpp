@@ -14,8 +14,11 @@
 #include <openvino/cc/ngraph/itt.hpp>
 
 #include "backend/gna_limitations.hpp"
+#include "common/graph_utils.hpp"
 
 using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::limitations;
+using namespace ov::intel_gna::graph_utils;
 
 namespace {
 
@@ -160,7 +163,8 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
             }
 
             if (prev_node) {
-                if (limitations::IsTransposeSupported(prev_node->get_output_shape(0))) {
+                if (graph_utils::is_shape_2d(prev_node->get_output_shape(0)) &&
+                    Limitations::is_transpose_supported(prev_node->get_output_shape(0))) {
                     InsertTranspose(prev_node, matmul_node->get_friendly_name(), true);
                 }
             }
@@ -170,7 +174,7 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
         auto iter = pattern_map.find(fq);
         if (iter != pattern_map.end() || (iter = pattern_map.find(constant)) != pattern_map.end()) {
             auto prev_node = iter->second.get_node_shared_ptr();
-            if (limitations::IsTranspose2d(prev_node->get_output_shape(0))) {
+            if (is_shape_2d(prev_node->get_output_shape(0))) {
                 InsertTranspose(prev_node, prev_node->get_friendly_name(), true);
             }
         }
@@ -187,7 +191,8 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
             }
 
             if (prev_node) {
-                if (limitations::IsTransposeSupported(prev_node->get_output_shape(0))) {
+                if (graph_utils::is_shape_2d(prev_node->get_output_shape(0)) &&
+                    Limitations::is_transpose_supported(prev_node->get_output_shape(0))) {
                     InsertTranspose(prev_node, matmul_node->get_friendly_name(), true);
                 }
             }
@@ -243,7 +248,7 @@ HandleTransposeAfterMatMul::HandleTransposeAfterMatMul() {
             ReplaceTransposeWithReshape(transpose_it->second.get_node_shared_ptr());
         } else {
             auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
-            if (!limitations::IsTransposeSupported(reshape_node->get_input_shape(0)))
+            if (!Limitations::is_transpose_supported(reshape_node->get_input_shape(0)))
                 return false;
             auto iter = pattern_map.find(act);
             if (iter == pattern_map.end() && (iter = pattern_map.find(fq2)) == pattern_map.end() &&

@@ -8,8 +8,9 @@
 #include <cctype>
 
 #include "layout_utils.hpp"
-#include "ngraph/except.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 
@@ -37,7 +38,7 @@ static const std::map<std::string, std::string>& dim_aliases() {
 }
 
 static std::string to_internal_name(const std::string& dim_name) {
-    auto name = ngraph::to_upper(dim_name);
+    auto name = ov::util::to_upper(dim_name);
     auto it = dim_aliases().find(name);
     if (it != dim_aliases().end()) {
         name = it->second;
@@ -73,7 +74,7 @@ Layout::Layout(const std::string& layout_str) {
         m_left_size = m_right_size = 0;
         return;
     }
-    auto layout = ngraph::trim(layout_str);
+    auto layout = ov::util::trim(layout_str);
     OPENVINO_ASSERT(layout.length() > 0, "Cannot parse ov::Layout from an empty string");
     if (layout == SCALAR) {
         m_scalar = true;
@@ -100,7 +101,7 @@ Layout::Layout(const std::string& layout_str) {
             std::istringstream ss(sub_name);
             std::string name;
             while (std::getline(ss, name, ',')) {
-                name = ngraph::trim(name);
+                name = ov::util::trim(name);
                 if (name != "?") {
                     assign_name(name, index);
                 }
@@ -117,14 +118,14 @@ Layout::Layout(const std::string& layout_str) {
         } else {
             int64_t left_index = 0, right_index = 0;
             // Parse left and right parts
-            auto left_layout = ngraph::trim(layout.substr(0, ellipsis));
+            auto left_layout = ov::util::trim(layout.substr(0, ellipsis));
             if (!left_layout.empty()) {
                 OPENVINO_ASSERT(left_layout.at(left_layout.length() - 1) == ',',
                                 "Layout: Invalid left side (" + layout + ")");
                 left_layout = left_layout.substr(0, left_layout.length() - 1);
                 left_index = parse_commas(left_layout);
             }
-            auto right_layout = ngraph::trim(layout.substr(ellipsis + ELLIPSIS_LEN));
+            auto right_layout = ov::util::trim(layout.substr(ellipsis + ELLIPSIS_LEN));
             if (!right_layout.empty()) {
                 OPENVINO_ASSERT(right_layout.at(0) == ',', "Layout: Invalid right side (" + layout + ")");
                 right_layout = right_layout.substr(1, right_layout.length() - 1);

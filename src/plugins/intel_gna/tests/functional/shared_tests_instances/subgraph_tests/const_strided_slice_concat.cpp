@@ -27,7 +27,7 @@ std::vector<uint32_t> constChunksNumber = {1, 3};
 INSTANTIATE_TEST_SUITE_P(smoke_ConstStridedSliceConcatTest,
                          ConstStridedSliceConcatTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputChunksSizes),
                                             ::testing::ValuesIn(inputChunksNumber),

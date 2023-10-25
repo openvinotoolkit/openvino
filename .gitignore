@@ -13,6 +13,7 @@ cmake-build*
 *.idea
 .vscode
 .vs/
+.vsconan/
 .DS_Store
 **/tags
 compile_commands.json

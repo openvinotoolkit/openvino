@@ -7,12 +7,13 @@
 #include <fstream>
 #include <vector>
 
+#include "checkpoint_v1_reader.hpp"
 #include "decoder_argdef.hpp"
 #include "decoder_proto.hpp"
-#include "graph.pb.h"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
+#include "ov_tensorflow/graph.pb.h"
 
 namespace ov {
 namespace frontend {
@@ -22,6 +23,7 @@ class GraphIteratorProto : public GraphIterator {
 protected:
     std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
     std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
+    std::shared_ptr<CheckpointV1Reader> m_checkpoint_v1_reader;
 
     size_t node_index = 0;
     std::vector<std::shared_ptr<DecoderBase>> m_decoders;
@@ -32,6 +34,7 @@ protected:
     GraphIteratorProto()
         : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
           m_func_def(nullptr),
+          m_checkpoint_v1_reader(nullptr),
           m_library_map() {}
 
     void initialize_decoders_and_library() {
@@ -52,12 +55,20 @@ protected:
         }
     }
 
+    template <typename T>
+    void initialize_v1_checkpoints(const std::basic_string<T>& checkpoint_directory) {
+        m_checkpoint_v1_reader = std::make_shared<CheckpointV1Reader>(checkpoint_directory);
+        m_checkpoint_v1_reader->initialize();
+    }
+
 public:
     GraphIteratorProto(const std::shared_ptr<::tensorflow::GraphDef>& graph_def,
                        const std::shared_ptr<::tensorflow::FunctionDef>& func_def,
-                       const std::unordered_map<std::string, int>& library_map)
+                       const std::unordered_map<std::string, int>& library_map,
+                       const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader)
         : m_graph_def(graph_def),
           m_func_def(func_def),
+          m_checkpoint_v1_reader(checkpoint_v1_reader),
           m_library_map(library_map) {
         auto nodes_size = m_func_def->node_def_size();
         auto input_size = m_func_def->signature().input_arg_size();
@@ -91,11 +102,13 @@ public:
         }
     }
 
+    /// \brief Construct GraphIterator for the frozen model without v1 checkpoints
     template <typename T>
-    GraphIteratorProto(const std::basic_string<T>& path)
+    GraphIteratorProto(const std::basic_string<T>& model_path)
         : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
-          m_func_def(nullptr) {
-        std::ifstream pb_stream(path.c_str(), std::ios::in | std::ifstream::binary);
+          m_func_def(nullptr),
+          m_checkpoint_v1_reader(nullptr) {
+        std::ifstream pb_stream(model_path, std::ios::in | std::ifstream::binary);
 
         FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
         FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
@@ -103,17 +116,37 @@ public:
         initialize_decoders_and_library();
     }
 
+    /// \brief Construct GraphIterator for the frozen model with v1 checkpoints
+    template <typename T>
+    GraphIteratorProto(const std::basic_string<T>& model_path, const std::basic_string<T>& checkpoint_directory)
+        : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
+          m_func_def(nullptr),
+          m_checkpoint_v1_reader(nullptr) {
+        std::ifstream pb_stream(model_path, std::ios::in | std::ifstream::binary);
+
+        FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
+        FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
+
+        initialize_decoders_and_library();
+        initialize_v1_checkpoints(checkpoint_directory);
+    }
+
     /// \brief Check if the input file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
         try {
-            std::ifstream pb_stream(path.c_str(), std::ios::in | std::ifstream::binary);
+            std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
             auto graph_def = std::make_shared<::tensorflow::GraphDef>();
             return pb_stream && pb_stream.is_open() && graph_def->ParsePartialFromIstream(&pb_stream) &&
                    graph_def->node_size() > 0;
         } catch (...) {
             return false;
         }
+    }
+
+    /// \brief Get checkpoint v1 reader for checkpoint restoring in translator for Variable operation
+    std::shared_ptr<CheckpointV1Reader> get_checkpoint_v1_reader() const {
+        return m_checkpoint_v1_reader;
     }
 
     /// \brief Set iterator to the start position
@@ -152,7 +185,7 @@ public:
 
             auto func = m_graph_def->library().function(func_ind);
             auto func_ptr = std::make_shared<::tensorflow::FunctionDef>(func);
-            return std::make_shared<GraphIteratorProto>(m_graph_def, func_ptr, m_library_map);
+            return std::make_shared<GraphIteratorProto>(m_graph_def, func_ptr, m_library_map, m_checkpoint_v1_reader);
         }
 
         return nullptr;

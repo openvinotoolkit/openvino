@@ -22,7 +22,7 @@ struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution> {
     using parent = typed_primitive_onednn_impl<deconvolution>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::deconvolution_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -36,12 +36,14 @@ protected:
 
         {
             auto weights = instance.weights_memory();
-            args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0))});
+            auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
+            args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0), offset)});
         }
 
         if (instance.bias_term()) {
             auto bias = instance.bias_memory();
-            args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
+            auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
+            args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1), offset)});
         }
 
         return args;
@@ -51,38 +53,17 @@ protected:
         return arg.get_onednn_primitive_attributes();
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
-        kernel_selector::WeightsReorderParams weights_reorder_params;
-        auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
-        kernel_selector::reorder_weights_params r_params;
-
+    static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
         auto cldnn_prim = impl_params.typed_desc<deconvolution>();
-        auto weights_layout = impl_params.get_input_layout(1);
-        auto grouped_weights = format::is_grouped(weights_layout.format) || cldnn_prim->grouped_weights_shape;
-        cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
-        kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        set_params(impl_params, r_params);
-        r_params.layerID = cldnn_prim->id + "_reorder_";
-        r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
-        r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), cldnn_prim->groups, false);
-        r_params.rotate_180 = false;
+        auto input_weights_layout = impl_params.get_input_layout(1);
+        auto grouped_weights = format::is_grouped(input_weights_layout.format) || cldnn_prim->grouped_weights_shape;
+        format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
 
-        kernel_selector::reorder_optional_params op;
-        kernel_selector::KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
+        auto output_weights_layout = input_weights_layout;
+        output_weights_layout.format = out_fmt;
 
-        if (kernels_data.empty()) {
-            throw std::runtime_error("No suitable kernel found for weights reorder from " +
-                                     kernel_selector::toString(r_params.input.GetLayout()) + " to " +
-                                     kernel_selector::toString(r_params.output.GetLayout()));
-        }
-
-        weights_reorder_params.engine = kernel_selector::WeightsReorderParams::Engine::GPU;
-        weights_reorder_params.clKernel = std::make_shared<kernel_selector::clKernelData>(kernels_data[0].kernels[0]);
-        weights_reorder_params.src = r_params.input;
-        weights_reorder_params.dest = r_params.output;
-
-        return weights_reorder_params;
+        return std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, false, grouped_weights);
     }
 
 public:
@@ -148,6 +129,8 @@ public:
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
+
+        _scratchpad_md = _pd.scratchpad_desc();
 
         _prim = dnnl::primitive(_pd, prim_cache);
 #endif

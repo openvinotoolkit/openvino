@@ -1,11 +1,12 @@
 // =================== GENERAL OUTPUT CONFIG =========================
 
 const chartDisclaimers = {
-    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of December 2022.',
-    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of December 2022.'
+    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of May 2023.',
+    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of May 2023.'
 }
 
 const OVdefaultSelections = {
+    platformTypes: {name: 'ietype', data: ['core']},
     platforms: {name: 'platform',
         data: [
             'Intel® Core™  i9-12900K CPU-only',
@@ -34,10 +35,8 @@ const OVdefaultSelections = {
 const OVMSdefaultSelections = {
     platforms: {name: 'platform',
         data: [
-            'Intel® Core™  i3-10100 CPU-only',
-            'Intel® Core™  i5-8500 CPU-only',
-            'Intel® Core™  i7-8700T CPU-only',
-            'Intel® Core™  i9-10920X CPU-only',
+            'Intel®  Xeon® 8260M CPU-only',
+            'Intel®  Xeon® Gold 6238M CPU-only'
         ]
     },
     models: {name: 'networkmodel',
@@ -134,6 +133,11 @@ class ExcelData {
         this.pricePerSocket = csvdataline[12];
         this.tdpPerSocket = csvdataline[13];
         this.latency = csvdataline[14];
+
+        this.throughputUnit = csvdataline[15]
+        this.valueUnit = csvdataline[16]
+        this.efficiencyUnit = csvdataline[17]
+        this.latencyUnit = csvdataline[18]
     }
 }
 
@@ -145,6 +149,8 @@ class OVMSExcelData extends ExcelData {
         this.throughputInt8 = csvdataline[4];
         this.throughputOVMSFP32 = csvdataline[7];
         this.throughputFP32 = csvdataline[6];
+
+        this.throughputUnit = csvdataline[8]
     }
 }
 
@@ -175,6 +181,11 @@ class GraphData {
         this.pricePerSocket = excelData.pricePerSocket;
         this.tdpPerSocket = excelData.tdpPerSocket;
         this.latency = excelData.latency;
+
+        this.throughputUnit = excelData.throughputUnit;
+        this.valueUnit = excelData.valueUnit;
+        this.efficiencyUnit = excelData.efficiencyUnit;
+        this.latencyUnit = excelData.latencyUnit;
     }
 }
 
@@ -294,53 +305,53 @@ class Graph {
     }
 
     // this returns an object that is used to ender the chart
-    static getGraphConfig(kpi, precisions) {
+    static getGraphConfig(kpi, units, precisions) {
         switch (kpi) {
             case 'throughput':
                 return {
                     chartTitle: 'Throughput',
                     chartSubtitle: '(higher is better)',
                     iconClass: 'throughput-icon',
-                    datasets: precisions.map((precision) => this.getPrecisionConfig(precision)),
+                    datasets: precisions.map((precision) => this.getPrecisionConfig(precision, units.throughputUnit)),
                 };
             case 'latency':
                 return {
                     chartTitle: 'Latency',
                     chartSubtitle: '(lower is better)',
                     iconClass: 'latency-icon',
-                    datasets: [{ data: null, color: '#8F5DA2', label: 'Milliseconds' }],
+                    datasets: [{ data: null, color: '#8F5DA2', label: `${units.latencyUnit}` }],
                 };
             case 'value':
                 return {
                     chartTitle: 'Value',
                     chartSubtitle: '(higher is better)',
                     iconClass: 'value-icon',
-                    datasets: [{ data: null, color: '#8BAE46', label: 'FPS/$ (INT8)' }],
+                    datasets: [{ data: null, color: '#8BAE46', label: `${units.valueUnit} (INT8)` }],
                 };
             case 'efficiency':
                 return {
                     chartTitle: 'Efficiency',
                     chartSubtitle: '(higher is better)',
                     iconClass: 'efficiency-icon',
-                    datasets: [{ data: null, color: '#E96115', label: 'FPS/TDP (INT8)' }],
+                    datasets: [{ data: null, color: '#E96115', label: `${units.efficiencyUnit} (INT8)` }],
                 };
             default:
                 return {};
         }
     }
 
-    static getPrecisionConfig(precision) {
+    static getPrecisionConfig(precision, unit) {
         switch (precision) {
             case 'ovmsint8':
-                return { data: null, color: '#FF8F51', label: 'FPS (OV Ref. INT8)' };
+                return { data: null, color: '#FF8F51', label: `${unit} (OV Ref. INT8)` };
             case 'ovmsfp32':
-                return { data: null, color: '#B24501', label: 'FPS (OV Ref. FP32)' };
+                return { data: null, color: '#B24501', label: `${unit} (OV Ref. FP32)` };
             case 'int8':
-                return { data: null, color: '#00C7FD', label: 'FPS (INT8)' };
+                return { data: null, color: '#00C7FD', label: `${unit} (INT8)` };
             case 'fp16':
-                return { data: null, color: '#009fca', label: 'FPS (FP16)' };
+                return { data: null, color: '#009fca', label: `${unit} (FP16)` };
             case 'fp32':
-                return { data: null, color: '#007797', label: 'FPS (FP32)' };
+                return { data: null, color: '#007797', label: `${unit} (FP32)` };
             default:
                 return {};
         }
@@ -565,6 +576,11 @@ $(document).ready(function () {
 
     function preselectDefaultSettings(data, modal, version) {
         const defaultSelections = (version == 'ov') ? OVdefaultSelections : OVMSdefaultSelections;
+        if (defaultSelections.platformTypes) {
+            const type = defaultSelections.platformTypes.data[0]
+            $(`input[data-ietype="${type}"]`).prop('checked', true);
+            renderClientPlatforms(data, modal, version);
+        }
         if (defaultSelections.platformFilters) {
             const filters = modal.find('.selectable-box-container').children('.selectable-box');
             filters.removeClass('selected');
@@ -870,15 +886,16 @@ $(document).ready(function () {
 
         var graphConfigs = kpis.map((str) => {
             var kpi = str.toLowerCase();
+            var groupUnit = model[0]
             if (kpi === 'throughput') {
                 var throughputData = Graph.getDatabyKPI(model, kpi);
-                var config = Graph.getGraphConfig(kpi, precisions);
+                var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
                 precisions.forEach((prec, index) => {
                     config.datasets[index].data = throughputData.map(tData => tData[prec]);
                 });
                 return config;
             }
-            var config = Graph.getGraphConfig(kpi);
+            var config = Graph.getGraphConfig(kpi, groupUnit);
             config.datasets[0].data = Graph.getDatabyKPI(model, kpi);
             return config;
         });

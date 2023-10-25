@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include "ngraph/file_util.hpp"
+
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
 #define DEFAULT_FLOAT_TOLERANCE_BITS ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -15,22 +17,22 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "default_opset.hpp"
-#include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/test_control.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "onnx_utils.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 
-static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
+static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
                                                 3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
                                                 6.000000f,  0.000000f, 7.000000f,  0.000000f, 8.000000f,  0.000000f,
@@ -44,10 +46,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft) {
          -2.500000f, 0.812299f,  -2.500000f, -0.812299f, -2.500000f, -3.440955f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_only_real) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_only_real) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_only_real.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_only_real.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 5, 1},
                                {
                                    0.000000f,
@@ -74,10 +76,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_only_real) {
          -2.500000f, 0.812299f,  -2.500000f, -0.812299f, -2.500000f, -3.440955f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_onesided) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_onesided.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_onesided.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(
         Shape{2, 4},
         {0.000000f, 1.000000f, 2.000000f, 3.000000f, 4.000000f, 5.000000f, 6.000000f, 7.000000f});
@@ -96,12 +98,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_onesided) {
                                           0.000000f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_onesided_skip_convert_to_complex) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided_skip_convert_to_complex) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dft_onesided_skip_convert_to_complex.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(
         Shape{2, 4, 1},
         {0.000000f, 1.000000f, 2.000000f, 3.000000f, 4.000000f, 5.000000f, 6.000000f, 7.000000f});
@@ -120,11 +122,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_onesided_skip_convert_to_complex) {
                                           0.000000f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_lenght_provided.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
                                                 3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
                                                 6.000000f,  0.000000f, 7.000000f,  0.000000f, 8.000000f,  0.000000f,
@@ -135,11 +137,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided) {
         {0.000000f, 0.000000f, 1.000000f, 0.000000f, 2.000000f, 0.000000f, 3.000000f, 0.000000f, 4.000000f, 0.000000f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided_onesided) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided_onesided) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_lenght_provided_onesided.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{4, 3},
                                {0.000000f,
                                 1.000000f,
@@ -157,10 +159,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided_onesided) {
                                          {0.000000f, 0.000000f, 1.000000f, 0.000000f, 2.000000f, 0.000000f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_inverse.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_inverse.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
                                                 3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
                                                 6.000000f,  0.000000f, 7.000000f,  0.000000f, 8.000000f,  0.000000f,
@@ -174,11 +176,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse) {
          -0.500000f, -0.162460f, -0.500000f, 0.162460f,  -0.500000f, 0.688191f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_only_real) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_only_real) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_inverse_only_real.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 5, 1},
                                {0.000000f,
                                 1.000000f,
@@ -203,11 +205,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_only_real) {
          -0.500000f, -0.162460f, -0.500000f, 0.162460f,  -0.500000f, 0.688191f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_inverse_onesided.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2, 3, 2},
                                {6.000000f,
                                 0.000000f,
@@ -226,21 +228,21 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided) {
         {0.000000f, 1.000000f, 2.000000f, 3.000000f, 4.000000f, 5.000000f, 6.000000f, 7.000000f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided_real_input) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided_real_input) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_inverse_onesided_real_input.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2, 3, 1}, {1.000000f, 0.000000f, -1.000000f, 0.5000000f, -0.5000000f, 0.000000f});
     test_case.add_expected_output<float>(Shape{2, 3, 1},
                                          {0.750000f, -0.250000f, -0.500000f, 0.250000f, 0.250000f, -0.500000f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inversed_length_provided) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inversed_length_provided) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_inversed_lenght_provided.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
                                                 3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
                                                 6.000000f,  0.000000f, 7.000000f,  0.000000f, 8.000000f,  0.000000f,
@@ -251,12 +253,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inversed_length_provided) {
         {0.000000f, 0.000000f, 1.000000f, 0.000000f, 2.000000f, 0.000000f, 3.000000f, 0.000000f, 4.000000f, 0.000000f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided_onesided) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided_onesided) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dft_inverse_lenght_provided_onesided.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{1, 3, 2}, {0.000000f, 0.000000f, 1.000000f, 0.000000f, 2.000000f, 0.000000f});
     test_case.add_expected_output<float>(Shape{4, 3},
                                          {0.000000f,
@@ -273,12 +275,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided_onesided) {
                                           11.000000f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_no_window_default_length) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_no_window_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_onesided_real_input_no_window_default_length.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const Shape signal_shape{1, 128, 1};
     std::vector<float> signal(ov::shape_size(signal_shape));
     std::iota(std::begin(signal), std::end(signal), 0.f);
@@ -314,12 +316,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_no_window_defau
          -8.0f,   8.0f,       -8.0f,   5.3454294f, -8.0f,   3.3137083f, -8.0f,   1.5912971f, -8.0f,   0.0f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_real_input_no_window_default_length) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_real_input_no_window_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_real_input_no_window_default_length.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const Shape signal_shape{1, 128, 1};
     std::vector<float> signal(ov::shape_size(signal_shape));
     std::iota(std::begin(signal), std::end(signal), 0.f);
@@ -376,12 +378,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_real_input_no_window_de
          -8.0f,   -5.3454294f, -8.0f,   -8.0f,       -8.0f,   -11.972846f, -8.0f,   -19.31371f,  -8.0f,   -40.218716f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window_default_length) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_complex_input_no_window_default_length.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const Shape signal_shape{1, 128, 2};
     std::vector<float> signal(ov::shape_size(signal_shape));
     std::iota(std::begin(signal), std::end(signal), 0.f);
@@ -869,12 +871,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window
                                           -96.43743187401357f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window_default_length_2) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window_default_length_2) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_complex_input_no_window_default_length_2.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const Shape signal_shape{2, 64, 2};
     std::vector<float> signal(ov::shape_size(signal_shape));
     std::iota(std::begin(signal), std::end(signal), 0.f);
@@ -946,12 +948,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window
                                           0.0f,    -16.0f,  11.313708498984761f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window_no_default_length) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window_no_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_complex_input_no_window_no_default_length.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const Shape signal_shape{4, 32, 2};
     std::vector<float> signal(ov::shape_size(signal_shape));
     std::iota(std::begin(signal), std::end(signal), 0.f);
@@ -1343,12 +1345,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window
                                           -206.29809870540362f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_window_default_length) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_window_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_complex_input_given_window_default_length.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const Shape signal_shape{3, 32, 2};
     std::vector<float> signal(ov::shape_size(signal_shape));
     std::iota(std::begin(signal), std::end(signal), 0.f);
@@ -1427,12 +1429,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_win
          350.3732076053417f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_window_no_default_length) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_window_no_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_complex_input_given_window_no_default_length.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const Shape signal_shape{2, 48, 2};
     std::vector<float> signal(ov::shape_size(signal_shape));
     std::iota(std::begin(signal), std::end(signal), 0.f);
@@ -1484,12 +1486,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_win
          -17.881304733400242f, 6.402342404564804f,   -26.381811905938818f, 453.78128415645574f,  418.7065264457958f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_given_window_no_default_length) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_given_window_no_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_onesided_real_input_given_window_no_default_length.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const Shape signal_shape{2, 32, 1};
     std::vector<float> signal(ov::shape_size(signal_shape));
     std::iota(std::begin(signal), std::end(signal), 0.f);
@@ -1529,9 +1531,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_given_window_no
          -7.999382f,  1.6240807f, -7.99942f,   0.0f});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_frame_step) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_frame_step) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/stft_non_const_frame_step.onnx"));
         FAIL() << "Unknown error during STFT import";
@@ -1541,9 +1543,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_frame
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_dynamic_singal_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_dynamic_singal_shape) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/stft_dynamic_signal_shape.onnx"));
         FAIL() << "Unknown error during STFT import";
@@ -1553,9 +1555,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_dynamic_singal_
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_frame_length) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_frame_length) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/stft_non_const_frame_length.onnx"));
         FAIL() << "Unknown error during STFT import";
@@ -1565,9 +1567,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_frame
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_complex_signal_and_onesided) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_complex_signal_and_onesided) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/stft_onesided_complex_input.onnx"));
         FAIL() << "Unknown error during STFT import";

@@ -37,6 +37,7 @@ void remove_dangling_parameters(std::shared_ptr<Function>& function) {
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void remove_dangling_results(std::shared_ptr<Function>& function) {
     const auto results = function->get_results();
     for (auto result : results) {
@@ -52,6 +53,7 @@ void remove_dangling_results(std::shared_ptr<Function>& function) {
         }
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto) {
     transform::fixup_legacy_operators(model_proto);
@@ -89,11 +91,13 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
 
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                             const std::string& model_path,
+                                            detail::MappedMemoryHandles mmap_cache,
                                             ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
     NGRAPH_SUPPRESS_DEPRECATED_START
     Graph graph{file_util::get_directory(ov::util::get_absolute_file_path(model_path)),
                 model_proto,
+                mmap_cache,
                 std::move(extensions)};
     NGRAPH_SUPPRESS_DEPRECATED_END
     return graph.convert();
@@ -101,11 +105,13 @@ std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mode
 
 std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                                     const std::string& model_path,
+                                                    detail::MappedMemoryHandles mmap_cache,
                                                     ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto graph = std::make_shared<Graph>(file_util::get_directory(ov::util::get_absolute_file_path(model_path)),
                                          model_proto,
+                                         mmap_cache,
                                          extensions);
     NGRAPH_SUPPRESS_DEPRECATED_END
     return graph->decode();

@@ -31,6 +31,8 @@ This document provides description and default values for CMake options that can
         * `ON` is default.
     * `ENABLE_AUTO_BATCH` enables Auto Batch plugin build:
         * `ON` is default.
+    * `ENABLE_PROXY` enables Proxy plugin compilation:
+        * `ON` is default.
 * Frontends to work with models from frameworks:
     * `ENABLE_OV_ONNX_FRONTEND` enables [ONNX] frontend plugin for OpenVINO Runtime:
         * `ON` is default.
@@ -112,16 +114,17 @@ This document provides description and default values for CMake options that can
     * `OFF` is default, because it increases binary size.
 * `SELECTIVE_BUILD` enables [[Conditional compilation|ConditionalCompilation]] feature.
     * `OFF` is default.
+* `ENABLE_MLAS_FOR_CPU` enables MLAS library for CPU plugin
+    * `ON` is default for x86_64 and AARCH64 platforms
+    * Affects only OpenVINO CPU plugin
 
-## Building with custom OpenCV
+## Building with OpenCV
 
-When OpenVINO CMake scripts are run with enabled OpenCV (`-DENABLE_OPENCV=ON` which is default), CMake OpenVINO scripts automatically download prebuilt OpenCV 
-from shared drive, such OpenCV is ABI-compatible with the default compiler of your system. If you have a non-default compiler or want to use custom version of OpenCV, you can pass it via CMake option:
+Some OpenVINO samples can benefit from OpenCV usage, e.g. can read more image formats as inputs. If you have OpenCV on your machine, you can pass it via CMake option:
 
 ```sh
 cmake -DOpenCV_DIR=<path to OpenCVConfig.cmake> ...
 ```
-In this case, default OpenCV will not downloaded and provided one will be used.
 
 ## Building with custom TBB
 
@@ -154,8 +157,6 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 * `ENABLE_CLANG_FORMAT` enables [Clang format] code style check:
     * `ON` is default.
     * Used only for ngraph component.
-* `TREAT_WARNING_AS_ERROR` treats all warnings as an error:
-    * `OFF` is default.
 * `ENABLE_FASTER_BUILD` enables [precompiled headers] and [unity build] using CMake:
     * `OFF` is default.
 * `ENABLE_INTEGRITYCHECK` builds DLLs with [/INTEGRITYCHECK] flag:
@@ -189,8 +190,8 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [pugixml]:https://pugixml.org/
 [ONNX]:https://onnx.ai/
 [protobuf]:https://github.com/protocolbuffers/protobuf
-[deployment manager]:https://docs.openvino.ai/latest/openvino_docs_install_guides_deployment_manager_tool.html
-[OpenVINO Runtime Introduction]:https://docs.openvino.ai/latest/openvino_docs_OV_UG_Integrate_OV_with_your_application.html
+[deployment manager]:https://docs.openvino.ai/2023.1/openvino_docs_install_guides_deployment_manager_tool.html
+[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Integrate_OV_with_your_application.html
 [PDPD]:https://github.com/PaddlePaddle/Paddle
 [TensorFlow]:https://www.tensorflow.org/
 [TensorFlow Lite]:https://www.tensorflow.org/lite

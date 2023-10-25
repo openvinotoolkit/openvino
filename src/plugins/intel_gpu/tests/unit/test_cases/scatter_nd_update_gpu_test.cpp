@@ -3,7 +3,8 @@
 //
 
 #include "test_utils.h"
-#include "ngraph/runtime/reference/scatter_nd_update.hpp"
+#include "random_generator.hpp"
+#include "openvino/reference/scatter_nd_update.hpp"
 #include "scatter_nd_update_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -22,18 +23,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-namespace {
-template<typename T>
-T generate_random_val(int min, int max, int k = 8) {
-    static std::default_random_engine generator(random_seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int> distribution(k * min, k * max);
-    T val = (T)distribution(generator);
-    val /= k;
-
-    return val;
-}
-}
 
 struct scatter_nd_update_basic_test_params
 {
@@ -54,6 +43,14 @@ struct scatter_nd_update_basic_test_params
 
 struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_basic_test_params>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        std::string suite_name = std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+                                 std::string(::testing::UnitTest::GetInstance()->current_test_info()->name());
+        rg.set_seed(suite_name);
+    }
+
     format get_default_format(int rank = 4) {
         if (rank <= 4)
             return cldnn::format::bfyx;
@@ -76,7 +73,7 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         while (unique_indices.size() != count) {
             std::vector<T> indices;
             for (size_t i = 0; i < last_indices_dim; i++) {
-                indices.push_back(static_cast<T>(generate_random_val<int>(0, data_shape[i] - 1)));
+                indices.push_back(static_cast<T>(rg.generate_random_val<int>(0, data_shape[i] - 1)));
             }
 
             unique_indices.insert(indices);
@@ -116,9 +113,9 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         std::reverse(indices_vec.begin() + 2, indices_vec.end());
         indices_vec.resize(params.indices_rank);
 
-        auto input_data_fp16 = generate_random_1d<T>(params.input_size.count(), -127, 127);
+        auto input_data_fp16 = rg.generate_random_1d<T>(params.input_size.count(), -127, 127);
         auto indices_data_fp16 = generate_unique_indices<T>(params);
-        auto updates_data_fp16 = generate_random_1d<T>(params.updates_size.count(), -127, 127);
+        auto updates_data_fp16 = rg.generate_random_1d<T>(params.updates_size.count(), -127, 127);
 
         std::vector<float> input_data(params.input_size.count());
         for (size_t i = 0; i < params.input_size.count(); ++i)
@@ -157,13 +154,13 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         cldnn::mem_lock<T_size> outputs_ptr(output, get_test_stream());
 
         auto outputs_ref = std::vector<float>(params.input_size.count());
-        ngraph::runtime::reference::scatterNdUpdate<float, float>(input_data.data(),
-                                                                  indices_data.data(),
-                                                                  updates_data.data(),
-                                                                  outputs_ref.data(),
-                                                                  ov::Shape(input_vec.begin(), input_vec.end()),
-                                                                  ov::Shape(indices_vec.begin(), indices_vec.end()),
-                                                                  ov::Shape(updates_vec.begin(), updates_vec.end()));
+        ov::reference::scatterNdUpdate<float, float>(input_data.data(),
+                                                     indices_data.data(),
+                                                     updates_data.data(),
+                                                     outputs_ref.data(),
+                                                     ov::Shape(input_vec.begin(), input_vec.end()),
+                                                     ov::Shape(indices_vec.begin(), indices_vec.end()),
+                                                     ov::Shape(updates_vec.begin(), updates_vec.end()));
 
         for (size_t i = 0; i < outputs_ref.size(); ++i) {
             ASSERT_EQ(outputs_ref[i], half_to_float(outputs_ptr[i]));
@@ -196,9 +193,9 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         std::reverse(indices_vec.begin() + 2, indices_vec.end());
         indices_vec.resize(params.indices_rank);
 
-        auto input_data = generate_random_1d<T>(params.input_size.count(), -127, 127);
+        auto input_data = rg.generate_random_1d<T>(params.input_size.count(), -127, 127);
         auto indices_data = generate_unique_indices<T>(params);
-        auto updates_data = generate_random_1d<T>(params.updates_size.count(), -127, 127);
+        auto updates_data = rg.generate_random_1d<T>(params.updates_size.count(), -127, 127);
 
         set_values(input1, input_data);
         set_values(input2, indices_data);
@@ -227,13 +224,13 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         cldnn::mem_lock<T> outputs_ptr(output, get_test_stream());
 
         auto outputs_ref = std::vector<T>(params.input_size.count());
-        ngraph::runtime::reference::scatterNdUpdate<T, T>(input_data.data(),
-                                                          indices_data.data(),
-                                                          updates_data.data(),
-                                                          outputs_ref.data(),
-                                                          ov::Shape(input_vec.begin(), input_vec.end()),
-                                                          ov::Shape(indices_vec.begin(), indices_vec.end()),
-                                                          ov::Shape(updates_vec.begin(), updates_vec.end()));
+        ov::reference::scatterNdUpdate<T, T>(input_data.data(),
+                                             indices_data.data(),
+                                             updates_data.data(),
+                                             outputs_ref.data(),
+                                             ov::Shape(input_vec.begin(), input_vec.end()),
+                                             ov::Shape(indices_vec.begin(), indices_vec.end()),
+                                             ov::Shape(updates_vec.begin(), updates_vec.end()));
 
         for (size_t i = 0; i < outputs_ref.size(); ++i) {
             ASSERT_EQ(outputs_ref[i], outputs_ptr[i]);
@@ -253,11 +250,11 @@ TEST_P(scatter_nd_update_random_test, random)
     else if (param.input_type == data_types::i64)
         this->execute<int64_t>(param, false);
     else if (param.input_type == data_types::f16)
-        this->execute_fp16<FLOAT16, uint16_t>(param, false);
+        this->execute_fp16<ov::float16, uint16_t>(param, false);
     else if (param.input_type == data_types::f32)
         this->execute<float>(param, false);
     else
-        IE_THROW() << "unidentified data type";
+        OPENVINO_THROW("unidentified data type");
 }
 
 INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_bsv32_fsv16_4d_rank_1,
@@ -501,65 +498,65 @@ TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
 
     set_values(input1, {
         // 0
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
         // 1
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
     });
 
     set_values(input2, {
-        FLOAT16(1.0f),
-        FLOAT16(0.0f),
+        ov::float16(1.0f),
+        ov::float16(0.0f),
     });
 
     set_values(input3, {
         // 0
-        FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-        FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-        FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        ov::float16(91.0f), ov::float16(2.0f),    ov::float16(83.0f), ov::float16(4.0f),      ov::float16(71.0f), ov::float16(2.0f),   ov::float16(63.0f), ov::float16(4.0f),
+        ov::float16(95.0f), ov::float16(6.0f),    ov::float16(87.0f), ov::float16(8.0f),      ov::float16(75.0f), ov::float16(6.0f),   ov::float16(67.0f), ov::float16(8.0f),
+        ov::float16(99.0f), ov::float16(10.0f),   ov::float16(811.0f), ov::float16(12.0f),    ov::float16(79.0f), ov::float16(10.0f),  ov::float16(611.0f), ov::float16(12.0f),
 
-        FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-        FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-        FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        ov::float16(91.0f), ov::float16(2.0f),    ov::float16(83.0f), ov::float16(4.0f),      ov::float16(71.0f), ov::float16(2.0f),   ov::float16(63.0f), ov::float16(4.0f),
+        ov::float16(95.0f), ov::float16(6.0f),    ov::float16(87.0f), ov::float16(8.0f),      ov::float16(75.0f), ov::float16(6.0f),   ov::float16(67.0f), ov::float16(8.0f),
+        ov::float16(99.0f), ov::float16(10.0f),   ov::float16(811.0f), ov::float16(12.0f),    ov::float16(79.0f), ov::float16(10.0f),  ov::float16(611.0f), ov::float16(12.0f),
         // 1
-        FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-        FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-        FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        ov::float16(91.0f), ov::float16(2.0f),    ov::float16(83.0f), ov::float16(4.0f),      ov::float16(71.0f), ov::float16(2.0f),   ov::float16(63.0f), ov::float16(4.0f),
+        ov::float16(95.0f), ov::float16(6.0f),    ov::float16(87.0f), ov::float16(8.0f),      ov::float16(75.0f), ov::float16(6.0f),   ov::float16(67.0f), ov::float16(8.0f),
+        ov::float16(99.0f), ov::float16(10.0f),   ov::float16(811.0f), ov::float16(12.0f),    ov::float16(79.0f), ov::float16(10.0f),  ov::float16(611.0f), ov::float16(12.0f),
 
-        FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-        FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-        FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        ov::float16(91.0f), ov::float16(2.0f),    ov::float16(83.0f), ov::float16(4.0f),      ov::float16(71.0f), ov::float16(2.0f),   ov::float16(63.0f), ov::float16(4.0f),
+        ov::float16(95.0f), ov::float16(6.0f),    ov::float16(87.0f), ov::float16(8.0f),      ov::float16(75.0f), ov::float16(6.0f),   ov::float16(67.0f), ov::float16(8.0f),
+        ov::float16(99.0f), ov::float16(10.0f),   ov::float16(811.0f), ov::float16(12.0f),    ov::float16(79.0f), ov::float16(10.0f),  ov::float16(611.0f), ov::float16(12.0f),
     });
 
     std::vector<float> expected_results = {
         // 0
-        FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-        FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-        FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        ov::float16(91.0f), ov::float16(2.0f),    ov::float16(83.0f), ov::float16(4.0f),      ov::float16(71.0f), ov::float16(2.0f),   ov::float16(63.0f), ov::float16(4.0f),
+        ov::float16(95.0f), ov::float16(6.0f),    ov::float16(87.0f), ov::float16(8.0f),      ov::float16(75.0f), ov::float16(6.0f),   ov::float16(67.0f), ov::float16(8.0f),
+        ov::float16(99.0f), ov::float16(10.0f),   ov::float16(811.0f), ov::float16(12.0f),    ov::float16(79.0f), ov::float16(10.0f),  ov::float16(611.0f), ov::float16(12.0f),
 
-        FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-        FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-        FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        ov::float16(91.0f), ov::float16(2.0f),    ov::float16(83.0f), ov::float16(4.0f),      ov::float16(71.0f), ov::float16(2.0f),   ov::float16(63.0f), ov::float16(4.0f),
+        ov::float16(95.0f), ov::float16(6.0f),    ov::float16(87.0f), ov::float16(8.0f),      ov::float16(75.0f), ov::float16(6.0f),   ov::float16(67.0f), ov::float16(8.0f),
+        ov::float16(99.0f), ov::float16(10.0f),   ov::float16(811.0f), ov::float16(12.0f),    ov::float16(79.0f), ov::float16(10.0f),  ov::float16(611.0f), ov::float16(12.0f),
         // 1
-        FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-        FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-        FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        ov::float16(91.0f), ov::float16(2.0f),    ov::float16(83.0f), ov::float16(4.0f),      ov::float16(71.0f), ov::float16(2.0f),   ov::float16(63.0f), ov::float16(4.0f),
+        ov::float16(95.0f), ov::float16(6.0f),    ov::float16(87.0f), ov::float16(8.0f),      ov::float16(75.0f), ov::float16(6.0f),   ov::float16(67.0f), ov::float16(8.0f),
+        ov::float16(99.0f), ov::float16(10.0f),   ov::float16(811.0f), ov::float16(12.0f),    ov::float16(79.0f), ov::float16(10.0f),  ov::float16(611.0f), ov::float16(12.0f),
 
-        FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-        FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-        FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        ov::float16(91.0f), ov::float16(2.0f),    ov::float16(83.0f), ov::float16(4.0f),      ov::float16(71.0f), ov::float16(2.0f),   ov::float16(63.0f), ov::float16(4.0f),
+        ov::float16(95.0f), ov::float16(6.0f),    ov::float16(87.0f), ov::float16(8.0f),      ov::float16(75.0f), ov::float16(6.0f),   ov::float16(67.0f), ov::float16(8.0f),
+        ov::float16(99.0f), ov::float16(10.0f),   ov::float16(811.0f), ov::float16(12.0f),    ov::float16(79.0f), ov::float16(10.0f),  ov::float16(611.0f), ov::float16(12.0f),
     };
 
     topology topology;
@@ -596,54 +593,54 @@ TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
 
     set_values(input1, {
         // 0
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
         // 1
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(2.0f),
-        FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(0.0f),
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(1.0f),
+        ov::float16(1.0f), ov::float16(1.0f), ov::float16(2.0f),
+        ov::float16(1.0f), ov::float16(1.0f), ov::float16(0.0f),
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(1.0f),
         });
 
     set_values(input3, {
-        FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f), FLOAT16(55.0f), FLOAT16(56.0f), FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f), FLOAT16(65.0f), FLOAT16(66.0f), FLOAT16(67.0f), FLOAT16(68.0f),
-        FLOAT16(71.0f), FLOAT16(72.0f), FLOAT16(73.0f), FLOAT16(74.0f), FLOAT16(75.0f), FLOAT16(76.0f), FLOAT16(77.0f), FLOAT16(78.0f),
+        ov::float16(51.0f), ov::float16(52.0f), ov::float16(53.0f), ov::float16(54.0f), ov::float16(55.0f), ov::float16(56.0f), ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(61.0f), ov::float16(62.0f), ov::float16(63.0f), ov::float16(64.0f), ov::float16(65.0f), ov::float16(66.0f), ov::float16(67.0f), ov::float16(68.0f),
+        ov::float16(71.0f), ov::float16(72.0f), ov::float16(73.0f), ov::float16(74.0f), ov::float16(75.0f), ov::float16(76.0f), ov::float16(77.0f), ov::float16(78.0f),
         });
 
     std::vector<float> expected_results = {
         // 0
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(71.0f), FLOAT16(72.0f), FLOAT16(73.0f), FLOAT16(74.0f),     FLOAT16(75.0f), FLOAT16(76.0f), FLOAT16(77.0f), FLOAT16(78.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(71.0f), ov::float16(72.0f), ov::float16(73.0f), ov::float16(74.0f),     ov::float16(75.0f), ov::float16(76.0f), ov::float16(77.0f), ov::float16(78.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
         // 1
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f),     FLOAT16(65.0f), FLOAT16(66.0f), FLOAT16(67.0f), FLOAT16(68.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),     FLOAT16(55.0f), FLOAT16(56.0f), FLOAT16(57.0f), FLOAT16(58.0f),
+        ov::float16(61.0f), ov::float16(62.0f), ov::float16(63.0f), ov::float16(64.0f),     ov::float16(65.0f), ov::float16(66.0f), ov::float16(67.0f), ov::float16(68.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(51.0f), ov::float16(52.0f), ov::float16(53.0f), ov::float16(54.0f),     ov::float16(55.0f), ov::float16(56.0f), ov::float16(57.0f), ov::float16(58.0f),
     };
 
     topology topology;
@@ -679,35 +676,35 @@ TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 4, 1, 1 } }); // updates
 
     set_values(input1, {
-        FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),       FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),  FLOAT16(7.0f), FLOAT16(8.0f),       FLOAT16(5.0f), FLOAT16(6.0f),  FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),     FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),  ov::float16(3.0f), ov::float16(4.0f),       ov::float16(1.0f), ov::float16(2.0f),  ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),  ov::float16(7.0f), ov::float16(8.0f),       ov::float16(5.0f), ov::float16(6.0f),  ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),     ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),       FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),  FLOAT16(7.0f), FLOAT16(8.0f),       FLOAT16(5.0f), FLOAT16(6.0f),  FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),     FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),  ov::float16(3.0f), ov::float16(4.0f),       ov::float16(1.0f), ov::float16(2.0f),  ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),  ov::float16(7.0f), ov::float16(8.0f),       ov::float16(5.0f), ov::float16(6.0f),  ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),     ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(0.0f),
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(1.0f),
-        FLOAT16(0.0f), FLOAT16(2.0f), FLOAT16(1.0f),
+        ov::float16(1.0f), ov::float16(1.0f), ov::float16(0.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(1.0f),
+        ov::float16(0.0f), ov::float16(2.0f), ov::float16(1.0f),
         });
 
     set_values(input3, {
-        FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),
-        FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f),
-        FLOAT16(71.0f), FLOAT16(72.0f), FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f), ov::float16(53.0f), ov::float16(54.0f),
+        ov::float16(61.0f), ov::float16(62.0f), ov::float16(63.0f), ov::float16(64.0f),
+        ov::float16(71.0f), ov::float16(72.0f), ov::float16(73.0f), ov::float16(74.0f),
         });
 
     std::vector<float> expected_results = {
-        FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),       FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),  FLOAT16(7.0f), FLOAT16(8.0f),       FLOAT16(5.0f), FLOAT16(6.0f),  FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),     FLOAT16(71.0f), FLOAT16(72.0f), FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(1.0f), ov::float16(2.0f),  ov::float16(3.0f), ov::float16(4.0f),       ov::float16(1.0f), ov::float16(2.0f),  ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),  ov::float16(7.0f), ov::float16(8.0f),       ov::float16(5.0f), ov::float16(6.0f),  ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),     ov::float16(71.0f), ov::float16(72.0f), ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),       FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),    FLOAT16(5.0f), FLOAT16(6.0f),  FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),     FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f),
+        ov::float16(1.0f), ov::float16(2.0f),  ov::float16(3.0f), ov::float16(4.0f),       ov::float16(1.0f), ov::float16(2.0f),  ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(51.0f), ov::float16(52.0f), ov::float16(53.0f), ov::float16(54.0f),    ov::float16(5.0f), ov::float16(6.0f),  ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),     ov::float16(61.0f), ov::float16(62.0f), ov::float16(63.0f), ov::float16(64.0f),
     };
 
     topology topology;
@@ -743,42 +740,42 @@ TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } }); // updates
 
     set_values(input1, {
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(2.0f), FLOAT16(0.0f), FLOAT16(0.0f),
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
-        FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f),
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(0.0f),
+        ov::float16(2.0f), ov::float16(0.0f), ov::float16(0.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f),
+        ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f),
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(0.0f),
         });
 
     set_values(input3, {
-        FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),
+        ov::float16(51.0f), ov::float16(52.0f), ov::float16(53.0f), ov::float16(54.0f),
         });
 
     std::vector<float> expected_results = {
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(54.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(54.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(53.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(52.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(53.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(52.0f),
 
-        FLOAT16(51.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(51.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
     };
 
     topology topology;
@@ -815,100 +812,100 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
 
     set_values(input1, {
         // 0, 0, 0
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         // 0, 0, 1
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
         // 0, 1, 0
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
 
         // 1, 0
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
         // 1, 1
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(1.0f),
+        ov::float16(1.0f),
         });
 
     set_values(input3, {
         // 0
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(50.0f), FLOAT16(51.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(50.0f), ov::float16(51.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
 
-        FLOAT16(150.0f), FLOAT16(151.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(150.0f), ov::float16(151.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
         });
 
     std::vector<float> expected_results = {
         // 0
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
         // 1
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(50.0f), FLOAT16(51.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(50.0f), ov::float16(51.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
 
-        FLOAT16(150.0f), FLOAT16(151.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(150.0f), ov::float16(151.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
     };
 
     topology topology;
@@ -945,66 +942,66 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
 
     set_values(input1, {
         // 0
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
         // 1
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(1.0f), FLOAT16(0.0f),
+        ov::float16(1.0f), ov::float16(0.0f),
         });
 
     set_values(input3, {
         // 0
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(50.0f), FLOAT16(51.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(50.0f), ov::float16(51.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
         // 1
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
 
-        FLOAT16(150.0f), FLOAT16(151.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(150.0f), ov::float16(151.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
         });
 
     std::vector<float> expected_results = {
         // 0
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
 
-        FLOAT16(150.0f), FLOAT16(151.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(150.0f), ov::float16(151.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
 
         // 1
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(50.0f), FLOAT16(51.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(50.0f), ov::float16(51.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
     };
 
     topology topology;
@@ -1041,48 +1038,48 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
 
     set_values(input1, {
         // 0
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         // 1
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         // 2
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(2.0f), FLOAT16(0.0f),
+        ov::float16(2.0f), ov::float16(0.0f),
         });
 
     set_values(input3, {
         // 0
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
         // 1
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
         });
 
     std::vector<float> expected_results = {
         // 0
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
         // 1
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         // 2
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
     };
 
     topology topology;
@@ -1119,68 +1116,68 @@ TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
 
     set_values(input1, {
         //0,0
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
         //0,1
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f),
-        FLOAT16(0.0f), FLOAT16(0.0f)
+        ov::float16(0.0f), ov::float16(1.0f),
+        ov::float16(0.0f), ov::float16(0.0f)
         });
 
     set_values(input3, {
         // 0
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
 
         // 1
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
 
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
         });
 
     std::vector<float> expected_results = {
         // 0,0
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
 
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
 
         // 0,1
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
     };
 
     topology topology;
@@ -1217,38 +1214,38 @@ TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
 
 
     set_values(input1, {
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f),
-        FLOAT16(0.0f), FLOAT16(0.0f)
+        ov::float16(0.0f), ov::float16(1.0f),
+        ov::float16(0.0f), ov::float16(0.0f)
         });
 
     set_values(input3, {
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
         });
 
     std::vector<float> expected_results = {
-        FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-        FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-        FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
+        ov::float16(151.0f), ov::float16(152.0f),    ov::float16(153.0f), ov::float16(154.0f),      ov::float16(155.0f), ov::float16(156.0f),   ov::float16(157.0f), ov::float16(158.0f),
+        ov::float16(159.0f), ov::float16(160.0f),    ov::float16(161.0f), ov::float16(162.0f),      ov::float16(163.0f), ov::float16(164.0f),   ov::float16(165.0f), ov::float16(166.0f),
+        ov::float16(167.0f), ov::float16(168.0f),    ov::float16(169.0f), ov::float16(170.0f),      ov::float16(171.0f), ov::float16(172.0f),   ov::float16(173.0f), ov::float16(174.0f),
 
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
     };
 
     topology topology;
@@ -1286,35 +1283,35 @@ TEST(scatter_nd_update_gpu_fp16_test6, data4_indice2_update3) {
 
 
     set_values(input1, {
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),   ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),   ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),  ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(1.0f), FLOAT16(1.0f),
-        FLOAT16(1.0f), FLOAT16(0.0f),
-        FLOAT16(0.0f), FLOAT16(2.0f)
+        ov::float16(1.0f), ov::float16(1.0f),
+        ov::float16(1.0f), ov::float16(0.0f),
+        ov::float16(0.0f), ov::float16(2.0f)
         });
 
     set_values(input3, {
-        FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f),    ov::float16(53.0f), ov::float16(54.0f),      ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(59.0f), ov::float16(60.0f),    ov::float16(61.0f), ov::float16(62.0f),      ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(67.0f), ov::float16(68.0f),    ov::float16(69.0f), ov::float16(70.0f),      ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
         });
 
     std::vector<float> expected_results = {
-        FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),     FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),     FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(67.0f), FLOAT16(68.0f),  FLOAT16(69.0f), FLOAT16(70.0f),    FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(1.0f), ov::float16(2.0f),    ov::float16(3.0f), ov::float16(4.0f),      ov::float16(1.0f), ov::float16(2.0f),     ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f),    ov::float16(7.0f), ov::float16(8.0f),      ov::float16(5.0f), ov::float16(6.0f),     ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(67.0f), ov::float16(68.0f),  ov::float16(69.0f), ov::float16(70.0f),    ov::float16(71.0f), ov::float16(72.0f),   ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(59.0f), FLOAT16(60.0f),  FLOAT16(61.0f), FLOAT16(62.0f),    FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-        FLOAT16(51.0f), FLOAT16(52.0f),  FLOAT16(53.0f), FLOAT16(54.0f),    FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),    FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(59.0f), ov::float16(60.0f),  ov::float16(61.0f), ov::float16(62.0f),    ov::float16(63.0f), ov::float16(64.0f),   ov::float16(65.0f), ov::float16(66.0f),
+        ov::float16(51.0f), ov::float16(52.0f),  ov::float16(53.0f), ov::float16(54.0f),    ov::float16(55.0f), ov::float16(56.0f),   ov::float16(57.0f), ov::float16(58.0f),
+        ov::float16(9.0f), ov::float16(10.0f),   ov::float16(11.0f), ov::float16(12.0f),    ov::float16(9.0f), ov::float16(10.0f),    ov::float16(11.0f), ov::float16(12.0f),
     };
 
     topology topology;
@@ -1351,35 +1348,35 @@ TEST(scatter_nd_update_gpu_fp16_test5, data3_indice2_update2) {
 
 
     set_values(input1, {
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(1.0f), FLOAT16(1.0f),
-        FLOAT16(1.0f), FLOAT16(0.0f),
-        FLOAT16(0.0f), FLOAT16(2.0f)
+        ov::float16(1.0f), ov::float16(1.0f),
+        ov::float16(1.0f), ov::float16(0.0f),
+        ov::float16(0.0f), ov::float16(2.0f)
         });
 
     set_values(input3, {
-        FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),
-        FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f),
-        FLOAT16(71.0f), FLOAT16(72.0f), FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(51.0f), ov::float16(52.0f), ov::float16(53.0f), ov::float16(54.0f),
+        ov::float16(61.0f), ov::float16(62.0f), ov::float16(63.0f), ov::float16(64.0f),
+        ov::float16(71.0f), ov::float16(72.0f), ov::float16(73.0f), ov::float16(74.0f),
         });
 
     std::vector<float> expected_results = {
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(71.0f), FLOAT16(72.0f), FLOAT16(73.0f), FLOAT16(74.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(71.0f), ov::float16(72.0f), ov::float16(73.0f), ov::float16(74.0f),
 
-        FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f),
-        FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(61.0f), ov::float16(62.0f), ov::float16(63.0f), ov::float16(64.0f),
+        ov::float16(51.0f), ov::float16(52.0f), ov::float16(53.0f), ov::float16(54.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
     };
 
     topology topology;
@@ -1416,25 +1413,25 @@ TEST(scatter_nd_update_gpu_fp16_test4, data2_indice2_update1) {
 
 
     set_values(input1, {
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-        FLOAT16(2.0f), FLOAT16(1.0f),
-        FLOAT16(0.0f), FLOAT16(3.0f),
-        FLOAT16(0.0f), FLOAT16(2.0f)
+        ov::float16(2.0f), ov::float16(1.0f),
+        ov::float16(0.0f), ov::float16(3.0f),
+        ov::float16(0.0f), ov::float16(2.0f)
         });
 
     set_values(input3, {
-        FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f)
+        ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f)
         });
 
     std::vector<float> expected_results = {
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(23.0f), FLOAT16(22.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(21.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(23.0f), ov::float16(22.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(21.0f), ov::float16(11.0f), ov::float16(12.0f),
         };
 
     topology topology;
@@ -1471,45 +1468,45 @@ TEST(scatter_nd_update_gpu_fp16_test3, data3_indice1_update3) {
 
 
     set_values(input1, {
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
         });
 
     set_values(input2, {
-            FLOAT16(2.0f), FLOAT16(0.0f)
+            ov::float16(2.0f), ov::float16(0.0f)
         });
 
     set_values(input3, {
-        FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f), FLOAT16(24.0f),
-        FLOAT16(25.0f), FLOAT16(26.0f), FLOAT16(27.0f), FLOAT16(28.0f),
-        FLOAT16(29.0f), FLOAT16(30.0f), FLOAT16(31.0f), FLOAT16(32.0f),
+        ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f), ov::float16(24.0f),
+        ov::float16(25.0f), ov::float16(26.0f), ov::float16(27.0f), ov::float16(28.0f),
+        ov::float16(29.0f), ov::float16(30.0f), ov::float16(31.0f), ov::float16(32.0f),
 
-        FLOAT16(41.0f), FLOAT16(42.0f), FLOAT16(43.0f), FLOAT16(44.0f),
-        FLOAT16(45.0f), FLOAT16(46.0f), FLOAT16(47.0f), FLOAT16(48.0f),
-        FLOAT16(49.0f), FLOAT16(50.0f), FLOAT16(51.0f), FLOAT16(52.0f),
+        ov::float16(41.0f), ov::float16(42.0f), ov::float16(43.0f), ov::float16(44.0f),
+        ov::float16(45.0f), ov::float16(46.0f), ov::float16(47.0f), ov::float16(48.0f),
+        ov::float16(49.0f), ov::float16(50.0f), ov::float16(51.0f), ov::float16(52.0f),
         });
 
     std::vector<float> expected_results = {
-        FLOAT16(41.0f), FLOAT16(42.0f), FLOAT16(43.0f), FLOAT16(44.0f),
-        FLOAT16(45.0f), FLOAT16(46.0f), FLOAT16(47.0f), FLOAT16(48.0f),
-        FLOAT16(49.0f), FLOAT16(50.0f), FLOAT16(51.0f), FLOAT16(52.0f),
+        ov::float16(41.0f), ov::float16(42.0f), ov::float16(43.0f), ov::float16(44.0f),
+        ov::float16(45.0f), ov::float16(46.0f), ov::float16(47.0f), ov::float16(48.0f),
+        ov::float16(49.0f), ov::float16(50.0f), ov::float16(51.0f), ov::float16(52.0f),
 
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f),
+        ov::float16(9.0f), ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f),
 
-        FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f), FLOAT16(24.0f),
-        FLOAT16(25.0f), FLOAT16(26.0f), FLOAT16(27.0f), FLOAT16(28.0f),
-        FLOAT16(29.0f), FLOAT16(30.0f), FLOAT16(31.0f), FLOAT16(32.0f),
+        ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f), ov::float16(24.0f),
+        ov::float16(25.0f), ov::float16(26.0f), ov::float16(27.0f), ov::float16(28.0f),
+        ov::float16(29.0f), ov::float16(30.0f), ov::float16(31.0f), ov::float16(32.0f),
     };
 
     topology topology;
@@ -1547,24 +1544,24 @@ TEST(scatter_nd_update_gpu_fp16_test2, data2_indice1_update2) {
 
 
     set_values(input1, {
-        FLOAT16(13.0f), FLOAT16(12.0f), FLOAT16(11.0f), FLOAT16(10.0f),
-        FLOAT16(9.0f), FLOAT16(8.0f), FLOAT16(7.0f), FLOAT16(6.0f),
-        FLOAT16(5.0f), FLOAT16(4.0f), FLOAT16(3.0f), FLOAT16(2.0f)
+        ov::float16(13.0f), ov::float16(12.0f), ov::float16(11.0f), ov::float16(10.0f),
+        ov::float16(9.0f), ov::float16(8.0f), ov::float16(7.0f), ov::float16(6.0f),
+        ov::float16(5.0f), ov::float16(4.0f), ov::float16(3.0f), ov::float16(2.0f)
         });
 
     set_values(input2, {
-            FLOAT16(2.0f), FLOAT16(0.0f)
+            ov::float16(2.0f), ov::float16(0.0f)
         });
 
     set_values(input3, {
-            FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f),
-            FLOAT16(24.0f), FLOAT16(25.0f), FLOAT16(26.0f), FLOAT16(27.0f)
+            ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f),
+            ov::float16(24.0f), ov::float16(25.0f), ov::float16(26.0f), ov::float16(27.0f)
         });
 
     std::vector<float> expected_results = {
-        FLOAT16(24.0f), FLOAT16(25.0f), FLOAT16(26.0f), FLOAT16(27.0f),
-        FLOAT16(9.0f), FLOAT16(8.0f), FLOAT16(7.0f), FLOAT16(6.0f),
-        FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f),
+        ov::float16(24.0f), ov::float16(25.0f), ov::float16(26.0f), ov::float16(27.0f),
+        ov::float16(9.0f), ov::float16(8.0f), ov::float16(7.0f), ov::float16(6.0f),
+        ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f),
     };
 
     topology topology;
@@ -1601,15 +1598,15 @@ TEST(scatter_nd_update_gpu_fp16_test1, data1_indice1_update1) {
 
 
     set_values(input1, {
-        FLOAT16(9.0f), FLOAT16(8.0f), FLOAT16(7.0f), FLOAT16(6.0f), FLOAT16(5.0f), FLOAT16(4.0f), FLOAT16(3.0f), FLOAT16(2.0f)
+        ov::float16(9.0f), ov::float16(8.0f), ov::float16(7.0f), ov::float16(6.0f), ov::float16(5.0f), ov::float16(4.0f), ov::float16(3.0f), ov::float16(2.0f)
     });
 
     set_values(input2, {
-        FLOAT16(2.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(7.0f)
+        ov::float16(2.0f), ov::float16(4.0f), ov::float16(5.0f), ov::float16(7.0f)
     });
 
     set_values(input3, {
-        FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f), FLOAT16(13.0f)
+        ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f), ov::float16(13.0f)
     });
 
     std::vector<float> expected_results = {
@@ -1658,56 +1655,56 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2311) {
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // Updates
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f), FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f), FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f), FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f), FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f), FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f), FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f), ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f), ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f), ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f), ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f), ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f), ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
-        FLOAT16(136.f), FLOAT16(137.f), FLOAT16(138.f), FLOAT16(139.f), FLOAT16(140.f), FLOAT16(141.f),
-        FLOAT16(142.f), FLOAT16(143.f), FLOAT16(144.f), FLOAT16(145.f), FLOAT16(146.f), FLOAT16(147.f),
-        FLOAT16(148.f), FLOAT16(149.f), FLOAT16(150.f), FLOAT16(151.f), FLOAT16(152.f), FLOAT16(153.f),
-        FLOAT16(154.f), FLOAT16(155.f), FLOAT16(156.f), FLOAT16(157.f), FLOAT16(158.f), FLOAT16(159.f),
-        FLOAT16(160.f), FLOAT16(161.f), FLOAT16(162.f), FLOAT16(163.f), FLOAT16(164.f), FLOAT16(165.f),
-        FLOAT16(166.f), FLOAT16(167.f), FLOAT16(168.f), FLOAT16(169.f), FLOAT16(170.f), FLOAT16(171.f),
+        ov::float16(136.f), ov::float16(137.f), ov::float16(138.f), ov::float16(139.f), ov::float16(140.f), ov::float16(141.f),
+        ov::float16(142.f), ov::float16(143.f), ov::float16(144.f), ov::float16(145.f), ov::float16(146.f), ov::float16(147.f),
+        ov::float16(148.f), ov::float16(149.f), ov::float16(150.f), ov::float16(151.f), ov::float16(152.f), ov::float16(153.f),
+        ov::float16(154.f), ov::float16(155.f), ov::float16(156.f), ov::float16(157.f), ov::float16(158.f), ov::float16(159.f),
+        ov::float16(160.f), ov::float16(161.f), ov::float16(162.f), ov::float16(163.f), ov::float16(164.f), ov::float16(165.f),
+        ov::float16(166.f), ov::float16(167.f), ov::float16(168.f), ov::float16(169.f), ov::float16(170.f), ov::float16(171.f),
 
-        FLOAT16(172.f), FLOAT16(173.f), FLOAT16(174.f), FLOAT16(175.f), FLOAT16(176.f), FLOAT16(177.f),
-        FLOAT16(178.f), FLOAT16(179.f), FLOAT16(180.f), FLOAT16(181.f), FLOAT16(182.f), FLOAT16(183.f),
-        FLOAT16(184.f), FLOAT16(185.f), FLOAT16(186.f), FLOAT16(187.f), FLOAT16(188.f), FLOAT16(189.f),
-        FLOAT16(190.f), FLOAT16(191.f), FLOAT16(192.f), FLOAT16(193.f), FLOAT16(194.f), FLOAT16(195.f),
-        FLOAT16(196.f), FLOAT16(197.f), FLOAT16(198.f), FLOAT16(199.f), FLOAT16(200.f), FLOAT16(201.f),
-        FLOAT16(202.f), FLOAT16(203.f), FLOAT16(204.f), FLOAT16(205.f), FLOAT16(206.f), FLOAT16(207.f),
+        ov::float16(172.f), ov::float16(173.f), ov::float16(174.f), ov::float16(175.f), ov::float16(176.f), ov::float16(177.f),
+        ov::float16(178.f), ov::float16(179.f), ov::float16(180.f), ov::float16(181.f), ov::float16(182.f), ov::float16(183.f),
+        ov::float16(184.f), ov::float16(185.f), ov::float16(186.f), ov::float16(187.f), ov::float16(188.f), ov::float16(189.f),
+        ov::float16(190.f), ov::float16(191.f), ov::float16(192.f), ov::float16(193.f), ov::float16(194.f), ov::float16(195.f),
+        ov::float16(196.f), ov::float16(197.f), ov::float16(198.f), ov::float16(199.f), ov::float16(200.f), ov::float16(201.f),
+        ov::float16(202.f), ov::float16(203.f), ov::float16(204.f), ov::float16(205.f), ov::float16(206.f), ov::float16(207.f),
 
-        FLOAT16(208.f), FLOAT16(209.f), FLOAT16(210.f), FLOAT16(211.f), FLOAT16(212.f), FLOAT16(213.f),
-        FLOAT16(214.f), FLOAT16(215.f), FLOAT16(216.f), FLOAT16(217.f), FLOAT16(218.f), FLOAT16(219.f),
-        FLOAT16(220.f), FLOAT16(221.f), FLOAT16(222.f), FLOAT16(223.f), FLOAT16(224.f), FLOAT16(225.f),
-        FLOAT16(226.f), FLOAT16(227.f), FLOAT16(228.f), FLOAT16(229.f), FLOAT16(230.f), FLOAT16(231.f),
-        FLOAT16(232.f), FLOAT16(233.f), FLOAT16(234.f), FLOAT16(235.f), FLOAT16(236.f), FLOAT16(237.f),
-        FLOAT16(238.f), FLOAT16(239.f), FLOAT16(240.f), FLOAT16(241.f), FLOAT16(242.f), FLOAT16(243.f),
+        ov::float16(208.f), ov::float16(209.f), ov::float16(210.f), ov::float16(211.f), ov::float16(212.f), ov::float16(213.f),
+        ov::float16(214.f), ov::float16(215.f), ov::float16(216.f), ov::float16(217.f), ov::float16(218.f), ov::float16(219.f),
+        ov::float16(220.f), ov::float16(221.f), ov::float16(222.f), ov::float16(223.f), ov::float16(224.f), ov::float16(225.f),
+        ov::float16(226.f), ov::float16(227.f), ov::float16(228.f), ov::float16(229.f), ov::float16(230.f), ov::float16(231.f),
+        ov::float16(232.f), ov::float16(233.f), ov::float16(234.f), ov::float16(235.f), ov::float16(236.f), ov::float16(237.f),
+        ov::float16(238.f), ov::float16(239.f), ov::float16(240.f), ov::float16(241.f), ov::float16(242.f), ov::float16(243.f),
 
-        FLOAT16(244.f), FLOAT16(245.f), FLOAT16(246.f), FLOAT16(247.f), FLOAT16(248.f), FLOAT16(249.f),
-        FLOAT16(250.f), FLOAT16(251.f), FLOAT16(252.f), FLOAT16(253.f), FLOAT16(254.f), FLOAT16(255.f),
-        FLOAT16(256.f), FLOAT16(257.f), FLOAT16(258.f), FLOAT16(259.f), FLOAT16(260.f), FLOAT16(261.f),
-        FLOAT16(262.f), FLOAT16(263.f), FLOAT16(264.f), FLOAT16(265.f), FLOAT16(266.f), FLOAT16(267.f),
-        FLOAT16(268.f), FLOAT16(269.f), FLOAT16(270.f), FLOAT16(271.f), FLOAT16(272.f), FLOAT16(273.f),
-        FLOAT16(274.f), FLOAT16(275.f), FLOAT16(276.f), FLOAT16(277.f), FLOAT16(278.f), FLOAT16(279.f),
+        ov::float16(244.f), ov::float16(245.f), ov::float16(246.f), ov::float16(247.f), ov::float16(248.f), ov::float16(249.f),
+        ov::float16(250.f), ov::float16(251.f), ov::float16(252.f), ov::float16(253.f), ov::float16(254.f), ov::float16(255.f),
+        ov::float16(256.f), ov::float16(257.f), ov::float16(258.f), ov::float16(259.f), ov::float16(260.f), ov::float16(261.f),
+        ov::float16(262.f), ov::float16(263.f), ov::float16(264.f), ov::float16(265.f), ov::float16(266.f), ov::float16(267.f),
+        ov::float16(268.f), ov::float16(269.f), ov::float16(270.f), ov::float16(271.f), ov::float16(272.f), ov::float16(273.f),
+        ov::float16(274.f), ov::float16(275.f), ov::float16(276.f), ov::float16(277.f), ov::float16(278.f), ov::float16(279.f),
 
-        FLOAT16(280.f), FLOAT16(281.f), FLOAT16(282.f), FLOAT16(283.f), FLOAT16(284.f), FLOAT16(285.f),
-        FLOAT16(286.f), FLOAT16(287.f), FLOAT16(288.f), FLOAT16(289.f), FLOAT16(290.f), FLOAT16(291.f),
-        FLOAT16(292.f), FLOAT16(293.f), FLOAT16(294.f), FLOAT16(295.f), FLOAT16(296.f), FLOAT16(297.f),
-        FLOAT16(298.f), FLOAT16(299.f), FLOAT16(300.f), FLOAT16(301.f), FLOAT16(302.f), FLOAT16(303.f),
-        FLOAT16(304.f), FLOAT16(305.f), FLOAT16(306.f), FLOAT16(307.f), FLOAT16(308.f), FLOAT16(309.f),
-        FLOAT16(310.f), FLOAT16(311.f), FLOAT16(312.f), FLOAT16(313.f), FLOAT16(314.f), FLOAT16(315.f),
+        ov::float16(280.f), ov::float16(281.f), ov::float16(282.f), ov::float16(283.f), ov::float16(284.f), ov::float16(285.f),
+        ov::float16(286.f), ov::float16(287.f), ov::float16(288.f), ov::float16(289.f), ov::float16(290.f), ov::float16(291.f),
+        ov::float16(292.f), ov::float16(293.f), ov::float16(294.f), ov::float16(295.f), ov::float16(296.f), ov::float16(297.f),
+        ov::float16(298.f), ov::float16(299.f), ov::float16(300.f), ov::float16(301.f), ov::float16(302.f), ov::float16(303.f),
+        ov::float16(304.f), ov::float16(305.f), ov::float16(306.f), ov::float16(307.f), ov::float16(308.f), ov::float16(309.f),
+        ov::float16(310.f), ov::float16(311.f), ov::float16(312.f), ov::float16(313.f), ov::float16(314.f), ov::float16(315.f),
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f),
-        FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f),
+        ov::float16(3.0f), ov::float16(4.0f), ov::float16(5.0f)
         });
 
     set_values(input3, {
-        FLOAT16(999.0f), FLOAT16(888.0f)
+        ov::float16(999.0f), ov::float16(888.0f)
         });
 
 
@@ -1797,57 +1794,57 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2211) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f), FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f), FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f), FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f), FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f), FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f), FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f), ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f), ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f), ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f), ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f), ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f), ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
-        FLOAT16(136.f), FLOAT16(137.f), FLOAT16(138.f), FLOAT16(139.f), FLOAT16(140.f), FLOAT16(141.f),
-        FLOAT16(142.f), FLOAT16(143.f), FLOAT16(144.f), FLOAT16(145.f), FLOAT16(146.f), FLOAT16(147.f),
-        FLOAT16(148.f), FLOAT16(149.f), FLOAT16(150.f), FLOAT16(151.f), FLOAT16(152.f), FLOAT16(153.f),
-        FLOAT16(154.f), FLOAT16(155.f), FLOAT16(156.f), FLOAT16(157.f), FLOAT16(158.f), FLOAT16(159.f),
-        FLOAT16(160.f), FLOAT16(161.f), FLOAT16(162.f), FLOAT16(163.f), FLOAT16(164.f), FLOAT16(165.f),
-        FLOAT16(166.f), FLOAT16(167.f), FLOAT16(168.f), FLOAT16(169.f), FLOAT16(170.f), FLOAT16(171.f),
+        ov::float16(136.f), ov::float16(137.f), ov::float16(138.f), ov::float16(139.f), ov::float16(140.f), ov::float16(141.f),
+        ov::float16(142.f), ov::float16(143.f), ov::float16(144.f), ov::float16(145.f), ov::float16(146.f), ov::float16(147.f),
+        ov::float16(148.f), ov::float16(149.f), ov::float16(150.f), ov::float16(151.f), ov::float16(152.f), ov::float16(153.f),
+        ov::float16(154.f), ov::float16(155.f), ov::float16(156.f), ov::float16(157.f), ov::float16(158.f), ov::float16(159.f),
+        ov::float16(160.f), ov::float16(161.f), ov::float16(162.f), ov::float16(163.f), ov::float16(164.f), ov::float16(165.f),
+        ov::float16(166.f), ov::float16(167.f), ov::float16(168.f), ov::float16(169.f), ov::float16(170.f), ov::float16(171.f),
 
-        FLOAT16(172.f), FLOAT16(173.f), FLOAT16(174.f), FLOAT16(175.f), FLOAT16(176.f), FLOAT16(177.f),
-        FLOAT16(178.f), FLOAT16(179.f), FLOAT16(180.f), FLOAT16(181.f), FLOAT16(182.f), FLOAT16(183.f),
-        FLOAT16(184.f), FLOAT16(185.f), FLOAT16(186.f), FLOAT16(187.f), FLOAT16(188.f), FLOAT16(189.f),
-        FLOAT16(190.f), FLOAT16(191.f), FLOAT16(192.f), FLOAT16(193.f), FLOAT16(194.f), FLOAT16(195.f),
-        FLOAT16(196.f), FLOAT16(197.f), FLOAT16(198.f), FLOAT16(199.f), FLOAT16(200.f), FLOAT16(201.f),
-        FLOAT16(202.f), FLOAT16(203.f), FLOAT16(204.f), FLOAT16(205.f), FLOAT16(206.f), FLOAT16(207.f),
+        ov::float16(172.f), ov::float16(173.f), ov::float16(174.f), ov::float16(175.f), ov::float16(176.f), ov::float16(177.f),
+        ov::float16(178.f), ov::float16(179.f), ov::float16(180.f), ov::float16(181.f), ov::float16(182.f), ov::float16(183.f),
+        ov::float16(184.f), ov::float16(185.f), ov::float16(186.f), ov::float16(187.f), ov::float16(188.f), ov::float16(189.f),
+        ov::float16(190.f), ov::float16(191.f), ov::float16(192.f), ov::float16(193.f), ov::float16(194.f), ov::float16(195.f),
+        ov::float16(196.f), ov::float16(197.f), ov::float16(198.f), ov::float16(199.f), ov::float16(200.f), ov::float16(201.f),
+        ov::float16(202.f), ov::float16(203.f), ov::float16(204.f), ov::float16(205.f), ov::float16(206.f), ov::float16(207.f),
 
-        FLOAT16(208.f), FLOAT16(209.f), FLOAT16(210.f), FLOAT16(211.f), FLOAT16(212.f), FLOAT16(213.f),
-        FLOAT16(214.f), FLOAT16(215.f), FLOAT16(216.f), FLOAT16(217.f), FLOAT16(218.f), FLOAT16(219.f),
-        FLOAT16(220.f), FLOAT16(221.f), FLOAT16(222.f), FLOAT16(223.f), FLOAT16(224.f), FLOAT16(225.f),
-        FLOAT16(226.f), FLOAT16(227.f), FLOAT16(228.f), FLOAT16(229.f), FLOAT16(230.f), FLOAT16(231.f),
-        FLOAT16(232.f), FLOAT16(233.f), FLOAT16(234.f), FLOAT16(235.f), FLOAT16(236.f), FLOAT16(237.f),
-        FLOAT16(238.f), FLOAT16(239.f), FLOAT16(240.f), FLOAT16(241.f), FLOAT16(242.f), FLOAT16(243.f),
+        ov::float16(208.f), ov::float16(209.f), ov::float16(210.f), ov::float16(211.f), ov::float16(212.f), ov::float16(213.f),
+        ov::float16(214.f), ov::float16(215.f), ov::float16(216.f), ov::float16(217.f), ov::float16(218.f), ov::float16(219.f),
+        ov::float16(220.f), ov::float16(221.f), ov::float16(222.f), ov::float16(223.f), ov::float16(224.f), ov::float16(225.f),
+        ov::float16(226.f), ov::float16(227.f), ov::float16(228.f), ov::float16(229.f), ov::float16(230.f), ov::float16(231.f),
+        ov::float16(232.f), ov::float16(233.f), ov::float16(234.f), ov::float16(235.f), ov::float16(236.f), ov::float16(237.f),
+        ov::float16(238.f), ov::float16(239.f), ov::float16(240.f), ov::float16(241.f), ov::float16(242.f), ov::float16(243.f),
 
-        FLOAT16(244.f), FLOAT16(245.f), FLOAT16(246.f), FLOAT16(247.f), FLOAT16(248.f), FLOAT16(249.f),
-        FLOAT16(250.f), FLOAT16(251.f), FLOAT16(252.f), FLOAT16(253.f), FLOAT16(254.f), FLOAT16(255.f),
-        FLOAT16(256.f), FLOAT16(257.f), FLOAT16(258.f), FLOAT16(259.f), FLOAT16(260.f), FLOAT16(261.f),
-        FLOAT16(262.f), FLOAT16(263.f), FLOAT16(264.f), FLOAT16(265.f), FLOAT16(266.f), FLOAT16(267.f),
-        FLOAT16(268.f), FLOAT16(269.f), FLOAT16(270.f), FLOAT16(271.f), FLOAT16(272.f), FLOAT16(273.f),
-        FLOAT16(274.f), FLOAT16(275.f), FLOAT16(276.f), FLOAT16(277.f), FLOAT16(278.f), FLOAT16(279.f),
+        ov::float16(244.f), ov::float16(245.f), ov::float16(246.f), ov::float16(247.f), ov::float16(248.f), ov::float16(249.f),
+        ov::float16(250.f), ov::float16(251.f), ov::float16(252.f), ov::float16(253.f), ov::float16(254.f), ov::float16(255.f),
+        ov::float16(256.f), ov::float16(257.f), ov::float16(258.f), ov::float16(259.f), ov::float16(260.f), ov::float16(261.f),
+        ov::float16(262.f), ov::float16(263.f), ov::float16(264.f), ov::float16(265.f), ov::float16(266.f), ov::float16(267.f),
+        ov::float16(268.f), ov::float16(269.f), ov::float16(270.f), ov::float16(271.f), ov::float16(272.f), ov::float16(273.f),
+        ov::float16(274.f), ov::float16(275.f), ov::float16(276.f), ov::float16(277.f), ov::float16(278.f), ov::float16(279.f),
 
-        FLOAT16(280.f), FLOAT16(281.f), FLOAT16(282.f), FLOAT16(283.f), FLOAT16(284.f), FLOAT16(285.f),
-        FLOAT16(286.f), FLOAT16(287.f), FLOAT16(288.f), FLOAT16(289.f), FLOAT16(290.f), FLOAT16(291.f),
-        FLOAT16(292.f), FLOAT16(293.f), FLOAT16(294.f), FLOAT16(295.f), FLOAT16(296.f), FLOAT16(297.f),
-        FLOAT16(298.f), FLOAT16(299.f), FLOAT16(300.f), FLOAT16(301.f), FLOAT16(302.f), FLOAT16(303.f),
-        FLOAT16(304.f), FLOAT16(305.f), FLOAT16(306.f), FLOAT16(307.f), FLOAT16(308.f), FLOAT16(309.f),
-        FLOAT16(310.f), FLOAT16(311.f), FLOAT16(312.f), FLOAT16(313.f), FLOAT16(314.f), FLOAT16(315.f),
+        ov::float16(280.f), ov::float16(281.f), ov::float16(282.f), ov::float16(283.f), ov::float16(284.f), ov::float16(285.f),
+        ov::float16(286.f), ov::float16(287.f), ov::float16(288.f), ov::float16(289.f), ov::float16(290.f), ov::float16(291.f),
+        ov::float16(292.f), ov::float16(293.f), ov::float16(294.f), ov::float16(295.f), ov::float16(296.f), ov::float16(297.f),
+        ov::float16(298.f), ov::float16(299.f), ov::float16(300.f), ov::float16(301.f), ov::float16(302.f), ov::float16(303.f),
+        ov::float16(304.f), ov::float16(305.f), ov::float16(306.f), ov::float16(307.f), ov::float16(308.f), ov::float16(309.f),
+        ov::float16(310.f), ov::float16(311.f), ov::float16(312.f), ov::float16(313.f), ov::float16(314.f), ov::float16(315.f),
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f),
-        FLOAT16(3.0f), FLOAT16(4.0f),
+        ov::float16(0.0f), ov::float16(1.0f),
+        ov::float16(3.0f), ov::float16(4.0f),
         });
 
     set_values(input3, {
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f)
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f)
         });
 
     topology topology;
@@ -1936,68 +1933,68 @@ TEST(scatter_nd_update_gpu_fp16, d6661_i2111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f), FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f), FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f), FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f), FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f), FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f), FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f), ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f), ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f), ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f), ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f), ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f), ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
-        FLOAT16(136.f), FLOAT16(137.f), FLOAT16(138.f), FLOAT16(139.f), FLOAT16(140.f), FLOAT16(141.f),
-        FLOAT16(142.f), FLOAT16(143.f), FLOAT16(144.f), FLOAT16(145.f), FLOAT16(146.f), FLOAT16(147.f),
-        FLOAT16(148.f), FLOAT16(149.f), FLOAT16(150.f), FLOAT16(151.f), FLOAT16(152.f), FLOAT16(153.f),
-        FLOAT16(154.f), FLOAT16(155.f), FLOAT16(156.f), FLOAT16(157.f), FLOAT16(158.f), FLOAT16(159.f),
-        FLOAT16(160.f), FLOAT16(161.f), FLOAT16(162.f), FLOAT16(163.f), FLOAT16(164.f), FLOAT16(165.f),
-        FLOAT16(166.f), FLOAT16(167.f), FLOAT16(168.f), FLOAT16(169.f), FLOAT16(170.f), FLOAT16(171.f),
+        ov::float16(136.f), ov::float16(137.f), ov::float16(138.f), ov::float16(139.f), ov::float16(140.f), ov::float16(141.f),
+        ov::float16(142.f), ov::float16(143.f), ov::float16(144.f), ov::float16(145.f), ov::float16(146.f), ov::float16(147.f),
+        ov::float16(148.f), ov::float16(149.f), ov::float16(150.f), ov::float16(151.f), ov::float16(152.f), ov::float16(153.f),
+        ov::float16(154.f), ov::float16(155.f), ov::float16(156.f), ov::float16(157.f), ov::float16(158.f), ov::float16(159.f),
+        ov::float16(160.f), ov::float16(161.f), ov::float16(162.f), ov::float16(163.f), ov::float16(164.f), ov::float16(165.f),
+        ov::float16(166.f), ov::float16(167.f), ov::float16(168.f), ov::float16(169.f), ov::float16(170.f), ov::float16(171.f),
 
-        FLOAT16(172.f), FLOAT16(173.f), FLOAT16(174.f), FLOAT16(175.f), FLOAT16(176.f), FLOAT16(177.f),
-        FLOAT16(178.f), FLOAT16(179.f), FLOAT16(180.f), FLOAT16(181.f), FLOAT16(182.f), FLOAT16(183.f),
-        FLOAT16(184.f), FLOAT16(185.f), FLOAT16(186.f), FLOAT16(187.f), FLOAT16(188.f), FLOAT16(189.f),
-        FLOAT16(190.f), FLOAT16(191.f), FLOAT16(192.f), FLOAT16(193.f), FLOAT16(194.f), FLOAT16(195.f),
-        FLOAT16(196.f), FLOAT16(197.f), FLOAT16(198.f), FLOAT16(199.f), FLOAT16(200.f), FLOAT16(201.f),
-        FLOAT16(202.f), FLOAT16(203.f), FLOAT16(204.f), FLOAT16(205.f), FLOAT16(206.f), FLOAT16(207.f),
+        ov::float16(172.f), ov::float16(173.f), ov::float16(174.f), ov::float16(175.f), ov::float16(176.f), ov::float16(177.f),
+        ov::float16(178.f), ov::float16(179.f), ov::float16(180.f), ov::float16(181.f), ov::float16(182.f), ov::float16(183.f),
+        ov::float16(184.f), ov::float16(185.f), ov::float16(186.f), ov::float16(187.f), ov::float16(188.f), ov::float16(189.f),
+        ov::float16(190.f), ov::float16(191.f), ov::float16(192.f), ov::float16(193.f), ov::float16(194.f), ov::float16(195.f),
+        ov::float16(196.f), ov::float16(197.f), ov::float16(198.f), ov::float16(199.f), ov::float16(200.f), ov::float16(201.f),
+        ov::float16(202.f), ov::float16(203.f), ov::float16(204.f), ov::float16(205.f), ov::float16(206.f), ov::float16(207.f),
 
-        FLOAT16(208.f), FLOAT16(209.f), FLOAT16(210.f), FLOAT16(211.f), FLOAT16(212.f), FLOAT16(213.f),
-        FLOAT16(214.f), FLOAT16(215.f), FLOAT16(216.f), FLOAT16(217.f), FLOAT16(218.f), FLOAT16(219.f),
-        FLOAT16(220.f), FLOAT16(221.f), FLOAT16(222.f), FLOAT16(223.f), FLOAT16(224.f), FLOAT16(225.f),
-        FLOAT16(226.f), FLOAT16(227.f), FLOAT16(228.f), FLOAT16(229.f), FLOAT16(230.f), FLOAT16(231.f),
-        FLOAT16(232.f), FLOAT16(233.f), FLOAT16(234.f), FLOAT16(235.f), FLOAT16(236.f), FLOAT16(237.f),
-        FLOAT16(238.f), FLOAT16(239.f), FLOAT16(240.f), FLOAT16(241.f), FLOAT16(242.f), FLOAT16(243.f),
+        ov::float16(208.f), ov::float16(209.f), ov::float16(210.f), ov::float16(211.f), ov::float16(212.f), ov::float16(213.f),
+        ov::float16(214.f), ov::float16(215.f), ov::float16(216.f), ov::float16(217.f), ov::float16(218.f), ov::float16(219.f),
+        ov::float16(220.f), ov::float16(221.f), ov::float16(222.f), ov::float16(223.f), ov::float16(224.f), ov::float16(225.f),
+        ov::float16(226.f), ov::float16(227.f), ov::float16(228.f), ov::float16(229.f), ov::float16(230.f), ov::float16(231.f),
+        ov::float16(232.f), ov::float16(233.f), ov::float16(234.f), ov::float16(235.f), ov::float16(236.f), ov::float16(237.f),
+        ov::float16(238.f), ov::float16(239.f), ov::float16(240.f), ov::float16(241.f), ov::float16(242.f), ov::float16(243.f),
 
-        FLOAT16(244.f), FLOAT16(245.f), FLOAT16(246.f), FLOAT16(247.f), FLOAT16(248.f), FLOAT16(249.f),
-        FLOAT16(250.f), FLOAT16(251.f), FLOAT16(252.f), FLOAT16(253.f), FLOAT16(254.f), FLOAT16(255.f),
-        FLOAT16(256.f), FLOAT16(257.f), FLOAT16(258.f), FLOAT16(259.f), FLOAT16(260.f), FLOAT16(261.f),
-        FLOAT16(262.f), FLOAT16(263.f), FLOAT16(264.f), FLOAT16(265.f), FLOAT16(266.f), FLOAT16(267.f),
-        FLOAT16(268.f), FLOAT16(269.f), FLOAT16(270.f), FLOAT16(271.f), FLOAT16(272.f), FLOAT16(273.f),
-        FLOAT16(274.f), FLOAT16(275.f), FLOAT16(276.f), FLOAT16(277.f), FLOAT16(278.f), FLOAT16(279.f),
+        ov::float16(244.f), ov::float16(245.f), ov::float16(246.f), ov::float16(247.f), ov::float16(248.f), ov::float16(249.f),
+        ov::float16(250.f), ov::float16(251.f), ov::float16(252.f), ov::float16(253.f), ov::float16(254.f), ov::float16(255.f),
+        ov::float16(256.f), ov::float16(257.f), ov::float16(258.f), ov::float16(259.f), ov::float16(260.f), ov::float16(261.f),
+        ov::float16(262.f), ov::float16(263.f), ov::float16(264.f), ov::float16(265.f), ov::float16(266.f), ov::float16(267.f),
+        ov::float16(268.f), ov::float16(269.f), ov::float16(270.f), ov::float16(271.f), ov::float16(272.f), ov::float16(273.f),
+        ov::float16(274.f), ov::float16(275.f), ov::float16(276.f), ov::float16(277.f), ov::float16(278.f), ov::float16(279.f),
 
-        FLOAT16(280.f), FLOAT16(281.f), FLOAT16(282.f), FLOAT16(283.f), FLOAT16(284.f), FLOAT16(285.f),
-        FLOAT16(286.f), FLOAT16(287.f), FLOAT16(288.f), FLOAT16(289.f), FLOAT16(290.f), FLOAT16(291.f),
-        FLOAT16(292.f), FLOAT16(293.f), FLOAT16(294.f), FLOAT16(295.f), FLOAT16(296.f), FLOAT16(297.f),
-        FLOAT16(298.f), FLOAT16(299.f), FLOAT16(300.f), FLOAT16(301.f), FLOAT16(302.f), FLOAT16(303.f),
-        FLOAT16(304.f), FLOAT16(305.f), FLOAT16(306.f), FLOAT16(307.f), FLOAT16(308.f), FLOAT16(309.f),
-        FLOAT16(310.f), FLOAT16(311.f), FLOAT16(312.f), FLOAT16(313.f), FLOAT16(314.f), FLOAT16(315.f),
+        ov::float16(280.f), ov::float16(281.f), ov::float16(282.f), ov::float16(283.f), ov::float16(284.f), ov::float16(285.f),
+        ov::float16(286.f), ov::float16(287.f), ov::float16(288.f), ov::float16(289.f), ov::float16(290.f), ov::float16(291.f),
+        ov::float16(292.f), ov::float16(293.f), ov::float16(294.f), ov::float16(295.f), ov::float16(296.f), ov::float16(297.f),
+        ov::float16(298.f), ov::float16(299.f), ov::float16(300.f), ov::float16(301.f), ov::float16(302.f), ov::float16(303.f),
+        ov::float16(304.f), ov::float16(305.f), ov::float16(306.f), ov::float16(307.f), ov::float16(308.f), ov::float16(309.f),
+        ov::float16(310.f), ov::float16(311.f), ov::float16(312.f), ov::float16(313.f), ov::float16(314.f), ov::float16(315.f),
         });
 
     set_values(input2, {
-        FLOAT16(0.0f),
-        FLOAT16(3.0f)
+        ov::float16(0.0f),
+        ov::float16(3.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(777.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(777.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(777.0f), FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(777.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(777.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(777.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(777.0f), ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(777.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f), ov::float16(777.0f),
 
-        FLOAT16(666.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f),
-        FLOAT16(888.0f), FLOAT16(666.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f),
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(666.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f),
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(666.0f), FLOAT16(888.0f), FLOAT16(888.0f),
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(666.0f), FLOAT16(888.0f),
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(666.0f),
+        ov::float16(666.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f),
+        ov::float16(888.0f), ov::float16(666.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(666.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(666.0f), ov::float16(888.0f), ov::float16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(666.0f), ov::float16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f), ov::float16(666.0f),
         });
 
     topology topology;
@@ -2087,38 +2084,38 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2411) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),
-        FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),
+        ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f),
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f),
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),
-        FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),
+        ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f),
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f),
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),
-        FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),
+        ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f),
-        FLOAT16(132.f), FLOAT16(133.f),
-        FLOAT16(134.f), FLOAT16(135.f)
+        ov::float16(130.f), ov::float16(131.f),
+        ov::float16(132.f), ov::float16(133.f),
+        ov::float16(134.f), ov::float16(135.f)
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(1.0f),
-        FLOAT16(2.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(1.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(1.0f),
+        ov::float16(2.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(1.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(999.0f)
+        ov::float16(777.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -2190,38 +2187,38 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2311) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),
-        FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),
+        ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f),
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f),
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),
-        FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),
+        ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f),
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f),
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),
-        FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),
+        ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f),
-        FLOAT16(132.f), FLOAT16(133.f),
-        FLOAT16(134.f), FLOAT16(135.f)
+        ov::float16(130.f), ov::float16(131.f),
+        ov::float16(132.f), ov::float16(133.f),
+        ov::float16(134.f), ov::float16(135.f)
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f),
-        FLOAT16(2.0f), FLOAT16(1.0f), FLOAT16(2.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f),
+        ov::float16(2.0f), ov::float16(1.0f), ov::float16(2.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(777.0f), FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(777.0f), ov::float16(777.0f), ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -2293,44 +2290,44 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2211) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),
-        FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),
+        ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f),
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f),
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),
-        FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),
+        ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f),
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f),
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),
-        FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),
+        ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f),
-        FLOAT16(132.f), FLOAT16(133.f),
-        FLOAT16(134.f), FLOAT16(135.f)
+        ov::float16(130.f), ov::float16(131.f),
+        ov::float16(132.f), ov::float16(133.f),
+        ov::float16(134.f), ov::float16(135.f)
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f),
-        FLOAT16(2.0f), FLOAT16(1.0f)
+        ov::float16(0.0f), ov::float16(1.0f),
+        ov::float16(2.0f), ov::float16(1.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -2402,52 +2399,52 @@ TEST(scatter_nd_update_gpu_fp16, d3232_i2111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),
-        FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),
+        ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f),
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f),
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),
-        FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),
+        ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f),
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f),
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),
-        FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),
+        ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f),
-        FLOAT16(132.f), FLOAT16(133.f),
-        FLOAT16(134.f), FLOAT16(135.f)
+        ov::float16(130.f), ov::float16(131.f),
+        ov::float16(132.f), ov::float16(133.f),
+        ov::float16(134.f), ov::float16(135.f)
         });
 
     set_values(input2, {
-        FLOAT16(0.0f),
-        FLOAT16(2.0f)
+        ov::float16(0.0f),
+        ov::float16(2.0f)
         });
 
     set_values(input3, {
-        FLOAT16(666.0f), FLOAT16(666.0f),
-        FLOAT16(666.0f), FLOAT16(666.0f),
-        FLOAT16(666.0f), FLOAT16(666.0f),
+        ov::float16(666.0f), ov::float16(666.0f),
+        ov::float16(666.0f), ov::float16(666.0f),
+        ov::float16(666.0f), ov::float16(666.0f),
 
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(888.0f), FLOAT16(888.0f),
-        FLOAT16(888.0f), FLOAT16(888.0f),
-        FLOAT16(888.0f), FLOAT16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -2518,70 +2515,70 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i25111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
         // 2
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
         // 3
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f)
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f)
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(2.0f),
-        FLOAT16(2.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(2.0f),
+        ov::float16(2.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(999.0f)
+        ov::float16(777.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -2685,71 +2682,71 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i24111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
         // 2
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
         // 3
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f)
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f)
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f),
-        FLOAT16(2.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f),
+        ov::float16(2.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(777.0f), ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -2853,74 +2850,74 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i23111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
         // 2
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
         // 3
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f)
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f)
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(1.0f),
-        FLOAT16(2.0f), FLOAT16(1.0f), FLOAT16(1.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(1.0f),
+        ov::float16(2.0f), ov::float16(1.0f), ov::float16(1.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -3024,86 +3021,86 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i22111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
         // 2
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
         // 3
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f)
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f)
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f),
-        FLOAT16(2.0f), FLOAT16(1.0f)
+        ov::float16(0.0f), ov::float16(1.0f),
+        ov::float16(2.0f), ov::float16(1.0f)
         });
 
     set_values(input3, {
-        FLOAT16(555.0f), FLOAT16(555.0f), FLOAT16(555.0f),
-        FLOAT16(555.0f), FLOAT16(555.0f), FLOAT16(555.0f),
+        ov::float16(555.0f), ov::float16(555.0f), ov::float16(555.0f),
+        ov::float16(555.0f), ov::float16(555.0f), ov::float16(555.0f),
 
-        FLOAT16(666.0f), FLOAT16(666.0f), FLOAT16(666.0f),
-        FLOAT16(666.0f), FLOAT16(666.0f), FLOAT16(666.0f),
+        ov::float16(666.0f), ov::float16(666.0f), ov::float16(666.0f),
+        ov::float16(666.0f), ov::float16(666.0f), ov::float16(666.0f),
 
-        FLOAT16(444.0f), FLOAT16(444.0f), FLOAT16(444.0f),
-        FLOAT16(444.0f), FLOAT16(444.0f), FLOAT16(444.0f),
+        ov::float16(444.0f), ov::float16(444.0f), ov::float16(444.0f),
+        ov::float16(444.0f), ov::float16(444.0f), ov::float16(444.0f),
 
-        FLOAT16(777.0f), FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f),
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -3207,104 +3204,104 @@ TEST(scatter_nd_update_gpu_fp16, d32323_i21111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
         // 2
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f),
 
         // 3
-        FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f),
-        FLOAT16(103.f), FLOAT16(104.f), FLOAT16(105.f),
+        ov::float16(100.f), ov::float16(101.f), ov::float16(102.f),
+        ov::float16(103.f), ov::float16(104.f), ov::float16(105.f),
 
-        FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f),
-        FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(106.f), ov::float16(107.f), ov::float16(108.f),
+        ov::float16(109.f), ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f), FLOAT16(114.f),
-        FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f),
+        ov::float16(112.f), ov::float16(113.f), ov::float16(114.f),
+        ov::float16(115.f), ov::float16(116.f), ov::float16(117.f),
 
-        FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f),
-        FLOAT16(127.f), FLOAT16(128.f), FLOAT16(129.f),
+        ov::float16(124.f), ov::float16(125.f), ov::float16(126.f),
+        ov::float16(127.f), ov::float16(128.f), ov::float16(129.f),
 
-        FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f),
-        FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f)
+        ov::float16(130.f), ov::float16(131.f), ov::float16(132.f),
+        ov::float16(133.f), ov::float16(134.f), ov::float16(135.f)
         });
 
     set_values(input2, {
-        FLOAT16(0.0f),
-        FLOAT16(2.0f)
+        ov::float16(0.0f),
+        ov::float16(2.0f)
         });
 
     set_values(input3, {
-        FLOAT16(555.0f), FLOAT16(555.0f), FLOAT16(555.0f),
-        FLOAT16(555.0f), FLOAT16(555.0f), FLOAT16(555.0f),
+        ov::float16(555.0f), ov::float16(555.0f), ov::float16(555.0f),
+        ov::float16(555.0f), ov::float16(555.0f), ov::float16(555.0f),
 
-        FLOAT16(666.0f), FLOAT16(666.0f), FLOAT16(666.0f),
-        FLOAT16(666.0f), FLOAT16(666.0f), FLOAT16(666.0f),
+        ov::float16(666.0f), ov::float16(666.0f), ov::float16(666.0f),
+        ov::float16(666.0f), ov::float16(666.0f), ov::float16(666.0f),
 
-        FLOAT16(444.0f), FLOAT16(444.0f), FLOAT16(444.0f),
-        FLOAT16(444.0f), FLOAT16(444.0f), FLOAT16(444.0f),
+        ov::float16(444.0f), ov::float16(444.0f), ov::float16(444.0f),
+        ov::float16(444.0f), ov::float16(444.0f), ov::float16(444.0f),
 
-        FLOAT16(555.0f), FLOAT16(555.0f), FLOAT16(555.0f),
-        FLOAT16(555.0f), FLOAT16(555.0f), FLOAT16(555.0f),
+        ov::float16(555.0f), ov::float16(555.0f), ov::float16(555.0f),
+        ov::float16(555.0f), ov::float16(555.0f), ov::float16(555.0f),
 
-        FLOAT16(666.0f), FLOAT16(666.0f), FLOAT16(666.0f),
-        FLOAT16(666.0f), FLOAT16(666.0f), FLOAT16(666.0f),
+        ov::float16(666.0f), ov::float16(666.0f), ov::float16(666.0f),
+        ov::float16(666.0f), ov::float16(666.0f), ov::float16(666.0f),
 
-        FLOAT16(444.0f), FLOAT16(444.0f), FLOAT16(444.0f),
-        FLOAT16(444.0f), FLOAT16(444.0f), FLOAT16(444.0f),
+        ov::float16(444.0f), ov::float16(444.0f), ov::float16(444.0f),
+        ov::float16(444.0f), ov::float16(444.0f), ov::float16(444.0f),
 
-        FLOAT16(777.0f), FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f),
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f),
 
-        FLOAT16(777.0f), FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f),
-        FLOAT16(888.0f), FLOAT16(888.0f), FLOAT16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f),
+        ov::float16(888.0f), ov::float16(888.0f), ov::float16(888.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -3409,62 +3406,62 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i261111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),
 
-        FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f),//1
+        ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f),//1
 
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),//2
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),//2
 
-        FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f),
+        ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f),
 
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),//3
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),//3
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),
 
-        FLOAT16(128.f), FLOAT16(129.f),
-        FLOAT16(130.f), FLOAT16(131.f),//4
+        ov::float16(128.f), ov::float16(129.f),
+        ov::float16(130.f), ov::float16(131.f),//4
 
-        FLOAT16(132.f), FLOAT16(133.f),
-        FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(132.f), ov::float16(133.f),
+        ov::float16(134.f), ov::float16(135.f),
 
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),//5
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),//5
 
-        FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f),
+        ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f),
 
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),//6
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),//6
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),
 
-        FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f),//7
+        ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f),//7
 
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),//8
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),//8
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(0.0f),
-        FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(0.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(0.0f),
+        ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(0.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(999.0f)
+        ov::float16(777.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -3561,63 +3558,63 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i251111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),
 
-        FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f),//1
+        ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f),//1
 
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),//2
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),//2
 
-        FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f),
+        ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f),
 
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),//3
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),//3
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),
 
-        FLOAT16(128.f), FLOAT16(129.f),
-        FLOAT16(130.f), FLOAT16(131.f),//4
+        ov::float16(128.f), ov::float16(129.f),
+        ov::float16(130.f), ov::float16(131.f),//4
 
-        FLOAT16(132.f), FLOAT16(133.f),
-        FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(132.f), ov::float16(133.f),
+        ov::float16(134.f), ov::float16(135.f),
 
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),//5
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),//5
 
-        FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f),
+        ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f),
 
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),//6
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),//6
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),
 
-        FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f),//7
+        ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f),//7
 
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),//8
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),//8
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f),
-        FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f),
+        ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -3714,66 +3711,66 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i241111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),
 
-        FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f),//1
+        ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f),//1
 
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),//2
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),//2
 
-        FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f),
+        ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f),
 
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),//3
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),//3
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),
 
-        FLOAT16(128.f), FLOAT16(129.f),
-        FLOAT16(130.f), FLOAT16(131.f),//4
+        ov::float16(128.f), ov::float16(129.f),
+        ov::float16(130.f), ov::float16(131.f),//4
 
-        FLOAT16(132.f), FLOAT16(133.f),
-        FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(132.f), ov::float16(133.f),
+        ov::float16(134.f), ov::float16(135.f),
 
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),//5
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),//5
 
-        FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f),
+        ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f),
 
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),//6
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),//6
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),
 
-        FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f),//7
+        ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f),//7
 
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),//8
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),//8
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f),
-        FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f),
+        ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -3871,72 +3868,72 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i231111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),
 
-        FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f),//1
+        ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f),//1
 
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),//2
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),//2
 
-        FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f),
+        ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f),
 
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),//3
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),//3
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),
 
-        FLOAT16(128.f), FLOAT16(129.f),
-        FLOAT16(130.f), FLOAT16(131.f),//4
+        ov::float16(128.f), ov::float16(129.f),
+        ov::float16(130.f), ov::float16(131.f),//4
 
-        FLOAT16(132.f), FLOAT16(133.f),
-        FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(132.f), ov::float16(133.f),
+        ov::float16(134.f), ov::float16(135.f),
 
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),//5
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),//5
 
-        FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f),
+        ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f),
 
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),//6
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),//6
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),
 
-        FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f),//7
+        ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f),//7
 
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),//8
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),//8
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(1.0f),
-        FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(1.0f),
+        ov::float16(1.0f), ov::float16(1.0f), ov::float16(1.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -4033,84 +4030,84 @@ TEST(scatter_nd_update_gpu_fp16, d222222_i221111) {
 
 
     set_values(input1, {
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),
 
-        FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f),//1
+        ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f),//1
 
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),//2
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),//2
 
-        FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f),
+        ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f),
 
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),//3
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),//3
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),
 
-        FLOAT16(128.f), FLOAT16(129.f),
-        FLOAT16(130.f), FLOAT16(131.f),//4
+        ov::float16(128.f), ov::float16(129.f),
+        ov::float16(130.f), ov::float16(131.f),//4
 
-        FLOAT16(132.f), FLOAT16(133.f),
-        FLOAT16(134.f), FLOAT16(135.f),
+        ov::float16(132.f), ov::float16(133.f),
+        ov::float16(134.f), ov::float16(135.f),
 
-        FLOAT16(100.f), FLOAT16(101.f),
-        FLOAT16(102.f), FLOAT16(103.f),//5
+        ov::float16(100.f), ov::float16(101.f),
+        ov::float16(102.f), ov::float16(103.f),//5
 
-        FLOAT16(104.f), FLOAT16(105.f),
-        FLOAT16(106.f), FLOAT16(107.f),
+        ov::float16(104.f), ov::float16(105.f),
+        ov::float16(106.f), ov::float16(107.f),
 
-        FLOAT16(108.f), FLOAT16(109.f),
-        FLOAT16(110.f), FLOAT16(111.f),//6
+        ov::float16(108.f), ov::float16(109.f),
+        ov::float16(110.f), ov::float16(111.f),//6
 
-        FLOAT16(112.f), FLOAT16(113.f),
-        FLOAT16(114.f), FLOAT16(115.f),
+        ov::float16(112.f), ov::float16(113.f),
+        ov::float16(114.f), ov::float16(115.f),
 
-        FLOAT16(116.f), FLOAT16(117.f),
-        FLOAT16(118.f), FLOAT16(119.f),//7
+        ov::float16(116.f), ov::float16(117.f),
+        ov::float16(118.f), ov::float16(119.f),//7
 
-        FLOAT16(120.f), FLOAT16(121.f),
-        FLOAT16(122.f), FLOAT16(123.f),
+        ov::float16(120.f), ov::float16(121.f),
+        ov::float16(122.f), ov::float16(123.f),
 
-        FLOAT16(124.f), FLOAT16(125.f),
-        FLOAT16(126.f), FLOAT16(127.f),//8
+        ov::float16(124.f), ov::float16(125.f),
+        ov::float16(126.f), ov::float16(127.f),//8
         });
 
     set_values(input2, {
-        FLOAT16(0.0f), FLOAT16(1.0f),
-        FLOAT16(1.0f), FLOAT16(1.0f)
+        ov::float16(0.0f), ov::float16(1.0f),
+        ov::float16(1.0f), ov::float16(1.0f)
         });
 
     set_values(input3, {
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(777.0f), FLOAT16(777.0f),
-        FLOAT16(777.0f), FLOAT16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
+        ov::float16(777.0f), ov::float16(777.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f),
 
-        FLOAT16(999.0f), FLOAT16(999.0f),
-        FLOAT16(999.0f), FLOAT16(999.0f)
+        ov::float16(999.0f), ov::float16(999.0f),
+        ov::float16(999.0f), ov::float16(999.0f)
         });
 
     topology topology;
@@ -4387,7 +4384,7 @@ void test_d222222_i211111(bool is_caching_test) {
 }
 
 TEST(scatter_nd_update_gpu_fp16, d222222_i211111) {
-    test_d222222_i211111<FLOAT16>(false);
+    test_d222222_i211111<ov::float16>(false);
 }
 
 TEST(scatter_nd_update_gpu, dynamic) {
@@ -4461,7 +4458,71 @@ TEST(scatter_nd_update_gpu, dynamic) {
     }
 }
 
+
+TEST(scatter_nd_update_gpu, dynamic_padded_output) {
+    //  Dictionary : 2x1x2x8
+    //  Indexes : 0x3
+    //  Updates : 0x8
+    //  Output : 2x1x2x8
+    //  Input values in fp32
+    //
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto input2_layout = layout{ ov::PartialShape::dynamic(2), data_types::f32, format::bfyx };
+    auto input3_layout = layout{ ov::PartialShape::dynamic(2), data_types::f32, format::bfyx };
+
+    auto input1 = engine.allocate_memory({ { 1, 1, 2, 8 }, data_types::f32, format::bfyx }); // Dictionary
+    auto input2 = engine.allocate_memory({ { 0, 3 },       data_types::f32, format::bfyx }); // Indexes
+    auto input3 = engine.allocate_memory({ { 0, 8 },       data_types::f32, format::bfyx }); // Updates
+
+    set_values(input1, {
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f,
+        8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f,
+    });
+
+    topology topology;
+    topology.add(input_layout("InputData", input1_layout));
+    topology.add(input_layout("InputIndices", input2_layout));
+    topology.add(input_layout("InputUpdates", input3_layout));
+    topology.add(
+        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2, padding({0, 0, 1, 1}))
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputData", input1);
+    network.set_input_data("InputIndices", input2);
+    network.set_input_data("InputUpdates", input3);
+
+    auto inst = network.get_primitive("scatter_nd_update");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("scatter_nd_update").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        0.f, 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 0.f,
+        0.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 0.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
 TEST(scatter_nd_update_gpu, dynamic_5d) {
+    tests::random_generator rg(std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+                               std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+
     auto& engine = get_test_engine();
 
     auto input1_layout = layout{{ 8, -1, -1, 384}, data_types::f32, format::bfyx };
@@ -4474,7 +4535,7 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
     topology.add(input_layout("updates", input3_layout));
     topology.add(scatter_nd_update("scatter_nd_update", input_info("data"), input_info("indices"), input_info("updates"), 5));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
@@ -4486,19 +4547,19 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
                                ov::Shape updates_shape) -> std::vector<float> {
         size_t count = std::accumulate(input_shape.begin(), input_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         auto outputs_ref = std::vector<float>(count);
-        ngraph::runtime::reference::scatterNdUpdate<float, int32_t>(input.data(),
-                                                                    indices.data(),
-                                                                    updates.data(),
-                                                                    outputs_ref.data(),
-                                                                    input_shape,
-                                                                    indices_shape,
-                                                                    updates_shape);
+        ov::reference::scatterNdUpdate<float, int32_t>(input.data(),
+                                                       indices.data(),
+                                                       updates.data(),
+                                                       outputs_ref.data(),
+                                                       input_shape,
+                                                       indices_shape,
+                                                       updates_shape);
 
         return outputs_ref;
     };
 
 
-    auto generate_unique_indices = [](ov::Shape data_shape, ov::Shape indices_shape) -> std::vector<int32_t>{
+    auto generate_unique_indices = [&rg](ov::Shape data_shape, ov::Shape indices_shape) -> std::vector<int32_t>{
         std::set<std::vector<int32_t>> unique_indices;
         std::vector<int32_t> result;
         size_t last_indices_dim = indices_shape.at(indices_shape.size() - 1);
@@ -4513,7 +4574,7 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
             for (size_t i = 0; i < last_indices_dim; i++) {
                 const int min = 0;
                 const int max = static_cast<int>(data_shape[i]) - 1;
-                indices.push_back(static_cast<int32_t>(generate_random_val<int>(min, max)));
+                indices.push_back(static_cast<int32_t>(rg.generate_random_val<int>(min, max)));
             }
 
             unique_indices.insert(indices);
@@ -4541,9 +4602,9 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
         auto input2 = engine.allocate_memory({ in2_shape, data_types::i32, format::bfzyx }); // Indexes
         auto input3 = engine.allocate_memory({ in3_shape, data_types::f32, format::bfyx });  // Updates
 
-        std::vector<float> input_data = generate_random_1d<float>(input1->count(), 1, 100);
+        std::vector<float> input_data = rg.generate_random_1d<float>(input1->count(), 1, 100);
         std::vector<int32_t> indices = generate_unique_indices(in1_shape, in2_shape);
-        std::vector<float> updates = generate_random_1d<float>(input3->count(), 100, 200);
+        std::vector<float> updates = rg.generate_random_1d<float>(input3->count(), 100, 200);
         auto expected_res = get_expected_res(input_data, indices, updates, in1_shape, in2_shape, in3_shape);
 
         set_values<float>(input1, input_data);
@@ -4584,13 +4645,13 @@ TEST_P(scatter_nd_update_random_test, random_cached)
     else if (param.input_type == data_types::i64)
         this->execute<int64_t>(param, true);
     else if (param.input_type == data_types::f16)
-        this->execute_fp16<FLOAT16, uint16_t>(param, true);
+        this->execute_fp16<ov::float16, uint16_t>(param, true);
     else if (param.input_type == data_types::f32)
         this->execute<float>(param, true);
     else
-        IE_THROW() << "unidentified data type";
+        OPENVINO_THROW("unidentified data type");
 }
 #endif
 TEST(scatter_nd_update_gpu_fp16, d222222_i211111_cached) {
-    test_d222222_i211111<FLOAT16>(true);
+    test_d222222_i211111<ov::float16>(true);
 }

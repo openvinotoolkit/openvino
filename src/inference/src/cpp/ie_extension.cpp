@@ -31,10 +31,9 @@ std::shared_ptr<T> CreateExtensionFromLibrary(std::shared_ptr<void> _so) {
             ResponseDesc desc;
             StatusCode sts = reinterpret_cast<CreateF*>(create)(object, &desc);
             if (sts != OK) {
-                IE_EXCEPTION_SWITCH(
-                    sts,
-                    ExceptionType,
-                    details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << desc.msg)
+                IE_EXCEPTION_SWITCH(sts,
+                                    ExceptionType,
+                                    details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << desc.msg)
             }
             IE_SUPPRESS_DEPRECATED_START
             _ptr = std::shared_ptr<T>(object, [](T* ptr) {

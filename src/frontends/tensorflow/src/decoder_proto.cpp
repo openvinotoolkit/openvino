@@ -4,11 +4,12 @@
 
 #include "decoder_proto.hpp"
 
-#include "attr_value.pb.h"
-#include "node_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/special_types.hpp"
-#include "types.pb.h"
+#include "ov_tensorflow/attr_value.pb.h"
+#include "ov_tensorflow/node_def.pb.h"
+#include "ov_tensorflow/types.pb.h"
+#include "tf_utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -81,24 +82,6 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
 #    pragma warning(pop)
 #endif
 }  // namespace
-
-ov::element::Type get_ov_type(const ::tensorflow::DataType& type) {
-    static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
-        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-        {::tensorflow::DataType::DT_INT16, ov::element::i16},
-        {::tensorflow::DataType::DT_INT32, ov::element::i32},
-        {::tensorflow::DataType::DT_INT64, ov::element::i64},
-        {::tensorflow::DataType::DT_HALF, ov::element::f16},
-        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-        {::tensorflow::DataType::DT_INT8, ov::element::i8},
-        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
-
-    auto it = type_map.find(type);
-    // for all unsupported types return dynamic type
-    return it == type_map.end() ? ov::element::dynamic : it->second;
-}
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
@@ -194,92 +177,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     case ::tensorflow::AttrValue::ValueCase::kTensor: {
-        const auto& tensor_proto = attrs[0].tensor();
-        const auto& tf_shape = tensor_proto.tensor_shape();
-        ov::PartialShape pshape;
-        for (int i = 0; i < tf_shape.dim_size(); i++) {
-            pshape.push_back(tf_shape.dim(i).size());
-        }
-        FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
-        const auto& tf_type = tensor_proto.dtype();
-        auto ov_type = get_ov_type(tf_type);
-        if (tf_type != ::tensorflow::DataType::DT_STRING) {
-            FRONT_END_GENERAL_CHECK(
-                ov_type.is_static(),
-                "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
-        } else {
-            auto data = std::vector<std::string>();
-            for (const auto& item : tensor_proto.string_val()) {
-                data.push_back(item);
-            }
-            return data;
-        }
-        ov::Tensor res(ov_type, pshape.get_shape());
-        auto tensor_content = tensor_proto.tensor_content();
-        if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
-            switch (ov_type) {
-            case ov::element::u8:
-                extract_tensor_content<uint8_t>(tensor_content, &res);
-                break;
-            case ov::element::i8:
-                extract_tensor_content<int8_t>(tensor_content, &res);
-                break;
-            case ov::element::i16:
-                extract_tensor_content<int16_t>(tensor_content, &res);
-                break;
-            case ov::element::i32:
-                extract_tensor_content<int32_t>(tensor_content, &res);
-                break;
-            case ov::element::i64:
-                extract_tensor_content<int64_t>(tensor_content, &res);
-                break;
-            case ov::element::f16:
-                extract_tensor_content<float16>(tensor_content, &res);
-                break;
-            case ov::element::f32:
-                extract_tensor_content<float>(tensor_content, &res);
-                break;
-            case ov::element::f64:
-                extract_tensor_content<double>(tensor_content, &res);
-                break;
-            case ov::element::bf16:
-                extract_tensor_content<bfloat16>(tensor_content, &res);
-                break;
-            default:
-                FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
-            }
-        } else {
-            int64_t val_size = 0;
-            switch (ov_type) {
-            case ov::element::boolean:
-                val_size = tensor_proto.bool_val_size();
-                extract_compressed_tensor_content<bool>(tensor_proto, val_size, &res);
-                break;
-            case ov::element::i32:
-                val_size = tensor_proto.int_val_size();
-                extract_compressed_tensor_content<int32_t>(tensor_proto, val_size, &res);
-                break;
-            case ov::element::i64:
-                val_size = tensor_proto.int64_val_size();
-                extract_compressed_tensor_content<int64_t>(tensor_proto, val_size, &res);
-                break;
-            case ov::element::f16:
-                val_size = tensor_proto.half_val_size();
-                extract_compressed_tensor_content<float16>(tensor_proto, val_size, &res);
-                break;
-            case ov::element::f32:
-                val_size = tensor_proto.float_val_size();
-                extract_compressed_tensor_content<float>(tensor_proto, val_size, &res);
-                break;
-            case ov::element::f64:
-                val_size = tensor_proto.double_val_size();
-                extract_compressed_tensor_content<double>(tensor_proto, val_size, &res);
-                break;
-            default:
-                FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
-            }
-        }
-        return res;
+        return unpack_tensor_proto(attrs[0].tensor());
     }
     case ::tensorflow::AttrValue::ValueCase::kPlaceholder:
         FRONT_END_GENERAL_CHECK(false,

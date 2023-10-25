@@ -37,13 +37,6 @@ PKG_INSTALL_CFG = {
         'extract_requirements': True,
         'extract_extras': True,
     },
-    'benchmark_tool': {
-        'src_dir': OPENVINO_DIR / 'tools' / 'benchmark_tool',
-        'black_list': [],
-        'prefix': 'benchmark_tool',
-        'extract_entry_points': True,
-        'extract_requirements': True,
-    },
     "accuracy_checker": {
         'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'accuracy_checker',  # noqa:E501
         'black_list': ['*tests*'],
@@ -177,23 +170,23 @@ class CustomInstall(install):
 class CustomClean(clean):
     """Clean up staging directories"""
 
-    def clean(self, install_cfg):
+    def clean_temp_files(self):
         """Clean components staging directories"""
-        for comp, comp_data in install_cfg.items():
-            install_prefix = comp_data.get('prefix')
-            self.announce(f'Cleaning {comp}: {install_prefix}', level=log.INFO)
-            if os.path.exists(install_prefix):
-                shutil.rmtree(install_prefix)
-
-    def run(self):
-        self.clean(PKG_INSTALL_CFG)
         for pattern in './build ./dist **/*.pyc **/*.tgz **/*.egg-info'.split(' '):
-            paths = SCRIPT_DIR.glob(pattern)
+            paths = []
+            for comp, comp_data in PKG_INSTALL_CFG.items():
+                src_dir = Path(comp_data.get('src_dir'))
+                paths += src_dir.glob(pattern)
+            paths += SCRIPT_DIR.glob(pattern)
             for path in paths:
                 if path.is_file() and path.exists():
                     path = path.parent
                 self.announce(f'Cleaning: {path}', level=log.INFO)
-                shutil.rmtree(path)
+                if os.path.exists(path):
+                    shutil.rmtree(path)
+
+    def run(self):
+        self.clean_temp_files()
         clean.run(self)
 
 
@@ -287,13 +280,13 @@ def concat_files(output_file, input_files):
 
 description_md = SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pypi-openvino-dev.md'
 md_files = [description_md, SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pre-release-note.md']
-docs_url = 'https://docs.openvino.ai/latest/index.html'
+docs_url = 'https://docs.openvino.ai/2023.0/index.html'
 
 if(os.getenv('CI_BUILD_DEV_TAG')):
     output = Path.cwd() / 'build' / 'pypi-openvino-dev.md'
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)
-    docs_url = 'https://docs.openvino.ai/nightly/index.html'
+    docs_url = 'https://docs.openvino.ai/2023.0/index.html'
 
 setup(
     name='openvino-dev',

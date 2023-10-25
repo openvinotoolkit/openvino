@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -36,12 +36,12 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : shapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : shapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "Ax=" << axis << "_";
@@ -104,7 +104,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsGPUTest,
                     ::testing::ValuesIn(std::vector<int>({2, -2})),           // Axis
                     ::testing::ValuesIn(std::vector<ElementType>({ElementType::f16, ElementType::f32})),
                     ::testing::Values(ElementType::i32),
-                    ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                    ::testing::Values(ov::test::utils::DEVICE_GPU)),
         GatherElementsGPUTest::getTestCaseName);
 
 } // namespace

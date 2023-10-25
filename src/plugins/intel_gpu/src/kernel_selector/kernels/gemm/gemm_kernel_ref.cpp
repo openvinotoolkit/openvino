@@ -31,6 +31,10 @@ ParamsKey GemmKernelRef::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey GemmKernelRef::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return DeviceFeaturesKey();
+}
+
 JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
     JitConstants jit = Parent::GetJitConstants(params);
 

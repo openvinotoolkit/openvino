@@ -157,13 +157,13 @@ void RDFT::execute(dnnl::stream strm) {
     const auto& inputShape = inputMem.getStaticDims();
     const auto& outputShape = outputMem.getStaticDims();
 
-    auto inputPtr = reinterpret_cast<float*>(inputMem.GetPtr());
-    auto outputPtr = reinterpret_cast<float*>(outputMem.GetPtr());
+    auto inputPtr = reinterpret_cast<float*>(inputMem.getData());
+    auto outputPtr = reinterpret_cast<float*>(outputMem.getData());
 
     auto rank = inputShape.size() - inverse;
 
-    const auto& inputStrides = inputMem.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    const auto& outputStrides = outputMem.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto& inputStrides = inputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto& outputStrides = outputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     executor->execute(inputPtr, outputPtr,
                       twiddles, rank,
@@ -187,7 +187,7 @@ void RDFT::prepareParams() {
         if (axes.size() != newAxesSize) {
             axes.resize(newAxesSize);
         }
-        auto axesPtr = reinterpret_cast<const int*>(axesMem->GetPtr());
+        auto axesPtr = reinterpret_cast<const int*>(axesMem->getData());
         auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
         for (size_t i = 0; i < axes.size(); i++) {
             axes[i] = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
@@ -213,7 +213,7 @@ void RDFT::prepareParams() {
             if (signalSizes.size() != newSize) {
                 signalSizes.resize(newSize);
             }
-            const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->GetPtr());
+            const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->getData());
             for (size_t i = 0; i < newSize; i++) {
                 signalSizes[i] = signalSizesPtr[i];
             }
@@ -232,11 +232,11 @@ bool RDFT::axesChanged() const {
     if (axes.size() != axesMem->getStaticDims()[0]) {
         return true;
     }
-    auto axesPtr = reinterpret_cast<const int*>(axesMem->GetPtr());
+    auto axesPtr = reinterpret_cast<const int*>(axesMem->getData());
     auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
     for (size_t i = 0; i < axes.size(); i++) {
         auto newAxis = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
-        if (axes[i] != newAxis) {
+        if (static_cast<size_t>(axes[i]) != newAxis) {
             return true;
         }
     }
@@ -255,18 +255,19 @@ bool RDFT::signalSizesChanged() const {
     if (getOriginalInputsNumber() <= SIGNAL_SIZE_INDEX) {
         const auto& inputShape = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims();
         for (size_t i = 0; i < axes.size() - 1; i++) {
-            if (signalSizes[i] != inputShape[axes[i]]) {
+            if (static_cast<size_t>(signalSizes[i]) != inputShape[axes[i]]) {
                 return true;
             }
         }
-        return inverse ? signalSizes.back() != 2 * (inputShape[axes.back()] - 1) : signalSizes.back() != inputShape[axes.back()];
+        return inverse ? static_cast<size_t>(signalSizes.back()) != 2 * (inputShape[axes.back()] - 1)
+                       : static_cast<size_t>(signalSizes.back()) != inputShape[axes.back()];
     } else {
         const auto& signalSizesMem = getParentEdgeAt(SIGNAL_SIZE_INDEX)->getMemoryPtr();
         auto newSize = signalSizesMem->getStaticDims()[0];
         if (signalSizes.size() != newSize || signalSizes.size() != axes.size()) {
             return true;
         }
-        const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->GetPtr());
+        const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->getData());
         for (size_t i = 0; i < newSize; i++) {
             if (signalSizesPtr[i] != signalSizes[i]) {
                 return true;
@@ -328,7 +329,7 @@ void RDFTExecutor::execute(float* inputPtr, float* outputPtr,
 
 static void coordsFromIndex(size_t index, std::vector<size_t>& coords, const std::vector<size_t>& shape, int excludeAxis) {
     for (size_t i = coords.size(); i > 0; i--) {
-        if (excludeAxis == i - 1) {
+        if (static_cast<size_t>(excludeAxis) == i - 1) {
             coords[i - 1] = 0;
             continue;
         }
@@ -771,17 +772,17 @@ struct RDFTJitExecutor : public RDFTExecutor {
 
         parallel_for2d(outputSize / simdSize, inputSize, [&] (size_t K, size_t n) {
             if (type == real_to_complex) {
-                for (size_t k = 0; k < simdSize; k++) {
+                for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
                     twiddles[((K * inputSize + n) * simdSize + k) * 2] = std::cos(angle);
                     twiddles[((K * inputSize + n) * simdSize + k) * 2 + 1] = -std::sin(angle);
                 }
             } else if (type == complex_to_real || type == complex_to_complex) {
-                for (size_t k = 0; k < simdSize; k++) {
+                for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
                     twiddles[(K * inputSize + n) * 2 * simdSize + k] = std::cos(angle);
                 }
-                for (size_t k = 0; k < simdSize; k++) {
+                for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
                     twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] = isInverse ? std::sin(angle) : -std::sin(angle);
                 }
@@ -895,7 +896,7 @@ struct RDFTRefExecutor : public RDFTExecutor {
                 }
                 if (isInverse) {
                     float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
-                    for (int n = inputSize; n < signalSize; n++, inp -= 2) {
+                    for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
                         float cos = twiddlesPtr[2 * (k * outputSize + n)];
                         float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
                         float inputReal = inp[0];
@@ -945,7 +946,7 @@ struct RDFTRefExecutor : public RDFTExecutor {
             if (parallelize) {
                 parallel_for(outputSize, dftIteration);
             } else {
-                for (int k = 0; k < outputSize; k++) {
+                for (size_t k = 0; k < outputSize; k++) {
                     dftIteration(k);
                 }
             }

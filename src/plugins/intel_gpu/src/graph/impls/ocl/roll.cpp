@@ -17,7 +17,7 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
     using kernel_selector_t = kernel_selector::roll_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::roll_params, kernel_selector::roll_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::roll_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<roll_impl>(*this);
@@ -71,3 +71,4 @@ attach_roll_impl::attach_roll_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roll_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::roll)

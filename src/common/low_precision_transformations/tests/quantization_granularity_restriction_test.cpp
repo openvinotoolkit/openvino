@@ -10,20 +10,20 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/common/port_quantization_granularity_restriction.hpp>
-#include <low_precision/common/quantization_granularity_restriction.hpp>
-#include <low_precision/markup_quantization_granularity.hpp>
+#include "low_precision/common/port_quantization_granularity_restriction.hpp"
+#include "low_precision/common/quantization_granularity_restriction.hpp"
+#include "low_precision/markup_quantization_granularity.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/convolution_function.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/convolution.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class OperationQuantizationRestrictionTestValues {
 public:
-    std::vector<ngraph::pass::low_precision::PortQuantizationGranularityRestriction> restrictions;
+    std::vector<ov::pass::low_precision::PortQuantizationGranularityRestriction> restrictions;
 };
 
 typedef std::tuple<
@@ -51,13 +51,13 @@ public:
             std::vector<float>({ 1.f }),
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } });
 
-        ngraph::pass::Manager manager;
-        const auto quantizationRestrictions = std::vector<low_precision::QuantizationGranularityRestriction>({
+        ov::pass::Manager manager;
+        const auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
             explicitly ?
-                low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>(testValues.restrictions, false) :
-                low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>(ports)
+                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::opset1::Convolution>(testValues.restrictions, false) :
+                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::opset1::Convolution>(ports)
         });
-        manager.register_pass<ngraph::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
+        manager.register_pass<ov::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
         manager.run_passes(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::get(
@@ -89,10 +89,10 @@ const std::vector<OperationQuantizationRestrictionTestValues> testValues = {
         {}
     },
     {
-        {{0, QuantizationGranularityAttribute::Granularity::PerTensor}}
+        {{0, ov::QuantizationGranularityAttribute::Granularity::PerTensor}}
     },
     {
-        {{0, QuantizationGranularityAttribute::Granularity::PerTensor}, {1, QuantizationGranularityAttribute::Granularity::PerChannel}}
+        {{0, ov::QuantizationGranularityAttribute::Granularity::PerTensor}, {1, ov::QuantizationGranularityAttribute::Granularity::PerChannel}}
     }
 };
 

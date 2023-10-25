@@ -184,6 +184,9 @@ IE_SUPPRESS_DEPRECATED_END
 TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_1_0");
     EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA1_0);
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_1_0_E");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNAEmbedded1_0);
+
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_2_0");
     EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA2_0);
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_0");

@@ -24,6 +24,8 @@ public:
     void createPrimitive() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
+    bool isExecutable() const override;
+    void resolveInPlaceEdges(Edge::LOOK look) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -79,6 +81,7 @@ private:
     uint64_t totalWork = 0lu;
 
     std::vector<threadExecParams> execParamsPerThread;
+    std::vector<int> constIndices;
 
     static constexpr size_t GATHER_DATA = 0;
     static constexpr size_t GATHER_INDICES = 1;

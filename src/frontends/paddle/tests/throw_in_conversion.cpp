@@ -5,11 +5,10 @@
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "paddle_utils.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 TEST(FrontEndConvertModelTest, throw_in_conversion) {
@@ -22,8 +21,8 @@ TEST(FrontEndConvertModelTest, throw_in_conversion) {
         std::string(TEST_PADDLE_MODELS_DIRNAME) + std::string("throw_in_conversion/throw_in_conversion.pdmodel"));
     ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
-    std::shared_ptr<ngraph::Function> function;
-    ASSERT_THROW(function = frontEnd->convert(inputModel), OpConversionFailure);
+    std::shared_ptr<ov::Model> model;
+    ASSERT_THROW(model = frontEnd->convert(inputModel), OpConversionFailure);
 }
 
 TEST(FrontEndConvertModelTest, unsupported_version) {

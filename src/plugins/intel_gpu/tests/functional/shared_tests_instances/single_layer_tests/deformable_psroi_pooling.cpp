@@ -29,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DeformablePSROIPooling,
                          testing::Combine(params,
                                           testing::Values(InferenceEngine::Precision::FP32,
                                                           InferenceEngine::Precision::FP16),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          DeformablePSROIPoolingLayerTest::getTestCaseName);
 
 const auto params_advanced =
@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DeformablePSROIPooling_advanced,
                          testing::Combine(params_advanced,
                                           testing::Values(InferenceEngine::Precision::FP32,
                                                           InferenceEngine::Precision::FP16),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          DeformablePSROIPoolingLayerTest::getTestCaseName);
 
 }  // namespace

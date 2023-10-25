@@ -4,20 +4,19 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/manager.hpp>
-#include <ov_ops/type_relaxed.hpp>
-
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/convert_precision.hpp"
 
 namespace element = ov::element;
 using std::make_shared;
 using TypeVector = element::TypeVector;
 
-using TypeRelaxedTests = CommonTestUtils::TestsCommon;
+using TypeRelaxedTests = ov::test::TestsCommon;
 
 TEST_F(TypeRelaxedTests, noOverrideCopyCtor) {
     std::shared_ptr<ov::Model> model;

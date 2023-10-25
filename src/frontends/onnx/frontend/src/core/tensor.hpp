@@ -15,6 +15,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_common/utils.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "utils/common.hpp"
 #include "utils/tensor_external_data.hpp"
 
@@ -108,10 +109,13 @@ public:
     };
 
     Tensor() = delete;
-    explicit Tensor(const ONNX_NAMESPACE::TensorProto& tensor, const std::string& model_dir)
+    Tensor(const ONNX_NAMESPACE::TensorProto& tensor,
+           const std::string& model_dir,
+           detail::MappedMemoryHandles mmap_cache)
         : m_tensor_proto{&tensor},
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
-          m_model_dir{model_dir} {
+          m_model_dir{model_dir},
+          m_mmap_cache{mmap_cache} {
         if (m_shape == Shape{0}) {
             // It's possible to construct a tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a Shape{0} stored in m_shape.
@@ -239,9 +243,17 @@ private:
         std::shared_ptr<default_opset::Constant> constant{nullptr};
         size_t data_size = get_data_size();
         if (has_external_data()) {
-            auto external_data = load_external_data();
-            constant = std::make_shared<ngraph::op::Constant>(type, m_shape, external_data.data());
-            if (constant->get_byte_size() != external_data.size()) {
+            const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
+            if (m_mmap_cache) {
+                constant =
+                    std::make_shared<ngraph::op::Constant>(type,
+                                                           m_shape,
+                                                           ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache));
+            } else {
+                constant =
+                    std::make_shared<ngraph::op::Constant>(type, m_shape, ext_data.load_external_data(m_model_dir));
+            }
+            if (constant->get_byte_size() != ov::shape_size(m_shape) * type.size()) {
                 throw error::invalid_external_data(
                     "The size of the external data file does not match the byte size of an initializer '" + get_name() +
                     "' in the model");
@@ -288,14 +300,16 @@ private:
                    ONNX_NAMESPACE::TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;
     }
 
-    std::string load_external_data() const {
-        const auto tensor_external_data = detail::TensorExternalData(*m_tensor_proto);
-        return tensor_external_data.load_external_data(m_model_dir);
-    }
-
     template <typename T>
     std::vector<T> get_external_data() const {
-        return detail::__get_raw_data<T>(load_external_data(), m_tensor_proto->data_type());
+        const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
+        std::shared_ptr<ov::AlignedBuffer> buffer = nullptr;
+        if (m_mmap_cache) {
+            buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
+        } else {
+            buffer = ext_data.load_external_data(m_model_dir);
+        }
+        return std::vector<T>(buffer->get_ptr<char>(), buffer->get_ptr<char>() + buffer->size());
     }
 
     const void* get_data_ptr() const {
@@ -339,6 +353,7 @@ private:
     const ONNX_NAMESPACE::TensorProto* m_tensor_proto;
     Shape m_shape;
     std::string m_model_dir;
+    detail::MappedMemoryHandles m_mmap_cache;
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const Tensor& tensor) {

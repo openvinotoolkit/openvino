@@ -28,6 +28,7 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableQuantizeScaleShiftOpt();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 

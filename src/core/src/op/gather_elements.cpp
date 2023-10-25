@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/gather_elements.hpp"
+#include "openvino/op/gather_elements.hpp"
 
-#include <gather_elements_shape_inference.hpp>
-
+#include "gather_elements_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/shape.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 // ------------------------------ V6 ------------------------------
 
 op::v6::GatherElements::GatherElements(const Output<Node>& data, const Output<Node>& indices, const int64_t axis)
@@ -33,8 +29,7 @@ void op::v6::GatherElements::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto output_shapes = std::vector<ov::PartialShape>(1);
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, data_type, output_shapes[0]);
 }
 
@@ -44,8 +39,9 @@ bool op::v6::GatherElements::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-shared_ptr<Node> op::v6::GatherElements::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v6::GatherElements::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_GatherElements_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v6::GatherElements>(new_args.at(0), new_args.at(1), m_axis);
+    return std::make_shared<op::v6::GatherElements>(new_args.at(0), new_args.at(1), m_axis);
 }
+}  // namespace ov

@@ -5,19 +5,21 @@
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/op/util/activation_functions.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::RNNCellDecomposition::RNNCellDecomposition() {
     MATCHER_SCOPE(RNNCellDecomposition);
-    auto rnn_cell = ngraph::pattern::wrap_type<opset4::RNNCell>();
-    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto rnn_cell = std::dynamic_pointer_cast<ov::opset4::RNNCell>(m.get_match_root());
+    auto rnn_cell = ov::pass::pattern::wrap_type<ov::op::v0::RNNCell>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
+        auto rnn_cell = std::dynamic_pointer_cast<ov::op::v0::RNNCell>(m.get_match_root());
         if (!rnn_cell || transformation_callback(rnn_cell)) {
             return false;
         }
@@ -28,27 +30,27 @@ ov::pass::RNNCellDecomposition::RNNCellDecomposition() {
         const Output<Node>& bias = rnn_cell->input_value(4);
 
         // Xt*(W^T)
-        auto Xt_W = std::make_shared<opset4::MatMul>(X, W, false, true);
+        auto Xt_W = std::make_shared<ov::op::v0::MatMul>(X, W, false, true);
         // Ht-1*(R^T)
-        auto Ht_R = std::make_shared<opset4::MatMul>(H_t, R, false, true);
+        auto Ht_R = std::make_shared<ov::op::v0::MatMul>(H_t, R, false, true);
         // Xt*(W^T) + Ht-1*(R^T) + Wb + Rb
-        auto add = std::make_shared<opset4::Add>(Ht_R, bias);
-        auto i_t = std::make_shared<opset4::Add>(Xt_W, add);
+        auto add = std::make_shared<ov::op::v1::Add>(Ht_R, bias);
+        auto i_t = std::make_shared<ov::op::v1::Add>(Xt_W, add);
 
         // f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
         auto clip = rnn_cell->get_clip();
         std::shared_ptr<Node> clamp = i_t;
         if (clip > 0.f) {
-            clamp = std::make_shared<opset4::Clamp>(i_t, -clip, clip);
-            ngraph::copy_runtime_info(rnn_cell, clamp);
+            clamp = std::make_shared<ov::op::v0::Clamp>(i_t, -clip, clip);
+            ov::copy_runtime_info(rnn_cell, clamp);
         }
         auto out = ov::op::util::activation(rnn_cell->get_activations()[0], clamp);
         out->set_friendly_name(rnn_cell->get_friendly_name());
-        ngraph::copy_runtime_info(rnn_cell, {Xt_W, Ht_R, add, i_t, out});
-        ngraph::replace_node(rnn_cell, out);
+        ov::copy_runtime_info(rnn_cell, {Xt_W, Ht_R, add, i_t, out});
+        ov::replace_node(rnn_cell, out);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_cell, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(rnn_cell, matcher_name);
     register_matcher(m, callback);
 }

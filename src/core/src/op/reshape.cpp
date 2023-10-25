@@ -2,47 +2,39 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/reshape.hpp"
+#include "openvino/op/reshape.hpp"
 
 #include <algorithm>
-#include <dimension_tracker.hpp>
-#include <ngraph/validation_util.hpp>
+#include <vector>
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
+#include "ngraph/util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/reshape.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 namespace reshapeop {
 namespace {
-bool evaluate_reshape(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order) {
-    runtime::opt_kernel::reshape(arg0->get_data_ptr<char>(),
-                                 out->get_data_ptr<char>(),
-                                 arg0->get_shape(),
-                                 order,
-                                 out->get_shape(),
-                                 arg0->get_element_type().size());
-    return true;
-}
 
 template <element::Type_t ET>
-void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_t>& output_shape) {
+void compute_output_shape(const ov::Tensor& shape_pattern, std::vector<int64_t>& output_shape) {
     size_t output_rank;
-    if (shape_pattern->get_partial_shape().is_static()) {
-        output_rank = shape_pattern->get_shape().empty() ? 0 : shape_pattern->get_shape()[0];
+    if (shape_pattern.get_size() != 0) {
+        output_rank = shape_pattern.get_shape().empty() ? 0 : shape_pattern.get_shape()[0];
     } else {
         // Can be dynamic during shape infer as conversion result from empty ov::Tensor
         output_rank = 0;
     }
 
     for (size_t i = 0; i < output_rank; i++) {
-        output_shape.push_back(shape_pattern->get_data_ptr<ET>()[i]);
+        output_shape.push_back(shape_pattern.data<typename ov::element_type_traits<ET>::value_type>()[i]);
     }
 }
 }  // namespace
@@ -95,9 +87,9 @@ void op::v1::Reshape::validate_and_infer_types() {
         auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
                                ->cast_vector<int64_t>();
         shape_can_be_calculated = true;
-        NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
+        OPENVINO_ASSERT(lower_bound.size() == upper_bound.size());
         const TensorLabel& labels = get_input_source_output(1).get_tensor().get_value_label();
-        NGRAPH_CHECK(labels.empty() || lower_bound.size() == labels.size());
+        OPENVINO_ASSERT(labels.empty() || lower_bound.size() == labels.size());
 
         for (size_t i = 0; i < lower_bound.size(); ++i) {
             NODE_VALIDATION_CHECK(this,
@@ -124,7 +116,7 @@ void op::v1::Reshape::validate_and_infer_types() {
         // or equal to 1
         if (output_rank.is_static() && output_rank.get_length() == 0 && !lower_bound.empty()) {
             reshape_pattern.clear();
-            NGRAPH_CHECK(lower_bound.size() == 1);
+            OPENVINO_ASSERT(lower_bound.size() == 1);
             NODE_VALIDATION_CHECK(this,
                                   lower_bound[0] == 1 && upper_bound[0] == 1,
                                   "The value of scalar shape pattern should be equal to 1!");
@@ -150,12 +142,12 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
         reshapeop::compute_output_shape<element::Type_t::a>(__VA_ARGS__); \
     } break;
 
-bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v1::Reshape::evaluate_reshape(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     // infer and set output shape if the output shape contain -1
     // and zero value dimension
     std::vector<int64_t> out_shape_val;
 
-    switch (inputs[1]->get_element_type()) {
+    switch (inputs[1].get_element_type()) {
         COMPUTE_OUT_SHAPE_CASE(i8, inputs[1], out_shape_val);
         COMPUTE_OUT_SHAPE_CASE(i16, inputs[1], out_shape_val);
         COMPUTE_OUT_SHAPE_CASE(i32, inputs[1], out_shape_val);
@@ -180,34 +172,38 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
     }
 
     std::vector<Dimension> output_shape(out_shape_val.size());
-    calculate_output_shape(reshape_pattern, minus_one_idx, inputs[0]->get_partial_shape(), output_shape);
-    NGRAPH_CHECK(ov::PartialShape(output_shape).is_static());
-    outputs[0]->set_shape(ov::PartialShape(output_shape).to_shape());
+    calculate_output_shape(reshape_pattern, minus_one_idx, inputs[0].get_shape(), output_shape);
+    OPENVINO_ASSERT(ov::PartialShape(output_shape).is_static());
+    outputs[0].set_shape(ov::PartialShape(output_shape).to_shape());
 
-    const AxisVector order = get_default_order(inputs[0]->get_shape());
-    return reshapeop::evaluate_reshape(inputs[0], outputs[0], order);
+    ov::reference::reshape(static_cast<char*>(inputs[0].data()),
+                           static_cast<char*>(outputs[0].data()),
+                           inputs[0].get_shape(),
+                           inputs[0].get_element_type().size());
+    return true;
 }
 
-bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v1::Reshape::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Reshape_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    OPENVINO_ASSERT(inputs.size() == 2);
+    if (outputs.empty())
+        outputs.emplace_back(ov::Tensor(inputs[0].get_element_type(), {0}));
+    else
+        OPENVINO_ASSERT(outputs.size() == 1);
     return evaluate_reshape(outputs, inputs);
 }
 
 bool op::v1::Reshape::has_evaluate() const {
     OV_OP_SCOPE(v1_Reshape_has_evaluate);
     switch (get_input_element_type(1)) {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
+    case ov::element::i8:
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u8:
+    case ov::element::u16:
+    case ov::element::u32:
+    case ov::element::u64:
         return true;
     default:
         break;
@@ -227,7 +223,7 @@ bool op::v1::Reshape::evaluate_label(TensorLabelVector& output_labels) const {
     if (!get_input_tensor(1).has_and_set_bound())
         return false;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    return default_label_evaluator(this, output_labels);
+    return ov::default_label_evaluator(this, output_labels);
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
@@ -258,13 +254,13 @@ Dimension resolve_minus_one(const Node* reshape_node,
     Dimension input_const_part(1), output_const_part(1);
 
     for (const auto& dim : output_product)
-        if (!ov::DimensionTracker::get_label(dim) && dim.is_static()) {
+        if (dim.is_static()) {
             output_const_part *= dim;
             to_delete_from_output.push_back(dim);
         }
 
     for (const auto& dim : input_product)
-        if (!ov::DimensionTracker::get_label(dim) && dim.is_static()) {
+        if (dim.is_static()) {
             input_const_part *= dim;
             to_delete_from_input.push_back(dim);
         }

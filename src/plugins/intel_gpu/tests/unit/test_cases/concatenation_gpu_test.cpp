@@ -3,12 +3,14 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 #include "concatenation_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/grid_sample.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -33,10 +35,10 @@ TEST(concat_gpu, mixed_input_types) {
     set_values<float>(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values<int32_t>(input1, { 11, 12, 13, 14, 12, 12, 13, 14, 13, 13, 13, 15 });
     set_values<int8_t>(input2, { 21, 22, 23, 24, 22, 22, 23, 24, 23, 23, 23, 25 });
-    set_values(input3, { half_t(31.f), half_t(32.f), half_t(33.f),
-                         half_t(34.f), half_t(32.f), half_t(32.f),
-                         half_t(33.f), half_t(34.f), half_t(33.f),
-                         half_t(33.f), half_t(33.f), half_t(35.f) });
+    set_values(input3, { ov::float16(31.f), ov::float16(32.f), ov::float16(33.f),
+                         ov::float16(34.f), ov::float16(32.f), ov::float16(32.f),
+                         ov::float16(33.f), ov::float16(34.f), ov::float16(33.f),
+                         ov::float16(33.f), ov::float16(33.f), ov::float16(35.f) });
     set_values<int64_t>(input4, { 41, 42, 43, 44, 42, 42, 43, 44, 43, 43, 43, 45 });
 
     VF<float> output_vec = {
@@ -89,7 +91,8 @@ TEST(concat_gpu, mixed_input_types) {
     }
 }
 
-TEST(concat_gpu, dynamic_4d_f) {
+void start_concat_test_dynamic(impl_types impl_type = impl_types::any);
+void start_concat_test_dynamic(impl_types impl_type) {
     auto& engine = get_test_engine();
 
     layout layout0_dyn = {{1, -1, -1, -1}, data_types::f32, format::bfyx};
@@ -109,7 +112,13 @@ TEST(concat_gpu, dynamic_4d_f) {
                           padding{ { 0,0,0,0 }, 0 })
     );
 
-    ExecutionConfig config{ov::intel_gpu::allow_new_shape_infer(true)};
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (impl_type != impl_types::any) {
+        auto force_impl = ov::intel_gpu::ImplementationDesc{ format::bfyx, "", impl_type };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {primitive_id("concat"), force_impl} }));
+    }
 
     auto network = cldnn::network::build_network(engine, topology, config);
 
@@ -153,7 +162,7 @@ TEST(concat_gpu, dynamic_4d_f) {
         ASSERT_EQ(outputs.begin()->first, "concat");
 
         auto output_memory = outputs.at("concat").get_memory();
-        auto output_layout = output_memory->get_layout();
+        auto output_layout = outputs.at("concat").get_layout();
         cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
         ov::PartialShape expected_shape = layout0.get_partial_shape();
@@ -184,6 +193,21 @@ TEST(concat_gpu, dynamic_4d_f) {
                   {{1, 5, 3, 4}, data_types::f32, format::bfyx},
                   {{1, 3, 3, 4}, data_types::f32, format::bfyx},
                   {{1, 2, 3, 4}, data_types::f32, format::bfyx});
+
+    if (impl_type == impl_types::cpu) {
+        run_on_shapes({{1, 2, 3, 4}, data_types::f32, format::bfyx},
+                    {{1, 0, 3, 4}, data_types::f32, format::bfyx},
+                    {{1, 3, 3, 4}, data_types::f32, format::bfyx},
+                    {{1, 8, 3, 4}, data_types::f32, format::bfyx});
+    }
+}
+
+TEST(concat_gpu, dynamic_4d_f) {
+    start_concat_test_dynamic();
+}
+
+TEST(concat_cpu_impl, dynamic_4d_f) {
+    start_concat_test_dynamic(impl_types::cpu);
 }
 
 TEST(concat_gpu, dynamic_6d_f) {
@@ -291,22 +315,22 @@ TEST(concat_gpu, mixed_input_types_5d) {
     auto input2 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
 
-    set_values(input0, { half_t(1.0f), half_t(2.0f), half_t(3.0f),
-                         half_t(4.0f), half_t(2.0f), half_t(2.0f),
-                         half_t(3.0f), half_t(4.0f), half_t(3.0f),
-                         half_t(3.0f), half_t(3.0f), half_t(5.0f) });
-    set_values(input1, { half_t(11), half_t(12), half_t(13),
-                         half_t(14), half_t(12), half_t(12),
-                         half_t(13), half_t(14), half_t(13),
-                         half_t(13), half_t(13), half_t(15) });
-    set_values(input2, { half_t(21), half_t(22), half_t(23),
-                         half_t(24), half_t(22), half_t(22),
-                         half_t(23), half_t(24), half_t(23),
-                         half_t(23), half_t(23), half_t(25) });
-    set_values(input3, { half_t(31.f), half_t(32.f), half_t(33.f),
-                         half_t(34.f), half_t(32.f), half_t(32.f),
-                         half_t(33.f), half_t(34.f), half_t(33.f),
-                         half_t(33.f), half_t(33.f), half_t(35.f) });
+    set_values(input0, { ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f),
+                         ov::float16(4.0f), ov::float16(2.0f), ov::float16(2.0f),
+                         ov::float16(3.0f), ov::float16(4.0f), ov::float16(3.0f),
+                         ov::float16(3.0f), ov::float16(3.0f), ov::float16(5.0f) });
+    set_values(input1, { ov::float16(11), ov::float16(12), ov::float16(13),
+                         ov::float16(14), ov::float16(12), ov::float16(12),
+                         ov::float16(13), ov::float16(14), ov::float16(13),
+                         ov::float16(13), ov::float16(13), ov::float16(15) });
+    set_values(input2, { ov::float16(21), ov::float16(22), ov::float16(23),
+                         ov::float16(24), ov::float16(22), ov::float16(22),
+                         ov::float16(23), ov::float16(24), ov::float16(23),
+                         ov::float16(23), ov::float16(23), ov::float16(25) });
+    set_values(input3, { ov::float16(31.f), ov::float16(32.f), ov::float16(33.f),
+                         ov::float16(34.f), ov::float16(32.f), ov::float16(32.f),
+                         ov::float16(33.f), ov::float16(34.f), ov::float16(33.f),
+                         ov::float16(33.f), ov::float16(33.f), ov::float16(35.f) });
 
     VF<float> output_vec = {
             1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f,
@@ -355,6 +379,66 @@ TEST(concat_gpu, mixed_input_types_5d) {
     for (size_t x = 0; x < output_layout.count(); ++x) {
         ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
+}
+
+
+TEST(concat_gpu, pooling_dynamic_input_no_exception) {
+    auto& engine = get_test_engine();
+
+    auto input0 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 8, 3}});
+    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 8, 3}});
+
+    auto input_dyn_layout = layout{ ov::PartialShape{ 1, ov::Dimension(), 8, 2 }, data_types::f32, format::bfyx };
+    auto input_actual_grid = layout{ ov::PartialShape{ 1, 3, 8, 2 }, data_types::f32, format::bfyx};
+    auto input_grid = engine.allocate_memory(input_actual_grid);
+
+    set_values(input_grid, { 13, 13, 13, 13, 15, 15,
+                        16, 15, 16, 14, 13, 14,
+                        13, 14, 13, 18, 16, 18,
+                        16, 15, 16, 15, 18, 14 });
+
+    set_values<float>(input0, { 11, 12, 13,
+                                 14, 12, 12,
+                                 13, -14, 13,
+                                 13, -13, 15,
+                                 16, -16, -13,
+                                 -14, 12, 11,
+                                 16, -14, -13,
+                                 18, -13, -15, });
+    set_values<float>(input1, { 11, 12, 13,
+                         15, 12, 12,
+                         13, 14, 12,
+                         13, 13, 15,
+                         12, 14, 13,
+                         14, 17, 18,
+                         13, 14, 11,
+                         13, 13, 15 });
+
+    GridSampleOp::Attributes attributes(false, GridSampleOp::InterpolationMode::NEAREST, GridSampleOp::PaddingMode::ZEROS);
+
+    layout reorder_layout(data_types::f32, format::yxfb, {7, 2, 2, 1});
+    topology topology(input_layout("input0", input0->get_layout()),
+                      input_layout("input1", input1->get_layout()),
+                      input_layout("input_dyn", input_dyn_layout),
+                      grid_sample("grid_sample", { input_info("input0"), input_info("input_dyn") }, attributes),
+                      pooling("pool0", input_info("grid_sample"), pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool1", input_info("input1"), pooling_mode::max, {2, 2}, {1, 1}),
+                      concatenation("concat",
+                                    { input_info("pool0"), input_info("pool1") },
+                                    1,
+                                    data_types::f32,
+                                    padding{{0, 0, 0, 0}, 0}),
+                      reorder("reorder", input_info("concat"), reorder_layout));
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input_dyn", input_grid);
+
+    EXPECT_NO_THROW(network.execute());
 }
 
 TEST(concat_gpu, i8_optimization_with_pool) {
@@ -639,6 +723,12 @@ using TestParamType_concat = ::testing::tuple<size_t,   // 0 - Input Batch size
 
 struct concat_gpu : public ::testing::TestWithParam<TestParamType_concat>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     static std::string
     PrintToStringParamName(testing::TestParamInfo<TestParamType_concat> param_info)
     {
@@ -662,6 +752,11 @@ using TestParamType_concat_axis3 = ::testing::tuple<size_t,   // 0 - Input Batch
 
 struct concat_axis3_gpu : public ::testing::TestWithParam<TestParamType_concat_axis3>
 {
+    tests::random_generator rg;
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     static std::string
     PrintToStringParamName(testing::TestParamInfo<TestParamType_concat_axis3> param_info)
     {
@@ -730,7 +825,7 @@ struct concat_gpu_4d : public concat_gpu {
 public:
 
     void test(format::type fmt) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
 
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
@@ -747,7 +842,7 @@ public:
                                static_cast<int32_t>(in_features[i]),
                                static_cast<int32_t>(input_x),
                                static_cast<int32_t>(input_y));
-            auto data = generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
+            auto data = rg.generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
             auto in_lay = layout(data_type, fmt, size);
             auto data_flat = std::vector<Type>(in_lay.get_linear_size(), 0);
 
@@ -816,7 +911,7 @@ struct concat_gpu_4d_axis3 : public concat_axis3_gpu {
 public:
 
     void test(format::type fmt) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
 
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
@@ -833,7 +928,7 @@ public:
                                static_cast<int32_t>(in_feature),
                                static_cast<int32_t>(input_x[i]),
                                static_cast<int32_t>(input_y));
-            auto data = generate_random_4d<Type>(batch_num, in_feature, input_y, input_x[i], -1, 1);
+            auto data = rg.generate_random_4d<Type>(batch_num, in_feature, input_y, input_x[i], -1, 1);
             auto in_lay = layout(data_type, fmt, size);
             auto data_flat = std::vector<Type>(in_lay.get_linear_size(), 0);
 
@@ -897,7 +992,7 @@ public:
 };
 
 
-using concat_gpu_4d_f16 = concat_gpu_4d<FLOAT16>;
+using concat_gpu_4d_f16 = concat_gpu_4d<ov::float16>;
 using concat_gpu_4d_i8 = concat_gpu_4d<int8_t>;
 using concat_gpu_4d_u8 = concat_gpu_4d<uint8_t>;
 
@@ -932,7 +1027,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
 
-using concat_gpu_4d_axis3_f16 = concat_gpu_4d_axis3<FLOAT16>;
+using concat_gpu_4d_axis3_f16 = concat_gpu_4d_axis3<ov::float16>;
 
 TEST_P(concat_gpu_4d_axis3_f16, fs_b_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::fs_b_yx_fsv32));
@@ -961,7 +1056,7 @@ struct concat_id_conv_gpu_4d : public concat_gpu {
 public:
 
     void test(format::type fmt) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
 
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
@@ -982,7 +1077,7 @@ public:
                                static_cast<int32_t>(in_features[i]),
                                static_cast<int32_t>(input_x),
                                static_cast<int32_t>(input_y));
-            auto data = generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -128, 128);
+            auto data = rg.generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -128, 128);
             auto in_lay = layout(data_type, fmt, size);
             auto data_flat = std::vector<Type>(in_lay.get_linear_size(), 0);
 
@@ -1063,7 +1158,7 @@ public:
     }
 };
 
-using concat_id_conv_gpu_4d_f16 = concat_id_conv_gpu_4d<FLOAT16, FLOAT16>;
+using concat_id_conv_gpu_4d_f16 = concat_id_conv_gpu_4d<ov::float16, ov::float16>;
 using concat_id_conv_gpu_4d_i8 = concat_id_conv_gpu_4d<int8_t, float>;
 
 TEST_P(concat_id_conv_gpu_4d_f16, input_order_opt_b_fs_yx_fsv16) {
@@ -1100,7 +1195,7 @@ template <typename Type>
 struct concat_gpu_4d_implicit : public concat_gpu {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
@@ -1189,7 +1284,7 @@ public:
 
         std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input(in_features.size());
         for (size_t i = 0; i < in_features.size(); ++i) {
-            input[i] = generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
+            input[i] = rg.generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
         }
         return input;
     }
@@ -1218,7 +1313,7 @@ public:
     }
 };
 
-using concat_implicit_gpu_4d_f16 = concat_gpu_4d_implicit<FLOAT16>;
+using concat_implicit_gpu_4d_f16 = concat_gpu_4d_implicit<ov::float16>;
 using concat_implicit_gpu_4d_i8 = concat_gpu_4d_implicit<int8_t>;
 
 TEST_P(concat_implicit_gpu_4d_f16, input_order_opt_b_fs_yx_fsv16) {
@@ -1322,7 +1417,7 @@ template <typename Type>
 struct concat_gpu_4d_implicit_onednn : public concat_gpu {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
@@ -1410,7 +1505,7 @@ public:
 
         std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input(in_features.size());
         for (size_t i = 0; i < in_features.size(); ++i) {
-            input[i] = generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
+            input[i] = rg.generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
         }
         return input;
     }
@@ -1449,7 +1544,7 @@ public:
 };
 
 
-using concat_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_implicit_onednn<FLOAT16>;
+using concat_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_implicit_onednn<ov::float16>;
 using concat_implicit_gpu_onednn_4d_i8 = concat_gpu_4d_implicit_onednn<int8_t>;
 
 TEST_P(concat_implicit_gpu_onednn_4d_f16, input_order_opt_b_fs_yx_fsv16) {
@@ -1482,7 +1577,7 @@ template <typename Type>
 struct concat_gpu_4d_explict : public concat_gpu {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
-        auto data_type = type_to_data_type<Type>::value;
+        auto data_type = ov::element::from<Type>();
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
         const std::vector<size_t> in_features = testing::get<1>(GetParam()); // only use first element.
@@ -1577,7 +1672,7 @@ public:
 
         std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> inputs(4);
         for (size_t i = 0; i < 4; ++i) {
-            inputs[i] = generate_random_4d<Type>(batch_num, in_features[0], input_y, input_x, -1, 1);
+            inputs[i] = rg.generate_random_4d<Type>(batch_num, in_features[0], input_y, input_x, -1, 1);
         }
         return inputs;
     }
@@ -1616,7 +1711,7 @@ public:
 };
 
 
-using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explict<FLOAT16>;
+using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explict<ov::float16>;
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16, input_order_opt_b_fs_yx_fsv16) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));

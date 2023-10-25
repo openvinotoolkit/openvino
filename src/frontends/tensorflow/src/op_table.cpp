@@ -20,29 +20,46 @@ namespace op {
 
 #define TF_OP_CONVERTER(op) OutputVector op(const ov::frontend::tensorflow::NodeContext& node)
 
-TF_OP_CONVERTER(translate_if_op);
+TF_OP_CONVERTER(translate_assignvariable_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
+TF_OP_CONVERTER(translate_enter_op);
+TF_OP_CONVERTER(translate_exit_op);
 TF_OP_CONVERTER(translate_fifo_queue_op);
 TF_OP_CONVERTER(translate_gru_block_cell_op);
 TF_OP_CONVERTER(translate_hash_table_op);
+TF_OP_CONVERTER(translate_if_op);
 TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
+TF_OP_CONVERTER(translate_loop_cond_op);
+TF_OP_CONVERTER(translate_merge_op);
+TF_OP_CONVERTER(translate_mergev2checkpoint_op);
+TF_OP_CONVERTER(translate_next_iteration_op);
 TF_OP_CONVERTER(translate_partitioned_call_op);
+TF_OP_CONVERTER(translate_placeholder_linked_op);
 TF_OP_CONVERTER(translate_queue_dequeue_op);
 TF_OP_CONVERTER(translate_queue_dequeue_many_op);
+TF_OP_CONVERTER(translate_readvariable_op);
+TF_OP_CONVERTER(translate_restorev2_op);
 TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
-TF_OP_CONVERTER(translate_varisinitialized_op);
-TF_OP_CONVERTER(translate_readvariable_op);
-TF_OP_CONVERTER(translate_assignvariable_op);
-TF_OP_CONVERTER(translate_varhandle_op);
-TF_OP_CONVERTER(translate_restorev2_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
 TF_OP_CONVERTER(translate_stringjoin_op);
-TF_OP_CONVERTER(translate_mergev2checkpoint_op);
+TF_OP_CONVERTER(translate_switch_op);
+TF_OP_CONVERTER(translate_tensor_array_close_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_concat_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_gather_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_read_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_scatter_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_size_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_v3_op);
+TF_OP_CONVERTER(translate_tensor_array_write_v3_op);
+TF_OP_CONVERTER(translate_varhandle_op);
+TF_OP_CONVERTER(translate_variable_op);
+TF_OP_CONVERTER(translate_varisinitialized_op);
 TF_OP_CONVERTER(translate_while_op);
-TF_OP_CONVERTER(translate_placeholder_linked_op);
+TF_OP_CONVERTER(translate_xla_conv_v2_op);
+TF_OP_CONVERTER(translate_xla_dot_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -68,6 +85,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Mish", CreatorFunction(translate_unary_op<opset8::Mish>)},
         {"Neg", CreatorFunction(translate_unary_op<opset8::Negative>)},
         {"Relu", CreatorFunction(translate_unary_op<opset8::Relu>)},
+        {"Selu", CreatorFunction(translate_selu_op)},
         {"Sigmoid", CreatorFunction(translate_unary_op<opset8::Sigmoid>)},
         {"Sin", CreatorFunction(translate_unary_op<opset8::Sin>)},
         {"Sinh", CreatorFunction(translate_unary_op<opset8::Sinh>)},
@@ -112,6 +130,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
 
         // Separate translators:
         {"AddN", CreatorFunction(translate_add_n_op)},
+        {"AdjustContrastv2", CreatorFunction(translate_adjust_contrast_op)},
         {"ArgMax", CreatorFunction(translate_arg_max_op)},
         {"ArgMin", CreatorFunction(translate_arg_min_op)},
         {"Assert", CreatorFunction(translate_no_op)},
@@ -119,12 +138,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AvgPool3D", CreatorFunction(translate_avg_pool_op)},
         {"BatchMatMul", CreatorFunction(translate_batch_mat_mul_op)},
         {"BatchMatMulV2", CreatorFunction(translate_batch_mat_mul_op)},
+        {"BatchMatMulV3", CreatorFunction(translate_batch_mat_mul_with_type_op)},
         {"BatchToSpaceND", CreatorFunction(translate_batch_to_space_nd_op)},
         {"BroadcastArgs", CreatorFunction(translate_broadcast_args_op)},
         {"BroadcastTo", CreatorFunction(translate_broadcast_to_op)},
         {"Bucketize", CreatorFunction(translate_bucketize_op)},
         {"BiasAdd", CreatorFunction(translate_bias_add_op)},
         {"Cast", CreatorFunction(translate_cast_op)},
+        {"CheckNumerics", CreatorFunction(translate_identity_op)},
+        {"CheckNumericsV2", CreatorFunction(translate_identity_op)},
         {"ClipByValue", CreatorFunction(translate_clip_by_value_op)},
         {"Concat", CreatorFunction(translate_concat_op)},
         {"ConcatV2", CreatorFunction(translate_concat_op)},
@@ -137,16 +159,19 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"CTCGreedyDecoder", CreatorFunction(translate_ctc_greedy_decoder_op)},
         {"CTCLoss", CreatorFunction(translate_ctc_loss_op)},
         {"Cumsum", CreatorFunction(translate_cumsum_op)},
+        {"DivNoNan", CreatorFunction(translate_div_no_nan_op)},
         {"DepthToSpace", CreatorFunction(translate_depth_to_space_op)},
         {"DepthwiseConv2dNative", CreatorFunction(translate_depthwise_conv_2d_native_op)},
         {"DynamicPartition", CreatorFunction(translate_dynamic_partition_op)},
         {"Einsum", CreatorFunction(translate_einsum_op)},
         {"Elu", CreatorFunction(translate_elu_op)},
         {"EmptyTensorList", CreatorFunction(translate_tensor_list_reserve_op)},
+        {"EnsureShape", CreatorFunction(translate_identity_op)},
         {"ExpandDims", CreatorFunction(translate_expand_dims_op)},
         {"ExtractImagePatches", CreatorFunction(translate_extract_image_patches_op)},
         {"FakeQuantWithMinMaxVars", CreatorFunction(translate_fake_quant_op)},
         {"FakeQuantWithMinMaxVarsPerChannel", CreatorFunction(translate_fake_quant_op)},
+        {"FakeQuantWithMinMaxArgs", CreatorFunction(translate_fake_quant_with_min_max_args)},
         {"FIFOQueue", CreatorFunction(translate_fifo_queue_op)},
         {"FIFOQueueV2", CreatorFunction(translate_fifo_queue_op)},
         {"Fill", CreatorFunction(translate_fill_op)},
@@ -157,6 +182,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Gather", CreatorFunction(translate_gather_op)},
         {"GatherV2", CreatorFunction(translate_gather_v2_op)},
         {"GatherNd", CreatorFunction(translate_gather_nd_op)},
+        {"GatherTree", CreatorFunction(translate_gather_tree_op)},
+        {"Addons>GatherTree", CreatorFunction(translate_gather_tree_op)},
         {"HashTable", CreatorFunction(translate_hash_table_op)},
         {"HashTableV2", CreatorFunction(translate_hash_table_op)},
         {"Identity", CreatorFunction(translate_identity_op)},
@@ -166,6 +193,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Iterator", CreatorFunction(translate_iterator_op)},
         {"IteratorGetNext", CreatorFunction(translate_iterator_get_next_op)},
         {"IteratorV2", CreatorFunction(translate_iterator_op)},
+        {"InvertPermutation", CreatorFunction(translate_invert_permutation_op)},
         {"output_arg", CreatorFunction(translate_output_arg_op)},
         {"L2Loss", CreatorFunction(translate_l2_loss_op)},
         {"LeakyRelu", CreatorFunction(translate_leaky_relu_op)},
@@ -181,6 +209,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
         {"MaxPool3D", CreatorFunction(translate_max_pool_op)},
+        {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_op)},
+        {"Merge", CreatorFunction(translate_merge_op)},
         {"MirrorPad", CreatorFunction(translate_mirror_pad_op)},
         {"MutableHashTable", CreatorFunction(translate_hash_table_op)},
         {"MutableHashTableV2", CreatorFunction(translate_hash_table_op)},
@@ -192,6 +222,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"NoOp", CreatorFunction(translate_no_op)},  // do nothing
         {"OneHot", CreatorFunction(translate_one_hot_op)},
         {"OneShotIterator", CreatorFunction(translate_iterator_op)},
+        {"OnesLike", CreatorFunction(translate_ones_like_op)},
         {"Pack", CreatorFunction(translate_pack_op)},
         {"Pad", CreatorFunction(translate_pad_op)},
         {"PadV2", CreatorFunction(translate_padv2_op)},
@@ -229,6 +260,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Select", CreatorFunction(translate_select_op)},
         {"SelectV2", CreatorFunction(translate_select_v2_op)},
         {"Shape", CreatorFunction(translate_shape_op)},
+        {"ShapeN", CreatorFunction(translate_shape_op)},
         {"Size", CreatorFunction(translate_size_op)},
         {"Slice", CreatorFunction(translate_slice_op)},
         {"Snapshot", CreatorFunction(translate_identity_op)},
@@ -246,20 +278,38 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"StatelessIf", CreatorFunction(translate_if_op)},
         {"StatelessWhile", CreatorFunction(translate_while_op)},
         {"StridedSlice", CreatorFunction(translate_strided_slice_op)},
+        {"Switch", CreatorFunction(translate_switch_op)},
+        {"TensorArrayCloseV3", CreatorFunction(translate_tensor_array_close_v3_op)},
+        {"TensorArrayConcatV3", CreatorFunction(translate_tensor_array_concat_v3_op)},
+        {"TensorArrayGatherV3", CreatorFunction(translate_tensor_array_gather_v3_op)},
+        {"TensorArrayReadV3", CreatorFunction(translate_tensor_array_read_v3_op)},
+        {"TensorArrayScatterV3", CreatorFunction(translate_tensor_array_scatter_v3_op)},
+        {"TensorArraySizeV3", CreatorFunction(translate_tensor_array_size_v3_op)},
+        {"TensorArrayV3", CreatorFunction(translate_tensor_array_v3_op)},
+        {"TensorArrayWriteV3", CreatorFunction(translate_tensor_array_write_v3_op)},
         {"TensorListFromTensor", CreatorFunction(translate_tensor_list_from_tensor_op)},
         {"TensorListGetItem", CreatorFunction(translate_tensor_list_get_item_op)},
+        {"TensorListLength", CreatorFunction(translate_tensor_list_length_op)},
         {"TensorListPushBack", CreatorFunction(translate_tensor_list_push_back_op)},
         {"TensorListSetItem", CreatorFunction(translate_tensor_list_set_item_op)},
         {"TensorListStack", CreatorFunction(translate_tensor_list_stack_op)},
         {"TensorListReserve", CreatorFunction(translate_tensor_list_reserve_op)},
+        {"TensorListResize", CreatorFunction(translate_tensor_list_resize_op)},
         {"Tile", CreatorFunction(translate_tile_op)},
+        {"ToBool", CreatorFunction(translate_tobool_op)},
         {"TopK", CreatorFunction(translate_top_k_op)},
         {"TopKV2", CreatorFunction(translate_top_k_v2_op)},
         {"Transpose", CreatorFunction(translate_transpose_op)},
+        {"TruncateDiv", CreatorFunction(translate_truncate_div_op)},
+        {"TruncateMod", CreatorFunction(translate_truncate_mod_op)},
         {"Unpack", CreatorFunction(translate_unpack_op)},
+        {"UnravelIndex", CreatorFunction(translate_unravel_index_op)},
+        {"UnsortedSegmentSum", CreatorFunction(translate_unsorted_segment_sum_op)},
         {"While", CreatorFunction(translate_while_op)},
         {"Where", CreatorFunction(translate_where_op)},
         {"Xdivy", CreatorFunction(translate_x_div_y_op)},
+        {"Xlog1py", CreatorFunction(translate_xlog1py_op)},
+        {"Xlogy", CreatorFunction(translate_xlogy_op)},
         {"ZerosLike", CreatorFunction(translate_zeros_like_op)},
 
         // Translators for SavedModel and MetaGraph
@@ -276,12 +326,25 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"VarHandleOp", CreatorFunction(translate_varhandle_op)},
         {"VariableV2", CreatorFunction(translate_varhandle_op)},
 
+        // Translator for Checkpoint V1
+        {"Variable", CreatorFunction(translate_variable_op)},
+
         // Translators for internal operations
         {"BlockLSTM", CreatorFunction(translate_block_lstm_op)},
         {"GRUBlockCell", CreatorFunction(translate_gru_block_cell_op)},
         {"SparseFillEmptyRows", CreatorFunction(translate_sparse_fill_empty_rows_op)},
         {"SparseSegmentSum", CreatorFunction(translate_sparse_segment_sum_op)},
         {"Unique", CreatorFunction(translate_unique_op)},
+
+        // XLA operations
+        {"XlaConvV2", CreatorFunction(translate_xla_conv_v2_op)},
+        {"XlaDotV2", CreatorFunction(translate_xla_dot_op)},
+
+        // TF1 Control Flow operations
+        {"Enter", CreatorFunction(translate_enter_op)},
+        {"Exit", CreatorFunction(translate_exit_op)},
+        {"LoopCond", CreatorFunction(translate_loop_cond_op)},
+        {"NextIteration", CreatorFunction(translate_next_iteration_op)},
     };
 };
 }  // namespace op

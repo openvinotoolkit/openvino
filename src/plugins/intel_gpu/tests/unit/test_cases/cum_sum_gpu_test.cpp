@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/cum_sum.hpp>
@@ -142,11 +143,16 @@ using cum_sum_test_params = std::tuple<int,            // batch
 template <typename cum_sum_params, typename input_type = float, typename output_type = float>
 class cum_sum_gpu : public ::testing::TestWithParam<cum_sum_params> {
 public:
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
 
     data_types get_alloc_data_type(void) {
         if (std::is_same<input_type, float>::value)
             return data_types::f32;
-        else if (std::is_same<input_type, FLOAT16>::value)
+        else if (std::is_same<input_type, ov::float16>::value)
             return data_types::f16;
         else if (std::is_same<input_type, int32_t>::value)
             return data_types::i32;
@@ -175,9 +181,9 @@ public:
 
         auto input = engine.allocate_memory({ get_alloc_data_type(), in_out_format, shape });
         const int inputSize = b * f * w * z * y * x;
-        VF<input_type> inputVals = std::is_same<input_type, FLOAT16>::value ?
-                                   generate_random_1d<input_type>(inputSize, -1, 1, 1) :
-                                   generate_random_1d<input_type>(inputSize, -100, 100, 8);
+        VF<input_type> inputVals = std::is_same<input_type, ov::float16>::value ?
+                                   rg.generate_random_1d<input_type>(inputSize, -1, 1, 1) :
+                                   rg.generate_random_1d<input_type>(inputSize, -100, 100, 8);
 
         set_values(input, inputVals);
 
@@ -205,7 +211,7 @@ public:
     }
 };
 
-class cum_sum_gpu_fp16 : public ::cum_sum_gpu<cum_sum_test_params, FLOAT16, FLOAT16> {};
+class cum_sum_gpu_fp16 : public ::cum_sum_gpu<cum_sum_test_params, ov::float16, ov::float16> {};
 class cum_sum_gpu_fp32 : public ::cum_sum_gpu<cum_sum_test_params, float, float> {};
 class cum_sum_gpu_int32 : public ::cum_sum_gpu<cum_sum_test_params, int32_t, int32_t> {};
 class cum_sum_gpu_int64 : public ::cum_sum_gpu<cum_sum_test_params, int64_t, int64_t> {};
@@ -276,7 +282,7 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
     };
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, shape });
 
-    set_values(input, vectorCast<FLOAT16>(inputVals));
+    set_values(input, vectorCast<ov::float16>(inputVals));
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));

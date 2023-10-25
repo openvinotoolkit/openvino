@@ -48,7 +48,7 @@ template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::create_ker() {
     auto code = x64::jit_generator::create_kernel();
     if (code != dnnl::impl::status::success)
-        IE_THROW() << "Could not create Gather kernel. Error code: " << std::to_string(code);
+        OPENVINO_THROW("Could not create Gather kernel. Error code: ", std::to_string(code));
     ker_ = (decltype(ker_))jit_ker();
 }
 
@@ -154,7 +154,7 @@ void jitUniGatherKernel<isa>::generate() {
 
                 process(true, true);
             } else { // Long case.
-                IE_THROW() << "Gather kernel does not support static shape with after axis size greater than elements in vector.";
+                OPENVINO_THROW("Gather kernel does not support static shape with after axis size greater than elements in vector.");
             }
         }
     } else { // Dynamic shapes.
@@ -526,7 +526,7 @@ template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::calcSrcShiftLongBlock(Vmm* vAuxPool, bool shiftFirst) {
     // Most likely there will no significant performance gain vs memcpy in reference implementation on big blocks after axis,
     // therefore no time was invested to this case yet.
-    IE_THROW() << "Unsupported case.";
+    OPENVINO_THROW("Unsupported case.");
 }
 
 // Requires vAuxPool length 3.
@@ -987,7 +987,7 @@ template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst, const Xbyak::Reg64& rToStoreCounter, Vmm& vmmSrc, Vmm& vAux) {
     Xbyak::Label lEnd;
     Xbyak::Xmm xAux(vAux.getIdx());
-    for (int j = 0; j < vlen / vlenXmm; j++) {
+    for (size_t j = 0; j < vlen / vlenXmm; j++) {
         if (isa == x64::avx2)
             vextracti128(xAux, vmmSrc, j);
         else if (isa == x64::avx512_core)

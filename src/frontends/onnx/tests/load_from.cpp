@@ -27,7 +27,7 @@ static LoadFromFEParam getTestData() {
 
 TEST_P(FrontEndLoadFromTest, testLoadFromStreamAndPassPath) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    const auto path = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto path = file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                            TEST_ONNX_MODELS_DIRNAME,
                                            "external_data/external_data.onnx");
     NGRAPH_SUPPRESS_DEPRECATED_END
@@ -43,7 +43,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStreamAndPassPath) {
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(is, path)) << "Could not load the model";
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
     ASSERT_NE(function, nullptr);
 }

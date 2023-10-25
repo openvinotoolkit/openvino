@@ -17,25 +17,11 @@ std::vector<std::vector<ov::PartialShape>> input_shapes{
         {{3, 1, 32, 14}, {1, 2, 14, 32}},
         {{1, 2, 37, 23}, {2, 1, 23, 37}},
         {{1, 1, 37, 23}, {1, 2, 23, 33}},
-        {{1, 16, 384, 64}, {1, 16, 64, 384}}
+        {{1, 1, 32, 23}, {1, 1, 23, 68}},
+        {{1, 16, 384, 64}, {1, 16, 64, 384}},
+        {{1, 1, 100, 700}, {1, 1, 700, 100}},
 };
-static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 = true) {
-    std::vector<std::vector<element::Type>> prc = {
-            {element::f32, element::f32},
-    };
-    if (!only_fp32) {
-        // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
-        if (InferenceEngine::with_cpu_x86_avx512_core_vnni() || InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
-            prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
-            prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
-        }
-        // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
-        if (InferenceEngine::with_cpu_x86_bfloat16() || InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
-            prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
-        }
-    }
-    return prc;
-}
+
 static inline std::vector<std::vector<element::Type>> quantized_precisions() {
     std::vector<std::vector<element::Type>> prc = {};
     // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
@@ -46,13 +32,28 @@ static inline std::vector<std::vector<element::Type>> quantized_precisions() {
     return prc;
 }
 
+static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 = true) {
+    std::vector<std::vector<element::Type>> prc = {
+            {element::f32, element::f32},
+    };
+    if (!only_fp32) {
+        auto quant = quantized_precisions();
+        std::copy(quant.begin(), quant.end(), std::back_inserter(prc));
+        // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
+        if (InferenceEngine::with_cpu_x86_bfloat16() || InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
+            prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
+        }
+    }
+    return prc;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, MatMul,
                          ::testing::Combine(
                              ::testing::ValuesIn(input_shapes),
                              ::testing::ValuesIn(precisions(false)),
                              ::testing::Values(1), // MatMul
                              ::testing::Values(1), // Tokenized MatMul
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulFQ, MatMulFQ,
@@ -61,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulFQ, MatMulFQ,
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(1), // MatMul;
                                  ::testing::Values(1), // Tokenized MatMul
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
@@ -70,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
                                  ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized,
@@ -81,7 +82,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized
                                  ::testing::ValuesIn(quantized_precisions()),
                                  ::testing::Values(1), // Subgraph
                                  ::testing::Values(1), // Tokenized MatMul+Bias
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantized, MatMulsQuantized,
@@ -90,7 +91,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantized, MatMulsQuantized,
                                  ::testing::ValuesIn(quantized_precisions()),
                                  ::testing::Values(3), // Subgraph + Reshape + Subgraph
                                  ::testing::Values(2), // Tokenized [MatMul+FQ+Matmul] and [FQ]
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantizedSoftmax, MatMulsQuantizedSoftmax,
@@ -99,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantizedSoftmax, MatMulsQuantize
                                  ::testing::ValuesIn(quantized_precisions()),
                                  ::testing::Values(3), // Subgraph + Reshape + Subgraph
                                  ::testing::Values(2), // Tokenized [MatMul+FQ+Matmul] and [FQ]
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
 }  // namespace

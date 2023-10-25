@@ -15,9 +15,7 @@ const std::vector<ov::AnyMap> inproperties = {
         {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
-const std::vector<ov::AnyMap> auto_batch_inproperties = {
-        {{ov::auto_batch_timeout(-1)}},
-};
+const std::vector<ov::AnyMap> auto_batch_inproperties = {};
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelPropertiesIncorrectTests,
                         ::testing::Combine(
@@ -27,8 +25,8 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelProper
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVClassCompiledModelPropertiesIncorrectTests,
                          ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                                 ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_inproperties))),
+                                 ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                                 ::testing::ValuesIn(generate_ov_configs(ov::test::utils::DEVICE_BATCH, auto_batch_inproperties))),
                          OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 
@@ -59,8 +57,8 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelProper
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVClassCompiledModelPropertiesTests,
         ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),
+                ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(ov::test::utils::DEVICE_BATCH, auto_batch_properties))),
         OVClassCompiledModelPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -71,5 +69,16 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCompiledModelIncorrectDevice,
         ::testing::Values(targetDevice));
+
+const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
+        {ov::hint::model_priority(ov::hint::Priority::HIGH)},
+        {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+        {ov::hint::model_priority(ov::hint::Priority::LOW)},
+        {ov::hint::model_priority(ov::hint::Priority::DEFAULT)}};
+
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory,
+                         OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,
+                         ::testing::Combine(::testing::ValuesIn(return_all_possible_device_combination()),
+                                            ::testing::ValuesIn(multiModelPriorityConfigs)));
 
 } // namespace

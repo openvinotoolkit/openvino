@@ -5,6 +5,7 @@
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/detection_output.hpp>
 
 using namespace cldnn;
@@ -136,16 +137,16 @@ public:
         const int keep_top_k = 150;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         topology topology;
         topology.add(input_layout("input_location", input_location->get_layout()));
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -170,17 +171,17 @@ public:
         const int keep_top_k = 150;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         topology topology;
         topology.add(input_layout("input_location", input_location->get_layout()));
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output_1", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
-        topology.add(detection_output("detection_output_2", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output_1", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output_2", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -211,9 +212,9 @@ public:
         const int background_label_id = 0;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -222,7 +223,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box")}, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -259,9 +260,9 @@ public:
         const int background_label_id = 0;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -270,7 +271,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -301,9 +302,9 @@ public:
         const int background_label_id = 0;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -312,7 +313,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -354,9 +355,9 @@ public:
         const int background_label_id = 0;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -365,7 +366,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -410,11 +411,11 @@ public:
         const bool decrease_label_id = true;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,
                                                                    { this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,
                                                                      { this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,
                                                                     { 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
@@ -424,13 +425,17 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"),
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") },
             this->num_classes, keep_top_k, share_location, background_label_id, nms_threshold,
             top_k, eta, code_type, variance_encoded_in_target, confidence_threshold, prior_info_size,
             prior_coordinates_offset, prior_is_normalized, input_width, input_height, decrease_label_id
         ));
+        topology.add(reorder("output_reorder", input_info("detection_output"), format::bfyx, ov::element::from<T>()));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"detection_output", {format::bfyx, "", impl_types::cpu}}}));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -439,7 +444,7 @@ public:
         auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.begin()->first, "output_reorder");
 
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
@@ -467,9 +472,9 @@ public:
         const int background_label_id = -1;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -478,7 +483,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -528,9 +533,9 @@ public:
         const int top_k = 2;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -539,7 +544,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -576,9 +581,9 @@ public:
         const int background_label_id = 0;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -587,7 +592,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -627,9 +632,9 @@ public:
         const int top_k = 2;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
@@ -638,7 +643,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", { input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -672,9 +677,9 @@ public:
         const int top_k = 2;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
         topology topology;
@@ -684,9 +689,13 @@ public:
         topology.add(reorder("input_location_padded", input_info("input_location"), input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
         topology.add(reorder("input_confidence_padded", input_info("input_confidence"), input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
 
-        topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", { input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box") }, this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(reorder("output_reorder", input_info("detection_output"), format::bfyx, ov::element::from<T>()));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"detection_output", {format::bfyx, "", impl_types::cpu}}}));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -695,7 +704,7 @@ public:
         auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.begin()->first, "output_reorder");
 
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
@@ -729,9 +738,9 @@ public:
         const bool prior_is_normalized = true;
 
         auto& engine = get_test_engine();
-        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 1, 1, this->num_priors * prior_info_size } });
+        cldnn::memory::ptr input_location = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ ov::element::from<T>(), format::bfyx,{ 1, 1, 1, this->num_priors * prior_info_size } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location, variance_encoded_in_target,
             prior_info_size, prior_coordinates_offset, prior_is_normalized);
@@ -742,14 +751,18 @@ public:
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
         topology.add(reorder("input_location_padded", input_info("input_location"), input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
         topology.add(reorder("input_confidence_padded", input_info("input_confidence"), input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
+        topology.add(reorder("output_reorder", input_info("detection_output"), format::bfyx, ov::element::from<T>()));
 
-        topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"),
+        topology.add(detection_output("detection_output", { input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box") },
             this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k,
             eta, code_type, variance_encoded_in_target, confidence_threshold, prior_info_size, prior_coordinates_offset,
             prior_is_normalized, this->img_size, this->img_size
         ));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"detection_output", {format::bfyx, "", impl_types::cpu}}}));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -758,7 +771,7 @@ public:
         auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.begin()->first, "output_reorder");
 
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
         ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
@@ -784,7 +797,7 @@ public:
     const float nms_threshold;
 };
 
-typedef ::testing::Types<float, FLOAT16> detection_output_test_types;
+typedef ::testing::Types<float, ov::float16> detection_output_test_types;
 TYPED_TEST_SUITE(detection_output_test, detection_output_test_types);
 
 TYPED_TEST(detection_output_test, test_setup_basic) {

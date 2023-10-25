@@ -5,13 +5,18 @@
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 // This transformation multiplies the "output_low" and "output_high" inputs of the FQ operation
@@ -41,13 +46,13 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     const auto fq_output_low_p = pass::pattern::any_input();
     const auto fq_output_high_p = pass::pattern::any_input();
 
-    const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
+    const auto fq_node_p = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
         {data_p, pass::pattern::any_input(), pass::pattern::any_input(), fq_output_low_p, fq_output_high_p},
         pattern::consumers_count(1));
 
-    const auto mul_constant_p = ngraph::pattern::wrap_type<opset4::Constant>();
+    const auto mul_constant_p = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto mul_node_p =
-        ngraph::pattern::wrap_type<opset4::Multiply>({fq_node_p, mul_constant_p}, pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({fq_node_p, mul_constant_p}, pattern::consumers_count(1));
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -63,13 +68,13 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
 
         if (!is_single_value) {
             float v;
-            auto constant = std::dynamic_pointer_cast<opset4::Constant>(mul_constant);
+            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(mul_constant);
             if (constant) {
                 is_single_value = op::util::get_single_value(constant, v);
                 if (is_single_value) {
                     mul_constant_shape = Shape{1};
                     mul_constant =
-                        std::make_shared<opset4::Constant>(mul_constant->get_element_type(), mul_constant_shape, v);
+                        std::make_shared<ov::op::v0::Constant>(mul_constant->get_element_type(), mul_constant_shape, v);
                 }
             }
         }
@@ -79,7 +84,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
             // Convolution and GroupConvolution LP transformations require output low/high to have the same values
             bool fq_output_is_conv =
                 std::any_of(fq_outputs.begin(), fq_outputs.end(), [](const std::shared_ptr<Node>& node) -> bool {
-                    return is_type<opset4::Convolution>(node) || is_type<opset4::GroupConvolution>(node);
+                    return is_type<ov::op::v1::Convolution>(node) || is_type<ov::op::v1::GroupConvolution>(node);
                 });
             if (fq_output_is_conv) {
                 return false;
@@ -92,15 +97,15 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
             auto diff = rank - mul_constant_shape.size();
             if (diff > 0) {
                 mul_constant_shape.insert(mul_constant_shape.begin(), diff, 1);
-                mul_constant = std::make_shared<opset4::Reshape>(
+                mul_constant = std::make_shared<ov::op::v1::Reshape>(
                     mul_constant,
-                    opset4::Constant::create(element::i64, Shape{mul_constant_shape.size()}, mul_constant_shape),
+                    ov::op::v0::Constant::create(element::i64, Shape{mul_constant_shape.size()}, mul_constant_shape),
                     false);
             }
         }
 
         auto get_adjusted_output_range = [&](const Output<Node>& node) -> std::shared_ptr<Node> {
-            auto ret = std::make_shared<opset4::Multiply>(node, mul_constant);
+            auto ret = std::make_shared<ov::op::v1::Multiply>(node, mul_constant);
             copy_runtime_info(node.get_node_shared_ptr(), ret);
             OPENVINO_SUPPRESS_DEPRECATED_START
             auto constant = get_constant_from_source(ret);
@@ -116,7 +121,8 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
                                                                  get_adjusted_output_range(original_output_low),
                                                                  get_adjusted_output_range(original_output_high)});
         OPENVINO_SUPPRESS_DEPRECATED_START
-        bool fq_on_weights = is_type<opset4::Constant>(data.get_node()) || get_constant_from_source(data) != nullptr;
+        bool fq_on_weights =
+            is_type<ov::op::v0::Constant>(data.get_node()) || get_constant_from_source(data) != nullptr;
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!fq_on_weights && transformation_callback(new_fq_node))
             return false;
@@ -128,7 +134,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         // will lead to shape inconsistency in remaining graph. This check must be
         // removed in future when FQ will have correct validate_and_infer function
         // for cases with NUMPY broadcast.
-        auto fq_casted = std::dynamic_pointer_cast<opset4::FakeQuantize>(new_fq_node);
+        auto fq_casted = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(new_fq_node);
         if (!fq_casted) {
             return false;
         }
@@ -150,6 +156,6 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_node_p, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_node_p, matcher_name);
     this->register_matcher(m, callback);
 }

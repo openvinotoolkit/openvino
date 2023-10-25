@@ -9,7 +9,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "types.pb.h"
+#include "ov_tensorflow/types.pb.h"
 
 namespace tensorflow {
 class GraphDef;
@@ -21,8 +21,6 @@ class AttrValue;
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-
-ov::element::Type get_ov_type(const ::tensorflow::DataType& type);
 
 void parse_producer_name(const std::string& producer_port_name,
                          std::string& producer_name,

@@ -1,12 +1,12 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/subgraph/eltwise_reshape_activation.hpp"
 
 namespace SubgraphTestsDefinitions {
 
-using namespace CommonTestUtils;
+using namespace ov::test::utils;
 using namespace InferenceEngine;
 
 std::string EltwiseReshapeActivation::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
@@ -17,8 +17,8 @@ std::string EltwiseReshapeActivation::getTestCaseName(const testing::TestParamIn
     std::tie(shapes, netPrecision, targetDevice, configuration) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(shapes[0]) << "_";
-    result << "AS=" << CommonTestUtils::vec2str(shapes[1]) << "_";
+    result << "IS=" << ov::test::utils::vec2str(shapes[0]) << "_";
+    result << "AS=" << ov::test::utils::vec2str(shapes[1]) << "_";
     result << "PRC=" << netPrecision.name() << "_";
     result << "dev=" << targetDevice;
     for (auto const& configItem : configuration) {
@@ -35,7 +35,8 @@ void EltwiseReshapeActivation::SetUp() {
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto input = ngraph::builder::makeParams(ngPrc, { shapes[0], shapes[0] });
+    ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes[0])),
+                              std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes[0]))};
     auto eltw = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
 
     auto reshape_pattern1 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{shapes[1].size()}, shapes[1]);

@@ -3,8 +3,8 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -72,18 +72,18 @@ public:
         std::ostringstream result;
         result << "DefConvTest(";
         result << std::to_string(obj.index) << ")_";
-        result << "IS=" << CommonTestUtils::vec2str(inputShape[0].second) << "_";
-        result << "OS=" << CommonTestUtils::vec2str(inputShape[1].second) << "_";
-        result << "FS=" << CommonTestUtils::vec2str(inputShape[2].second) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape[0].second) << "_";
+        result << "OS=" << ov::test::utils::vec2str(inputShape[1].second) << "_";
+        result << "FS=" << ov::test::utils::vec2str(inputShape[2].second) << "_";
         if (withModulation) {
-            result << "MS=" << CommonTestUtils::vec2str(inputShape[3].second) << "_";
+            result << "MS=" << ov::test::utils::vec2str(inputShape[3].second) << "_";
         }
         result << "G=" << groups << "_";
         result << "DG=" << deformableGroups << "_";
-        result << "S=" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE=" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+        result << "S=" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB=" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE=" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
         result << "AP=" << padType << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "withBilPad=" << withBilinearInterpolationPad << "_";
@@ -156,8 +156,10 @@ protected:
         bool withBilinearInterpolationPad, withModulation;
         std::tie(withBilinearInterpolationPad, withModulation, offsetType) = dcSpecificParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto inputParams = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
-
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
+        }
         auto data = inputParams[0];
         data->set_friendly_name("a_data");
         auto offset_vals = inputParams[1];
@@ -342,6 +344,12 @@ const std::vector<std::vector<size_t>> spatParamsDilationUneven = {
     {1, 1}, // off. spat. shape
     {2, 2} // ker. spat. shape
 };
+const std::vector<std::vector<size_t>> spatParams5_onnx2d = {
+    {1},    // batch
+    {4, 4}, // in. spat. shape
+    {3, 3}, // off. spat. shape
+    {2, 2}  // ker. spat. shape
+};
 const std::vector<std::vector<size_t>> channelParamsSingleGr = {
     {1}, // gr. 2,4
     {1, 2}, // def. gr. 1,2
@@ -360,7 +368,12 @@ const std::vector<std::vector<size_t>> channelParamsMulGr = {
     {3, 7}, // in. ch. per gr.
     {3, 7} // out. ch. per gr.
 };
-
+const std::vector<std::vector<size_t>> channelParams_onnx2d = {
+    {1},    // gr. 2,4
+    {1},    // def. gr. 1,2
+    {1},    // in. ch. per gr.
+    {1}     // out. ch. per gr.
+};
 const std::vector<std::vector<InputShape>> dynShapeChainRef = {
         {
             // gr == 2, dg == 1, in_ch_per_gr == 3, out_ch_per_gr == 3
@@ -441,7 +454,7 @@ const auto params1_Smoke = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams1, channelParamsSingleGr))),
                             defConvSpecificParams_Smoke,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto params2_Smoke = ::testing::Combine(
                          ::testing::Combine(
@@ -449,7 +462,7 @@ const auto params2_Smoke = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams2, channelParamsSingleGr))),
                             defConvSpecificParams_Smoke,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto params3_Smoke = ::testing::Combine(
                          ::testing::Combine(
@@ -457,7 +470,7 @@ const auto params3_Smoke = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams3, channelParamsSingleGr))),
                             defConvSpecificParams_Smoke,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto params4_Smoke = ::testing::Combine(
                          ::testing::Combine(
@@ -465,7 +478,7 @@ const auto params4_Smoke = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams4, channelParamsSingleGr))),
                             defConvSpecificParams_Smoke,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto params5_Smoke = ::testing::Combine(
                          ::testing::Combine(
@@ -473,7 +486,7 @@ const auto params5_Smoke = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams4, channelParamsMulGr))),
                             defConvSpecificParams_Smoke,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params6_Smoke = ::testing::Combine(
                          ::testing::Combine(
@@ -481,7 +494,7 @@ const auto params6_Smoke = ::testing::Combine(
                             ::testing::ValuesIn(dynShapeChainRef),
                             defConvSpecificParams_Smoke,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params7_Smoke = ::testing::Combine(
                          ::testing::Combine(
@@ -489,7 +502,7 @@ const auto params7_Smoke = ::testing::Combine(
                             ::testing::ValuesIn(dynShapeChainJIT),
                             defConvSpecificParams_Smoke,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(false)));
 const auto params8_Smoke = ::testing::Combine(
                          ::testing::Combine(
@@ -497,7 +510,7 @@ const auto params8_Smoke = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(autoPadSpatParams, channelParamsSingleGr))),
                             defConvSpecificParams_Smoke,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto params9_Smoke = ::testing::Combine(
                          ::testing::Combine(
@@ -505,7 +518,7 @@ const auto params9_Smoke = ::testing::Combine(
                             ::testing::ValuesIn(dynShapeChainJITAutoPad),
                             defConvSpecificParams_Smoke,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(false)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest1, DefConvLayerCPUTest, params1_Smoke, DefConvLayerCPUTest::getTestCaseName);
@@ -524,7 +537,7 @@ const auto params1 = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams1, channelParamsSingleGr2))),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto params2 = ::testing::Combine(
                          ::testing::Combine(
@@ -532,7 +545,7 @@ const auto params2 = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams2, channelParamsSingleGr))),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto params3 = ::testing::Combine(
                          ::testing::Combine(
@@ -540,7 +553,7 @@ const auto params3 = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams3, channelParamsSingleGr))),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto params4 = ::testing::Combine(
                          ::testing::Combine(
@@ -548,7 +561,7 @@ const auto params4 = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams4, channelParamsSingleGr))),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto params5 = ::testing::Combine(
                          ::testing::Combine(
@@ -556,7 +569,7 @@ const auto params5 = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams4, channelParamsMulGr))),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params6 = ::testing::Combine(
                          ::testing::Combine(
@@ -564,7 +577,7 @@ const auto params6 = ::testing::Combine(
                             ::testing::ValuesIn(dynShapeChainRef),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params7 = ::testing::Combine(
                          ::testing::Combine(
@@ -572,7 +585,7 @@ const auto params7 = ::testing::Combine(
                             ::testing::ValuesIn(dynShapeChainJIT),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(false)));
 // autopad cases
 const auto params8 = ::testing::Combine(
@@ -581,7 +594,7 @@ const auto params8 = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(autoPadSpatParams, channelParamsSingleGr))),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto params9 = ::testing::Combine(
                          ::testing::Combine(
@@ -589,7 +602,7 @@ const auto params9 = ::testing::Combine(
                             ::testing::ValuesIn(dynShapeChainJITAutoPad),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(false)));
 const auto params10 = ::testing::Combine(
                          ::testing::Combine(
@@ -597,8 +610,16 @@ const auto params10 = ::testing::Combine(
                             ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParamsDilationUneven, channelParamsSingleGr))),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(false)));
+const auto params11 = ::testing::Combine(
+                         ::testing::Combine(
+                            addSpParams,
+                            ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams5_onnx2d, channelParams_onnx2d))),
+                            defConvSpecificParams,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice()));
 
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest1, DefConvLayerCPUTest, params1, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest2, DefConvLayerCPUTest, params2, DefConvLayerCPUTest::getTestCaseName);
@@ -610,5 +631,40 @@ INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest7, DefConvLayerCPUTest, params7, DefCo
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest8, DefConvLayerCPUTest, params8, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest9, DefConvLayerCPUTest, params9, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest10, DefConvLayerCPUTest, params10, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest11, DefConvLayerCPUTest, params11, DefConvLayerCPUTest::getTestCaseName);
+
+const std::vector<std::vector<size_t>> blockMultigroupChParam = {
+    {2}, // gr.
+    {1}, // def. gr.
+    {16}, // in. ch. per gr.
+    {16} // out. ch. per gr.
+};
+const std::vector<std::vector<size_t>> blockMultigroupSpatParam = {
+    {1}, // batch
+    {2, 2}, // in. spat. shape
+    {2, 2}, // off. spat. shape
+    {1, 1} // ker. spat. shape
+};
+const auto blockMultigroupAddParam = ::testing::Combine(
+    ::testing::Values(true),  // with_bilinear_interpolation_pad
+    ::testing::Values(false),  // with_modulation
+    ::testing::Values(OffsetType::ZERO)  // offset type
+);
+const auto blockMultigroupKernelParam = ::testing::Combine(
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),  // pad. type
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. begin
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. end
+        ::testing::Values(std::vector<size_t> {1, 1}),  // strides
+        ::testing::Values(std::vector<size_t> {1, 1})  // dilations
+);
+const auto blockMultigroupParam = ::testing::Combine(
+                        ::testing::Combine(
+                            blockMultigroupKernelParam,
+                            ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(blockMultigroupSpatParam, blockMultigroupChParam))),
+                            blockMultigroupAddParam,
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        ::testing::ValuesIn(filterCPUInfoForDevice(true)));
+INSTANTIATE_TEST_SUITE_P(blockMultigroupDefConvTest, DefConvLayerCPUTest, blockMultigroupParam, DefConvLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

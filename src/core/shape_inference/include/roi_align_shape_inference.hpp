@@ -48,8 +48,8 @@ inline void batch_indicies_et(const Node* const op) {
 }
 }  // namespace validate
 
-template <class OpType, class TShape>
-std::vector<TShape> shape_infer(const OpType* op, const std::vector<TShape>& input_shapes) {
+template <class OpType, class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const OpType* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
 
     using TDim = typename TShape::value_type;
@@ -62,7 +62,7 @@ std::vector<TShape> shape_infer(const OpType* op, const std::vector<TShape>& inp
     const auto input_ps_rank = input_ps.rank();
     const auto batch_indices_ps_rank = batch_indices_ps.rank();
 
-    auto output_shapes = std::vector<TShape>(1);
+    auto output_shapes = std::vector<TRShape>(1);
     auto& out_shape = output_shapes.front();
     out_shape.reserve(4);
 
@@ -103,26 +103,16 @@ std::vector<TShape> shape_infer(const OpType* op, const std::vector<TShape>& inp
 }  // namespace roi_align
 
 namespace v3 {
-template <class TShape>
-std::vector<TShape> shape_infer(const ROIAlign* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ROIAlign* op, const std::vector<TShape>& input_shapes) {
     return roi_align::shape_infer(op, input_shapes);
-}
-
-template <class TShape>
-void shape_infer(const ROIAlign* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
 }
 }  // namespace v3
 
 namespace v9 {
-template <class TShape>
-std::vector<TShape> shape_infer(const ROIAlign* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ROIAlign* op, const std::vector<TShape>& input_shapes) {
     return roi_align::shape_infer(op, input_shapes);
-}
-
-template <class TShape>
-void shape_infer(const ROIAlign* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
 }
 }  // namespace v9
 }  // namespace op

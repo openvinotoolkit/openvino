@@ -7,8 +7,9 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <functional_test_utils/core_config.hpp>
 #include "ngraph/opsets/opset7.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "ngraph/pass/low_latency.hpp"
+#include "openvino/op/util/variable_context.hpp"
 #include "shared_test_classes/single_layer/memory.hpp"
 
 using namespace ngraph;
@@ -27,7 +28,7 @@ namespace LayerTestsDefinitions {
         std::ostringstream result;
         result << "transformation=" << transformation << "_";
         result << "iteration_count=" << iteration_count << "_";
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "trgDev=" << targetDevice;
         result << ")";
@@ -46,7 +47,7 @@ namespace LayerTestsDefinitions {
         }
 
         auto hostTensor = std::make_shared<HostTensor>(ngPrc, inputShape);
-        auto variable_context = VariableContext();
+        auto variable_context = ov::op::util::VariableContext();
         auto variable_value = std::make_shared<VariableValue>(hostTensor);
         variable_context.set_variable_value(function->get_variable_by_id("v0"), variable_value);
         eval_context["VariableContext"] = variable_context;
@@ -66,7 +67,7 @@ namespace LayerTestsDefinitions {
 
         auto &s = ov::test::utils::OpSummary::getInstance();
         s.setDeviceName(targetDevice);
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        if (ov::test::utils::current_test_is_disabled()) {
             s.updateOPsStats(function, ov::test::utils::PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
@@ -152,14 +153,14 @@ namespace LayerTestsDefinitions {
     }
 
     void MemoryTest::CreateTIFunc() {
-        auto param = builder::makeParams(ngPrc, {inputShape}).at(0);
+        auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape));
         std::vector<std::vector<size_t>> shape = {{static_cast<size_t>(iteration_count), 1}};
-        auto iter_count = builder::makeParams(ngPrc, shape).at(0);
+        auto iter_count = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{static_cast<size_t>(iteration_count), 1});
 
         // Body
-        auto X = builder::makeParams(ngPrc, {inputShape}).at(0);
-        auto Y = builder::makeParams(ngPrc, {inputShape}).at(0);
-        auto Iter = builder::makeParams(ngPrc, {Shape{1, 1}}).at(0);
+        auto X = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape));
+        auto Y = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape));
+        auto Iter = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 1});
         auto add = std::make_shared<Add>(X, Y);
         auto res = std::make_shared<Result>(add);
         auto Iter_res = std::make_shared<Result>(Iter);
@@ -181,8 +182,8 @@ namespace LayerTestsDefinitions {
     }
 
     void MemoryTest::CreateCommonFunc() {
-        auto param = builder::makeParams(ngPrc, {inputShape});
-        const auto variable_info = targetDevice == CommonTestUtils::DEVICE_GPU ?
+        ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+        const auto variable_info = targetDevice == ov::test::utils::DEVICE_GPU ?
             VariableInfo{Shape{inputShape}, ngPrc, "v0"} : VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
         auto variable = std::make_shared<Variable>(variable_info);
         auto read_value = CreateReadValueOp(param.at(0), variable);

@@ -123,6 +123,7 @@ class TestListUnpack(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
+            use_convert_model=True,
         )
 
 class TestMeshgridListUnpack(PytorchLayerTest):
@@ -148,7 +149,7 @@ class TestMeshgridListUnpack(PytorchLayerTest):
 
         ref_net = None
 
-        return prim_listunpack(idx), ref_net, "prim::ListUnpack"
+        return prim_listunpack(idx), ref_net, ["aten::meshgrid", "prim::ListUnpack"]
 
     def create_model_meshgrid_listunpack_2_in(self, idx):
         class prim_listunpack(torch.nn.Module):
@@ -165,7 +166,7 @@ class TestMeshgridListUnpack(PytorchLayerTest):
 
         ref_net = None
 
-        return prim_listunpack(idx), ref_net, "prim::ListUnpack"
+        return prim_listunpack(idx), ref_net, ["aten::meshgrid", "prim::ListUnpack"]
 
     def create_model_meshgrid_listunpack_3_in(self, idx):
         class prim_listunpack(torch.nn.Module):
@@ -179,7 +180,7 @@ class TestMeshgridListUnpack(PytorchLayerTest):
 
         ref_net = None
 
-        return prim_listunpack(idx), ref_net, "prim::ListUnpack"
+        return prim_listunpack(idx), ref_net, ["aten::meshgrid", "prim::ListUnpack"]
 
     def create_model_meshgrid_listunpack_4_in(self, idx):
         class prim_listunpack(torch.nn.Module):
@@ -193,7 +194,7 @@ class TestMeshgridListUnpack(PytorchLayerTest):
 
         ref_net = None
 
-        return prim_listunpack(idx), ref_net, "prim::ListUnpack"
+        return prim_listunpack(idx), ref_net, ["aten::meshgrid", "prim::ListUnpack"]
 
     @pytest.mark.parametrize("idx", ["ij", "xy"])
     @pytest.mark.parametrize("inp", [1, 2, 3, 4])
@@ -202,3 +203,25 @@ class TestMeshgridListUnpack(PytorchLayerTest):
     def test_meshgrid_listunpack(self, idx, inp, ie_device, precision, ir_version):
         func = getattr(self, f"create_model_meshgrid_listunpack_{inp}_in")
         self._test(*func(idx), ie_device, precision, ir_version)
+
+
+class TestMeshgridListUnpackStack(PytorchLayerTest):
+    def _prepare_input(self):
+        return (
+            np.random.randn(28, 28),
+        )
+
+    def create_model(self):
+        class meshgrid_model(torch.nn.Module):
+            def forward(self, x):
+                h, w = x.shape
+                coords1, coords2 = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
+                coords = torch.stack([coords2, coords1], dim=0)
+                return coords.float()
+
+        return meshgrid_model(), None, ["aten::meshgrid", "aten::stack", "prim::ListUnpack"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_meshgrid_subgraph(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)

@@ -16,16 +16,22 @@ namespace onnx {
 
 class InputModel : public ov::frontend::InputModel {
 public:
-    InputModel(const std::string& path, ExtensionHolder extensions = {});
+    InputModel(const std::string& path, const bool enable_mmap = false, ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    InputModel(const std::wstring& path, ExtensionHolder extensions = {});
+    InputModel(const std::wstring& path, const bool enable_mmap = false, ExtensionHolder extensions = {});
 #endif
-    InputModel(std::istream& model_stream, ExtensionHolder extensions = {});
+    InputModel(std::istream& model_stream, const bool enable_mmap = false, ExtensionHolder extensions = {});
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
-    InputModel(std::istream& model_stream, const std::string& path, ExtensionHolder extensions = {});
+    InputModel(std::istream& model_stream,
+               const std::string& path,
+               const bool enable_mmap = false,
+               ExtensionHolder extensions = {});
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    InputModel(std::istream& model_stream, const std::wstring& path, ExtensionHolder extensions = {});
+    InputModel(std::istream& model_stream,
+               const std::wstring& path,
+               const bool enable_mmap = false,
+               ExtensionHolder extensions = {});
 #endif
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;

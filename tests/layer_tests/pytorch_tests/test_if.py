@@ -1,5 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import os
 
 import pytest
 import numpy as np
@@ -35,6 +36,7 @@ class TestIf(PytorchLayerTest):
                                    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 114818")
     def test_if(self, y, ie_device, precision, ir_version):
         self.y = y
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)

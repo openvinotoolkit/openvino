@@ -16,7 +16,7 @@ std::shared_ptr<ngraph::Function> ovGetFunction1() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
     const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
 
@@ -35,7 +35,7 @@ std::shared_ptr<ngraph::Function> ovGetFunction2() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
     const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);

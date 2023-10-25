@@ -19,6 +19,8 @@
 #include "caseless.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
+#include "gna_convolution.hpp"
+#include "gna_max_pool.hpp"
 #include "ie_legacy_itt.hpp"
 #include "legacy/graph_tools.hpp"
 #include "legacy/net_pass.h"
@@ -49,6 +51,7 @@
 #include "legacy/ngraph_ops/selu_ie.hpp"
 #include "legacy/ngraph_ops/tile_ie.hpp"
 #include "legacy/ngraph_ops/topk_ie.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/utils/utils.hpp"
@@ -353,11 +356,13 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
  */
 class CNNLayerCreator : public ::ngraph::AttributeVisitor {
 public:
+    explicit CNNLayerCreator();
+
+    CNNLayerPtr create(const std::shared_ptr<::ngraph::Node>& origin);
+
+protected:
     using CreatorFor = std::function<CNNLayerPtr(const std::shared_ptr<::ngraph::Node>& node,
                                                  const std::map<std::string, std::string>& param)>;
-    explicit CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node);
-
-    CNNLayerPtr create();
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<bool>& value) override {
         params[name] = value.get() ? "true" : "false";
@@ -471,6 +476,11 @@ void CNNLayerCreator::on_adapter(const std::string& name, ::ngraph::ValueAccesso
             const auto data_beg = static_cast<char*>(a->get()->get_ptr());
             params[name] = std::string(data_beg, a->get()->size());
         }
+    } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
+        if (std::string(node->get_type_name()) != "Constant") {
+            const auto data_beg = static_cast<char*>(a->get()->get_ptr());
+            params[name] = std::string(data_beg, a->get()->size());
+        }
     } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
         const auto& attrs = a->get();
         params[name] = details::joinVec(attrs);
@@ -481,7 +491,7 @@ void CNNLayerCreator::on_adapter(const std::string& name, ::ngraph::ValueAccesso
     }
 }
 
-CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node) : node(node) {
+CNNLayerCreator::CNNLayerCreator() {
     addSpecificCreator({"Parameter"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
@@ -590,7 +600,7 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node) : 
                                Builder::asString(axis < 0 ? axis + node->get_input_shape(0).size() : axis);
                            return res;
                        });
-    addSpecificCreator({"AvgPool", "MaxPool"},
+    addSpecificCreator({"AvgPool", "MaxPool", "GNAMaxPool"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
                            LayerParams attrs = {node->get_friendly_name(),
@@ -607,7 +617,7 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node) : 
                                res->params.erase("exclude_pad");
                            }
 
-                           if (node->description() == "MaxPool") {
+                           if (node->description() == "MaxPool" || node->description() == "GNAMaxPool") {
                                res->params["pool-method"] = "max";
                            } else if (node->description() == "AvgPool") {
                                res->params["pool-method"] = "avg";
@@ -1675,7 +1685,7 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node) : 
                            return res;
                        });
 
-    addSpecificCreator({"ConvolutionIE"},
+    addSpecificCreator({"ConvolutionIE", "GNAConvolution"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
                            LayerParams attrs = {node->get_friendly_name(),
@@ -1689,10 +1699,19 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node) : 
 
                            // Restore output and kernel size
                            auto shape = node->get_input_shape(1);
-                           shape.erase(shape.begin(), shape.begin() + 2);
+                           // extract HW
+                           if (node->description() == "GNAConvolution") {
+                               // NHWC
+                               shape.erase(shape.begin());
+                               shape.erase(shape.end() - 1);
+                               res->params["output"] = Builder::asString(*(node->get_shape().rbegin()));
+                           } else {
+                               // NCHW
+                               shape.erase(shape.begin(), shape.begin() + 2);
+                               res->params["output"] = Builder::asString(node->get_shape()[1]);
+                           }
 
                            res->params["kernel"] = Builder::asString(static_cast<std::vector<size_t>&>(shape));
-                           res->params["output"] = Builder::asString(node->get_shape()[1]);
 
                            // forward auto_pad only when its value is different than explicit
                            if (params.at("auto_pad") == "explicit") {
@@ -1968,15 +1987,28 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node) : 
                        });
 }
 
-CNNLayerPtr CNNLayerCreator::create() {
+CNNLayerPtr CNNLayerCreator::create(const std::shared_ptr<::ngraph::Node>& origin) {
+    node = origin;  // node used by node->visit_attributes(..) > AttributeVisitor::on_attribute(..)
+
+    if (!node->visit_attributes(*this))
+        return nullptr;
+
     LayerParams attrs = {node->get_friendly_name(),
                          node->description(),
                          details::convertPrecision(node->get_output_element_type(0))};
-    if (creators.find(node->description()) != creators.end())
-        return creators[node->description()](node, params);
 
-    auto res = std::make_shared<CNNLayer>(attrs);
-    res->params = params;
+    CNNLayerPtr res;
+
+    auto creator = creators.find(node->description());
+
+    if (creator != creators.end())
+        res = creator->second(node, params);
+    else {
+        res = std::make_shared<CNNLayer>(attrs);
+        res->params = params;
+    }
+    node = nullptr;
+
     return res;
 }
 
@@ -1989,19 +2021,17 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                                   bool keep_constant_inputs) {
     OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "details::convertFunctionToICNNNetwork");
 
-    const auto createCNNLayer = [](const std::shared_ptr<::ngraph::Node>& node) -> CNNLayerPtr {
+    CNNLayerCreator visitor;
+
+    const auto createCNNLayer = [&visitor](const std::shared_ptr<::ngraph::Node>& node) -> CNNLayerPtr {
         class NGraphCNNLayer : public CNNLayer {
         public:
             void setNode(const std::shared_ptr<::ngraph::Node>& node) {
                 this->node = node;
             }
         };
-        CNNLayerPtr result;
 
-        CNNLayerCreator visitor(node);
-        if (node->visit_attributes(visitor)) {
-            result = visitor.create();
-        }
+        CNNLayerPtr result = visitor.create(node);
 
         if (!result)
             IE_THROW() << "Cannot cast ngraph node " << node->get_friendly_name() << " to CNNLayer!";
@@ -2014,7 +2044,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                                          const std::shared_ptr<::ngraph::Node>& consumerLayer,
                                          bool keep_constants) -> bool {
         if (((::ngraph::as_type_ptr<::ngraph::op::ConvolutionIE>(consumerLayer) ||
-              ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer)) &&
+              ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer) ||
+              ::ngraph::as_type_ptr<ov::intel_gna::op::GNAConvolution>(consumerLayer) ||
+              ::ngraph::as_type_ptr<ov::intel_gna::op::GNAMaxPool>(consumerLayer)) &&
              !keep_constants) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::DeconvolutionIE>(consumerLayer) ||

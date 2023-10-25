@@ -24,7 +24,7 @@ std::vector<size_t> memory_sizes = {128, 256, 32};
 INSTANTIATE_TEST_SUITE_P(smoke_delayed_copy_layer,
                          DelayedCopyTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(additional_config),
                                             ::testing::ValuesIn(memory_sizes)),
                          DelayedCopyTestBase::getTestCaseName);
@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_delayed_copy_layer,
 INSTANTIATE_TEST_SUITE_P(smoke_delayed_copy_layer,
                          DelayedCopyAfterReshapeWithMultipleConnTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(additional_config),
                                             ::testing::ValuesIn(memory_sizes)),
                          DelayedCopyTestBase::getTestCaseName);

@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/multi_crops_to_concat.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -16,7 +16,7 @@ std::string MultiCropsToConcatTest::getTestCaseName(const testing::TestParamInfo
     std::tie(netPrecision, targetDevice, inputShape, offsets, configuration) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
     result << "offset=";
@@ -38,7 +38,7 @@ void MultiCropsToConcatTest::SetUp() {
     configuration.insert(tempConfig.begin(), tempConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto crop1 = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[0].first}, std::vector<int64_t>{1, offsets[0].second},
                                                 std::vector<int64_t>{1, 1}, ngPrc, std::vector<int64_t>{1, 0},

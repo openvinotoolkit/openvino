@@ -11,16 +11,16 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/network_helper.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/network_helper.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/move_dequantization_after_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/move_dequantization_after.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 using namespace testing;
-using namespace ngraph::pass;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class MoveDequantizationAfterTransformationParams {
@@ -33,11 +33,11 @@ public:
     class Expected {
     public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::element::Type originalPrecision;
+    ov::element::Type originalPrecision;
     TestTransformationParams params;
     bool updatePrecision;
     bool moveSubtract;
@@ -46,7 +46,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::Shape,
+    ov::Shape,
     MoveDequantizationAfterTransformationParams> MoveDequantizationAfterTransformationTestValues;
 
 class MoveDequantizationAfterTransformation :
@@ -62,8 +62,8 @@ public:
             testValues.actual.dequantization);
 
         const auto targetNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
-        const auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(targetNode);
-        ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(
+        const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
+        ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(
             targetNode,
             dequantization,
             testValues.updatePrecision,
@@ -100,7 +100,7 @@ TEST_P(MoveDequantizationAfterTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ngraph::Shape> inputShapes = {
+const std::vector<ov::Shape> inputShapes = {
     { 1, 3, 16, 16 },
     { 4, 3, 16, 16 }
 };
@@ -108,151 +108,151 @@ const std::vector<ngraph::Shape> inputShapes = {
 const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
     // U8
     {
-        ngraph::element::u8,
+        ov::element::u8,
         LayerTransformation::createParamsU8I8(),
         true,
         true,
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            { {ov::element::f32},  { 7.f }, { 10.f } },
         },
         {
             { {},  {}, {} },
-            ngraph::element::u8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            ov::element::u8,
+            { {ov::element::f32},  { 7.f }, { 10.f } },
         },
     },
     // moveSubtract = false
     {
-        ngraph::element::u8,
+        ov::element::u8,
         LayerTransformation::createParamsU8I8(),
         true,
         false,
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            { {ov::element::f32},  { 7.f }, { 10.f } },
         },
         {
-            { {ngraph::element::f32},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
-            ngraph::element::f32,
+            { {ov::element::f32},  { { 7.f }, ov::element::f32, {}, false }, {} },
+            ov::element::f32,
             { {},  {}, { 10.f } },
         },
     },
     // updatePrecision = false
     {
-        ngraph::element::u8,
+        ov::element::u8,
         LayerTransformation::createParamsU8I8(),
         false,
         true,
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            { {ov::element::f32},  { 7.f }, { 10.f } },
         },
         {
             { {},  {}, {} },
-            ngraph::element::f32,
+            ov::element::f32,
             { {},  { 7.f }, { 10.f } },
         },
     },
     // moveSubtract = false & updatePrecision = false
     {
-        ngraph::element::u8,
+        ov::element::u8,
         LayerTransformation::createParamsU8I8(),
         false,
         false,
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            { {ov::element::f32},  { 7.f }, { 10.f } },
         },
         {
-            { {ngraph::element::f32},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
-            ngraph::element::f32,
+            { {ov::element::f32},  { { 7.f }, ov::element::f32, {}, false }, {} },
+            ov::element::f32,
             { {},  {}, { 10.f } },
         },
     },
     // I8
     {
-        ngraph::element::i8,
+        ov::element::i8,
         LayerTransformation::createParamsI8I8(),
         true,
         true,
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            { {ov::element::f32},  { 7.f }, { 10.f } },
         },
         {
             { {},  {}, {} },
-            ngraph::element::i8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            ov::element::i8,
+            { {ov::element::f32},  { 7.f }, { 10.f } },
         },
     },
     // moveSubtract = false
     {
-        ngraph::element::i8,
+        ov::element::i8,
         LayerTransformation::createParamsI8I8(),
         true,
         false,
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            { {ov::element::f32},  { 7.f }, { 10.f } },
         },
         {
-            { {ngraph::element::f32},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
-            ngraph::element::f32,
+            { {ov::element::f32},  { { 7.f }, ov::element::f32, {}, false }, {} },
+            ov::element::f32,
             { {},  {}, { 10.f } },
         },
     },
     // updatePrecision = false
     {
-        ngraph::element::i8,
+        ov::element::i8,
         LayerTransformation::createParamsI8I8(),
         false,
         true,
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            { {ov::element::f32},  { 7.f }, { 10.f } },
         },
         {
             { {},  {}, {} },
-            ngraph::element::f32,
+            ov::element::f32,
             { {},  { 7.f }, { 10.f } },
         },
     },
     // moveSubtract = false & updatePrecision = false
     {
-        ngraph::element::i8,
+        ov::element::i8,
         LayerTransformation::createParamsI8I8(),
         false,
         false,
         {
-            { {ngraph::element::f32},  { 7.f }, { 10.f } },
+            { {ov::element::f32},  { 7.f }, { 10.f } },
         },
         {
-            { {ngraph::element::f32},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
-            ngraph::element::f32,
+            { {ov::element::f32},  { { 7.f }, ov::element::f32, {}, false }, {} },
+            ov::element::f32,
             { {},  {}, { 10.f } },
         },
     },
     // per-channel quantizations with the same values
     {
-        ngraph::element::u8,
+        ov::element::u8,
         LayerTransformation::createParamsU8I8(),
         false,
         false,
         {
-            { {ngraph::element::f32},  { { 7.f, 7.f, 7.f } }, { { 10.f, 10.f, 10.f } } },
+            { {ov::element::f32},  { { 7.f, 7.f, 7.f } }, { { 10.f, 10.f, 10.f } } },
         },
         {
-            { {ngraph::element::f32},  { { 7.f, 7.f, 7.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {} },
-            ngraph::element::f32,
+            { {ov::element::f32},  { { 7.f, 7.f, 7.f }, ov::element::f32, { 1, 3, 1, 1 }, false }, {} },
+            ov::element::f32,
             { {},  {}, { { 10.f, 10.f, 10.f } } },
         },
     },
     // per-channel quantizations with different values
     {
-        ngraph::element::u8,
+        ov::element::u8,
         LayerTransformation::createParamsU8I8(),
         false,
         false,
         {
-            { {ngraph::element::f32},  { { 7.f, 8.f, 9.f } }, { { 10.f, 12.f, 16.f } } },
+            { {ov::element::f32},  { { 7.f, 8.f, 9.f } }, { { 10.f, 12.f, 16.f } } },
         },
         {
-            { {ngraph::element::f32},  { { 7.f, 8.f, 9.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {} },
-            ngraph::element::f32,
+            { {ov::element::f32},  { { 7.f, 8.f, 9.f }, ov::element::f32, { 1, 3, 1, 1 }, false }, {} },
+            ov::element::f32,
             { {},  {}, { { 10.f, 12.f, 16.f } } },
         },
     },

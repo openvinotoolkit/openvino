@@ -36,7 +36,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseConvertTransformation,
     ::testing::Combine(
             ::testing::ValuesIn(precisions),
             ::testing::ValuesIn(inputAndQuantizationShapes),
-            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+            ::testing::Values(ov::test::utils::DEVICE_GPU),
             ::testing::ValuesIn(deqOperations),
             ::testing::ValuesIn(constInput)),
     FuseConvertTransformation::getTestCaseName);

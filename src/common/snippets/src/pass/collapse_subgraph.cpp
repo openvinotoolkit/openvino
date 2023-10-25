@@ -9,13 +9,14 @@
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/core/validation_util.hpp"
 
 #include <memory>
@@ -63,26 +64,30 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
         const auto& out_shape = n->get_output_partial_shape(0);
         if (transpose && out_shape.is_static()) {
+            const auto parent = transpose->get_input_node_shared_ptr(0);
+            const auto child = transpose->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            auto is_brgemm_case = ov::is_type<opset1::MatMul>(parent) || ov::is_type<opset1::MatMul>(child);
+            // Check for Transpose parent is MatMul inside Subgraph
+            if (const auto subgraph = ov::as_type_ptr<const op::Subgraph>(parent)) {
+                if (GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
+                    const auto body = subgraph->body_ptr();
+                    const auto subgraph_output = body->get_results()[transpose->input_value(0).get_index()]->get_input_node_shared_ptr(0);
+                    is_brgemm_case = is_brgemm_case || ov::is_type<opset1::MatMul>(subgraph_output);
+                }
+            }
+
             const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
             if (order) {
                 const auto order_value = order->cast_vector<int>();
-                return TransposeDecomposition::supported_cases.count(order_value) != 0 ||
-                       FuseTransposeBrgemm::supported_cases.count(order_value) != 0;
+                return (TransposeDecomposition::supported_cases.count(order_value) != 0) ||
+                       (is_brgemm_case && FuseTransposeBrgemm::supported_cases.count(order_value) != 0);
             }
         }
         return false;
     };
 
     auto is_supported_fq_op = [](const std::shared_ptr<const Node>& n) -> bool {
-        // TODO [92179]: Add support of FakeQuantize with non-constants inputs and with binarization algorithm.
-        const auto fq = ov::as_type_ptr<const opset1::FakeQuantize>(n);
-        return fq && fq->get_levels() != 2 &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)) &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(2)) &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(3)) &&
-               is_type<ov::op::v0::Constant>(n->get_input_node_shared_ptr(4)) &&
-               (fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NUMPY ||
-                fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NONE);
+        return CommonFakeQuantizeDecomposition::is_supported_fq(ov::as_type_ptr<const opset1::FakeQuantize>(n));
     };
 
     auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
@@ -174,13 +179,15 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [&n](descriptor::Tensor& t) -> bool {
-        // Todo: int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
+        // TODO [122585] Need to add dynamic rank support
+        if (t.get_partial_shape().rank().is_dynamic())
+            return false;
+        // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
         //  So i32 is supported exclusively for transposes and broadcast
-        return t.get_partial_shape().is_static() &&
-               (TokenizeSnippets::supported_element_types.count(t.get_element_type()) != 0 ||
+        return TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0 ||
                 (t.get_element_type() == ov::element::i32 &&
                         (ov::is_type<const opset1::Transpose>(n) ||
-                         ov::is_type<const opset1::Broadcast>(n))));
+                         ov::is_type<const opset1::Broadcast>(n)));
     };
     const auto&  inputs = n->inputs();
     const auto&  outputs = n->outputs();
@@ -216,8 +223,11 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 }
 } // namespace
 
-const std::set<ov::element::Type> ov::snippets::pass::TokenizeSnippets::supported_element_types =
+const std::set<ov::element::Type>& ov::snippets::pass::TokenizeSnippets::get_supported_element_types() {
+    static const std::set<ov::element::Type> supported_element_types =
         { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+    return supported_element_types;
+}
 
 bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
     return
@@ -337,7 +347,7 @@ TokenizeSnippets::TokenizeSnippets() {
 
         for (const auto& input_node : ov::as_node_vector(input_values)) {
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
-                if (!clones.count(input_node)) {
+                if (!clones.count(input_node) && GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
                     auto f = subgraph->body().clone();
                     f->set_friendly_name(subgraph->body_ptr()->get_friendly_name());
                     clones[input_node] = f;
@@ -524,15 +534,18 @@ TokenizeSnippets::TokenizeSnippets() {
         ResultVector body_results;
         std::vector<std::set<Input<Node>>> subgraph_result_inputs;
 
-        ov::NodeVector new_body_ops;
+        ov::NodeVector ops_for_buffer_count;
         for (auto subgraph : input_subgraphs) {
             // we should summurize additional needed data count (non-scalar Constants and Buffers) from all input subgraphs
             // because we will collapse them with our node and we should get total count
             const auto subgraph_ptr = ov::as_type_ptr<ov::snippets::op::Subgraph>(subgraph);
             hidden_data_count += subgraph_ptr->get_virtual_port_count();
+            // Buffers can be existed only in Subgraphs with domain sensetive ops which
+            // requires intermediate memory for data repacking
+            // To avoid load time regressions, we verify only these Subgraph with domain sensetive ops
             if (subgraph_ptr->has_domain_sensitive_ops()) {
                 const auto ops = subgraph_ptr->body_ptr()->get_ordered_ops();
-                new_body_ops.insert(new_body_ops.end(), ops.begin(), ops.end());
+                ops_for_buffer_count.insert(ops_for_buffer_count.end(), ops.begin(), ops.end());
             }
 
             for (auto output : subgraph->outputs()) {
@@ -566,7 +579,7 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         if (op::Subgraph::is_domain_sensitive_op(node)) {
-            new_body_ops.push_back(node);
+            ops_for_buffer_count.push_back(node);
         }
 
         for (auto output : node->outputs()) {
@@ -582,7 +595,7 @@ TokenizeSnippets::TokenizeSnippets() {
         // At the moment, CPU Plugin has limitation for GPR registers: there are only 12 available registers.
         // This limitation will be resolved once generator supports gprs spills [75622].
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
-        const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(new_body_ops);
+        const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(ops_for_buffer_count);
         if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > 12) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +

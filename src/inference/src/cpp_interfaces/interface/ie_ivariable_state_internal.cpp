@@ -4,6 +4,7 @@
 
 #include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 IVariableStateInternal::IVariableStateInternal(const std::string& name_) : name{name_} {}
 

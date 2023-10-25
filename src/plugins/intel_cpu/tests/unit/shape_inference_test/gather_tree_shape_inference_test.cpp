@@ -23,7 +23,7 @@ TEST_F(GatherTreeStaticShapeInferenceTest, gather_tree) {
 
     input_shapes = {StaticShape{1, 2, 3}, StaticShape{1, 2, 3}, StaticShape{2}, StaticShape{}};
     output_shapes = {StaticShape{}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{1, 2, 3}));
 }
 
@@ -31,6 +31,6 @@ TEST_F(GatherTreeStaticShapeInferenceTest, gather_tree_default_ctor) {
     op = make_op();
     input_shapes = {StaticShape{2, 4, 3}, StaticShape{2, 4, 3}, StaticShape{4}, StaticShape{}};
     output_shapes = {StaticShape{}};
-    shape_infer(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{2, 4, 3}));
 }

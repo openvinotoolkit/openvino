@@ -2,22 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/random_uniform.hpp"
-
-#include <ngraph/validation_util.hpp>
+#include "openvino/reference/random_uniform.hpp"
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/random_uniform.hpp"
+#include "openvino/op/random_uniform.hpp"
+#include "random_uniform_shape_inference.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace op {
+namespace v8 {
+namespace validate {
+inline bool shape_et(const element::Type& et) {
+    return (et == element::i32) || (et == element::i64);
+}
 
-op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape,
-                                     const Output<Node>& min_val,
-                                     const Output<Node>& max_val,
-                                     const ngraph::element::Type& out_type,
-                                     uint64_t global_seed,
-                                     uint64_t op_seed)
+inline bool out_et(const element::Type& et) {
+    return et.is_real() || shape_et(et);
+}
+}  // namespace validate
+
+RandomUniform::RandomUniform(const Output<Node>& out_shape,
+                             const Output<Node>& min_val,
+                             const Output<Node>& max_val,
+                             const ov::element::Type& out_type,
+                             uint64_t global_seed,
+                             uint64_t op_seed)
     : Op({out_shape, min_val, max_val}),
       m_output_type(out_type),
       m_global_seed(global_seed),
@@ -25,95 +34,30 @@ op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape,
     constructor_validate_and_infer_types();
 }
 
-void op::v8::RandomUniform::validate_and_infer_types() {
+void RandomUniform::validate_and_infer_types() {
     OV_OP_SCOPE(v8_RandomUniform_validate_and_infer_types);
 
     const auto& shape_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          shape_et.is_dynamic() || shape_et == element::i32 || shape_et == element::i64,
+                          shape_et.is_dynamic() || validate::shape_et(shape_et),
                           "Type of the input should be int32 or int64.");
-
-    ov::PartialShape output_shape = ov::PartialShape::dynamic();
-    const auto& input_shape = get_input_partial_shape(0);
-    if (input_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              input_shape.rank() == 1,
-                              "The rank of the tensor defining output shape must be equal to 1.");
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (const auto& const_shape = get_constant_from_source(input_value(0))) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            output_shape = ov::PartialShape(const_shape->cast_vector<int64_t>());
-        } else {
-            output_shape = ov::PartialShape::dynamic(input_shape[0]);
-        }
-    }
-
-    const auto& min_pshape = get_input_partial_shape(1);
-    const auto& max_pshape = get_input_partial_shape(2);
-    if (min_pshape.is_static()) {
-        const auto& min_rank = min_pshape.rank().get_length();
-        NODE_VALIDATION_CHECK(this, min_rank <= 1, "Min value must be a scalar or 1D tensor.");
-
-        if (min_rank == 1) {
-            NODE_VALIDATION_CHECK(this, min_pshape.compatible(ov::Shape{1}), "'min_val' should have 1 element.");
-        }
-    }
-
-    if (max_pshape.is_static()) {
-        const auto& max_rank = max_pshape.rank().get_length();
-        NODE_VALIDATION_CHECK(this, max_rank <= 1, "Max value must be a scalar or 1D tensor.");
-
-        if (max_rank == 1) {
-            NODE_VALIDATION_CHECK(this, max_pshape.compatible(ov::Shape{1}), "'max_val' should have 1 element.");
-        }
-    }
-
-    const element::Type& min_element_type = get_input_element_type(1);
-    element::Type max_element_type = get_input_element_type(2);
+    const auto& min_et = get_input_element_type(1);
+    const auto& max_et = get_input_element_type(2);
+    const auto& out_et = get_out_type();
+    NODE_VALIDATION_CHECK(this, min_et == max_et, "'min_val' should have the same type as 'max_val'.");
     NODE_VALIDATION_CHECK(this,
-                          min_element_type == max_element_type,
-                          "'min_val' should have the same type as 'max_val'.");
-    NODE_VALIDATION_CHECK(this,
-                          min_element_type == get_out_type(),
+                          validate::out_et(out_et) && (out_et == min_et),
                           "'min_val' and 'max_val' should have the same type as 'out_type' attribute.");
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& const_min = get_constant_from_source(input_value(1))) {
-        if (const auto& const_max = get_constant_from_source(input_value(2))) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            if (get_out_type() == ngraph::element::Type_t::i64 || get_out_type() == ngraph::element::Type_t::i32) {
-                int64_t min_val = const_min->cast_vector<int64_t>()[0];
-                int64_t max_val = const_max->cast_vector<int64_t>()[0];
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, input_shapes);
 
-                NODE_VALIDATION_CHECK(this,
-                                      min_val < max_val,
-                                      "Min value must be less than max value. Got "
-                                      "min value: ",
-                                      min_val,
-                                      ", max value: ",
-                                      max_val);
-            } else if (get_out_type().is_real()) {
-                double min_val = const_min->cast_vector<double>()[0];
-                double max_val = const_max->cast_vector<double>()[0];
-
-                NODE_VALIDATION_CHECK(this,
-                                      min_val < max_val,
-                                      "Min value must be less than max value. Got "
-                                      "min value: ",
-                                      min_val,
-                                      ", max value: ",
-                                      max_val);
-            } else {
-                OPENVINO_THROW("Unsupported output type of RandomUniform: " + get_out_type().get_type_name());
-            }
-        }
-    }
-
-    set_output_type(0, get_out_type(), output_shape);
+    set_output_type(0, out_et, output_shapes.front());
 }
 
-bool op::v8::RandomUniform::visit_attributes(AttributeVisitor& visitor) {
+bool RandomUniform::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v8_RandomUniform_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
     visitor.on_attribute("op_seed", m_op_seed);
@@ -121,79 +65,44 @@ bool op::v8::RandomUniform::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> RandomUniform::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v8_RandomUniform_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto ru_copy =
-        make_shared<v8::RandomUniform>(new_args[0], new_args[1], new_args[2], m_output_type, m_global_seed, m_op_seed);
+    auto ru_copy = std::make_shared<v8::RandomUniform>(new_args.at(0),
+                                                       new_args.at(1),
+                                                       new_args.at(2),
+                                                       m_output_type,
+                                                       m_global_seed,
+                                                       m_op_seed);
     ru_copy->m_state = this->m_state;
     return ru_copy;
 }
 
-bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool RandomUniform::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v8_RandomUniform_evaluate);
-    const uint64_t* out_shape;
-    std::vector<uint64_t> out_shape_uint64(shape_size(inputs[0]->get_shape()));
 
-    if (inputs[0]->get_element_type() == element::Type_t::u64) {
-        out_shape = inputs[0]->get_data_ptr<const uint64_t>();
-    } else if (inputs[0]->get_element_type() == element::Type_t::i32) {
-        auto out_shape_i32 = inputs[0]->get_data_ptr<const int32_t>();
-        std::transform(out_shape_i32,
-                       out_shape_i32 + shape_size(inputs[0]->get_shape()),
-                       out_shape_uint64.begin(),
-                       [](const int32_t& elem) {
-                           return static_cast<uint64_t>(elem);
-                       });
-        out_shape = out_shape_uint64.data();
-    } else if (inputs[0]->get_element_type() == element::Type_t::i64) {
-        auto out_shape_i64 = inputs[0]->get_data_ptr<const int64_t>();
-        std::transform(out_shape_i64,
-                       out_shape_i64 + shape_size(inputs[0]->get_shape()),
-                       out_shape_uint64.begin(),
-                       [](const int64_t& elem) {
-                           return static_cast<uint64_t>(elem);
-                       });
-        out_shape = out_shape_uint64.data();
-    } else {
-        OPENVINO_THROW("Unsupported type of out shape in RandomUniform operation: " +
-                       inputs[0]->get_element_type().get_type_name());
+    auto input_shapes = std::vector<PartialShape>();
+    input_shapes.reserve(inputs.size());
+    for (auto& t : inputs) {
+        input_shapes.emplace_back(t.get_shape());
     }
+    const auto out_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
+    const auto out_dims = std::vector<uint64_t>(out_shape.begin(), out_shape.end());
 
-    element::Type_t t_out = get_out_type();
-    char* out;
-    switch (t_out) {
-    case element::Type_t::i32:
-        out = (char*)outputs[0]->get_data_ptr<const int32_t>();
-        break;
-    case element::Type_t::i64:
-        out = (char*)outputs[0]->get_data_ptr<const int64_t>();
-        break;
-    case element::Type_t::f16:
-        out = (char*)outputs[0]->get_data_ptr<const float16>();
-        break;
-    case element::Type_t::bf16:
-        out = (char*)outputs[0]->get_data_ptr<const bfloat16>();
-        break;
-    case element::Type_t::f32:
-        out = (char*)outputs[0]->get_data_ptr<const float>();
-        break;
-    case element::Type_t::f64:
-        out = (char*)outputs[0]->get_data_ptr<const double>();
-        break;
-    default:
-        OPENVINO_THROW("Unsupported type of RandomUniform: " + get_out_type().get_type_name());
-    }
+    const auto& t_out = get_out_type();
+    OPENVINO_ASSERT(validate::out_et(t_out), "Unsupported type of RandomUniform: " + t_out.get_type_name());
 
-    auto state = ngraph::runtime::reference::random_uniform(out_shape,
-                                                            inputs[1]->get_data_ptr<const char>(),
-                                                            inputs[2]->get_data_ptr<const char>(),
-                                                            out,
-                                                            inputs[0]->get_shape(),
-                                                            get_out_type(),
-                                                            get_global_seed(),
-                                                            get_op_seed(),
-                                                            m_state);
+    outputs[0].set_shape(out_shape);
+
+    auto state = ov::reference::random_uniform(out_dims.data(),
+                                               static_cast<const char*>(inputs[1].data()),
+                                               static_cast<const char*>(inputs[2].data()),
+                                               static_cast<char*>(outputs[0].data()),
+                                               inputs[0].get_shape(),
+                                               get_out_type(),
+                                               get_global_seed(),
+                                               get_op_seed(),
+                                               m_state);
 
     // Update RandomUniform state
     std::lock_guard<std::mutex> guard(m_state_mutex);
@@ -201,22 +110,10 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const Host
     return true;
 }
 
-bool op::v8::RandomUniform::has_evaluate() const {
+bool RandomUniform::has_evaluate() const {
     OV_OP_SCOPE(v8_RandomUniform_has_evaluate);
-    if (get_input_element_type(0) != ngraph::element::i32 && get_input_element_type(0) != ngraph::element::i64) {
-        return false;
-    }
-
-    switch (get_out_type()) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::f16:
-    case ngraph::element::bf16:
-    case ngraph::element::f32:
-    case ngraph::element::f64:
-        return true;
-    default:
-        break;
-    }
-    return false;
+    return validate::shape_et(get_input_element_type(0)) && validate::out_et(get_out_type());
 }
+}  // namespace v8
+}  // namespace op
+}  // namespace ov

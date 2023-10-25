@@ -3,9 +3,9 @@
 //
 
 #include <intel_gpu/plugin/common_utils.hpp>
-#include <intel_gpu/plugin/program.hpp>
+#include "intel_gpu/plugin/program_builder.hpp"
 #include <intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp>
-#include <ngraph/op/experimental_detectron_prior_grid_generator.hpp>
+#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -18,8 +18,8 @@ cldnn::tensor mkTensor(const ov::Shape& shape) {
 }
 
 static void CreateExperimentalDetectronPriorGridGeneratorOp(
-    Program& p,
-    const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronPriorGridGenerator>& op) {
+    ProgramBuilder& p,
+    const std::shared_ptr<ov::op::v6::ExperimentalDetectronPriorGridGenerator>& op) {
     validate_inputs_count(op, {3});
     cldnn::tensor outTensor = mkTensor(op->get_output_shape(0));
     auto outDataType = cldnn::element_type_to_data_type(op->get_output_element_type(0));

@@ -6,7 +6,8 @@
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
@@ -14,6 +15,8 @@
 namespace ov {
 namespace frontend {
 namespace pytorch {
+
+using namespace ov::op;
 
 OutputVector NodeContext::as_constant() const {
     auto dtype = m_decoder->get_output_type(0);
@@ -23,6 +26,8 @@ OutputVector NodeContext::as_constant() const {
         auto fw_node = std::make_shared<PtFrameworkNode>(m_decoder, OutputVector{});
         auto attrs = fw_node->get_attrs();
         attrs["string_value"] = str;
+        attrs[PtFrameworkNode::failed_conversion_key] =
+            "String constant cannot be converted to OpenVINO opset and should be removed by consuming operation.";
         fw_node->set_attrs(attrs);
         return {fw_node};
     } else if (dtype.is<type::PyNone>()) {
@@ -30,33 +35,61 @@ OutputVector NodeContext::as_constant() const {
         auto fw_node = std::make_shared<PtFrameworkNode>(m_decoder, OutputVector{});
         auto attrs = fw_node->get_attrs();
         attrs["none_value"] = "";
+        attrs[PtFrameworkNode::failed_conversion_key] =
+            "None constant cannot be converted to OpenVINO opset and should be removed by consuming operation.";
         fw_node->set_attrs(attrs);
         return {fw_node};
     } else {
-        return m_decoder->as_constant();
+        auto c_outs = m_decoder->as_constant();
+        FRONT_END_OP_CONVERSION_CHECK(c_outs.size() == 1, "Constant must have exactly one output.");
+        c_outs[0].get_node_shared_ptr()->set_friendly_name(m_decoder->get_output_debug_name(0));
+        return c_outs;
     }
 }
 
 std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) const {
-    ov_node->set_friendly_name(get_op_type() + '_' + std::to_string(m_translate_session->m_friendly_name_counter++));
-    return m_decoder->mark_node(ov_node);
+    ov_node = m_decoder->mark_node(ov_node);
+    m_translate_session->unique_name(ov_node);
+    return ov_node;
 }
 
 void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
-    FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
+    FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input is none with index: ", index);
     auto input_id = m_decoder_inputs.at(index);
     FRONT_END_GENERAL_CHECK(m_tensor_map->count(input_id), "No tensor corresponding input: ", input_id, " exist.");
-    m_translate_session->encode_tensor_name(
-        ov_output,
-        input_id,
-        {m_decoder->get_input_debug_name(index), m_decoder->get_input_signature_name(index)});
+    m_translate_session->encode_tensor_name(ov_output, input_id, {m_decoder->get_input_debug_name(index)});
     (*m_tensor_map)[input_id] = ov_output;
     m_mutated_tensors->insert(input_id);
+
+    // Resolve aliases
+    auto back_input_id = input_id;
+    auto back_node_input = ov_output;
+    while (m_translate_session->m_may_be_alias.count(back_input_id)) {
+        // Create node to backprop data. While loop is needed for the cases when alias to tensor point to another alias
+        // to tensor. In that case we need to create a chain of backprop ops
+        size_t in_tensor;
+        std::shared_ptr<TorchDecoder> node;
+        Output<Node> node_converted_output;
+        std::tie(in_tensor, node, node_converted_output) = m_translate_session->m_may_be_alias.at(back_input_id);
+        auto backprop_node = m_translate_session->get_backprop_op(node, node_converted_output, back_node_input);
+        if (m_tensor_map->count(in_tensor)) {
+            // Tensor is not found in the scope of this body, need to get it from internal context and mark mutated
+            OPENVINO_DEBUG << "Couldn't find in the current body the initial aliased tensor: " << in_tensor
+                           << " for operation: " << node->get_op_type() << " creating new body input.";
+            get_tensor_from_model_or_create_input(in_tensor);
+        }
+        m_translate_session->encode_tensor_name(backprop_node, in_tensor);
+        (*m_tensor_map)[in_tensor] = backprop_node;
+        m_mutated_tensors->insert(in_tensor);
+        OPENVINO_DEBUG << "Propagated back data from tensor: " << back_input_id << " to tensor: " << in_tensor << ".\n";
+        back_input_id = in_tensor;
+        back_node_input = backprop_node;
+    }
 }
 
 void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) const {
     if (m_tensor_map->count(index)) {
-        OPENVINO_DEBUG << "[ WARNING ] Current context has tensor. Rewriting.\n";
+        OPENVINO_DEBUG << "[ WARNING ] Current context has tensor " << index << ". Assuming mutated output.\n";
     }
     m_translate_session->encode_tensor_name(ov_output, index);
     (*m_tensor_map)[index] = ov_output;
@@ -67,7 +100,7 @@ Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) co
         return m_tensor_map->at(index);
     } else {
         // nested subgraphs case
-        auto parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
+        auto parameter = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
         m_translate_session->encode_tensor_name(parameter->output(0), index);
         (*m_tensor_map)[index] = parameter;
         m_external_parameters->push_back(parameter);
@@ -80,7 +113,7 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
     FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index is lower then number of inputs.");
     auto input_tensor = get_input(static_cast<int>(index));
     auto input_node = input_tensor.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<opset10::Parameter>(input_node)) {
+    if (std::dynamic_pointer_cast<v0::Parameter>(input_node)) {
         // We need to look into external context for inputs that would be feed into this parameter
         size_t tensor_idx = m_translate_session->decode_tensor_name(input_node->output(0));
         if (m_ext_tensor_map.count(tensor_idx)) {
@@ -116,10 +149,10 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
 }
 
 namespace {
-std::shared_ptr<opset10::Constant> get_constant_at_input(const NodeContext& ctx, size_t index) {
+std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size_t index) {
     FRONT_END_GENERAL_CHECK(!ctx.input_is_none(index), "Input with index: ", index, " is none.");
     auto input_node = ctx.get_input_from_visible_context(index).get_node_shared_ptr();
-    auto input = std::dynamic_pointer_cast<opset10::Constant>(input_node);
+    auto input = std::dynamic_pointer_cast<v0::Constant>(input_node);
     FRONT_END_GENERAL_CHECK(input, "Input with index ", index, " cannot be interpreted as Constant: ", input_node);
     return input;
 }
@@ -185,7 +218,7 @@ std::string NodeContext::const_input<std::string>(size_t index) const {
 
 namespace {
 template <typename T>
-Any get_constant_data(const std::shared_ptr<opset10::Constant>& constant) {
+Any get_constant_data(const std::shared_ptr<v0::Constant>& constant) {
     const T* ptr = reinterpret_cast<const T*>(constant->get_data_ptr());
     const auto& shape = constant->get_shape();
     if (is_scalar(shape)) {
@@ -206,7 +239,7 @@ Any NodeContext::get_values_from_const_input(int index) const {
     }
 
     auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
-    if (auto constant = as_type_ptr<opset10::Constant>(input_node)) {
+    if (auto constant = as_type_ptr<v0::Constant>(input_node)) {
         switch (constant->get_element_type()) {
         case element::f32:
             return get_constant_data<float>(constant);
@@ -228,6 +261,8 @@ Any NodeContext::get_values_from_const_input(int index) const {
             return get_constant_data<int16_t>(constant);
         case element::u16:
             return get_constant_data<uint16_t>(constant);
+        case element::boolean:
+            return get_constant_data<bool>(constant);
         default:
             FRONT_END_GENERAL_CHECK(false, "Input with index: ", index, " has unsupported type.");
         }

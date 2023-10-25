@@ -7,6 +7,7 @@
 #include <sstream>
 #include <json_object.h>
 #include "openvino/core/enum_names.hpp"
+#include "roi_align_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(roi_align)
@@ -24,6 +25,31 @@ layout roi_align_inst::calc_output_layout(roi_align_node const& node, kernel_imp
                   input_layout.format,
                   {num_rois, num_channels, primitive->pooled_h, primitive->pooled_w});
 }
+
+template<typename ShapeType>
+std::vector<layout> roi_align_inst::calc_output_layouts(roi_align_node const& node, kernel_impl_params const& impl_param) {
+    auto primitive = impl_param.typed_desc<roi_align>();
+
+    auto input0_layout  = impl_param.get_input_layout(0);
+    auto input1_layout  = impl_param.get_input_layout(1);
+    auto input2_layout  = impl_param.get_input_layout(2);
+
+    std::vector<ShapeType> input_shapes = {
+        input0_layout.get<ShapeType>(),     // input shape
+        input1_layout.get<ShapeType>(),     // roi shape
+        input2_layout.get<ShapeType>()      // batch indices shape
+    };
+
+    ov::op::v3::ROIAlign op;
+    op.set_pooled_h(primitive->pooled_h);
+    op.set_pooled_w(primitive->pooled_w);
+    std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
+
+    return { layout{output_shapes[0], input0_layout.data_type, input0_layout.format} };
+}
+
+template
+std::vector<layout> roi_align_inst::calc_output_layouts<ov::PartialShape>(roi_align_node const& node, const kernel_impl_params& impl_param);
 
 std::string roi_align_inst::to_string(roi_align_node const& node) {
     auto node_info = node.desc_to_json();

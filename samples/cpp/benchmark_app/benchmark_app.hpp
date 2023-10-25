@@ -96,7 +96,7 @@ static const char layout_message[] =
     "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
 
 /// @brief message for execution mode
-static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
+static const char api_message[] = "Optional. Enable Sync/Async API. Default value is \"async\".";
 
 /// @brief message for #streams for CPU inference
 static const char infer_num_streams_message[] =
@@ -149,7 +149,7 @@ static constexpr char outputs_precision_message[] = "Optional. Specifies precisi
 
 static constexpr char iop_message[] =
     "Optional. Specifies precision for input and output layers by name.\n"
-    "                                             Example: -iop \"input:FP16, output:FP16\".\n"
+    "                                             Example: -iop \"input:f16, output:f16\".\n"
     "                                             Notice that quotes are required.\n"
     "                                             Overwrites precision from ip and op options for "
     "specified layers.";
@@ -329,7 +329,7 @@ DEFINE_string(ip, "", inputs_precision_message);
 DEFINE_string(op, "", outputs_precision_message);
 
 /// @brief Specify precision for input and output layers by name.\n"
-///        Example: -iop \"input:FP16, output:FP16\".\n"
+///        Example: -iop \"input:f16, output:f16\".\n"
 ///        Notice that quotes are required.\n"
 ///        Overwrites layout from ip and op options for specified layers.";
 DEFINE_string(iop, "", iop_message);

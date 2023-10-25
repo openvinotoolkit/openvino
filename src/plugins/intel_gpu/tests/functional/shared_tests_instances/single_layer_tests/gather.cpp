@@ -87,7 +87,7 @@ const auto GatherIndiceScalar = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 const auto GatherAxes4i4b1 = []() {
@@ -99,7 +99,7 @@ const auto GatherAxes4i4b1 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 const auto GatherAxes4i8b1 = []() {
@@ -111,7 +111,7 @@ const auto GatherAxes4i8b1 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 const auto GatherAxes4i8b2 = []() {
@@ -123,7 +123,7 @@ const auto GatherAxes4i8b2 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -251,7 +251,7 @@ const auto GatherAxes4 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -271,7 +271,7 @@ const auto Gather6dAxes4 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -319,7 +319,7 @@ const auto GatherAxes3 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -339,7 +339,7 @@ const auto Gather6dAxes3 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -388,7 +388,7 @@ const auto GatherAxes2 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -408,7 +408,7 @@ const auto Gather6dAxes2 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -458,7 +458,7 @@ const auto GatherAxes1 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -478,7 +478,7 @@ const auto Gather6dAxes1 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -529,7 +529,7 @@ const auto GatherAxes0 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -549,7 +549,7 @@ const auto Gather6dAxes0 = []() {
                             testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             testing::Values(InferenceEngine::Layout::ANY),
                             testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -558,5 +558,52 @@ INSTANTIATE_TEST_SUITE_P(
         Gather6dAxes0(),
         GatherLayerTest::getTestCaseName
 );
+
+const auto GatherAxes0Optimized = []() {
+    return testing::Combine(testing::ValuesIn({std::vector<size_t>{4, 8, 2, 2}}),
+                            testing::ValuesIn({std::vector<size_t>{}}),
+                            testing::ValuesIn({std::tuple<int, int>{0, 0}}),
+                            testing::ValuesIn(netPrecisionsFP32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes0Optimized,
+        Gather8IndiceScalarLayerTest,
+        GatherAxes0Optimized(),
+        Gather8IndiceScalarLayerTest::getTestCaseName
+);
+
+gather7ParamsTuple dummyParams = {
+        std::vector<size_t>{2, 3},
+        std::vector<size_t>{2, 2},
+        std::tuple<int, int>{1, 1},
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::UNSPECIFIED,
+        InferenceEngine::Precision::UNSPECIFIED,
+        InferenceEngine::Layout::ANY,
+        InferenceEngine::Layout::ANY,
+        ov::test::utils::DEVICE_GPU,
+};
+
+std::vector<std::vector<int>> indicesData = {
+        {0, 1, 2, 0},           // positive in bound
+        {-1, -2, -3, -1},       // negative in bound
+        {-1, 0, 1, 2},          // positive and negative in bound
+        {0, 1, 2, 3},           // positive out of bound
+        {-1, -2, -3, -4},       // negative out of bound
+        {0, 4, -4, 0},          // positive and negative out of bound
+};
+
+const auto gatherWithIndicesParams = testing::Combine(
+        testing::Values(dummyParams),
+        testing::ValuesIn(indicesData)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke, Gather8withIndicesDataLayerTest, gatherWithIndicesParams, Gather8withIndicesDataLayerTest::getTestCaseName);
 
 }  // namespace

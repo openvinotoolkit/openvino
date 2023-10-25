@@ -22,6 +22,7 @@ OP_CONVERTER(concat);
 OP_CONVERTER(conditional_block);
 OP_CONVERTER(conv2d);
 OP_CONVERTER(conv2d_transpose);
+OP_CONVERTER(cos);
 OP_CONVERTER(cumsum);
 OP_CONVERTER(deformable_conv);
 OP_CONVERTER(dequantize_linear);
@@ -73,6 +74,7 @@ OP_CONVERTER(matrix_nms);
 OP_CONVERTER(meshgrid);
 OP_CONVERTER(multiclass_nms);
 OP_CONVERTER(nearest_interp_v2);
+OP_CONVERTER(one_hot_v2);
 OP_CONVERTER(p_norm);
 OP_CONVERTER(pad3d);
 OP_CONVERTER(pow);
@@ -80,6 +82,7 @@ OP_CONVERTER(pool2d);
 OP_CONVERTER(prior_box);
 OP_CONVERTER(quantize_linear);
 OP_CONVERTER(range);
+OP_CONVERTER(reduce_all);
 OP_CONVERTER(reduce_max);
 OP_CONVERTER(reduce_mean);
 OP_CONVERTER(reduce_min);
@@ -93,13 +96,16 @@ OP_CONVERTER(rnn);
 OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
 OP_CONVERTER(select_input);
+OP_CONVERTER(set_value);
 OP_CONVERTER(shape);
+OP_CONVERTER(share_data);
+OP_CONVERTER(sigmoid);
+OP_CONVERTER(silu);
+OP_CONVERTER(sin);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
 OP_CONVERTER(softplus);
 OP_CONVERTER(softshrink);
-OP_CONVERTER(sigmoid);
-OP_CONVERTER(silu);
 OP_CONVERTER(split);
 OP_CONVERTER(sqrt);
 OP_CONVERTER(squeeze);
@@ -138,6 +144,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"conditional_block", op::conditional_block},
             {"conv2d", op::conv2d},
             {"conv2d_transpose", op::conv2d_transpose},
+            {"cos", op::cos},
             {"cumsum", op::cumsum},
             {"deformable_conv", op::deformable_conv},
             {"deformable_conv_v1", op::deformable_conv},
@@ -195,6 +202,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
             {"not_equal", op::elementwise_not_equal},
+            {"one_hot_v2", op::one_hot_v2},
             {"p_norm", op::p_norm},
             {"pad3d", op::pad3d},
             {"pow", op::pow},
@@ -202,6 +210,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"prior_box", op::prior_box},
             {"quantize_linear", op::quantize_linear},
             {"range", op::range},
+            {"reduce_all", op::reduce_all},
             {"reduce_max", op::reduce_max},
             {"reduce_mean", op::reduce_mean},
             {"reduce_min", op::reduce_min},
@@ -215,13 +224,16 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"roi_align", op::roi_align},
             {"scale", op::scale},
             {"select_input", op::select_input},
+            {"set_value", op::set_value},
             {"shape", op::shape},
+            {"share_data", op::share_data},
+            {"sigmoid", op::sigmoid},
+            {"silu", op::silu},
+            {"sin", op::sin},
             {"slice", op::slice},
             {"softmax", op::softmax},
             {"softplus", op::softplus},
             {"softshrink", op::softshrink},
-            {"sigmoid", op::sigmoid},
-            {"silu", op::silu},
             {"split", op::split},
             {"sqrt", op::sqrt},
             {"squeeze2", op::squeeze},

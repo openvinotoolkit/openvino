@@ -3,70 +3,60 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef MULTIDEVICEPLUGIN_HLOG_H
-#define MULTIDEVICEPLUGIN_HLOG_H
+#pragma once
 
 #include <cstdarg>
 
 #include "log.hpp"
-#include <ie_plugin_config.hpp>
 
 #ifdef  MULTIUNITTEST
 #include "include/mock_log_utils.hpp"
 #define MOCKTESTMACRO virtual
-#define MultiDevicePlugin MockMultiDevicePlugin
-#define HLogger MockMultiDevice::MockLog::GetInstance()
+#define auto_plugin mock_auto_plugin
+#define HLogger ov::mock_auto_plugin::MockLog::get_instance()
 #else
 #define MOCKTESTMACRO
-#define HLogger MultiDevicePlugin::Log::instance()
+#define HLogger ov::auto_plugin::Log::instance()
 #endif
 
 
 #define HLogPrint(isOn, isTraceCallStack, logLevel, level, tag, ...) \
-    HLogger->doLog(isOn, isTraceCallStack, logLevel, level, __FILE__, __func__, __LINE__, tag, __VA_ARGS__)
+    HLogger->do_log(isOn, isTraceCallStack, logLevel, level, __FILE__, __func__, __LINE__, tag, __VA_ARGS__)
 
-// #define HFrequent(isOn, tag, ...) HLogPrint(isOn, MultiDevicePlugin::LogLevel::FREQUENT, "FREQ", tag, __VA_ARGS__)
-// #define HFatal(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::FATAL, "FATAL", nullptr, __VA_ARGS__)
-#define LOG_TRACE(isOn, tag, ...) HLogPrint(isOn, false, MultiDevicePlugin::LogLevel::PROCESS, "TRACE", tag, __VA_ARGS__)
-#define LOG_DEBUG(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::DEBUG, "DEBUG", nullptr, __VA_ARGS__)
-#define LOG_INFO(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::INFO, "INFO", nullptr, __VA_ARGS__)
-#define LOG_WARNING(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::WARN, "WARN", nullptr, __VA_ARGS__)
-#define LOG_ERROR(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::ERROR, "ERROR", nullptr, __VA_ARGS__)
+// #define HFrequent(isOn, tag, ...) HLogPrint(isOn, auto_plugin::LogLevel::FREQUENT, "FREQ", tag, __VA_ARGS__)
+// #define HFatal(...) HLogPrint(true, false, auto_plugin::LogLevel::FATAL, "FATAL", nullptr, __VA_ARGS__)
+#define LOG_TRACE(isOn, tag, ...) HLogPrint(isOn, false, ov::log::Level::TRACE, "TRACE", tag, __VA_ARGS__)
+#define LOG_DEBUG(...) HLogPrint(true, false, ov::log::Level::DEBUG, "DEBUG", nullptr, __VA_ARGS__)
+#define LOG_INFO(...) HLogPrint(true, false, ov::log::Level::INFO, "INFO", nullptr, __VA_ARGS__)
+#define LOG_WARNING(...) HLogPrint(true, false, ov::log::Level::WARNING, "WARN", nullptr, __VA_ARGS__)
+#define LOG_ERROR(...) HLogPrint(true, false, ov::log::Level::ERR, "ERROR", nullptr, __VA_ARGS__)
 
-// To use macro LOG_XXX_TAG, need to implement GetLogTag() which returns log tag, the type of log tag is string
-#define LOG_DEBUG_TAG(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::DEBUG, "DEBUG", GetLogTag().c_str(), __VA_ARGS__)
-#define LOG_INFO_TAG(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::INFO, "INFO", GetLogTag().c_str(), __VA_ARGS__)
-#define LOG_WARNING_TAG(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::WARN, "WARN", GetLogTag().c_str(), __VA_ARGS__)
-#define LOG_ERROR_TAG(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::ERROR, "ERROR", GetLogTag().c_str(), __VA_ARGS__)
+// To use macro LOG_XXX_TAG, need to implement get_log_tag() which returns log tag, the type of log tag is string
+#define LOG_DEBUG_TAG(...) HLogPrint(true, false, ov::log::Level::DEBUG, "DEBUG", get_log_tag().c_str(), __VA_ARGS__)
+#define LOG_INFO_TAG(...) HLogPrint(true, false, ov::log::Level::INFO, "INFO", get_log_tag().c_str(), __VA_ARGS__)
+#define LOG_WARNING_TAG(...) HLogPrint(true, false, ov::log::Level::WARNING, "WARN", get_log_tag().c_str(), __VA_ARGS__)
+#define LOG_ERROR_TAG(...) HLogPrint(true, false, ov::log::Level::ERR, "ERROR", get_log_tag().c_str(), __VA_ARGS__)
 
-#define TraceCallStacks(...) HLogPrint(true, true, MultiDevicePlugin::LogLevel::DEBUG, "DEBUG", nullptr, __VA_ARGS__)
+#define TraceCallStacks(...) HLogPrint(true, true, ov::log::Level::DEBUG, "DEBUG", nullptr, __VA_ARGS__)
 #define TraceCallStack() TraceCallStacks(" ")
-
-namespace MultiDevicePlugin {
-inline bool setLogLevel(std::string logLevel) {
-    static std::map<std::string, LogLevel> logValueMap = {{CONFIG_VALUE(LOG_NONE), LogLevel::LOG_NONE},
-        {CONFIG_VALUE(LOG_ERROR), LogLevel::LOG_ERROR},
-        {CONFIG_VALUE(LOG_WARNING), LogLevel::LOG_WARNING},
-        {CONFIG_VALUE(LOG_INFO), LogLevel::LOG_INFO},
-        {CONFIG_VALUE(LOG_DEBUG), LogLevel::LOG_DEBUG},
-        {CONFIG_VALUE(LOG_TRACE), LogLevel::LOG_TRACE}};
-    auto it = logValueMap.find(logLevel);
-    if (it != logValueMap.end()) {
-        HLogger->setLogLevel(it->second);
+namespace ov {
+namespace auto_plugin {
+inline bool set_log_level(ov::Any loglevel) {
+    try {
+        HLogger->set_log_level(loglevel.as<ov::log::Level>());
         return true;
-    } else {
+    } catch (ov::Exception&) {
         return false;
     }
 }
 
 inline void INFO_RUN(const LogTask& task) {
-   HLogger->doRun(MultiDevicePlugin::LogLevel::INFO, task);
+   HLogger->do_run(ov::log::Level::INFO, task);
 }
 
 inline void DEBUG_RUN(const LogTask& task) {
-   HLogger->doRun(MultiDevicePlugin::LogLevel::DEBUG, task);
+   HLogger->do_run(ov::log::Level::DEBUG, task);
 }
 
-} // namespace MultiDevicePlugin
-
-#endif //MULTIDEVICEPLUGIN_HLOG_H
+} // namespace auto_plugin
+} // namespace ov

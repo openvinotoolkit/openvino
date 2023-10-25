@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
@@ -34,9 +34,9 @@ public:
 
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
             for (const auto& actual_shape : shape.second) {
-                result << CommonTestUtils::partialShape2str({actual_shape}) << "_";
+                result << ov::test::utils::partialShape2str({actual_shape}) << "_";
             }
         }
         result << "IV=";
@@ -129,7 +129,7 @@ protected:
         std::vector<float> inputValues;
         ElementType netType;
         std::map<std::string, std::string> additionalConfig;
-        ngraph::ParameterVector params;
+        ov::ParameterVector params;
         std::tie(inputShapes, inputValues, netType, targetDevice, additionalConfig) = basicParamsSet;
 
         input_values = inputValues;
@@ -139,10 +139,15 @@ protected:
 
         if (netType == ElementType::undefined) {
             std::vector<element::Type> types = { ElementType::f32, ElementType::i32, ElementType::f32 };
-            params = builder::makeDynamicParams(types, inputDynamicShapes);
+            for (size_t i = 0; i < types.size(); i++) {
+                auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
+                params.push_back(paramNode);
+            }
             netType = ElementType::f32;
         } else {
-            params = builder::makeDynamicParams(netType, inputDynamicShapes);
+            for (auto&& shape : inputDynamicShapes) {
+                params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+            }
         }
         const auto range = std::make_shared<ngraph::opset8::Range>(params[0], params[1], params[2], netType);
 
@@ -191,7 +196,7 @@ const std::vector<ElementType> netPrecisions = {
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                  ::testing::ValuesIn(inputValues),
                                                  ::testing::ValuesIn(netPrecisions),
-                                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                  ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_01, RangeDynamicGPUTest,
@@ -214,7 +219,7 @@ const std::vector<ElementType> netFloatPrecisions = {
 const auto testFloatParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                       ::testing::ValuesIn(inputFloatValues),
                                                       ::testing::ValuesIn(netFloatPrecisions),
-                                                      ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                      ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                       ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_02, RangeDynamicGPUTest,
@@ -237,7 +242,7 @@ const std::vector<ElementType> netMixedPrecisions = {
 const auto testMixedParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                       ::testing::ValuesIn(inputMixedValues),
                                                       ::testing::ValuesIn(netMixedPrecisions),
-                                                      ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                      ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                       ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_diff_types, RangeDynamicGPUTest,

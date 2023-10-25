@@ -10,7 +10,7 @@
 #include "gna_data_types.hpp"
 #include "gna_plugin.hpp"
 #include "memory/gna_memory.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::intel_gna::target;
@@ -45,9 +45,9 @@ public:
     GNAPluginForMemoryAlignmentTest(const std::map<std::string, std::string>& configMap) : GNAPlugin(configMap) {
         if (gnadevice) {
             gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{},
-                                              gnadevice->getMemAlignment(),
-                                              limitations::kMemoryPageSize));
-            graphCompiler.setGNAMemoryPtr(gnamem);
+                                              Limitations::get_instance()->get_memory_alignment(),
+                                              Limitations::kMemoryPageSize));
+            m_graph_compiler->setGNAMemoryPtr(gnamem);
             gnadevice.reset();
         }
     }
@@ -149,16 +149,14 @@ INSTANTIATE_TEST_SUITE_P(MemoryAlignment_GNA_4_0,
 
 class MemoryAlignmentTest : public ::testing::Test {};
 
-TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_ExpectExceptionWhenTargetIsUnset) {
-    EXPECT_ANY_THROW(getMemoryAlignmentBytes(DeviceVersion::NotSet));
-}
-
-TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect64ByteAlignmentWhenTargetIsGNA3_0) {
-    EXPECT_EQ(getMemoryAlignmentBytes(DeviceVersion::GNA3_0), 64);
+TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect64ByteAlignmentWhenTargetIsGNA3_5) {
+    Limitations::init(DeviceVersion::GNA3_5);
+    EXPECT_EQ(Limitations::get_instance()->get_memory_alignment(), 64);
 }
 
 TEST(MemoryAlignmentTest, getMemoryAlignmentBytes_Expect16ByteAlignmentWhenTargetIsGNA3_6) {
-    EXPECT_EQ(getMemoryAlignmentBytes(DeviceVersion::GNA3_6), 16);
+    Limitations::init(DeviceVersion::GNA3_6);
+    EXPECT_EQ(Limitations::get_instance()->get_memory_alignment(), 16);
 }
 
 }  // namespace testing

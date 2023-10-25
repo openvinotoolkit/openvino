@@ -13,14 +13,14 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 * Per-channel quantization for Convolutional and Fully-Connected layers.
 * Multiple domains: Computer Vision, Recommendation Systems.
 * Ability to implement custom calibration pipeline via supported [API](openvino/tools/pot/api/README.md).
-* Compression for different HW targets such as CPU, GPU, VPU.
+* Compression for different HW targets such as CPU, GPU, NPU.
 * Post-training sparsity.
 
 ## Usage
 
 ### System requirements
 - Ubuntu 18.04 or later (64-bit)
-- Python 3.7 or later
+- Python 3.8 or later
 - OpenVINO
 
 ### Installation (Temporary)
@@ -30,10 +30,10 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
    git submodule init
    git submodule update
    ```
-3) Setup Model Optimizer. 
-    You can setup Model Optimizer that needs for POT purposed with the two ways:
-    1. Install Model Optimizer with pip using "python setup.py install" at the mo folder (`<openvino_path>/tools/mo/setup.py`)
-    2. Setup Model Optimizer for Python using PYTHONPATH environment variable. Add the following `<openvino_path>/tools/mo` into PYTHONPATH.
+3) Setup model conversion API. 
+    You can setup model conversion API that needs for POT purposed with the two ways:
+    1. Install model conversion API with pip using "python setup.py install" at the mo folder (`<openvino_path>/tools/mo/setup.py`)
+    2. Setup model conversion API for Python using PYTHONPATH environment variable. Add the following `<openvino_path>/tools/mo` into PYTHONPATH.
 4) Install requirements for accuracy checker:
     - From POT root: `cd ./thirdparty/open_model_zoo/tools/accuracy_checker`
     - Call setup script: `python3 setup.py install`

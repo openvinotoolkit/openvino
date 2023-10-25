@@ -93,7 +93,7 @@ float ScaleFactorCalculator::selectBestOutputScaleFactors(float inScale,
         auto sd = 0.0f;
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale, outScale);
-            auto slope = FloatToInt16(s.slope * s.slope_scale);
+            auto slope = DoubleToInt16(s.slope * s.slope_scale);
             if (slope < std::numeric_limits<int16_t>::min() || slope > std::numeric_limits<int16_t>::max()) {
                 sd += std::numeric_limits<int8_t>::max();
                 continue;
@@ -104,7 +104,7 @@ float ScaleFactorCalculator::selectBestOutputScaleFactors(float inScale,
                 return outScale;
             }
 
-            sd += pow(testSlope - slopes[j], 2.0);
+            sd += static_cast<float>(pow(testSlope - slopes[j], 2.0));
         }
 
         sd /= slopes.size();
@@ -139,7 +139,7 @@ float ScaleFactorCalculator::selectBestWeightsScaleFactors(float inScale,
     for (size_t i = 0; i < weightsScales.size(); ++i) {
         auto weightScale = weightsScales[i];
 
-        auto sd = 0.0;
+        auto sd = 0.0f;
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale * weightScale, outScale);
             auto slope = static_cast<uint32_t>(s.slope * s.slope_scale);
@@ -153,7 +153,7 @@ float ScaleFactorCalculator::selectBestWeightsScaleFactors(float inScale,
             if (AreFpEq(static_cast<float>(testSlope), static_cast<float>(slopes[j]))) {
                 return outScale;
             }
-            sd += pow(testSlope - slopes[j], 2.0);
+            sd += static_cast<float>(pow(testSlope - slopes[j], 2.0));
         }
 
         sd /= slopes.size();
@@ -233,7 +233,7 @@ bool ScaleFactorCalculator::requantizeInput(InferenceEngine::CNNLayerPtr input,
         return false;
     }
 
-    size_t prevInputIdx = 0;
+    int prevInputIdx = 0;
     auto info = LayerInfo(layer);
     auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
     if (quantDataForInputLayer->_dst_quant.IsStatsSet()) {
@@ -261,7 +261,7 @@ bool ScaleFactorCalculator::requantizeInput(InferenceEngine::CNNLayerPtr input,
     if (info.isWeightableIdentity() && !AreFpEq(quantDataForInputLayer->_weights_quant.GetScale(), 1.0f)) {
         auto reducer = std::max(1.0f, quantDataForInputLayer->_dst_quant.GetScale() / newOutputScale);
         auto newWeightsScale = std::max(1.0f, quantDataForInputLayer->_weights_quant.GetScale() / reducer);
-        quantDataForInputLayer->_weights_quant.SetScale(static_cast<int32_t>(newWeightsScale));
+        quantDataForInputLayer->_weights_quant.SetScale(trunc(newWeightsScale));
         quantDataForInputLayer->_dst_quant.SetScale(quantDataForInputLayer->_weights_quant.GetScale() *
                                                     quantDataForInputLayer->_src_quant.GetScale());
 
@@ -410,7 +410,8 @@ float ScaleFactorCalculator::getActivationScale(InferenceEngine::CNNLayer const*
 #endif
     } else if (layer.isRelu()) {
         // if activation is one from relu family, we need to apply heuristic to avoid activation output overflow
-        auto limit = (inputsSize == 1 ? std::numeric_limits<int8_t>::max() : std::numeric_limits<int32_t>::max()) - 1;
+        auto limit = static_cast<uint64_t>(
+            (inputsSize == 1 ? std::numeric_limits<int8_t>::max() : std::numeric_limits<int32_t>::max()) - 1);
 
         if (static_cast<uint64_t>(result * quantizedParams->_src_quant.GetScale()) > limit) {
             result *= 0.5;
@@ -596,7 +597,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cn
         IE_THROW() << "Incorrect Layer pointer \n";
     }
 
-    int inputsSize = GetInputPrecision().size();
+    int inputsSize = static_cast<int>(GetInputPrecision().size());
 
     LayerInfo layerInfo(*cnnLayer);
     // TODO: current approach set input scale factor for true input layer(s) equals to provided factor,
@@ -732,7 +733,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cn
             auto flt_buf = blob->buffer().as<float*>();
             auto size = blob->size();
 
-            for (int i = 0; i < size; i++) {
+            for (size_t i = 0; i < size; i++) {
                 auto val = flt_buf[i];
                 if (val > max_val)
                     max_val = val;
@@ -800,7 +801,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cn
         }
         return true;
     } else if (layerInfo.isCropAffined()) {
-        auto weightsScaleFactor = 1;
+        auto weightsScaleFactor = 1.0f;
         quant->_weights_quant.SetScale(weightsScaleFactor);
         quant->_src_quant.SetScale(inputQuant->_dst_quant.GetScale());
         quant->_dst_quant.SetScale(quant->_weights_quant.GetScale() * quant->_src_quant.GetScale());
@@ -881,7 +882,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerEltwise(InferenceEngine::EltwiseL
                     auto error = std::abs(eltwiseWeightsScale - static_cast<int16_t>(eltwiseWeightsScale));
                     if (error < bestError) {
                         bestError = error;
-                        bestWeightsScale = i;
+                        bestWeightsScale = static_cast<float>(i);
                     }
 
                     if (AreFpEq(error, 0.0f)) {
@@ -923,7 +924,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerEltwise(InferenceEngine::EltwiseL
 
         auto weightsReducer = calculateWeightsReducerFromDstStats(quantData->_dst_quant);
         if (weightsReducer > initial_weights_reducer_val) {
-            float newOutputScale = quantParams1->_dst_quant.GetScale() / weightsReducer;
+            float newOutputScale = static_cast<float>(quantParams1->_dst_quant.GetScale() / weightsReducer);
             if (requantizeInput(in1, newOutputScale, result, infiniteLoopCount)) {
                 return true;
             }
@@ -950,11 +951,11 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerConcat(InferenceEngine::ConcatLay
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
     std::vector<InferenceEngine::CNNLayerPtr> inputLayers;
-    for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
+    for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
         auto notChangeScaleFactors = [](InferenceEngine::CNNLayerPtr layer) {
             return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isSplit() || LayerInfo(layer).isCopy();
         };
-        auto prev_layer = CNNNetPrevLayerSkipCertain(concatLayer, input_idx, notChangeScaleFactors);
+        auto prev_layer = CNNNetPrevLayerSkipCertain(concatLayer, static_cast<int>(input_idx), notChangeScaleFactors);
         inputLayers.push_back(prev_layer);
     }
 
@@ -1112,7 +1113,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerConcat(InferenceEngine::ConcatLay
             [&restartedLayer, &concatLayer, &layerIdToUpdate](InferenceEngine::CNNLayer* from) {
                 // aborting UFS once found functional layer, and using only specified input of concat
                 return make_upstream_order(restartedLayer == nullptr ? from : nullptr,
-                                           from == concatLayer ? layerIdToUpdate : -1);
+                                           from == concatLayer ? static_cast<int>(layerIdToUpdate) : -1);
             });
 
         if (restartedLayer == nullptr) {
@@ -1135,9 +1136,10 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerConcat(InferenceEngine::ConcatLay
             if (fake_quantized && prevLayer != nullptr &&
                 (LayerInfo(prevLayer).isConcatAlignFilter() || LayerInfo(prevLayer).isSyntheticScaleShift()) &&
                 (prevLayer2 == nullptr || LayerInfo(prevLayer2).has8BOr16BOutput())) {
-                auto weightsScales = generateScaleFactors(min_search_weights_val,
-                                                          max_search_weights_val,
-                                                          max_search_weights_val - min_search_weights_val);
+                auto weightsScales =
+                    generateScaleFactors(min_search_weights_val,
+                                         max_search_weights_val,
+                                         static_cast<size_t>(max_search_weights_val - min_search_weights_val));
 
                 auto prevLayerQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
                 auto bestWeightsScale = 1.0f;
@@ -1196,7 +1198,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
     }
 
     auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
-    int inputsSize = GetInputPrecision().size();
+    size_t inputsSize = GetInputPrecision().size();
     const auto weights_prec = GetWeightsPrecision(LayerInfo(wl), *quant, gna_config);
     const auto is_bias_compound = IsBiasCompound(LayerInfo(wl), *quant, gna_config);
     auto prevLayer = CNNNetPrevLayer(wl);
@@ -1236,8 +1238,9 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
         } else {
             THROW_GNA_EXCEPTION << "Unsupported weights precision of: " << weights_prec.name();
         }
-        quant->_weights_quant.SetScale(
-            ScaleFactorForQuantization(wl->_weights->buffer().as<float*>(), scaleRange, wl->_weights->size()));
+        quant->_weights_quant.SetScale(ScaleFactorForQuantization(wl->_weights->buffer().as<float*>(),
+                                                                  static_cast<float>(scaleRange),
+                                                                  wl->_weights->size()));
         if (quant->_weights_quant.GetScale() == -1.0f || (fake_quantized && LayerInfo(wl).isConcatAlignFilter())) {
             quant->_weights_quant.SetScale(1.0f);
         }
@@ -1262,12 +1265,12 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
         double weights_reducer = 1.0;
         auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer*>(wl);
         if (conv && !LayerInfo(conv).isConvolutionFilter()) {
-            const auto inDepth = GetDataDimByName(conv->insData.front().lock(), InferenceEngine::DataDimName::C);
+            const auto inDepth = GetDataDimSizeNHWC(conv->insData.front().lock(), InferenceEngine::DataDimName::C);
             weights_reducer = gna_convolution_layer::getWeightsReducer(*conv);
             weights_reducer *= MAX_VAL_2B_FEAT * scaleRange * inDepth / std::numeric_limits<int32_t>::max();
             weights_reducer = std::max(1.0, weights_reducer);
         }
-        quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weights_reducer);
+        quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / static_cast<float>(weights_reducer));
     }
 
     double tmp_dst_quant_scale = quant->_weights_quant.GetScale() * quant->_src_quant.GetScale();
@@ -1317,7 +1320,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
         // This correction should be done by POT, but we observed issues with int8 quantization
         if (weightsReducer > initial_weights_reducer_val) {
             log::warning() << "Potential overload correction issue at layer " << wl->name;
-            quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weightsReducer);
+            quant->_weights_quant.SetScale(static_cast<float>(quant->_weights_quant.GetScale() / weightsReducer));
         }
         quant->_dst_quant.SetScale(quant->_weights_quant.GetScale() * quant->_src_quant.GetScale());
     }

@@ -8,6 +8,7 @@
 #include <openvino/util/file_util.hpp>
 
 #include "ngraph/log.hpp"
+#include "openvino/util/log.hpp"
 #include "place.hpp"
 
 using namespace ov;
@@ -15,23 +16,30 @@ using namespace ov::frontend::onnx;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-InputModel::InputModel(const std::string& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
+InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModel::InputModel(const std::wstring& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
+InputModel::InputModel(const std::wstring& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 #endif
 
-InputModel::InputModel(std::istream& model_stream, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", std::move(extensions))} {}
+InputModel::InputModel(std::istream& model_stream, const bool enable_mmap, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", enable_mmap, std::move(extensions))} {}
 
-InputModel::InputModel(std::istream& model_stream, const std::string& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, std::move(extensions))} {}
+InputModel::InputModel(std::istream& model_stream,
+                       const std::string& path,
+                       const bool enable_mmap,
+                       frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, enable_mmap, std::move(extensions))} {
+}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-InputModel::InputModel(std::istream& model_stream, const std::wstring& path, frontend::ExtensionHolder extensions)
-    : InputModel(model_stream, ov::util::wstring_to_string(path), std::move(extensions)) {}
+InputModel::InputModel(std::istream& model_stream,
+                       const std::wstring& path,
+                       const bool enable_mmap,
+                       frontend::ExtensionHolder extensions)
+    : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
 #endif
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
@@ -257,8 +265,8 @@ void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr
     for (const auto& output : outputs) {
         bool is_correct = is_correct_place(output);
         if (!is_correct)
-            NGRAPH_WARN << "Name  " << output->get_names().at(0)
-                        << " of output node is not a correct node name. Ignoring this parameter.";
+            OPENVINO_WARN << "Name  " << output->get_names().at(0)
+                          << " of output node is not a correct node name. Ignoring this parameter.";
         else
             expected_valid_outputs.push_back(output);
     }
@@ -290,8 +298,8 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
     for (const auto& input : inputs) {
         bool is_correct = is_correct_place(input);
         if (!is_correct)
-            NGRAPH_WARN << "Name  " << input->get_names().at(0)
-                        << " of input node is not a correct node. Ignoring this parameter.";
+            OPENVINO_WARN << "Name  " << input->get_names().at(0)
+                          << " of input node is not a correct node. Ignoring this parameter.";
         else
             expected_valid_inputs.push_back(input);
     }

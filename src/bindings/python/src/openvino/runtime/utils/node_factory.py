@@ -6,6 +6,7 @@ import logging as log
 
 from functools import partial
 from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
 
 from openvino._pyopenvino import NodeFactory as _NodeFactory
 
@@ -13,7 +14,7 @@ from openvino.runtime import Node, Output
 
 from openvino.runtime.exceptions import UserInputError
 
-DEFAULT_OPSET = "opset11"
+DEFAULT_OPSET = "opset13"
 
 
 class NodeFactory(object):
@@ -91,6 +92,30 @@ class NodeFactory(object):
         node._attr_cache_valid = False
 
         return node
+
+    def add_extension(self, lib_path: Union[Path, str]) -> None:
+        """Add custom operations from extension library.
+
+        Extends operation types available for creation by operations
+        loaded from prebuilt C++ library. Enables instantiation of custom
+        operations exposed in that library without direct use of
+        operation classes. Other types of extensions, e.g. conversion
+        extensions, if they are exposed in the library, are ignored.
+
+        In case if an extension operation type from a library match
+        one of existing operations registered before (from the standard
+        OpenVINO opset or from another extension loaded earlier), a new
+        operation overrides an old operation.
+
+        Version of an operation is ignored: an operation with a given type and
+        a given version/opset will override operation with the same type but
+        different version/opset in the same NodeFactory instance.
+        Use separate libraries and NodeFactory instances to differentiate
+        versions/opsets.
+
+        :param      lib_path:  A path to the library with extension.
+        """
+        self.factory.add_extension(lib_path)
 
     @staticmethod
     def _arguments_as_outputs(arguments: List[Union[Node, Output]]) -> List[Output]:

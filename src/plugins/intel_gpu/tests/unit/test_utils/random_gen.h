@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <random>
 #include <stdexcept>
-#include "float16.h"
+#include "openvino/core/type/float16.hpp"
 
 // NOTE: Needed only for possibly imported type (always_false).
 #include <type_traits>
@@ -85,15 +85,15 @@ namespace rnd_generators
     static_assert(number_caps<double>::inv_exp2(8) == 0.00390625, "1/exp2(8)");
 
     template <>
-    struct number_caps<FLOAT16> : number_caps<float>
+    struct number_caps<ov::float16> : number_caps<float>
     {
-        using output_type = FLOAT16; // NOTE: Exchange with actual half_t.
+        using output_type = ov::float16; // NOTE: Exchange with actual ov::float16.
 
         static constexpr unsigned significand_bits = 10; // Number of stored bits of significand part of FP.
 
         static output_type convert(const calc_type value)
         {
-            return FLOAT16(cldnn::float_to_half(value));
+            return ov::float16(value);
         }
     };
 

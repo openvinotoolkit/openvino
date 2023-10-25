@@ -24,8 +24,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(QuantGroupConv3D).*)",
         // TODO: Issue: 34518
         R"(.*RangeLayerTest.*)",
-        R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
-        R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
+        R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*ET=f16.*)",
+        R"(.*(RangeNumpyAddSubgraphTest).*ET=f16.*)",
         // TODO: Issue: 43793
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
@@ -64,17 +64,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 
-        // TODO: 57562 No dynamic output shape support
-        R"(.*NonZeroLayerTest.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
-        R"(.*Auto.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
-        R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
-        R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
         R"(.*OVCompiledModelBaseTest.*(CanGetInputsInfoAndCheck|canSetConfigToCompiledModel).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
-        R"(.*smoke_Reduce.*type=(Prod|Min).*netPRC=(BF|bf)16.*)",
+        R"(.*smoke_Reduce.*type=(Prod|Min).*INFERENCE_PRECISION_HINT=(BF|bf)16.*)",
         // TODO: 56520 Accuracy mismatch
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
@@ -88,30 +83,24 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*OVCompiledModelBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
-        // TODO: CVS-104942
-        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableAndCheckConfig.*)",
-        R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
         R"(.*Hetero.*Behavior.*OVCompiledModelBaseTest.*canCreateTwoCompiledModelAndCheckTheir.*)",
         // CPU does not support dynamic rank
-        // Issue: CVS-66778
+        // Issue: 66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_Hetero_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
-        R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Hetero_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-        R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
-        R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         // unsupported metrics
-        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*(DEVICE_ID|MAX_BATCH_SIZE).*)",
-        R"(.*smoke_AutoMultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*(MAX_BATCH_SIZE).*)",
+        R"(.*smoke_HeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
         // supports only '' as device id
         R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)",
 
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
-        // TODO: CVS-67255
+        // TODO: 67255
         R"(smoke_If.*SimpleIf2OutTest.*)",
 
         // Issue: 69086
@@ -154,8 +143,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
-        // Issue: 76980
-        R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
         // Issue: 105838
         R"(smoke_NmsLayerTest.*)",
         // Issue: 95590
@@ -167,12 +154,47 @@ std::vector<std::string> disabledTestPatterns() {
         // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects further type conversion.
         // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of truncation.
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
-        // 98151. Not valid sorting for slices in reference.
-        R"(.*UniqueLayerTestCPU.*axis.*True.*)",
-        // AUTO does not support import / export
-        R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)",
         // AdaptiveAvgPool is converted into Reduce op for suitable parameters. CPU Reduce impl doesn't support non planar layout for 3D case
-        R"(.*StaticAdaPoolAvg3DLayoutTest.*OS=\(1\).*_inFmts=(nwc|nCw16c|nCw8c).*)"
+        R"(.*StaticAdaPoolAvg3DLayoutTest.*OS=\(1\).*_inFmts=(nwc|nCw16c|nCw8c).*)",
+        // Issue: 111404
+        R"(.*smoke_set1/GatherElementsCPUTest.*)",
+        // Issue: 111406
+        R"(.*smoke_InterpolateLinearOnnx_Layout_Test/InterpolateLayerCPUTest.*)",
+        R"(.*smoke_InterpolateLinear_Layout_Test/InterpolateLayerCPUTest.*)",
+        R"(.*smoke_InterpolateCubic_Layout_Test/InterpolateLayerCPUTest.*)",
+        // Issue: 111412
+        R"(.*smoke_Proposal_(Static|Dynamic)_Test_Case1/ProposalLayerCPUTest.*)",
+        // Issue: 111418
+        R"(.*smoke_Snippets_ConvertStub/ConvertStub\.CompareWithRefImpl/IS.*_OT=\(bf16\)_#N=2_#S=2_targetDevice=CPU.*)",
+        R"(.*smoke_Snippets_Convert/Convert\.CompareWithRefImpl/IS.*_IT=\(f32\)_OT=\(u8\)_#N=1_#S=1_targetDevice=CPU.*)",
+        R"(.*smoke_Snippets_ConvertManyOnInputs/ConvertManyOnInputs\.CompareWithRefImpl/IS.*_IT=\(f32\.u8\)_OT=\(\)_#N=1_#S=1_targetDevice=CPU.*)",
+        // Issue: 106939
+        R"(.*ScatterNDUpdateLayerCPUTest.*-1.-1.-1.-2.-2.-2.*)",
+        // New plugin API doesn't support changes of pre-processing
+        R"(.*(Hetero).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
+        R"(.*(Hetero).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
+        // TODO: for 22.2 (Issue 68949)
+        R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
+        // Issue: 120222
+        R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=1_axis=3_.*_modelType=f16_trgDev=CPU.*)",
+        R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=7_axis=3_.*_modelType=f16_trgDev=CPU.*)",
+        R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=18_.*_modelType=f16_trgDev=CPU.*)",
+        R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
+        // Issue: 121228
+        R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.Inference.*bf16.*)",
+        // Issue: 121313
+        R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f16.*)",
+        R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
+        // Issue: 122177
+        R"(smoke_LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
+        // Issue: 122081
+        R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.Inference/.*_TS=\(3.2.5.7\).*)",
+        // Issue: 122094
+        R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
+        // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
+        R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
+        // Issue: 123321
+        R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=10.*relu.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -182,6 +204,13 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*IEClassBasicTestP.*)");
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     {
+        // Issue: 121709
+        retVector.emplace_back(R"(smoke_ConversionLayerTest/ConversionLayerTest.Inference/conversionOpType=Convert_IS.*_inputPRC=f16_targetPRC=(u|i)8_trgDev=CPU.*)");
+        // Issue: 121710
+        retVector.emplace_back(R"(smoke_GRUCellCommon/GRUCellTest.Inference/decomposition0_batch=5_.*WType=CONSTANT_RType=CONSTANT_BType=CONSTANT_netPRC=f16_targetDevice=CPU_.*)");
+        // Issue: 121715
+        retVector.emplace_back(R"(smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS.*_eltwise_op_type=Div_secondary_input_type=PARAMETER_opType=VECTOR_model_type=i32_InType=undefined_OutType=undefined_trgDev=CPU.*)");
+        retVector.emplace_back(R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.Inference/IS.*_eltwise_op_type=Div_secondary_input_type=PARAMETER_opType=VECTOR_model_type=i32_InType=undefined_OutType=undefined_trgDev=CPU.*)");
         // TODO: enable once streams / tput mode is supported
         retVector.emplace_back(R"(OVClassConfigTestCPU.smoke_CpuExecNetworkCheck(Model|Core)StreamsHasHigherPriorityThanLatencyHint.*)");
         retVector.emplace_back(R"(smoke_BehaviorTests/CorrectConfigCheck.canSetConfigAndCheckGetConfig.*CPU_THROUGHPUT_STREAMS=8.*)");
@@ -190,11 +219,27 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesDoubleTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
         retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest.*)");
         retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest.*)");
+        // Issue: 123321
+        retVector.emplace_back(R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=1.*relu.*direction=reverse.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
+
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    // Issue: 123019
+    retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding.*modelType=f16.*)");
+    retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_FloorRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
+    retVector.emplace_back(R"(smoke_AvgPool_SameUpperPad_FloorRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
+    retVector.emplace_back(R"(smoke_AvgPool_SameLowerPad_CeilRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
+    retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(smoke_staticShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(smoke_dynamicShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
+    // Issue: 123064
+    retVector.emplace_back(R"(smoke_TestsROIPooling_.*/ROIPoolingLayerTest.*modelType=f16.*)");
+#endif
+
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -208,9 +253,10 @@ std::vector<std::string> disabledTestPatterns() {
     // TODO: generate new 'expected' runtime graph for non-x64 CPU
     retVector.emplace_back(R"(smoke_serialization/ExecGraphSerializationTest.ExecutionGraph.*)");
     retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=(EltwiseWithTwoDynamicInputs|FakeQuantizeRelu).*)");
-    // CVS-108803: bug in CPU scalar implementation
+    // Issue 108803: bug in CPU scalar implementation
     retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.CompareWithRefs.*)");
-    // CVS-88764, CVS-91647, CVS-108802: accuracy issue
+    retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.Inference.*)");
+    // Issue 88764, 91647, 108802: accuracy issue
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
     // int8 / code-generation specific
     retVector.emplace_back(R"(smoke_LPT.*)");
@@ -231,9 +277,27 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
     }
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    if (!InferenceEngine::with_cpu_x86_avx512_core_fp16()) {
+        // Skip fp16 tests for paltforms that don't support fp16 precision
+        retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+    }
+#elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+#if !defined(OV_CPU_ARM_ENABLE_FP16)
+    // Skip fp16 tests for paltforms that don't support fp16 precision
+    retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+#else
+    // Issue 117407
+    retVector.emplace_back(R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
+#endif // OV_CPU_ARM_ENABLE_FP16
+#endif
     if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
         retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");
+        retVector.emplace_back(R"(.*Snippets.*MatMul.*Quantized.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAFQ.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAINT8.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAQuant.*)");
     }
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895
@@ -242,6 +306,8 @@ std::vector<std::string> disabledTestPatterns() {
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_bf16() && !InferenceEngine::with_cpu_x86_bfloat16()) {
         // ignored for not supported bf16 platforms
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
     }
 
     return retVector;

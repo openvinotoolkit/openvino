@@ -2,67 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# define version (syncronize with tools/openvino_dev/CMakeLists.txt)
-
-if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
-    set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
-    set(wheel_pre_release ON)
-else()
-    set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
-endif()
-set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
-
-
-#
-# Common vars used by setup.py
-#
-
-set(PY_PACKAGES_DIR ${OV_CPACK_PYTHONDIR})
-set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
-if(WIN32)
-    set(TBB_LIBS_DIR runtime/3rdparty/tbb/bin)
-endif()
-set(PUGIXML_LIBS_DIR runtime/3rdparty/pugixml/lib)
-
-#
-# Dependencies
-#
-
-foreach(_target ie_api constants _pyngraph openvino_c pyopenvino ov_plugins ov_frontends py_ov_frontends)
-    if(TARGET ${_target})
-        list(APPEND openvino_wheel_deps ${_target})
-    endif()
-endforeach()
-
-file(GLOB_RECURSE compat_ngraph_py_files ${OpenVINOPython_SOURCE_DIR}/src/compatibility/*.py)
-file(GLOB_RECURSE openvino_py_files ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
-
-list(APPEND openvino_wheel_deps
-    ${openvino_py_files}
-    ${compat_ngraph_py_files}
-    "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
-    "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
-    "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
-    "${OpenVINO_SOURCE_DIR}/LICENSE"
-    "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
-    "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
-    "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
-    "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
-
-if(wheel_pre_release)
-    list(APPEND openvino_wheel_deps
-        "${OpenVINO_SOURCE_DIR}/docs/install_guides/pre-release-note.md")
-endif()
-
 #
 # Define proper package name
 #
 
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')"
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')"
                 OUTPUT_VARIABLE PYTHON_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')"
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')"
                 OUTPUT_VARIABLE ABI_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags.platform_tags())}')"
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags.platform_tags())}')"
                 OUTPUT_VARIABLE PLATFORM_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # defines wheel architecture part of `PLATFORM_TAG`
@@ -90,40 +38,39 @@ endmacro()
 
 # For macOS and Linux `PLATFORM_TAG` is not always correctly detected
 # So, we need to add our-own post-processing
-if(APPLE AND DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
+if(APPLE)
     _ov_platform_arch()
 
-    set(_macos_min_version "${CMAKE_OSX_DEPLOYMENT_TARGET}")
-    if(_macos_min_version MATCHES "^1[0-9]$")
-        set(_macos_min_version "${CMAKE_OSX_DEPLOYMENT_TARGET}.0")
+    if(CMAKE_OSX_DEPLOYMENT_TARGET)
+        set(_macos_target_version "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+        if(_macos_target_version MATCHES "^1[0-9]$")
+            set(_macos_target_version "${CMAKE_OSX_DEPLOYMENT_TARGET}.0")
+        endif()
+        string(REPLACE "." "_" _macos_target_version "${_macos_target_version}")
+    else()
+        string(REGEX MATCH "1[0-9]_[0-9]+" _macos_target_version ${PLATFORM_TAG})
     endif()
-    string(REPLACE "." "_" _macos_min_version "${_macos_min_version}")
 
     # common platform tag looks like macosx_<macos major>_<macos minor>_<arch>
-    if(_arch AND _macos_min_version)
-        set(PLATFORM_TAG "macosx_${_macos_min_version}_${_arch}")
+    if(_arch AND _macos_target_version)
+        set(PLATFORM_TAG "macosx_${_macos_target_version}_${_arch}")
     endif()
 elseif(LINUX)
     _ov_platform_arch()
 
-    if(CMAKE_CROSSCOMPILING)
-        # TODO: think which proper tag is needed for arm / aarch64
-        set(PLATFORM_TAG "linux_${_arch}")
-    else()
-        string(REPLACE "." "_" _ov_glibc_version "${OV_GLIBC_VERSION}")
-        set(manylinux "manylinux_${_ov_glibc_version}")
+    string(REPLACE "." "_" _ov_glibc_version "${OV_GLIBC_VERSION}")
+    set(manylinux "manylinux_${_ov_glibc_version}")
 
-        # convert to well-known formats according to PEP 600
-        if(manylinux STREQUAL "manylinux_2_5")
-            set(manylinux "manylinux1")
-        elseif(manylinux STREQUAL "manylinux_2_12")
-            set(manylinux "manylinux2010")
-        elseif(manylinux STREQUAL "manylinux_2_17")
-            set(manylinux "manylinux2014")
-        endif()
-
-        set(PLATFORM_TAG "${manylinux}_${_arch}")
+    # convert to well-known formats according to PEP 600
+    if(manylinux STREQUAL "manylinux_2_5")
+        set(manylinux "manylinux1")
+    elseif(manylinux STREQUAL "manylinux_2_12")
+        set(manylinux "manylinux2010")
+    elseif(manylinux STREQUAL "manylinux_2_17")
+        set(manylinux "manylinux2014")
     endif()
+
+    set(PLATFORM_TAG "${manylinux}_${_arch}")
 endif()
 
 set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${PYTHON_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl")
@@ -134,43 +81,50 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 # create target for openvino.wheel
 #
 
-set(wheel_env ${CMAKE_COMMAND} -E env
-    WHEEL_VERSION=${WHEEL_VERSION}
-    WHEEL_BUILD=${WHEEL_BUILD}
-    OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
-    OPENVINO_PYTHON_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
-    OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
-    TBB_LIBS_DIR=${TBB_LIBS_DIR}
-    PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
-    PY_PACKAGES_DIR=${PY_PACKAGES_DIR})
+execute_process(COMMAND ${Python3_EXECUTABLE} -m pip --version
+                OUTPUT_VARIABLE pip_version OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-add_custom_command(OUTPUT ${openvino_wheel_path}
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${OpenVINO_SOURCE_DIR}/licensing" "${CMAKE_BINARY_DIR}/licensing"
-    COMMAND ${wheel_env}
-        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
+string(REGEX MATCH "pip[ ]+([\\.0-9]*)" pip_version "${pip_version}")
+set(pip_version ${CMAKE_MATCH_1})
+
+if(pip_version VERSION_GREATER_EQUAL 22.0)
+    set(wheel_build_command
+        ${Python3_EXECUTABLE} -m pip wheel
+            --no-deps
+            --wheel-dir ${openvino_wheels_output_dir}
+            # --verbose
+            --build-option --build-number=${WHEEL_BUILD}
+            --build-option --plat-name=${PLATFORM_TAG}
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+else()
+    set(wheel_build_command
+        ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
             --quiet
             --no-user-cfg
             bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
             --build-number=${WHEEL_BUILD}
-            --plat-name=${PLATFORM_TAG}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
-    COMMAND ${wheel_env}
-        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" clean
-    DEPENDS ${openvino_wheel_deps}
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+            --plat-name=${PLATFORM_TAG})
+endif()
+
+add_custom_command(OUTPUT ${openvino_wheel_path}
+    COMMAND ${setup_py_env}
+        ${wheel_build_command}
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}"
+    DEPENDS ${ov_setup_py_deps}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
 
 set(fdupes_report ${CMAKE_CURRENT_BINARY_DIR}/fdupes_report.txt)
 add_custom_command(OUTPUT "${fdupes_report}"
     COMMAND ${CMAKE_COMMAND}
-        -D PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}
+        -D Python3_EXECUTABLE=${Python3_EXECUTABLE}
         -D WORKING_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}
         -D WHEEL_VERSION=${WHEEL_VERSION}
         -D PACKAGE_FILE=${openvino_wheel_path}
         -D REPORT_FILE=${fdupes_report}
+        -D CMAKE_SHARED_LIBRARY_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX}
         -P "${CMAKE_CURRENT_SOURCE_DIR}/fdupes_check.cmake"
     DEPENDS "${openvino_wheel_path}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
@@ -185,4 +139,5 @@ ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
 
 install(FILES ${openvino_wheel_path}
         DESTINATION ${OV_CPACK_WHEELSDIR}
-        COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS})
+        COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS}
+        ${OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL})

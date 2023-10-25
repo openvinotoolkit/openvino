@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -29,11 +29,11 @@ public:
 
         std::ostringstream result;
         result << "netPRC=" << inType << "_";
-        result << "IS=" << CommonTestUtils::partialShape2str({inShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({inShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : inShape.second) {
             result << "(";
-            result << CommonTestUtils::vec2str(shape);
+            result << ov::test::utils::vec2str(shape);
             result << ")_";
         }
         result << "axis=" << axis << "_";
@@ -41,7 +41,7 @@ public:
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         ElementType inType;
         ov::test::InputShape inShape;
         int64_t axis;
@@ -52,7 +52,10 @@ protected:
         }
 
         init_input_shapes({inShape});
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
 
         const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));

@@ -6,8 +6,10 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -22,9 +24,9 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
         auto multi_subgraph_op = std::dynamic_pointer_cast<MultiSubGraphOp>(*it);
         if (!multi_subgraph_op)
             continue;
-        auto if_op = std::dynamic_pointer_cast<opset10::If>(multi_subgraph_op);
-        auto loop_op = std::dynamic_pointer_cast<opset10::Loop>(multi_subgraph_op);
-        auto ti_op = std::dynamic_pointer_cast<opset10::TensorIterator>(multi_subgraph_op);
+        auto if_op = std::dynamic_pointer_cast<ov::op::v8::If>(multi_subgraph_op);
+        auto loop_op = std::dynamic_pointer_cast<ov::op::v5::Loop>(multi_subgraph_op);
+        auto ti_op = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(multi_subgraph_op);
         // Only If, Loop and TensorIterator are supported
         if (!if_op && !loop_op && !ti_op)
             continue;
@@ -114,7 +116,7 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
         }
         // Remove inputs
         bool pass_required = false;
-        std::set<ov::Output<ov::Node>> required_inputs;
+        std::set<uint64_t> required_inputs_indices;
         auto op_inputs = multi_subgraph_op->input_values();
         std::vector<std::vector<size_t>> to_remove_descriptors_indexes;
         to_remove_descriptors_indexes.resize(subgraphs_size);
@@ -131,7 +133,7 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                 } else {
                     // collecting required inputs is needed to detect cases where the input
                     // is not needed in a one body, but the other one uses it (for example If case)
-                    required_inputs.insert(op_inputs[body_in_descriptors[i]->m_input_index]);  // only unique
+                    required_inputs_indices.insert(body_in_descriptors[i]->m_input_index);
                 }
             }
         }
@@ -146,7 +148,9 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                 }
             };
             auto update_op_inputs_desc = [&subgraphs_size](const std::shared_ptr<op::util::MultiSubGraphOp>& op,
+                                                           std::set<uint64_t>& required_inputs_indices,
                                                            uint64_t removed_loop_idx) {
+                std::set<uint64_t> new_required_inputs_indices;
                 for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
                     auto& descriptors = op->get_input_descriptions(static_cast<int>(body_idx));
                     for (auto& desc : descriptors) {
@@ -155,6 +159,14 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                         }
                     }
                 }
+                for (auto input_index : required_inputs_indices) {
+                    if (input_index > removed_loop_idx) {
+                        new_required_inputs_indices.insert(input_index - 1);
+                    } else {
+                        new_required_inputs_indices.insert(input_index);
+                    }
+                }
+                required_inputs_indices = new_required_inputs_indices;
             };
             // Remove dangling body params and input and update input descriptors
             for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
@@ -172,13 +184,17 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                         update_body_param_desc(body_in_descriptors,
                                                body_in_descriptors[desc_idx]->m_body_parameter_index);
                         // remove dangling input of MultiSubGraphOp which was not removed earlier
-                        auto& current_input = op_inputs[body_in_descriptors[desc_idx]->m_input_index];
-                        if (std::count(std::begin(required_inputs), std::end(required_inputs), current_input) == 0 &&
+                        auto current_input_idx = body_in_descriptors[desc_idx]->m_input_index;
+                        auto& current_input = op_inputs[current_input_idx];
+                        // the same input tensor can go to different input ports
+                        if (std::count(std::begin(required_inputs_indices),
+                                       std::end(required_inputs_indices),
+                                       current_input_idx) == 0 &&
                             std::count(std::begin(op_inputs), std::end(op_inputs), current_input) > 0) {
-                            op_inputs.erase(std::next(op_inputs.begin(), body_in_descriptors[desc_idx]->m_input_index));
+                            op_inputs.erase(std::next(op_inputs.begin(), current_input_idx));
                             // Move all input indexes (in all bodies) which are after these indicated by
                             // to_remove_descriptors_indexes and are not used in any body
-                            update_op_inputs_desc(multi_subgraph_op, body_in_descriptors[desc_idx]->m_input_index);
+                            update_op_inputs_desc(multi_subgraph_op, required_inputs_indices, current_input_idx);
                         }
                     } else {
                         updated_body_in_descriptors.emplace_back(body_in_descriptors[desc_idx]);
@@ -193,13 +209,13 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
             // existing op
             std::shared_ptr<MultiSubGraphOp> new_op;
             if (if_op) {
-                new_op = std::make_shared<opset10::If>();
+                new_op = std::make_shared<ov::op::v8::If>();
             } else if (loop_op) {
-                auto new_loop_op = std::make_shared<opset10::Loop>();
+                auto new_loop_op = std::make_shared<ov::op::v5::Loop>();
                 new_loop_op->set_special_body_ports(loop_op->get_special_body_ports());
                 new_op = new_loop_op;
             } else if (ti_op) {
-                new_op = std::make_shared<opset10::TensorIterator>();
+                new_op = std::make_shared<ov::op::v0::TensorIterator>();
             }
             new_op->set_arguments(multi_subgraph_op->input_values());
             new_op->set_friendly_name(multi_subgraph_op->get_friendly_name());

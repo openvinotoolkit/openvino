@@ -4,33 +4,28 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "async_infer_request.hpp"
-
-namespace MultiDevicePlugin {
-AsyncInferRequest::AsyncInferRequest(const Schedule::Ptr& schedule,
-    const IInferPtr& inferRequest,
-    const IE::ITaskExecutor::Ptr& callbackExecutor):
-    AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor),
-    _schedule(schedule),
-    _inferRequest(inferRequest) {
-    auto pipeline = _schedule->GetPipeline(_inferRequest, &_workerInferRequest);
+ov::auto_plugin::AsyncInferRequest::AsyncInferRequest(const Schedule::Ptr& schedule,
+                                                      const std::shared_ptr<ov::auto_plugin::InferRequest>& request,
+                                                      const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor) :
+                                                      IAsyncInferRequest(request, nullptr, callback_executor),
+                                                      m_schedule(schedule),
+                                                      m_inferrequest(request) {
+    auto pipeline = m_schedule->get_async_pipeline(m_inferrequest, &m_worker_inferrequest);
     if (pipeline.size() > 0) {
-        _pipeline = std::move(pipeline);
+        m_pipeline = std::move(pipeline);
     }
 }
 
-void AsyncInferRequest::Infer_ThreadUnsafe() {
-    InferUsingAsync();
+std::vector<ov::ProfilingInfo> ov::auto_plugin::AsyncInferRequest::get_profiling_info() const {
+    check_state();
+    auto scheduled_request = std::dynamic_pointer_cast<InferRequest>(m_inferrequest);
+    return scheduled_request->get_profiling_info();
 }
 
-std::map<std::string, IE::InferenceEngineProfileInfo>
-AsyncInferRequest::GetPerformanceCounts() const {
-    CheckState();
-    auto multiDeviceInfer = std::dynamic_pointer_cast<MultiDeviceInferRequest>(_inferRequest);
-    return multiDeviceInfer->GetPerformanceCounts();
+void ov::auto_plugin::AsyncInferRequest::infer_thread_unsafe() {
+    start_async_thread_unsafe();
 }
 
-AsyncInferRequest::~AsyncInferRequest() {
-    StopAndWait();
+ov::auto_plugin::AsyncInferRequest::~AsyncInferRequest() {
+    stop_and_wait();
 }
-
-}  // namespace MultiDevicePlugin

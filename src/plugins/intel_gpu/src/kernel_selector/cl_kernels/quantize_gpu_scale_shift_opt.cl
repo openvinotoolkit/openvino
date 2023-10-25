@@ -10,8 +10,11 @@
 #ifdef SUB_GROUP_SIZE
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 #endif
+#ifndef IS_DYNAMIC
 __attribute__((reqd_work_group_size(LWS_0, LWS_1, LWS_2)))
-KERNEL(quantize_gpu_scale_shift_opt)(const __global INPUT0_TYPE* input,
+#endif
+KERNEL(quantize_gpu_scale_shift_opt)(OPTIONAL_SHAPE_INFO_ARG
+                                     const __global INPUT0_TYPE* input,
                                      const __global INPUT1_TYPE* input_low,
                                      const __global INPUT2_TYPE* input_high,
                                      const __global INPUT3_TYPE* output_low,

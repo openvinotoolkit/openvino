@@ -17,12 +17,16 @@ namespace cldnn {
 struct non_max_suppression : public primitive_base<non_max_suppression> {
     CLDNN_DECLARE_PRIMITIVE(non_max_suppression)
 
+    enum Rotation {
+        NONE,
+        CLOCKWISE,
+        COUNTERCLOCKWISE
+    };
+
     non_max_suppression() : primitive_base("", {}),
                             selected_indices_num(0),
                             center_point_box(false),
                             sort_result_descending(false) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Creates non max suppression primitive.
     /// @param id This primitive id.
@@ -70,6 +74,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     primitive_id soft_nms_sigma;
     primitive_id second_output;
     primitive_id third_output;
+    Rotation rotation{Rotation::NONE};
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -81,6 +86,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         seed = hash_combine(seed, soft_nms_sigma.empty());
         seed = hash_combine(seed, second_output.empty());
         seed = hash_combine(seed, third_output.empty());
+        seed = hash_combine(seed, rotation);
         return seed;
     }
 
@@ -99,7 +105,8 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
                cmp_fields(score_threshold.empty()) &&
                cmp_fields(soft_nms_sigma.empty()) &&
                cmp_fields(second_output.empty()) &&
-               cmp_fields(third_output.empty());
+               cmp_fields(third_output.empty()) &&
+               cmp_fields(rotation);
         #undef cmp_fields
     }
 
@@ -122,6 +129,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<non_max_suppression>::save(ob);
         ob << selected_indices_num;
         ob << center_point_box;
         ob << sort_result_descending;
@@ -131,9 +139,11 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         ob << soft_nms_sigma;
         ob << second_output;
         ob << third_output;
+        ob << make_data(&rotation, sizeof(rotation));
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<non_max_suppression>::load(ib);
         ib >> selected_indices_num;
         ib >> center_point_box;
         ib >> sort_result_descending;
@@ -143,6 +153,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         ib >> soft_nms_sigma;
         ib >> second_output;
         ib >> third_output;
+        ib >> make_data(&rotation, sizeof(rotation));
     }
 };
 }  // namespace cldnn

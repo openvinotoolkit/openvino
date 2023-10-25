@@ -58,6 +58,7 @@ class TestBatchNorm(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_ts_backend
+    @pytest.mark.precommit_fx_backend
     def test_batch_norm(self, weights, bias, eps, train, running_stats, ie_device, precision, ir_version, kwargs_to_prepare_input):
         self._test(*self.create_model(weights, bias, eps, train, running_stats),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, dynamic_shapes=False, use_mo_convert=False)

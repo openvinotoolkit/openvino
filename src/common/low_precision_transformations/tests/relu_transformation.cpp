@@ -10,34 +10,34 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/relu.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/relu.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/relu_function.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/relu.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class ReluTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -47,7 +47,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     ReluTransformationTestValues> ReluTransformationParams;
 
 class ReluTransformation : public LayerTransformation, public testing::WithParamInterface<ReluTransformationParams> {
@@ -62,7 +62,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ReluTransformation, ngraph::opset1::Relu>(testValues.params);
+        transformer.add<ov::pass::low_precision::ReluTransformation, ov::op::v0::PRelu>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ReluFunction::getReference(
@@ -88,8 +88,8 @@ public:
     }
 
 protected:
-    std::shared_ptr<ngraph::Function> actualFunction;
-    std::shared_ptr<ngraph::Function> referenceFunction;
+    std::shared_ptr<ov::Model> actualFunction;
+    std::shared_ptr<ov::Model> referenceFunction;
 };
 
 TEST_P(ReluTransformation, CompareFunctions) {
@@ -101,7 +101,7 @@ TEST_P(ReluTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 16, 16 },
     { -1, -1, -1, -1 },
 };
@@ -111,41 +111,41 @@ const std::vector<ReluTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {0.1f}}
         }
     },
     // U8: no subtract
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
         }
     },
     // U8: no subtract
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     },
@@ -153,27 +153,27 @@ const std::vector<ReluTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsI8I8(),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {0.1f}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {{}, {}, {}},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, {}, {0.1f}}
         }
     },
     // U8: with subtract value
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128 }, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, { 128 }, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128 }, {0.1f}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, { 128 }, {0.1f}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     },
@@ -181,13 +181,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsI8I8().setSupportAsymmetricQuantization(true),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, { 127 }, {0.1f}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}},
-            ngraph::element::f32,
+            ov::element::i8,
+            {{ov::element::f32}, { 127 }, {0.1f}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     },
@@ -195,13 +195,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsI8I8().setSupportAsymmetricQuantization(false),
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}}
+            ov::element::i8,
+            {{ov::element::f32}, { 127 }, {0.1f}}
         },
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 127 }, {0.1f}},
-            ngraph::element::f32,
+            ov::element::i8,
+            {{ov::element::f32}, { 127 }, {0.1f}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     },
@@ -209,13 +209,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
+            ov::element::u8,
             {}
         }
     },
@@ -223,13 +223,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         }
     }
@@ -245,7 +245,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicRank = {
+const std::vector<ov::PartialShape> shapesWithDynamicRank = {
     PartialShape::dynamic()
 };
 
@@ -253,13 +253,13 @@ const std::vector<ReluTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {}, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {}, {0.1f}},
+            ov::element::f32,
             {{}, {}, {}}
         }
     }

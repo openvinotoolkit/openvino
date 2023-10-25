@@ -87,6 +87,16 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
     # required by oneDNN to attempt to parse ACL version
     set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 elseif(NOT TARGET arm_compute::arm_compute)
+    #
+    # Options
+    #
+
+    set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")    
+
+    #
+    # Configure & build
+    #
+
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
     set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
 
@@ -128,14 +138,23 @@ elseif(NOT TARGET arm_compute::arm_compute)
         reference_openmp=0
         validation_tests=0
         benchmark_tests=0
-        # TODO: check this for Apple Silicon
-        # multi_isa=1
         # TODO: use CC for ARM compute library to minimize binary size
         # build_config=<file>
         # TODO: use data_type_support to disable useless kernels
         data_layout_support=all
-        arch=${ARM_COMPUTE_TARGET_ARCH}
+        arch=${OV_CPU_ARM_TARGET_ARCH}
     )
+
+    if(ARM)
+        list(APPEND ARM_COMPUTE_OPTIONS estate=32)
+    else()
+        list(APPEND ARM_COMPUTE_OPTIONS estate=64)
+        if(NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
+            # arm_sve.h header is not available on gcc older 10.2
+            # TODO: validate it on machines with FP16 / SVE support and enabled back
+            # list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
+        endif()
+    endif()
 
     if(NOT MSVC64)
         list(APPEND ARM_COMPUTE_OPTIONS
@@ -282,9 +301,14 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endif()
 
     if(ENABLE_LTO)
-        if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND NOT CMAKE_CROSSCOMPILING)
-            set(extra_cxx_flags "${extra_cxx_flags} -flto=thin")
-            set(extra_link_flags "${extra_link_flags} -flto=thin")
+        if(NOT CMAKE_CROSSCOMPILING)
+            if(CMAKE_COMPILER_IS_GNUCXX)
+                set(extra_cxx_flags "${extra_cxx_flags} -flto -fno-fat-lto-objects")
+                set(extra_link_flags "${extra_link_flags} -flto -fno-fat-lto-objects")
+            elseif(OV_COMPILER_IS_CLANG)
+                set(extra_cxx_flags "${extra_cxx_flags} -flto=thin")
+                set(extra_link_flags "${extra_link_flags} -flto=thin")
+            endif()
         endif()
     endif()
 
@@ -310,6 +334,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
         set(arm_compute ${ARM_COMPUTE_BINARY_DIR}/libarm_compute-static.a)
         set(arm_compute_full_path "${arm_compute}")
     endif()
+
+    list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
 
     add_custom_command(
         OUTPUT
@@ -342,8 +368,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     add_library(arm_compute::half INTERFACE IMPORTED GLOBAL)
     set_target_properties(arm_compute::half PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}/include
-        OSX_ARCHITECTURES arm64)
+        INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}/include)
 
     # Helpers for oneDNN intergation
 

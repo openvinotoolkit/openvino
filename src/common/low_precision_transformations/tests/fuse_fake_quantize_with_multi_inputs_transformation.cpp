@@ -10,41 +10,41 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/fake_quantize.hpp>
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/fake_quantize.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/fuse_fake_quantize.hpp"
 
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class FuseFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
         std::vector<ngraph::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
-        ngraph::element::Type precisionFakeQuantizeOnData;
+        ov::element::Type precisionFakeQuantizeOnData;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     };
 
     class Expected {
     public:
         std::vector<ngraph::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
-        ngraph::element::Type precisionFakeQuantizeOnData;
+        ov::element::Type precisionFakeQuantizeOnData;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
-    ngraph::Shape inputShape;
+    ov::Shape inputShape;
     TestTransformationParams params;
     Actual actual;
     Expected expected;
@@ -62,7 +62,7 @@ public:
             testValues.actual.fakeQuantizeOnData);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transformer.add<ov::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(

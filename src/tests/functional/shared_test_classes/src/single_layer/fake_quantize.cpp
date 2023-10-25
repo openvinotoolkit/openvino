@@ -24,8 +24,8 @@ std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<
     std::tie(levels, constShape, fqDirectArgs, inputArg, broadcast) = fqParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "CS=" << ov::test::utils::vec2str(constShape) << "_";
     result << "LEVELS=" << levels << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
@@ -68,7 +68,7 @@ void FakeQuantizeLayerTest::SetUp() {
         threshold = (fqDirectArg[3] - fqDirectArg[2]) / levels;
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     UpdateSeed();

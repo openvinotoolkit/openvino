@@ -9,8 +9,8 @@
 #include "gna_infer_request.hpp"
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "ov_models/builders.hpp"
 
 using ov::intel_gna::GNAPlugin;
 using namespace ov::op;
@@ -81,11 +81,11 @@ class GNAPluginForPWLExtraSegmentsTest : public GNAPlugin {
 public:
     GNAPluginForPWLExtraSegmentsTest(const std::map<std::string, std::string>& config) : GNAPlugin(config) {
         gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
-        graphCompiler.setGNAMemoryPtr(gnamem);
+        m_graph_compiler->setGNAMemoryPtr(gnamem);
         gnadevice.reset();
     }
     void Test(const size_t expected_segments) {
-        for (const auto& component : graphCompiler.dnnComponents.components) {
+        for (const auto& component : m_graph_compiler->dnnComponents.components) {
             if (component.dnnComponent.operation == kDnnPiecewiselinearOp) {
                 EXPECT_EQ(expected_segments, component.dnnComponent.op.pwl.num_segments);
             }

@@ -210,8 +210,10 @@ clEnqueueMemFillINTEL_fn)(
 #define cl_khr_device_uuid 1
 
 #define CL_UUID_SIZE_KHR 16
+#define CL_LUID_SIZE_KHR 8
 
 #define CL_DEVICE_UUID_KHR          0x106A
+#define CL_DEVICE_LUID_KHR          0x106D
 
 #endif // cl_khr_device_uuid
 
@@ -221,10 +223,12 @@ clEnqueueMemFillINTEL_fn)(
 
 // for C++ wrappers
 using uuid_array = std::array<cl_uchar, CL_UUID_SIZE_KHR>;
+using luid_array = std::array<cl_uchar, CL_LUID_SIZE_KHR>;
 
 namespace cl {
 namespace detail {
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_UUID_KHR, uuid_array)
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_LUID_KHR, luid_array)
 }  // namespace detail
 }  // namespace cl
 

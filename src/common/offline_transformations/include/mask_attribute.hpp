@@ -13,12 +13,13 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/log.hpp>
-#include <ngraph/node.hpp>
 #include <set>
 #include <string>
 
-namespace ngraph {
+#include "openvino/core/node.hpp"
+#include "openvino/util/log.hpp"
+
+namespace ov {
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -36,7 +37,7 @@ public:
 
     Mask() = default;
 
-    explicit Mask(const ngraph::PartialShape& shape) : std::vector<value_type>(shape.rank().get_length()) {}
+    explicit Mask(const ov::PartialShape& shape) : std::vector<value_type>(shape.rank().get_length()) {}
 
     explicit Mask(const size_t& size) : std::vector<value_type>(size) {}
 
@@ -181,7 +182,7 @@ public:
     }
 
     /*
-       Function copies values from mask,
+       ov::Model copies values from mask,
        except mask[axis], where it selects values from mask[axis] set
        that are within [split_start, split_end) range
        param: mask - input mask.
@@ -189,10 +190,7 @@ public:
        param: split_start
        param: split_end
     */
-    void copy_and_slice_mask_from(const ngraph::Mask* const mask,
-                                  int64_t axis,
-                                  uint64_t split_start,
-                                  uint64_t split_end) {
+    void copy_and_slice_mask_from(const Mask* const mask, int64_t axis, uint64_t split_start, uint64_t split_end) {
         if (size() < mask->size())
             resize(mask->size());
         for (size_t i = 0; i < size(); i++) {
@@ -211,7 +209,7 @@ public:
 
     bool add_callback(const std::function<bool(Mask::Ptr)>& receive_callback, Mask::Ptr mask) {
         if (m_callbacks.find(mask.get()) != m_callbacks.end())
-            NGRAPH_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
+            OPENVINO_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
 
         m_callbacks[mask.get()] = receive_callback;
         m_dependencies.push_back(mask.get());
@@ -310,4 +308,4 @@ Mask::Ptr getInitMask(const Output<Node>& output);
 void setInitMask(Output<Node> output, const Mask::Ptr& mask);
 #endif
 
-}  // namespace ngraph
+}  // namespace ov

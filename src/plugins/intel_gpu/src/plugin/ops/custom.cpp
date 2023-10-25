@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
-
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/node.hpp"
-
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
@@ -39,57 +38,57 @@ inline std::string vecToString<std::string>(std::vector<std::string> vec) {
     return res;
 }
 
-class CustomLayerAttributeVisitor : public ngraph::AttributeVisitor {
+class CustomLayerAttributeVisitor : public ov::AttributeVisitor {
 public:
     CustomLayerAttributeVisitor() : m_values({}) { }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        IE_THROW() << "Attribute " << name << " can't be processed\n";
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
+        OPENVINO_THROW("Attribute ", name, " can't be processed\n");
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
         m_values[name] = adapter.get();
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
         m_values[name] = std::to_string(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
         m_values[name] = std::to_string(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
         m_values[name] = std::to_string(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<double>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<double>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int8_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int8_t>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int16_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int16_t>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int32_t>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint8_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint8_t>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint16_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint16_t>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint32_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint32_t>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint64_t>>& adapter) override {
         m_values[name] = vecToString(adapter.get());
     }
 
@@ -101,7 +100,7 @@ protected:
     std::map<std::string, std::string> m_values;
 };
 
-void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomLayerPtr customLayer) {
+void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, CustomLayerPtr customLayer) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -141,7 +140,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
             if (param.portIndex < static_cast<int>(inputs.size()) && reordered_inputs[param.portIndex].pid.empty()) {
                 // todo: add support for multiple reorders of the same input? (read as bfyx for one arg and yxfb for another)
                 if (param.format != cldnn::format::any) {
-                    auto reorderPrimName = inputs[param.portIndex].pid + "_" + op->get_friendly_name() + Program::m_preCustomLayerTag;
+                    auto reorderPrimName = inputs[param.portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preCustomLayerTag;
                     auto preprocessPrim = cldnn::reorder(
                         reorderPrimName,
                         inputs[param.portIndex],
@@ -165,7 +164,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
             break;
         }
         default:
-            IE_THROW() << "Invalid custom layer param type: " << param.type << " in operation: " << op->get_friendly_name();
+            OPENVINO_THROW("Invalid custom layer param type: ", param.type, " in operation: ", op->get_friendly_name());
         }
     }
     const std::string layerTitle("\n// Layer " + op->get_friendly_name() + " using Custom Layer " + customLayer->Name() + "\n");
@@ -194,7 +193,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
     // if input index is greater than -1, take dimension from input
     if (iidx >= 0) {
         if (static_cast<size_t>(iidx) >= op->get_input_size())
-            IE_THROW() << "Invalid input tensor for index: " << iidx;
+            OPENVINO_THROW("Invalid input tensor for index: ", iidx);
         auto inputDims = op->get_input_shape(iidx);
 
         xDim = static_cast<int>(inputDims[inputDims.size() - 1]);
@@ -230,18 +229,18 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
                                                   outputLayout,
                                                   gws,
                                                   lws);
+    p.add_primitive(*op, customPrim);
 
     auto prevLayerName = genericLayerName;
     if (outputLayout.format != cldnn::format::any) {
         // Handle output reorder
-        auto reorderPrimName = genericLayerName + Program::m_postCustomLayerTag;
+        auto reorderPrimName = genericLayerName + ProgramBuilder::m_postCustomLayerTag;
         p.add_primitive(*op, cldnn::reorder(reorderPrimName,
                                             cldnn::input_info(genericLayerName),
                                             cldnn::format::get_default_format(op->get_output_shape(0).size()),
                                             customPrim.output_layout.data_type));
         prevLayerName = reorderPrimName;
     }
-    p.add_primitive(*op, customPrim);
 }
 
 }  // namespace intel_gpu

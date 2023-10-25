@@ -24,22 +24,17 @@ namespace node {
 /// precision: fp32
 class Snippet : public Node {
 public:
-    Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr& context);
     ~Snippet() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
+    void initOptimalPrimitiveDescriptor() override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 
-    // to avoid collisions in throughput mode with copy of TypeRelaxed nodes
-    // we should have common shared mutex between streams
-    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex);
-
     // Here we convert to canonical for & jit everything
-    void createPrimitive() override;
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer();
     bool needPrepareParams() const override;
 
     bool canBeInPlace() const override;
@@ -47,69 +42,95 @@ public:
 
     // if generator is set, it would execute generated code otherwise it would fallback to nGraph reference
     void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+
+    struct SnippetAttrs {
+        // Local copy of subgraph node for canonization & code generation
+        std::shared_ptr<snippets::op::Subgraph> snippet;
+        uint64_t bodyHash;
+        std::vector<VectorDims> inMemBlockedDims;
+        std::vector<VectorDims> inMemOrders;
+        std::vector<InferenceEngine::Precision> inMemPrecs;
+        std::vector<VectorDims> outMemBlockedDims;
+        std::vector<VectorDims> outMemOrders;
+        std::vector<InferenceEngine::Precision> outMemPrecs;
+        // todo: used flag if we need extra shape infer, can be removed after [121670]
+        bool has_non_planar_inputs;
+    };
 
 private:
-    static const size_t rank6D {6};
-
     typedef void (*kernel)(const void *, const void *);
 
-    // Create a deep local copy of the input snippet to perform canonicalization & code generation
-    // TODO: Probably better to implement a proper copy constructor
-    // NOTE: Before call mutex should be initialized
-    void copy_snippet();
+    static uint64_t get_body_hash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
 
-    ov::PartialShape canonicalizeBody();
-    // returns true if exec domain was modified
-    bool optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
-
-    void generate(const jit_snippets_compile_args*);
-    inline void update_ptrs(jit_snippets_call_args&);
-    // Evaluates generated snippet using parallel backend
-    void schedule_6d();
-    void schedule_nt();
-
-    // Original subgraph node
-    std::shared_ptr<snippets::op::Subgraph> original_snippet;
-    // Local copy of subgraph node for canonization & code generation
-    std::shared_ptr<snippets::op::Subgraph> snippet;
-
-    // Holds generated snippet with information about how to schedule it
-    snippets::Schedule schedule;
+    size_t inputNum = 0;
+    size_t outputNum = 0;
 
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
-    size_t isa_num_lanes = 0; // number of elements that fit in vector size
-
-    // Holds index of output used as in execution domain
-    // it should be compatible with a schedule's work size
-    std::vector<size_t> exec_domain = {};
-
-    /// scheduling info
-    size_t tensorRank = 0;
-    size_t tileRank = 1;
-    size_t fullWorkAmount = 0;
-    size_t harnessWorkAmount = 0;
-    const size_t maxTileRank = 2;
 
     std::vector<MemoryPtr> srcMemPtrs = {};
     std::vector<MemoryPtr> dstMemPtrs = {};
-    std::vector<size_t> dataSize = {};
 
-    // this is needed for fast shape inference of blocking-invariant prepended shapes
-    std::vector<bool> inputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts
-    std::vector<bool> outputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts
-    bool masterShapeIsBlocked = false;
+    mutable SnippetAttrs snippetAttrs;
+    bool is_dynamic = false;
 
-    VectorDims masterShape = {};
-    std::vector<VectorDims> normInputShapes = {};
-    std::vector<VectorDims> normOutputShapes = {};
+    class SnippetExecutor {
+        public:
+            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16);
+            virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+            virtual ~SnippetExecutor() = default;
+            std::shared_ptr<IShapeInfer> shapeInference = nullptr;
 
-    std::vector<ptrdiff_t> start_offset_in = {};
-    std::vector<ptrdiff_t> start_offset_out = {};
+        protected:
+            SnippetAttrs snippetAttrs;
+            bool is_dynamic = false;
+            bool enforceBF16 = false;
+    };
 
-    // Buffer scratchpad
-    std::vector<uint8_t> buffer_scratchpad = {};
-    size_t buffer_scratchpad_size = 0;
+    std::shared_ptr<SnippetExecutor> execPtr = nullptr;
+
+    class SnippetJitExecutor : public SnippetExecutor {
+        public:
+            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16);
+            void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+
+            bool schedule_created();
+
+        private:
+            static const size_t rank6D {6};
+
+            typedef void (*kernel)(const void *, const void *);
+
+            size_t numInput = 0;
+            size_t numOutput = 0;
+
+            void generate(const jit_snippets_compile_args*);
+            inline void update_ptrs(jit_snippets_call_args&, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
+            // Evaluates generated snippet using parallel backend
+            void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
+            void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
+
+            // Holds generated snippet with information about how to schedule it
+            snippets::Schedule schedule;
+
+            // Holds index of output used as in execution domain
+            // it should be compatible with a schedule's work size
+            std::vector<size_t> parallel_exec_domain = {};
+
+            /// scheduling info
+            size_t tensorRank = 0;
+            size_t harnessWorkAmount = 0;
+
+            std::vector<size_t> dataSize = {};
+
+            std::vector<ptrdiff_t> start_offset_in = {};
+            std::vector<ptrdiff_t> start_offset_out = {};
+
+            // Buffer scratchpad
+            std::vector<uint8_t> buffer_scratchpad = {};
+            size_t buffer_scratchpad_size = 0;
+    };
 };
 
 }   // namespace node

@@ -34,7 +34,7 @@ private:
         ~ReverseSequenceExecutor() = default;
 
         template<typename T>
-        void exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, MemoryPtr& dstMemPtr);
+        void exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, const MemoryPtr& dstMemPtr);
 
     private:
         const int batchAxis;

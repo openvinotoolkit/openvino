@@ -13,11 +13,11 @@ namespace conformance {
 inline const std::vector<ov::AnyMap> generate_ov_configs(const std::string& target_plugin,
                                                          const std::vector<ov::AnyMap>& config = {}) {
     std::pair<std::string, ov::Any> default_config;
-    if (target_plugin ==  std::string(CommonTestUtils::DEVICE_MULTI) ||
-        target_plugin ==  std::string(CommonTestUtils::DEVICE_AUTO) ||
-        target_plugin ==  std::string(CommonTestUtils::DEVICE_HETERO)) {
+    if (target_plugin ==  std::string(ov::test::utils::DEVICE_MULTI) ||
+        target_plugin ==  std::string(ov::test::utils::DEVICE_AUTO) ||
+        target_plugin ==  std::string(ov::test::utils::DEVICE_HETERO)) {
         default_config = ov::device::priorities(ov::test::conformance::targetDevice);
-    } else if (target_plugin ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
+    } else if (target_plugin ==  std::string(ov::test::utils::DEVICE_BATCH)) {
         default_config = { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ov::test::conformance::targetDevice)};
     } else {
         throw std::runtime_error("Incorrect target device: " + target_plugin);

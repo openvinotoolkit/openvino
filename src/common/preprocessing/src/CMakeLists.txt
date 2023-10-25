@@ -37,7 +37,7 @@ if(ENABLE_SSE42)
     list(APPEND LIBRARY_HEADERS ${SSE_HEADERS})
     list(APPEND LIBRARY_SRC ${SSE_SRC})
 
-    ie_sse42_optimization_flags(sse4_2_flags)
+    ov_sse42_optimization_flags(sse4_2_flags)
     set_source_files_properties(${SSE_SRC} PROPERTIES COMPILE_OPTIONS "${sse4_2_flags}")
     add_definitions(-DHAVE_SSE=1)
 endif()
@@ -49,7 +49,7 @@ if(ENABLE_AVX2)
     list(APPEND LIBRARY_HEADERS ${AVX2_HEADERS})
     list(APPEND LIBRARY_SRC ${AVX2_SRC})
 
-    ie_avx2_optimization_flags(avx2_flags)
+    ov_avx2_optimization_flags(avx2_flags)
     set_source_files_properties(${AVX2_SRC} PROPERTIES COMPILE_OPTIONS "${avx2_flags}")
     add_definitions(-DHAVE_AVX2=1)
 endif()
@@ -75,7 +75,7 @@ if(ENABLE_AVX512F AND NOT GNU_5_DEBUG_CASE)
 endif()
 
 if(ARM OR AARCH64)
-    ie_arm_neon_optimization_flags(neon_flags)
+    ov_arm_neon_optimization_flags(neon_flags)
 
     file(GLOB NEON_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.hpp)
     file(GLOB NEON_SRC ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.cpp)
@@ -96,7 +96,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_library(${TARGET_NAME}_obj OBJECT
                 ${LIBRARY_SRC}
                 ${LIBRARY_HEADERS})
-    ie_faster_build(${TARGET_NAME}_obj UNITY)
+    ov_build_target_faster(${TARGET_NAME}_obj UNITY)
 
     target_compile_definitions(${TARGET_NAME}_obj PRIVATE
         IMPLEMENT_INFERENCE_ENGINE_PLUGIN
@@ -114,7 +114,7 @@ if(ENABLE_GAPI_PREPROCESSING)
         $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 
-    set_ie_threading_interface_for(${TARGET_NAME}_obj)
+    ov_set_threading_interface_for(${TARGET_NAME}_obj)
 
     add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
@@ -135,7 +135,7 @@ endif()
 
 add_library(${TARGET_NAME} ${library_type} ${library_sources})
 
-set_ie_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
 
 if(ENABLE_GAPI_PREPROCESSING)
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
@@ -166,7 +166,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     endif()
 
     # must be called after all target_link_libraries
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+    ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
     ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION "OpenVINO Preprocessing plugin")
@@ -182,7 +182,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
                 $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-    set_ie_threading_interface_for(${TARGET_NAME}_s)
+    ov_set_threading_interface_for(${TARGET_NAME}_s)
 
     target_include_directories(${TARGET_NAME}_s INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -211,7 +211,7 @@ endif()
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
+ov_developer_package_export_targets(TARGET ${TARGET_NAME})
 
 # install
 

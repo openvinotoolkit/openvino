@@ -6,7 +6,6 @@
 
 #include "augru_sequence_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/op/util/recurrent_sequence.hpp"
 
 using namespace std;
 
@@ -64,8 +63,7 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic(4), ov::PartialShape::dynamic(3)};
-    shape_infer(this, input_shapes, output_shapes);
+    std::vector<ov::PartialShape> output_shapes = shape_infer(this, input_shapes);
 
     // Set output size, type and shape
     set_output_size(2);

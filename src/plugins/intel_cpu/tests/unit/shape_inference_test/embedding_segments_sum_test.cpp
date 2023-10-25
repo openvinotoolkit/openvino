@@ -26,10 +26,9 @@ TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, default_ctor) {
     input_shapes = {StaticShape{5, 2, 6}, StaticShape{4}, StaticShape{4}, StaticShape{}, StaticShape{}, StaticShape{4}};
 
     int64_t num_segments = 4;
-    const auto const_map =
-        std::map<size_t, HostTensorPtr>{{3, std::make_shared<HostTensor>(element::i64, Shape{}, &num_segments)}};
+    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{3, {element::i64, Shape{}, &num_segments}}};
 
-    shape_infer(op.get(), input_shapes, output_shapes, const_map);
+    output_shapes = shape_inference(op.get(), input_shapes, const_map);
     EXPECT_EQ(output_shapes[0], (StaticShape{4, 2, 6}));
 }
 
@@ -43,7 +42,7 @@ TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, constant_input) {
 
     auto op = make_op(emb_table, indices, segment_ids, num_segments, default_index, per_sample_weights);
     input_shapes = {StaticShape{5, 2, 6}, StaticShape{4}, StaticShape{4}, StaticShape{}, StaticShape{}, StaticShape{4}},
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{3, 2, 6}));
 }
 
@@ -59,10 +58,9 @@ TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, constant_map) {
     input_shapes = {StaticShape{5, 2, 6}, StaticShape{4}, StaticShape{4}, StaticShape{}, StaticShape{}, StaticShape{4}};
 
     int64_t num_segm_val = 3;
-    const auto const_map =
-        std::map<size_t, HostTensorPtr>{{3, std::make_shared<HostTensor>(element::i64, Shape{}, &num_segm_val)}};
+    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{3, {element::i64, Shape{}, &num_segm_val}}};
 
-    shape_infer(op.get(), input_shapes, output_shapes, const_map);
+    output_shapes = shape_inference(op.get(), input_shapes, const_map);
     EXPECT_EQ(output_shapes[0], (StaticShape{3, 2, 6}));
 }
 
@@ -76,12 +74,11 @@ TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, basic) {
 
     auto op = make_op(emb_table, indices, segment_ids, num_segments, default_index, per_sample_weights);
 
-    check_static_shape(
-        op.get(),
-        {StaticShape{5, 2}, StaticShape{4}, StaticShape{4}, StaticShape{}, StaticShape{}, StaticShape{4}},
-        {StaticShape{3, 2}});
+    output_shapes = shape_inference(op.get(), ShapeVector{{5, 2}, {4}, {4}, {}, {}, {4}});
+    EXPECT_THAT(output_shapes, ElementsAre(StaticShape{3, 2}));
 
-    check_static_shape(op.get(),
-                       {StaticShape{5, 2}, StaticShape{4}, StaticShape{4}, 8, StaticShape{}, StaticShape{4}},
-                       {StaticShape{8, 2}});
+    int64_t num_segm_val = 8;
+    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{3, {element::i64, Shape{}, &num_segm_val}}};
+    output_shapes = shape_inference(op.get(), ShapeVector{{5, 2}, {4}, {4}, {}, {}, {4}}, const_map);
+    EXPECT_THAT(output_shapes, ElementsAre(StaticShape{8, 2}));
 }

@@ -23,7 +23,7 @@ add_library(${TARGET_NAME}_obj OBJECT
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
-ie_faster_build(${TARGET_NAME}_obj UNITY)
+ov_build_target_faster(${TARGET_NAME}_obj UNITY)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt)
 
@@ -33,7 +33,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
-ie_mark_target_as_cc(${TARGET_NAME}_obj)
+ov_mark_target_as_cc(${TARGET_NAME}_obj)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
@@ -52,10 +52,6 @@ target_include_directories(${TARGET_NAME} INTERFACE
 # LTO
 
 set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-# developer package
-
-openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 if(ENABLE_TESTS)
     add_subdirectory(tests)

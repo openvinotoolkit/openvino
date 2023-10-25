@@ -28,6 +28,7 @@ class IEEngine(Engine):
     def __init__(self, config, data_loader=None, metric=None):
         super().__init__(config, data_loader, metric)
         self._ie = Core()
+        self._ie.set_property({"ENABLE_MMAP": "NO"})
         self._model = None
         self._nx_model = None
         self._output_layers = None

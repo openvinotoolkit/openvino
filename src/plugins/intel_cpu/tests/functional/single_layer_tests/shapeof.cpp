@@ -4,8 +4,8 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace InferenceEngine;
@@ -42,17 +42,17 @@ public:
         result << "Prec=" << netPr << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams) << "_";
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")";
         return result.str();
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         CPULayerTestsDefinitions::ShapeOfLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
@@ -68,7 +68,10 @@ protected:
         outType = ElementType::i32;
         selectedType = makeSelectedTypeStr("ref", inType);
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
         auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], ngraph::element::i32);
 

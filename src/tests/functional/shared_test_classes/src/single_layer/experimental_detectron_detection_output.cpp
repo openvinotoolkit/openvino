@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/experimental_detectron_detection_output.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -20,7 +20,7 @@ namespace {
     ss << "post_nms_count=" << attributes.post_nms_count << "_";
     ss << "max_detections_per_image=" << attributes.max_detections_per_image << "_";
     ss << "class_agnostic_box_regression=" << (attributes.class_agnostic_box_regression ? "true" : "false") << "_";
-    ss << "deltas_weights=" << CommonTestUtils::vec2str(attributes.deltas_weights);
+    ss << "deltas_weights=" << ov::test::utils::vec2str(attributes.deltas_weights);
     return ss;
 }
 } // namespace
@@ -86,7 +86,10 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
 
     init_input_shapes(inputShapes);
 
-    auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+    }
     auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto experimentalDetectron = std::make_shared<ngraph::opset6::ExperimentalDetectronDetectionOutput>(
         params[0], // input_rois

@@ -9,22 +9,22 @@ endif()
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-strict-aliasing)
+    ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()
 
 if(OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+    ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 4267 4244 conversion from 'XXX' to 'YYY', possible loss of data
-    ie_add_compiler_flags(/wd4244)
+    ov_add_compiler_flags(/wd4244)
     # '<': signed/unsigned mismatch
-    ie_add_compiler_flags(/wd4018)
+    ov_add_compiler_flags(/wd4018)
 endif()
 
 if(ENABLE_GPU_DEBUG_CAPS)
-  add_definitions(-DGPU_DEBUG_CONFIG=1)
+    add_definitions(-DGPU_DEBUG_CONFIG=1)
 endif()
 
 set(INTEL_GPU_TARGET_OCL_VERSION "200" CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
@@ -35,9 +35,10 @@ set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_subdirectory(thirdparty)
+include(thirdparty/cmake/rapidjson.cmake)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Werror)
+    ov_add_compiler_flags(-Werror)
 endif()
 
 add_subdirectory(src/runtime)
@@ -46,9 +47,14 @@ add_subdirectory(src/graph)
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
+if(ENABLE_PROXY)
+    set(PLUGIN_DEFAULT_CONFIG "PROXY_CONFIGURATION_ALIAS:GPU;PROXY_CONFIGURATION_PRIORITY:0;PROXY_CONFIGURATION_INTERNAL_NAME:OCL_GPU")
+endif()
+
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}
+              DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
               VERSION_DEFINES_FOR src/plugin/plugin.cpp)
 
 target_compile_options(${TARGET_NAME} PRIVATE
@@ -58,6 +64,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+
+ov_set_threading_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -73,4 +81,4 @@ endif()
 
 # Failed because of OpenCL
 # must be called after all target_link_libraries
-# ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+# ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})

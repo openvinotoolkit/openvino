@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -41,7 +41,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_CIS=" << CommonTestUtils::vec2str(cropInputShape);
+        result << "_CIS=" << ov::test::utils::vec2str(cropInputShape);
         return result.str();
     }
 
@@ -54,7 +54,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto reshape_pattern_size = ngraph::Shape{inputShape.size()};
         auto reshape_pattern = ngraph::builder::makeConstant(ov::element::i64, reshape_pattern_size, inputShape);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto input_reshape = std::make_shared<ngraph::opset9::Reshape>(params[0], reshape_pattern, false);
 
         const std::vector<size_t> filterSize{1, 1};
@@ -67,9 +67,9 @@ protected:
         constexpr auto c_index_in_nchw = 1;
         constexpr auto h_index_in_nchw = 2;
         const auto weights_size = ngraph::shape_size(filterSize) * numOutChannels * inputShape[c_index_in_nchw];
-        auto weights_values = CommonTestUtils::generate_float_numbers(weights_size, -0.2f, 0.2f);
+        auto weights_values = ov::test::utils::generate_float_numbers(weights_size, -0.2f, 0.2f);
         const auto weights2_size = ngraph::shape_size(filterSize) * numOutChannels * numOutChannels;
-        auto weights2_values = CommonTestUtils::generate_float_numbers(weights2_size, -0.2f, 0.2f);
+        auto weights2_values = ov::test::utils::generate_float_numbers(weights2_size, -0.2f, 0.2f);
 
         auto convolution_node = ngraph::builder::makeConvolution(input_reshape,
                                                                  ngPrc,
@@ -129,7 +129,7 @@ const std::vector<std::vector<size_t>> input_shapes{
 INSTANTIATE_TEST_SUITE_P(smoke_crop_after_conv,
                          CropAfterConvolutionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(input_shapes)),
                          CropAfterConvolutionTest::getTestCaseName);

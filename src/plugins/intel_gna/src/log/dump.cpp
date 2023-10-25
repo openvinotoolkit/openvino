@@ -15,10 +15,13 @@
 #include <string>
 #include <vector>
 
+#include "backend/gna_limitations.hpp"
 #include "gna2-model-api.h"
 #include "gna2_model_helper.hpp"
 #include "gna_device.hpp"
 #include "log.hpp"
+
+using namespace ov::intel_gna::limitations;
 
 namespace ov {
 namespace intel_gna {
@@ -160,6 +163,9 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model& gnaModel,
                                     const std::string refFolderName) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         const auto& operation = gnaModel.Operations[i];
+        if (operation.Type == Gna2OperationTypeNone) {
+            continue;
+        }
         std::stringstream out_file_name;
         const auto& outputTensor = *operation.Operands[OutOpIdx];
         const auto& intputTensor = *operation.Operands[InOpIdx];
@@ -426,7 +432,7 @@ inline void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
 }
 
 inline void DumpCharArray(std::ostream& dumpFile, const char* carray, size_t count) {
-    auto i = 0;
+    size_t i = 0;
     while (*(carray + i) != 0 && i < count) {
         dumpFile << *(carray + i) << " ";
         i++;
@@ -434,11 +440,58 @@ inline void DumpCharArray(std::ostream& dumpFile, const char* carray, size_t cou
     dumpFile << "\n";
 }
 
+class GnaMemStats {
+public:
+    void Add(const std::string memory_tag,
+             const std::string operand_name,
+             const std::string operation_name,
+             const uint32_t size) {
+        if (size == 0)
+            return;
+        const std::pair<std::string, std::string> key = std::make_pair(operation_name, memory_tag + " " + operand_name);
+        m_stats[key] = size;
+    }
+    std::string GetFormattedMemStats() {
+        std::stringstream output;
+        output << "Per Layer memory statistics: " << std::endl;
+        // Assumes that std::map with pair keys is lexicographically ordered which is true in this and previous versions
+        // of C++.
+        std::string previous_layer = "";
+        for (auto pair : m_stats) {
+            std::string current_layer = pair.first.first;
+            if (current_layer != previous_layer) {
+                output << "\t" << current_layer << std::endl;
+            }
+            output << "\t\t" << pair.first.second << ": " << pair.second << " bytes." << std::endl;
+            previous_layer = current_layer;
+        }
+        output << "Aggregate memory statistics: " << std::endl;
+        std::map<std::string, uint32_t> aggr_stats;
+        for (auto pair : m_stats) {
+            const std::string key = pair.first.second;
+            if (aggr_stats.count(key) == 0) {
+                aggr_stats[key] = pair.second;
+            } else {
+                aggr_stats[key] += pair.second;
+            }
+        }
+        for (auto stat : aggr_stats) {
+            output << "\t" << stat.first << ": " << stat.second << " bytes." << std::endl;
+        }
+        return output.str();
+    }
+
+private:
+    // uint32_t allows for a little above 4 Gb of size without overflow so it's more than sufficient.
+    std::map<std::pair<std::string, std::string>, uint32_t> m_stats;
+};
+
 void DumpGna2Model(const Gna2Model& gnaModel,
                    const std::string& dumpFolderNameGNA,
                    bool dumpData,
                    const GnaAllocations& allAllocations,
                    const std::string& modeOfOperation) {
+    GnaMemStats gna_stats;
     std::stringstream dumpFileName;
     uint32_t opsNo = gnaModel.NumberOfOperations;
     std::time_t currTime = std::time(nullptr);
@@ -484,12 +537,17 @@ void DumpGna2Model(const Gna2Model& gnaModel,
                 foundName = found->GetTagName();
                 offset = found->getOffset(operand.Data).second;
             }
+            const uint32_t size =
+                Gna2RoundUp(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)),
+                            static_cast<uint32_t>(Limitations::get_instance()->get_memory_alignment()));
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                      << " type: " << GetOperandType(operand.Type) << " shape: " << GetSimpleString(operand.Shape)
-                     << " tag: " << foundName << " offset: " << offset
-                     << " size: " << Gna2RoundUpTo64(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)))
-                     << " data: " << operand.Data << " baseAlloc: " << foundPtr << " layout: ";
-
+                     << " tag: " << foundName << " offset: " << offset << " size: " << size << " data: " << operand.Data
+                     << " baseAlloc: " << foundPtr << " layout: ";
+            gna_stats.Add(foundName,
+                          GetOperandName(operation.Type, j),
+                          std::to_string(i) + " " + GetLayerType(operation.Type),
+                          size);
             DumpCharArray(dumpFile, operand.Layout, GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);
 
             if (operand.Type == Gna2DataTypePwlSegment) {
@@ -530,6 +588,8 @@ void DumpGna2Model(const Gna2Model& gnaModel,
             }
         }
     }
+    dumpFile << "------------------------------------------------------------------------\n\n";
+    dumpFile << gna_stats.GetFormattedMemStats() << std::endl;
 }
 
 }  // namespace dump

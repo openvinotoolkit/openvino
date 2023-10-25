@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "low_precision_transformations/fake_quantize_and_avg_pool_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -17,7 +17,7 @@ const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
@@ -31,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeAndAvgPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizes)),
     FakeQuantizeAndAvgPoolTransformation::getTestCaseName);

@@ -13,7 +13,7 @@ std::string ParamReshapeResult::getTestCaseName(const testing::TestParamInfo<Par
     std::tie(inputShape, netPrecision, targetName, config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    results << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";
     for (auto const& configItem : config) {
@@ -30,7 +30,7 @@ void ParamReshapeResult::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto shape = inputShape;
     shape[shape.size() - 2] *= 2;

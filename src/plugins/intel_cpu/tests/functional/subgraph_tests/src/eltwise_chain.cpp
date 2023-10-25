@@ -8,7 +8,7 @@
 #include <memory>
 #include <debug.h>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -44,18 +44,18 @@ public:
 
         results << "IS=(";
         for (const auto& shape : inputShapes) {
-            results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            results << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         results << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                results << CommonTestUtils::vec2str(item) << "_";
+                results << ov::test::utils::vec2str(item) << "_";
             }
         }
-        for (int i = 0; i < inputPrecisions.size(); i++) {
+        for (size_t i = 0; i < inputPrecisions.size(); i++) {
             results << "InPRC" << std::to_string(i) << "=" << inputPrecisions[i] << "_";
         }
-        for (int i = 0; i < eltwiseOpTypes.size(); i++) {
+        for (size_t i = 0; i < eltwiseOpTypes.size(); i++) {
             results << "Op" << std::to_string(i) << "=" << eltwiseOpTypes[i] << "_";
         }
         results << "secondaryInputType=" << secondaryInputType << "_";
@@ -68,7 +68,7 @@ public:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 1, 1);
@@ -97,8 +97,8 @@ protected:
                 ngraphInputs.push_back(ngraphParam.back());
             }
         } else {
-            ngraphParam = ngraph::builder::makeDynamicParams(inputPrecisions[0], {inputDynamicShapes.front()});
-            for (int i = 1; i < inputPrecisions.size(); i++) {
+            ngraphParam = ov::ParameterVector {std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes.front())};
+            for (size_t i = 1; i < inputPrecisions.size(); i++) {
                 std::vector<float> ngraphInput1Data(ngraph::shape_size(targetStaticShapes[0][i]));
                 ngraphInputs.push_back(ngraph::builder::makeConstant(inputPrecisions[i], targetStaticShapes[0][i],
                                                                      ngraphInput1Data, true));
@@ -108,7 +108,7 @@ protected:
         if (withQuantization) {
             std::vector<std::shared_ptr<ngraph::Node>> eltwiseOps;
             eltwiseOps.push_back(ngraph::builder::makeEltwise(ngraphParam[0], ngraphInputs[0], eltwiseOpTypes[0]));
-            for (int i = 1; i < eltwiseOpTypes.size() - 1; i++) {
+            for (size_t i = 1; i < eltwiseOpTypes.size() - 1; i++) {
                 eltwiseOps.push_back(ngraph::builder::makeEltwise(eltwiseOps[eltwiseOps.size() - 1], ngraphInputs[i], eltwiseOpTypes[i]));
             }
 
@@ -125,7 +125,7 @@ protected:
         } else {
             std::vector<std::shared_ptr<ngraph::Node>> eltwiseOps;
             eltwiseOps.push_back(ngraph::builder::makeEltwise(ngraphParam[0], ngraphInputs[0], eltwiseOpTypes[0]));
-            for (int i = 1; i < eltwiseOpTypes.size(); i++) {
+            for (size_t i = 1; i < eltwiseOpTypes.size(); i++) {
                 eltwiseOps.push_back(ngraph::builder::makeEltwise(eltwiseOps[eltwiseOps.size() - 1], ngraphInputs[i], eltwiseOpTypes[i]));
             }
 
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain, EltwiseChainTest,
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EltwiseChainTest::getTestCaseName);
 
 std::vector<std::vector<ngraph::Shape>> inputShapesFQ = {
@@ -201,7 +201,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithFQ, EltwiseChainTest,
                             ::testing::ValuesIn(inputPrecisionsFQ),
                             ::testing::ValuesIn(eltwiseOps),
                             ::testing::Values(true),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EltwiseChainTest::getTestCaseName);
 
 // =============================================== dynamic ==============================================
@@ -459,7 +459,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_dyn, EltwiseChainTest,
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EltwiseChainTest::getTestCaseName);
 
 } // namespace

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ngraph;
@@ -13,10 +13,10 @@ namespace SubgraphTestsDefinitions {
 class TileWithTwoOutputEdges : public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         auto ngPrc = element::f32;
-        auto inputParams = builder::makeParams(ngPrc, {{1, 3, 12, 9}});
+        ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 3, 12, 9})};
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
         auto tile = ngraph::builder::makeTile(paramOuts[0], std::vector<int64_t>{1, 2, 1, 1});

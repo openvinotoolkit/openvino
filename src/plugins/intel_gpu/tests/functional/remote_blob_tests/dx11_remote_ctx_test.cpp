@@ -14,7 +14,7 @@
 #include <common_test_utils/test_common.hpp>
 #include <common_test_utils/test_constants.hpp>
 #include "common_test_utils/file_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include <openvino/core/preprocess/pre_post_process.hpp>
 
 #ifdef _WIN32
@@ -48,7 +48,7 @@
 
 using namespace ::testing;
 
-struct DX11RemoteCtx_Test : public CommonTestUtils::TestsCommon {
+struct DX11RemoteCtx_Test : public ov::test::TestsCommon {
     virtual ~DX11RemoteCtx_Test() = default;
 
 protected:
@@ -169,9 +169,9 @@ struct DX11CachedTexture_Test : DX11RemoteCtx_Test {
         std::string cacheDirName;
         if (is_caching_test) {
             cacheDirName = std::string("make_shared_nv12_tensor_cached_inference");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
             core.set_property(ov::cache_dir(cacheDirName));
 
             auto tmp_model = core.compile_model(model, context);
@@ -191,9 +191,9 @@ struct DX11CachedTexture_Test : DX11RemoteCtx_Test {
         }
 
         if (is_caching_test) {
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
         }
     }
 };
@@ -212,7 +212,7 @@ TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
     ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
         create_device_with_ctx(intel_adapters[0]));
     auto remote_context = make_shared_context(ie,
-        CommonTestUtils::DEVICE_GPU,
+        ov::test::utils::DEVICE_GPU,
         device_ptr);
     ASSERT_TRUE(remote_context);
 
@@ -222,74 +222,9 @@ TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
 
         ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
                         create_device_with_ctx(adapter));
-        ASSERT_THROW(make_shared_context(ie, CommonTestUtils::DEVICE_GPU,
+        ASSERT_THROW(make_shared_context(ie, ov::test::utils::DEVICE_GPU,
                                          device_ptr),
                      std::runtime_error);
-    }
-}
-
-
-TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_blob_cached) {
-#if defined(ANDROID)
-    GTEST_SKIP();
-#endif
-    using namespace InferenceEngine;
-    using namespace InferenceEngine::gpu;
-    auto ie = InferenceEngine::Core();
-    auto remote_context = make_shared_context(ie, CommonTestUtils::DEVICE_GPU,
-                                                  device_ptr);
-    ASSERT_TRUE(remote_context);
-    const size_t total_run_number = 4;
-    for (size_t i = 0; i < total_run_number; i++) {
-        for (const auto& t : dx11_textures) {
-            auto blob = make_shared_blob_nv12(texture_description.Height,
-                                              texture_description.Width,
-                                              remote_context, t);
-            ASSERT_TRUE(blob);
-            ASSERT_NO_THROW(blob->allocate());
-        }
-    }
-}
-
-TEST_F(DX11CachedTexture_Test, _make_shared_nv12_blob_cached_inference) {
-#if defined(ANDROID)
-    GTEST_SKIP();
-#endif
-    using namespace InferenceEngine;
-    using namespace InferenceEngine::gpu;
-    // inference using remote blob with batch
-    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, texture_description.Height, texture_description.Width});
-    auto ie = InferenceEngine::Core();
-
-    CNNNetwork net(fn_ptr_remote);
-    net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
-    net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
-    net.getInputsInfo().begin()->second->getPreProcess().setColorFormat(ColorFormat::NV12);
-
-    auto remote_context = make_shared_context(ie, CommonTestUtils::DEVICE_GPU, device_ptr);
-    Blob::Ptr nv12_blob = make_shared_blob_nv12(texture_description.Height,
-                                            texture_description.Width,
-                                            remote_context, dx11_textures[0]);
-
-    ASSERT_TRUE(remote_context);
-    const size_t total_run_number = 4;
-
-    {
-        auto exec_net = ie.LoadNetwork(net, remote_context,
-            { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, PluginConfigParams::YES} });
-
-        // inference using shared nv12 blob
-        auto inf_req_shared = exec_net.CreateInferRequest();
-        auto dims = net.getInputsInfo().begin()->second->getTensorDesc().getDims();
-        size_t imSize = dims[1] * dims[2] * dims[3];
-
-        const size_t iteration_count = 10;
-        for (size_t i = 0; i < iteration_count; i++) {
-            inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, nv12_blob);
-
-            inf_req_shared.Infer();
-            auto outputBlob_shared = inf_req_shared.GetBlob(net.getOutputsInfo().begin()->first);
-        }
     }
 }
 

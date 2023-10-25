@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/reference/utils/coordinate_range.hpp"
+
 #include <algorithm>
-#include <ngraph/coordinate_range.hpp>
 #include <numeric>
 #include <utility>
 
 #include "gtest/gtest.h"
+#include "openvino/core/coordinate.hpp"
 
-using namespace ngraph;
-using namespace ngraph::coordinates;
+using namespace ov;
 using Index = size_t;
-using ExpectedOutput = std::vector<std::pair<Index, Coordinate>>;
+using ExpectedOutput = std::vector<std::pair<Index, ov::Coordinate>>;
 
 ///
 ///
@@ -24,7 +25,7 @@ TEST(coordinate_range, slice_range_shape0d) {
     const Shape s;
     const Coordinate start_corner(s.size());
 
-    auto slice_range = slice(s, start_corner, s);
+    auto slice_range = ov::coordinates::slice(s, start_corner, s);
     auto it = slice_range.begin();
     EXPECT_EQ(it, begin(slice_range));
     EXPECT_FALSE(it == slice_range.end());
@@ -41,7 +42,7 @@ TEST(coordinate_range, slice_range_shape1d) {
     ASSERT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto slice_range : slice(s, start_corner, s)) {
+    for (auto slice_range : ov::coordinates::slice(s, start_corner, s)) {
         auto index = slice_range.begin_index;
         for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
@@ -64,7 +65,7 @@ TEST(coordinate_range, slice_range_shape2d) {
     ASSERT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto slice_range : slice(s, start_corner, s)) {
+    for (auto slice_range : ov::coordinates::slice(s, start_corner, s)) {
         auto index = slice_range.begin_index;
         for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
@@ -91,7 +92,7 @@ TEST(coordinate_range, slice_range_shape3d) {
     ASSERT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto slice_range : slice(s, start_corner, s)) {
+    for (auto slice_range : ov::coordinates::slice(s, start_corner, s)) {
         auto index = slice_range.begin_index;
         for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
@@ -105,7 +106,7 @@ TEST(coordinate_range, slice_range_zero_sized_axis) {
     const Shape s{2, 0, 4};
     const Coordinate start_corner(s.size());
 
-    auto slice_range = slice(s, start_corner, s);
+    auto slice_range = ov::coordinates::slice(s, start_corner, s);
     auto it = slice_range.begin();
     EXPECT_TRUE(it == slice_range.end()) << "Expect empyt range";
 }
@@ -115,10 +116,10 @@ TEST(coordinate_range, slice_range_zero_sized_axis) {
 ///
 TEST(coordinate_range, slice_range_input_validataion) {
     const Shape s{10, 10, 10};
-    EXPECT_THROW(slice(s, {1}, {1}), std::domain_error);
-    EXPECT_THROW(slice(s, s, {1}), std::domain_error);
-    EXPECT_THROW(slice(s, {1}, s), std::domain_error);
-    EXPECT_THROW(slice(s, s, s, {}), std::domain_error);
+    EXPECT_THROW(ov::coordinates::slice(s, {1}, {1}), std::domain_error);
+    EXPECT_THROW(ov::coordinates::slice(s, s, {1}), std::domain_error);
+    EXPECT_THROW(ov::coordinates::slice(s, {1}, s), std::domain_error);
+    EXPECT_THROW(ov::coordinates::slice(s, s, s, {}), std::domain_error);
 }
 
 namespace {
@@ -164,7 +165,7 @@ TEST(coordinate_range, slice_range_corner) {
         << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto slice_range : slice(s, source_start_corner, source_end_corner)) {
+    for (auto slice_range : ov::coordinates::slice(s, source_start_corner, source_end_corner)) {
         auto index = slice_range.begin_index;
         for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
@@ -194,7 +195,7 @@ TEST(coordinate_range, slice_range_strides) {
         << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto slice_range : slice(s, source_start_corner, source_end_corner, source_strides)) {
+    for (auto slice_range : ov::coordinates::slice(s, source_start_corner, source_end_corner, source_strides)) {
         auto index = slice_range.begin_index;
         for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
@@ -215,7 +216,7 @@ TEST(coordinate_range, reverse_range_shape0d) {
     const Shape s;
     const AxisSet reverset_axis{};
 
-    auto reverse_range = reverse(s, reverset_axis);
+    auto reverse_range = ov::coordinates::reverse(s, reverset_axis);
     auto it = reverse_range.begin();
     EXPECT_EQ(it, begin(reverse_range));
     auto v = *it;  // if it is not end it has to be dereferencable;
@@ -231,9 +232,9 @@ TEST(coordinate_range, reverse_range_shape1d) {
     EXPECT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis)) {
+    for (auto reverse_range : ov::coordinates::reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
-        ASSERT_EQ(reverse_range.direction, Direction::forward);
+        ASSERT_EQ(reverse_range.direction, ov::coordinates::Direction::forward);
         for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
@@ -256,9 +257,9 @@ TEST(coordinate_range, reverse_range_shape2d) {
     EXPECT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis)) {
+    for (auto reverse_range : ov::coordinates::reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
-        ASSERT_EQ(reverse_range.direction, Direction::forward);
+        ASSERT_EQ(reverse_range.direction, ov::coordinates::Direction::forward);
         for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
@@ -285,9 +286,9 @@ TEST(coordinate_range, reverse_range_shape3d) {
     EXPECT_EQ(expected.size(), shape_size(s)) << "check epxected data";
 
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis)) {
+    for (auto reverse_range : ov::coordinates::reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
-        ASSERT_EQ(reverse_range.direction, Direction::forward);
+        ASSERT_EQ(reverse_range.direction, ov::coordinates::Direction::forward);
         for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
@@ -301,7 +302,7 @@ TEST(coordinate_range, reverse_range_shape3d) {
 TEST(coordinate_range, reverse_range_zero_sized_axis) {
     const Shape s{2, 0, 4};
 
-    auto reverse_range = reverse(s, {});
+    auto reverse_range = ov::coordinates::reverse(s, {});
     auto it = reverse_range.begin();
     EXPECT_TRUE(it == reverse_range.end()) << "Expect empyt range";
 }
@@ -311,7 +312,7 @@ TEST(coordinate_range, reverse_range_zero_sized_axis) {
 ///
 TEST(coordinate_range, reverse_range_input_validataion) {
     const Shape s{10, 10, 10};
-    EXPECT_THROW(reverse(s, {10}), std::domain_error);
+    EXPECT_THROW(ov::coordinates::reverse(s, {10}), std::domain_error);
 }
 
 TEST(coordinate_range, reverse_range_2d) {
@@ -325,9 +326,9 @@ TEST(coordinate_range, reverse_range_2d) {
         {29, {2, 9}}, {28, {2, 8}}, {27, {2, 7}}, {26, {2, 6}}, {25, {2, 5}}, {24, {2, 4}}, {23, {2, 3}}, {22, {2, 2}}, {21, {2, 1}}, {20, {2, 0}}};
     // clang-format on
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis)) {
+    for (auto reverse_range : ov::coordinates::reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
-        ASSERT_EQ(reverse_range.direction, Direction::reverse);
+        ASSERT_EQ(reverse_range.direction, ov::coordinates::Direction::reverse);
         for (size_t i = 0; i < reverse_range.element_number; index -= reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
@@ -358,9 +359,9 @@ TEST(coordinate_range, reverse_1_range_3d) {
     // clang-format on
 
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis)) {
+    for (auto reverse_range : ov::coordinates::reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
-        ASSERT_EQ(reverse_range.direction, Direction::forward);
+        ASSERT_EQ(reverse_range.direction, ov::coordinates::Direction::forward);
         for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;
@@ -391,9 +392,9 @@ TEST(coordinate_range, reverse_2_range_3d) {
     // clang-format on
 
     auto expected_val = begin(expected);
-    for (auto reverse_range : reverse(s, reverset_axis)) {
+    for (auto reverse_range : ov::coordinates::reverse(s, reverset_axis)) {
         auto index = reverse_range.begin_index;
-        ASSERT_EQ(reverse_range.direction, Direction::reverse);
+        ASSERT_EQ(reverse_range.direction, ov::coordinates::Direction::reverse);
         for (size_t i = 0; i < reverse_range.element_number; index -= reverse_range.step, ++i) {
             EXPECT_EQ(index, expected_val->first);
             ++expected_val;

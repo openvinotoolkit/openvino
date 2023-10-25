@@ -5,11 +5,10 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include "low_precision/layer_transformation.hpp"
+#include "low_precision/cleanup_transformation.hpp"
 #include "common/precisions_restriction.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -21,18 +20,18 @@ namespace low_precision {
  * [MultiplyToGroupConvolutionTransformation](@ref openvino_docs_OV_UG_lpt_MultiplyToGroupConvolutionTransformation) page
  * in the Inference Engine Developer Guide.
  */
-class LP_TRANSFORMATIONS_API MultiplyToGroupConvolutionTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API MultiplyToGroupConvolutionTransformation : public CleanupTransformation {
 public:
     OPENVINO_RTTI("MultiplyToGroupConvolutionTransformation", "0");
     MultiplyToGroupConvolutionTransformation(
         const Params& params = Params(),
         const PrecisionsRestriction::PrecisionsByPorts& restrictions = {});
     ~MultiplyToGroupConvolutionTransformation() override {}
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,
-        const std::vector<ngraph::element::Type>& defaultPrecisions) const override;
+        const std::vector<ov::element::Type>& defaultPrecisions) const override;
     static bool canBeTransformedToGroupConvolution(const std::shared_ptr<const Node>& layer);
     static bool isDynamicOrScalar(const std::shared_ptr<const Node>& node);
 
@@ -45,4 +44,4 @@ private:
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

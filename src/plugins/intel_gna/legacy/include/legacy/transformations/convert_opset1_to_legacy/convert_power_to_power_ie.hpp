@@ -19,7 +19,7 @@ class ConvertPowerToPowerIEMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertPowerToPowerIEMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertPowerToPowerIEMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertPowerToPowerIEMatcher", "0");
     ConvertPowerToPowerIEMatcher();

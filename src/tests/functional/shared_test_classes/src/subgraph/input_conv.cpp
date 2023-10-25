@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/input_conv.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -21,8 +21,8 @@ std::string InputConvTest::getTestCaseName(const testing::TestParamInfo<inputCon
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernelShape) << "_";
     result << "S=" << stride << "_";
     result << "OC=" << outputChannels << "_";
     result << "addReshape=" << addReshape << "_";
@@ -56,7 +56,7 @@ void InputConvTest::SetUp() {
         std::vector<float> res;
         for (std::size_t i = 0; i < out_channels; ++i) {
             for (std::size_t j = 0; j < kernel_size; ++j) {
-                j == 0 ? res.emplace_back(1.0f) : res.emplace_back(0.0f);
+                j == 0 ? res.emplace_back(0.2f) : res.emplace_back(0.0f);
             }
         }
 
@@ -77,7 +77,7 @@ void InputConvTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto conv0 = ngraph::builder::makeConvolution(params[0],
                                                   ngPrc,

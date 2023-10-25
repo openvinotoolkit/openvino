@@ -7,6 +7,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
+#include "openvino/core/rt_info.hpp"
 
 #include <assert.h>
 #include <memory>
@@ -31,7 +32,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
         auto type_info = op->get_type_info();
         std::set<ov::element::TypeVector> supported_precisions;
         // TODO: At the moment Softmax is decomposed on Linear IR level.
-        //       When Softmax will be decomposed on NGraph level, remove it
+        //       When Softmax will be decomposed on openvino level, remove it
         if (type_info.is_castable(ov::op::v1::Softmax::get_type_info_static())) {
             supported_precisions = {{ov::element::f32}};
         } else {
@@ -130,7 +131,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
                         auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                             parent_output,
                             required_after);
-                        utils::safe_copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+                        copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
                         op->set_argument(op_input.get_index(), convert);
                         continue;
                     }
@@ -149,7 +150,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
                         auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                             existing_convert->get_input_node_shared_ptr(0),
                             required_after);
-                        utils::safe_copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+                        copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
                         op->set_argument(op_input.get_index(), convert);
                         continue;
                     }
@@ -158,7 +159,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
                     auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                         existing_convert->output(0),
                         required_after);
-                    utils::safe_copy_runtime_info(existing_convert->output(0).get_node()->shared_from_this(), convert);
+                    copy_runtime_info(existing_convert->output(0).get_node()->shared_from_this(), convert);
                     op->set_argument(op_input.get_index(), convert);
                 }
             }
@@ -180,7 +181,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
             auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                 result->get_input_node_shared_ptr(0),
                 expected_type);
-            utils::safe_copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
+            copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
             result->set_argument(0, convert);
         }
     }
@@ -223,7 +224,7 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
             auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                 output,
                 op_output_types[i]);
-            utils::safe_copy_runtime_info(output.get_node_shared_ptr(), convert);
+            copy_runtime_info(output.get_node_shared_ptr(), convert);
 
             for (auto& input : output.get_target_inputs()) {
                 auto child = input.get_node();

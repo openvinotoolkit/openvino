@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/topk.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -54,9 +54,9 @@ public:
         result << "netPRC=" << netPrecision << "_";
         result << "inPRC=" << inPrc << "_";
         result << "outPRC=" << outPrc << "_";
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << "TS=(";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_" << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")_";
         result << "inputType=" << inputType;
@@ -85,7 +85,7 @@ protected:
             }
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
         std::shared_ptr<ngraph::opset4::TopK> topk;
         if (inputType == ngraph::helpers::InputLayerType::CONSTANT) {
@@ -193,7 +193,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_constant_dynamic, TopKLayerGPUTest,
         ::testing::Values(ElementType::undefined),
         ::testing::Values(ElementType::undefined),
         ::testing::ValuesIn(inputShapesDynamic),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT)),
     TopKLayerGPUTest::getTestCaseName);
 
@@ -207,7 +207,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_parameter_dynamic, TopKLayerGPUTest,
         ::testing::Values(ElementType::undefined),
         ::testing::Values(ElementType::undefined),
         ::testing::ValuesIn(inputShapesDynamic),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER)),
     TopKLayerGPUTest::getTestCaseName);
 

@@ -3,8 +3,9 @@
 //
 
 #include "test_utils.h"
-#include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
-#include "ngraph/runtime/reference/adaptive_max_pool.hpp"
+#include "random_generator.hpp"
+#include "openvino/reference/adaptive_avg_pool.hpp"
+#include "openvino/reference/adaptive_max_pool.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
@@ -67,18 +68,17 @@ ov::Shape tensorToShape(const tensor& t, const format f)
 }
 
 template<typename T>
-void generateTestData(const AdaptiveMaxPoolingParams& p, const format fmt,
+void generateTestData(const AdaptiveMaxPoolingParams& p, const format fmt, const std::vector<float>& random_inputs,
                       std::vector<T>& inputs, std::vector<T>& outputs, std::vector<int32_t>& indices) {
-    const auto in = generate_random_1d<float>(p.inputTensor.count(), -127, 127, 8);
     std::vector<float> out(p.outputTensor.count());
     std::vector<int32_t> ind(p.outputTensor.count());
 
     const auto inShape = tensorToShape(p.inputTensor, fmt);
     const auto outShape = tensorToShape(p.outputTensor, fmt);
 
-    ngraph::runtime::reference::adaptive_max_pool<float, int32_t>(in.data(), out.data(), ind.data(), inShape, outShape);
+    ov::reference::adaptive_max_pool<float, int32_t>(random_inputs.data(), out.data(), ind.data(), inShape, outShape);
 
-    inputs = getValues<T>(in);
+    inputs = getValues<T>(random_inputs);
     outputs = getValues<T>(out);
     indices = ind;
 }
@@ -91,7 +91,7 @@ float getError<float>() {
 }
 
 template<>
-float getError<half_t>() {
+float getError<ov::float16>() {
     return 0.5;
 }
 
@@ -116,9 +116,15 @@ struct PrintToStringParamName {
 template<typename T>
 struct adaptive_max_pooling_test
         : public ::testing::TestWithParam<AdaptiveMaxPoolingParamsWithLayout> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
 public:
     void test() {
-        const auto data_type = type_to_data_type<T>::value;
+        const auto data_type = ov::element::from<T>();
         AdaptiveMaxPoolingParams params;
         format::type plain_layout;
         format::type target_layout;
@@ -129,7 +135,8 @@ public:
         std::vector<T> input_data;
         std::vector<T> expected;
         std::vector<int32_t> expected_indices;
-        generateTestData<T>(params, plain_layout, input_data, expected, expected_indices);
+        auto random_in = rg.generate_random_1d<float>(params.inputTensor.count(), -127, 127, 8);
+        generateTestData<T>(params, plain_layout, random_in, input_data, expected, expected_indices);
         auto& engine = get_test_engine();
 
         auto input_mem = engine.allocate_memory({data_type, plain_layout, params.inputTensor});
@@ -211,7 +218,7 @@ public:
 
 
 using adaptive_max_pooling_test_f32 = adaptive_max_pooling_test<float>;
-using adaptive_max_pooling_test_f16 = adaptive_max_pooling_test<half_t>;
+using adaptive_max_pooling_test_f16 = adaptive_max_pooling_test<ov::float16>;
 
 TEST_P(adaptive_max_pooling_test_f32, adaptive_max_pooling_test_f32) {
     ASSERT_NO_FATAL_FAILURE(test());

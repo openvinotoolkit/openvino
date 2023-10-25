@@ -14,18 +14,19 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "openvino/opsets/opset12.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace ConvLowPrecicionTestNs {
 
-using namespace ngraph;
+using namespace ov;
 using namespace ngraph::builder;
-using namespace ngraph::element;
-using namespace ngraph::op;
-using namespace ngraph::opset1;
+using namespace ov::element;
+using namespace ov::op;
+using namespace ov::opset12;
 using namespace std;
 
 using ConvLowPrecisionTestParams = tuple<InferenceEngine::Precision,  // Network Precision
@@ -59,7 +60,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << ":" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_fqMinMax=(" << fqMinMax.first << ".." << fqMinMax.second << ")";
         result << "_levels=" << levels;
 
@@ -71,7 +72,7 @@ public:
     }
 
     ParameterVector createInputVector(const Type& type, const vector<std::size_t>& shapes) {
-        return makeParams(type, {shapes});
+        return ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shapes))};
     }
 
     shared_ptr<FakeQuantize> createFQNode(const Type& type,
@@ -128,15 +129,21 @@ TEST_P(ConvLowPrecisionTest, CompareWithRefs) {
 const vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16,
                                                           InferenceEngine::Precision::FP32};
 
-const vector<map<string, string>> configs_3_X = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
+const vector<map<string, string>> configs_1 = {
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_1_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_1_0"}},
+};
 
-const vector<map<string, string>> configs_2_0 = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
+const vector<map<string, string>> configs_2 = {
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
+};
+
+const vector<map<string, string>> configs_3 = {
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
 };
 
 const Shape conv1D = {1, 8, 1, 16};
@@ -148,11 +155,21 @@ const vector<pair<float, float>> fqMinMax = {{-1.0f, 1.0f}};
 
 const vector<std::size_t> levels = {numeric_limits<uint8_t>::max(), numeric_limits<uint16_t>::max()};
 
+INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision10,
+                         ConvLowPrecisionTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs_1),
+                                            ::testing::Values(conv1D),
+                                            ::testing::ValuesIn(fqMinMax),
+                                            ::testing::ValuesIn(levels)),
+                         ConvLowPrecisionTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision20,
                          ConvLowPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs_2_0),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs_2),
                                             ::testing::Values(conv1D),
                                             ::testing::ValuesIn(fqMinMax),
                                             ::testing::ValuesIn(levels)),
@@ -161,8 +178,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision20,
 INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision3X,
                          ConvLowPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs_3_X),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs_3),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(fqMinMax),
                                             ::testing::ValuesIn(levels)),

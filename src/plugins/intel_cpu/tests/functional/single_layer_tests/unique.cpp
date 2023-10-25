@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -37,13 +37,13 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (size_t i = 0lu; i < inputShapes.size(); i++) {
-            result << CommonTestUtils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
+            result << ov::test::utils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
         }
         result << ")_TS=";
         for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
             result << "{";
             for (size_t j = 0lu; j < inputShapes.size(); j++) {
-                result << CommonTestUtils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
+                result << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
             }
             result << "}_";
         }
@@ -80,7 +80,7 @@ protected:
 
         std::tie(inputShapes, flatOrAxis, sorted, dataPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         flattened = std::get<0>(flatOrAxis);
@@ -94,7 +94,10 @@ protected:
             selectedType = makeSelectedTypeStr(selectedType, dataPrecision);
         }
 
-        auto params = ngraph::builder::makeDynamicParams(dataPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(dataPrecision, shape));
+        }
         params[0]->set_friendly_name("data");
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::shared_ptr<ov::Node> uniqueNode;
@@ -114,7 +117,7 @@ protected:
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::runtime::Tensor tensor;
 
@@ -159,6 +162,26 @@ std::vector<CPUSpecificParams> getCPUInfo() {
     resCPUParams.push_back(CPUSpecificParams{{}, {}, {"ref"}, "ref"});
     return resCPUParams;
 }
+
+std::vector<std::vector<InputShape>> statShapes1D = {
+        {{{}, {{1}}}},     // Static shapes
+        {{{}, {{5}}}},     // Static shapes
+        {{{}, {{8}}}},     // Static shapes
+        {{{}, {{16}}}},    // Static shapes
+        {{{}, {{32}}}},    // Static shapes
+        {{{}, {{64}}}},    // Static shapes
+        {{{}, {{99}}}},    // Static shapes
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_1D, UniqueLayerTestCPU,
+             ::testing::Combine(
+                     ::testing::ValuesIn(statShapes1D),
+                     ::testing::ValuesIn(std::vector<std::tuple<bool, int>>{{true, 0}, {false, 0}}),
+                     ::testing::ValuesIn(sorted),
+                     ::testing::ValuesIn(dataPrecisionSmoke),
+                     ::testing::ValuesIn(getCPUInfo()),
+                     ::testing::Values(additionalConfig[0])),
+             UniqueLayerTestCPU::getTestCaseName);
 
 std::vector<std::vector<InputShape>> getStaticShapes() {
     std::vector<std::vector<InputShape>> result = {

@@ -27,7 +27,7 @@ public:
           weightsCache(w_cache),
           isGraphQuantizedFlag(isGraphQuantized) {
         rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
-        rtScratchPad = std::make_shared<DnnlScratchPad>(eng);
+        rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
     }
 
     const Config& getConfig() const {
@@ -51,9 +51,7 @@ public:
         return rtScratchPad;
     }
 
-    dnnl::engine getEngine() const {
-        return eng;
-    }
+    static const dnnl::engine& getEngine();
 
     bool isGraphQuantized() const {
         return isGraphQuantizedFlag;
@@ -69,7 +67,6 @@ private:
     DnnlScratchPadPtr rtScratchPad;  // scratch pad
 
     bool isGraphQuantizedFlag = false;
-    static dnnl::engine eng;  // onednn engine (singleton)
 };
 
 }  // namespace intel_cpu

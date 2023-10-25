@@ -41,9 +41,9 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-std::vector<CommonTestUtils::OpType> opTypes = {
-        CommonTestUtils::OpType::SCALAR,
-        CommonTestUtils::OpType::VECTOR,
+std::vector<ov::test::utils::OpType> opTypes = {
+        ov::test::utils::OpType::SCALAR,
+        ov::test::utils::OpType::VECTOR,
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> smoke_eltwiseOpTypes = {
@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(netPrecisions),
                        ::testing::Values(ov::element::undefined),
                        ::testing::Values(ov::element::undefined),
-                       ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::Values(additional_config)),
     EltwiseLayerTest::getTestCaseName);
 
@@ -88,7 +88,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(netPrecisions),
                        ::testing::Values(ov::element::undefined),
                        ::testing::Values(ov::element::undefined),
-                       ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::Values(additional_config)),
     EltwiseLayerTest::getTestCaseName);
 

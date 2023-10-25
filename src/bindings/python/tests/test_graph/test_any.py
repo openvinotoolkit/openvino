@@ -11,6 +11,9 @@ import pytest
     (2137, int),
     (21.37, float),
     (False, bool),
+    ([1, 2, 3], list),
+    ((1, 2, 3), tuple),
+    ({"a": "b"}, dict),
 ])
 def test_any(value, data_type):
     ovany = OVAny(value)
@@ -29,7 +32,7 @@ def test_any_list(values, data_type):
     assert isinstance(ovany.value, list)
     assert isinstance(ovany[0], data_type)
     assert isinstance(ovany[1], data_type)
-    assert len(values) == 2
+    assert len(ovany) == 2
     assert ovany.get() == values
 
 
@@ -44,8 +47,8 @@ def test_any_dict(value_dict, value_type, data_type):
     assert isinstance(ovany.value, dict)
     assert ovany[key] == list(value_dict.values())[0]
     assert len(ovany.value) == 1
-    assert type(ovany.value[key]) == value_type
-    assert type(list(value_dict.values())[0]) == data_type
+    assert isinstance(ovany.value[key], value_type)
+    assert isinstance(list(value_dict.values())[0], data_type)
     assert ovany.get() == value_dict
 
 
@@ -55,6 +58,9 @@ def test_any_set_new_value():
     value = OVAny("test")
     assert isinstance(value.value, str)
     assert value == "test"
+    value.set(2.5)
+    assert isinstance(value.value, float)
+    assert value == 2.5
 
 
 def test_any_class():

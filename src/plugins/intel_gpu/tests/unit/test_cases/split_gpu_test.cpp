@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/split.hpp>
@@ -14,19 +15,6 @@
 
 using namespace cldnn;
 using namespace ::tests;
-
-template<typename T>
-std::vector<T> generate_random_input(size_t b, size_t f, size_t y, size_t x, int min, int max) {
-    static std::default_random_engine generator(random_seed);
-    int k = 8; // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int> distribution(k * min, k * max);
-    std::vector<T> v(b*f*x*y);
-    for (size_t i = 0; i < b*f*x*y; ++i) {
-        v[i] = (T)distribution(generator);
-        v[i] /= k;
-    }
-    return v;
-}
 
 template<typename T>
 void check_feature_map(T* output_ptr, std::vector<T> &input_vec, size_t batch_num, size_t feature_num, size_t y_size, size_t x_size, size_t feature_id, size_t factor)
@@ -49,7 +37,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
     auto& engine = get_test_engine();
     cldnn::tensor reference_input_size = { batch_num, feature_num, x_size, y_size };
 
-    cldnn::memory::ptr input = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx, reference_input_size });
+    cldnn::memory::ptr input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, reference_input_size });
     std::vector<std::pair<primitive_id, cldnn::tensor> > input_ids_offsets;
 
     topology topology;
@@ -71,7 +59,8 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
 
     topology.add(split("split", input_info("input"), input_ids_offsets));
 
-    std::vector<T> input_vec = generate_random_input<T>(batch_num, feature_num, y_size, x_size, -10, 10);
+    tests::random_generator rg(GET_SUITE_NAME);
+    std::vector<T> input_vec = rg.generate_random_1d<T>(batch_num * feature_num * y_size * x_size, -10, 10);
     set_values(input, input_vec);
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
@@ -537,7 +526,8 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_feature_bfyx) {
         { "out2", { 0, 2, 0, 0 } }
     } ));
 
-    std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
+    tests::random_generator rg(GET_SUITE_NAME);
+    std::vector<float> input_vec = rg.generate_random_1d<float>(batch_num * feature_num * y_size * x_size, -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -583,7 +573,8 @@ TEST(split_gpu_i64, basic_in2x3x2x2_split_feature_bfyx) {
         { "out2", { 0, 2, 0, 0 } }
     } ));
 
-    std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
+    tests::random_generator rg(GET_SUITE_NAME);
+    std::vector<int64_t> input_vec = rg.generate_random_1d<int64_t>(batch_num * feature_num * y_size * x_size, -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -646,7 +637,8 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
     std::vector<float> scale_input_vec2 = { 3.f };
     set_values(scale_input2, scale_input_vec2);
 
-    std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
+    tests::random_generator rg(GET_SUITE_NAME);
+    std::vector<float> input_vec = rg.generate_random_1d<float>(batch_num * feature_num * y_size * x_size, -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));

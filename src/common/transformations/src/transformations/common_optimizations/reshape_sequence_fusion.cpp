@@ -5,25 +5,26 @@
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
-#include "bound_evaluation_util.hpp"
 #include "itt.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
 bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
-    const auto const_node = std::dynamic_pointer_cast<ov::opset8::Constant>(node_out.get_node_shared_ptr());
+    const auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node_out.get_node_shared_ptr());
     if (!const_node) {
         // Lower bound of the value
         auto lb = ov::evaluate_lower_bound(node_out);
         if (!lb)
             return false;
         const auto lb_const_node =
-            std::make_shared<ov::opset8::Constant>(lb.get_element_type(), lb.get_shape(), lb.data());
+            std::make_shared<ov::op::v0::Constant>(lb.get_element_type(), lb.get_shape(), lb.data());
         const auto& lb_values = lb_const_node->cast_vector<int64_t>();
 
         // The pattern is valid if all lower bound values are higher than zero (not a special number)
@@ -40,7 +41,7 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
             return false;
 
         const auto ub_const_node =
-            std::make_shared<ov::opset8::Constant>(ub.get_element_type(), ub.get_shape(), ub.data());
+            std::make_shared<ov::op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data());
         const auto& ub_values = ub_const_node->cast_vector<int64_t>();
         if (lb_values.size() != ub_values.size())
             return false;
@@ -67,11 +68,11 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
 ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimination) {
     MATCHER_SCOPE(ReshapeSequenceFusion);
     auto reshape_input = pattern::any_input();
-    auto reshape_a_pattern = pattern::wrap_type<opset8::Constant>();
+    auto reshape_a_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto reshape_a =
-        pattern::wrap_type<opset8::Reshape>({reshape_input, reshape_a_pattern}, pattern::consumers_count(1));
+        pattern::wrap_type<ov::op::v1::Reshape>({reshape_input, reshape_a_pattern}, pattern::consumers_count(1));
     auto reshape_b_pattern = pattern::any_input();
-    auto reshape_b = pattern::wrap_type<opset8::Reshape>({reshape_a, reshape_b_pattern});
+    auto reshape_b = pattern::wrap_type<ov::op::v1::Reshape>({reshape_a, reshape_b_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -87,7 +88,7 @@ ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimin
 
         // vector of nodes which runtime info must be copied
         NodeVector nodes{pattern_map.at(reshape_a).get_node_shared_ptr(), reshape};
-        while (std::dynamic_pointer_cast<opset8::Reshape>(input.get_node_shared_ptr())) {
+        while (std::dynamic_pointer_cast<ov::op::v1::Reshape>(input.get_node_shared_ptr())) {
             auto node = input.get_node_shared_ptr();
             if (!has_valid_pattern(node->get_input_node_shared_ptr(1)) || input.get_target_inputs().size() != 1) {
                 break;
@@ -113,6 +114,6 @@ ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimin
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_b, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_b, matcher_name);
     this->register_matcher(m, callback);
 }

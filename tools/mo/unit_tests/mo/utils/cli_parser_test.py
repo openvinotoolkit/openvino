@@ -18,10 +18,10 @@ from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_all_cli_parser, \
     get_mo_convert_params
 from openvino.tools.mo.convert_impl import pack_params_to_args_namespace
-from openvino.tools.mo.convert import InputCutInfo, LayoutMap
 from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from openvino.runtime import PartialShape, Dimension, Layout
+from openvino.tools.mo import LayoutMap, InputCutInfo
 
 
 class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
@@ -1224,11 +1224,13 @@ class PathCheckerFunctions(unittest.TestCase):
         self.assertEqual(__class__.WRITABLE_DIR, writable_dir(__class__.WRITABLE_DIR))
 
     @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
+    @unittest.skipIf(sys.platform.startswith("lin") and os.geteuid() == 0, "root user does not support not writable dir")
     def test_single_non_writable_dir(self):
         with self.assertRaises(Error) as cm:
             writable_dir(__class__.NOT_WRITABLE_DIR)
 
     @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
+    @unittest.skipIf(sys.platform.startswith("lin") and os.geteuid() == 0, "root user does not support not writable dir")
     def test_single_non_writable_sub_dir(self):
         with self.assertRaises(Error) as cm:
             writable_dir(__class__.NOT_WRITABLE_SUB_DIR)
@@ -2041,7 +2043,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
                                                'log_level', 'input', 'output', 'mean_values', 'scale_values', 'source_layout',
                                                'target_layout', 'layout', 'compress_to_fp16', 'transform', 'extensions',
                                                'batch', 'silent', 'version', 'progress', 'stream_output',
-                                               'transformations_config'},
+                                               'transformations_config', 'example_input', 'share_weights'},
             'Caffe*-specific parameters:': {'input_proto', 'caffe_parser_path', 'k', 'disable_omitting_optional',
                                             'enable_flattening_nested_params'},
             'TensorFlow*-specific parameters:': {'input_model_is_text', 'input_checkpoint', 'input_meta_graph',
@@ -2052,8 +2054,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
             'MXNet-specific parameters:': {'input_symbol', 'nd_prefix_name', 'pretrained_model_name', 'save_params_from_nd',
                                            'legacy_mxnet_model', 'enable_ssd_gluoncv'},
             'Kaldi-specific parameters:': {'counts', 'remove_output_softmax', 'remove_memory'},
-            'PaddlePaddle-specific parameters:': {'example_input', 'example_output'},
-            'PyTorch-specific parameters:': {'example_input'}
+            'PaddlePaddle-specific parameters:': {'example_output'},
         }
 
         params = get_mo_convert_params()
@@ -2065,7 +2066,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
         for group_name, params in ref_params.items():
             for param_name in params:
                 param_name = '--' + param_name
-                if group_name == 'PyTorch-specific parameters:' or group_name == 'PaddlePaddle-specific parameters:':
+                if group_name == 'PaddlePaddle-specific parameters:':
                     assert param_name not in cli_parser._option_string_actions
                 else:
                     assert param_name in cli_parser._option_string_actions

@@ -64,8 +64,8 @@ void mode_attr(const TROIPooling* op) {
 }  // namespace psroi_pooling
 
 namespace v0 {
-template <class TShape>
-std::vector<TShape> shape_infer(const PSROIPooling* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const PSROIPooling* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
     using namespace ov::util;
 
@@ -80,19 +80,15 @@ std::vector<TShape> shape_infer(const PSROIPooling* op, const std::vector<TShape
     psroi_pooling::validate::feat_input_shape(op, feat_shape);
     roi_pooling::validate::rois_input_shape(op, rois_shape);
 
-    TShape out_shape;
+    auto output_shapes = std::vector<TRShape>(1);
+    auto& out_shape = output_shapes.front();
     out_shape.reserve(4);
 
     out_shape.emplace_back(rois_shape.rank().is_static() ? rois_shape[0] : dim::inf_bound);
     out_shape.emplace_back(op->get_output_dim());
     out_shape.insert(out_shape.end(), 2, op->get_group_size());
 
-    return {out_shape};
-}
-
-template <class TShape>
-void shape_infer(const PSROIPooling* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
+    return output_shapes;
 }
 }  // namespace v0
 }  // namespace op

@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gather.hpp>
@@ -35,7 +36,8 @@ using gather8_test_param = std::tuple<int,                // batch_dim, value in
                                       format::type,       // format of input0
                                       format::type,       // format of input1
                                       std::vector<int>,   // shape of input0, order = default_format
-                                      std::vector<int>>;  // shape of input1, order = default_format
+                                      std::vector<int>,   // shape of input1, order = default_format
+                                      impl_types>;        // implementation type
 template <class T_dat, class T_ind, data_types T_dat_dt, data_types T_ind_dt>
 class gather8_test : public ::testing::TestWithParam<gather8_test_param> {
 public:
@@ -43,11 +45,13 @@ public:
     std::array<format::type, 3> fmt;
     std::vector<int> shape_in[2];
     std::vector<int> shape_out;
+    impl_types impl_type;
 
     void SetUp() override {
+        tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
-        std::tie(batch_dim, axis, fmt[0], fmt[1], shape_in[0], shape_in[1]) = GetParam();
+        std::tie(batch_dim, axis, fmt[0], fmt[1], shape_in[0], shape_in[1], impl_type) = GetParam();
         fmt[2] = fmt[0];
 
         // refer: src/core/shape_inference/include/gather_shape_inference.hpp
@@ -62,19 +66,17 @@ public:
         for (int i = axis + 1; i < get_not_one_dim(shape_in[0]); i++)  // after axis = shape_in[0][..]
             shape_out[axis + get_not_one_dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
 
-        auto dat = generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
-        auto input0 =
-            engine.allocate_memory(layout(T_dat_dt,
-                                          format::get_default_format(shape_in[0].size()),
-                                          tensor(format::get_default_format(shape_in[0].size()), shape_in[0])));
+        auto dat = rg.generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
+        auto input0_layout =
+            layout(ov::Shape(shape_in[0].begin(), shape_in[0].end()), T_dat_dt, format::get_default_format(shape_in[0].size()));
+        auto input0 = engine.allocate_memory(input0_layout);
         set_values(input0, dat);
 
         auto ind =
-            generate_random_1d<T_ind>(get_linear_size(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
-        auto input1 =
-            engine.allocate_memory(layout(T_ind_dt,
-                                          format::get_default_format(shape_in[1].size()),
-                                          tensor(format::get_default_format(shape_in[1].size()), shape_in[1])));
+            rg.generate_random_1d<T_ind>(get_linear_size(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
+        auto input1_layout =
+            layout(ov::Shape(shape_in[1].begin(), shape_in[1].end()), T_ind_dt, format::get_default_format(shape_in[1].size()));
+        auto input1 = engine.allocate_memory(input1_layout);
         set_values(input1, ind);
 
         topology reorder_topo;
@@ -86,11 +88,18 @@ public:
                                 input_info("reorder0"),
                                 input_info("reorder1"),
                                 axis,
+                                shape_in[0].size(),
                                 ov::Shape(shape_out.begin(), shape_out.end()),
                                 batch_dim,
                                 true));
         reorder_topo.add(reorder("reorder2", input_info("gather"), format::type::bfwzyx, T_dat_dt));
-        network reorder_network(engine, reorder_topo, get_test_default_config(engine));
+        auto config = get_test_default_config(engine);
+        if (impl_type != impl_types::any) {
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gather", {format::bfyx, "", impl_types::cpu}} }));
+        }
+
+        network reorder_network(engine, reorder_topo, config);
         reorder_network.set_input_data("input0", input0);
         reorder_network.set_input_data("input1", input1);
         auto reorder_output = reorder_network.execute().at("reorder2").get_memory();
@@ -100,7 +109,7 @@ public:
         planar_topo.add(input_layout("input0", input0->get_layout()));
         planar_topo.add(input_layout("input1", input1->get_layout()));
         planar_topo.add(
-            gather("gather", input_info("input0"), input_info("input1"), axis, ov::Shape(shape_out.begin(), shape_out.end()), batch_dim, true));
+            gather("gather", input_info("input0"), input_info("input1"), axis, shape_in[0].size(), ov::Shape(shape_out.begin(), shape_out.end()), batch_dim, true));
         network planar_network(engine, planar_topo, get_test_default_config(engine));
         planar_network.set_input_data("input0", input0);
         planar_network.set_input_data("input1", input1);
@@ -111,7 +120,7 @@ public:
             !memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), get_linear_size(shape_out) * sizeof(T_dat)));
     }
 };
-using gather8_test_f16i32 = gather8_test<FLOAT16, int, data_types::f16, data_types::i32>;
+using gather8_test_f16i32 = gather8_test<ov::float16, int, data_types::f16, data_types::i32>;
 using gather8_test_f32i8 = gather8_test<float, char, data_types::f32, data_types::i8>;
 using gather8_test_i32i32 = gather8_test<int, int, data_types::i32, data_types::i32>;
 TEST_P(gather8_test_f16i32, gather8_test_f16i32) {}
@@ -126,7 +135,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_bd0_d4_i1,
                                           testing::Values(format::type::bfyx),
                                           testing::Values(format::type::bfyx),
                                           testing::Values(std::vector<int>{5, 44, 7, 8}),
-                                          testing::Values(std::vector<int>{4, 1, 1, 1})));
+                                          testing::Values(std::vector<int>{4, 1, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_bd0_d2_i2,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0),
@@ -134,7 +144,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_bd0_d2_i2,
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(format::type::b_fs_yx_fsv16),
                                           testing::Values(std::vector<int>{8, 67, 1, 1}),
-                                          testing::Values(std::vector<int>{4, 56, 1, 1})));
+                                          testing::Values(std::vector<int>{4, 56, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0),
@@ -142,7 +153,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32,
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::vector<int>{3, 77, 4, 1}),
-                                          testing::Values(std::vector<int>{2, 66, 1, 1})));
+                                          testing::Values(std::vector<int>{2, 66, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_bd1,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(1),
@@ -150,7 +162,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_bd1,
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::vector<int>{3, 77, 44, 1}),
-                                          testing::Values(std::vector<int>{3, 66, 55, 1})));
+                                          testing::Values(std::vector<int>{3, 66, 55, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_bd2,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(2),
@@ -158,7 +171,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_bd2,
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::vector<int>{3, 4, 44, 6}),
-                                          testing::Values(std::vector<int>{3, 4, 5, 1})));
+                                          testing::Values(std::vector<int>{3, 4, 5, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_bs_fs_yx_bsv16_fsv16_bd0_dim4_to_dim5,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0),
@@ -166,7 +180,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_bs_fs_yx_bsv16_fsv16_bd0_dim4_to_dim5,
                                           testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(format::type::b_fs_yx_fsv32),
                                           testing::Values(std::vector<int>{3, 77, 44, 1}),
-                                          testing::Values(std::vector<int>{3, 66, 55, 1})));
+                                          testing::Values(std::vector<int>{3, 66, 55, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv16_bd0_dim4_to_dim5,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0),
@@ -174,7 +189,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv16_bd0_dim4_to_dim5,
                                           testing::Values(format::type::b_fs_yx_fsv16),
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(std::vector<int>{3, 77, 44, 1}),
-                                          testing::Values(std::vector<int>{3, 66, 55, 1})));
+                                          testing::Values(std::vector<int>{3, 66, 55, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_bfyx_bd0_dim4_to_dim6,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0),
@@ -182,7 +198,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_bfyx_bd0_dim4_to_dim6,
                                           testing::Values(format::type::bfyx),
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(std::vector<int>{3, 7, 4, 6}),
-                                          testing::Values(std::vector<int>{3, 6, 5, 1})));
+                                          testing::Values(std::vector<int>{3, 6, 5, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_bd0_d4_i1,
                          gather8_test_f32i8,
                          testing::Combine(testing::Values(0),
@@ -190,7 +207,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_bd0_d4_i1,
                                           testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::vector<int>{5, 44, 7, 8}),
-                                          testing::Values(std::vector<int>{4, 1, 1, 1})));
+                                          testing::Values(std::vector<int>{4, 1, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_bd0_d3_i3,
                          gather8_test_f32i8,
                          testing::Combine(testing::Values(0),
@@ -198,7 +216,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_bd0_d3_i3,
                                           testing::Values(format::type::b_fs_zyx_fsv16),
                                           testing::Values(format::type::bfzyx),
                                           testing::Values(std::vector<int>{8, 67, 3, 1, 1}),
-                                          testing::Values(std::vector<int>{3, 56, 9, 1, 1})));
+                                          testing::Values(std::vector<int>{3, 56, 9, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_b_fs_zyx_fsv32,
                          gather8_test_f32i8,
                          testing::Combine(testing::Values(1),
@@ -206,7 +225,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_b_fs_zyx_fsv32,
                                           testing::Values(format::type::b_fs_zyx_fsv32),
                                           testing::Values(format::type::b_fs_zyx_fsv16),
                                           testing::Values(std::vector<int>{8, 66, 3, 1, 1}),
-                                          testing::Values(std::vector<int>{8, 56, 9, 1, 1})));
+                                          testing::Values(std::vector<int>{8, 56, 9, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv4,
                          gather8_test_i32i32,
                          testing::Combine(testing::Values(0),
@@ -214,7 +234,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv4,
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(std::vector<int>{4, 6, 2, 1}),
-                                          testing::Values(std::vector<int>{3, 5, 1, 1})));
+                                          testing::Values(std::vector<int>{3, 5, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_bfyx,
                          gather8_test_i32i32,
                          testing::Combine(testing::Values(0),
@@ -222,7 +243,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_bfyx,
                                           testing::Values(format::type::bfyx),
                                           testing::Values(format::type::bfyx),
                                           testing::Values(std::vector<int>{4, 3, 2, 1}),
-                                          testing::Values(std::vector<int>{5, 6, 1, 1})));
+                                          testing::Values(std::vector<int>{5, 6, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_byxf,
                          gather8_test_i32i32,
                          testing::Combine(testing::Values(0),
@@ -230,7 +252,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_byxf,
                                           testing::Values(format::type::byxf),
                                           testing::Values(format::type::byxf),
                                           testing::Values(std::vector<int>{4, 6, 2, 1}),
-                                          testing::Values(std::vector<int>{3, 5, 1, 1})));
+                                          testing::Values(std::vector<int>{3, 5, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_2,
                          gather8_test_i32i32,
                          testing::Combine(testing::Values(0),
@@ -238,9 +261,37 @@ INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_2,
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::vector<int>{4, 6, 2, 3}),
-                                          testing::Values(std::vector<int>{3, 1, 1, 1})));
+                                          testing::Values(std::vector<int>{3, 1, 1, 1}),
+                                          testing::Values(impl_types::any)));
 
-// Disabled tests for faster CI
+INSTANTIATE_TEST_SUITE_P(gather8_cpu_impl_bd0_d4_i1,
+                         gather8_test_f16i32,
+                         testing::Combine(testing::Values(0),  // bdim in [0,get_not_one_dim(dict))
+                                          testing::Values(0),  // axis in [batch_dim,get_not_one_dim(dict))
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(std::vector<int>{5, 44, 7, 8}),
+                                          testing::Values(std::vector<int>{4, 1}),
+                                          testing::Values(impl_types::cpu)));
+INSTANTIATE_TEST_SUITE_P(gather8_cpu_impl_bd0_d2_i2,
+                         gather8_test_f16i32,
+                         testing::Combine(testing::Values(0),
+                                          testing::Values(1),
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(std::vector<int>{8, 67, 1, 1}),
+                                          testing::Values(std::vector<int>{4, 56}),
+                                          testing::Values(impl_types::cpu)));
+INSTANTIATE_TEST_SUITE_P(gather8_cpu_impl_bfyx,
+                         gather8_test_i32i32,
+                         testing::Combine(testing::Values(0),
+                                          testing::ValuesIn({1,2}),
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(std::vector<int>{4, 6, 2, 1}),
+                                          testing::Values(std::vector<int>{3, 5}),
+                                          testing::Values(impl_types::cpu)));
+
 // Remove DISABLED_ prefix to test these cases
 #define FORMAT4D                                                                                             \
     format::type::bfyx, format::type::b_fs_yx_fsv16, format::type::bs_fs_yx_bsv16_fsv16, format::type::byxf, \
@@ -254,7 +305,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_4d_f16i32,
                                           testing::Values(FORMAT4D),
                                           testing::Values(FORMAT4D),
                                           testing::Values(std::vector<int>{3, 6, 2, 1}),
-                                          testing::Values(std::vector<int>{3, 5, 1, 1})));
+                                          testing::Values(std::vector<int>{3, 5, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_5d_f16i32,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0, 1),
@@ -262,7 +314,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_5d_f16i32,
                                           testing::Values(FORMAT5D),
                                           testing::Values(FORMAT5D),
                                           testing::Values(std::vector<int>{3, 6, 2, 7, 1}),
-                                          testing::Values(std::vector<int>{3, 5, 1, 1, 1})));
+                                          testing::Values(std::vector<int>{3, 5, 1, 1, 1}),
+                                          testing::Values(impl_types::any)));
 INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_6d_f16i32,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0, 1),
@@ -270,7 +323,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_6d_f16i32,
                                           testing::Values(FORMAT6D),
                                           testing::Values(FORMAT6D),
                                           testing::Values(std::vector<int>{3, 6, 2, 7, 1, 1}),
-                                          testing::Values(std::vector<int>{3, 5, 4, 1, 1, 1})));
+                                          testing::Values(std::vector<int>{3, 5, 4, 1, 1, 1}),
+                                          testing::Values(impl_types::any)));
 
 TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     //  Dictionary : 3x2x3x4x2
@@ -313,31 +367,31 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     bool negative_indexes = true;
 
     set_values(input1, {
-        FLOAT16(1.f),   FLOAT16(2.f),   FLOAT16(3.f),   FLOAT16(4.f),   FLOAT16(5.f),   FLOAT16(6.f),   FLOAT16(7.f),   FLOAT16(8.f),
-        FLOAT16(9.f),   FLOAT16(10.f),  FLOAT16(11.f),  FLOAT16(12.f),  FLOAT16(13.f),  FLOAT16(14.f),  FLOAT16(15.f),  FLOAT16(16.f),
-        FLOAT16(17.f),  FLOAT16(18.f),  FLOAT16(19.f),  FLOAT16(20.f),  FLOAT16(21.f),  FLOAT16(22.f),  FLOAT16(23.f),  FLOAT16(24.f),
+        ov::float16(1.f),   ov::float16(2.f),   ov::float16(3.f),   ov::float16(4.f),   ov::float16(5.f),   ov::float16(6.f),   ov::float16(7.f),   ov::float16(8.f),
+        ov::float16(9.f),   ov::float16(10.f),  ov::float16(11.f),  ov::float16(12.f),  ov::float16(13.f),  ov::float16(14.f),  ov::float16(15.f),  ov::float16(16.f),
+        ov::float16(17.f),  ov::float16(18.f),  ov::float16(19.f),  ov::float16(20.f),  ov::float16(21.f),  ov::float16(22.f),  ov::float16(23.f),  ov::float16(24.f),
 
-        FLOAT16(25.f),  FLOAT16(26.f),  FLOAT16(27.f),  FLOAT16(28.f),  FLOAT16(29.f),  FLOAT16(30.f),  FLOAT16(31.f),  FLOAT16(32.f),
-        FLOAT16(33.f),  FLOAT16(34.f),  FLOAT16(35.f),  FLOAT16(36.f),  FLOAT16(37.f),  FLOAT16(38.f),  FLOAT16(39.f),  FLOAT16(40.f),
-        FLOAT16(41.f),  FLOAT16(42.f),  FLOAT16(43.f),  FLOAT16(44.f),  FLOAT16(45.f),  FLOAT16(46.f),  FLOAT16(47.f),  FLOAT16(48.f),
-
-
-        FLOAT16(49.f),  FLOAT16(50.f),  FLOAT16(51.f),  FLOAT16(52.f),  FLOAT16(53.f),  FLOAT16(54.f),  FLOAT16(55.f),  FLOAT16(56.f),
-        FLOAT16(57.f),  FLOAT16(58.f),  FLOAT16(59.f),  FLOAT16(60.f),  FLOAT16(61.f),  FLOAT16(62.f),  FLOAT16(63.f),  FLOAT16(64.f),
-        FLOAT16(65.f),  FLOAT16(66.f),  FLOAT16(67.f),  FLOAT16(68.f),  FLOAT16(69.f),  FLOAT16(70.f),  FLOAT16(71.f),  FLOAT16(72.f),
-
-        FLOAT16(73.f),  FLOAT16(74.f),  FLOAT16(75.f),  FLOAT16(76.f),  FLOAT16(77.f),  FLOAT16(78.f),  FLOAT16(79.f),  FLOAT16(80.f),
-        FLOAT16(81.f),  FLOAT16(82.f),  FLOAT16(83.f),  FLOAT16(84.f),  FLOAT16(85.f),  FLOAT16(86.f),  FLOAT16(87.f),  FLOAT16(88.f),
-        FLOAT16(89.f),  FLOAT16(90.f),  FLOAT16(91.f),  FLOAT16(92.f),  FLOAT16(93.f),  FLOAT16(94.f),  FLOAT16(95.f),  FLOAT16(96.f),
+        ov::float16(25.f),  ov::float16(26.f),  ov::float16(27.f),  ov::float16(28.f),  ov::float16(29.f),  ov::float16(30.f),  ov::float16(31.f),  ov::float16(32.f),
+        ov::float16(33.f),  ov::float16(34.f),  ov::float16(35.f),  ov::float16(36.f),  ov::float16(37.f),  ov::float16(38.f),  ov::float16(39.f),  ov::float16(40.f),
+        ov::float16(41.f),  ov::float16(42.f),  ov::float16(43.f),  ov::float16(44.f),  ov::float16(45.f),  ov::float16(46.f),  ov::float16(47.f),  ov::float16(48.f),
 
 
-        FLOAT16(97.f),  FLOAT16(98.f),  FLOAT16(99.f),  FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f), FLOAT16(103.f), FLOAT16(104.f),
-        FLOAT16(105.f), FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f), FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f), FLOAT16(112.f),
-        FLOAT16(113.f), FLOAT16(114.f), FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f), FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
+        ov::float16(49.f),  ov::float16(50.f),  ov::float16(51.f),  ov::float16(52.f),  ov::float16(53.f),  ov::float16(54.f),  ov::float16(55.f),  ov::float16(56.f),
+        ov::float16(57.f),  ov::float16(58.f),  ov::float16(59.f),  ov::float16(60.f),  ov::float16(61.f),  ov::float16(62.f),  ov::float16(63.f),  ov::float16(64.f),
+        ov::float16(65.f),  ov::float16(66.f),  ov::float16(67.f),  ov::float16(68.f),  ov::float16(69.f),  ov::float16(70.f),  ov::float16(71.f),  ov::float16(72.f),
 
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f), FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f), FLOAT16(127.f), FLOAT16(128.f),
-        FLOAT16(129.f), FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f), FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f), FLOAT16(136.f),
-        FLOAT16(137.f), FLOAT16(138.f), FLOAT16(139.f), FLOAT16(140.f), FLOAT16(141.f), FLOAT16(142.f), FLOAT16(143.f), FLOAT16(144.f)
+        ov::float16(73.f),  ov::float16(74.f),  ov::float16(75.f),  ov::float16(76.f),  ov::float16(77.f),  ov::float16(78.f),  ov::float16(79.f),  ov::float16(80.f),
+        ov::float16(81.f),  ov::float16(82.f),  ov::float16(83.f),  ov::float16(84.f),  ov::float16(85.f),  ov::float16(86.f),  ov::float16(87.f),  ov::float16(88.f),
+        ov::float16(89.f),  ov::float16(90.f),  ov::float16(91.f),  ov::float16(92.f),  ov::float16(93.f),  ov::float16(94.f),  ov::float16(95.f),  ov::float16(96.f),
+
+
+        ov::float16(97.f),  ov::float16(98.f),  ov::float16(99.f),  ov::float16(100.f), ov::float16(101.f), ov::float16(102.f), ov::float16(103.f), ov::float16(104.f),
+        ov::float16(105.f), ov::float16(106.f), ov::float16(107.f), ov::float16(108.f), ov::float16(109.f), ov::float16(110.f), ov::float16(111.f), ov::float16(112.f),
+        ov::float16(113.f), ov::float16(114.f), ov::float16(115.f), ov::float16(116.f), ov::float16(117.f), ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f), ov::float16(124.f), ov::float16(125.f), ov::float16(126.f), ov::float16(127.f), ov::float16(128.f),
+        ov::float16(129.f), ov::float16(130.f), ov::float16(131.f), ov::float16(132.f), ov::float16(133.f), ov::float16(134.f), ov::float16(135.f), ov::float16(136.f),
+        ov::float16(137.f), ov::float16(138.f), ov::float16(139.f), ov::float16(140.f), ov::float16(141.f), ov::float16(142.f), ov::float16(143.f), ov::float16(144.f)
     });
 
     set_values(input2, {
@@ -355,7 +409,7 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 3, 3, 2}, batch_dim, negative_indexes)
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 5, ov::Shape{3, 2, 3, 3, 2}, batch_dim, negative_indexes)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -437,17 +491,17 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
     int64_t batch_dim = -1;
 
     set_values(input1, {
-        FLOAT16(1.f),   FLOAT16(2.f),   FLOAT16(3.f),   FLOAT16(4.f),   FLOAT16(5.f),   FLOAT16(6.f),   FLOAT16(7.f),   FLOAT16(8.f),
-        FLOAT16(9.f),   FLOAT16(10.f),  FLOAT16(11.f),  FLOAT16(12.f),  FLOAT16(13.f),  FLOAT16(14.f),  FLOAT16(15.f),  FLOAT16(16.f),
+        ov::float16(1.f),   ov::float16(2.f),   ov::float16(3.f),   ov::float16(4.f),   ov::float16(5.f),   ov::float16(6.f),   ov::float16(7.f),   ov::float16(8.f),
+        ov::float16(9.f),   ov::float16(10.f),  ov::float16(11.f),  ov::float16(12.f),  ov::float16(13.f),  ov::float16(14.f),  ov::float16(15.f),  ov::float16(16.f),
 
-        FLOAT16(17.f),  FLOAT16(18.f),  FLOAT16(19.f),  FLOAT16(20.f),  FLOAT16(21.f),  FLOAT16(22.f),  FLOAT16(23.f),  FLOAT16(24.f),
-        FLOAT16(25.f),  FLOAT16(26.f),  FLOAT16(27.f),  FLOAT16(28.f),  FLOAT16(29.f),  FLOAT16(30.f),  FLOAT16(31.f),  FLOAT16(32.f),
+        ov::float16(17.f),  ov::float16(18.f),  ov::float16(19.f),  ov::float16(20.f),  ov::float16(21.f),  ov::float16(22.f),  ov::float16(23.f),  ov::float16(24.f),
+        ov::float16(25.f),  ov::float16(26.f),  ov::float16(27.f),  ov::float16(28.f),  ov::float16(29.f),  ov::float16(30.f),  ov::float16(31.f),  ov::float16(32.f),
 
-        FLOAT16(33.f),  FLOAT16(34.f),  FLOAT16(35.f),  FLOAT16(36.f),  FLOAT16(37.f),  FLOAT16(38.f),  FLOAT16(39.f),  FLOAT16(40.f),
-        FLOAT16(41.f),  FLOAT16(42.f),  FLOAT16(43.f),  FLOAT16(44.f),  FLOAT16(45.f),  FLOAT16(46.f),  FLOAT16(47.f),  FLOAT16(48.f),
+        ov::float16(33.f),  ov::float16(34.f),  ov::float16(35.f),  ov::float16(36.f),  ov::float16(37.f),  ov::float16(38.f),  ov::float16(39.f),  ov::float16(40.f),
+        ov::float16(41.f),  ov::float16(42.f),  ov::float16(43.f),  ov::float16(44.f),  ov::float16(45.f),  ov::float16(46.f),  ov::float16(47.f),  ov::float16(48.f),
 
-        FLOAT16(49.f),  FLOAT16(50.f),  FLOAT16(51.f),  FLOAT16(52.f),  FLOAT16(53.f),  FLOAT16(54.f),  FLOAT16(55.f),  FLOAT16(56.f),
-        FLOAT16(57.f),  FLOAT16(58.f),  FLOAT16(59.f),  FLOAT16(60.f),  FLOAT16(61.f),  FLOAT16(62.f),  FLOAT16(63.f),  FLOAT16(64.f),
+        ov::float16(49.f),  ov::float16(50.f),  ov::float16(51.f),  ov::float16(52.f),  ov::float16(53.f),  ov::float16(54.f),  ov::float16(55.f),  ov::float16(56.f),
+        ov::float16(57.f),  ov::float16(58.f),  ov::float16(59.f),  ov::float16(60.f),  ov::float16(61.f),  ov::float16(62.f),  ov::float16(63.f),  ov::float16(64.f),
     });
 
     set_values(input2, {
@@ -462,7 +516,7 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 2, 2, 2, 2}, batch_dim)
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 6, ov::Shape{2, 2, 2, 2, 2, 2}, batch_dim)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -531,31 +585,31 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
     int64_t batch_dim = -1;
 
     set_values(input1, {
-        FLOAT16(1.f),   FLOAT16(2.f),   FLOAT16(3.f),   FLOAT16(4.f),   FLOAT16(5.f),   FLOAT16(6.f),   FLOAT16(7.f),   FLOAT16(8.f),
-        FLOAT16(9.f),   FLOAT16(10.f),  FLOAT16(11.f),  FLOAT16(12.f),  FLOAT16(13.f),  FLOAT16(14.f),  FLOAT16(15.f),  FLOAT16(16.f),
-        FLOAT16(17.f),  FLOAT16(18.f),  FLOAT16(19.f),  FLOAT16(20.f),  FLOAT16(21.f),  FLOAT16(22.f),  FLOAT16(23.f),  FLOAT16(24.f),
+        ov::float16(1.f),   ov::float16(2.f),   ov::float16(3.f),   ov::float16(4.f),   ov::float16(5.f),   ov::float16(6.f),   ov::float16(7.f),   ov::float16(8.f),
+        ov::float16(9.f),   ov::float16(10.f),  ov::float16(11.f),  ov::float16(12.f),  ov::float16(13.f),  ov::float16(14.f),  ov::float16(15.f),  ov::float16(16.f),
+        ov::float16(17.f),  ov::float16(18.f),  ov::float16(19.f),  ov::float16(20.f),  ov::float16(21.f),  ov::float16(22.f),  ov::float16(23.f),  ov::float16(24.f),
 
-        FLOAT16(25.f),  FLOAT16(26.f),  FLOAT16(27.f),  FLOAT16(28.f),  FLOAT16(29.f),  FLOAT16(30.f),  FLOAT16(31.f),  FLOAT16(32.f),
-        FLOAT16(33.f),  FLOAT16(34.f),  FLOAT16(35.f),  FLOAT16(36.f),  FLOAT16(37.f),  FLOAT16(38.f),  FLOAT16(39.f),  FLOAT16(40.f),
-        FLOAT16(41.f),  FLOAT16(42.f),  FLOAT16(43.f),  FLOAT16(44.f),  FLOAT16(45.f),  FLOAT16(46.f),  FLOAT16(47.f),  FLOAT16(48.f),
-
-
-        FLOAT16(49.f),  FLOAT16(50.f),  FLOAT16(51.f),  FLOAT16(52.f),  FLOAT16(53.f),  FLOAT16(54.f),  FLOAT16(55.f),  FLOAT16(56.f),
-        FLOAT16(57.f),  FLOAT16(58.f),  FLOAT16(59.f),  FLOAT16(60.f),  FLOAT16(61.f),  FLOAT16(62.f),  FLOAT16(63.f),  FLOAT16(64.f),
-        FLOAT16(65.f),  FLOAT16(66.f),  FLOAT16(67.f),  FLOAT16(68.f),  FLOAT16(69.f),  FLOAT16(70.f),  FLOAT16(71.f),  FLOAT16(72.f),
-
-        FLOAT16(73.f),  FLOAT16(74.f),  FLOAT16(75.f),  FLOAT16(76.f),  FLOAT16(77.f),  FLOAT16(78.f),  FLOAT16(79.f),  FLOAT16(80.f),
-        FLOAT16(81.f),  FLOAT16(82.f),  FLOAT16(83.f),  FLOAT16(84.f),  FLOAT16(85.f),  FLOAT16(86.f),  FLOAT16(87.f),  FLOAT16(88.f),
-        FLOAT16(89.f),  FLOAT16(90.f),  FLOAT16(91.f),  FLOAT16(92.f),  FLOAT16(93.f),  FLOAT16(94.f),  FLOAT16(95.f),  FLOAT16(96.f),
+        ov::float16(25.f),  ov::float16(26.f),  ov::float16(27.f),  ov::float16(28.f),  ov::float16(29.f),  ov::float16(30.f),  ov::float16(31.f),  ov::float16(32.f),
+        ov::float16(33.f),  ov::float16(34.f),  ov::float16(35.f),  ov::float16(36.f),  ov::float16(37.f),  ov::float16(38.f),  ov::float16(39.f),  ov::float16(40.f),
+        ov::float16(41.f),  ov::float16(42.f),  ov::float16(43.f),  ov::float16(44.f),  ov::float16(45.f),  ov::float16(46.f),  ov::float16(47.f),  ov::float16(48.f),
 
 
-        FLOAT16(97.f),  FLOAT16(98.f),  FLOAT16(99.f),  FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f), FLOAT16(103.f), FLOAT16(104.f),
-        FLOAT16(105.f), FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f), FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f), FLOAT16(112.f),
-        FLOAT16(113.f), FLOAT16(114.f), FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f), FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
+        ov::float16(49.f),  ov::float16(50.f),  ov::float16(51.f),  ov::float16(52.f),  ov::float16(53.f),  ov::float16(54.f),  ov::float16(55.f),  ov::float16(56.f),
+        ov::float16(57.f),  ov::float16(58.f),  ov::float16(59.f),  ov::float16(60.f),  ov::float16(61.f),  ov::float16(62.f),  ov::float16(63.f),  ov::float16(64.f),
+        ov::float16(65.f),  ov::float16(66.f),  ov::float16(67.f),  ov::float16(68.f),  ov::float16(69.f),  ov::float16(70.f),  ov::float16(71.f),  ov::float16(72.f),
 
-        FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f), FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f), FLOAT16(127.f), FLOAT16(128.f),
-        FLOAT16(129.f), FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f), FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f), FLOAT16(136.f),
-        FLOAT16(137.f), FLOAT16(138.f), FLOAT16(139.f), FLOAT16(140.f), FLOAT16(141.f), FLOAT16(142.f), FLOAT16(143.f), FLOAT16(144.f)
+        ov::float16(73.f),  ov::float16(74.f),  ov::float16(75.f),  ov::float16(76.f),  ov::float16(77.f),  ov::float16(78.f),  ov::float16(79.f),  ov::float16(80.f),
+        ov::float16(81.f),  ov::float16(82.f),  ov::float16(83.f),  ov::float16(84.f),  ov::float16(85.f),  ov::float16(86.f),  ov::float16(87.f),  ov::float16(88.f),
+        ov::float16(89.f),  ov::float16(90.f),  ov::float16(91.f),  ov::float16(92.f),  ov::float16(93.f),  ov::float16(94.f),  ov::float16(95.f),  ov::float16(96.f),
+
+
+        ov::float16(97.f),  ov::float16(98.f),  ov::float16(99.f),  ov::float16(100.f), ov::float16(101.f), ov::float16(102.f), ov::float16(103.f), ov::float16(104.f),
+        ov::float16(105.f), ov::float16(106.f), ov::float16(107.f), ov::float16(108.f), ov::float16(109.f), ov::float16(110.f), ov::float16(111.f), ov::float16(112.f),
+        ov::float16(113.f), ov::float16(114.f), ov::float16(115.f), ov::float16(116.f), ov::float16(117.f), ov::float16(118.f), ov::float16(119.f), ov::float16(120.f),
+
+        ov::float16(121.f), ov::float16(122.f), ov::float16(123.f), ov::float16(124.f), ov::float16(125.f), ov::float16(126.f), ov::float16(127.f), ov::float16(128.f),
+        ov::float16(129.f), ov::float16(130.f), ov::float16(131.f), ov::float16(132.f), ov::float16(133.f), ov::float16(134.f), ov::float16(135.f), ov::float16(136.f),
+        ov::float16(137.f), ov::float16(138.f), ov::float16(139.f), ov::float16(140.f), ov::float16(141.f), ov::float16(142.f), ov::float16(143.f), ov::float16(144.f)
     });
 
     set_values(input2, {
@@ -573,7 +627,7 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 3, 3, 2}, batch_dim)
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 5, ov::Shape{3, 2, 3, 3, 2}, batch_dim)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -644,40 +698,40 @@ TEST(gather7_gpu_fp16, d44_axisY_bdim1) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 3, 1, 5 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 4, 4, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 4, 4, 1, 1 } }); // Indexes
     int64_t axis = 2;
     int64_t batch_dim = 1;
 
     set_values(input1, {
-        FLOAT16(84.f), FLOAT16( 7.f), FLOAT16(10.f), FLOAT16(69.f), FLOAT16(13.f),
-        FLOAT16(47.f), FLOAT16(75.f), FLOAT16( 8.f), FLOAT16(65.f), FLOAT16(28.f),
-        FLOAT16( 5.f), FLOAT16(12.f), FLOAT16(56.f), FLOAT16(54.f), FLOAT16( 9.f),
+        ov::float16(84.f), ov::float16( 7.f), ov::float16(10.f), ov::float16(69.f), ov::float16(13.f),
+        ov::float16(47.f), ov::float16(75.f), ov::float16( 8.f), ov::float16(65.f), ov::float16(28.f),
+        ov::float16( 5.f), ov::float16(12.f), ov::float16(56.f), ov::float16(54.f), ov::float16( 9.f),
 
-        FLOAT16(31.f), FLOAT16(12.f), FLOAT16(71.f), FLOAT16(55.f), FLOAT16( 8.f),
-        FLOAT16(73.f), FLOAT16(16.f), FLOAT16(29.f), FLOAT16(81.f), FLOAT16(81.f),
-        FLOAT16(75.f), FLOAT16( 8.f), FLOAT16(74.f), FLOAT16(75.f), FLOAT16(51.f),
+        ov::float16(31.f), ov::float16(12.f), ov::float16(71.f), ov::float16(55.f), ov::float16( 8.f),
+        ov::float16(73.f), ov::float16(16.f), ov::float16(29.f), ov::float16(81.f), ov::float16(81.f),
+        ov::float16(75.f), ov::float16( 8.f), ov::float16(74.f), ov::float16(75.f), ov::float16(51.f),
 
-        FLOAT16( 7.f), FLOAT16(29.f), FLOAT16( 6.f), FLOAT16(72.f), FLOAT16(18.f),
-        FLOAT16(38.f), FLOAT16(54.f), FLOAT16(19.f), FLOAT16(70.f), FLOAT16(16.f),
-        FLOAT16(74.f), FLOAT16(40.f), FLOAT16(72.f), FLOAT16(88.f), FLOAT16(24.f),
+        ov::float16( 7.f), ov::float16(29.f), ov::float16( 6.f), ov::float16(72.f), ov::float16(18.f),
+        ov::float16(38.f), ov::float16(54.f), ov::float16(19.f), ov::float16(70.f), ov::float16(16.f),
+        ov::float16(74.f), ov::float16(40.f), ov::float16(72.f), ov::float16(88.f), ov::float16(24.f),
 
-        FLOAT16(14.f), FLOAT16(75.f), FLOAT16(74.f), FLOAT16(82.f), FLOAT16(25.f),
-        FLOAT16(48.f), FLOAT16(13.f), FLOAT16(71.f), FLOAT16(92.f), FLOAT16( 9.f),
-        FLOAT16(73.f), FLOAT16( 8.f), FLOAT16(80.f), FLOAT16(27.f), FLOAT16(64.f)
+        ov::float16(14.f), ov::float16(75.f), ov::float16(74.f), ov::float16(82.f), ov::float16(25.f),
+        ov::float16(48.f), ov::float16(13.f), ov::float16(71.f), ov::float16(92.f), ov::float16( 9.f),
+        ov::float16(73.f), ov::float16( 8.f), ov::float16(80.f), ov::float16(27.f), ov::float16(64.f)
     });
 
     set_values(input2, {
-        3.f, 2.f, 3.f, 4.f,
-        3.f, 2.f, 2.f, 1.f,
-        1.f, 1.f, 0.f, 4.f,
-        2.f, 4.f, 3.f, 2.f
+        3, 2, 3, 4,
+        3, 2, 2, 1,
+        1, 1, 0, 4,
+        2, 4, 3, 2
     });
 
     topology topology;
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{4, 3, 4, 1}, batch_dim)
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{4, 3, 4, 1, 1, 1}, batch_dim)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -738,9 +792,9 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
     size_t batch_dim = -1;
 
     set_values(input1, {
-        FLOAT16(1.f), FLOAT16(2.f),
-        FLOAT16(3.f), FLOAT16(4.f),
-        FLOAT16(5.f), FLOAT16(6.f)
+        ov::float16(1.f), ov::float16(2.f),
+        ov::float16(3.f), ov::float16(4.f),
+        ov::float16(5.f), ov::float16(6.f)
     });
 
     set_values(input2, {
@@ -752,7 +806,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 1, 1}, batch_dim)
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{3, 2, 1, 1}, batch_dim)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -801,9 +855,9 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
     int64_t batch_dim = 1;
 
     set_values(input1, {
-        FLOAT16(1.f), FLOAT16(2.f),
-        FLOAT16(3.f), FLOAT16(4.f),
-        FLOAT16(5.f), FLOAT16(6.f)
+        ov::float16(1.f), ov::float16(2.f),
+        ov::float16(3.f), ov::float16(4.f),
+        ov::float16(5.f), ov::float16(6.f)
     });
 
     set_values(input2, {
@@ -815,7 +869,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 1, 1}, batch_dim)
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{3, 2, 1, 1}, batch_dim)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -863,9 +917,9 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
     size_t batch_dim = 0;
 
     set_values(input1, {
-        FLOAT16(1.f), FLOAT16(2.f),
-        FLOAT16(3.f), FLOAT16(4.f),
-        FLOAT16(5.f), FLOAT16(6.f)
+        ov::float16(1.f), ov::float16(2.f),
+        ov::float16(3.f), ov::float16(4.f),
+        ov::float16(5.f), ov::float16(6.f)
     });
 
     set_values(input2, {
@@ -877,7 +931,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 3, 2, 1}, batch_dim)
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{3, 3, 2, 1}, batch_dim)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -932,8 +986,8 @@ TEST(gather_gpu_fp16, d14_axisB) {
     int64_t axis = 0;
 
     set_values(input1, {
-        FLOAT16(1.0f), FLOAT16(2.0f),
-        FLOAT16(3.0f), FLOAT16(4.0f)
+        ov::float16(1.0f), ov::float16(2.0f),
+        ov::float16(3.0f), ov::float16(4.0f)
     });
 
     set_values(input2, {
@@ -945,7 +999,7 @@ TEST(gather_gpu_fp16, d14_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{1, 4, 2, 1})
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{1, 4, 2, 1})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -991,11 +1045,11 @@ TEST(gather_gpu_fp16, d222_axisB) {
     int64_t axis = 0;
 
     set_values(input1, {
-        FLOAT16(1.f), FLOAT16(2.f), FLOAT16(3.f),
-        FLOAT16(4.f), FLOAT16(5.f), FLOAT16(6.f),
+        ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
+        ov::float16(4.f), ov::float16(5.f), ov::float16(6.f),
 
-        FLOAT16(7.f), FLOAT16(8.f), FLOAT16(9.f),
-        FLOAT16(10.f), FLOAT16(11.f), FLOAT16(12.f)
+        ov::float16(7.f), ov::float16(8.f), ov::float16(9.f),
+        ov::float16(10.f), ov::float16(11.f), ov::float16(12.f)
     });
 
     set_values(input2, {
@@ -1007,7 +1061,7 @@ TEST(gather_gpu_fp16, d222_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 2, 2})
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 2, 2, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1053,11 +1107,11 @@ TEST(gather_gpu_fp16, d22_axisY) {
     int64_t axis = 2;
 
     set_values(input1, {
-        FLOAT16(1.f), FLOAT16(2.f), FLOAT16(3.f),
-        FLOAT16(4.f), FLOAT16(5.f), FLOAT16(6.f),
+        ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
+        ov::float16(4.f), ov::float16(5.f), ov::float16(6.f),
 
-        FLOAT16(7.f), FLOAT16(8.f), FLOAT16(9.f),
-        FLOAT16(10.f), FLOAT16(11.f), FLOAT16(12.f)
+        ov::float16(7.f), ov::float16(8.f), ov::float16(9.f),
+        ov::float16(10.f), ov::float16(11.f), ov::float16(12.f)
     });
 
     set_values(input2, {
@@ -1068,7 +1122,7 @@ TEST(gather_gpu_fp16, d22_axisY) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 2, 2})
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 2, 2, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1114,11 +1168,11 @@ TEST(gather_gpu_fp16, d22_axisF) {
     int64_t axis = 1;
 
     set_values(input1, {
-            FLOAT16(1.f), FLOAT16(2.f), FLOAT16(3.f),
-            FLOAT16(4.f), FLOAT16(5.f), FLOAT16(6.f),
+            ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
+            ov::float16(4.f), ov::float16(5.f), ov::float16(6.f),
 
-            FLOAT16(7.f), FLOAT16(8.f), FLOAT16(9.f),
-            FLOAT16(10.f), FLOAT16(11.f), FLOAT16(12.f)
+            ov::float16(7.f), ov::float16(8.f), ov::float16(9.f),
+            ov::float16(10.f), ov::float16(11.f), ov::float16(12.f)
     });
 
     set_values(input2, {
@@ -1129,7 +1183,7 @@ TEST(gather_gpu_fp16, d22_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 2, 2})
+            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 2, 2, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1187,7 +1241,7 @@ TEST(gather_gpu_fp32, d14_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{1, 4, 2, 1})
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{1, 4, 2, 1})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1248,7 +1302,7 @@ TEST(gather_gpu_fp32, d222_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 2, 2})
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 2, 2, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1309,7 +1363,7 @@ TEST(gather_gpu_fp32, d22_axisY) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 2, 2})
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 2, 2, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1370,7 +1424,7 @@ TEST(gather_gpu_fp32, d22_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 2, 2})
+            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 2, 2, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1431,7 +1485,7 @@ TEST(gather_gpu_int32, d22_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 2, 2})
+            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 2, 2, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1489,7 +1543,7 @@ TEST(gather_gpu_int32, d14_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{1, 4, 2, 1})
+            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{1, 4, 2, 1})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1550,7 +1604,7 @@ TEST(gather_gpu_int32, d222_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 2, 2})
+            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 2, 2, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1611,7 +1665,7 @@ TEST(gather_gpu_int32, d22_axisY) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 2, 2})
+            gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 2, 2, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1675,7 +1729,7 @@ TEST(gather_gpu_fp32, d41_axisB) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{4, 1, 2, 3})
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{4, 1, 2, 3})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1738,7 +1792,7 @@ TEST(gather_gpu_fp32, d41_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 4, 1, 2})
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 4, 1, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1797,7 +1851,7 @@ TEST(gather_gpu_fp32, d2_axisX) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{2, 2, 1, 2})
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{2, 2, 1, 2})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1847,7 +1901,7 @@ TEST(gather_gpu_fp32, 322_axisF) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 2, 1})
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{3, 2, 2, 1})
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1887,7 +1941,7 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
     topology topology;
     topology.add(input_layout("input1", in1_layout));
     topology.add(input_layout("input2", in2_layout));
-    topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, ov::Shape{}));
+    topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, 0, ov::Shape{}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1930,7 +1984,7 @@ TEST(gather_gpu_fp32, indice_out_of_bound) {
     topology topology;
     topology.add(input_layout("input1", in1_layout));
     topology.add(input_layout("input2", in2_layout));
-    topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, ov::Shape{}, 0, true));
+    topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, 0, ov::Shape{}, 0, true));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1944,6 +1998,50 @@ TEST(gather_gpu_fp32, indice_out_of_bound) {
     cldnn::mem_lock<int> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {1, 0, 2, 0,  11, 10, 12, 0,  21, 20, 22, 0};
+
+    ASSERT_EQ(expected_results.size(), output_ptr.size());
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]) << i;
+    }
+}
+
+TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in1_shape = { 3, 3 };
+    ov::Shape in2_shape = { 2, 2 };
+    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
+    auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::i32, format::bfyx};
+    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx}); // data
+    auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::i32, format::bfyx}); // Indexes
+
+    int64_t axis = 1;
+    set_values(input1, {0, 1, 2, 10, 11, 12, 20, 21, 22 });
+    set_values(input2, {1, 0, 2, 1});
+
+    topology topology;
+    topology.add(input_layout("input1", in1_layout));
+    topology.add(input_layout("input2", in2_layout));
+    topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, 0, ov::Shape{}));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gather", {format::bfyx, "", impl_types::cpu}} }));
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("gather");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gather").get_memory();
+    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+
+    std::vector<int> expected_results = {1, 0, 2, 1,  11, 10, 12, 11,  21, 20, 22, 21};
 
     ASSERT_EQ(expected_results.size(), output_ptr.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
@@ -1974,7 +2072,7 @@ void test_gather_gpu_u8_322_axisF(bool is_caching_test) {
     topology.add(input_layout("InputDictionary", input1->get_layout()));
     topology.add(input_layout("InputText", input2->get_layout()));
     topology.add(
-        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 2, 1}));
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{3, 2, 2, 1}));
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -2001,4 +2099,65 @@ TEST(gather_gpu_u8, 322_axisF) {
 
 TEST(gather_gpu_u8, export_import) {
     test_gather_gpu_u8_322_axisF<uint8_t>(true);
+}
+
+TEST(gather_single_axis, simple_Baxis) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1 } }); // Indexes
+    int64_t axis = 0;
+
+    set_values(input1, {
+        1.f, 2.f,  3.f,  4.f,
+        5.f, 6.f,  7.f,  8.f,
+        9.f, 10.f, 11.f, 12.f
+    });
+
+    set_values(input2, {
+        1
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
+    topology.add(
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 4, ov::Shape{1, 2, 2, 1})
+    );
+    topology.add(reorder("reorder", input_info("gather"), format::bfyx, data_types::i8));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    std::vector<int8_t> expected_results = {
+        5, 6, 7, 8
+    };
+
+    int crop_batch_num = 1;
+    int crop_feature_num = 2;
+    int crop_y_size = 2;
+    int crop_x_size = 1;
+    for (int b = 0; b < crop_batch_num; ++b) {
+        for (int f = 0; f < crop_feature_num; ++f) {
+            for (int y = 0; y < crop_y_size; ++y) {
+                for (int x = 0; x < crop_x_size; ++x) {
+                    int linear_id = x + y + 2 * f;
+                    int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
+                    ASSERT_EQ(output_ptr[output_linear_id], expected_results[linear_id]);
+                }
+            }
+        }
+    }
+
+    auto crop_prim = network.get_primitive("gather");
+    ASSERT_EQ(crop_prim->can_be_optimized(), false);
 }

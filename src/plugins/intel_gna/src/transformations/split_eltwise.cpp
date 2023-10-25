@@ -15,6 +15,8 @@
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "log/log.hpp"
 
+using namespace ov::intel_gna::limitations;
+
 namespace ov {
 namespace intel_gna {
 namespace pass {
@@ -24,8 +26,9 @@ inline bool is_eltwise_has_to_be_splitted(const ngraph::Output<ngraph::Node>& no
     if (!eltwise)
         return false;
     auto o_dims = eltwise->get_output_shape(0);
-    auto total_elem_size = std::accumulate(std::begin(o_dims), std::end(o_dims), 1, std::multiplies<size_t>());
-    return (total_elem_size > limitations::bufferMaxSize);
+    auto total_elem_size =
+        std::accumulate(std::begin(o_dims), std::end(o_dims), std::size_t{1}, std::multiplies<size_t>());
+    return (total_elem_size > Limitations::kBufferMaxSize);
 }
 
 static std::shared_ptr<ngraph::opset9::VariadicSplit> split_input(

@@ -134,10 +134,6 @@ public:
         TO_STATUS(_impl->SetBlob(name, data));
     }
 
-    StatusCode SetBlob(const char* name, const Blob::Ptr& data, const PreProcessInfo& info, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->SetBlob(name, data, info));
-    }
-
     StatusCode GetBlob(const char* name, Blob::Ptr& data, ResponseDesc* resp) noexcept override {
         TO_STATUS(data = _impl->GetBlob(name));
     }
@@ -180,10 +176,6 @@ public:
 
     StatusCode SetUserData(void* data, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetUserData(data));
-    }
-
-    StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->SetBatch(batch_size));
     }
 };
 

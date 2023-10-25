@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/gru_cell.hpp"
+#include "openvino/op/gru_cell.hpp"
 
 #include <cmath>
 
 #include "gru_cell_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
 
 op::v3::GRUCell::GRUCell() : m_linear_before_reset(false) {
     m_activations = {"sigmoid", "tanh"};
@@ -31,9 +28,9 @@ op::v3::GRUCell::GRUCell(const Output<Node>& X,
               W,
               R,
               hidden_size,
-              vector<string>{"sigmoid", "tanh"},
-              vector<float>{},
-              vector<float>{},
+              std::vector<std::string>{"sigmoid", "tanh"},
+              std::vector<float>{},
+              std::vector<float>{},
               0.f,
               false) {}
 
@@ -42,9 +39,9 @@ op::v3::GRUCell::GRUCell(const Output<Node>& X,
                          const Output<Node>& W,
                          const Output<Node>& R,
                          size_t hidden_size,
-                         const vector<string>& activations,
-                         const vector<float>& activations_alpha,
-                         const vector<float>& activations_beta,
+                         const std::vector<std::string>& activations,
+                         const std::vector<float>& activations_alpha,
+                         const std::vector<float>& activations_beta,
                          float clip,
                          bool linear_before_reset)
     : RNNCellBase({X, initial_hidden_state, W, R}, hidden_size, clip, activations, activations_alpha, activations_beta),
@@ -61,9 +58,9 @@ op::v3::GRUCell::GRUCell(const Output<Node>& X,
                          const Output<Node>& R,
                          const Output<Node>& B,
                          size_t hidden_size,
-                         const vector<string>& activations,
-                         const vector<float>& activations_alpha,
-                         const vector<float>& activations_beta,
+                         const std::vector<std::string>& activations,
+                         const std::vector<float>& activations_alpha,
+                         const std::vector<float>& activations_beta,
                          float clip,
                          bool linear_before_reset)
     : RNNCellBase({X, initial_hidden_state, W, R, B},
@@ -100,8 +97,7 @@ void op::v3::GRUCell::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    std::vector<ov::PartialShape> output_shapes{ov::PartialShape::dynamic(2)};
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, result_et, output_shapes[0]);
 }
@@ -110,37 +106,38 @@ void op::v3::GRUCell::add_default_bias_input() {
     Output<Node> B =
         op::v0::Constant::create(get_input_element_type(0),
                                  ov::Shape{(s_gates_count + m_linear_before_reset) * get_hidden_size()},
-                                 vector<float>((s_gates_count + m_linear_before_reset) * get_hidden_size(), 0.f));
+                                 std::vector<float>((s_gates_count + m_linear_before_reset) * get_hidden_size(), 0.f));
     set_argument(4, B);
 }
 
-shared_ptr<Node> op::v3::GRUCell::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v3::GRUCell::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_GRUCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4) {
-        return make_shared<GRUCell>(new_args.at(0),
-                                    new_args.at(1),
-                                    new_args.at(2),
-                                    new_args.at(3),
-                                    get_hidden_size(),
-                                    get_activations(),
-                                    get_activations_alpha(),
-                                    get_activations_beta(),
-                                    get_clip(),
-                                    m_linear_before_reset);
+        return std::make_shared<GRUCell>(new_args.at(0),
+                                         new_args.at(1),
+                                         new_args.at(2),
+                                         new_args.at(3),
+                                         get_hidden_size(),
+                                         get_activations(),
+                                         get_activations_alpha(),
+                                         get_activations_beta(),
+                                         get_clip(),
+                                         m_linear_before_reset);
     } else if (new_args.size() == 5) {
-        return make_shared<GRUCell>(new_args.at(0),
-                                    new_args.at(1),
-                                    new_args.at(2),
-                                    new_args.at(3),
-                                    new_args.at(4),
-                                    get_hidden_size(),
-                                    get_activations(),
-                                    get_activations_alpha(),
-                                    get_activations_beta(),
-                                    get_clip(),
-                                    m_linear_before_reset);
+        return std::make_shared<GRUCell>(new_args.at(0),
+                                         new_args.at(1),
+                                         new_args.at(2),
+                                         new_args.at(3),
+                                         new_args.at(4),
+                                         get_hidden_size(),
+                                         get_activations(),
+                                         get_activations_alpha(),
+                                         get_activations_beta(),
+                                         get_clip(),
+                                         m_linear_before_reset);
     } else {
         OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
+}  // namespace ov

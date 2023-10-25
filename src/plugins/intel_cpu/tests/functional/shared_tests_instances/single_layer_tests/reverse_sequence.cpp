@@ -41,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequence, ReverseSequenceLayerTest,
                             ::testing::ValuesIn(reversSeqLengthsVecShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerTest::getTestCaseName);
 
 }  // namespace

@@ -5,12 +5,16 @@
 #include "transformations/common_optimizations/binarize_weights.hpp"
 
 #include <memory>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
 
@@ -30,8 +34,8 @@ static std::vector<float> quantize_weights(const Shape& weights_shape,
                                            Shape output_low_high_shape,
                                            const std::vector<float>& output_low,
                                            const std::vector<float>& output_high) {
-    NGRAPH_CHECK(shape_size(input_low_high_shape) == 1 || shape_size(input_low_high_shape) == weights_shape[0]);
-    NGRAPH_CHECK(shape_size(output_low_high_shape) == 1 || shape_size(output_low_high_shape) == weights_shape[0]);
+    OPENVINO_ASSERT(shape_size(input_low_high_shape) == 1 || shape_size(input_low_high_shape) == weights_shape[0]);
+    OPENVINO_ASSERT(shape_size(output_low_high_shape) == 1 || shape_size(output_low_high_shape) == weights_shape[0]);
     size_t out_feat_off = 1;
     for (size_t i = 1; i < weights_shape.size(); i++)
         out_feat_off *= weights_shape[i];
@@ -54,34 +58,36 @@ static std::vector<float> quantize_weights(const Shape& weights_shape,
 
 pass::BinarizeWeights::BinarizeWeights() {
     MATCHER_SCOPE(BinarizeWeights);
-    auto activations_fq_pattern = pattern::wrap_type<opset5::FakeQuantize>({pattern::any_input(),
-                                                                            pattern::wrap_type<opset5::Constant>(),
-                                                                            pattern::wrap_type<opset5::Constant>(),
-                                                                            pattern::wrap_type<opset5::Constant>(),
-                                                                            pattern::wrap_type<opset5::Constant>()},
+    auto activations_fq_pattern =
+        pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(),
+                                                      pattern::wrap_type<ov::op::v0::Constant>(),
+                                                      pattern::wrap_type<ov::op::v0::Constant>(),
+                                                      pattern::wrap_type<ov::op::v0::Constant>(),
+                                                      pattern::wrap_type<ov::op::v0::Constant>()},
+                                                     pattern::consumers_count(1));
+    auto weights_fq_pattern = pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                            pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                            pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                            pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                            pattern::wrap_type<ov::op::v0::Constant>()},
                                                                            pattern::consumers_count(1));
-    auto weights_fq_pattern = pattern::wrap_type<opset5::FakeQuantize>({pattern::wrap_type<opset5::Constant>(),
-                                                                        pattern::wrap_type<opset5::Constant>(),
-                                                                        pattern::wrap_type<opset5::Constant>(),
-                                                                        pattern::wrap_type<opset5::Constant>(),
-                                                                        pattern::wrap_type<opset5::Constant>()},
-                                                                       pattern::consumers_count(1));
-    auto conv_pattern = pattern::wrap_type<opset5::Convolution>({activations_fq_pattern, weights_fq_pattern});
+    auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>({activations_fq_pattern, weights_fq_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto conv = std::dynamic_pointer_cast<opset5::Convolution>(m.get_match_root());
+        auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(m.get_match_root());
         if (!conv)
             return false;
         auto activations_fq =
-            std::dynamic_pointer_cast<opset5::FakeQuantize>(conv->input_value(0).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(conv->input_value(0).get_node_shared_ptr());
         if (!activations_fq || activations_fq->get_levels() != 2)
             return false;
-        auto weights_fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(conv->input_value(1).get_node_shared_ptr());
+        auto weights_fq =
+            std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(conv->input_value(1).get_node_shared_ptr());
         if (!weights_fq || weights_fq->get_levels() != 2)
             return false;
 
         auto weights_const =
-            std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(0).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_fq->input_value(0).get_node_shared_ptr());
         if (!weights_const)
             return false;
 
@@ -97,9 +103,9 @@ pass::BinarizeWeights::BinarizeWeights() {
         };
 
         auto activations_output_low_const =
-            std::dynamic_pointer_cast<opset5::Constant>(activations_fq->input_value(3).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(activations_fq->input_value(3).get_node_shared_ptr());
         auto activations_output_high_const =
-            std::dynamic_pointer_cast<opset5::Constant>(activations_fq->input_value(4).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(activations_fq->input_value(4).get_node_shared_ptr());
         if (!activations_output_low_const || !activations_output_high_const)
             return false;
 
@@ -114,15 +120,15 @@ pass::BinarizeWeights::BinarizeWeights() {
             return false;
 
         auto weights_input_low_const =
-            std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(1).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_fq->input_value(1).get_node_shared_ptr());
         auto weights_input_high_const =
-            std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(2).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_fq->input_value(2).get_node_shared_ptr());
         if (!weights_input_low_const || !weights_input_high_const)
             return false;
         auto weights_output_low_const =
-            std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(3).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_fq->input_value(3).get_node_shared_ptr());
         auto weights_output_high_const =
-            std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(4).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_fq->input_value(4).get_node_shared_ptr());
         if (!weights_output_low_const || !weights_output_high_const)
             return false;
 
@@ -151,11 +157,13 @@ pass::BinarizeWeights::BinarizeWeights() {
         const std::shared_ptr<Node>& weights_norm_factor = weights_output_high_const;
 
         // Create new FQ on activations with new output low/high
-        auto output_low_normalized =
-            opset5::Constant::create(element::f32, activations_output_low_const->get_shape(), activations_output_low);
+        auto output_low_normalized = ov::op::v0::Constant::create(element::f32,
+                                                                  activations_output_low_const->get_shape(),
+                                                                  activations_output_low);
         output_low_normalized->set_friendly_name(activations_output_low_const->get_friendly_name());
-        auto output_high_normalized =
-            opset5::Constant::create(element::f32, activations_output_high_const->get_shape(), activations_output_high);
+        auto output_high_normalized = ov::op::v0::Constant::create(element::f32,
+                                                                   activations_output_high_const->get_shape(),
+                                                                   activations_output_high);
         output_high_normalized->set_friendly_name(activations_output_high_const->get_friendly_name());
         auto new_activations_fq = activations_fq->clone_with_new_inputs({activations_fq->input_value(0),
                                                                          activations_fq->input_value(1),
@@ -177,7 +185,7 @@ pass::BinarizeWeights::BinarizeWeights() {
                                                   weights_output_low,
                                                   weights_output_high);
         auto quantized_weights_const =
-            opset5::Constant::create(element::f32, weights_const->get_shape(), quantized_weights);
+            ov::op::v0::Constant::create(element::f32, weights_const->get_shape(), quantized_weights);
         quantized_weights_const->set_friendly_name(weights_const->get_friendly_name());
         auto new_conv = conv->clone_with_new_inputs({new_activations_fq, quantized_weights_const});
 
@@ -185,14 +193,14 @@ pass::BinarizeWeights::BinarizeWeights() {
         for (size_t i = 2; i < weights_const->get_shape().size(); i++)
             norm_factor_shape.push_back(1);
         auto norm_factor_shape_const =
-            opset5::Constant::create(element::i64, Shape{norm_factor_shape.size()}, norm_factor_shape);
+            ov::op::v0::Constant::create(element::i64, Shape{norm_factor_shape.size()}, norm_factor_shape);
 
         auto activations_norm_factor_reshaped =
-            std::make_shared<opset5::Reshape>(activations_norm_factor, norm_factor_shape_const, false);
-        auto mul = std::make_shared<opset5::Multiply>(new_conv, activations_norm_factor_reshaped);
+            std::make_shared<ov::op::v1::Reshape>(activations_norm_factor, norm_factor_shape_const, false);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(new_conv, activations_norm_factor_reshaped);
         auto weights_norm_factor_reshaped =
-            std::make_shared<opset5::Reshape>(weights_norm_factor, norm_factor_shape_const, false);
-        auto mul2 = std::make_shared<opset5::Multiply>(mul, weights_norm_factor_reshaped);
+            std::make_shared<ov::op::v1::Reshape>(weights_norm_factor, norm_factor_shape_const, false);
+        auto mul2 = std::make_shared<ov::op::v1::Multiply>(mul, weights_norm_factor_reshaped);
 
         copy_runtime_info(
             {activations_fq, weights_fq, conv},

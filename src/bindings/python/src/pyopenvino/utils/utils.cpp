@@ -12,9 +12,10 @@
 #include <vector>
 
 #include "Python.h"
-#include "meta_data.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/meta_data.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 
 using Version = ov::pass::Serialize::Version;
 
@@ -187,6 +188,10 @@ py::object from_ov_any(const ov::Any& any) {
         std::stringstream uuid_stream;
         uuid_stream << any.as<ov::device::UUID>();
         return py::cast(uuid_stream.str());
+    } else if (any.is<ov::device::LUID>()) {
+        std::stringstream luid_stream;
+        luid_stream << any.as<ov::device::LUID>();
+        return py::cast(luid_stream.str());
         // Custom FrontEnd Types
     } else if (any.is<ov::frontend::type::List>()) {
         return py::cast(any.as<ov::frontend::type::List>());
@@ -284,17 +289,22 @@ ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
 
 ov::Any py_object_to_any(const py::object& py_obj) {
     // Python types
+    py::object float_32_type = py::module_::import("numpy").attr("float32");
     if (py::isinstance<py::str>(py_obj)) {
         return py_obj.cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
     } else if (py::isinstance<py::float_>(py_obj)) {
         return py_obj.cast<double>();
+    } else if (py::isinstance(py_obj, float_32_type)) {
+        return py_obj.cast<float>();
     } else if (py::isinstance<py::int_>(py_obj)) {
         return py_obj.cast<int64_t>();
+    } else if (py::isinstance<py::none>(py_obj)) {
+        return {};
     } else if (py::isinstance<py::list>(py_obj)) {
         auto _list = py_obj.cast<py::list>();
-        enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL };
+        enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
         PY_TYPE detected_type = PY_TYPE::UNKNOWN;
         for (const auto& it : _list) {
             auto check_type = [&](PY_TYPE type) {
@@ -312,6 +322,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
                 check_type(PY_TYPE::FLOAT);
             } else if (py::isinstance<py::bool_>(it)) {
                 check_type(PY_TYPE::BOOL);
+            } else if (py::isinstance<ov::PartialShape>(it)) {
+                check_type(PY_TYPE::PARTIAL_SHAPE);
             }
         }
 
@@ -327,6 +339,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             return _list.cast<std::vector<int64_t>>();
         case PY_TYPE::BOOL:
             return _list.cast<std::vector<bool>>();
+        case PY_TYPE::PARTIAL_SHAPE:
+            return _list.cast<std::vector<ov::PartialShape>>();
         default:
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
@@ -337,6 +351,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::Any>(py_obj);
     } else if (py::isinstance<ov::element::Type>(py_obj)) {
         return py::cast<ov::element::Type>(py_obj);
+    } else if (py::isinstance<ov::PartialShape>(py_obj)) {
+        return py::cast<ov::PartialShape>(py_obj);
     } else if (py::isinstance<ov::hint::Priority>(py_obj)) {
         return py::cast<ov::hint::Priority>(py_obj);
     } else if (py::isinstance<ov::hint::PerformanceMode>(py_obj)) {
@@ -351,9 +367,14 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::Affinity>(py_obj)) {
         return py::cast<ov::Affinity>(py_obj);
+    } else if (py::isinstance<ov::Tensor>(py_obj)) {
+        return py::cast<ov::Tensor>(py_obj);
         // FrontEnd Decoder
     } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
         return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);
+        // TF FrontEnd GraphIterator
+    } else if (py::isinstance<ov::frontend::tensorflow::GraphIterator>(py_obj)) {
+        return py::cast<std::shared_ptr<ov::frontend::tensorflow::GraphIterator>>(py_obj);
         // Custom FrontEnd Types
     } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);

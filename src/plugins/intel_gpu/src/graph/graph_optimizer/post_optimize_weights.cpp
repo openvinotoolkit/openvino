@@ -4,6 +4,8 @@
 
 #include "pass_manager.h"
 #include "program_helpers.h"
+#include "implementation_map.hpp"
+
 #include "convolution_inst.h"
 #include "binary_convolution_inst.h"
 #include "deconvolution_inst.h"
@@ -35,56 +37,102 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     if (!impl)
         return;
 
-    if (impl->is_dynamic())
-        return;
+    if (impl->is_dynamic()) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->disable_build_time_weight_reorder_for_dynamic_nodes) {
+            return;
+        }
+        // TODO: To relax current limitation w.r.t the future optimization of weight reorder process
+        // In dynamic shape, selected weight format can change in runtime. However reordering blocked format to blocked format is not fully verified yet.
+        // So we need to enable other primitives such as convolution with verifying reorder b/w the possible layouts
+        // Also we skip weight reorder for onednn impl because onednn fully connected layer is using simple format, therefore
+        // reordering to cldnn shape_agnostic_kernel's preferred blocked format at build time does not helpful for the performance.
+        // This situation might be changed once onednn shape agnostic kernel is used in the future.
+        if (p.is_internal_program())
+            return;
+        if (node.get_preferred_impl_type() == impl_types::onednn)
+            return;
+        if (node.type() != fully_connected::type_id())
+            return;
+    }
+    // Don't run impl selection to avoid double compilation of reorder kernels
+    // in main program and internal program for constant propagation
+    auto set_implementation = [&p, &impl](program_node& weights_reorder_node) {
+        if (!weights_reorder_node.is_constant()) {
+            auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
+            auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
+            reorder_kernel_params->prog = &p;
+            auto reorder_impl = factory(*reorder_kernel_params);
+
+            weights_reorder_node.set_selected_impl(reorder_impl->clone());
+            if (auto impl = weights_reorder_node.get_selected_impl()) {
+                auto params = weights_reorder_node.get_kernel_impl_params();
+                p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
+            }
+        }
+    };
 
     auto output_layout = node.get_output_layout();
     auto weights_reorder_params = impl->get_weights_reorder_params();
     for (auto i = offsets.weights_offset; i < offsets.bias_offset; i++) {
-        auto& weights_node = node.get_dependency(i);
+        program_node& prev_node = node.get_dependency(i);
 
-        auto reorder = _rf.get_weights_reorder(weights_node.id(), weights_reorder_params);
+        if (weights_reorder_params != nullptr) {
+            bool can_be_fused = prev_node.is_type<reorder>() &&
+                                prev_node.as<reorder>().is_simple_reorder() &&
+                                prev_node.get_users().size() == 1 &&
+                                prev_node.get_dependencies().size() == 1;
+            if (can_be_fused) {
+                // Need to update input data_type for correct merging format reorder with precision reorder
+                auto updated_input_layout = weights_reorder_params->get_input_layout();
+                data_types input_dtype = prev_node.get_input_layout().data_type;
+                updated_input_layout.data_type = input_dtype;
 
-        if (reorder.first) {
-            // insert new generic_layer node to topology
-            p.add_intermediate(reorder.first, node, i, !reorder.second);
-            // set generic_layer's node output layout and implementation
-            auto& g_node = node.get_dependency(i);
-            g_node.get_output_layout(false);
+                // Need to update input format in case of fusing weights constant with transpose
+                format input_fmt = prev_node.get_input_layout().format;
+                updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, false));
 
-            // Don't run impl selection to avoid double compilation of reorder kernels
-            // in main program and internal program for constant propagation
-            if ((!g_node.is_constant()) && (!reorder.second)) {
-                g_node.set_selected_impl(g_node.type()->choose_impl(g_node));
-                if (auto impl = g_node.get_selected_impl()) {
-                    auto params = g_node.get_kernel_impl_params();
-                    p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
+                weights_reorder_params->set_input_layout(updated_input_layout);
+                auto weights_reorder = _rf.get_weights_reorder(prev_node.get_primitive()->input[0].pid,
+                                                               weights_reorder_params);
+                auto& weights_reorder_node = p.get_or_create(weights_reorder.first);
+                p.replace(prev_node, weights_reorder_node);
+                weights_reorder_node.recalc_output_layout(false);
+
+                if (!weights_reorder.second) {
+                    set_implementation(weights_reorder_node);
+                }
+            } else {
+                auto weights_reorder = _rf.get_weights_reorder(prev_node.id(), weights_reorder_params);
+                // insert new weights reorder node to topology
+                p.add_intermediate(weights_reorder.first, node, i, !weights_reorder.second);
+                // set weights reorder's node output layout and implementation
+                auto& weights_reorder_node = node.get_dependency(i);
+                weights_reorder_node.get_output_layout(false);
+
+                if (!weights_reorder.second) {
+                    set_implementation(weights_reorder_node);
                 }
             }
         }
     }
-
-    // Reset weights reorder params to not keep source code pointer
-    impl->reset_weights_reorder_params();
-
     // set the old output layout and do not invalidate users as change of weights will not affect output layout
     node.set_output_layout(output_layout, false);
 }
 
 void post_optimize_weights::run(program& p) {
     for (auto& node : p.get_processing_order()) {
-        if (node->type() == convolution::type_id()) {
+        if (node->is_type<convolution>()) {
             optimize_weights(node->as<convolution>(), p);
-        }
-        if (node->type() == binary_convolution::type_id()) {
+        } else if (node->is_type<binary_convolution>()) {
             optimize_weights(node->as<binary_convolution>(), p);
-        } else if (node->type() == deconvolution::type_id()) {
+        } else if (node->is_type<deconvolution>()) {
             optimize_weights(node->as<deconvolution>(), p);
-        } else if (node->type() == deformable_conv::type_id()) {
+        } else if (node->is_type<deformable_conv>()) {
             optimize_weights(node->as<deformable_conv>(), p);
-        } else if (node->type() == fully_connected::type_id()) {
+        } else if (node->is_type<fully_connected>()) {
             optimize_weights(node->as<fully_connected>(), p);
-        } else if (node->type() == lstm_dynamic_input::type_id()) {
+        } else if (node->is_type<lstm_dynamic_input>()) {
             optimize_weights(node->as<lstm_dynamic_input>(), p);
         }
     }

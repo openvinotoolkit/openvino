@@ -11,11 +11,13 @@
 #include "reshape_inst.h"
 #include "convert_color_inst.h"
 #include "one_hot_inst.h"
+#include "shape_of_inst.h"
 #include "permute_inst.h"
 #include "depth_to_space_inst.h"
 #include "concatenation_inst.h"
 #include "region_yolo_inst.h"
 #include "fully_connected_inst.h"
+#include "mvn_inst.h"
 
 #include <vector>
 #include <list>
@@ -57,13 +59,7 @@ void remove_redundant_reorders::run(program& p) {
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
 
-            if (node.is_output())
-                continue;
-
-            if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
-                continue;
-
-            if (node.has_fused_primitives())
+            if (!node.is_simple_reorder() || node.is_output())
                 continue;
 
             std::function<bool(program_node&)> has_quantize_user;
@@ -147,12 +143,11 @@ void remove_redundant_reorders::run(program& p) {
 
         auto& r_dep_node = dep_node.as<reorder>();
 
-        bool remove_dep = r_dep_node.get_users().size() == 1 &&
-            !r_dep_node.has_mean() &&
-            r_dep_node.get_primitive()->subtract_per_feature.empty() &&
-            !r_dep_node.is_output() &&
-            !r_dep_node.has_fused_primitives() &&
-            !r_dep_node.get_primitive()->has_surface_input();
+        bool remove_dep = r_dep_node.is_simple_reorder() &&
+                          r_dep_node.get_users().size() == 1 &&
+                          !r_dep_node.is_output() &&
+                          !r_dep_node.get_primitive()->has_surface_input() &&
+                          !r_node.get_primitive()->weights_reorder_params;
 
         // for chains like
         // fp32 -> reorder -> u8 -> reorder -> fp32
@@ -162,13 +157,10 @@ void remove_redundant_reorders::run(program& p) {
             continue;
         }
 
-        bool remove_current =
-            r_dep_node.get_users().size() == 1 &&
-            !r_dep_node.is_output() &&
-            !r_node.has_mean() &&
-            r_node.get_primitive()->subtract_per_feature.empty() &&
-            !r_node.has_fused_primitives() &&
-            !r_node.get_primitive()->has_surface_input();
+        bool remove_current = r_node.is_simple_reorder() &&
+                              r_dep_node.get_users().size() == 1 &&
+                              !r_dep_node.is_output() &&
+                              !r_node.get_primitive()->has_surface_input();
 
         if (remove_dep) {
             // for chains like
@@ -269,15 +261,13 @@ void remove_redundant_reorders::run(program& p) {
             r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
                 r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
 
-        if (r_node.has_mean() ||
-            !r_node.get_primitive()->subtract_per_feature.empty() ||
+        if (!r_node.is_simple_reorder() ||
             no_output_optimization ||
-            r_node.has_fused_primitives() ||
             r_node.get_primitive()->has_surface_input())
             continue;
 
         auto o_layout = r_node.get_output_layout();
-        auto i_layout = r_node.get_dependency(0).get_output_layout();
+        auto i_layout = r_node.get_input_layout(0);
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
@@ -349,6 +339,9 @@ void remove_redundant_reorders::run(program& p) {
         if (node->get_dependencies().size() != 1)
             continue;
 
+        if (node->has_fused_primitives())
+            continue;
+
         auto& dep = node->get_dependency(0);
 
         for (auto& user : dep.get_users()) {
@@ -399,17 +392,14 @@ void remove_redundant_reorders::run(program& p) {
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
 
-            if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
-                continue;
-
-            if (node.has_fused_primitives())
+            if (!node.is_simple_reorder())
                 continue;
 
             if (input.get_users().size() != 1)
                 continue;
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() ||
+            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() || input.is_type<concatenation>() ||
                                                input.is_type<depth_to_space>() || input.is_type<region_yolo>() || input.is_type<detection_output>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
@@ -420,6 +410,16 @@ void remove_redundant_reorders::run(program& p) {
             auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
+                // Add fused_primitive_desc of reorder to the previous node which propagates original output layout during shape inference
+                if (input.is_type<mvn>() || input.is_type<concatenation>()) {
+                    fused_primitive_desc local_desc(node.get_primitive());
+                    local_desc.f_param = node.get_fuse_params();
+                    local_desc.total_num_deps = node.get_dependencies().size();
+                    local_desc.input_layout = old_output_layout_of_input;
+                    local_desc.output_layout = output_layout;
+                    input.add_fused_primitive(local_desc);
+                }
+
                 node.can_be_optimized(true);
                 p.add_optimized_primitive_info(node.id());
 
@@ -434,7 +434,8 @@ void remove_redundant_reorders::run(program& p) {
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto& node_ptr = *itr++;
-        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1)
+        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 ||
+            node_ptr->get_dependencies().size() != 1 || node_ptr->is_dynamic())
             continue;
 
         auto& node = node_ptr->as<reorder>();
@@ -498,9 +499,9 @@ void remove_redundant_reorders::run(program& p) {
                         return false;
 
                     auto node_format = node->get_output_layout().format;
-                    for (size_t axis = 0; axis < node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format).size(); axis++) {
+                    for (size_t axis = 0; axis < node->get_input_layout(0).data_padding.lower_size().sizes(node_format).size(); axis++) {
                         if (!user->is_padding_supported(static_cast<int>(axis),
-                            node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format)[axis]))
+                            node->get_input_layout(0).data_padding.lower_size().sizes(node_format)[axis]))
                             return false;
                     }
                 }
@@ -565,7 +566,7 @@ void remove_redundant_reorders::run(program& p) {
 
             // Add fused_primitive_desc of reorder to convolution which propagate original output layout to jitter
             fused_primitive_desc local_desc(node->get_primitive());
-            local_desc.input_layout = input.get_dependency(0).get_output_layout();  // original convolution's output layout
+            local_desc.input_layout = input.get_input_layout(0);  // original convolution's output layout
             node->set_input_layout(local_desc.input_layout);
             local_desc.f_param = node->get_fuse_params();
             local_desc.outer_dep_start_idx = -1;
@@ -596,11 +597,7 @@ void remove_redundant_reorders::run(program& p) {
             if (!r_node.is_in_data_flow() || r_node.get_dependencies().size() != 1)
                 continue;
 
-            if (r_node.has_mean() ||
-                !r_node.get_primitive()->subtract_per_feature.empty())
-                continue;
-
-            if (r_node.has_fused_primitives())
+            if (!r_node.is_simple_reorder())
                 continue;
 
             // Remove reorder for Convolution bfyx -> fs_b_yx_fsv32
@@ -633,13 +630,21 @@ void remove_redundant_reorders::run(program& p) {
 
         auto& reshape_input_node = dep_node.as<reshape>();
 
+        // In case of new shape infer we should not shrink reshapes chain if first reshape changes input rank, e.g.
+        // [a, b] -> reshape1 -> [a1, b1, c1] -> reshape2 -> [a2, b2, 0] and any of the reshapes has special_zero=true
+        // Configuration above will fail if we remove reshape1 node as attempt to handle special zero will fail due to small rank of input
+        if (p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
+            reshape_node.get_output_pshape().size() != dep_node.get_input_pshape().size() &&
+            (reshape_node.get_primitive()->special_zero || reshape_input_node.get_primitive()->special_zero))
+            continue;
+
         if (reshape_node.is_dynamic())
             continue;
 
         bool remove_dep = reshape_input_node.get_users().size() == 1 && !reshape_input_node.is_output() &&
                           !reshape_input_node.has_fused_primitives();
         bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&
-                              reshape_input_node.get_dependency(0).get_output_layout() == reshape_node.get_output_layout() &&
+                              reshape_input_node.get_input_layout(0) == reshape_node.get_output_layout() &&
                               !reshape_node.has_fused_primitives();
 
         if (remove_dep) {
@@ -657,9 +662,27 @@ void remove_redundant_reorders::run(program& p) {
         }
     }
 
+    // Remove reorders before shape_of primitive
+    itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto& node = *itr++;
+        if (!node->is_type<reorder>() || node->has_fused_primitives() ||
+            !node->is_in_data_flow() || node->get_users().size() != 1 ||
+            !node->get_users().front()->is_type<shape_of>())
+            continue;
+
+        auto& dep = node->get_dependency(0);
+
+        LOG_NODE_REMOVAL(node->id());
+        p.replace_all_usages(*node, dep);
+        p.add_optimized_primitive_info(node->id());
+        p.remove_all_connections(*node);
+        p.remove_if_dangling(*node);
+    }
+
     for (auto n : p.get_processing_order()) {
         if (n->is_in_data_flow() && n->is_type<reorder>()) {
-            auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_dependency(0).get_output_layout().format);
+            auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_input_layout(0).format);
             n->set_preferred_impl_type(preferred_impl);
         }
 

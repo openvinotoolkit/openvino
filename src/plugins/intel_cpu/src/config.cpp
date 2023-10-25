@@ -51,9 +51,6 @@ Config::Config() {
     }
 #endif
 
-    if (!mayiuse(avx512_core_bf16))
-        enforceBF16 = false;
-
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
 
     updateProperties();
@@ -72,7 +69,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const std::map<std::string, std::string> &prop) {
+void Config::readProperties(const std::map<std::string, std::string> &prop, const ModelType modelType) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
     for (const auto& kvp : prop) {
@@ -82,6 +79,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.SetConfig(key, val);
+            if (key == ov::affinity.name()) {
+                const auto affinity_val = ov::util::from_string(val, ov::affinity);
+                if (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) {
+                    enableCpuPinning = true;
+                    changedCpuPinning = true;
+                } else if (affinity_val == ov::Affinity::NUMA) {
+                    enableCpuPinning = false;
+                    changedCpuPinning = true;
+                }
+            }
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
@@ -118,17 +125,6 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_hyper_threading.name()
                            << ". Expected only true/false." << std::endl;
             }
-        } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
-            int val_i = -1;
-            try {
-                val_i = std::stoi(val);
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_LIMIT
-                                    << ". Expected only integer numbers";
-            }
-            // zero and any negative value will be treated
-            // as default batch size
-            batchLimit = std::max(val_i, 0);
         } else if (key == CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE) {
             float val_f = 0.0f;
             try {
@@ -155,14 +151,6 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS
                                    << ". Expected only YES/NO";
-        } else if (key.compare(PluginConfigParams::KEY_DYN_BATCH_ENABLED) == 0) {
-            if (val.compare(PluginConfigParams::YES) == 0)
-                enableDynamicBatch = true;
-            else if (val.compare(PluginConfigParams::NO) == 0)
-                enableDynamicBatch = false;
-            else
-                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_ENABLED
-                << ". Expected only YES/NO";
             IE_SUPPRESS_DEPRECATED_START
         } else if (key.compare(PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
             IE_SUPPRESS_DEPRECATED_END
@@ -183,12 +171,12 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == PluginConfigParams::YES) {
                 if (mayiuse(avx512_core)) {
-                    enforceBF16 = true;
+                    inferencePrecision = ov::element::bf16;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
                 }
             } else if (val == PluginConfigParams::NO) {
-                enforceBF16 = false;
+                inferencePrecision = ov::element::f32;
             } else {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
@@ -197,17 +185,27 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else if (key == ov::hint::inference_precision.name()) {
             if (val == "bf16") {
                 if (mayiuse(avx512_core)) {
-                    enforceBF16 = true;
-                } else {
-                    IE_THROW() << "Platform doesn't support BF16 format";
+                    inferencePrecision = ov::element::bf16;
+                    inferencePrecisionSetExplicitly = true;
                 }
+            } else if (val == "f16") {
+#if defined(OPENVINO_ARCH_X86_64)
+                if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
+                    inferencePrecision = ov::element::f16;
+                    inferencePrecisionSetExplicitly = true;
+                }
+#elif defined(OV_CPU_ARM_ENABLE_FP16)
+// TODO: add runtime FP16 feature support check for ARM
+                inferencePrecision = ov::element::f16;
+                inferencePrecisionSetExplicitly = true;
+#endif
             } else if (val == "f32") {
-                enforceBF16 = false;
+                inferencePrecision = ov::element::f32;
+                inferencePrecisionSetExplicitly = true;
             } else {
                 IE_THROW() << "Wrong value for property key " << ov::hint::inference_precision.name()
-                    << ". Supported values: bf16, f32";
+                    << ". Supported values: bf16, f16, f32";
             }
-            inferencePrecisionSetExplicitly = true;
         } else if (PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY == key) {
             int val_i = -1;
             try {
@@ -256,10 +254,19 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     // apply execution mode after all the params are handled to prevent possible conflicts
     // when both execution_mode and inference_precision are specified
     if (!inferencePrecisionSetExplicitly) {
-        if (executionMode == ov::hint::ExecutionMode::PERFORMANCE && (mayiuse(avx512_core_bf16))) {
-            enforceBF16 = true;
+        if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
+            inferencePrecision = ov::element::f32;
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+            //fp16 precision is used as default precision on ARM for non-convolution networks
+            //fp16 ACL convolution is slower than fp32
+            if (modelType != ModelType::CNN)
+                inferencePrecision = ov::element::f16;
+#else
+            if (mayiuse(avx512_core_bf16))
+                inferencePrecision = ov::element::bf16;
+#endif
         } else {
-            enforceBF16 = false;
+            inferencePrecision = ov::element::f32;
         }
     }
 
@@ -274,7 +281,9 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // TODO: multi-stream execution has functional issues on ARM target
     streamExecutorConfig._streams = 1;
+    streamExecutorConfig._streams_changed = true;
 #endif
+    this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();
@@ -306,14 +315,6 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES });
     else
         _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::NO });
-    IE_SUPPRESS_DEPRECATED_START
-    if (enableDynamicBatch == true)
-        _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::YES });
-    else
-        _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::NO });
-
-    _config.insert({ PluginConfigParams::KEY_DYN_BATCH_LIMIT, std::to_string(batchLimit) });
-    IE_SUPPRESS_DEPRECATED_END
 
     _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
 
@@ -324,8 +325,7 @@ void Config::updateProperties() {
     IE_SUPPRESS_DEPRECATED_START
         _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
     IE_SUPPRESS_DEPRECATED_END;
-
-    if (enforceBF16) {
+    if (inferencePrecision == ov::element::bf16) {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
     } else {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });

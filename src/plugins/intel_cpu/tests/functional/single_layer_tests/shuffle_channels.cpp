@@ -4,8 +4,8 @@
 
 #include "shared_test_classes/single_layer/shuffle_channels.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace InferenceEngine;
@@ -34,10 +34,10 @@ public:
         std::tie(axis, group) = shuffleChannelsParams;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
         results << "Prc=" << inType << "_";
         results << "Axis=" << std::to_string(axis) << "_";
@@ -62,10 +62,13 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType = makeSelectedTypeStr(selectedType, inType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto shuffleChannels = std::dynamic_pointer_cast<ngraph::opset3::ShuffleChannels>(
                 ngraph::builder::makeShuffleChannels(params[0], axis, group));
         function = makeNgraphFunction(inType, params, shuffleChannels, "ShuffleChannels");

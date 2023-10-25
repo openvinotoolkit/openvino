@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -30,14 +30,14 @@ public:
         std::tie(inputShape, inputPrecision, shift, axes, targetDevice) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
         for (const auto& item : inputShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "Precision=" << inputPrecision.get_type_name() << "_";
-        result << "Shift=" << CommonTestUtils::vec2str(shift) << "_";
-        result << "Axes=" << CommonTestUtils::vec2str(axes) << "_";
+        result << "Shift=" << ov::test::utils::vec2str(shift) << "_";
+        result << "Axes=" << ov::test::utils::vec2str(axes) << "_";
         result << "TargetDevice=" << targetDevice;
 
         return result.str();
@@ -54,8 +54,10 @@ protected:
 
         init_input_shapes({inputShape});
 
-        const auto paramsIn = ngraph::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
-
+        ov::ParameterVector paramsIn;
+        for (auto&& shape : inputDynamicShapes) {
+            paramsIn.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
+        }
         auto shiftNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
         auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
 
@@ -97,7 +99,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_2DZeroShift, RollLayerCPUTest,
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<int64_t>{0, 0}),  // Shift
                             ::testing::Values(std::vector<int64_t>{0, 1}),  // Axes
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RollLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_1D, RollLayerCPUTest,
@@ -106,7 +108,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_1D, RollLayerCPUTest,
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<int64_t>{5}),     // Shift
                             ::testing::Values(std::vector<int64_t>{0}),     // Axes
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RollLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_2D, RollLayerCPUTest,
@@ -115,7 +117,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_2D, RollLayerCPUTest,
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<int64_t>{50, 150}), // Shift
                             ::testing::Values(std::vector<int64_t>{0, 1}),    // Axes
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RollLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_3D, RollLayerCPUTest,
@@ -124,7 +126,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_3D, RollLayerCPUTest,
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<int64_t>{160, 150}), // Shift
                             ::testing::Values(std::vector<int64_t>{1, 2}),     // Axes
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RollLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_4DNegativeAxes, RollLayerCPUTest,
@@ -133,7 +135,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_4DNegativeAxes, RollLayerCPUTest,
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<int64_t>{7, 3}),   // Shift
                             ::testing::Values(std::vector<int64_t>{-3, -2}), // Axes
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RollLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_5DRepeatingAxesNegativeShift, RollLayerCPUTest,
@@ -142,7 +144,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RollCPU_5DRepeatingAxesNegativeShift, RollLayerCP
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<int64_t>{4, -1, 7, 2, -5}),  // Shift
                             ::testing::Values(std::vector<int64_t>{-1, 0, 3, 3, 2}),   // Axes
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RollLayerCPUTest::getTestCaseName);
 
 } // namespace

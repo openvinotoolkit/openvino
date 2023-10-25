@@ -12,9 +12,10 @@
 #include <tuple>
 
 #include "backend/gna_limitations.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/decompose_2d_convolution.hpp"
 
+using namespace ov::intel_gna::limitations;
 namespace testing {
 
 namespace {
@@ -290,7 +291,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class Decompose2DConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
+class Decompose2DConvTestInvalidFixture : public ov::test::TestsCommon,
                                           public ::testing::WithParamInterface<fqDecompose2DConvParams> {
 public:
     void SetUp() override;
@@ -311,6 +312,8 @@ void Decompose2DConvTestInvalidFixture::SetUp() {
     std::tie(fq, params) = this->GetParam();
     std::tie(model, input_shape, filters_shape, conv_stride, conv_dilation, bias_shape, maxpool_stride, maxpool_shape) =
         params;
+
+    Limitations::init(ov::intel_gna::target::DeviceVersion::Default);
 
     function = get_initial_function(fq,
                                     model,
@@ -338,10 +341,11 @@ void Decompose2DConvTestInvalidFixture::SetUp() {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class Decompose2DConvTestFixture : public CommonTestUtils::TestsCommon,
+class Decompose2DConvTestFixture : public ov::test::TestsCommon,
                                    public ::testing::WithParamInterface<fqDecompose2DConvParams> {
 public:
     void SetUp() override;
+
     std::shared_ptr<ngraph::Function> get_reference(const bool& fq,
                                                     const modelType& model,
                                                     const ngraph::PartialShape& input_shape,
@@ -364,6 +368,8 @@ void Decompose2DConvTestFixture::SetUp() {
     std::tie(fq, params) = this->GetParam();
     std::tie(model, input_shape, filters_shape, conv_stride, conv_dilation, bias_shape, maxpool_stride, maxpool_shape) =
         params;
+
+    Limitations::init(ov::intel_gna::target::DeviceVersion::Default);
 
     function = get_initial_function(fq,
                                     model,
@@ -779,7 +785,7 @@ static size_t CalculateConvCount(const ConvParams& conv_params) {
     size_t conv_count = 1;
     size_t total_factorized_conv_channel_count =
         (conv_params.input_channel_count * conv_params.filter_height * conv_params.filter_width);
-    while (total_factorized_conv_channel_count / conv_count > ov::intel_gna::limitations::convFilterMaxSize ||
+    while (total_factorized_conv_channel_count / conv_count > Limitations::kConvFilterMaxSize ||
            total_factorized_conv_channel_count % conv_count != 0 || conv_params.filter_channel_count % conv_count != 0)
         conv_count++;
 
@@ -792,7 +798,7 @@ static bool ShouldDecompose(GraphData& graph_data, const ConvParams& conv_params
 
     // Concat (copy) layer limitation allows to split up to a certain limit
     // Currently we are able to split only convolutions without pooling in horizontal dimension
-    if (graph_data.conv_count > ov::intel_gna::limitations::copyMaxGrouping ||
+    if (graph_data.conv_count > Limitations::kCopyMaxGrouping ||
         ((graph_data.pool_size_width > 1 || graph_data.pool_stride_width > 1) && graph_data.conv_count > 1))
         return false;
 
@@ -884,18 +890,13 @@ void execute_test(modelType model,
     case modelType::TranspConvBcastAddMaxPoolTransp:
     case modelType::TranspConvBcastAddActTransp:
     case modelType::TranspConvBcastAddMaxPoolActTransp:
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(ov::intel_gna::target::DeviceVersion::Default,
-                                                                    gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(gnaPrecision);
         break;
     case modelType::TranspConvTranspBcastAdd:
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(
-            ov::intel_gna::target::DeviceVersion::Default,
-            gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(gnaPrecision);
         break;
     case modelType::TranspConvTranspBcastAddAct:
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(
-            ov::intel_gna::target::DeviceVersion::Default,
-            gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(gnaPrecision);
         break;
     }
 

@@ -12,6 +12,7 @@ namespace test {
 namespace behavior {
 struct OVInferRequestPerfCountersTest : public virtual OVInferRequestTests {
     void SetUp() override;
+    static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj);
     ov::InferRequest req;
 };
 using OVInferRequestPerfCountersExceptionTest = OVInferRequestPerfCountersTest;

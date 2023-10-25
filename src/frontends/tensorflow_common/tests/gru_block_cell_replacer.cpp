@@ -6,14 +6,11 @@
 
 #include <gtest/gtest.h>
 
-#include <frontend/shared/include/utils.hpp>
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/manager.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
+#include "conversion_with_reference.hpp"
 #include "helper_ops/gru_block_cell.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace std;
 using namespace ov;
@@ -100,21 +97,21 @@ shared_ptr<Model> gen_model_ref(Dimension m_batch_size, int64_t m_hidden_size, D
 
 }  // namespace
 
-TEST_F(TransformationTestsF, GRUBlockCellReplacerOneOutput) {
+TEST_F(FrontEndConversionWithReferenceTestsF, GRUBlockCellReplacerOneOutput) {
     {
-        function = gen_model(2, 10, 120);
+        model = gen_model(2, 10, 120);
         manager.register_pass<GRUBlockCellReplacer>();
     }
-    { function_ref = gen_model_ref(2, 10, 120); }
+    { model_ref = gen_model_ref(2, 10, 120); }
 }
 
-TEST_F(TransformationTestsF, GRUBlockCellReplacerTwoOutputs) {
+TEST_F(FrontEndConversionWithReferenceTestsF, GRUBlockCellReplacerTwoOutputs) {
     {
-        function = gen_model_with_two_outputs(2, 10, 120);
+        model = gen_model_with_two_outputs(2, 10, 120);
         manager.register_pass<GRUBlockCellReplacer>();
     }
     {
         // transformation is not applied due to presence of the first output
-        function_ref = gen_model_with_two_outputs(2, 10, 120);
+        model_ref = gen_model_with_two_outputs(2, 10, 120);
     }
 }

@@ -8,12 +8,11 @@ using namespace BehaviorTestsDefinitions;
 
 namespace {
 
-const std::vector<std::map<std::string, std::string>> configs = {
-    {}
-};
+const std::vector<std::map<std::string, std::string>> configs = {{}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, VersionTest,
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-                        VersionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         VersionTest,
+                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
+                         VersionTest::getTestCaseName);
 
 }  // namespace

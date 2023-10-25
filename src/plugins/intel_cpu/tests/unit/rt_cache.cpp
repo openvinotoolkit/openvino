@@ -49,7 +49,7 @@ TEST(LruCacheTests, Put) {
 }
 
 TEST(LruCacheTests, Get) {
-    constexpr size_t capacity = 10;
+    constexpr int capacity = 10;
     LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < 2 * capacity; ++i) {
         ASSERT_NO_THROW(cache.put({i}, i));
@@ -65,7 +65,7 @@ TEST(LruCacheTests, Get) {
 }
 
 TEST(LruCacheTests, LruPolicy) {
-    constexpr size_t capacity = 10;
+    constexpr int capacity = 10;
     LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < capacity; ++i) {
         ASSERT_NO_THROW(cache.put({i}, i));
@@ -86,7 +86,7 @@ TEST(LruCacheTests, LruPolicy) {
 
 TEST(LruCacheTests, Empty) {
     constexpr size_t capacity = 0;
-    constexpr size_t attempts = 10;
+    constexpr int attempts = 10;
     LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < attempts; ++i) {
         ASSERT_NO_THROW(cache.put({i}, i));
@@ -108,7 +108,7 @@ TEST(CacheEntryTests, GetOrCreate) {
     using testing::_;
     using ValueType = std::shared_ptr<int>;
 
-    constexpr size_t capacity = 10;
+    constexpr int capacity = 10;
 
     mockBuilder<ValueType::element_type, IntKey> builderMock;
     EXPECT_CALL(builderMock, build(_))
@@ -157,7 +157,7 @@ TEST(CacheEntryTests, Empty) {
     using ValueType = std::shared_ptr<int>;
 
     constexpr size_t capacity = 0;
-    constexpr size_t attempts = 10;
+    constexpr int attempts = 10;
 
     mockBuilder<ValueType::element_type, IntKey> builderMock;
     EXPECT_CALL(builderMock, build(_))
@@ -203,7 +203,7 @@ TEST(MultiCacheTests, GetOrCreate) {
     using IntValueType = std::shared_ptr<int>;
     using StrValueType = std::shared_ptr<std::string>;
 
-    constexpr size_t capacity = 10;
+    constexpr int capacity = 10;
 
     mockBuilder<IntValueType::element_type, IntKey> intBuilderMock;
     EXPECT_CALL(intBuilderMock, build(_))
@@ -275,7 +275,7 @@ TEST(MultiCacheTests, Empty) {
     using StrValueType = std::shared_ptr<std::string>;
 
     constexpr size_t capacity = 0;
-    constexpr size_t attempts = 10;
+    constexpr int attempts = 10;
 
     mockBuilder<IntValueType::element_type, IntKey> intBuilderMock;
     EXPECT_CALL(intBuilderMock, build(_))
@@ -339,7 +339,7 @@ TEST(MultiCacheTests, SmokeTypeIdSync) {
     using IntValueType = std::shared_ptr<int>;
     using StrValueType = std::shared_ptr<std::string>;
 
-    constexpr size_t capacity = 10;
+    constexpr int capacity = 10;
     constexpr size_t numThreads = 30;
 
     auto intBuilder = [&](const IntKey& key) { return std::make_shared<int>(key.data); };

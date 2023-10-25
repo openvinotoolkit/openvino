@@ -12,7 +12,7 @@
 #include <ie_core.hpp>
 #include <ie_parameter.hpp>
 #include <functional_test_utils/skip_tests_config.hpp>
-#include <ngraph_functions/subgraph_builders.hpp>
+#include <ov_models/subgraph_builders.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -128,7 +128,7 @@ public:
         std::ostringstream result;
         result << "target_device=" << target_device << "_";
         if (!configuration.empty()) {
-            using namespace CommonTestUtils;
+            using namespace ov::test::utils;
             result << "config=" << (configuration);
         }
         return result.str();

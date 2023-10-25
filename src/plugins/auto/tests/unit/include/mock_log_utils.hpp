@@ -4,27 +4,28 @@
 
 #pragma once
 #include <gmock/gmock.h>
+
 #include "utils/log.hpp"
-using namespace MockMultiDevicePlugin;
-namespace MockMultiDevice {
+namespace ov {
+namespace mock_auto_plugin {
 
 class MockLog : public Log {
 public:
-    MOCK_METHOD(void, print, (std::stringstream& stream),  (override));
-    MockLog(std::string unittest):Log(unittest) {
-    }
-    static MockLog* GetInstance() {
-        if (_mockLog == NULL) {
-            _mockLog = new MockLog("unittest");
+    MOCK_METHOD(void, print, (std::stringstream & stream), (override));
+    MockLog(std::string unittest) : Log(unittest) {}
+    static MockLog* get_instance() {
+        if (m_mocklog == NULL) {
+            m_mocklog = new MockLog("unittest");
         }
-        return _mockLog;
+        return m_mocklog;
     }
-    static void Release() {
-        if (_mockLog) {
-            delete _mockLog;
-            _mockLog = NULL;
+    static void release() {
+        if (m_mocklog) {
+            delete m_mocklog;
+            m_mocklog = NULL;
         }
     }
-    static MockLog* _mockLog;
+    static MockLog* m_mocklog;
 };
-}// namespace MockMultiDevice
+}  // namespace mock_auto_plugin
+}  // namespace ov

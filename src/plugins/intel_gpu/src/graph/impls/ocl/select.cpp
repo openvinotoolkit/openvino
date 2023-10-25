@@ -17,7 +17,7 @@ struct select_impl : typed_primitive_impl_ocl<select> {
     using kernel_selector_t = kernel_selector::select_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::select_params, kernel_selector::select_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::select_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<select_impl>(*this);
@@ -96,3 +96,4 @@ attach_select_impl::attach_select_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::select_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::select)

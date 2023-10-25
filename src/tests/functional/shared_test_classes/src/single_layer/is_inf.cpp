@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/is_inf.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "ie_plugin_config.hpp"
 
@@ -20,13 +20,13 @@ std::string IsInfLayerTest::getTestCaseName(const testing::TestParamInfo<IsInfPa
 
     result << "IS=(";
     for (size_t i = 0lu; i < inputShapes.size(); i++) {
-        result << CommonTestUtils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
+        result << ov::test::utils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
     }
     result << ")_TS=";
     for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
         result << "{";
         for (size_t j = 0lu; j < inputShapes.size(); j++) {
-            result << CommonTestUtils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
+            result << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
         }
         result << "}_";
     }
@@ -57,7 +57,10 @@ void IsInfLayerTest::SetUp() {
     init_input_shapes(shapes);
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-    auto parameters = ngraph::builder::makeDynamicParams(dataPrc, inputDynamicShapes);
+    ov::ParameterVector parameters;
+    for (auto&& shape : inputDynamicShapes) {
+        parameters.push_back(std::make_shared<ov::op::v0::Parameter>(dataPrc, shape));
+    }
     parameters[0]->set_friendly_name("Data");
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(parameters));
 

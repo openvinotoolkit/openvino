@@ -131,7 +131,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
         }
 
         bool is_descending_strides = true;
-        for (int i = 1; i < strides.size(); i++) {
+        for (size_t i = 1; i < strides.size(); i++) {
             is_descending_strides &= (strides[i - 1] >= strides[i]);
         }
 
@@ -143,7 +143,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
 
     if (!strides.empty() && !emptyDesc && std::none_of(strides.begin(), strides.end(), [](size_t x) { return Shape::UNDEFINED_DIM == x; })) {
         bool inner_block_are_dense = one_of(strides.back(), 0u, 1u);  // stride 1 - is dense case, 0 - broad casted
-        for (int i = outer_ndims; i < strides.size() - 1; i++) {
+        for (size_t i = outer_ndims; i < strides.size() - 1; i++) {
             inner_block_are_dense &= (strides[i] == strides[i + 1] * blockedDims[i + 1]);
         }
 
@@ -279,7 +279,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMa
         return false;
 
     const uint64_t stride_mask = (0xffffffffffffffff << cmpMask.size()) | cmpMask.to_ullong();
-    const bool checkOffset = cmpMask.test(BLOCKED_DESC_OFFSET_MASK_POS);
+    const bool checkOffset = cmpMask.test(OFFSET_MASK_POS);
 
     const auto thisExtra = wrappedThis.extra();
     const auto rhsExtra = wrappedRhs.extra();
@@ -303,7 +303,7 @@ static VectorDims extractOrder(const dnnl::memory::desc& desc) {
 
     // total inner block size. in case of 4i16o4i will be {16, 16, 1, 1}
     VectorDims total_block_per_dim(outer_ndims, 1);
-    for (int i = 0; i < inner_ndims; i++) {
+    for (size_t i = 0; i < inner_ndims; i++) {
         total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
     }
     VectorDims outer_block_dims(std::begin(dims), std::begin(dims) + outer_ndims);
@@ -390,8 +390,8 @@ bool DnnlBlockedMemoryDesc::isBlockedCFormat(size_t blk_size) const {
             return false;
         }
     }
-    if (blk_size != UNREACHABLE_DIM && blk_size != desc.get_inner_blks()[0]) {
-            return false;
+    if (blk_size != UNREACHABLE_DIM && static_cast<int64_t>(blk_size) != desc.get_inner_blks()[0]) {
+        return false;
     }
 
     return true;
@@ -479,11 +479,11 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
     if (desc.get_inner_nblks() != refBlkDesc.inner_nblks)
         return false;
 
-    for (size_t i = 0; i < actualBlkDesc.inner_nblks; ++i)
+    for (int i = 0; i < actualBlkDesc.inner_nblks; ++i)
         if (actualBlkDesc.inner_blks[i] != refBlkDesc.inner_blks[i])
             return false;
 
-    for (size_t i = 0; i < actualBlkDesc.inner_nblks; ++i)
+    for (int i = 0; i < actualBlkDesc.inner_nblks; ++i)
         if (actualBlkDesc.inner_idxs[i] != refBlkDesc.inner_idxs[i])
             return false;
 

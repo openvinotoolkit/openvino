@@ -28,9 +28,13 @@ void regclass_CompiledModel(py::module m) {
         "create_infer_request",
         [](ov::CompiledModel& self) {
             // Create temporary ov::InferRequest and move it to actual wrapper class.
-            return std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
+            ov::InferRequest request;
+            {
+                py::gil_scoped_release release;
+                request = self.create_infer_request();
+            }
+            return std::make_shared<InferRequestWrapper>(std::move(request), self.inputs(), self.outputs());
         },
-        py::call_guard<py::gil_scoped_release>(),
         R"(
             Creates an inference request object used to infer the compiled model.
             The created request has allocated input and output tensors.
@@ -267,6 +271,7 @@ void regclass_CompiledModel(py::module m) {
         auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
         auto outputs_str = Common::docs::container_to_string(self.outputs(), ",\n");
 
-        return "<CompiledModel:\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str + "\n]>";
+        return "<" + Common::get_class_name(self) + ":\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str +
+               "\n]>";
     });
 }

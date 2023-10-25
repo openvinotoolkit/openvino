@@ -21,7 +21,7 @@ public:
 
     LegacyConversionExtension() : ov::frontend::ConversionExtensionBase("") {}
 
-    const OperatorsBridge& ops_bridge() const {
+    OperatorsBridge& ops_bridge() {
         return m_legacy_ops_bridge;
     }
 

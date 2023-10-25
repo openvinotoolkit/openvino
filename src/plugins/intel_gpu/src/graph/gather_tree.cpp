@@ -33,14 +33,13 @@ std::vector<layout> gather_tree_inst::calc_output_layouts(gather_tree_node const
 
     ov::op::v1::GatherTree op;
 
-    std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         impl_param.get_input_layout(0).get<ShapeType>(),
         impl_param.get_input_layout(1).get<ShapeType>(),
         impl_param.get_input_layout(2).get<ShapeType>(),
         impl_param.get_input_layout(3).get<ShapeType>(),
     };
-    ov::op::v1::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v1::shape_infer(&op, input_shapes);
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 

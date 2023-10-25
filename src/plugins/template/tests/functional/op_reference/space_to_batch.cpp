@@ -2,24 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/space_to_batch.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/op/constant.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
 using namespace ov;
 
 namespace {
 struct SpaceToBatchParams {
-    SpaceToBatchParams(const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& blockShapeTensor,
-                       const reference_tests::Tensor& padsBeginTensor, const reference_tests::Tensor& padsEndTensor,
-                       const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
-                  dataTensor(dataTensor), blockShapeTensor(blockShapeTensor),
-                  padsBeginTensor(padsBeginTensor), padsEndTensor(padsEndTensor),
-                  expectedTensor(expectedTensor), testcaseName(testcaseName) {}
+    SpaceToBatchParams(const reference_tests::Tensor& dataTensor,
+                       const reference_tests::Tensor& blockShapeTensor,
+                       const reference_tests::Tensor& padsBeginTensor,
+                       const reference_tests::Tensor& padsEndTensor,
+                       const reference_tests::Tensor& expectedTensor,
+                       const std::string& testcaseName = "")
+        : dataTensor(dataTensor),
+          blockShapeTensor(blockShapeTensor),
+          padsBeginTensor(padsBeginTensor),
+          padsEndTensor(padsEndTensor),
+          expectedTensor(expectedTensor),
+          testcaseName(testcaseName) {}
 
     reference_tests::Tensor dataTensor;
     reference_tests::Tensor blockShapeTensor;
@@ -64,11 +71,11 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const SpaceToBatchParams& params) {
-        const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto blockShape = std::make_shared<opset1::Parameter>(element::i64, params.blockShapeTensor.shape);
-        const auto padsBegin = std::make_shared<opset1::Parameter>(element::i64, params.padsBeginTensor.shape);
-        const auto padsEnd = std::make_shared<opset1::Parameter>(element::i64, params.padsEndTensor.shape);
-        const auto batchToSpace = std::make_shared<opset2::SpaceToBatch>(data, blockShape, padsBegin, padsEnd);
+        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto blockShape = std::make_shared<op::v0::Parameter>(element::i64, params.blockShapeTensor.shape);
+        const auto padsBegin = std::make_shared<op::v0::Parameter>(element::i64, params.padsBeginTensor.shape);
+        const auto padsEnd = std::make_shared<op::v0::Parameter>(element::i64, params.padsEndTensor.shape);
+        const auto batchToSpace = std::make_shared<op::v1::SpaceToBatch>(data, blockShape, padsBegin, padsEnd);
         return std::make_shared<ov::Model>(NodeVector{batchToSpace},
                                            ParameterVector{data, blockShape, padsBegin, padsEnd});
     }
@@ -81,46 +88,51 @@ TEST_P(ReferenceSpaceToBatchLayerTest, CompareWithRefs) {
 template <element::Type_t IN_ET>
 std::vector<SpaceToBatchParams> generateParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
-    std::vector<SpaceToBatchParams> batchToSpaceParams {
+    std::vector<SpaceToBatchParams> batchToSpaceParams{
+        // space_to_batch_3D
+        SpaceToBatchParams(reference_tests::Tensor({1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
+                           reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{1, 1, 1}),
+                           reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{0, 0, 0}),
+                           reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{0, 0, 0}),
+                           reference_tests::Tensor({1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
+                           "space_to_batch_4D"),
+
         // space_to_batch_4D
-        SpaceToBatchParams(
-            reference_tests::Tensor({1, 1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
-            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 1}),
-            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            reference_tests::Tensor({1, 1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
-            "space_to_batch_4D"),
+        SpaceToBatchParams(reference_tests::Tensor({1, 1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
+                           reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 1}),
+                           reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+                           reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+                           reference_tests::Tensor({1, 1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
+                           "space_to_batch_4D"),
 
         // space_to_batch_5D
-         SpaceToBatchParams(
-             reference_tests::Tensor({1, 1, 3, 2, 1}, IN_ET, std::vector<T>{1, 1, 1, 1, 1, 1}),
-             reference_tests::Tensor({5}, element::i64, std::vector<int64_t>{1, 1, 3, 2, 2}),
-             reference_tests::Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 1, 0, 3}),
-             reference_tests::Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 2, 0, 0}),
-             reference_tests::Tensor({12, 1, 2, 1, 2}, IN_ET, std::vector<T>{
-                 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-                 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0,
-                 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-                 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}),
-             "space_to_batch_5D"),
+        SpaceToBatchParams(reference_tests::Tensor({1, 1, 3, 2, 1}, IN_ET, std::vector<T>{1, 1, 1, 1, 1, 1}),
+                           reference_tests::Tensor({5}, element::i64, std::vector<int64_t>{1, 1, 3, 2, 2}),
+                           reference_tests::Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 1, 0, 3}),
+                           reference_tests::Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 2, 0, 0}),
+                           reference_tests::Tensor(
+                               {12, 1, 2, 1, 2},
+                               IN_ET,
+                               std::vector<T>{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0,
+                                              0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}),
+                           "space_to_batch_5D"),
 
         // space_to_batch_4x4
-        SpaceToBatchParams(
-            reference_tests::Tensor({1, 1, 4, 4}, IN_ET, std::vector<T>{
-                1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}),
-            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 1}),
-            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 1, 0}),
-            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            reference_tests::Tensor({1, 1, 5, 4}, IN_ET, std::vector<T>{
-                0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
-                0, 0, 0, 0, 1, 0, 0, 0, 0, 1}),
-            "space_to_batch_4x4"),
+        SpaceToBatchParams(reference_tests::Tensor({1, 1, 4, 4},
+                                                   IN_ET,
+                                                   std::vector<T>{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}),
+                           reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 1}),
+                           reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 1, 0}),
+                           reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+                           reference_tests::Tensor({1, 1, 5, 4}, IN_ET, std::vector<T>{0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+                                                                                       0, 0, 0, 0, 1, 0, 0, 0, 0, 1}),
+                           "space_to_batch_4x4"),
     };
     return batchToSpaceParams;
 }
 
 std::vector<SpaceToBatchParams> generateCombinedParams() {
-    const std::vector<std::vector<SpaceToBatchParams>> batchToSpaceTypeParams {
+    const std::vector<std::vector<SpaceToBatchParams>> batchToSpaceTypeParams{
         generateParams<element::Type_t::i8>(),
         generateParams<element::Type_t::i16>(),
         generateParams<element::Type_t::i32>(),
@@ -142,6 +154,8 @@ std::vector<SpaceToBatchParams> generateCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_SpaceToBatch_With_Hardcoded_Refs, ReferenceSpaceToBatchLayerTest,
-    testing::ValuesIn(generateCombinedParams()), ReferenceSpaceToBatchLayerTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_SpaceToBatch_With_Hardcoded_Refs,
+                         ReferenceSpaceToBatchLayerTest,
+                         testing::ValuesIn(generateCombinedParams()),
+                         ReferenceSpaceToBatchLayerTest::getTestCaseName);
+}  // namespace

@@ -13,6 +13,7 @@ from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
@@ -25,9 +26,20 @@ def refer_to_faq_msg(question_num: int):
         # Telemetry can be not initialized if it is used in MO IR Reader
         pass
 
-    return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
-           '(https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
+    return '\n For more information please refer to Model Conversion API FAQ, question #{0}. ' \
+           '(https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
            '?question={0}#question-{0})'.format(question_num)
+
+
+def check_values_equal(val1, val2):
+    # This method is needed to check equality of values where some values can be None
+    if val1 is None and val2 is None:
+        return True
+    if val1 is None:
+        return False
+    if val2 is None:
+        return False
+    return val1 == val2
 
 
 class NamedAttrsClass:

@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/detection_output.hpp"
+#include "openvino/op/detection_output.hpp"
 
 #include "detection_output_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-
-using namespace std;
 
 // ------------------------------ V0 ------------------------------
 ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
@@ -39,12 +37,11 @@ void ov::op::v0::DetectionOutput::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto output_shapes = std::vector<ov::PartialShape>(1);
-    shape_infer(this, input_shapes, output_shapes);
+    auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<ov::Node> ov::op::v0::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v0::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_DetectionOutput_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
@@ -53,14 +50,14 @@ shared_ptr<ov::Node> ov::op::v0::DetectionOutput::clone_with_new_inputs(const Ou
     NODE_VALIDATION_CHECK(this, num_args == 3 || num_args == 5, "DetectionOutput accepts 3 or 5 inputs.");
 
     if (num_args == 3) {
-        return make_shared<DetectionOutput>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+        return std::make_shared<DetectionOutput>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
     } else {
-        return make_shared<DetectionOutput>(new_args.at(0),
-                                            new_args.at(1),
-                                            new_args.at(2),
-                                            new_args.at(3),
-                                            new_args.at(4),
-                                            m_attrs);
+        return std::make_shared<DetectionOutput>(new_args.at(0),
+                                                 new_args.at(1),
+                                                 new_args.at(2),
+                                                 new_args.at(3),
+                                                 new_args.at(4),
+                                                 m_attrs);
     }
 }
 
@@ -99,12 +96,11 @@ void ov::op::v8::DetectionOutput::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto output_shapes = std::vector<ov::PartialShape>(1);
-    shape_infer(this, input_shapes, output_shapes);
+    auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<ov::Node> ov::op::v8::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v8::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_DetectionOutput_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
@@ -113,14 +109,14 @@ shared_ptr<ov::Node> ov::op::v8::DetectionOutput::clone_with_new_inputs(const Ou
     NODE_VALIDATION_CHECK(this, num_args == 3 || num_args == 5, "DetectionOutput accepts 3 or 5 inputs.");
 
     if (num_args == 3) {
-        return make_shared<DetectionOutput>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+        return std::make_shared<DetectionOutput>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
     } else {
-        return make_shared<DetectionOutput>(new_args.at(0),
-                                            new_args.at(1),
-                                            new_args.at(2),
-                                            new_args.at(3),
-                                            new_args.at(4),
-                                            m_attrs);
+        return std::make_shared<DetectionOutput>(new_args.at(0),
+                                                 new_args.at(1),
+                                                 new_args.at(2),
+                                                 new_args.at(3),
+                                                 new_args.at(4),
+                                                 m_attrs);
     }
 }
 

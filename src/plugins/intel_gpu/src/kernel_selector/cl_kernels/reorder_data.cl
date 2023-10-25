@@ -86,7 +86,7 @@ KERNEL (reorder_data)(
 
 #if defined INPUT0_LAYOUT_NV12 && !SURFACE_INPUT
     const sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_FILTER_NEAREST | CLK_ADDRESS_CLAMP;
-    float4 colorVYU = read_imagef(input, sampler, (int2)(x, y));
+    float4 colorVYU = read_imagef(input, sampler, (int2)(y, f));
 
     float Ycomponent = mad(colorVYU.s1, 296.82f, -18.624f);
     float Ucomponent = mad(colorVYU.s2, 255.0f, -128.f);
@@ -128,7 +128,7 @@ KERNEL (reorder_data)(
     res = MEAN_OP(res, mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, /*msv.s2, msv.s3, msv.s4,msv.s5,*/ msv.s6, msv.s7)]);
 #endif
 #elif SURFACE_INPUT
-    float4 Y = read_imagef(input, (int2)(x, y));
+    float4 Y = read_imagef(input, (int2)(y, f));
     float Ycomponent = mad(Y.x, 296.82f, -18.624f);
     float res = clamp(Ycomponent, 0.f, 255.f);
 #else

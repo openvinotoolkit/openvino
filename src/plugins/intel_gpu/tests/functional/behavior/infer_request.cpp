@@ -10,7 +10,7 @@
 #include "openvino/runtime/core.hpp"
 
 #include <common_test_utils/test_common.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
@@ -78,7 +78,7 @@ void InferRequestIOPrecision::SetUp() {
     float clamp_max = 5.0f;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
     params[0]->set_friendly_name("Input");
 
     auto activation = ngraph::builder::makeActivation(params[0],
@@ -113,7 +113,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferRequestIOPrecision,
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t>{1, 50}),
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          InferRequestIOPrecision::getTestCaseName);
 
 TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
@@ -124,7 +124,7 @@ TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
     p.input().preprocess().convert_element_type(ov::element::f32);
 
     auto function = p.build();
-    auto exec_net = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req = exec_net.create_infer_request();
 
     // Check set_shape call for pre-allocated input/output tensors
@@ -139,8 +139,7 @@ TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
 }
 
 TEST(TensorTest, smoke_canSetScalarTensor) {
-    std::vector<std::vector<size_t>> scalar_shape = {{}};
-    auto params = ngraph::builder::makeParams(ngraph::element::f64, scalar_shape);
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f64, ov::Shape{})};
     params.front()->set_friendly_name("Scalar_1");
     params.front()->output(0).get_tensor().set_names({"scalar1"});
 
@@ -156,10 +155,70 @@ TEST(TensorTest, smoke_canSetScalarTensor) {
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fnPtr, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = ie.compile_model(fnPtr, ov::test::utils::DEVICE_GPU);
     auto request = compiled_model.create_infer_request();
     double real_data = 1.0;
     ov::Tensor input_data(ngraph::element::f64, {}, &real_data);
     request.set_tensor("scalar1", input_data);
     ASSERT_NO_THROW(request.infer());
 }
+
+TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
+    auto ie = ov::Core();
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+
+    auto function = p.build();
+    std::map<size_t, ov::PartialShape> shapes = { {0, ov::PartialShape{-1, -1, -1, -1}} };
+    function->reshape(shapes);
+    auto exec_net = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
+    auto inf_req = exec_net.create_infer_request();
+
+    ov::Tensor t1(ov::element::i8, {1, 4, 20, 20});
+    ov::Tensor t2(ov::element::i8, {1, 4, 30, 30});
+    ov::Tensor t3(ov::element::i8, {1, 4, 40, 40});
+
+    // Check set_shape call for pre-allocated input/output tensors
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
+    ASSERT_NO_THROW(inf_req.infer());
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
+    ASSERT_NO_THROW(inf_req.infer());
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
+    ASSERT_NO_THROW(inf_req.infer());
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
+    ASSERT_NO_THROW(inf_req.infer());
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
+    ASSERT_NO_THROW(inf_req.infer());
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
+    ASSERT_NO_THROW(inf_req.infer());
+}
+
+TEST(TensorTest, smoke_canReallocateDeviceInputForHostTensor) {
+    auto ov = ov::Core();
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+    auto function = p.build();
+
+    auto compiled_model = ov.compile_model(function, ov::test::utils::DEVICE_GPU);
+    auto inf_req = compiled_model.create_infer_request();
+
+    auto input = function->input();
+    ov::Tensor host_tensor(input.get_element_type(), input.get_shape());
+
+    // Infer with pre-allocated input tensor
+    ASSERT_NO_THROW(inf_req.infer());
+
+    // Infer with host_tensor
+    ASSERT_NO_THROW(inf_req.set_input_tensor(host_tensor));
+    ASSERT_NO_THROW(inf_req.infer());
+}
+

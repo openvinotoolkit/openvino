@@ -14,7 +14,7 @@ from save_model import saveModel
 
 def ngraph_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, sparse):
     """
-    decomposing embedding with ngraph ops.
+    decomposing embedding with OpenVINO ops.
     """
     import ngraph as ng
     from ngraph import opset8 as opset

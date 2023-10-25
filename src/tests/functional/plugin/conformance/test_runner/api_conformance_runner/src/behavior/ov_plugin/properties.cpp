@@ -16,9 +16,7 @@ const std::vector<ov::AnyMap> inproperties = {
         {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
-const std::vector<ov::AnyMap> auto_batch_inproperties = {
-        {{ov::auto_batch_timeout(-1)}},
-};
+const std::vector<ov::AnyMap> auto_batch_inproperties = {};
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
                         ::testing::Combine(
@@ -28,14 +26,13 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesIncorrectTests,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                ::testing::Values(ov::test::utils::DEVICE_BATCH),
                                 ::testing::ValuesIn(auto_batch_inproperties)),
                         OVPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
         {},
         {ov::enable_profiling(true)},
-        {ov::device::id("0")},
 };
 
 const std::vector<ov::AnyMap> auto_batch_properties = {
@@ -52,8 +49,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesTests,
         ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),
+                ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(ov::test::utils::DEVICE_BATCH, auto_batch_properties))),
         OVPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckGetSupportedROMetricsPropsTests,
@@ -80,15 +77,17 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckSetSupportedRWMetricsPropsTests,
                         ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues())),
         OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> device_properties = {
-        {ov::device::id("0")},
-};
-
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
         ::testing::Combine(
                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                ::testing::ValuesIn(device_properties)),
+                ::testing::Values(ov::AnyMap({}))),
         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
+        ::testing::Combine(
+                ::testing::ValuesIn(return_all_possible_device_combination()),
+                ::testing::Values(ov::AnyMap({}))),
+        OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
         ::testing::Combine(

@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -33,16 +33,6 @@ using CTCGreedyDecoderSeqLenLayerCPUTestParams = std::tuple<InputShapeParams,   
                                                             ElementType,         // Index Type
                                                             bool                 // mergeRepeated
                                                             >;
-inline ngraph::ParameterVector makeDynamicParams(const std::vector<ElementType>& types,
-                                          const std::vector<ov::PartialShape>& shapes) {
-    ngraph::ParameterVector outs;
-    NGRAPH_CHECK(types.size() == shapes.size());
-    for (size_t i = 0; i < types.size(); i++) {
-        auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], shapes[i]);
-        outs.push_back(paramNode);
-    }
-    return outs;
-}
 
 class CTCGreedyDecoderSeqLenLayerCPUTest : public testing::WithParamInterface<CTCGreedyDecoderSeqLenLayerCPUTestParams>,
                                            virtual public SubgraphBaseTest,
@@ -55,7 +45,7 @@ public:
         ElementType indexType;
         std::tie(shapes, inType, indexType, mergeRepeated) = obj.param;
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& shape : shapes.second) {
             size_t N;
@@ -84,7 +74,7 @@ protected:
         ElementType indexType;
         std::tie(shapes, inType, indexType, mergeRepeated) = GetParam();
         selectedType = "ref_any_FP32";
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ASSERT_EQ(shapes.first.size(), 4);
         const auto& in_dyn_N = shapes.first[0];
         const auto& in_dyn_T = shapes.first[1];
@@ -95,6 +85,7 @@ protected:
         inputDynamicShapes = {ov::PartialShape{in_dyn_N, in_dyn_T, in_dyc_C},
                               ov::PartialShape{in_dyn_N},
                               blank_rank == 0 ? ov::PartialShape{} : ov::PartialShape{1}};
+        OPENVINO_ASSERT(inType.size() == inputDynamicShapes.size());
 
         for (auto& shape : shapes.second) {
             size_t N;
@@ -107,7 +98,11 @@ protected:
                 targetStaticShapes.push_back({{N, T, C}, {N}, {1}});
         }
 
-        auto params = makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (size_t i = 0; i < inType.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(inType[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
+        }
         auto ctcGreedyDecoderSeqLen = std::make_shared<ov::op::v6::CTCGreedyDecoderSeqLen>(params[0],
                                                                                            params[1],
                                                                                            params[2],
@@ -123,7 +118,7 @@ protected:
         inputs.clear();
         const auto& funcInputs = function->inputs();
         const auto& dataShape = targetInputStaticShapes[0];
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
@@ -144,7 +139,7 @@ protected:
                 std::uniform_int_distribution<unsigned long> dist(1, seqLen);
 
                 std::vector<int32_t> sequenceLenData(B, 0);
-                for (int b = 0; b < B; b++) {
+                for (size_t b = 0; b < B; b++) {
                     const int len = dist(gen);
                     sequenceLenData[b] = len;
                 }

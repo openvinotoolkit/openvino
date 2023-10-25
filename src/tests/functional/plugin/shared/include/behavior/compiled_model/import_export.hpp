@@ -8,11 +8,13 @@
 #include <openvino/pass/serialize.hpp>
 #include <ie_ngraph_utils.hpp>
 #include "base/ov_behavior_test_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace ov {
 namespace test {
@@ -74,21 +76,21 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunction) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
         relu->set_friendly_name("relu_op");
         relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        auto result1 = std::make_shared<ov::op::v0::Result>(relu);
         result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{relu, param2}, 1);
         concat->set_friendly_name("concat_op");
         concat->output(0).get_tensor().set_names({"concat"});
-        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        auto result2 = std::make_shared<ov::op::v0::Result>(concat);
         result2->set_friendly_name("result2");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                       ngraph::ParameterVector{param1, param2});
@@ -151,10 +153,10 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunction) {
 TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionParameterResultOnly) {
     // Create a simple function
     {
-        auto param = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param->set_friendly_name("param");
         param->output(0).get_tensor().set_names({"data"});
-        auto result = std::make_shared<ov::opset8::Result>(param);
+        auto result = std::make_shared<ov::op::v0::Result>(param);
         result->set_friendly_name("result");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                       ngraph::ParameterVector{param});
@@ -187,10 +189,10 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionParameterResultOnl
 TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionConstantResultOnly) {
     // Create a simple function
     {
-        auto constant = std::make_shared<ov::opset8::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto constant = std::make_shared<ov::op::v0::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
         constant->set_friendly_name("constant");
         constant->output(0).get_tensor().set_names({"data"});
-        auto result = std::make_shared<ov::opset8::Result>(constant);
+        auto result = std::make_shared<ov::op::v0::Result>(constant);
         result->set_friendly_name("result");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                       ngraph::ParameterVector{});
@@ -318,21 +320,21 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedIENetwork) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
         relu->set_friendly_name("relu_op");
         relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        auto result1 = std::make_shared<ov::op::v0::Result>(relu);
         result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{relu, param2}, 1);
         concat->set_friendly_name("concat_op");
         concat->output(0).get_tensor().set_names({"concat"});
-        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        auto result2 = std::make_shared<ov::op::v0::Result>(concat);
         result2->set_friendly_name("result2");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                       ngraph::ParameterVector{param1, param2});
@@ -380,10 +382,10 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedIENetworkParameterResultOn
 
     // Create a simple function
     {
-        auto param = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param->set_friendly_name("param");
         param->output(0).get_tensor().set_names({"data"});
-        auto result = std::make_shared<ov::opset8::Result>(param);
+        auto result = std::make_shared<ov::op::v0::Result>(param);
         result->set_friendly_name("result");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         function->set_friendly_name("ParamResult");
@@ -418,10 +420,10 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedIENetworkConstantResultOnl
 
     // Create a simple function
     {
-        auto constant = std::make_shared<ov::opset8::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto constant = std::make_shared<ov::op::v0::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
         constant->set_friendly_name("constant");
         constant->output(0).get_tensor().set_names({"data"});
-        auto result = std::make_shared<ov::opset8::Result>(constant);
+        auto result = std::make_shared<ov::op::v0::Result>(constant);
         result->set_friendly_name("result");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                       ngraph::ParameterVector{});
@@ -459,21 +461,21 @@ TEST_P(OVCompiledGraphImportExportTest, ovImportExportedFunction) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
         relu->set_friendly_name("relu_op");
         relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        auto result1 = std::make_shared<ov::op::v0::Result>(relu);
         result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{relu, param2}, 1);
         concat->set_friendly_name("concat_op");
         concat->output(0).get_tensor().set_names({"concat"});
-        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        auto result2 = std::make_shared<ov::op::v0::Result>(concat);
         result2->set_friendly_name("result2");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                       ngraph::ParameterVector{param1, param2});

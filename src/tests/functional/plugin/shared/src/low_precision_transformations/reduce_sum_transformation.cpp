@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/reduce_function.hpp"
+#include "ov_lpt_models/reduce.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -16,7 +16,7 @@ std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInf
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ReduceSumTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
@@ -33,7 +33,7 @@ std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInf
 void ReduceSumTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ReduceSumTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 

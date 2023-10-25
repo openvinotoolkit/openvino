@@ -10,12 +10,12 @@
 #include "intel_gpu/runtime/lru_cache.hpp"
 
 #include "data_inst.h"
-#include "generic_layer_inst.h"
 #include "reorder_inst.h"
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
 #include "binary_convolution_inst.h"
+#include "quantize_inst.h"
 
 #include <vector>
 #include <memory>
@@ -72,7 +72,6 @@ private:
     };
 
     std::map<cache_key, std::shared_ptr<reorder>> _cached_reorders;
-    std::map<cache_key, std::shared_ptr<generic_layer>> _cached_generic_reorders;
 };
 
 class layout_optimizer {
@@ -111,18 +110,9 @@ private:
     size_t _total_conv;
     std::map<std::pair<format::type, bool>, size_t> _optimized_conv_count;
 
-    layout get_expected_layout(layout const& current_layout,
-                               convolution_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               deconvolution_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               detection_output_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               binary_convolution_node const& node,
-                               layout const& output_or_weights_layout);
+    format get_expected_format(convolution_node const& node);
+    format get_expected_format(deconvolution_node const& node);
+    format get_expected_format(quantize_node const& node);
 
     bool is_depthwise(const convolution_node& node) const;
     format imad_case(convolution_node const& node) const;
@@ -179,6 +169,7 @@ public:
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
     impl_types get_forced_impl_type_by_config(program_node& node);
+    static bool is_node_suitable_for_onednn(program_node& node);
     static bool are_data_types_suitable_for_onednn(program_node& node);
     bool are_layouts_suitable_for_onednn(program_node& node);
     static bool onednn_check_data_types_for_pooling(data_types in_dt, data_types out_dt);
@@ -198,6 +189,7 @@ public:
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
 
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
+    const std::map<primitive_id, std::pair<format::type, impl_types>> get_implementation_forcing() const;
 
     void update_formats_map(const convolution_node& node);
     bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);

@@ -25,7 +25,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyWithOneParentTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(values)),
     MultiplyWithOneParentTransformation::getTestCaseName);
 }  // namespace

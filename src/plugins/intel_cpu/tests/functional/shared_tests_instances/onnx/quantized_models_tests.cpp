@@ -8,5 +8,5 @@
 using namespace ONNXTestsDefinitions;
 
 INSTANTIATE_TEST_SUITE_P(ONNXQuantizedModels, QuantizedModelsTests,
-                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                         QuantizedModelsTests::getTestCaseName);

@@ -28,7 +28,6 @@
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
 #include "intel_gpu/primitives/gather_nd.hpp"
@@ -36,6 +35,7 @@
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/grid_sample.hpp"
 #include "intel_gpu/primitives/grn.hpp"
+#include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
 #include "intel_gpu/primitives/lstm.hpp"
 #include "intel_gpu/primitives/lstm_dynamic.hpp"
@@ -59,6 +59,7 @@
 #include "intel_gpu/primitives/resample.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reverse_sequence.hpp"
+#include "intel_gpu/primitives/rms.hpp"
 #include "intel_gpu/primitives/roi_align.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
 #include "intel_gpu/primitives/roll.hpp"
@@ -75,6 +76,7 @@
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
+#include "intel_gpu/primitives/unique.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -120,6 +122,7 @@ REGISTER_OCL(gather_elements);
 REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
+REGISTER_OCL(group_normalization);
 REGISTER_OCL(lrn);
 REGISTER_OCL(lstm_gemm);
 REGISTER_OCL(lstm_elt);
@@ -144,6 +147,7 @@ REGISTER_OCL(reorg_yolo);
 REGISTER_OCL(reshape);
 REGISTER_OCL(reverse);
 REGISTER_OCL(reverse_sequence);
+REGISTER_OCL(rms);
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
 REGISTER_OCL(roll);
@@ -161,7 +165,6 @@ REGISTER_OCL(strided_slice);
 REGISTER_OCL(tile);
 REGISTER_OCL(lstm_dynamic_input);
 REGISTER_OCL(lstm_dynamic_timeloop);
-REGISTER_OCL(generic_layer);
 REGISTER_OCL(gather_tree);
 REGISTER_OCL(resample);
 REGISTER_OCL(grn);
@@ -174,6 +177,8 @@ REGISTER_OCL(convert_color);
 REGISTER_OCL(count_nonzero);
 REGISTER_OCL(gather_nonzero);
 REGISTER_OCL(eye);
+REGISTER_OCL(unique_count);
+REGISTER_OCL(unique_gather);
 
 #undef REGISTER_OCL
 

@@ -38,65 +38,65 @@ namespace PluginConfigInternalParams {
  * @brief Defines a low precision mode key
  * @ingroup ie_dev_api_plugin_api
  */
-DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
 
 /**
  * @brief Limit \#threads that are used by CPU Executor Streams to execute `parallel_for` calls
  * @ingroup ie_dev_api_plugin_api
  */
-DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 
 /**
  * @brief Number of streams in Performance-core(big core)
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
-DECLARE_CONFIG_KEY(BIG_CORE_STREAMS);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(BIG_CORE_STREAMS);
 
 /**
  * @brief Number of streams in Efficient-core(small core) on hybrid cores machine
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
-DECLARE_CONFIG_KEY(SMALL_CORE_STREAMS);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(SMALL_CORE_STREAMS);
 
 /**
  * @brief Number of threads per stream in big cores
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
-DECLARE_CONFIG_KEY(THREADS_PER_STREAM_BIG);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(THREADS_PER_STREAM_BIG);
 
 /**
  * @brief Number of threads per stream in small cores on hybrid cores machine
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
-DECLARE_CONFIG_KEY(THREADS_PER_STREAM_SMALL);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(THREADS_PER_STREAM_SMALL);
 
 /**
  * @brief Small core start offset when binding cpu cores
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
-DECLARE_CONFIG_KEY(SMALL_CORE_OFFSET);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(SMALL_CORE_OFFSET);
 
 /**
  * @brief Defines how many records can be stored in the CPU runtime parameters cache per CPU runtime parameter type per
  * stream
  * @ingroup ie_dev_api_plugin_api
  */
-DECLARE_CONFIG_KEY(CPU_RUNTIME_CACHE_CAPACITY);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(CPU_RUNTIME_CACHE_CAPACITY);
 
 /**
  * @brief Internal device id for particular device (like GPU.0, GPU.1 etc)
  */
-DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
 
 /**
  * @brief enable hyper thread
  */
-DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
 
 /**
  * @brief Defines Snippets tokenization mode
@@ -105,10 +105,10 @@ DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
  *      @param DISABLE - turn off the Snippets
  * @ingroup ie_dev_api_plugin_api
  */
-DECLARE_CONFIG_KEY(SNIPPETS_MODE);
-DECLARE_CONFIG_VALUE(ENABLE);
-DECLARE_CONFIG_VALUE(IGNORE_CALLBACK);
-DECLARE_CONFIG_VALUE(DISABLE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_KEY(SNIPPETS_MODE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(ENABLE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(IGNORE_CALLBACK);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(DISABLE);
 
 }  // namespace PluginConfigInternalParams
 

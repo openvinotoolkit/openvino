@@ -11,6 +11,7 @@
 #include "ngraph/opsets/opset9.hpp"
 #include "ngraph/shape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -22,3 +23,4 @@ OutputVector softsign(const Node& node) {
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

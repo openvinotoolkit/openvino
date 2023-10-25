@@ -4,7 +4,9 @@
 
 #pragma once
 #include <array>
-#include <openvino/op/ctc_loss.hpp>
+
+#include "openvino/op/ctc_loss.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
@@ -16,8 +18,8 @@ constexpr auto shape_names =
 constexpr auto shape_ranks = std::array<int64_t, 4>{3, 1, 2, 1};
 }  // namespace ctc_loss
 
-template <class TShape>
-std::vector<TShape> shape_infer(const CTCLoss* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const CTCLoss* op, const std::vector<TShape>& input_shapes) {
     using DimType = typename TShape::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 || input_shapes.size() == 5);
 
@@ -89,14 +91,8 @@ std::vector<TShape> shape_infer(const CTCLoss* op, const std::vector<TShape>& in
         " and: ",
         batch_size);
 
-    return {TShape{batch_size}};
+    return {TRShape{batch_size}};
 }
-
-template <class TShape>
-void shape_infer(const CTCLoss* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
-}
-
 }  // namespace v4
 }  // namespace op
 }  // namespace ov

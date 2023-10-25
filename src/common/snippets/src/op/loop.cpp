@@ -50,18 +50,19 @@ bool LoopBegin::visit_attributes(AttributeVisitor &visitor) {
 
 LoopEnd::LoopEnd(const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
                  std::vector<bool> apply_increments, std::vector<int64_t> finalization_offsets,
-                 std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num)
+                 std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id)
         : LoopBase({loop_begin}),
         has_outer_loop(true),
-        finalization_offsets(std::move(finalization_offsets)),
-        element_type_sizes(std::move(element_type_sizes)),
-        work_amount(work_amount),
-        work_amount_increment(work_amount_increment),
-        input_num(input_num),
-        output_num(output_num),
-        evaluate_once(false) {
-        ptr_increments.resize(apply_increments.size());
-        std::transform(apply_increments.begin(), apply_increments.end(), ptr_increments.begin(),
+        m_finalization_offsets(std::move(finalization_offsets)),
+        m_element_type_sizes(std::move(element_type_sizes)),
+        m_work_amount(work_amount),
+        m_work_amount_increment(work_amount_increment),
+        m_input_num(input_num),
+        m_output_num(output_num),
+        m_id(id),
+        m_evaluate_once(false) {
+        m_ptr_increments.resize(apply_increments.size());
+        std::transform(apply_increments.begin(), apply_increments.end(), m_ptr_increments.begin(),
                        [](bool apply) {
                            return apply ? 1 : 0;
                        });
@@ -70,24 +71,27 @@ LoopEnd::LoopEnd(const Output<Node>& loop_begin, size_t work_amount, size_t work
 
 LoopEnd::LoopEnd(const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
                  std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets,
-                 std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num)
+                 std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id)
         : LoopBase({loop_begin}),
         has_outer_loop(true),
-        ptr_increments(std::move(ptr_increments)),
-        finalization_offsets(std::move(finalization_offsets)),
-        element_type_sizes(std::move(element_type_sizes)),
-        work_amount(work_amount),
-        work_amount_increment(work_amount_increment),
-        input_num(input_num),
-        output_num(output_num),
-        evaluate_once(false) {
+        m_ptr_increments(std::move(ptr_increments)),
+        m_finalization_offsets(std::move(finalization_offsets)),
+        m_element_type_sizes(std::move(element_type_sizes)),
+        m_work_amount(work_amount),
+        m_work_amount_increment(work_amount_increment),
+        m_input_num(input_num),
+        m_output_num(output_num),
+        m_id(id),
+        m_evaluate_once(false) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<Node> LoopEnd::clone_with_new_inputs(const OutputVector& inputs) const {
     check_new_args_count(this, inputs);
-    return std::make_shared<LoopEnd>(inputs.at(0), work_amount, work_amount_increment, ptr_increments,
-                                     finalization_offsets, element_type_sizes, input_num, output_num);
+    const auto loop_end = std::make_shared<LoopEnd>(inputs.at(0), m_work_amount, m_work_amount_increment, m_ptr_increments,
+                                                    m_finalization_offsets, m_element_type_sizes, m_input_num, m_output_num, m_id);
+    loop_end->m_evaluate_once = m_evaluate_once;
+    return loop_end;
 }
 
 std::shared_ptr<LoopBegin> LoopEnd::get_loop_begin() {
@@ -98,92 +102,99 @@ std::shared_ptr<LoopBegin> LoopEnd::get_loop_begin() {
 }
 
 const std::vector<int64_t>& LoopEnd::get_finalization_offsets() const {
-    return finalization_offsets;
+    return m_finalization_offsets;
 }
 
 const std::vector<int64_t>& LoopEnd::get_ptr_increments()const {
-    return ptr_increments;
+    return m_ptr_increments;
 }
 
 const std::vector<int64_t>& LoopEnd::get_element_type_sizes() const {
-    return element_type_sizes;
+    return m_element_type_sizes;
 }
 
 size_t LoopEnd::get_input_num() const {
-    return input_num;
+    return m_input_num;
 }
 
 size_t LoopEnd::get_output_num() const {
-    return output_num;
+    return m_output_num;
+}
+
+size_t LoopEnd::get_work_amount() const {
+    return m_work_amount;
+}
+
+bool LoopEnd::get_evaluate_once() const {
+    return m_evaluate_once;
+}
+
+size_t LoopEnd::get_increment() const {
+    return m_work_amount_increment;
+}
+
+size_t LoopEnd::get_id() const {
+    return m_id;
 }
 
 void LoopEnd::set_finalization_offsets(std::vector<int64_t> offsets) {
-    OPENVINO_ASSERT(offsets.size() == input_num + output_num,
+    OPENVINO_ASSERT(offsets.size() == m_input_num + m_output_num,
                     "LoopEnd set_finalization_offsets is called with inconsistent offsets.size()");
-    finalization_offsets = std::move(offsets);
+    m_finalization_offsets = std::move(offsets);
 }
 
 void LoopEnd::set_ptr_increments(std::vector<int64_t> new_ptr_increments) {
-    OPENVINO_ASSERT(new_ptr_increments.size() == input_num + output_num,
+    OPENVINO_ASSERT(new_ptr_increments.size() == m_input_num + m_output_num,
                     "LoopEnd set_finalization_offsets is called with inconsistent offsets.size()");
-    ptr_increments = std::move(new_ptr_increments);
+    m_ptr_increments = std::move(new_ptr_increments);
 }
 
 void LoopEnd::update_ptr_increments(int64_t new_increment) {
-    std::transform(ptr_increments.begin(), ptr_increments.end(), ptr_increments.begin(),
+    std::transform(m_ptr_increments.begin(), m_ptr_increments.end(), m_ptr_increments.begin(),
                    [new_increment](int64_t old_increment){
                         return old_increment != 0 ? new_increment : 0;
                    });
 }
 
 void LoopEnd::set_work_amount(size_t new_work_amount) {
-    work_amount = new_work_amount;
+    m_work_amount = new_work_amount;
 }
 
 void LoopEnd::set_increment(size_t new_increment) {
-    work_amount_increment = new_increment;
+    m_work_amount_increment = new_increment;
 }
 
 void LoopEnd::set_evaluate_once(bool once) {
-    evaluate_once = once;
+    m_evaluate_once = once;
 }
 
 void LoopEnd::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "LoopEnd must have one input");
     const auto loop_begin = ov::as_type_ptr<LoopBegin>(get_input_node_shared_ptr(0));
-    const auto io_size = input_num + output_num;
+    const auto io_size = m_input_num + m_output_num;
     NODE_VALIDATION_CHECK(this, loop_begin != nullptr, "LoopEnd must have LoopBegin as the last argument");
-    NODE_VALIDATION_CHECK(this, ptr_increments.empty() || ptr_increments.size() == io_size,
+    NODE_VALIDATION_CHECK(this, m_ptr_increments.empty() || m_ptr_increments.size() == io_size,
                           "ptr_increments must be either empty or defined per every input & output of joined Loop. Expected size: ",
-                          io_size, " got ", ptr_increments.size());
-    NODE_VALIDATION_CHECK(this, finalization_offsets.empty() || finalization_offsets.size() == io_size,
+                          io_size, " got ", m_ptr_increments.size());
+    NODE_VALIDATION_CHECK(this, m_finalization_offsets.empty() || m_finalization_offsets.size() == io_size,
                           "finalization_offsets must be either empty or defined per every input & output of joined Loop. Expected size: ",
-                          io_size, " got ", finalization_offsets.size());
-    if (ptr_increments.empty())
-        ptr_increments.resize(io_size, 1);
-    if (finalization_offsets.empty())
-        finalization_offsets.resize(io_size, 0);
+                          io_size, " got ", m_finalization_offsets.size());
+    if (m_ptr_increments.empty())
+        m_ptr_increments.resize(io_size, 1);
+    if (m_finalization_offsets.empty())
+        m_finalization_offsets.resize(io_size, 0);
     set_output_type(0, element::f32, ov::PartialShape{ov::Shape{}});
 }
 
 bool LoopEnd::visit_attributes(AttributeVisitor &visitor) {
-    visitor.on_attribute("work_amount", work_amount);
-    visitor.on_attribute("increment", work_amount_increment);
-    visitor.on_attribute("ptr_incr", ptr_increments);
-    visitor.on_attribute("fin_offset", finalization_offsets);
+    visitor.on_attribute("work_amount", m_work_amount);
+    visitor.on_attribute("increment", m_work_amount_increment);
+    visitor.on_attribute("ptr_incr", m_ptr_increments);
+    visitor.on_attribute("fin_offset", m_finalization_offsets);
+    visitor.on_attribute("input_num", m_input_num);
+    visitor.on_attribute("output_num", m_output_num);
+    visitor.on_attribute("id", m_id);
     return true;
-}
-
-size_t LoopEnd::get_work_amount() const {
-    return work_amount;
-}
-
-bool LoopEnd::get_evaluate_once() const {
-    return evaluate_once;
-}
-
-size_t LoopEnd::get_increment() const {
-    return work_amount_increment;
 }
 
 } // namespace op

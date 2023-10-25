@@ -122,7 +122,7 @@
  * @ingroup ov_c_api
  * @brief The definitions & operations about tensor
  *
- * @defgroup ov_remote_context_c_api ov_remote_context
+ * @defgroup ov_remote_context_c_api Remote Context
  * @ingroup ov_c_api
  * @brief Set of functions representing of RemoteContext
  */
@@ -186,6 +186,7 @@ typedef enum {
     U16,             //!< u16 element type
     U32,             //!< u32 element type
     U64,             //!< u64 element type
+    NF4,             //!< nf4 element type
 } ov_element_type_e;
 
 /**

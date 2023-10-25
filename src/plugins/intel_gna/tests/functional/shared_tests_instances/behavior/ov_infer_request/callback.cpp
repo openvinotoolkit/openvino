@@ -11,17 +11,17 @@ const std::vector<ov::AnyMap> configs = {
     {},
 };
 
-const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(CommonTestUtils::DEVICE_GNA)}};
+const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_GNA)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestCallbackTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          OVInferRequestCallbackTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          OVInferRequestCallbackTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiConfigs)),
                          OVInferRequestCallbackTests::getTestCaseName);
 }  // namespace

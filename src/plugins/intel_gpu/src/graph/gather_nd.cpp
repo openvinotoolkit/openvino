@@ -84,7 +84,7 @@ std::vector<layout> gather_nd_inst::calc_output_layouts(gather_nd_node const& /*
         output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> output_shapes;
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         indices_layout.get<ShapeType>()
@@ -93,13 +93,15 @@ std::vector<layout> gather_nd_inst::calc_output_layouts(gather_nd_node const& /*
     if (desc->batch_merged_output) {
         ov::op::v5::GatherND op;
         op.set_batch_dims(desc->batch_dims);
-        ov::op::v5::shape_infer(&op, input_shapes, output_shapes);
+        output_shapes = ov::op::v5::shape_infer(&op, input_shapes);
     } else {
         ov::op::v8::GatherND op;
         op.set_batch_dims(desc->batch_dims);
-        ov::op::v8::shape_infer(&op, input_shapes, output_shapes);
+        output_shapes = ov::op::v8::shape_infer(&op, input_shapes);
     }
 
+    OPENVINO_ASSERT(!output_shapes[0].rank().is_dynamic(),
+                    "[GPU] Doesn't support output dynamic rank in gather_nd");
     format output_format = format::adjust_to_rank(input_layout.format, output_shapes[0].size());
 
     return { layout{output_shapes[0], output_type, output_format} };

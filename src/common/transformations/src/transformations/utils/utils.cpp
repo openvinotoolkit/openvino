@@ -8,44 +8,49 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/op/util/op_annotations.hpp>
-#include <openvino/op/broadcast.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
+
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset3.hpp"
 
 namespace ov {
 namespace op {
 namespace util {
 
-bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value) {
+bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value, bool check_value_range) {
     switch (const_node->get_element_type()) {
     case element::Type_t::f16:
-        return util::normalize_single_value(const_node->get_vector<float16>(), value);
+        return util::normalize_single_value(const_node->get_vector<float16>(), value, check_value_range);
     case element::Type_t::f32:
-        return util::normalize_single_value(const_node->get_vector<float>(), value);
+        return util::normalize_single_value(const_node->get_vector<float>(), value, check_value_range);
     case element::Type_t::bf16:
-        return util::normalize_single_value(const_node->get_vector<bfloat16>(), value);
+        return util::normalize_single_value(const_node->get_vector<bfloat16>(), value, check_value_range);
     case element::Type_t::f64:
-        return util::normalize_single_value(const_node->get_vector<double>(), value);
+        return util::normalize_single_value(const_node->get_vector<double>(), value, check_value_range);
+    case element::Type_t::i4:
+        return util::normalize_single_value(const_node->cast_vector<int8_t>(), value, check_value_range);
     case element::Type_t::i8:
-        return util::normalize_single_value(const_node->get_vector<int8_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<int8_t>(), value, check_value_range);
     case element::Type_t::i16:
-        return util::normalize_single_value(const_node->get_vector<int16_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<int16_t>(), value, check_value_range);
     case element::Type_t::i32:
-        return util::normalize_single_value(const_node->get_vector<int32_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<int32_t>(), value, check_value_range);
     case element::Type_t::i64:
-        return util::normalize_single_value(const_node->get_vector<int64_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<int64_t>(), value, check_value_range);
+    case element::Type_t::u4:
+        return util::normalize_single_value(const_node->cast_vector<int8_t>(), value, check_value_range);
     case element::Type_t::u8:
-        return util::normalize_single_value(const_node->get_vector<uint8_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<uint8_t>(), value, check_value_range);
     case element::Type_t::u16:
-        return util::normalize_single_value(const_node->get_vector<uint16_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<uint16_t>(), value, check_value_range);
     case element::Type_t::u32:
-        return util::normalize_single_value(const_node->get_vector<uint32_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<uint32_t>(), value, check_value_range);
     case element::Type_t::u64:
-        return util::normalize_single_value(const_node->get_vector<uint64_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<uint64_t>(), value, check_value_range);
     default:
         OPENVINO_THROW("Unsupported precision for const operation: ", const_node->get_friendly_name());
     }
@@ -64,13 +69,12 @@ std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::v0::Constant>
     return reshapeTo(constant, const_shape);
 }
 
-std::shared_ptr<Node> broadcastTo(const Output<Node>& input, const ngraph::Shape& shape) {
-    return std::make_shared<op::v1::Broadcast>(
-        input,
-        op::v0::Constant::create(ngraph::element::i64, Shape{shape.size()}, shape));
+std::shared_ptr<Node> broadcastTo(const Output<Node>& input, const ov::Shape& shape) {
+    return std::make_shared<op::v1::Broadcast>(input,
+                                               op::v0::Constant::create(ov::element::i64, Shape{shape.size()}, shape));
 }
 
-std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node>& input, const Shape& shape) {
+std::shared_ptr<ov::Node> reshapeTo(const Output<Node>& input, const Shape& shape) {
     return std::make_shared<op::v1::Reshape>(input,
                                              op::v0::Constant::create(element::i64, Shape{shape.size()}, shape),
                                              true);
@@ -85,17 +89,17 @@ bool constantIsEqualTo(const std::shared_ptr<op::v0::Constant>& const_node, floa
     return std::abs(res - value) < eps;
 }
 
-bool has_f16_constants(const std::shared_ptr<const ngraph::Function>& function) {
+bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
     for (auto& layer : function->get_ops()) {
         if (std::dynamic_pointer_cast<op::v0::Constant>(layer) &&
-            layer->output(0).get_element_type() == ngraph::element::f16) {
+            layer->output(0).get_element_type() == ov::element::f16) {
             return true;
         }
     }
     return false;
 }
 
-bool check_for_broadcast(const ngraph::PartialShape& ref_shape, const ngraph::PartialShape& other_shape) {
+bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialShape& other_shape) {
     // Check that other_shape doesn't broadcast ref_shape
     if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic() || other_shape.size() > ref_shape.size()) {
         return true;
@@ -116,8 +120,7 @@ bool check_for_broadcast(const ngraph::PartialShape& ref_shape, const ngraph::Pa
     return false;
 }
 
-std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
-                                         const ngraph::Output<ngraph::Node>& apply_to) {
+std::shared_ptr<ov::Node> activation(const std::string& activation_name, const ov::Output<ov::Node>& apply_to) {
     if (activation_name == "relu") {
         return std::make_shared<opset4::Relu>(apply_to);
     } else if (activation_name == "sigmoid") {
@@ -141,7 +144,7 @@ bool is_seq_len_provided(const std::shared_ptr<Node>& seq_len_input, int64_t max
 
 std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node) {
     const auto& num_outputs = node->get_output_size();
-    NGRAPH_CHECK(num_outputs == 1, "Unary has unexpected number of outputs:" + std::to_string(num_outputs));
+    OPENVINO_ASSERT(num_outputs == 1, "Unary has unexpected number of outputs:" + std::to_string(num_outputs));
     OutputVector output(num_outputs);
     return node->constant_fold(output, node->input_values()) ? output[0].get_node_shared_ptr() : node;
 }
@@ -161,23 +164,29 @@ std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& nod
     return result;
 }
 
-std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_node(
-    const std::shared_ptr<ngraph::Node>& shape_node,
-    const std::vector<size_t>& indices) {
-    return make_try_fold<v7::Gather>(shape_node,
-                                     v0::Constant::create(ngraph::element::i64, {indices.size()}, indices),
-                                     v0::Constant::create(ngraph::element::i64, {}, {0}));
+std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_node(
+    const std::shared_ptr<ov::Node>& shape_node,
+    const std::vector<size_t>& indices,
+    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from) {
+    const auto& indices_op = v0::Constant::create(ov::element::i64, {indices.size()}, indices);
+    const auto& axis_op = v0::Constant::create(ov::element::i64, {}, {0});
+    auto op = make_try_fold<v7::Gather>(shape_node, indices_op, axis_op);
+    if (!copy_rt_info_from.empty())
+        ov::copy_runtime_info(copy_rt_info_from, {op, indices_op, axis_op});
+    return op;
 }
 
-std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(
-    const ngraph::Output<ngraph::Node>& shape_source,
-    const std::vector<size_t>& indices) {
+std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_source(
+    const ov::Output<ov::Node>& shape_source,
+    const std::vector<size_t>& indices,
+    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from) {
     const auto& shape_node = make_try_fold<v3::ShapeOf>(shape_source);
-    return node_to_get_shape_value_of_indices_from_shape_node(shape_node, indices);
+    if (!copy_rt_info_from.empty())
+        ov::copy_runtime_info(copy_rt_info_from, shape_node);
+    return node_to_get_shape_value_of_indices_from_shape_node(shape_node, indices, copy_rt_info_from);
 }
 
-bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expected,
-                                                const ngraph::PartialShape& actual) {
+bool shapes_equal_except_dynamic_expected_batch(const ov::PartialShape& expected, const ov::PartialShape& actual) {
     if (expected[0].is_static()) {
         return actual == expected;
     } else {
@@ -196,7 +205,7 @@ void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::f
         auto curr_node = nodes.front();
         nodes.pop_front();
         // Do not check if already visited
-        if (ngraph::is_type<opset1::ShapeOf>(curr_node) || ngraph::is_type<opset3::ShapeOf>(curr_node)) {
+        if (ov::is_type<opset1::ShapeOf>(curr_node) || ov::is_type<opset3::ShapeOf>(curr_node)) {
             continue;
         }
 
@@ -340,6 +349,52 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
     return true;
 }
+
+float cast_eps_to_float(double eps_d) {
+    auto eps_f = static_cast<float>(eps_d);
+    if (eps_d > 0.) {  // zero is fine; negative values have no sense
+        if (std::nextafter(eps_d, 0) < static_cast<double>(std::numeric_limits<float>::min()))
+            eps_f = std::numeric_limits<float>::min();
+        else if (std::nextafter(eps_d, std::numeric_limits<double>::max()) >
+                 static_cast<double>(std::numeric_limits<float>::max()))
+            eps_f = std::numeric_limits<float>::max();
+    }
+    return eps_f;
+}
+
+bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (const auto& constant = ov::get_constant_from_source(output)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto& values = constant->cast_vector<int64_t>();
+        return std::all_of(values.begin(), values.end(), [&](const int64_t& i) {
+            return i == v;
+        });
+    }
+    return false;
+}
+
+bool is_on_constant_path(const ov::Output<ov::Node>& output) {
+    auto status = true;
+    std::deque<ov::Node*> nodes_to_calculate = {output.get_node()};
+
+    while (status && !nodes_to_calculate.empty()) {
+        auto current_node = nodes_to_calculate.front();
+        nodes_to_calculate.pop_front();
+
+        if (current_node->get_input_size() == 0 && !ov::is_type<ov::op::v0::Constant>(current_node)) {
+            status = false;
+        } else {
+            // not a leaf - continue to search
+            for (const auto& input_value : current_node->input_values()) {
+                const auto& input_node = input_value.get_node();
+                nodes_to_calculate.push_front(input_node);
+            }
+        }
+    }
+    return status;
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

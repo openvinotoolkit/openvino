@@ -13,6 +13,7 @@
 #include <dnnl_types.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include "shape_inference/custom/priorbox.hpp"
 
 using namespace InferenceEngine;
 
@@ -22,49 +23,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 namespace {
-class PriorBoxShapeInfer : public ShapeInferEmptyPads {
-/**
- * Implements Prior Box Clustered shape inference algorithm. The output shape is [2,  4 * height * width * number_of_priors].
- * `number_of_priors` is an attribute of the operation. heigh and width are in the the first input parameter.
- *  
- */
-public:
-    explicit PriorBoxShapeInfer(int64_t number_of_priors) : m_number_of_priors(number_of_priors) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->GetPtr());
-        const int H = in_data[0];
-        const int W = in_data[1];
-        const auto output = static_cast<size_t>(4 * H * W * m_number_of_priors);
-        return {{{2, output}}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return PortMask(0);
-    }
-
-private:
-    int64_t m_number_of_priors = 0;
-};
-
-class PriorBoxShapeInferFactory : public ShapeInferFactory {
-public:
-    explicit PriorBoxShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBox>(m_op);
-        if (!priorBox) {
-            IE_THROW() << "Unexpected op type in PriorBox shape inference factory: " << m_op->get_type_name();
-        }
-        const auto& attrs = priorBox->get_attrs();
-        auto number_of_priors = ngraph::opset1::PriorBox::number_of_priors(attrs);
-        return std::make_shared<PriorBoxShapeInfer>(number_of_priors);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
 float clip_great(float x, float threshold) {
     return x < threshold ? x : threshold;
 }
@@ -152,13 +110,13 @@ PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
 }
 
 bool PriorBox::needShapeInfer() const {
-    auto& memory = getChildEdgeAt(0)->getMemoryPtr();
-    if (memory->GetShape().isDynamic()) {
+    auto memory = getChildEdgeAt(0)->getMemoryPtr();
+    if (memory->getShape().isDynamic()) {
         return true;
     }
 
-    const auto& outputShape = memory->GetShape().getStaticDims();
-    const int* in_data = reinterpret_cast<int*>(memory->GetPtr());
+    const auto& outputShape = memory->getShape().getStaticDims();
+    const int* in_data = reinterpret_cast<int*>(memory->getData());
     const int h = in_data[0];
     const int w = in_data[1];
     const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
@@ -189,18 +147,18 @@ void PriorBox::createPrimitive() {
 }
 
 void PriorBox::execute(dnnl::stream strm) {
-    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
     const int H = in_data[0];
     const int W = in_data[1];
 
-    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
     const int IH = in_image[0];
     const int IW = in_image[1];
 
     const int OH = 4 * H * W * number_of_priors;
     const int OW = 1;
 
-    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     float step_ = step;
     auto min_size_ = min_size;

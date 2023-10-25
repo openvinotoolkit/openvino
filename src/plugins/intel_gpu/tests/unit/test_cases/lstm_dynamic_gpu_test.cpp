@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/mutable_data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -159,7 +160,7 @@ VVVVF<T> lstm_dynamic_input_ref(VVVVF<T>& input, VVVVF<T>& weights, VVVVF<T>& bi
                 }
 
                 // Convert back to output data type before storing it into the output buffer. Currently, the output
-                // data type may be float or FLOAT16 (half)
+                // data type may be float or ov::float16 (half)
                 tempOut[b][0][0][h] = (T)(std::tanh(val) * sigmoid(fp32_ot));
                 tempOut[b][1][0][h] = (T)val;
             }
@@ -201,13 +202,19 @@ VVVVF<T> lstm_dynamic_input_ref(VVVVF<T>& input, VVVVF<T>& weights, VVVVF<T>& bi
 template <typename T>
 struct lstm_dynamic_input_layer_test : public ::testing::Test
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     void input_single_layer_generic_test(int32_t direction, int32_t batch_size, int32_t max_sequence_len, int32_t input_size, int32_t hidden_size, std::vector<float> dynamic_lengths,
         bool has_bias = false)
     {
         auto min_random = -2, max_random = 2;
-        VVVVF<T> ref_input = generate_random_4d<T>(batch_size, max_sequence_len, direction, input_size, min_random, max_random);
-        VVVVF<T> ref_weights = generate_random_4d<T>(1, direction, 4 * hidden_size, input_size, min_random, max_random);
-        VVVVF<T> ref_bias = generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random);
+        VVVVF<T> ref_input = rg.generate_random_4d<T>(batch_size, max_sequence_len, direction, input_size, min_random, max_random);
+        VVVVF<T> ref_weights = rg.generate_random_4d<T>(1, direction, 4 * hidden_size, input_size, min_random, max_random);
+        VVVVF<T> ref_bias = rg.generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random);
 
         VF<T> ref_input_vec = flatten_4d<T>(cldnn::format::bfyx, ref_input);
         VF<T> ref_weights_vec = flatten_4d<T>(cldnn::format::bfyx, ref_weights);
@@ -304,6 +311,12 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
 template <typename T>
 struct lstm_dynamic_single_layer_test : public ::testing::Test
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     void single_layer_generic_test(int32_t direction, int32_t batch_size, int32_t max_sequence_len, int32_t input_size, int32_t hidden_size, std::vector<float> dynamic_lengths,
         bool has_bias = false, bool has_initial_hidden = false, bool has_initial_cell = false, bool has_last_hidden_state = false, bool has_last_cell_state = false, float epsilon = 1e-3f)
     {
@@ -311,12 +324,12 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
         bool input_forget = false;
 
         auto min_random = 0, max_random = 2;
-        VVVVF<T> ref_input = generate_random_4d<T>(batch_size, max_sequence_len, direction, input_size, min_random, max_random);
-        VVVVF<T> ref_weights = generate_random_4d<T>(1, direction, 4 * hidden_size, input_size, min_random, max_random);
-        VVVVF<T> ref_recurrent = generate_random_4d<T>(1, direction, 4 * hidden_size, hidden_size, min_random, max_random);
-        VVVVF<T> ref_bias = generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random);
-        VVVVF<T> ref_hidden = generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random);
-        VVVVF<T> ref_cell = generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random);
+        VVVVF<T> ref_input = rg.generate_random_4d<T>(batch_size, max_sequence_len, direction, input_size, min_random, max_random);
+        VVVVF<T> ref_weights = rg.generate_random_4d<T>(1, direction, 4 * hidden_size, input_size, min_random, max_random);
+        VVVVF<T> ref_recurrent = rg.generate_random_4d<T>(1, direction, 4 * hidden_size, hidden_size, min_random, max_random);
+        VVVVF<T> ref_bias = rg.generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random);
+        VVVVF<T> ref_hidden = rg.generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random);
+        VVVVF<T> ref_cell = rg.generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random);
         VVVVF<T> ref_output_hidden = VVVVF<T>(batch_size, VVVF<T>(max_sequence_len, VVF<T>(direction, VF<T>(hidden_size))));
         VVVVF<T> ref_output_cell = VVVVF<T>(batch_size, VVVF<T>(max_sequence_len, VVF<T>(direction, VF<T>(hidden_size))));
 
@@ -526,7 +539,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
     }
 
 };
-typedef ::testing::Types<float, FLOAT16> lstm_dynamic_test_types;
+typedef ::testing::Types<float, ov::float16> lstm_dynamic_test_types;
 TYPED_TEST_SUITE(lstm_dynamic_single_layer_test, lstm_dynamic_test_types);
 TYPED_TEST_SUITE(lstm_dynamic_input_layer_test, lstm_dynamic_test_types);
 

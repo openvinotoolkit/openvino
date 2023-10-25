@@ -4,7 +4,7 @@
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace ngraph;
@@ -88,7 +88,7 @@ public:
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
             for (const auto &shape : inputShapes) {
-                result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+                result << ov::test::utils::partialShape2str({shape.first}) << "_";
             }
             result.seekp(-1, result.cur);
             result << ")_";
@@ -96,20 +96,20 @@ public:
         result << "TS=";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "base_size=" << base_size << "_";
         result << "framework=" << framework << "_";
-        result << "ratio=" << CommonTestUtils::vec2str(ratio) << "_";
-        result << "scale=" << CommonTestUtils::vec2str(scale) << "_";
+        result << "ratio=" << ov::test::utils::vec2str(ratio) << "_";
+        result << "scale=" << ov::test::utils::vec2str(scale) << "_";
         result << "netPRC=" << netPrecision.name();
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape> inputShapes;
         proposalSpecificParams proposalParams;
@@ -139,7 +139,10 @@ protected:
         init_input_shapes(inputShapes);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes[0], inputDynamicShapes[1], inputDynamicShapes[2]});
+        ov::ParameterVector params;
+        for (auto&& shape : {inputDynamicShapes[0], inputDynamicShapes[1], inputDynamicShapes[2]}) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         ngraph::op::ProposalAttrs attrs;
@@ -171,7 +174,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
 

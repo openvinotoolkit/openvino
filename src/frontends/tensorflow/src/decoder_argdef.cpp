@@ -5,10 +5,11 @@
 #include "decoder_argdef.hpp"
 
 #include "decoder_proto.hpp"
-#include "op_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/special_types.hpp"
-#include "types.pb.h"
+#include "ov_tensorflow/op_def.pb.h"
+#include "ov_tensorflow/types.pb.h"
+#include "tf_utils.hpp"
 
 namespace ov {
 namespace frontend {

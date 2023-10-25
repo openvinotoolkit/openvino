@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/resample.hpp>
@@ -307,6 +308,12 @@ struct resample_random_test_params {
 };
 
 struct resample_random_test : testing::TestWithParam<resample_random_test_params>{
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
@@ -315,7 +322,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         cldnn::mem_lock<T> ptr(mem, get_test_stream());
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
@@ -337,7 +344,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -448,7 +455,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
             if (dt == data_types::f32) {
                 compare_nearest_typed<float>(input, output, 0);
             } else if (dt == data_types::f16) {
-                compare_nearest_typed<FLOAT16>(input, output, 0);
+                compare_nearest_typed<ov::float16>(input, output, 0);
             } else if (dt == data_types::i8) {
                 compare_nearest_typed<int8_t>(input, output, 0);
             } else if (dt == data_types::u8) {
@@ -545,6 +552,12 @@ struct caffe_resample_random_test_params {
 
 struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random_test_params>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
@@ -553,7 +566,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         cldnn::mem_lock<T> ptr(mem, get_test_stream());
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
@@ -575,7 +588,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -667,7 +680,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
             if (params.input_type == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
             } else if (params.input_type == data_types::f16) {
-                compare_outputs<FLOAT16>(output, output_opt);
+                compare_outputs<ov::float16>(output, output_opt);
             } else if (params.input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (params.input_type == data_types::u8) {
@@ -1718,7 +1731,7 @@ static tensor create_tensor(const std::vector<int64_t>& shape) {
 
 template <cldnn::format::type FMT>
 struct format_wrapper {
-    static constexpr format fmt = FMT;
+    static constexpr cldnn::format::type fmt = FMT;
 };
 
 template <typename T>
@@ -1930,6 +1943,12 @@ struct resample_opt_random_test_params {
 
 struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_test_params>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
@@ -1939,7 +1958,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         size_t y = l.spatial(1);
         size_t z = l.spatial(2);
 
-        auto data = generate_random_5d<T>(b, f, z, y, x, min, max, k);
+        auto data = rg.generate_random_5d<T>(b, f, z, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
@@ -1963,7 +1982,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -1999,7 +2018,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
                             auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                             auto opt_out_val = opt_ptr[opt_out_offset];
                             ASSERT_EQ(ref_out_offset, opt_out_offset);
-                            if (std::is_same<T, FLOAT16>::value) {
+                            if (std::is_same<T, ov::float16>::value) {
                                 ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                             } else {
                                 ASSERT_EQ(opt_out_val, ref_out_val);
@@ -2066,7 +2085,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
             if (params.input_type == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
             } else if (params.input_type == data_types::f16) {
-                compare_outputs<FLOAT16>(output, output_opt);
+                compare_outputs<ov::float16>(output, output_opt);
             } else if (params.input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (params.input_type == data_types::u8) {
@@ -2159,7 +2178,7 @@ struct resample_opt_random_test_ext : resample_opt_random_test
         }
         exectime /= r;
         std::string frm_str = format(working_format).to_string();
-        std::string input_type = data_type_traits::name(params.input_type);
+        std::string input_type = ov::element::Type(params.input_type).get_type_name();
         std::string is_opt = (do_planar == true) ? " not optimazed " : " optimized ";
         std::string mode;
         switch (params.operation_type) {

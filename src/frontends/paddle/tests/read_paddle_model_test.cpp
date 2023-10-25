@@ -11,7 +11,7 @@
 #include <set>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "frontend/shared/include/utils.hpp"
 #include "openvino/openvino.hpp"
@@ -45,15 +45,15 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCoreWstring) {
     std::string win_dir_path{TEST_PADDLE_MODELS_DIRNAME "relu/relu.pdmodel"};
     win_dir_path = FrontEndTestUtils::make_model_path(win_dir_path);
     std::wstring wmodel =
-        CommonTestUtils::addUnicodePostfixToPath(win_dir_path, CommonTestUtils::test_unicode_postfix_vector[0]);
-    bool is_copy_successfully = CommonTestUtils::copyFile(win_dir_path, wmodel);
+        ov::test::utils::addUnicodePostfixToPath(win_dir_path, ov::test::utils::test_unicode_postfix_vector[0]);
+    bool is_copy_successfully = ov::test::utils::copyFile(win_dir_path, wmodel);
     if (!is_copy_successfully) {
         FAIL() << "Unable to copy from '" << win_dir_path << "' to '" << ov::util::wstring_to_string(wmodel) << "'";
     }
 
     ov::Core core;
     auto function = core.read_model(wmodel);
-    CommonTestUtils::removeFile(wmodel);
+    ov::test::utils::removeFile(wmodel);
 
     const auto inputType = ov::element::f32;
     const auto inputShape = ov::Shape{3};

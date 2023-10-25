@@ -1,5 +1,6 @@
 import itertools
 import os
+import warnings
 
 import numpy as np
 import tensorflow as tf
@@ -90,6 +91,13 @@ def get_tflite_results(use_new_frontend, use_old_api, inputs_dict, model_path):
     for layer, data in inputs_dict.items():
         tensor_index = input_name_to_id_mapping[layer]
         tensor_id = next(i for i, tensor in enumerate(input_details) if tensor['index'] == tensor_index)
+
+        if list(input_details[tensor_id]['shape']) != list(data.shape):
+            warnings.warn(f'Model and data have different shapes:\nModel {tensor_id} '
+                          f'input shape{input_details[tensor_id]["shape"]}\nInput data shape: {data.shape}')
+            interpreter.resize_tensor_input(input_details[tensor_id]['index'], data.shape)
+            interpreter.allocate_tensors()
+
         interpreter.set_tensor(input_details[tensor_id]['index'], data)
 
     interpreter.invoke()

@@ -6,27 +6,38 @@
 
 #include <map>
 #include <memory>
-#include <openvino/core/except.hpp>
 #include <string>
 
 #include "ie_common.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "transformations/utils/utils.hpp"
+
+#ifdef __GNUC__
+// on RHEL 8.2 deprecation inside the macro does not work
+OPENVINO_SUPPRESS_DEPRECATED_START
+#endif
 
 #define OV_INFER_REQ_CALL_STATEMENT(...)                                    \
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized."); \
+    OPENVINO_SUPPRESS_DEPRECATED_START                                      \
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
         ov::Busy::create(ex.what());                                        \
+    } catch (const ov::Busy&) {                                             \
+        throw;                                                              \
     } catch (const std::exception& ex) {                                    \
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
         OPENVINO_THROW("Unexpected exception");                             \
-    }
+    }                                                                       \
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 
@@ -60,7 +71,7 @@ InferRequest::InferRequest(const std::shared_ptr<ov::IAsyncInferRequest>& impl, 
 }
 
 void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensor(port, tensor); });
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensor(port, get_tensor_impl(tensor)); });
 }
 
 void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor) {
@@ -88,7 +99,12 @@ void InferRequest::set_tensors(const std::string& name, const std::vector<Tensor
 }
 
 void InferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors) {
-    OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensors(port, tensors); })
+    std::vector<ov::SoPtr<ov::ITensor>> tensor_ptrs;
+    tensor_ptrs.reserve(tensors.size());
+    for (const auto& tensor : tensors) {
+        tensor_ptrs.emplace_back(get_tensor_impl(tensor));
+    }
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensors(port, tensor_ptrs); })
 }
 
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
@@ -158,7 +174,6 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
 }
 
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
-    std::vector<std::shared_ptr<void>> soVec;
     OV_INFER_REQ_CALL_STATEMENT({
         OPENVINO_ASSERT(_impl->get_tensors(port).empty(),
                         "get_tensor shall not be used together with batched "
@@ -166,9 +181,10 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
                         port,
                         "'");
         auto tensor = _impl->get_tensor(port);
-        tensor._so.emplace_back(_so);
+        if (!tensor._so)
+            tensor._so = _so;
 
-        return tensor;
+        return make_tensor(tensor);
     });
 }
 
@@ -229,30 +245,34 @@ void InferRequest::start_async() {
 
 void InferRequest::wait() {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
+    OPENVINO_SUPPRESS_DEPRECATED_START
     try {
         _impl->wait();
     } catch (const ov::Cancelled&) {
         throw;
-    } catch (const ie::InferCancelled& e) {
+    } catch (const InferenceEngine::InferCancelled& e) {
         Cancelled::create(e.what());
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
         OPENVINO_THROW("Unexpected exception");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
+    OPENVINO_SUPPRESS_DEPRECATED_START
     try {
         return _impl->wait_for(timeout);
-    } catch (const ie::InferCancelled& e) {
+    } catch (const InferenceEngine::InferCancelled& e) {
         Cancelled::create(e.what());
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
         OPENVINO_THROW("Unexpected exception");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void InferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
@@ -263,7 +283,9 @@ std::vector<VariableState> InferRequest::query_state() {
     std::vector<VariableState> variable_states;
     OV_INFER_REQ_CALL_STATEMENT({
         for (auto&& state : _impl->query_state()) {
-            variable_states.emplace_back(ov::VariableState{state, {_so}});
+            if (!state._so)
+                state._so = _so;
+            variable_states.emplace_back(ov::VariableState{state._ptr, state._so});
         }
     })
     return variable_states;

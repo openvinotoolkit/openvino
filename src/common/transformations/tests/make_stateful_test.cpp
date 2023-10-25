@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/pass/make_stateful.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <openvino/pass/make_stateful.hpp>
 #include <queue>
 #include <string>
-#include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 using namespace opset8;
 using namespace std;
 
@@ -53,7 +54,7 @@ std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly
         result1->set_friendly_name("res1");
     }
 
-    model = make_shared<Function>(ResultVector{result0, result1}, ParameterVector{X, Y});
+    model = make_shared<Model>(ResultVector{result0, result1}, ParameterVector{X, Y});
     model->validate_nodes_and_infer_types();
     return model;
 }
@@ -61,12 +62,14 @@ std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly
 std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_names) {
     std::shared_ptr<ov::Model> model;
     // create ReadValue for X
-    auto variable_x = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "xres0"});
+    auto variable_x = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "xres0"});
     auto const_zero_x = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
     auto read_val_x = make_shared<ReadValue>(const_zero_x, variable_x);
 
     // create ReadValue for Y
-    auto variable_y = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "yres1"});
+    auto variable_y = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "yres1"});
     auto const_zero_y = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
     auto read_val_y = make_shared<ReadValue>(const_zero_y, variable_y);
 
@@ -107,18 +110,18 @@ std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_
     assign_x->add_control_dependency(read_val_x);
     assign_y->add_control_dependency(read_val_y);
 
-    model = make_shared<Function>(ResultVector{}, SinkVector{assign_x, assign_y}, ParameterVector{});
+    model = make_shared<Model>(ResultVector{}, SinkVector{assign_x, assign_y}, ParameterVector{});
     model->validate_nodes_and_infer_types();
     return model;
 }
 
 TEST(TransformationTests, make_stateful_by_tensor_name) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         f = get_test_model(true, false);
         std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
@@ -132,13 +135,13 @@ TEST(TransformationTests, make_stateful_by_tensor_name) {
 }
 
 TEST(TransformationTests, make_stateful_by_param_res) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         f = get_test_model(true, true);
         auto pairs = ov::pass::MakeStateful::ParamResPairs{{f->get_parameters()[0], f->get_results()[0]},
                                                            {f->get_parameters()[1], f->get_results()[1]}};
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);
@@ -151,7 +154,7 @@ TEST(TransformationTests, make_stateful_by_param_res) {
 }
 
 TEST(TransformationTests, make_stateful_dynamic_shapes) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
         // dynamic shapes are not supported
         auto X = make_shared<Parameter>(element::f32, PartialShape::dynamic());
@@ -165,11 +168,11 @@ TEST(TransformationTests, make_stateful_dynamic_shapes) {
         result0->get_input_tensor(0).add_names({"res0"});
         result1->get_input_tensor(0).add_names({"res1"});
 
-        f = make_shared<Function>(ResultVector{result0, result1}, ParameterVector{X, Y});
+        f = make_shared<Model>(ResultVector{result0, result1}, ParameterVector{X, Y});
         map<std::string, std::string> pair_names = {{"x", "res0"}, {"y", "res1"}};
         f->validate_nodes_and_infer_types();
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pair_names);
 
@@ -184,12 +187,12 @@ TEST(TransformationTests, make_stateful_dynamic_shapes) {
 }
 
 TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_names) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         f = get_test_model(false, false);
         std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
@@ -203,13 +206,13 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_nam
 }
 
 TEST(TransformationTests, make_stateful_one_out_to_several_results_by_param_res) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         f = get_test_model(false, true);
         auto pairs = ov::pass::MakeStateful::ParamResPairs{{f->get_parameters()[0], f->get_results()[0]},
                                                            {f->get_parameters()[1], f->get_results()[1]}};
 
-        ngraph::pass::Manager manager;
+        pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);

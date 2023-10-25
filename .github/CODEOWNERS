@@ -92,6 +92,9 @@
 /tests/layer_tests/ @openvinotoolkit/openvino-tests-maintainers @openvinotoolkit/openvino-mo-maintainers
 /tests/layer_tests/pytorch_tests/ @openvinotoolkit/openvino-pytorch-frontend-maintainers
 /tests/layer_tests/tensorflow_tests @openvinotoolkit/openvino-tf-frontend-maintainers
+/tests/layer_tests/jax_tests @openvinotoolkit/openvino-tf-frontend-maintainers
+/tests/model_hub_tests @openvinotoolkit/openvino-tf-frontend-maintainers
+/tests/model_hub_tests/torch_tests @openvinotoolkit/openvino-pytorch-frontend-maintainers
 
 # Tools:
 /tools/  @openvinotoolkit/openvino-tools-maintainers
@@ -99,6 +102,7 @@
 /tools/legacy/ @openvinotoolkit/openvino-samples-maintainers
 /tools/openvino_dev/ @openvinotoolkit/openvino-tools-maintainers @openvinotoolkit/openvino-ie-python-api-maintainers
 /tools/mo/  @openvinotoolkit/openvino-mo-maintainers
+/tools/ovc/  @openvinotoolkit/openvino-mo-maintainers
 /tools/pot/  @openvinotoolkit/openvino-pot-maintainers
 /thirdparty/open_model_zoo/ @openvinotoolkit/omz-maintainers @openvinotoolkit/openvino-pot-maintainers
 

@@ -3,10 +3,10 @@
 //
 
 #include "conversion_extension.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/paddle/frontend.hpp"
 #include "paddle_utils.hpp"
-#include "so_extension.hpp"
 
 using namespace ov::frontend;
 

@@ -33,7 +33,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_ShuffleChannels,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ShuffleChannelsLayerTest::getTestCaseName);
 
 // ND support tests
@@ -46,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels3D,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({18, 30, 36})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ShuffleChannelsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels2D,
@@ -58,7 +58,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels2D,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({18, 30})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ShuffleChannelsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels1D,
@@ -70,5 +70,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels1D,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({30})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ShuffleChannelsLayerTest::getTestCaseName);

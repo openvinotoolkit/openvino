@@ -28,7 +28,7 @@ Some Intel® CPUs might not have integrated GPU, so if you want to run OpenVINO 
 
 ## 2. Make sure that OpenCL® Runtime is installed
 
-OpenCL runtime is a part of the GPU driver on Windows, but on Linux it should be installed separately. For the installation tips, refer to [OpenVINO docs](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux_header.html) and [OpenCL Compute Runtime docs](https://github.com/intel/compute-runtime/tree/master/opencl/doc).
+OpenCL runtime is a part of the GPU driver on Windows, but on Linux it should be installed separately. For the installation tips, refer to [OpenVINO docs](https://docs.openvino.ai/2023.0/openvino_docs_install_guides_installing_openvino_linux_header.html) and [OpenCL Compute Runtime docs](https://github.com/intel/compute-runtime/tree/master/opencl/doc).
 To get the support of Intel® Iris® Xe MAX Graphics with Linux, follow the [driver installation guide](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html)
 
 ## 3. Make sure that user has all required permissions to work with GPU device
@@ -59,7 +59,7 @@ For more details, see the [OpenCL on Linux](https://github.com/bashbaug/OpenCLPa
 
 ## 7. If you are using dGPU with XMX, ensure that HW_MATMUL feature is recognized
 
-OpenVINO contains *hello_query_device* sample application: [link](https://docs.openvino.ai/latest/openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README.html)
+OpenVINO contains *hello_query_device* sample application: [link](https://docs.openvino.ai/2023.0/openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README.html)
 
 With this option, you can check whether Intel XMX(Xe Matrix Extension) feature is properly recognized or not. This is a hardware feature to accelerate matrix operations and available on some discrete GPUs.
 

@@ -82,7 +82,7 @@ OutputVector prior_box_clustered(const Node& node) {
     auto output_shape_slice = detail::make_slice(output_shape, 2, 4);
     auto image_shape_slice = detail::make_slice(image_shape, 2, 4);
 
-    ngraph::op::PriorBoxClusteredAttrs attrs{};
+    default_opset::PriorBoxClustered::Attributes attrs{};
     attrs.widths = node.get_attribute_value<std::vector<float>>("width");
     attrs.heights = node.get_attribute_value<std::vector<float>>("height");
     attrs.clip = static_cast<bool>(node.get_attribute_value<int64_t>("clip", 0));

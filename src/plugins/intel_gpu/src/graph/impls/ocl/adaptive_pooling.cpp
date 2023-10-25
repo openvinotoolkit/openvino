@@ -16,7 +16,7 @@ struct adaptive_pooling_impl : public typed_primitive_impl_ocl<adaptive_pooling>
     using kernel_selector_t = kernel_selector::adaptive_pooling_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::adaptive_pooling_params, kernel_selector::adaptive_pooling_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::adaptive_pooling_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<adaptive_pooling_impl>(*this);
@@ -90,3 +90,4 @@ attach_adaptive_pooling_impl::attach_adaptive_pooling_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::adaptive_pooling_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::adaptive_pooling)

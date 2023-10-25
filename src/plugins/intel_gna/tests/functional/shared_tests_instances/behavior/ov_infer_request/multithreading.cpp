@@ -15,7 +15,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestMultithreadingTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          OVInferRequestMultithreadingTests::getTestCaseName);
 }  // namespace

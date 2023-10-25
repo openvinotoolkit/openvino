@@ -6,10 +6,10 @@
 
 #include "low_precision_transformations/fake_quantize_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "ov_lpt_models/fake_quantize.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
@@ -90,7 +90,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizeOnDataValues),
         ::testing::ValuesIn(isConvertOnConstants)),

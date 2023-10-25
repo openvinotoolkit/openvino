@@ -65,6 +65,9 @@ def read_network(path_to_xml : str, path_to_bin : str):
 
 cdef class VariableState:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class manages data for reset operations
     """
 
@@ -100,8 +103,12 @@ cdef class VariableState:
 
 cdef class TensorDesc:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class defines Tensor description
     """
+
     def __eq__(self, other : TensorDesc):
         return self.layout == other.layout and self.precision == other.precision and self.dims == other.dims
 
@@ -168,6 +175,9 @@ cdef class TensorDesc:
 
 cdef class Blob:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class represents Blob
     """
 
@@ -312,6 +322,9 @@ cdef class Blob:
 ## This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
 cdef class IECore:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
     """
 
@@ -535,7 +548,7 @@ cdef class IECore:
         
             ie = IECore()
             net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-            ie.set_config(config={"DYN_BATCH_ENABLED": "YES"}, device_name="CPU")
+            ie.set_config(config={"PERF_COUNT": "YES"}, device_name="CPU")
         """
         cdef map[string, string] c_config = dict_to_c_map(config)
         self.impl.setConfig(c_config, device_name.encode())
@@ -660,8 +673,12 @@ cdef class IECore:
 
 cdef class PreProcessChannel:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This structure stores info about pre-processing of network inputs (scale, mean image, ...)
     """
+
     property mean_value:
         def __get__(self):
             return deref(self._ptr).meanValue
@@ -686,8 +703,12 @@ cdef class PreProcessChannel:
 
 cdef class PreProcessInfo:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class stores pre-process information for the input
     """
+
     def __cinit__(self):
         self._ptr = new CPreProcessInfo()
         self._cptr = self._ptr
@@ -812,6 +833,9 @@ cdef class PreProcessInfo:
 
 cdef class InputInfoPtr:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class contains information about each input of the network
     """
 
@@ -897,10 +921,13 @@ cdef class InputInfoPtr:
 
 cdef class InputInfoCPtr:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class contains const information about each input of the network.
     Provides same interface as InputInfoPtr object except properties setters
     """
-    
+
     @property
     def name(self):
         """
@@ -942,9 +969,12 @@ cdef class InputInfoCPtr:
 
 cdef class DataPtr:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class is the layer data representation.
     """
-    
+
     def __init__(self):
         """
         Default constructor
@@ -1002,6 +1032,9 @@ cdef class DataPtr:
 
 cdef class CDataPtr:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class is the layer constant data representation. Provides same interface as DataPtr object except properties setters
     """
 
@@ -1043,6 +1076,9 @@ cdef class CDataPtr:
 
 cdef class ExecutableNetwork:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class represents a network instance loaded to plugin and ready for inference.
     """
 
@@ -1294,10 +1330,13 @@ ctypedef extern void (*cb_type)(void*, int) with gil
 
 cdef class InferRequest:
     """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
     This class provides an interface to infer requests of :class:`ExecutableNetwork` and serves
     to handle infer requests execution and to set and get output data.
     """
-    
+
     def __init__(self):
         """
         There is no explicit class constructor. To make a valid :class:`InferRequest` instance, use :func:`IECore.load_network`
@@ -1403,7 +1442,7 @@ cdef class InferRequest:
             mem_state_vec.append(state)
         return mem_state_vec
 
-    def set_blob(self, blob_name : str, blob : Blob, preprocess_info: PreProcessInfo = None):
+    def set_blob(self, blob_name : str, blob : Blob):
         """Sets user defined Blob for the infer request
         
         :param blob_name: A name of input blob
@@ -1423,10 +1462,7 @@ cdef class InferRequest:
             blob = Blob(td, blob_data)
             exec_net.requests[0].set_blob(blob_name="input_blob_name", blob=blob),
         """
-        if preprocess_info:
-            deref(self.impl).setBlob(blob_name.encode(), blob._ptr, deref(preprocess_info._ptr))
-        else:
-            deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
+        deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
         self._user_blobs[blob_name] = blob
 
     cpdef infer(self, inputs=None):
@@ -1557,6 +1593,10 @@ cdef class InferRequest:
 
 
 cdef class IENetwork:
+    """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    """
     ## Class constructor
     #
     #  @param model: A PyCapsule containing smart pointer to nGraph function.
@@ -1731,7 +1771,12 @@ cdef class IENetwork:
         return self.impl.getOVNameForTensor(name).decode('utf-8')
 
 cdef class BlobBuffer:
-    """Copy-less accessor for Inference Engine Blob"""
+    """
+    OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
+    transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+
+    Copy-less accessor for Inference Engine Blob
+    """
 
     cdef reset(self, CBlob.Ptr & ptr, vector[size_t] representation_shape = []):
         self.ptr = ptr
