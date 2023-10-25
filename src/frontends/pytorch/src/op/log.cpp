@@ -41,6 +41,18 @@ OutputVector translate_log2(const NodeContext& context) {
     return {res};
 };
 
+OutputVector translate_log10(const NodeContext& context) {
+    // torch.log10 returns a tensor with the logarithm to the base 10 of the elements of input.
+    num_inputs_check(context, 1, 1);
+    auto x = context.get_input(0);
+    auto ten = context.mark_node(v0::Constant::create(element::f32, Shape{}, {10}));
+    x = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
+    auto log10 = context.mark_node(std::make_shared<v0::Log>(ten));
+    auto log = context.mark_node(std::make_shared<v0::Log>(x));
+    auto res = context.mark_node(std::make_shared<v1::Divide>(log, log10));
+    return {res};
+};
+
 OutputVector translate_logsumexp(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     auto input = context.get_input(0);
