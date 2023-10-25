@@ -52,3 +52,12 @@ TEST(tensor, wrap_tensor_with_unspecified_type_from_host_tensor) {
     // !tensor means that the tensor is not initialized
     EXPECT_EQ(!tensor, true);
 }
+
+TEST(tensor, create_tensor_with_zero_dims_check_stride) {
+    ov::Shape shape = {0, 0, 0, 0};
+    auto tensor = ov::Tensor(element::f32, shape);
+    EXPECT_EQ(!!tensor, true);
+    auto stride = tensor.get_strides();
+    EXPECT_EQ(stride.size(), shape.size());
+    EXPECT_EQ(stride.back(), 0);
+}
