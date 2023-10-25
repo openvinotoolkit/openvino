@@ -146,7 +146,10 @@ protected:
 
         function = makeNgraphFunction(netPrecision, params, lstmSequenceOp, "lstmSequenceOp");
 
-        if (seqMode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
+        bool is_pure_sequence = (seqMode == ngraph::helpers::SequenceTestsMode::PURE_SEQ ||
+                                 seqMode == ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
+                                 seqMode == ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
+        if (!is_pure_sequence) {
             ov::pass::Manager manager;
             if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 manager.register_pass<ov::pass::BidirectionalLSTMSequenceDecomposition>();
