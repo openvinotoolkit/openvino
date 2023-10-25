@@ -10,7 +10,7 @@ GNAPlugin::LoadNetwork in the future should execute following stages:
 -	Creating and connecting GNA primitives within libGNA from ngraph-based network
 
 These stages include:
--	Obtaining ngraph-based network from the CNNNetwork argument (if input is not ngraph-based, proceed to CNNNetwork passes stage)
+-	Obtain ngraph-based network from the CNNNetwork argument (if input is not ngraph-based, proceed to CNNNetwork passes stage)
 -	Pass ngraph-based network through ngraph-based transformations.
 -	Convert ngraph-based network to CNNNetwork-based
 -	Pass network through CNNNetwork-based transformations.
@@ -43,11 +43,11 @@ They also include src/plugins/intel_gna/legacy/include/legacy/transformations/co
 There are group of transformations that work with data layout. GNA-hardware supports MaxPool and Convolution operations in a different way in comparison to OpenVino common types. GNA supports NHWC layout, OpenVino supports NCHW layout.
 There are group of transformations ReplaceGnaNHWCLayers that substitutes common types with NCHW layout to GNA-specific types with NHWC layout. It is done with wrapping GNA-types with transpose operations, that converts layout on input and output of GNA-types. Unfortunately, in most situations GNA hardware cannot execute these transpose operations. To solve this issue, there are transformations that allows to push transposes through layers from GNA-specific NHWC layers to the start and end of the graph, exchanging Transpose/Gather layer with neighbor layer. Some of them (for example, TransposeSinking group of transformations) allows to push transpose layers through multiple layer types. These transformations are common for all OpenVino and stores outside GNA plugin code. They are not able to push Transpose layer through Reshape type nodes due to mathematical reasons.
 To push Transpose operation through Reshape nodes there are transformations that substitute Transpose + Reshape pattern with Reshape + Gather. Gather operation is not supported by the GNA hardware and it should also be pushed through the graph to the start and end. There are group of transformations that does it.
-Transpose/Gather sinking consists of multiple transformations. Each of these transformations works with the small pattern that consists of Transpose/Gather and a node with a specific kind of layers (for example, with binary elementwise operations). Sinking transformation interchanges layers. After each sinking transformation execution Transpose/Gather layer moves through one layer in the graph. There are multiple nodes between start/end of the graph and initial Transpose/Gather layer position. Node types can repeat multiple times while sinking and are going in a arbitrary order. The same Transpose/Sinking transformation should be executed multiple times. They use register_new_node functionality. This method adds new created Transpose/Gather node at the end of the matcher pass queue to allow the same transformation be executed once again without necessity to call it implicitly once again.
-TransposeSinking changes Concat and Split axis while pushing Transpose nodes through them. GNA is not able to execute Concat/Split operations with all axis values. Some TransposeSinking transformations supports callbacks. That callbacks are executed inside transformations and allows to add plugin specific checks. GNA plugin prevents sinking transposes in these checks that changes Split/Concat layers from supported to unsupported by GNA plugin.
+Transpose/Gather sinking consists of multiple transformations. Each of these transformations works with a small pattern consisting of Transpose/Gather and a node with a specific kind of layers (for example, with binary elementwise operations). Sinking transformation interchanges layers. After each sinking transformation execution Transpose/Gather layer moves through one layer in the graph. There are multiple nodes between start/end of the graph and initial Transpose/Gather layer position. Node types can repeat multiple times while sinking and are going in a arbitrary order. The same Transpose/Sinking transformation should be executed multiple times. They use register_new_node functionality. This method adds new created Transpose/Gather node at the end of the matcher pass queue to allow the same transformation be executed once again without necessity to call it implicitly once again.
+TransposeSinking changes Concat and Split axis while pushing Transpose nodes through them. GNA doesn't support all possible Concat and Split axis. Some TransposeSinking transformations support callbacks. These callbacks are executed inside transformations and allow to add plugin specific checks. In these checks, GNA plugin prevents sinking transposes that would make some Split/Concats unsupported.
 As Transpose and Gather layers are moved to start and end of the graph they are cut from the graph and moved to ov::intel_gna::PrePostProcessModels structure as separate models. On each network inference plugin searches in this structure model for input/output, executes this model on CPU and copy resulted data as input/output of the entire model.
 	TransposeSinking group of transformations doesn’t support currently StridedSlice layer. It leads to the next problem.
-GNA plugin has the next Slice layer flow:
+GNA plugin has the following Slice layer flow:
 -	SliceToStridedSlice transformation in CommonOptimizations converts Slice to StridedSlice
 -	ConvertStridedSliceToCropMatcher transformation convers StridedSlice to CropIE
 -	convertFunctionToICNNNetwork converts CropIE to CNNNetwork CropLayer
@@ -67,7 +67,7 @@ It should be mentioned that ngraph API stores constant data as input nodes with 
 ## Debugging
 
 There is an ability to dump model between transformations/passes.
-To dump CNNNetwork passes use -DENABLE_INTEL_GNA_DEBUG=ON option to cmake while build configuration. After loading network execution there will be *.dot files in a current directory that could be converted to image files with the graphviz dot executable. For example,
+To dump CNNNetwork passes use -DENABLE_INTEL_GNA_DEBUG=ON option to cmake build configuration. After plugin execution, *.dot files representing the final graph will be saved in the current working directory; *.dot files can be converted to an image with the graphviz dot executable, for example:
 ```
 dot -Tpng <dot_filename> -o <image.png>
 ```
