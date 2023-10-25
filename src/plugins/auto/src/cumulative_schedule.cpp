@@ -19,8 +19,7 @@ std::string CumuSchedule::schedule_to_next_device(const std::vector<DeviceInform
     if (schedule_policy == ov::intel_auto::SchedulePolicy::ROUND_ROBIN) {
         m_n_ctput_schedule_nextdevice++;
     } else if (schedule_policy == ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY) {
-        m_n_ctput_schedule_nextdevice = current_device_index;
-        selected_device_name = devices[m_n_ctput_schedule_nextdevice].device_name;
+        selected_device_name = devices[current_device_index].device_name;
     }
     return selected_device_name;
 }
@@ -224,7 +223,7 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
     std::unique_lock<std::mutex> lock(m_context->m_fallback_mutex);
     if (!preferred_device.empty()) {
         devices = m_context->m_device_priorities;
-       if (!deviceChecker().check_if_device_in_list<DeviceInformation>(preferred_device, devices)) {
+        if (!deviceChecker().check_if_device_in_list<DeviceInformation>(preferred_device, devices)) {
             lock.unlock();
             OPENVINO_THROW("The preferred device should be the selected device");
         }
@@ -236,9 +235,11 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
     std::size_t current_device_index = 0;
     while (current_device_index < devices.size()) {
         if (!preferred_device.empty() && (devices[current_device_index].device_name != preferred_device)) {
+            current_device_index++;
             continue;
         }
-        auto selected_device_name = schedule_to_next_device(devices, current_device_index);
+        auto selected_device_name =
+            preferred_device.empty() ? schedule_to_next_device(devices, current_device_index) : preferred_device;
         if (run_pipeline_task(pipeline_task, m_idle_worker_requests[selected_device_name], preferred_device)) {
             return true;
         } else {
