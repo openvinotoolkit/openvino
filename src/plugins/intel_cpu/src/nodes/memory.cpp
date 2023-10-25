@@ -19,16 +19,20 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-inline
-static void simple_copy(const IMemory& dst, const IMemory& src);
-
 std::mutex MemoryNodeVirtualEdge::holderMutex;
 
+<<<<<<< HEAD
 MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
     if (auto assignOp = std::dynamic_pointer_cast<ngraph::op::AssignBase>(op)) {
+=======
+MemoryNode::MemoryNode(const std::shared_ptr<ngraph::Node>& op) {
+    if (auto assignOp = ov::as_type_ptr<ngraph::op::AssignBase>(op)) {
+>>>>>>> Zero copy init working state
         _id = assignOp->get_variable_id();
-    } else if (auto readValueOp = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
+    } else if (auto readValueOp = ov::as_type_ptr<ngraph::op::ReadValueBase>(op)) {
         _id = readValueOp->get_variable_id();
+    } else {
+        OPENVINO_THROW("Unexpected ov::Node type: ", op->get_type_info().name, " in MemoryNode");
     }
 }
 
@@ -58,7 +62,13 @@ MemoryOutput::MemoryOutput(const std::shared_ptr<ov::Node>& op, const GraphConte
 }
 
 MemoryOutput::~MemoryOutput() {
+    if (inputNode) { inputNode->deregisterSibling(this); }
     MemoryNodeVirtualEdge::remove(this, holder);
+}
+
+MemoryInput& MemoryOutput::getInputNode() {
+    OPENVINO_ASSERT(inputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
+    return *inputNode;
 }
 
 void MemoryOutput::getSupportedDescriptors() {}
@@ -67,35 +77,134 @@ void MemoryOutput::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
+    auto&& shape = getInputShapeAtPort(0);
+    auto precision = getOriginalInputPrecisionAtPort(0);
+    auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
+
     NodeConfig config;
-    config.inConfs.resize(1);
-    config.inConfs[0].inPlace(-1);
-    config.inConfs[0].constant(false);
-    config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, getInputShapeAtPort(0)));
+
+    PortConfig inPortConfig;
+    inPortConfig.inPlace(0);
+    inPortConfig.constant(false);
+    inPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
+
+    config.inConfs.push_back(std::move(inPortConfig));
+
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
+void MemoryOutput::initOptimalPrimitiveDescriptor() {
+    //sync descriptor from the sibling input node
+    auto mem_desc = getInputNode().getBaseMemDescAtOutputPort(0);
+
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selected_pd,
+        "MemoryOutput ",
+        getName(),
+        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    auto config = selected_pd->getConfig();
+
+    auto parentEdge = getParentEdgeAt(0);
+    auto parentNode = parentEdge->getParent();
+    const bool parentInplaceConflict = parentNode->inPlaceOutPort(parentEdge->getInputNum()) >= 0;
+
+    //disable inPlace to avoid inPlace conflict and handle memory copy internally (to get room for optimizations)
+    if (parentInplaceConflict) { config.inConfs.front().inPlace(-1); }
+    config.inConfs.front().setMemDesc(mem_desc);
+    initDescriptor(config);
+}
+
+void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
+    if (!(look & Edge::LOOK_DOWN)) {
+        Node::resolveInPlaceEdges(look);
+        return;
+    }
+
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selected_pd,
+        "MemoryOutput ",
+        getName(),
+        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    auto parentEdge = getParentEdgeAt(0); // always only one parent edge
+
+    OPENVINO_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+        " Unexpected inplace resolve call to an allocated edge: ", parentEdge->name());
+
+    auto memDesc = selected_pd->getConfig().inConfs.front().getMemDesc();
+    memMngr = std::make_shared<ProxyMemoryMngr>();
+    auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+    parentEdge->reuse(edgeMem);
+}
+
+void MemoryOutput::assignMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) {
+    assignedMem = mem;
+    OPENVINO_ASSERT(assignedMem,
+        "MemoryOutput ",
+        getName(),
+        " assigned state has null memory ptr");
+
+    extMemDesc = memDesc;
+    OPENVINO_ASSERT(extMemDesc,
+        "MemoryOutput ",
+        getName(),
+        " assigned state has null base mem desc ptr");
+
+    if (!memMngr) { return; } //nothing to do, edge memory isn't under control
+    //use the current shape to check compatibility (Not a super good approach though)
+    auto inpDesc = getBaseMemDescAtInputPort(0);
+
+    if (inpDesc->isCompatible(*extMemDesc)) {
+        memMngr->setMemMngrResize(assignedMem->getMemoryMngr());
+    } else {
+        memMngr->reset();
+    }
+}
+
 void MemoryOutput::execute(dnnl::stream strm)  {
-    auto& srcMemory = getParentEdgeAt(0)->getMemory();
+    auto inputMem = getParentEdgeAt(0)->getMemoryPtr();
+    OPENVINO_ASSERT(assignedMem,
+        "MemoryOutput ",
+        getName(),
+        " uninitialized assigned memory");
 
-    auto inputMemoryNode = dynamic_cast<MemoryInput*>(inputNode);
-    IE_ASSERT(inputMemoryNode != nullptr);
-
-    //redefine storage memory before copy to it
-    auto storage = inputMemoryNode->getStore();
-
-    auto desc = storage->getDescPtr();
-    const auto new_shape = srcMemory.getStaticDims();
-    const auto newDesc = desc->cloneWithNewDims(new_shape, true);
-    storage->redefineDesc(newDesc);
-
-    simple_copy(*storage, srcMemory);
+    if (inputMem->getData() != assignedMem->getData()) {
+        assignedMem->load(*inputMem);
+    }
 }
 
 void MemoryOutput::executeDynamicImpl(dnnl::stream strm) {
+    //first we have to resize the output memory
+    auto inputMem = getParentEdgeAt(0)->getMemoryPtr();
+    const auto& newDims = inputMem->getStaticDims();
+    OPENVINO_ASSERT(extMemDesc,
+        "MemoryOutput ",
+        getName(),
+        " uninitialized assigned memory");
+
+    auto newExternDesc = extMemDesc->cloneWithNewDims(newDims);
+
+    OPENVINO_ASSERT(assignedMem,
+        "MemoryOutput ",
+        getName(),
+        " uninitialized assigned memory");
+    assignedMem->redefineDesc(newExternDesc);
+
     execute(strm);
 }
+
+void MemoryOutput::registerInputNode(MemoryInput* node) {
+    if (inputNode == node) { return; }
+    if (inputNode) { inputNode->deregisterSibling(this); }
+    inputNode = node;
+    inputNode->registerOutputNode(this);
+}
+
+void MemoryOutput::deregisterSibling(MemoryNode* node) {
+    if (node == inputNode) { inputNode = nullptr; }
+}
+
 
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -124,64 +233,173 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
 
 void MemoryInput::createPrimitive() {
     Input::createPrimitive();
-
-    const auto &_desc = getChildEdgeAt(0)->getMemory().getDesc();
-    auto _shape = _desc.getShape();
-    VectorDims dims = _shape.getDims();
-    if (_shape.isDynamic()) {
-        // create zero-dims shape if it is dynamic.. FIXME: how about inital_state?
-        for (auto& d : dims) {
-            if (d == Shape::UNDEFINED_DIM) d = 0;
-        }
-    }
-    auto desc = _desc.cloneWithNewDims(dims);
-    dataStore = std::make_shared<Memory>(getEngine(), desc);
-
-    // default memory state is zero filled
-    if (dataStore->getDesc().hasDefinedMaxSize())
-        dataStore->nullify();
+    Input::resetMemoryPtr(getParentEdgeAt(0)->getMemoryPtr());
 }
 
-/**
- * Copy data from one tensor into other.
- * As is. Assume that data is dense tensor with same layout.
- * @param dst destination memory object
- * @param src source memory object
- */
-inline
-static void simple_copy(const IMemory& dst, const IMemory& src) {
-    auto srcPtr = static_cast<uint8_t*>(src.getData());
-    auto dstPtr = static_cast<uint8_t*>(dst.getData());
-    if (src.getDataType() == dst.getDataType()) {
-        auto srcSizeInByte = src.getSize();
-        auto dstSizeInByte = dst.getSize();
+void MemoryInput::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
 
-        IE_ASSERT(srcSizeInByte == dstSizeInByte) << "MemoryNode objects are not compatible. Has different sizes.";
+    auto&& shape = getOutputShapeAtPort(0);
+    auto precision = getOriginalOutputPrecisionAtPort(0);
+    auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
 
-        cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
-    } else {
-        cpu_convert(srcPtr, dstPtr, src.getDesc().getPrecision(),
-            dst.getDesc().getPrecision(), src.getDesc().getShape().getElementsCount());
+    NodeConfig config;
+
+    if (!getParentEdges().empty()) {
+        PortConfig inPortConfig;
+
+        inPortConfig.inPlace(-1);
+        inPortConfig.constant(false);
+        inPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
+
+        config.inConfs.push_back(std::move(inPortConfig));
+    }
+
+    PortConfig outPortConfig;
+
+    outPortConfig.inPlace(0);
+    outPortConfig.constant(false);
+    outPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
+
+    config.outConfs.push_back(std::move(outPortConfig));
+
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+}
+
+void MemoryInput::initOptimalPrimitiveDescriptor() {
+    // Mimic the child node memory desc to avoid extra reorder
+    auto childEdge = getChildEdgeAt(0);
+    auto child = childEdge->getChild();
+    auto childPd = child->getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(childPd,
+        child->getTypeStr(), " ",
+        child->getName(),
+        "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    const auto& childConfig = childPd->getConfig();
+    auto mem_desc = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc();
+
+    auto selectedPd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selectedPd,
+        "MemoryInput ",
+        getName(),
+        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    auto config = selectedPd->getConfig();
+    config.outConfs.front().setMemDesc(mem_desc);
+    initDescriptor(config);
+}
+
+void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
+    if (!(look & Edge::LOOK_UP)) {
+        Node::resolveInPlaceEdges(look);
+        return;
+    }
+
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selected_pd,
+        "MemoryInput ",
+        getName(),
+        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    auto memDesc = selected_pd->getConfig().outConfs.front().getMemDesc();
+    memMngr = std::make_shared<ProxyMemoryMngr>();
+
+    for (auto&& edge : getChildEdgesAtPort(0)) { // always only one child port
+        OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+            " Unexpected inplace resolve call to an allocated edge: ", edge->name());
+
+        auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+        edge->reuse(edgeMem);
     }
 }
 
 MemoryInput::~MemoryInput() {
+    if (outputNode) { outputNode->deregisterSibling(this); }
     MemoryNodeVirtualEdge::remove(this, holder);
 }
 
-MemoryPtr MemoryInput::getStore() {
-    return dataStore;
+MemoryOutput& MemoryInput::getOutputNode() {
+    OPENVINO_ASSERT(outputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
+    return *outputNode;
 }
 
-void MemoryInput::storeState(const MemoryPtr new_state) {
-    dataStore = new_state;
+void MemoryInput::assignState(MemStatePtr newState) {
+    assignedMem = newState->InternalMem();
+    OPENVINO_ASSERT(assignedMem,
+        "MemoryInput ",
+        getName(),
+        " assigned state has null memory ptr");
+
+    const auto& newDims = assignedMem->getStaticDims();
+    MemoryDescPtr internDesc;
+    if (isDynamicNode()) {
+        const bool hasZeroDims = std::count(std::begin(newDims), std::end(newDims), 0) > 0;
+        internDesc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(newDims, hasZeroDims);
+    } else {
+        auto expectedDims = getBaseMemDescAtOutputPort(0)->getShape().getStaticDims();
+        OPENVINO_ASSERT(expectedDims == newDims,
+            "MemoryInput ",
+            getName(),
+            " unexpected state shape: ",
+            vec2str(newDims),
+            ", while the expected shape: ",
+            vec2str(expectedDims));
+
+        internDesc = getBaseMemDescAtOutputPort(0);
+    }
+
+    OPENVINO_ASSERT(memMngr,
+        "MemoryInput ",
+        getName(),
+        " has uninitialized memory manager.");
+
+    if (internDesc->isCompatible(assignedMem->getDesc())) {
+        memMngr->setMemMngr(assignedMem->getMemoryMngr());
+    } else {
+        memMngr->reset();
+    }
+
+    if (isDynamicNode()) {
+        for (auto&& edge : getChildEdgesAtPort(0)) {
+            edge->getMemoryPtr()->redefineDesc(internDesc);
+        }
+    }
+
+    //Establish some check for double buffer
+
+    newState->SwapBuffer();
+    getOutputNode().assignMemory(newState->InternalMem(), newState->InitalDesc());
 }
 
 void MemoryInput::execute(dnnl::stream strm) {
-    // TODO: Should be simple call of:
-    //           dst_mem.load(dataStore, false);
-    //       But because of performance reason we use simple manual copy
-    simple_copy(getChildEdgeAt(0)->getMemory(), *dataStore);
+    auto outMem = getChildEdgeAt(0)->getMemoryPtr();
+    OPENVINO_ASSERT(assignedMem,
+        "MemoryInput ",
+        getName(),
+        " uninitialized assigned memory");
+
+    if (outMem->getData() != assignedMem->getData()) {
+        outMem->load(*assignedMem);
+    }
+}
+
+std::function<MemoryPtr(void)> MemoryInput::memoryBuilder() const {
+    auto mem_desc = getBaseMemDescAtOutputPort(0);
+    const auto& eng = getEngine();
+    return [mem_desc, eng](){ return std::make_shared<Memory>(eng, mem_desc); };
+}
+
+void MemoryInput::registerOutputNode(MemoryOutput* node) {
+    if (outputNode == node) { return; }
+    if (outputNode) { outputNode->deregisterSibling(this); }
+    outputNode = node;
+    outputNode->registerInputNode(this);
+}
+
+void MemoryInput::deregisterSibling(MemoryNode* node) {
+    if (node == outputNode) { outputNode = nullptr; }
 }
 
 MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInput * node) {
@@ -192,7 +410,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInput 
     if (sibling != nullptr) {
         auto outputNode = dynamic_cast<MemoryOutput*>(sibling);
         IE_ASSERT(outputNode != nullptr);
-        outputNode->setInputNode(node);
+        node->registerOutputNode(outputNode);
     } else {
         holder[node->getId()] = node;
     }
@@ -207,7 +425,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutpu
     if (sibling != nullptr) {
         auto inputNode = dynamic_cast<MemoryInput*>(sibling);
         IE_ASSERT(inputNode != nullptr);
-        node->setInputNode(inputNode);
+        node->registerInputNode(inputNode);
     } else {
         holder[node->getId()] = node;
     }

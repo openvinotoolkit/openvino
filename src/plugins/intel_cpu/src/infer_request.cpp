@@ -66,19 +66,20 @@ void SyncInferRequest::create_infer_request() {
     // producer as storage for tensor to keep it between infer calls.
     for (auto& node : graph->GetNodes()) {
         if (node->getType() == Type::MemoryInput) {
-            auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
+            auto memoryNode = std::dynamic_pointer_cast<node::MemoryInput>(node);
             if (!memoryNode) {
                 OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
             }
-            auto state_store = memoryNode->getStore();
             auto state_name = memoryNode->getId();
 
             // Remove suffix with pair ID. Internal information.
             auto suffix_idx = state_name.find("/id=");
-            if (suffix_idx != std::string::npos)
+            if (suffix_idx != std::string::npos) {
                 state_name = state_name.substr(0, suffix_idx);
+            }
 
-            m_memory_states.emplace_back(std::make_shared<VariableState>(state_name, state_store));
+            m_memory_states.emplace_back(
+                std::make_shared<VariableState>(state_name, memoryNode->memoryBuilder(), memoryNode->getMemoryPtr()));
         }
     }
 }
@@ -88,45 +89,17 @@ SyncInferRequest::~SyncInferRequest() {
 }
 
 // state -> storage
-void SyncInferRequest::push_states() {
-    dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+void SyncInferRequest::AssignStates() {
     for (auto &node : graph->GetNodes()) {
         if (node->getType() == Type::MemoryInput) {
-            auto cur_node = dynamic_cast<node::MemoryInput*>(node.get());
+            auto cur_node = std::dynamic_pointer_cast<node::MemoryInput>(node);
             if (!cur_node) {
                 OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
             }
             auto cur_id = cur_node->getId();
-            for (const auto& state : m_memory_states) {
-                if (state->get_name() == cur_id) {
-                    // auto storage = cur_node->getStore();
-                    // auto state_blob = state->GetState();
-                    // if (storage->getData() == state_blob->cbuffer().as<const void *>())
-                    //     continue;  // there is no inferrequest switch
-
-                    // auto state_desc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(state_blob->getTensorDesc());
-                    // auto state_mem = std::make_shared<Memory>(eng, state_desc, state_blob->cbuffer(), false);
-                    // cur_node->storeState(state_mem);
-                }
-            }
-        }
-    }
-}
-
-// storage -> state
-void SyncInferRequest::pull_states() {
-    for (auto &node : graph->GetNodes()) {
-        if (node->getType() == Type::MemoryInput) {
-            auto cur_node = dynamic_cast<node::MemoryInput*>(node.get());
-            if (!cur_node) {
-                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
-            }
-            auto cur_id = cur_node->getId();
-            for (const auto& state : m_memory_states) {
-                if (state->get_name() == cur_id) {
-                    auto storage = cur_node->getStore();
-                    // auto blob = make_blob_with_precision(MemoryDescUtils::convertToTensorDesc(storage->getDesc()), storage->getData());
-                    // state->SetState(blob);
+            for (const auto& state : memoryStates) {
+                if (state->GetName() == cur_id) {
+                    cur_node->assignState(state);
                 }
             }
         }
@@ -211,20 +184,10 @@ void SyncInferRequest::infer() {
 
     // state -> storage
     if (m_memory_states.size() != 0) {
-        push_states();
+        AssignStates();
     }
-
-    // storage <-> graph
-    // where MemoryInput.execute make storage -> graph input, and
-    // MemoryOutput.execute make graph output -> storage
-    redefineMemoryForVariableNodes();
 
     graph->Infer(this);
-
-    // storage -> state
-    if (m_memory_states.size() != 0) {
-        pull_states();
-    }
 
     throw_if_canceled();
 
@@ -382,7 +345,7 @@ void SyncInferRequest::change_default_ptr() {
                     controlBlock.nextMemMngr() : // then swap internal buffer to avoid data corruption
                     controlBlock.currentMemMngr(); // else reuse the existing buffer
 
-                outputMemMngr->setMemMngr(memMngr);
+                outputMemMngr->setMemMngrResize(memMngr);
                 DEBUG_LOG("reset proxy ", outputMemMngr, ", actual ", controlBlock.currentMemMngr(), " graph ", graph, " inferrequest ", this);
                 DEBUG_LOG(name, ", tensor ", controlBlock.tensor());
             } else {
@@ -392,8 +355,8 @@ void SyncInferRequest::change_default_ptr() {
     }
 }
 
-std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
-    return m_memory_states;
+std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() {
+    return {m_memory_states.begin(), m_memory_states.end()};
 }
 
 void SyncInferRequest::set_async_request(AsyncInferRequest* asyncRequest) {

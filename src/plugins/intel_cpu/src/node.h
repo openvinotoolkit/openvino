@@ -204,7 +204,7 @@ public:
 
     bool isInPlace() const;
 
-    // must be called only after Graph::InitEdges()
+    // must be called only after Graph::ResolveEdgeConflicts()
     virtual bool isExecutable() const {
         return !hasEmptyInputTensors();
     }

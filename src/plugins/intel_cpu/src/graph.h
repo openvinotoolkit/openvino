@@ -151,7 +151,7 @@ public:
     /**
      * @brief Insert Node at the edge-specified location.
      * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the InitEdges() completes. The second is just inserting the
+     * supported primitive descriptors selection, etc.), which can be useful after the ResolveEdgeConflicts() completes. The second is just inserting the
      * node without initialization.
      * @param edge
      * pointer to the edge in the graph where the node will be inserted
@@ -167,7 +167,7 @@ public:
      * @brief Insert Node between two specified nodes.
      * This procedure creates two edges that link the parent and child nodes to the inserted one and adds all created objects to the graph.
      * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the InitEdges() completes. The second is just inserting the
+     * supported primitive descriptors selection, etc.), which can be useful after the ResolveEdgeConflicts() completes. The second is just inserting the
      * node without initialization.
      * @param parent
      * pointer to the parent node
@@ -232,7 +232,7 @@ protected:
     void InitDescriptors();
     void ResolveInplaceDirections();
     void InitOptimalPrimitiveDescriptors();
-    void InitEdges();
+    void ResolveEdgeConflicts();
     bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();

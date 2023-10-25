@@ -19,17 +19,38 @@ namespace intel_cpu {
 
 class VariableState : public ov::IVariableState {
 public:
-    VariableState(std::string name, MemoryPtr storage)
-        : InferenceEngine::IVariableStateInternal{name} {
-        tensor_desc = MemoryDescUtils::convertToTensorDesc(storage->getDesc());
-        Reset();
-    }
+    VariableState(std::string name,
+                  std::function<MemoryPtr(void)> mem_build,
+                  MemoryCPtr init_val);
 
     void reset() override;
+    void SetState(const InferenceEngine::Blob::Ptr& newState) override;
+    InferenceEngine::Blob::CPtr GetState() const override;
+
+    void SwapBuffer(); //controversial thing, increase probability of error
+    MemoryPtr InternalMem() const {
+        return m_internal_mem[buffer_num];
+    }
+
+    MemoryDescPtr InitalDesc() const {
+        return m_desc;
+    }
 
 private:
-    InferenceEngine::TensorDesc tensor_desc;  // shape of initial state
+    static MemoryDescPtr normalize_desc(const MemoryDescPtr& desc); //TODO rename
+    void ResetMem(const MemoryPtr& mem) {
+        m_internal_mem[buffer_num] = mem;
+    }
+
+private:
+    MemoryDescPtr m_desc; //mem desc required by the graph internal tensor
+    std::function<MemoryPtr(void)> m_mem_build;
+    std::array<MemoryPtr, 2> m_internal_mem{};
+    size_t buffer_num = 0;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+using MemStatePtr = std::shared_ptr<VariableState>;
+using MemStateCPtr = std::shared_ptr<const VariableState>;
+
+}   // namespace intel_cpu
+}   // namespace ov

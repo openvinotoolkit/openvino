@@ -496,6 +496,10 @@ void Input::initSupportedPdFromMemDesc() {
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
 }
 
+void Input::resetMemoryPtr(const MemoryCPtr& mem) {
+    memoryPtr = mem;
+}
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

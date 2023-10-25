@@ -8,6 +8,7 @@
 #include "cpu_tensor.h"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "memory_state.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -81,7 +82,7 @@ private:
         }
 
         void update() {
-            m_proxyMemMngr->setMemMngr(currentMemMngr());
+            m_proxyMemMngr->setMemMngrResize(currentMemMngr());
         }
 
     private:
@@ -111,7 +112,7 @@ private:
 
     std::shared_ptr<const CompiledModel> m_compiled_model;
     openvino::itt::handle_t m_profiling_task;
-    std::vector<ov::SoPtr<ov::IVariableState>> m_memory_states;
+    std::vector<MemStatePtr> m_memory_states;
     AsyncInferRequest* m_asyncRequest = nullptr;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_input_ports_map;
