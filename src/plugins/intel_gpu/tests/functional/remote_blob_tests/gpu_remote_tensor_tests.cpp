@@ -1040,8 +1040,10 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     cl::Image2D img_y = cl::Image2D(nv12_image_plane_y);
     cl::Image2D img_uv = cl::Image2D(nv12_image_plane_uv);
 
-    auto tensor_remote_y = cldnn_context.create_tensor(param_input_y->get_element_type(), fake_image_data_y.get_shape(), img_y);
-    auto tensor_remote_uv = cldnn_context.create_tensor(param_input_uv->get_element_type(), fake_image_data_uv.get_shape(), img_uv);
+    auto nv12 = cldnn_context.create_tensor_nv12(img_y, img_uv);
+
+    auto tensor_remote_y = nv12.first;
+    auto tensor_remote_uv = nv12.second;
 
     inf_req_remote.set_tensor(*param_input_y->output(0).get_tensor().get_names().begin(), tensor_remote_y);
     inf_req_remote.set_tensor(*param_input_uv->output(0).get_tensor().get_names().begin(), tensor_remote_uv);
