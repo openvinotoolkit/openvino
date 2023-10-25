@@ -205,7 +205,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             ov::element::u8
         };
         // We don't have BF16/FP16 FullyConnected kernels to work with 4bits compressed weights
-        // Covert node doesn't support 4bit precisions -> fallback on constant folding
+        // Convert node doesn't support 4bit precisions -> fallback on constant folding
         if (inferencePrecision == ov::element::f32) {
             decompression_precisions.push_back(ov::element::u4);
             decompression_precisions.push_back(ov::element::i4);
@@ -234,7 +234,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                     return false;
                 }
             }
-            if (ov::is_type<ov::opset1::Convert>(consumer)) {
+            if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
                 consumer = get_single_consumer(consumer);
                 if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
                     return false;
