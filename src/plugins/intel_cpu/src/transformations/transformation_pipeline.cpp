@@ -201,11 +201,16 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     } else {
         // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
-        const ov::element::TypeVector decompression_precisions{
-            ov::element::u8,
-            // TODO: Uncomment when group decompression is supported
-            // ov::element::nf4
+        ov::element::TypeVector decompression_precisions{
+            ov::element::u8
         };
+        // We don't have BF16/FP16 FullyConnected kernels to work with 4bits compressed weights
+        // Convert node doesn't support 4bit precisions -> fallback on constant folding
+        if (inferencePrecision == ov::element::f32) {
+            decompression_precisions.push_back(ov::element::u4);
+            decompression_precisions.push_back(ov::element::i4);
+            decompression_precisions.push_back(ov::element::nf4);
+        }
         // MarkDequantizationSubgraph is used even in non-LPT pipeline on X64 platforms
         // in order to keep compressed MatMul weights with decompression operations as is
         CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
@@ -223,15 +228,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
             if (ov::is_type<ov::opset1::MatMul>(consumer)) {
                 return false;
+            } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
+                consumer = get_single_consumer(consumer);
+                if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+                    return false;
+                }
             }
-            // TODO: Uncomment when group decompression is supported
-            // if (ov::is_type<ov::opset1::Reshape>(consumer)) {
-            //     consumer = get_single_consumer(consumer);
-            //     if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-            //         return false;
-            //     }
-            // }
-            if (ov::is_type<ov::opset1::Convert>(consumer)) {
+            if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
                 consumer = get_single_consumer(consumer);
                 if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
                     return false;
