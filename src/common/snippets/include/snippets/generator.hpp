@@ -31,6 +31,8 @@ class LoweringResult {
     // Some emitters rely on other precompiled kernels.
     // We need to keep the pointers to such emitters alive, so the kernels would still be accessible at runtime.
     std::vector<std::shared_ptr<Emitter>> m_saved_emitters{};
+    // For perf count nodes, kernel will read/write these nodes, so should be alive in execution.
+    std::vector<std::shared_ptr<ov::Node>> m_saved_nodes{};
 
 public:
     std::shared_ptr<CompiledSnippet> compiled_snippet = nullptr;
@@ -126,6 +128,14 @@ protected:
     * @return bool
     */
     virtual bool uses_precompiled_kernel(const std::shared_ptr<Emitter>& emitter) const { return false; }
+    /**
+    * @brief returns true if a node should be alive in execution.
+    * @return bool
+    */
+    virtual bool should_node_alive_in_execution(const std::shared_ptr<ov::Node>& op) const {
+        return std::dynamic_pointer_cast<op::PerfCountBeginBase>(op) ||
+               std::dynamic_pointer_cast<op::PerfCountEndBase>(op);
+    }
 
     std::shared_ptr<TargetMachine> target;
 };

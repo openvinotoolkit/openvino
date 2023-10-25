@@ -152,7 +152,7 @@ private:
                                       LoweringResult& lowering_result,
                                       const lowered::pass::PassPipeline& backend_passes_pre_common,
                                       const lowered::pass::PassPipeline& backend_passes_post_common) const;
-    void perf_count_transformations(lowered::LinearIR& linear_ir);
+    void perf_count_transformations(lowered::LinearIR& linear_ir) const;
     void init_config();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)

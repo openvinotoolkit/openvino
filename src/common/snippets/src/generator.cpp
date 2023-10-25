@@ -52,6 +52,15 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
                 result.m_saved_emitters.emplace_back(emitter);
         }
     }
+    // perf count node should be alive in execution.
+    if (linear_ir.get_config().perf_count_mode != lowered::PerfCountMode::Disabled) {
+        for (const auto& expr : linear_ir) {
+            const auto& node = expr->get_node();
+            if (should_node_alive_in_execution(node)) {
+                result.m_saved_nodes.emplace_back(node);
+            }
+        }
+    }
     result.compiled_snippet = target->get_snippet();
 }
 
@@ -66,7 +75,7 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
         std::dynamic_pointer_cast<op::LoopEnd>(op) ||
         std::dynamic_pointer_cast<op::Brgemm>(op) ||
         std::dynamic_pointer_cast<op::Buffer>(op) ||
-        std::dynamic_pointer_cast<op::RankNormalization>(op)) ||
+        std::dynamic_pointer_cast<op::RankNormalization>(op) ||
         std::dynamic_pointer_cast<op::PerfCountBeginBase>(op) ||
         std::dynamic_pointer_cast<op::PerfCountEndBase>(op))
         return gpr2gpr;

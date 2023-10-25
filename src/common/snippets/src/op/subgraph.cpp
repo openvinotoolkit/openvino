@@ -461,7 +461,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     final_pipeline.run(linear_ir);
 }
 
-void Subgraph::perf_count_transformations(lowered::LinearIR& linear_ir) {
+void Subgraph::perf_count_transformations(lowered::LinearIR& linear_ir) const {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::perf_count_transformations")
 
@@ -477,8 +477,6 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_sh
                                       const lowered::pass::PassPipeline& backend_passes_pre_common,
                                       const lowered::pass::PassPipeline& backend_passes_post_common,
                                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
-}
-
                                       const void* compile_params) {
     data_flow_transformations(blocked_input_shapes, input_precisions, output_precisions, data_flow_backend_passes);
     convert_body_to_linear_ir(factory);
@@ -491,7 +489,6 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     OPENVINO_ASSERT(m_generator != nullptr, "generate is called while generator is not set");
-
 
     // actual code emission
     // Note: some transformations performed in the generator, e.g. tail insertion, can break shape propagation
