@@ -2498,7 +2498,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         auto configReorder = [&]() {
             // case 1. transposeNode support blocked input & non-blocked output, in the case, the reorder
             // cannot be optimized
-            // case 2. Transpose and Reorder do opposite permutation to each other as expected, but isOptimized is false due to some reason like inPlace memory.
+            // case 2. Transpose and Reorder do opposite permutation to each other as expected, but isOptimized is already set false due to some preliminarily checks.
             // We need to reinterpret layout Transpose input without physical change of the memory.
             auto* transposeNode = dynamic_cast<Transpose*>(parentNode.get());
             if (transposeNode == nullptr) {
