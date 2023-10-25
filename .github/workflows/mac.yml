@@ -34,6 +34,7 @@ env:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -142,7 +143,7 @@ jobs:
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake      
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
@@ -187,6 +188,7 @@ jobs:
 
   Samples:
     needs: Build
+    timeout-minutes: 5
     defaults:
       run:
         shell: bash
@@ -227,7 +229,7 @@ jobs:
           pushd ${INSTALL_DIR}
             tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
-          
+
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
@@ -279,6 +281,7 @@ jobs:
   CXX_Unit_Tests:
     name: C++ Unit tests
     needs: Build
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -510,6 +513,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: Build
+    timeout-minutes: 55
     defaults:
       run:
         shell: bash
@@ -652,9 +656,9 @@ jobs:
       - name: ONNX Layer Tests
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          
+
           export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          
+
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx.xml
         env:
           TEST_DEVICE: CPU
@@ -740,6 +744,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: Build
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash

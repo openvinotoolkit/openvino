@@ -33,6 +33,7 @@ env:
 
 jobs:
   Build:
+    timeout-minutes: 180
     defaults:
       run:
         shell: pwsh
