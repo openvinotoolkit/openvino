@@ -12,9 +12,10 @@
    Note that the PyPi distribution:
    
    * offers the Python API only
-   * does not offer support for GNA and NPU inference
    * is dedicated to users of all major OSes: Windows, Linux, and macOS 
      (all x86_64 / arm64 architectures)
+   * Windows and Linux do not offer support for GNA and NPU inference
+   * macOS offers support only for CPU inference
 
 .. tab-set::
 
@@ -22,7 +23,7 @@
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+      | :doc:`System Requirements Page <system_requirements>`
       | `PyPi OpenVINO page <https://pypi.org/project/openvino/>`__
    
    
