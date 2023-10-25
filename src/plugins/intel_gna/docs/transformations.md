@@ -35,7 +35,7 @@ Here there are legacy layer types. Their names ends with “IE”. These types c
 2.	src/plugins/intel_gna/src/ops
 GNA-specific operations. For example, GNAConvolution type describes convolution layers. It differs from common OpenVino Convolution type as it handles NHWC data layout instead of NCHW.
 Ngraph-based transformations
-1.	Transformations that are common for all OpenVino plugins (are placed outside GNA plugin directory). These transformations perform different optimizations. For example, ov::pass::ConvertDivide transforms Divide operation into the sequence of node with Power layer. LSTMCellDecomposition extracts LSTMCell into subgraph of mathematical operations.
+1.	Transformations that are common for all OpenVino plugins (are placed outside GNA plugin directory). These transformations perform different optimizations. For example, ov::pass::ConvertDivide transforms Divide operation into the sequence of nodes with Power layer. LSTMCellDecomposition extracts LSTMCell into subgraph of mathematical operations.
 2.	Transformations that are specific for the GNA plugin (are placed inside GNA plugin directory)
 They also include src/plugins/intel_gna/legacy/include/legacy/transformations/convert_opset1_to_legacy directory with ngraph-based legacy transformations. These transformations produce “IE” layers. After rewriting GNA legacy code these transformations should be removed.
 
