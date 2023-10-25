@@ -7,6 +7,7 @@
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "openvino/op/constant.hpp"
 
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
@@ -34,16 +35,29 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     auto scale_name = inputs[2].pid;
     auto zp_name = inputs.size() == 4 ? inputs[3].pid : "";
 
+    float zp_value = 0.0f;
+    bool has_scalar_zp = false;
+    if (op->get_input_size() == 4) {
+        auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+        if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
+            has_scalar_zp = true;
+            zp_value = zp_const->cast_vector<float>()[0];
+        }
+    }
     auto fc = cldnn::fully_connected(primitive_name,
                                      cldnn::input_info(input_name),
                                      weights_name,
                                      "",
                                      scale_name,
-                                     zp_name,
+                                     has_scalar_zp ? "" : zp_name,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      cldnn::padding(),
                                      op->get_input_partial_shape(0).size(),
                                      op->get_input_partial_shape(1).size());
+
+    if (has_scalar_zp) {
+        fc.decompression_zero_point_scalar = zp_value;
+    }
 
     p.add_primitive(*op, fc);
 }

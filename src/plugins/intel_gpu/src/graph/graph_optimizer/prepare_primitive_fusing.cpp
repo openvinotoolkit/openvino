@@ -1200,8 +1200,25 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
             next_node->is_type<binary_convolution>() ||
             next_node->is_type<deformable_conv>()) {
             size_t weights_offset = next_node->get_primitive()->input_size();
-            return &next_node->get_dependency(weights_offset) == node ? next_node
-                                                                      : nullptr;
+            std::vector<size_t> valid_weights_indices = {next_node->get_primitive()->input_size()};
+            if (next_node->is_type<fully_connected>()) {
+                auto& fc = next_node->as<fully_connected>();
+                auto desc = fc.get_primitive();
+                if (desc->compressed_weights) {
+                    size_t scale_idx = weights_offset + (fc.bias_term() ? 2 : 1);
+                    valid_weights_indices.push_back(scale_idx);
+                    if (!desc->decompression_zero_point.empty()) {
+                        valid_weights_indices.push_back(scale_idx + 1);
+                    }
+                }
+            }
+
+            for (auto& widx : valid_weights_indices) {
+                if (&next_node->get_dependency(widx) == node) {
+                    return next_node;
+                }
+            }
+            return nullptr;
         }
 
         if (node->is_constant() && node->get_users().size() == 1)

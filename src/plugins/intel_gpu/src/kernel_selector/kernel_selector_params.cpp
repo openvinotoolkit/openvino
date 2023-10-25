@@ -47,6 +47,12 @@ DeviceFeaturesKey EngineInfo::get_supported_device_features_key() const {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void ParamsKey::EnableInputDataType(Datatype dt) {
     switch (dt) {
+        case Datatype::INT4:
+            key.inputType.val.int4 = 1;
+            break;
+        case Datatype::UINT4:
+            key.inputType.val.uint4 = 1;
+            break;
         case Datatype::INT8:
             key.inputType.val.int8 = 1;
             break;
@@ -86,6 +92,12 @@ void ParamsKey::EnableAllInputDataType() { key.inputType.raw = 0xffffffff; }
 
 void ParamsKey::EnableOutputDataType(Datatype dt) {
     switch (dt) {
+        case Datatype::INT4:
+            key.outputType.val.int4 = 1;
+            break;
+        case Datatype::UINT4:
+            key.outputType.val.uint4 = 1;
+            break;
         case Datatype::INT8:
             key.outputType.val.int8 = 1;
             break;
@@ -134,6 +146,12 @@ void ParamsKey::EnableInputWeightsType(WeightsType wt) {
         case WeightsType::INT8:
             key.inputWeightsType.val.int8 = 1;
             break;
+        case WeightsType::INT4:
+            key.inputWeightsType.val.int4 = 1;
+            break;
+        case WeightsType::UINT4:
+            key.inputWeightsType.val.uint4 = 1;
+            break;
         case WeightsType::BINARY:
             key.inputWeightsType.val.binary = 1;
             break;
@@ -156,6 +174,12 @@ void ParamsKey::EnableOutputWeightsType(WeightsType wt) {
             break;
         case WeightsType::INT8:
             key.outputWeightsType.val.int8 = 1;
+            break;
+        case WeightsType::INT4:
+            key.outputWeightsType.val.int4 = 1;
+            break;
+        case WeightsType::UINT4:
+            key.outputWeightsType.val.uint4 = 1;
             break;
         case WeightsType::BINARY:
             key.outputWeightsType.val.binary = 1;
