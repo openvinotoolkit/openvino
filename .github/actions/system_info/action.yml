@@ -1,17 +1,25 @@
 name: 'System Information'
-description: 'Get system information: CPU, RAM, HDD'
+description: 'Information about the system (CPU, RAM, HDD)'
 runs:
   using: "composite"
   steps:
-    - run: |
-        echo "CPU info:"
+    - if: runner.os == 'Linux'
+      run: |
+        echo "Display information about the CPU architecture"
         lscpu
-      shell: bash
-    - run: |
-        echo "ram info:"
+        echo "Display amount of free and used memory in the system:"
         free -h
-      shell: bash
-    - run: |
-        echo "hdd info:"
+        echo "Report file system disk space usage:"
         df -h
+      shell: bash
+    - if: runner.os == 'macOS'
+      run: |
+        echo "Display information about the CPU architecture"
+        sytem_profiler SPHardwarecDataType
+        echo "Report file system disk space usage:"
+        df -h
+      shell: bash
+    - if: runner.os == 'Windows'
+      run: |
+        systeminfo | findstr /C:”Memory”
       shell: bash
