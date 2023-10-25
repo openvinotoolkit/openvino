@@ -29,7 +29,7 @@ It is preferrable to write new transformations as nGraph passes and avoid implem
 
 ## GNA ngraph-based layers
 
-OpenVino allows to work with graph nodes as ov::Node class instances. Most of them stores in src/core/include/openvino/op directory and could be used by all plugins. GNA plugin stores own (GNA-specific) layer types.
+OpenVino allows to work with graph nodes as ov::Node class instances. Most of them are stored in src/core/include/openvino/op directory and could be used by all plugins. GNA plugin stores own (GNA-specific) layer types.
 1.	src/plugins/intel_gna/legacy/include/legacy/ngraph_ops
 Here there are legacy layer types. Their names ends with “IE”. These types cannot be in graph, that pass to GNA plugin. All of these types are created within GNA transformations and used in GNA graph compiler for creating libGNA primitives. There are plans to rewrite all legacy code. These legacy types should be removed after that.
 2.	src/plugins/intel_gna/src/ops
