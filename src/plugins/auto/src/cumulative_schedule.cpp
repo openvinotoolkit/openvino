@@ -230,7 +230,6 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
     } else {
         devices = m_context->m_device_priorities;
     }
-    lock.unlock();
 
     std::size_t current_device_index = 0;
     while (current_device_index < devices.size()) {
@@ -246,6 +245,7 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
             current_device_index++;
         }
     }
+    lock.unlock();
 
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {
