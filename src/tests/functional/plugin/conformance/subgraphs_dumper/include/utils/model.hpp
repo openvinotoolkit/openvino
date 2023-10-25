@@ -34,9 +34,9 @@ static std::vector<std::regex> FROTEND_REGEXP = {
 #ifdef ENABLE_OV_TF_FRONTEND
     std::regex(R"(.*\model.pb)"),
 #endif
-// #ifdef ENABLE_OV_IR_FRONTEND
+#ifdef ENABLE_OV_IR_FRONTEND
     std::regex(R"(.*\.xml)"),
-// #endif
+#endif
 #ifdef ENABLE_OV_TF_LITE_FRONTEND
     std::regex(R"(.*\.tflite)"),
 #endif
