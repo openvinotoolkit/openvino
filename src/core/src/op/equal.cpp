@@ -137,12 +137,16 @@ bool Equal::has_evaluate() const {
     OV_OP_SCOPE(v1_Equal_has_evaluate);
     switch (get_input_element_type(0)) {
     case element::boolean:
+    case element::bf16:
     case element::f16:
     case element::f32:
+    case element::f64:
     case element::i8:
+    case element::i16:
     case element::i32:
     case element::i64:
     case element::u8:
+    case element::u16:
     case element::u32:
     case element::u64:
         return true;
