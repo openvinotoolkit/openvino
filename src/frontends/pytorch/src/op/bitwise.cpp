@@ -56,7 +56,6 @@ OutputVector translate_bitwise_xor(const NodeContext& context) {
     return {xor_x};
 };
 
-
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
